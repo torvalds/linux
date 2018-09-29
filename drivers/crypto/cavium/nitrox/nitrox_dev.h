@@ -18,6 +18,7 @@
  * @response_head: submitted request list
  * @backlog_head: backlog queue
  * @dbell_csr_addr: doorbell register address for this queue
+ * @compl_cnt_csr_addr: completion count register address of the slc port
  * @base: command queue base address
  * @dma: dma address of the base
  * @pending_count: request pending at device
@@ -39,6 +40,7 @@ struct nitrox_cmdq {
 	struct list_head backlog_head;
 
 	u8 __iomem *dbell_csr_addr;
+	u8 __iomem *compl_cnt_csr_addr;
 	u8 *base;
 	dma_addr_t dma;
 
@@ -88,30 +90,17 @@ struct nitrox_stats {
 	atomic64_t dropped;
 };
 
-#define MAX_MSIX_VECTOR_NAME	20
-/**
- * vectors for queues (64 AE, 64 SE and 64 ZIP) and
- * error condition/mailbox.
- */
-#define MAX_MSIX_VECTORS	192
+#define IRQ_NAMESZ	32
 
-struct nitrox_msix {
-	struct msix_entry *entries;
-	char **names;
-	DECLARE_BITMAP(irqs, MAX_MSIX_VECTORS);
-	u32 nr_entries;
-};
-
-struct bh_data {
-	/* slc port completion count address */
-	u8 __iomem *completion_cnt_csr_addr;
-
-	struct nitrox_cmdq *cmdq;
-	struct tasklet_struct resp_handler;
-};
-
-struct nitrox_bh {
-	struct bh_data *slc;
+struct nitrox_q_vector {
+	char name[IRQ_NAMESZ];
+	bool valid;
+	int ring;
+	struct tasklet_struct resp_tasklet;
+	union {
+		struct nitrox_cmdq *cmdq;
+		struct nitrox_device *ndev;
+	};
 };
 
 /*
@@ -160,8 +149,7 @@ enum vf_mode {
  * @mode: Device mode PF/VF
  * @ctx_pool: DMA pool for crypto context
  * @pkt_inq: Packet input rings
- * @msix: MSI-X information
- * @bh: post processing work
+ * @qvec: MSI-X queue vectors information
  * @hw: hardware information
  * @debugfs_dir: debugfs directory
  */
@@ -186,8 +174,8 @@ struct nitrox_device {
 	struct dma_pool *ctx_pool;
 	struct nitrox_cmdq *pkt_inq;
 
-	struct nitrox_msix msix;
-	struct nitrox_bh bh;
+	struct nitrox_q_vector *qvec;
+	int num_vecs;
 
 	struct nitrox_stats stats;
 	struct nitrox_hw hw;

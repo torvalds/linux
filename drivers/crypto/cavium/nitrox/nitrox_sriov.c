@@ -5,6 +5,7 @@
 #include "nitrox_dev.h"
 #include "nitrox_hal.h"
 #include "nitrox_common.h"
+#include "nitrox_isr.h"
 
 static inline bool num_vfs_valid(int num_vfs)
 {
@@ -55,7 +56,7 @@ static void pf_sriov_cleanup(struct nitrox_device *ndev)
 	nitrox_crypto_unregister();
 
 	/* cleanup PF resources */
-	nitrox_pf_cleanup_isr(ndev);
+	nitrox_unregister_interrupts(ndev);
 	nitrox_common_sw_cleanup(ndev);
 }
 
@@ -68,7 +69,7 @@ static int pf_sriov_init(struct nitrox_device *ndev)
 	if (err)
 		return err;
 
-	err = nitrox_pf_init_isr(ndev);
+	err = nitrox_register_interrupts(ndev);
 	if (err) {
 		nitrox_common_sw_cleanup(ndev);
 		return err;

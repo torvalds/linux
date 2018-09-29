@@ -12,6 +12,7 @@
 #include "nitrox_common.h"
 #include "nitrox_csr.h"
 #include "nitrox_hal.h"
+#include "nitrox_isr.h"
 
 #define CNN55XX_DEV_ID	0x12
 #define MAX_PF_QUEUES	64
@@ -244,7 +245,7 @@ static int nitrox_pf_sw_init(struct nitrox_device *ndev)
 	if (err)
 		return err;
 
-	err = nitrox_pf_init_isr(ndev);
+	err = nitrox_register_interrupts(ndev);
 	if (err)
 		nitrox_common_sw_cleanup(ndev);
 
@@ -253,7 +254,7 @@ static int nitrox_pf_sw_init(struct nitrox_device *ndev)
 
 static void nitrox_pf_sw_cleanup(struct nitrox_device *ndev)
 {
-	nitrox_pf_cleanup_isr(ndev);
+	nitrox_unregister_interrupts(ndev);
 	nitrox_common_sw_cleanup(ndev);
 }
 

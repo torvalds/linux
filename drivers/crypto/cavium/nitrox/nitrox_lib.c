@@ -69,6 +69,7 @@ static void nitrox_cmdq_cleanup(struct nitrox_cmdq *cmdq)
 	nitrox_cmdq_reset(cmdq);
 
 	cmdq->dbell_csr_addr = NULL;
+	cmdq->compl_cnt_csr_addr = NULL;
 	cmdq->unalign_base = NULL;
 	cmdq->base = NULL;
 	cmdq->unalign_dma = 0;
@@ -112,6 +113,9 @@ static int nitrox_alloc_pktin_queues(struct nitrox_device *ndev)
 		/* packet input ring doorbell address */
 		offset = NPS_PKT_IN_INSTR_BAOFF_DBELLX(i);
 		cmdq->dbell_csr_addr = NITROX_CSR_ADDR(ndev, offset);
+		/* packet solicit port completion count address */
+		offset = NPS_PKT_SLC_CNTSX(i);
+		cmdq->compl_cnt_csr_addr = NITROX_CSR_ADDR(ndev, offset);
 
 		err = nitrox_cmdq_init(cmdq, PKTIN_Q_ALIGN_BYTES);
 		if (err)

@@ -721,18 +721,18 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 }
 
 /**
- * pkt_slc_resp_handler - post processing of SE responses
+ * pkt_slc_resp_tasklet - post processing of SE responses
  */
-void pkt_slc_resp_handler(unsigned long data)
+void pkt_slc_resp_tasklet(unsigned long data)
 {
-	struct bh_data *bh = (void *)(uintptr_t)(data);
-	struct nitrox_cmdq *cmdq = bh->cmdq;
-	union nps_pkt_slc_cnts pkt_slc_cnts;
+	struct nitrox_q_vector *qvec = (void *)(uintptr_t)(data);
+	struct nitrox_cmdq *cmdq = qvec->cmdq;
+	union nps_pkt_slc_cnts slc_cnts;
 
 	/* read completion count */
-	pkt_slc_cnts.value = readq(bh->completion_cnt_csr_addr);
+	slc_cnts.value = readq(cmdq->compl_cnt_csr_addr);
 	/* resend the interrupt if more work to do */
-	pkt_slc_cnts.s.resend = 1;
+	slc_cnts.s.resend = 1;
 
 	process_response_list(cmdq);
 
@@ -740,7 +740,7 @@ void pkt_slc_resp_handler(unsigned long data)
 	 * clear the interrupt with resend bit enabled,
 	 * MSI-X interrupt generates if Completion count > Threshold
 	 */
-	writeq(pkt_slc_cnts.value, bh->completion_cnt_csr_addr);
+	writeq(slc_cnts.value, cmdq->compl_cnt_csr_addr);
 	/* order the writes */
 	mmiowb();
 
