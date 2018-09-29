@@ -102,13 +102,19 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 				       unsigned int num_rects)
 {
 	struct vbox_private *vbox = fb->dev->dev_private;
+	struct drm_display_mode *mode;
 	struct drm_crtc *crtc;
+	int crtc_x, crtc_y;
 	unsigned int i;
 
 	mutex_lock(&vbox->hw_mutex);
 	list_for_each_entry(crtc, &fb->dev->mode_config.crtc_list, head) {
-		if (CRTC_FB(crtc) != fb)
+		if (crtc->primary->state->fb != fb)
 			continue;
+
+		mode = &crtc->state->mode;
+		crtc_x = crtc->primary->state->src_x >> 16;
+		crtc_y = crtc->primary->state->src_y >> 16;
 
 		vbox_enable_accel(vbox);
 
@@ -116,10 +122,10 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 			struct vbva_cmd_hdr cmd_hdr;
 			unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
 
-			if ((rects[i].x1 > crtc->x + crtc->hwmode.hdisplay) ||
-			    (rects[i].y1 > crtc->y + crtc->hwmode.vdisplay) ||
-			    (rects[i].x2 < crtc->x) ||
-			    (rects[i].y2 < crtc->y))
+			if ((rects[i].x1 > crtc_x + mode->hdisplay) ||
+			    (rects[i].y1 > crtc_y + mode->vdisplay) ||
+			    (rects[i].x2 < crtc_x) ||
+			    (rects[i].y2 < crtc_y))
 				continue;
 
 			cmd_hdr.x = (s16)rects[i].x1;

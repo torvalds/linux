@@ -199,7 +199,6 @@ int vbox_mode_init(struct vbox_private *vbox);
 void vbox_mode_fini(struct vbox_private *vbox);
 
 #define DRM_MODE_FB_CMD drm_mode_fb_cmd2
-#define CRTC_FB(crtc) ((crtc)->primary->fb)
 
 void vbox_enable_accel(struct vbox_private *vbox);
 void vbox_disable_accel(struct vbox_private *vbox);

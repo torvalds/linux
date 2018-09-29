@@ -46,6 +46,7 @@
  */
 static void vbox_do_modeset(struct drm_crtc *crtc)
 {
+	struct drm_framebuffer *fb = crtc->primary->state->fb;
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
 	struct vbox_private *vbox;
 	int width, height, bpp, pitch;
@@ -55,8 +56,8 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	vbox = crtc->dev->dev_private;
 	width = vbox_crtc->width ? vbox_crtc->width : 640;
 	height = vbox_crtc->height ? vbox_crtc->height : 480;
-	bpp = crtc->enabled ? CRTC_FB(crtc)->format->cpp[0] * 8 : 32;
-	pitch = crtc->enabled ? CRTC_FB(crtc)->pitches[0] : width * bpp / 8;
+	bpp = fb ? fb->format->cpp[0] * 8 : 32;
+	pitch = fb ? fb->pitches[0] : width * bpp / 8;
 	x_offset = vbox->single_framebuffer ? vbox_crtc->x : vbox_crtc->x_hint;
 	y_offset = vbox->single_framebuffer ? vbox_crtc->y : vbox_crtc->y_hint;
 
@@ -66,14 +67,13 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	 * VirtualBox, certain parts of the code still assume that the first
 	 * screen is programmed this way, so try to fake it.
 	 */
-	if (vbox_crtc->crtc_id == 0 && crtc->enabled &&
+	if (vbox_crtc->crtc_id == 0 && fb &&
 	    vbox_crtc->fb_offset / pitch < 0xffff - crtc->y &&
 	    vbox_crtc->fb_offset % (bpp / 8) == 0) {
 		vbox_write_ioport(VBE_DISPI_INDEX_XRES, width);
 		vbox_write_ioport(VBE_DISPI_INDEX_YRES, height);
 		vbox_write_ioport(VBE_DISPI_INDEX_VIRT_WIDTH, pitch * 8 / bpp);
-		vbox_write_ioport(VBE_DISPI_INDEX_BPP,
-				  CRTC_FB(crtc)->format->cpp[0] * 8);
+		vbox_write_ioport(VBE_DISPI_INDEX_BPP, bpp);
 		vbox_write_ioport(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED);
 		vbox_write_ioport(
 			VBE_DISPI_INDEX_X_OFFSET,
@@ -83,8 +83,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	}
 
 	flags = VBVA_SCREEN_F_ACTIVE;
-	flags |= (crtc->enabled && !vbox_crtc->blanked) ?
-		 0 : VBVA_SCREEN_F_BLANK;
+	flags |= (fb && !vbox_crtc->blanked) ? 0 : VBVA_SCREEN_F_BLANK;
 	flags |= vbox_crtc->disconnected ? VBVA_SCREEN_F_DISABLED : 0;
 	hgsmi_process_display_info(vbox->guest_pool, vbox_crtc->crtc_id,
 				   x_offset, y_offset,
@@ -176,7 +175,7 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 	 * Same fall-back if this is the fbdev frame-buffer.
 	 */
 	list_for_each_entry(crtci, &vbox->ddev.mode_config.crtc_list, head) {
-		fb = CRTC_FB(crtci);
+		fb = crtci->primary->state->fb;
 		if (!fb)
 			continue;
 
