@@ -257,31 +257,6 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	mutex_unlock(&vbox->hw_mutex);
 }
 
-static int vbox_crtc_mode_set(struct drm_crtc *crtc,
-			      struct drm_display_mode *mode,
-			      struct drm_display_mode *adjusted_mode,
-			      int x, int y, struct drm_framebuffer *old_fb)
-{
-	struct drm_framebuffer *new_fb = CRTC_FB(crtc);
-	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(new_fb)->obj);
-	int ret;
-
-	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
-	if (ret) {
-		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
-		return ret;
-	}
-
-	vbox_crtc_set_base_and_mode(crtc, new_fb, mode, x, y);
-
-	if (old_fb) {
-		bo = gem_to_vbox_bo(to_vbox_framebuffer(old_fb)->obj);
-		vbox_bo_unpin(bo);
-	}
-
-	return 0;
-}
-
 static void vbox_crtc_disable(struct drm_crtc *crtc)
 {
 }
@@ -294,13 +269,36 @@ static void vbox_crtc_commit(struct drm_crtc *crtc)
 {
 }
 
+static void vbox_crtc_mode_set_nofb(struct drm_crtc *crtc)
+{
+	/* We always set the mode when we set the fb/base */
+}
+
+static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
+{
+	struct drm_pending_vblank_event *event;
+	unsigned long flags;
+
+	if (crtc->state && crtc->state->event) {
+		event = crtc->state->event;
+		crtc->state->event = NULL;
+
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+		drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+	}
+}
+
 static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
 	.dpms = vbox_crtc_dpms,
 	.mode_fixup = vbox_crtc_mode_fixup,
-	.mode_set = vbox_crtc_mode_set,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_nofb = vbox_crtc_mode_set_nofb,
 	.disable = vbox_crtc_disable,
 	.prepare = vbox_crtc_prepare,
 	.commit = vbox_crtc_commit,
+	.atomic_flush = vbox_crtc_atomic_flush,
 };
 
 static void vbox_crtc_reset(struct drm_crtc *crtc)
@@ -319,6 +317,63 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 	/* .gamma_set = vbox_crtc_gamma_set, */
 	.destroy = vbox_crtc_destroy,
 };
+
+static int vbox_primary_atomic_check(struct drm_plane *plane,
+				     struct drm_plane_state *new_state)
+{
+	return 0;
+}
+
+static void vbox_primary_atomic_update(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
+{
+	struct drm_crtc *crtc = plane->state->crtc;
+	struct drm_framebuffer *fb = plane->state->fb;
+
+	vbox_crtc_set_base_and_mode(crtc, fb, &crtc->state->mode,
+				    plane->state->src_x >> 16,
+				    plane->state->src_y >> 16);
+}
+
+void vbox_primary_atomic_disable(struct drm_plane *plane,
+				 struct drm_plane_state *old_state)
+{
+	struct drm_crtc *crtc = old_state->crtc;
+
+	/* vbox_do_modeset checks plane->state->fb and will disable if NULL */
+	vbox_crtc_set_base_and_mode(crtc, old_state->fb, &crtc->state->mode,
+				    old_state->src_x >> 16,
+				    old_state->src_y >> 16);
+}
+
+static int vbox_primary_prepare_fb(struct drm_plane *plane,
+				   struct drm_plane_state *new_state)
+{
+	struct vbox_bo *bo;
+	int ret;
+
+	if (!new_state->fb)
+		return 0;
+
+	bo = gem_to_vbox_bo(to_vbox_framebuffer(new_state->fb)->obj);
+	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM);
+	if (ret)
+		DRM_WARN("Error %d pinning new fb, out of video mem?\n", ret);
+
+	return ret;
+}
+
+static void vbox_primary_cleanup_fb(struct drm_plane *plane,
+				    struct drm_plane_state *old_state)
+{
+	struct vbox_bo *bo;
+
+	if (!old_state->fb)
+		return;
+
+	bo = gem_to_vbox_bo(to_vbox_framebuffer(old_state->fb)->obj);
+	vbox_bo_unpin(bo);
+}
 
 static int vbox_cursor_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *new_state)
@@ -479,8 +534,16 @@ static const uint32_t vbox_primary_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
+static const struct drm_plane_helper_funcs vbox_primary_helper_funcs = {
+	.atomic_check = vbox_primary_atomic_check,
+	.atomic_update = vbox_primary_atomic_update,
+	.atomic_disable = vbox_primary_atomic_disable,
+	.prepare_fb = vbox_primary_prepare_fb,
+	.cleanup_fb = vbox_primary_cleanup_fb,
+};
+
 static const struct drm_plane_funcs vbox_primary_plane_funcs = {
-	.update_plane	= drm_primary_helper_update,
+	.update_plane	= drm_plane_helper_update,
 	.disable_plane	= drm_primary_helper_disable,
 	.destroy	= drm_primary_helper_destroy,
 };
@@ -499,6 +562,7 @@ static struct drm_plane *vbox_create_plane(struct vbox_private *vbox,
 	if (type == DRM_PLANE_TYPE_PRIMARY) {
 		funcs = &vbox_primary_plane_funcs;
 		formats = vbox_primary_plane_formats;
+		helper_funcs = &vbox_primary_helper_funcs;
 		num_formats = ARRAY_SIZE(vbox_primary_plane_formats);
 	} else if (type == DRM_PLANE_TYPE_CURSOR) {
 		funcs = &vbox_cursor_plane_funcs;
