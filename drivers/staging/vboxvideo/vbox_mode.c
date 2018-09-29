@@ -280,7 +280,19 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 static int vbox_primary_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *new_state)
 {
-	return 0;
+	struct drm_crtc_state *crtc_state = NULL;
+
+	if (new_state->crtc) {
+		crtc_state = drm_atomic_get_existing_crtc_state(
+					    new_state->state, new_state->crtc);
+		if (WARN_ON(!crtc_state))
+			return -EINVAL;
+	}
+
+	return drm_atomic_helper_check_plane_state(new_state, crtc_state,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   false, true);
 }
 
 static void vbox_primary_atomic_update(struct drm_plane *plane,
@@ -337,8 +349,24 @@ static void vbox_primary_cleanup_fb(struct drm_plane *plane,
 static int vbox_cursor_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *new_state)
 {
+	struct drm_crtc_state *crtc_state = NULL;
 	u32 width = new_state->crtc_w;
 	u32 height = new_state->crtc_h;
+	int ret;
+
+	if (new_state->crtc) {
+		crtc_state = drm_atomic_get_existing_crtc_state(
+					    new_state->state, new_state->crtc);
+		if (WARN_ON(!crtc_state))
+			return -EINVAL;
+	}
+
+	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
+	if (ret)
+		return ret;
 
 	if (!new_state->fb)
 		return 0;
