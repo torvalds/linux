@@ -201,6 +201,7 @@ enum {
 	META_NAT,
 	META_SIT,
 	META_SSA,
+	META_MAX,
 	META_POR,
 	DATA_GENERIC,
 	META_GENERIC,
@@ -1260,6 +1261,7 @@ struct f2fs_sb_info {
 	 */
 #ifdef CONFIG_F2FS_STAT_FS
 	struct f2fs_stat_info *stat_info;	/* FS status information */
+	atomic_t meta_count[META_MAX];		/* # of meta blocks */
 	unsigned int segment_count[2];		/* # of allocated segments */
 	unsigned int block_count[2];		/* # of allocated blocks */
 	atomic_t inplace_count;		/* # of inplace update */
@@ -3123,6 +3125,7 @@ struct f2fs_stat_info {
 	int cursec[NR_CURSEG_TYPE];
 	int curzone[NR_CURSEG_TYPE];
 
+	unsigned int meta_count[META_MAX];
 	unsigned int segment_count[2];
 	unsigned int block_count[2];
 	unsigned int inplace_count;
@@ -3173,6 +3176,17 @@ static inline struct f2fs_stat_info *F2FS_STAT(struct f2fs_sb_info *sbi)
 	do {								\
 		if (f2fs_has_inline_dentry(inode))			\
 			(atomic_dec(&F2FS_I_SB(inode)->inline_dir));	\
+	} while (0)
+#define stat_inc_meta_count(sbi, blkaddr)				\
+	do {								\
+		if (blkaddr < SIT_I(sbi)->sit_base_addr)		\
+			atomic_inc(&(sbi)->meta_count[META_CP]);	\
+		else if (blkaddr < NM_I(sbi)->nat_blkaddr)		\
+			atomic_inc(&(sbi)->meta_count[META_SIT]);	\
+		else if (blkaddr < SM_I(sbi)->ssa_blkaddr)		\
+			atomic_inc(&(sbi)->meta_count[META_NAT]);	\
+		else if (blkaddr < SM_I(sbi)->main_blkaddr)		\
+			atomic_inc(&(sbi)->meta_count[META_SSA]);	\
 	} while (0)
 #define stat_inc_seg_type(sbi, curseg)					\
 		((sbi)->segment_count[(curseg)->alloc_type]++)
@@ -3261,6 +3275,7 @@ void f2fs_destroy_root_stats(void);
 #define stat_inc_volatile_write(inode)			do { } while (0)
 #define stat_dec_volatile_write(inode)			do { } while (0)
 #define stat_update_max_volatile_write(inode)		do { } while (0)
+#define stat_inc_meta_count(sbi, blkaddr)		do { } while (0)
 #define stat_inc_seg_type(sbi, curseg)			do { } while (0)
 #define stat_inc_block_count(sbi, curseg)		do { } while (0)
 #define stat_inc_inplace_blocks(sbi)			do { } while (0)

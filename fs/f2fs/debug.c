@@ -118,6 +118,9 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		si->curzone[i] = GET_ZONE_FROM_SEC(sbi, si->cursec[i]);
 	}
 
+	for (i = META_CP; i < META_MAX; i++)
+		si->meta_count[i] = atomic_read(&sbi->meta_count[i]);
+
 	for (i = 0; i < 2; i++) {
 		si->segment_count[i] = sbi->segment_count[i];
 		si->block_count[i] = sbi->block_count[i];
@@ -329,6 +332,13 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->prefree_count, si->free_segs, si->free_secs);
 		seq_printf(s, "CP calls: %d (BG: %d)\n",
 				si->cp_count, si->bg_cp_count);
+		seq_printf(s, "  - cp blocks : %u\n", si->meta_count[META_CP]);
+		seq_printf(s, "  - sit blocks : %u\n",
+				si->meta_count[META_SIT]);
+		seq_printf(s, "  - nat blocks : %u\n",
+				si->meta_count[META_NAT]);
+		seq_printf(s, "  - ssa blocks : %u\n",
+				si->meta_count[META_SSA]);
 		seq_printf(s, "GC calls: %d (BG: %d)\n",
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d (%d)\n",
@@ -441,6 +451,7 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
 	struct f2fs_stat_info *si;
+	int i;
 
 	si = f2fs_kzalloc(sbi, sizeof(struct f2fs_stat_info), GFP_KERNEL);
 	if (!si)
@@ -466,6 +477,8 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	atomic_set(&sbi->inline_inode, 0);
 	atomic_set(&sbi->inline_dir, 0);
 	atomic_set(&sbi->inplace_count, 0);
+	for (i = META_CP; i < META_MAX; i++)
+		atomic_set(&sbi->meta_count[i], 0);
 
 	atomic_set(&sbi->aw_cnt, 0);
 	atomic_set(&sbi->vw_cnt, 0);
