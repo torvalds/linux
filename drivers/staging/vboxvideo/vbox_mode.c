@@ -651,18 +651,6 @@ static void vbox_encoder_destroy(struct drm_encoder *encoder)
 	kfree(encoder);
 }
 
-static struct drm_encoder *vbox_best_single_encoder(struct drm_connector
-						    *connector)
-{
-	int enc_id = connector->encoder_ids[0];
-
-	/* pick the encoder ids */
-	if (enc_id)
-		return drm_encoder_find(connector->dev, NULL, enc_id);
-
-	return NULL;
-}
-
 static const struct drm_encoder_funcs vbox_enc_funcs = {
 	.destroy = vbox_encoder_destroy,
 };
@@ -820,12 +808,6 @@ static int vbox_get_modes(struct drm_connector *connector)
 	return num_modes;
 }
 
-static enum drm_mode_status vbox_mode_valid(struct drm_connector *connector,
-			   struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static void vbox_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
@@ -862,9 +844,7 @@ static int vbox_fill_modes(struct drm_connector *connector, u32 max_x,
 }
 
 static const struct drm_connector_helper_funcs vbox_connector_helper_funcs = {
-	.mode_valid = vbox_mode_valid,
 	.get_modes = vbox_get_modes,
-	.best_encoder = vbox_best_single_encoder,
 };
 
 static const struct drm_connector_funcs vbox_connector_funcs = {
