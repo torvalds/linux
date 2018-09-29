@@ -610,6 +610,8 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 {
 	int ret;
 
+	v4l2_async_notifier_init(&vin->notifier);
+
 	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
 		vin->dev, &vin->notifier, sizeof(struct rvin_parallel_entity),
 		0, rvin_parallel_parse_v4l2);
@@ -801,6 +803,8 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 		mutex_unlock(&vin->group->lock);
 		return 0;
 	}
+
+	v4l2_async_notifier_init(&vin->group->notifier);
 
 	/*
 	 * Have all VIN's look for CSI-2 subdevices. Some subdevices will
