@@ -58,6 +58,7 @@ config VIDEO_MUX
 	select MULTIPLEXER
 	depends on VIDEO_V4L2 && OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
 	select REGMAP
+	select V4L2_FWNODE
 	help
 	  This driver provides support for N:1 video bus multiplexers.
 
