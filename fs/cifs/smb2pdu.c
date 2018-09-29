@@ -4277,6 +4277,8 @@ SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec iov[1];
 	struct kvec rsp_iov;
 	int resp_buf_type;
+	__u64 *please_key_high;
+	__u64 *please_key_low;
 
 	cifs_dbg(FYI, "SMB2_lease_break\n");
 	rc = smb2_plain_req_init(SMB2_OPLOCK_BREAK, tcon, (void **) &req,
@@ -4306,10 +4308,16 @@ SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buf_type, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 
+	please_key_low = (__u64 *)req->LeaseKey;
+	please_key_high = (__u64 *)(req->LeaseKey+8);
 	if (rc) {
 		cifs_stats_fail_inc(tcon, SMB2_OPLOCK_BREAK_HE);
+		trace_smb3_lease_err(le32_to_cpu(lease_state), tcon->tid,
+			ses->Suid, *please_key_low, *please_key_high, rc);
 		cifs_dbg(FYI, "Send error in Lease Break = %d\n", rc);
-	}
+	} else
+		trace_smb3_lease_done(le32_to_cpu(lease_state), tcon->tid,
+			ses->Suid, *please_key_low, *please_key_high);
 
 	return rc;
 }
