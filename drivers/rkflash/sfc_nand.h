@@ -22,6 +22,7 @@
 #define FEA_4BIT_PROG           BIT(3)
 #define FEA_4BYTE_ADDR          BIT(4)
 #define FEA_4BYTE_ADDR_MODE	BIT(5)
+#define FEA_SOFT_QOP_BIT	BIT(6)
 
 #define MID_WINBOND             0xEF
 #define MID_GIGADEV             0xC8
@@ -123,5 +124,7 @@ void sfc_nand_deinit(void);
 int sfc_nand_read_id(u8 *buf);
 u32 sfc_nand_ecc_status_sp1(void);
 u32 sfc_nand_ecc_status_sp3(void);
+u32 sfc_nand_ecc_status_sp4(void);
+u32 sfc_nand_ecc_status_sp5(void);
 
 #endif
