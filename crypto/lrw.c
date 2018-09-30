@@ -122,10 +122,9 @@ static int next_index(u32 *counter)
 	int i, res = 0;
 
 	for (i = 0; i < 4; i++) {
-		if (counter[i] + 1 != 0) {
-			res += ffz(counter[i]++);
-			break;
-		}
+		if (counter[i] + 1 != 0)
+			return res + ffz(counter[i]++);
+
 		counter[i] = 0;
 		res += 32;
 	}
