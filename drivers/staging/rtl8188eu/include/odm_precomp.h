@@ -22,7 +22,7 @@
 /* 2 OutSrc Header Files */
 
 #include "odm.h"
-#include "odm_HWConfig.h"
+#include "odm_hwconfig.h"
 #include "odm_debug.h"
 #include "../../rtlwifi/phydm/phydm_regdefine11n.h"
 
