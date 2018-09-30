@@ -49,12 +49,12 @@ static s32 odm_SignalScaleMapping(struct odm_dm_struct *dm_odm, s32 CurrSig)
 	return RetSig;
 }
 
-static u8 odm_EVMdbToPercentage(s8 Value)
+static u8 odm_EVMdbToPercentage(s8 value)
 {
 	/*  -33dB~0dB to 0%~99% */
 	s8 ret_val;
 
-	ret_val = Value;
+	ret_val = value;
 
 	if (ret_val >= 0)
 		ret_val = 0;
