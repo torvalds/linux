@@ -7953,7 +7953,10 @@ static void ca0132_mmio_init(struct hda_codec *codec)
 	else
 		writel(0x00000000, spec->mem_base + 0x40C);
 
-	writel(0x00880680, spec->mem_base + 0x01C);
+	if (spec->quirk == QUIRK_ZXR)
+		writel(0x00880640, spec->mem_base + 0x01C);
+	else
+		writel(0x00880680, spec->mem_base + 0x01C);
 
 	if (spec->quirk == QUIRK_AE5)
 		writel(0x00000080, spec->mem_base + 0xC0C);
@@ -8090,6 +8093,10 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
 		ca0113_mmio_command_set(codec, 0x30, 0x32, 0x3f);
+		break;
+	case QUIRK_ZXR:
+		snd_hda_sequence_write(codec, spec->chip_init_verbs);
+		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
 		break;
 	}
 }
@@ -8585,6 +8592,10 @@ static int patch_ca0132(struct hda_codec *codec)
 		spec->mixers[0] = desktop_mixer;
 		snd_hda_codec_set_name(codec, "Sound Blaster Z");
 		break;
+	case QUIRK_ZXR:
+		spec->mixers[0] = desktop_mixer;
+		snd_hda_codec_set_name(codec, "Sound Blaster ZxR");
+		break;
 	case QUIRK_ZXR_DBPRO:
 		codec->patch_ops = dbpro_patch_ops;
 		break;
@@ -8610,6 +8621,7 @@ static int patch_ca0132(struct hda_codec *codec)
 	case QUIRK_SBZ:
 	case QUIRK_R3D:
 	case QUIRK_AE5:
+	case QUIRK_ZXR:
 		spec->use_alt_controls = true;
 		spec->use_alt_functions = true;
 		spec->use_pci_mmio = true;
