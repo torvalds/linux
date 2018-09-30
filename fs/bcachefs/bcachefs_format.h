@@ -461,14 +461,18 @@ enum bch_compression_type {
 	BCH_COMPRESSION_NR		= 5,
 };
 
-enum bch_extent_entry_type {
-	BCH_EXTENT_ENTRY_ptr		= 0,
-	BCH_EXTENT_ENTRY_crc32		= 1,
-	BCH_EXTENT_ENTRY_crc64		= 2,
-	BCH_EXTENT_ENTRY_crc128		= 3,
-};
+#define BCH_EXTENT_ENTRY_TYPES()		\
+	x(ptr,			0)		\
+	x(crc32,		1)		\
+	x(crc64,		2)		\
+	x(crc128,		3)
+#define BCH_EXTENT_ENTRY_MAX	4
 
-#define BCH_EXTENT_ENTRY_MAX		4
+enum bch_extent_entry_type {
+#define x(f, n) BCH_EXTENT_ENTRY_##f = n,
+	BCH_EXTENT_ENTRY_TYPES()
+#undef x
+};
 
 /* Compressed/uncompressed size are stored biased by 1: */
 struct bch_extent_crc32 {
@@ -594,10 +598,10 @@ union bch_extent_entry {
 #else
 #error edit for your odd byteorder.
 #endif
-	struct bch_extent_crc32		crc32;
-	struct bch_extent_crc64		crc64;
-	struct bch_extent_crc128	crc128;
-	struct bch_extent_ptr		ptr;
+
+#define x(f, n) struct bch_extent_##f	f;
+	BCH_EXTENT_ENTRY_TYPES()
+#undef x
 };
 
 enum {

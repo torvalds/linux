@@ -162,14 +162,11 @@ extent_entry_type(const union bch_extent_entry *e)
 static inline size_t extent_entry_bytes(const union bch_extent_entry *entry)
 {
 	switch (extent_entry_type(entry)) {
-	case BCH_EXTENT_ENTRY_crc32:
-		return sizeof(struct bch_extent_crc32);
-	case BCH_EXTENT_ENTRY_crc64:
-		return sizeof(struct bch_extent_crc64);
-	case BCH_EXTENT_ENTRY_crc128:
-		return sizeof(struct bch_extent_crc128);
-	case BCH_EXTENT_ENTRY_ptr:
-		return sizeof(struct bch_extent_ptr);
+#define x(f, n)						\
+	case BCH_EXTENT_ENTRY_##f:			\
+		return sizeof(struct bch_extent_##f);
+	BCH_EXTENT_ENTRY_TYPES()
+#undef x
 	default:
 		BUG();
 	}
