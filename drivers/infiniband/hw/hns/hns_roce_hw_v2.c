@@ -467,18 +467,14 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 				rc_sq_wqe->rkey =
 					cpu_to_le32(atomic_wr(wr)->rkey);
 				rc_sq_wqe->va =
-					cpu_to_le32(atomic_wr(wr)->remote_addr);
-				wqe += sizeof(struct hns_roce_v2_wqe_data_seg);
-				set_atomic_seg(wqe, atomic_wr(wr));
+					cpu_to_le64(atomic_wr(wr)->remote_addr);
 				break;
 			case IB_WR_ATOMIC_FETCH_AND_ADD:
 				hr_op = HNS_ROCE_V2_WQE_OP_ATOM_FETCH_AND_ADD;
 				rc_sq_wqe->rkey =
 					cpu_to_le32(atomic_wr(wr)->rkey);
 				rc_sq_wqe->va =
-					cpu_to_le32(atomic_wr(wr)->remote_addr);
-				wqe += sizeof(struct hns_roce_v2_wqe_data_seg);
-				set_atomic_seg(wqe, atomic_wr(wr));
+					cpu_to_le64(atomic_wr(wr)->remote_addr);
 				break;
 			case IB_WR_MASKED_ATOMIC_CMP_AND_SWP:
 				hr_op =
@@ -497,10 +493,25 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 				       V2_RC_SEND_WQE_BYTE_4_OPCODE_M,
 				       V2_RC_SEND_WQE_BYTE_4_OPCODE_S, hr_op);
 
-			ret = set_rwqe_data_seg(ibqp, wr, rc_sq_wqe, wqe,
-						&sge_ind, bad_wr);
-			if (ret)
-				goto out;
+			if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP ||
+			    wr->opcode == IB_WR_ATOMIC_FETCH_AND_ADD) {
+				struct hns_roce_v2_wqe_data_seg *dseg;
+
+				dseg = wqe;
+				set_data_seg_v2(dseg, wr->sg_list);
+				wqe += sizeof(struct hns_roce_v2_wqe_data_seg);
+				set_atomic_seg(wqe, atomic_wr(wr));
+				roce_set_field(rc_sq_wqe->byte_16,
+					       V2_RC_SEND_WQE_BYTE_16_SGE_NUM_M,
+					       V2_RC_SEND_WQE_BYTE_16_SGE_NUM_S,
+					       wr->num_sge);
+			} else {
+				ret = set_rwqe_data_seg(ibqp, wr, rc_sq_wqe,
+							wqe, &sge_ind, bad_wr);
+				if (ret)
+					goto out;
+			}
+
 			ind++;
 		} else {
 			dev_err(dev, "Illegal qp_type(0x%x)\n", ibqp->qp_type);
