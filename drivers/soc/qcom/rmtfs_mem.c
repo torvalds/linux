@@ -212,6 +212,11 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to parse qcom,vmid\n");
 		goto remove_cdev;
 	} else if (!ret) {
+		if (!qcom_scm_is_available()) {
+			ret = -EPROBE_DEFER;
+			goto remove_cdev;
+		}
+
 		perms[0].vmid = QCOM_SCM_VMID_HLOS;
 		perms[0].perm = QCOM_SCM_PERM_RW;
 		perms[1].vmid = vmid;
