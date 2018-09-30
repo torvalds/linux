@@ -1222,6 +1222,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->reserved_mrws	= 1;
 	caps->reserved_uars	= 0;
 	caps->reserved_cqs	= 0;
+	caps->reserved_qps	= HNS_ROCE_V2_RSV_QPS;
 
 	caps->qpc_ba_pg_sz	= 0;
 	caps->qpc_buf_pg_sz	= 0;
