@@ -42,6 +42,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a35", "arm,armv8";
 			reg = <0x0 0x0>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 		};
 
@@ -49,6 +50,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a35", "arm,armv8";
 			reg = <0x0 0x1>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 		};
 	};
@@ -65,6 +67,11 @@
 		clock-frequency = <125000000>;
 		clock-output-names = "gmac_clkin";
 		#clock-cells = <0>;
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	timer {
