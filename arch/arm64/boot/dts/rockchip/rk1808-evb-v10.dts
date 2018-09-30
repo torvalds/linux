@@ -164,3 +164,8 @@
 &vop_lite {
 	status = "okay";
 };
+
+&vopl_mmu {
+	status = "okay";
+};
+
