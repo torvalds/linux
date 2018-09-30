@@ -520,9 +520,8 @@ static void msdc_pm(pm_message_t state, void *data)
 		host->pm_state = state;  /* default PMSG_RESUME */
 
 	} else if (evt == PM_EVENT_RESUME || evt == PM_EVENT_USER_RESUME) {
-		if (!host->suspend) {
+		if (!host->suspend)
 			return;
-		}
 
 		/* No PM resume when USR suspend */
 		if (evt == PM_EVENT_RESUME && host->pm_state.event == PM_EVENT_USER_SUSPEND) {
@@ -967,16 +966,14 @@ done:
 	//if(host->id==1) {
 	if (send_type == SND_CMD) {
 		if (cmd->opcode == MMC_SEND_STATUS) {
-			if ((cmd->resp[0] & CARD_READY_FOR_DATA) || (CARD_CURRENT_STATE(cmd->resp[0]) != 7)) {
+			if ((cmd->resp[0] & CARD_READY_FOR_DATA) || (CARD_CURRENT_STATE(cmd->resp[0]) != 7))
 				msdc_gate_clock(host->id);
-			}
 		} else {
 			msdc_gate_clock(host->id);
 		}
 	} else {
-		if (read) {
+		if (read)
 			msdc_gate_clock(host->id);
-		}
 	}
 	//}
 #else
