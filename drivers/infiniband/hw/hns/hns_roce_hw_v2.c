@@ -3640,8 +3640,15 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 			       V2_QPC_BYTE_24_HOP_LIMIT_M,
 			       V2_QPC_BYTE_24_HOP_LIMIT_S, 0);
 
-		roce_set_field(context->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
-			       V2_QPC_BYTE_24_TC_S, grh->traffic_class);
+		if (hr_dev->pci_dev->revision == 0x21 &&
+		    gid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
+			roce_set_field(context->byte_24_mtu_tc,
+				       V2_QPC_BYTE_24_TC_M, V2_QPC_BYTE_24_TC_S,
+				       grh->traffic_class >> 2);
+		else
+			roce_set_field(context->byte_24_mtu_tc,
+				       V2_QPC_BYTE_24_TC_M, V2_QPC_BYTE_24_TC_S,
+				       grh->traffic_class);
 		roce_set_field(qpc_mask->byte_24_mtu_tc, V2_QPC_BYTE_24_TC_M,
 			       V2_QPC_BYTE_24_TC_S, 0);
 		roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_FL_M,
