@@ -2349,15 +2349,14 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 {
 	const struct ipv6hdr *iph = (struct ipv6hdr *) skb->data;
 	struct dst_entry *dst;
-	struct flowi6 fl6;
-
-	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = mark ? mark : IP6_REPLY_MARK(net, skb->mark);
-	fl6.daddr = iph->daddr;
-	fl6.saddr = iph->saddr;
-	fl6.flowlabel = ip6_flowinfo(iph);
-	fl6.flowi6_uid = uid;
+	struct flowi6 fl6 = {
+		.flowi6_oif = oif,
+		.flowi6_mark = mark ? mark : IP6_REPLY_MARK(net, skb->mark),
+		.daddr = iph->daddr,
+		.saddr = iph->saddr,
+		.flowlabel = ip6_flowinfo(iph),
+		.flowi6_uid = uid,
+	};
 
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (!dst->error)
