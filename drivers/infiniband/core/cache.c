@@ -338,55 +338,6 @@ static int add_roce_gid(struct ib_gid_table_entry *entry)
 }
 
 /**
- * add_modify_gid - Add or modify GID table entry
- *
- * @table:	GID table in which GID to be added or modified
- * @attr:	Attributes of the GID
- *
- * Returns 0 on success or appropriate error code. It accepts zero
- * GID addition for non RoCE ports for HCA's who report them as valid
- * GID. However such zero GIDs are not added to the cache.
- */
-static int add_modify_gid(struct ib_gid_table *table,
-			  const struct ib_gid_attr *attr)
-{
-	struct ib_gid_table_entry *entry;
-	int ret = 0;
-
-	/*
-	 * Invalidate any old entry in the table to make it safe to write to
-	 * this index.
-	 */
-	if (is_gid_entry_valid(table->data_vec[attr->index]))
-		put_gid_entry(table->data_vec[attr->index]);
-
-	/*
-	 * Some HCA's report multiple GID entries with only one valid GID, and
-	 * leave other unused entries as the zero GID. Convert zero GIDs to
-	 * empty table entries instead of storing them.
-	 */
-	if (rdma_is_zero_gid(&attr->gid))
-		return 0;
-
-	entry = alloc_gid_entry(attr);
-	if (!entry)
-		return -ENOMEM;
-
-	if (rdma_protocol_roce(attr->device, attr->port_num)) {
-		ret = add_roce_gid(entry);
-		if (ret)
-			goto done;
-	}
-
-	store_gid_entry(table, entry);
-	return 0;
-
-done:
-	put_gid_entry(entry);
-	return ret;
-}
-
-/**
  * del_gid - Delete GID table entry
  *
  * @ib_dev:	IB device whose GID entry to be deleted
@@ -417,6 +368,55 @@ static void del_gid(struct ib_device *ib_dev, u8 port,
 	write_unlock_irq(&table->rwlock);
 
 	put_gid_entry_locked(entry);
+}
+
+/**
+ * add_modify_gid - Add or modify GID table entry
+ *
+ * @table:	GID table in which GID to be added or modified
+ * @attr:	Attributes of the GID
+ *
+ * Returns 0 on success or appropriate error code. It accepts zero
+ * GID addition for non RoCE ports for HCA's who report them as valid
+ * GID. However such zero GIDs are not added to the cache.
+ */
+static int add_modify_gid(struct ib_gid_table *table,
+			  const struct ib_gid_attr *attr)
+{
+	struct ib_gid_table_entry *entry;
+	int ret = 0;
+
+	/*
+	 * Invalidate any old entry in the table to make it safe to write to
+	 * this index.
+	 */
+	if (is_gid_entry_valid(table->data_vec[attr->index]))
+		del_gid(attr->device, attr->port_num, table, attr->index);
+
+	/*
+	 * Some HCA's report multiple GID entries with only one valid GID, and
+	 * leave other unused entries as the zero GID. Convert zero GIDs to
+	 * empty table entries instead of storing them.
+	 */
+	if (rdma_is_zero_gid(&attr->gid))
+		return 0;
+
+	entry = alloc_gid_entry(attr);
+	if (!entry)
+		return -ENOMEM;
+
+	if (rdma_protocol_roce(attr->device, attr->port_num)) {
+		ret = add_roce_gid(entry);
+		if (ret)
+			goto done;
+	}
+
+	store_gid_entry(table, entry);
+	return 0;
+
+done:
+	put_gid_entry(entry);
+	return ret;
 }
 
 /* rwlock should be read locked, or lock should be held */

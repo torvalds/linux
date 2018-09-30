@@ -187,16 +187,16 @@ static void poll_napi(struct net_device *dev)
 	}
 }
 
-static void netpoll_poll_dev(struct net_device *dev)
+void netpoll_poll_dev(struct net_device *dev)
 {
-	const struct net_device_ops *ops;
 	struct netpoll_info *ni = rcu_dereference_bh(dev->npinfo);
+	const struct net_device_ops *ops;
 
 	/* Don't do any rx activity if the dev_lock mutex is held
 	 * the dev_open/close paths use this to block netpoll activity
 	 * while changing device state
 	 */
-	if (down_trylock(&ni->dev_lock))
+	if (!ni || down_trylock(&ni->dev_lock))
 		return;
 
 	if (!netif_running(dev)) {
@@ -205,13 +205,8 @@ static void netpoll_poll_dev(struct net_device *dev)
 	}
 
 	ops = dev->netdev_ops;
-	if (!ops->ndo_poll_controller) {
-		up(&ni->dev_lock);
-		return;
-	}
-
-	/* Process pending work on NIC */
-	ops->ndo_poll_controller(dev);
+	if (ops->ndo_poll_controller)
+		ops->ndo_poll_controller(dev);
 
 	poll_napi(dev);
 
@@ -219,6 +214,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 
 	zap_completion_queue();
 }
+EXPORT_SYMBOL(netpoll_poll_dev);
 
 void netpoll_poll_disable(struct net_device *dev)
 {
@@ -613,8 +609,7 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 	strlcpy(np->dev_name, ndev->name, IFNAMSIZ);
 	INIT_WORK(&np->cleanup_work, netpoll_async_cleanup);
 
-	if ((ndev->priv_flags & IFF_DISABLE_NETPOLL) ||
-	    !ndev->netdev_ops->ndo_poll_controller) {
+	if (ndev->priv_flags & IFF_DISABLE_NETPOLL) {
 		np_err(np, "%s doesn't support polling, aborting\n",
 		       np->dev_name);
 		err = -ENOTSUPP;

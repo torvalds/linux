@@ -1,4 +1,5 @@
 cr4_cpuid_sync_test
+platform_info_test
 set_sregs_test
 sync_regs_test
 vmx_tsc_adjust_test

@@ -109,8 +109,15 @@ static void *usb_role_switch_match(struct device_connection *con, int ep,
  */
 struct usb_role_switch *usb_role_switch_get(struct device *dev)
 {
-	return device_connection_find_match(dev, "usb-role-switch", NULL,
-					    usb_role_switch_match);
+	struct usb_role_switch *sw;
+
+	sw = device_connection_find_match(dev, "usb-role-switch", NULL,
+					  usb_role_switch_match);
+
+	if (!IS_ERR_OR_NULL(sw))
+		WARN_ON(!try_module_get(sw->dev.parent->driver->owner));
+
+	return sw;
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_get);
 
@@ -122,8 +129,10 @@ EXPORT_SYMBOL_GPL(usb_role_switch_get);
  */
 void usb_role_switch_put(struct usb_role_switch *sw)
 {
-	if (!IS_ERR_OR_NULL(sw))
+	if (!IS_ERR_OR_NULL(sw)) {
 		put_device(&sw->dev);
+		module_put(sw->dev.parent->driver->owner);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_put);
 
