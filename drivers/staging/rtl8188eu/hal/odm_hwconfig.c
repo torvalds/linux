@@ -14,14 +14,14 @@
 #define READ_AND_CONFIG_MP(ic, txt) (ODM_ReadAndConfig##txt##ic(dm_odm))
 #define READ_AND_CONFIG_TC(ic, txt) (ODM_ReadAndConfig_TC##txt##ic(dm_odm))
 
-static u8 odm_QueryRxPwrPercentage(s8 AntPower)
+static u8 odm_QueryRxPwrPercentage(s8 antpower)
 {
-	if ((AntPower <= -100) || (AntPower >= 20))
+	if ((antpower <= -100) || (antpower >= 20))
 		return 0;
-	else if (AntPower >= 0)
+	else if (antpower >= 0)
 		return 100;
 	else
-		return 100 + AntPower;
+		return 100 + antpower;
 }
 
 /*  2012/01/12 MH MOve some signal strength smooth method to MP HAL layer. */
