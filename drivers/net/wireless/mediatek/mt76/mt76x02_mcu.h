@@ -15,7 +15,7 @@
  */
 
 #ifndef __MT76x02_MCU_H
-#define __MT76x0x_MCU_H
+#define __MT76x02_MCU_H
 
 #define MT_MCU_RESET_CTL		0x070C
 #define MT_MCU_INT_LEVEL		0x0718

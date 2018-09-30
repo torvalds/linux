@@ -15,7 +15,7 @@
  */
 
 #ifndef __MT76x02_USB_H
-#define __MT76x0x_USB_H
+#define __MT76x02_USB_H
 
 #include "mt76.h"
 
