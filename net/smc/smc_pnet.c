@@ -461,7 +461,7 @@ static const struct genl_ops smc_pnet_ops[] = {
 };
 
 /* SMC_PNETID family definition */
-static struct genl_family smc_pnet_nl_family = {
+static struct genl_family smc_pnet_nl_family __ro_after_init = {
 	.hdrsize = 0,
 	.name = SMCR_GENL_FAMILY_NAME,
 	.version = SMCR_GENL_FAMILY_VERSION,

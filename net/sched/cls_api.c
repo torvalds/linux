@@ -1902,6 +1902,8 @@ replay:
 				RTM_NEWCHAIN, false);
 		break;
 	case RTM_DELCHAIN:
+		tfilter_notify_chain(net, skb, block, q, parent, n,
+				     chain, RTM_DELTFILTER);
 		/* Flush the chain first as the user requested chain removal. */
 		tcf_chain_flush(chain);
 		/* In case the chain was successfully deleted, put a reference

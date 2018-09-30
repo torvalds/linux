@@ -308,55 +308,6 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 {
 }
 
-/*
- * We do not have access to the sparsemem vmemmap, so we fallback to
- * walking the list of sparsemem blocks which we already maintain for
- * the sake of crashdump. In the long run, we might want to maintain
- * a tree if performance of that linear walk becomes a problem.
- *
- * realmode_pfn_to_page functions can fail due to:
- * 1) As real sparsemem blocks do not lay in RAM continously (they
- * are in virtual address space which is not available in the real mode),
- * the requested page struct can be split between blocks so get_page/put_page
- * may fail.
- * 2) When huge pages are used, the get_page/put_page API will fail
- * in real mode as the linked addresses in the page struct are virtual
- * too.
- */
-struct page *realmode_pfn_to_page(unsigned long pfn)
-{
-	struct vmemmap_backing *vmem_back;
-	struct page *page;
-	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
-	unsigned long pg_va = (unsigned long) pfn_to_page(pfn);
-
-	for (vmem_back = vmemmap_list; vmem_back; vmem_back = vmem_back->list) {
-		if (pg_va < vmem_back->virt_addr)
-			continue;
-
-		/* After vmemmap_list entry free is possible, need check all */
-		if ((pg_va + sizeof(struct page)) <=
-				(vmem_back->virt_addr + page_size)) {
-			page = (struct page *) (vmem_back->phys + pg_va -
-				vmem_back->virt_addr);
-			return page;
-		}
-	}
-
-	/* Probably that page struct is split between real pages */
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
-
-#else
-
-struct page *realmode_pfn_to_page(unsigned long pfn)
-{
-	struct page *page = pfn_to_page(pfn);
-	return page;
-}
-EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
-
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 #ifdef CONFIG_PPC_BOOK3S_64

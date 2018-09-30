@@ -33,4 +33,3 @@ Video Function Calls
     video-clear-buffer
     video-set-streamtype
     video-set-format
-    video-set-attributes

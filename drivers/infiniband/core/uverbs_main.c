@@ -440,6 +440,7 @@ static int ib_uverbs_comp_event_close(struct inode *inode, struct file *filp)
 			list_del(&entry->obj_list);
 		kfree(entry);
 	}
+	file->ev_queue.is_closed = 1;
 	spin_unlock_irq(&file->ev_queue.lock);
 
 	uverbs_close_fd(filp);
