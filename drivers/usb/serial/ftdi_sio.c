@@ -1778,10 +1778,6 @@ static void remove_sysfs_attrs(struct usb_serial_port *port)
 
 #ifdef CONFIG_GPIOLIB
 
-static const char * const ftdi_ftx_gpio_names[] = {
-	"CBUS0", "CBUS1", "CBUS2", "CBUS3"
-};
-
 static int ftdi_set_bitmode(struct usb_serial_port *port, u8 mode)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -2032,7 +2028,6 @@ static int ftx_gpioconf_init(struct usb_serial_port *port)
 
 	/* FIXME: FT234XD alone has 1 GPIO, but how to recognize this IC? */
 	priv->gc.ngpio = 4;
-	priv->gc.names = ftdi_ftx_gpio_names;
 
 	/* Determine which pins are configured for CBUS bitbanging */
 	priv->gpio_altfunc = 0xff;
