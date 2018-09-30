@@ -457,7 +457,8 @@ enum ftdi_sio_baudrate {
 #define FTDI_SIO_READ_EEPROM_REQUEST_TYPE 0xc0
 #define FTDI_SIO_READ_EEPROM_REQUEST FTDI_SIO_READ_EEPROM
 
-#define FTDI_FTX_CBUS_MUX_GPIO		8
+#define FTDI_FTX_CBUS_MUX_GPIO		0x8
+#define FTDI_FT232R_CBUS_MUX_GPIO	0xa
 
 
 /* Descriptors returned by the device

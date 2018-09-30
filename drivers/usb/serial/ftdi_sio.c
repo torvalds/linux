@@ -2007,7 +2007,40 @@ static int ftdi_read_eeprom(struct usb_serial *serial, void *dst, u16 addr,
 	return 0;
 }
 
-static int ftx_gpioconf_init(struct usb_serial_port *port)
+static int ftdi_gpio_init_ft232r(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	u16 cbus_config;
+	u8 *buf;
+	int ret;
+	int i;
+
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = ftdi_read_eeprom(port->serial, buf, 0x14, 2);
+	if (ret < 0)
+		goto out_free;
+
+	cbus_config = le16_to_cpup((__le16 *)buf);
+	dev_dbg(&port->dev, "cbus_config = 0x%04x\n", cbus_config);
+
+	priv->gc.ngpio = 4;
+
+	priv->gpio_altfunc = 0xff;
+	for (i = 0; i < priv->gc.ngpio; ++i) {
+		if ((cbus_config & 0xf) == FTDI_FT232R_CBUS_MUX_GPIO)
+			priv->gpio_altfunc &= ~BIT(i);
+		cbus_config >>= 4;
+	}
+out_free:
+	kfree(buf);
+
+	return ret;
+}
+
+static int ftdi_gpio_init_ftx(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
@@ -2049,8 +2082,11 @@ static int ftdi_gpio_init(struct usb_serial_port *port)
 	int result;
 
 	switch (priv->chip_type) {
+	case FT232RL:
+		result = ftdi_gpio_init_ft232r(port);
+		break;
 	case FTX:
-		result = ftx_gpioconf_init(port);
+		result = ftdi_gpio_init_ftx(port);
 		break;
 	default:
 		return 0;
