@@ -851,8 +851,8 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 #define SND_DAT 0
 #define SND_CMD 1
 
-	BUG_ON(mmc == NULL);
-	BUG_ON(mrq == NULL);
+	BUG_ON(!mmc);
+	BUG_ON(!mrq);
 
 	host->error = 0;
 
@@ -946,7 +946,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 done:
-	if (data != NULL) {
+	if (data) {
 		host->data = NULL;
 		dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len,
 			     mmc_get_dma_dir(data));
@@ -1638,7 +1638,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	}
 
 	/* transfer complete interrupt */
-	if (data != NULL) {
+	if (data) {
 		if (inten & MSDC_INT_XFER_COMPL) {
 			data->bytes_xfered = host->xfer_size;
 			complete(&host->xfer_done);
@@ -1661,7 +1661,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	}
 
 	/* command interrupts */
-	if ((cmd != NULL) && (intsts & cmdsts)) {
+	if (cmd && (intsts & cmdsts)) {
 		if ((intsts & MSDC_INT_CMDRDY) || (intsts & MSDC_INT_ACMDRDY) ||
 			(intsts & MSDC_INT_ACMD19_DONE)) {
 			u32 *rsp = &cmd->resp[0];
