@@ -2530,15 +2530,14 @@ void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	const struct rd_msg *msg = (struct rd_msg *)icmp6_hdr(skb);
 	struct dst_entry *dst;
-	struct flowi6 fl6;
-
-	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_iif = LOOPBACK_IFINDEX;
-	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = mark;
-	fl6.daddr = msg->dest;
-	fl6.saddr = iph->daddr;
-	fl6.flowi6_uid = sock_net_uid(net, NULL);
+	struct flowi6 fl6 = {
+		.flowi6_iif = LOOPBACK_IFINDEX,
+		.flowi6_oif = oif,
+		.flowi6_mark = mark,
+		.daddr = msg->dest,
+		.saddr = iph->daddr,
+		.flowi6_uid = sock_net_uid(net, NULL),
+	};
 
 	dst = ip6_route_redirect(net, &fl6, skb, &iph->saddr);
 	rt6_do_redirect(dst, NULL, skb);
