@@ -118,8 +118,16 @@
  *1. add isp reset function.
  *2. fix the issue that setting of isp0 mipi affect txrx dphy.
  *
+ *v0.2.0x2
+ *1. fix fmt selection.
+ *2. MP/SP burst config with resolution.
+ *3. fix one vb is in queue.done_list twice.
+ *4. fix lose buffer in qduf ioctl.
+ *5. fix AE information is not correct when updating exposure by each frame.
+ *6. support Y8/Y12 grey sensor.
+ *
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 2, 0x1)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 2, 0x2)
 
 #endif
