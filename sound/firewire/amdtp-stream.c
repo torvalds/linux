@@ -140,6 +140,59 @@ const unsigned int amdtp_rate_table[CIP_SFC_COUNT] = {
 };
 EXPORT_SYMBOL(amdtp_rate_table);
 
+static int apply_constraint_to_size(struct snd_pcm_hw_params *params,
+				    struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *s = hw_param_interval(params, rule->var);
+	const struct snd_interval *r =
+		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval t = {
+		.min = s->min, .max = s->max, .integer = 1,
+	};
+	int i;
+
+	for (i = 0; i < CIP_SFC_COUNT; ++i) {
+		unsigned int rate = amdtp_rate_table[i];
+		unsigned int step = amdtp_syt_intervals[i];
+
+		if (!snd_interval_test(r, rate))
+			continue;
+
+		t.min = roundup(t.min, step);
+		t.max = rounddown(t.max, step);
+	}
+
+	if (snd_interval_checkempty(&t))
+		return -EINVAL;
+
+	return snd_interval_refine(s, &t);
+}
+
+static int apply_constraint_to_rate(struct snd_pcm_hw_params *params,
+				    struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *r =
+			hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	const struct snd_interval *s = hw_param_interval_c(params, rule->deps[0]);
+	struct snd_interval t = {
+		.min = UINT_MAX, .max = 0, .integer = 1,
+	};
+	int i;
+
+	for (i = 0; i < CIP_SFC_COUNT; ++i) {
+		unsigned int step = amdtp_syt_intervals[i];
+		unsigned int rate = amdtp_rate_table[i];
+
+		if (s->min % step || s->max % step)
+			continue;
+
+		t.min = min(t.min, rate);
+		t.max = max(t.max, rate);
+	}
+
+	return snd_interval_refine(r, &t);
+}
+
 /**
  * amdtp_stream_add_pcm_hw_constraints - add hw constraints for PCM substream
  * @s:		the AMDTP stream, which must be initialized.
@@ -194,16 +247,27 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	 * number equals to SYT_INTERVAL. So the number is 8, 16 or 32,
 	 * depending on its sampling rate. For accurate period interrupt, it's
 	 * preferrable to align period/buffer sizes to current SYT_INTERVAL.
-	 *
-	 * TODO: These constraints can be improved with proper rules.
-	 * Currently apply LCM of SYT_INTERVALs.
 	 */
-	err = snd_pcm_hw_constraint_step(runtime, 0,
-					 SNDRV_PCM_HW_PARAM_PERIOD_SIZE, 32);
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+				  apply_constraint_to_size, NULL,
+				  SNDRV_PCM_HW_PARAM_RATE, -1);
 	if (err < 0)
 		goto end;
-	err = snd_pcm_hw_constraint_step(runtime, 0,
-					 SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 32);
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				  apply_constraint_to_rate, NULL,
+				  SNDRV_PCM_HW_PARAM_PERIOD_SIZE, -1);
+	if (err < 0)
+		goto end;
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+				  apply_constraint_to_size, NULL,
+				  SNDRV_PCM_HW_PARAM_RATE, -1);
+	if (err < 0)
+		goto end;
+	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				  apply_constraint_to_rate, NULL,
+				  SNDRV_PCM_HW_PARAM_BUFFER_SIZE, -1);
+	if (err < 0)
+		goto end;
 end:
 	return err;
 }
