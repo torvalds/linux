@@ -527,6 +527,7 @@ struct hns_roce_v2_qp_context {
 
 #define	V2_QPC_BYTE_76_RQIE_S 28
 
+#define	V2_QPC_BYTE_76_RQ_VLAN_EN_S 30
 #define	V2_QPC_BYTE_80_RX_CQN_S 0
 #define V2_QPC_BYTE_80_RX_CQN_M GENMASK(23, 0)
 
@@ -628,6 +629,7 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_168_LP_SGEN_INI_S 22
 #define V2_QPC_BYTE_168_LP_SGEN_INI_M GENMASK(23, 22)
 
+#define V2_QPC_BYTE_168_SQ_VLAN_EN_S 24
 #define V2_QPC_BYTE_168_POLL_DB_WAIT_DO_S 25
 #define V2_QPC_BYTE_168_SCC_TOKEN_FORBID_SQ_DEQ_S 26
 #define V2_QPC_BYTE_168_WAIT_ACK_TIMEOUT_S 27
