@@ -17,9 +17,9 @@
 static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 {
 	if ((AntPower <= -100) || (AntPower >= 20))
-		return	0;
+		return 0;
 	else if (AntPower >= 0)
-		return	100;
+		return 100;
 	else
 		return 100 + AntPower;
 }
