@@ -1695,8 +1695,8 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 
 	/* mmc irq interrupts */
 	if (intsts & MSDC_INT_MMCIRQ)
-		printk(KERN_INFO "msdc[%d] MMCIRQ: SDC_CSTS=0x%.8x\r\n",
-		       host->id, readl(host->base + SDC_CSTS));
+		dev_info(mmc_dev(host->mmc), "msdc[%d] MMCIRQ: SDC_CSTS=0x%.8x\r\n",
+			host->id, readl(host->base + SDC_CSTS));
 
 	return IRQ_HANDLED;
 }
@@ -2131,7 +2131,7 @@ static int __init mt_msdc_init(void)
 
 	ret = platform_driver_register(&mt_msdc_driver);
 	if (ret) {
-		printk(KERN_ERR DRV_NAME ": Can't register driver");
+		pr_err("%s: Can't register driver", DRV_NAME);
 		return ret;
 	}
 
