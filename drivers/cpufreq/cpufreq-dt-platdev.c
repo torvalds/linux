@@ -58,6 +58,7 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "renesas,r8a73a4", },
 	{ .compatible = "renesas,r8a7740", },
 	{ .compatible = "renesas,r8a7743", },
+	{ .compatible = "renesas,r8a7744", },
 	{ .compatible = "renesas,r8a7745", },
 	{ .compatible = "renesas,r8a7778", },
 	{ .compatible = "renesas,r8a7779", },
