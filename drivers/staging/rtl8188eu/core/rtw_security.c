@@ -353,7 +353,7 @@ void rtw_seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len, u8 *mic_cod
 
 	/* Michael MIC pseudo header: DA, SA, 3 x 0, Priority */
 	if (header[1]&1) {   /* ToDS == 1 */
-			rtw_secmicappend(&micdata, &header[16], 6);  /* DA */
+		rtw_secmicappend(&micdata, &header[16], 6);  /* DA */
 		if (header[1]&2)  /* From Ds == 1 */
 			rtw_secmicappend(&micdata, &header[24], 6);
 		else
@@ -1273,8 +1273,7 @@ u32	rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 		}
 	}
 
-
-		return res;
+	return res;
 }
 
 u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)

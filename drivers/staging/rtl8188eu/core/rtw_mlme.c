@@ -305,7 +305,7 @@ static int is_same_ess(struct wlan_bssid_ex *a, struct wlan_bssid_ex *b)
 
 int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 {
-	 u16 s_cap, d_cap;
+	u16 s_cap, d_cap;
 	__le16 le_scap, le_dcap;
 
 	memcpy((u8 *)&le_scap, rtw_get_capability_from_ie(src->ies), 2);
@@ -842,7 +842,7 @@ static struct sta_info *rtw_joinbss_update_stainfo(struct adapter *padapter, str
 	if (psta) { /* update ptarget_sta */
 		DBG_88E("%s\n", __func__);
 		psta->aid  = pnetwork->join_res;
-			psta->mac_id = 0;
+		psta->mac_id = 0;
 		/* sta mode */
 		rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, true);
 		/* security related */
@@ -1038,12 +1038,12 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 			}
 
 			/* s4. indicate connect */
-				if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
-					rtw_indicate_connect(adapter);
-				} else {
-					/* adhoc mode will rtw_indicate_connect when rtw_stassoc_event_callback */
-					RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("adhoc mode, fw_state:%x", get_fwstate(pmlmepriv)));
-				}
+			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) {
+				rtw_indicate_connect(adapter);
+			} else {
+				/* adhoc mode will rtw_indicate_connect when rtw_stassoc_event_callback */
+				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("adhoc mode, fw_state:%x", get_fwstate(pmlmepriv)));
+			}
 
 			/* s5. Cancel assoc_timer */
 			del_timer_sync(&pmlmepriv->assoc_timer);

@@ -357,7 +357,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		}
 		if (pLed->bLedLinkBlinkInProgress) {
 			del_timer_sync(&pLed->BlinkTimer);
-			 pLed->bLedLinkBlinkInProgress = false;
+			pLed->bLedLinkBlinkInProgress = false;
 		}
 		if (pLed->bLedBlinkInProgress) {
 			del_timer_sync(&pLed->BlinkTimer);
@@ -383,7 +383,7 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		}
 		if (pLed->bLedLinkBlinkInProgress) {
 			del_timer_sync(&pLed->BlinkTimer);
-			 pLed->bLedLinkBlinkInProgress = false;
+			pLed->bLedLinkBlinkInProgress = false;
 		}
 		if (pLed->bLedBlinkInProgress) {
 			del_timer_sync(&pLed->BlinkTimer);

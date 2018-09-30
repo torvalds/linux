@@ -37,7 +37,7 @@ void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
 		tmpv16 = usb_read16(pAdapter, REG_SYS_ISO_CTRL);
 		if (!(tmpv16 & PWC_EV12V)) {
 			tmpv16 |= PWC_EV12V;
-			 usb_write16(pAdapter, REG_SYS_ISO_CTRL, tmpv16);
+			usb_write16(pAdapter, REG_SYS_ISO_CTRL, tmpv16);
 		}
 		/*  Reset: 0x0000h[28], default valid */
 		tmpv16 =  usb_read16(pAdapter, REG_SYS_FUNC_EN);

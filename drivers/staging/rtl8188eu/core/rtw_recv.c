@@ -488,7 +488,7 @@ static struct recv_frame *portctrl(struct adapter *adapter,
 		prtnframe = precv_frame;
 	}
 
-		return prtnframe;
+	return prtnframe;
 }
 
 static int recv_decache(struct recv_frame *precv_frame, u8 bretry,
