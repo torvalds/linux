@@ -6416,6 +6416,27 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
+static int dbpro_build_controls(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	int err = 0;
+
+	if (spec->dig_out) {
+		err = snd_hda_create_spdif_out_ctls(codec, spec->dig_out,
+				spec->dig_out);
+		if (err < 0)
+			return err;
+	}
+
+	if (spec->dig_in) {
+		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 /*
  * PCM
  */
@@ -6497,6 +6518,40 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[2];
+
+	if (!spec->dig_out && !spec->dig_in)
+		return 0;
+
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
+	if (!info)
+		return -ENOMEM;
+	info->pcm_type = HDA_PCM_TYPE_SPDIF;
+	if (spec->dig_out) {
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
+			ca0132_pcm_digital_playback;
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dig_out;
+	}
+	if (spec->dig_in) {
+		info->stream[SNDRV_PCM_STREAM_CAPTURE] =
+			ca0132_pcm_digital_capture;
+		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
+	}
+
+	return 0;
+}
+
+static int dbpro_build_pcms(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	struct hda_pcm *info;
+
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Alt Analog");
+	if (!info)
+		return -ENOMEM;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
+
 
 	if (!spec->dig_out && !spec->dig_in)
 		return 0;
@@ -7649,6 +7704,16 @@ static void sbz_gpio_shutdown_commands(struct hda_codec *codec, int dir,
 				AC_VERB_SET_GPIO_DATA, data);
 }
 
+static void zxr_dbpro_power_state_shutdown(struct hda_codec *codec)
+{
+	hda_nid_t pins[7] = {0x05, 0x0c, 0x09, 0x0e, 0x08, 0x11, 0x01};
+	unsigned int i;
+
+	for (i = 0; i < 7; i++)
+		snd_hda_codec_write(codec, pins[i], 0,
+				AC_VERB_SET_POWER_STATE, 0x03);
+}
+
 static void sbz_exit_chip(struct hda_codec *codec)
 {
 	chipio_set_stream_control(codec, 0x03, 0);
@@ -8147,6 +8212,21 @@ static int ca0132_init(struct hda_codec *codec)
 	return 0;
 }
 
+static int dbpro_init(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	unsigned int i;
+
+	init_output(codec, cfg->dig_out_pins[0], spec->dig_out);
+	init_input(codec, cfg->dig_in_pin, spec->dig_in);
+
+	for (i = 0; i < spec->num_inputs; i++)
+		init_input(codec, spec->input_pins[i], spec->adcs[i]);
+
+	return 0;
+}
+
 static void ca0132_free(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
@@ -8178,6 +8258,16 @@ static void ca0132_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
+static void dbpro_free(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	zxr_dbpro_power_state_shutdown(codec);
+
+	kfree(spec->spec_init_verbs);
+	kfree(codec->spec);
+}
+
 static void ca0132_reboot_notify(struct hda_codec *codec)
 {
 	codec->patch_ops.free(codec);
@@ -8190,6 +8280,13 @@ static const struct hda_codec_ops ca0132_patch_ops = {
 	.free = ca0132_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 	.reboot_notify = ca0132_reboot_notify,
+};
+
+static const struct hda_codec_ops dbpro_patch_ops = {
+	.build_controls = dbpro_build_controls,
+	.build_pcms = dbpro_build_pcms,
+	.init = dbpro_init,
+	.free = dbpro_free,
 };
 
 static void ca0132_config(struct hda_codec *codec)
@@ -8487,6 +8584,9 @@ static int patch_ca0132(struct hda_codec *codec)
 	case QUIRK_SBZ:
 		spec->mixers[0] = desktop_mixer;
 		snd_hda_codec_set_name(codec, "Sound Blaster Z");
+		break;
+	case QUIRK_ZXR_DBPRO:
+		codec->patch_ops = dbpro_patch_ops;
 		break;
 	case QUIRK_R3D:
 		spec->mixers[0] = desktop_mixer;
