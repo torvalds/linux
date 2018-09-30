@@ -2268,6 +2268,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		wc->src_qp = (u8)roce_get_field(cqe->byte_32,
 						V2_CQE_BYTE_32_RMT_QPN_M,
 						V2_CQE_BYTE_32_RMT_QPN_S);
+		wc->slid = 0;
 		wc->wc_flags |= (roce_get_bit(cqe->byte_32,
 					      V2_CQE_BYTE_32_GRH_S) ?
 					      IB_WC_GRH : 0);
