@@ -28,26 +28,26 @@ static u8 odm_query_rxpwrpercentage(s8 antpower)
 /*  IF other SW team do not support the feature, remove this section.?? */
 static s32 odm_SignalScaleMapping(struct odm_dm_struct *dm_odm, s32 currsig)
 {
-	s32 RetSig = 0;
+	s32 retsig = 0;
 
 	if (currsig >= 51 && currsig <= 100)
-		RetSig = 100;
+		retsig = 100;
 	else if (currsig >= 41 && currsig <= 50)
-		RetSig = 80 + ((currsig - 40) * 2);
+		retsig = 80 + ((currsig - 40) * 2);
 	else if (currsig >= 31 && currsig <= 40)
-		RetSig = 66 + (currsig - 30);
+		retsig = 66 + (currsig - 30);
 	else if (currsig >= 21 && currsig <= 30)
-		RetSig = 54 + (currsig - 20);
+		retsig = 54 + (currsig - 20);
 	else if (currsig >= 10 && currsig <= 20)
-		RetSig = 42 + (((currsig - 10) * 2) / 3);
+		retsig = 42 + (((currsig - 10) * 2) / 3);
 	else if (currsig >= 5 && currsig <= 9)
-		RetSig = 22 + (((currsig - 5) * 3) / 2);
+		retsig = 22 + (((currsig - 5) * 3) / 2);
 	else if (currsig >= 1 && currsig <= 4)
-		RetSig = 6 + (((currsig - 1) * 3) / 2);
+		retsig = 6 + (((currsig - 1) * 3) / 2);
 	else
-		RetSig = currsig;
+		retsig = currsig;
 
-	return RetSig;
+	return retsig;
 }
 
 static u8 odm_evm_db_to_percentage(s8 value)
