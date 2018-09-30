@@ -67,11 +67,6 @@ extern void swiotlb_tbl_sync_single(struct device *hwdev,
 
 /* Accessory functions. */
 
-void *swiotlb_alloc(struct device *hwdev, size_t size, dma_addr_t *dma_handle,
-		gfp_t flags, unsigned long attrs);
-void swiotlb_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_addr, unsigned long attrs);
-
 extern dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 				   unsigned long offset, size_t size,
 				   enum dma_data_direction dir,

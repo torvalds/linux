@@ -622,78 +622,6 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,
 	}
 }
 
-static inline bool dma_coherent_ok(struct device *dev, dma_addr_t addr,
-		size_t size)
-{
-	u64 mask = DMA_BIT_MASK(32);
-
-	if (dev && dev->coherent_dma_mask)
-		mask = dev->coherent_dma_mask;
-	return addr + size - 1 <= mask;
-}
-
-static void *
-swiotlb_alloc_buffer(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		unsigned long attrs)
-{
-	phys_addr_t phys_addr;
-
-	if (swiotlb_force == SWIOTLB_NO_FORCE)
-		goto out_warn;
-
-	phys_addr = swiotlb_tbl_map_single(dev,
-			__phys_to_dma(dev, io_tlb_start),
-			0, size, DMA_FROM_DEVICE, attrs);
-	if (phys_addr == SWIOTLB_MAP_ERROR)
-		goto out_warn;
-
-	*dma_handle = __phys_to_dma(dev, phys_addr);
-	if (!dma_coherent_ok(dev, *dma_handle, size))
-		goto out_unmap;
-
-	memset(phys_to_virt(phys_addr), 0, size);
-	return phys_to_virt(phys_addr);
-
-out_unmap:
-	dev_warn(dev, "hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n",
-		(unsigned long long)dev->coherent_dma_mask,
-		(unsigned long long)*dma_handle);
-
-	/*
-	 * DMA_TO_DEVICE to avoid memcpy in unmap_single.
-	 * DMA_ATTR_SKIP_CPU_SYNC is optional.
-	 */
-	swiotlb_tbl_unmap_single(dev, phys_addr, size, DMA_TO_DEVICE,
-			DMA_ATTR_SKIP_CPU_SYNC);
-out_warn:
-	if (!(attrs & DMA_ATTR_NO_WARN) && printk_ratelimit()) {
-		dev_warn(dev,
-			"swiotlb: coherent allocation failed, size=%zu\n",
-			size);
-		dump_stack();
-	}
-	return NULL;
-}
-
-static bool swiotlb_free_buffer(struct device *dev, size_t size,
-		dma_addr_t dma_addr)
-{
-	phys_addr_t phys_addr = dma_to_phys(dev, dma_addr);
-
-	WARN_ON_ONCE(irqs_disabled());
-
-	if (!is_swiotlb_buffer(phys_addr))
-		return false;
-
-	/*
-	 * DMA_TO_DEVICE to avoid memcpy in swiotlb_tbl_unmap_single.
-	 * DMA_ATTR_SKIP_CPU_SYNC is optional.
-	 */
-	swiotlb_tbl_unmap_single(dev, phys_addr, size, DMA_TO_DEVICE,
-				 DMA_ATTR_SKIP_CPU_SYNC);
-	return true;
-}
-
 static dma_addr_t swiotlb_bounce_page(struct device *dev, phys_addr_t *phys,
 		size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
@@ -926,39 +854,10 @@ swiotlb_dma_supported(struct device *hwdev, u64 mask)
 	return __phys_to_dma(hwdev, io_tlb_end - 1) <= mask;
 }
 
-void *swiotlb_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		gfp_t gfp, unsigned long attrs)
-{
-	void *vaddr;
-
-	/* temporary workaround: */
-	if (gfp & __GFP_NOWARN)
-		attrs |= DMA_ATTR_NO_WARN;
-
-	/*
-	 * Don't print a warning when the first allocation attempt fails.
-	 * swiotlb_alloc_coherent() will print a warning when the DMA memory
-	 * allocation ultimately failed.
-	 */
-	gfp |= __GFP_NOWARN;
-
-	vaddr = dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
-	if (!vaddr)
-		vaddr = swiotlb_alloc_buffer(dev, size, dma_handle, attrs);
-	return vaddr;
-}
-
-void swiotlb_free(struct device *dev, size_t size, void *vaddr,
-		dma_addr_t dma_addr, unsigned long attrs)
-{
-	if (!swiotlb_free_buffer(dev, size, dma_addr))
-		dma_direct_free(dev, size, vaddr, dma_addr, attrs);
-}
-
 const struct dma_map_ops swiotlb_dma_ops = {
 	.mapping_error		= dma_direct_mapping_error,
-	.alloc			= swiotlb_alloc,
-	.free			= swiotlb_free,
+	.alloc			= dma_direct_alloc,
+	.free			= dma_direct_free,
 	.sync_single_for_cpu	= swiotlb_sync_single_for_cpu,
 	.sync_single_for_device	= swiotlb_sync_single_for_device,
 	.sync_sg_for_cpu	= swiotlb_sync_sg_for_cpu,

@@ -112,7 +112,7 @@ static void *__dma_alloc(struct device *dev, size_t size,
 		return addr;
 	}
 
-	ptr = swiotlb_alloc(dev, size, dma_handle, flags, attrs);
+	ptr = dma_direct_alloc_pages(dev, size, dma_handle, flags, attrs);
 	if (!ptr)
 		goto no_mem;
 
@@ -133,7 +133,7 @@ static void *__dma_alloc(struct device *dev, size_t size,
 	return coherent_ptr;
 
 no_map:
-	swiotlb_free(dev, size, ptr, *dma_handle, attrs);
+	dma_direct_free_pages(dev, size, ptr, *dma_handle, attrs);
 no_mem:
 	return NULL;
 }
@@ -151,7 +151,7 @@ static void __dma_free(struct device *dev, size_t size,
 			return;
 		vunmap(vaddr);
 	}
-	swiotlb_free(dev, size, swiotlb_addr, dma_handle, attrs);
+	dma_direct_free_pages(dev, size, swiotlb_addr, dma_handle, attrs);
 }
 
 static dma_addr_t __swiotlb_map_page(struct device *dev, struct page *page,
