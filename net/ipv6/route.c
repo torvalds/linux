@@ -4143,14 +4143,19 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	err = -EINVAL;
 	rtm = nlmsg_data(nlh);
-	memset(cfg, 0, sizeof(*cfg));
 
-	cfg->fc_table = rtm->rtm_table;
-	cfg->fc_dst_len = rtm->rtm_dst_len;
-	cfg->fc_src_len = rtm->rtm_src_len;
-	cfg->fc_flags = RTF_UP;
-	cfg->fc_protocol = rtm->rtm_protocol;
-	cfg->fc_type = rtm->rtm_type;
+	*cfg = (struct fib6_config){
+		.fc_table = rtm->rtm_table,
+		.fc_dst_len = rtm->rtm_dst_len,
+		.fc_src_len = rtm->rtm_src_len,
+		.fc_flags = RTF_UP,
+		.fc_protocol = rtm->rtm_protocol,
+		.fc_type = rtm->rtm_type,
+
+		.fc_nlinfo.portid = NETLINK_CB(skb).portid,
+		.fc_nlinfo.nlh = nlh,
+		.fc_nlinfo.nl_net = sock_net(skb->sk),
+	};
 
 	if (rtm->rtm_type == RTN_UNREACHABLE ||
 	    rtm->rtm_type == RTN_BLACKHOLE ||
@@ -4165,10 +4170,6 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 		cfg->fc_flags |= RTF_CACHE;
 
 	cfg->fc_flags |= (rtm->rtm_flags & RTNH_F_ONLINK);
-
-	cfg->fc_nlinfo.portid = NETLINK_CB(skb).portid;
-	cfg->fc_nlinfo.nlh = nlh;
-	cfg->fc_nlinfo.nl_net = sock_net(skb->sk);
 
 	if (tb[RTA_GATEWAY]) {
 		cfg->fc_gateway = nla_get_in6_addr(tb[RTA_GATEWAY]);
