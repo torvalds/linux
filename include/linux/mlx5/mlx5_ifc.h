@@ -8140,7 +8140,8 @@ struct mlx5_ifc_pcam_enhanced_features_bits {
 	u8         rx_icrc_encapsulated_counter[0x1];
 	u8	   reserved_at_6e[0x8];
 	u8         pfcc_mask[0x1];
-	u8         reserved_at_77[0x4];
+	u8         reserved_at_77[0x3];
+	u8         per_lane_error_counters[0x1];
 	u8         rx_buffer_fullness_counters[0x1];
 	u8         ptys_connector_type[0x1];
 	u8         reserved_at_7d[0x1];
