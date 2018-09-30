@@ -1,5 +1,5 @@
 /*
- * Rockchip MIPI Synopsys DPHY driver
+ * Rockchip MIPI RX Synopsys/Innosilicon DPHY driver
  *
  * Copyright (C) 2017 Fuzhou Rockchip Electronics Co., Ltd.
  *
@@ -134,10 +134,10 @@
 #define HIWORD_UPDATE(val, mask, shift) \
 	((val) << (shift) | (mask) << ((shift) + 16))
 
-enum mipi_dphy_sy_pads {
-	MIPI_DPHY_SY_PAD_SINK = 0,
-	MIPI_DPHY_SY_PAD_SOURCE,
-	MIPI_DPHY_SY_PADS_NUM,
+enum mipi_dphy_rx_pads {
+	MIPI_DPHY_RX_PAD_SINK = 0,
+	MIPI_DPHY_RX_PAD_SOURCE,
+	MIPI_DPHY_RX_PADS_NUM,
 };
 
 enum dphy_reg_id {
@@ -387,7 +387,7 @@ struct mipidphy_priv {
 	u64 data_rate_mbps;
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev sd;
-	struct media_pad pads[MIPI_DPHY_SY_PADS_NUM];
+	struct media_pad pads[MIPI_DPHY_RX_PADS_NUM];
 	struct mipidphy_sensor sensors[MAX_DPHY_SENSORS];
 	int num_sensors;
 	bool is_streaming;
@@ -505,7 +505,7 @@ static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
 	struct media_pad *local, *remote;
 	struct media_entity *sensor_me;
 
-	local = &sd->entity.pads[MIPI_DPHY_SY_PAD_SINK];
+	local = &sd->entity.pads[MIPI_DPHY_RX_PAD_SINK];
 	remote = media_entity_remote_pad(local);
 	if (!remote) {
 		v4l2_warn(sd, "No link between dphy and sensor\n");
@@ -1122,7 +1122,7 @@ rockchip_mipidphy_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	ret = media_entity_create_link(
 			&sensor->sd->entity, pad,
-			&priv->sd.entity, MIPI_DPHY_SY_PAD_SINK,
+			&priv->sd.entity, MIPI_DPHY_RX_PAD_SINK,
 			priv->num_sensors != 1 ? 0 : MEDIA_LNK_FL_ENABLED);
 	if (ret) {
 		dev_err(priv->dev,
@@ -1200,13 +1200,13 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 {
 	int ret;
 
-	priv->pads[MIPI_DPHY_SY_PAD_SOURCE].flags =
+	priv->pads[MIPI_DPHY_RX_PAD_SOURCE].flags =
 		MEDIA_PAD_FL_SOURCE | MEDIA_PAD_FL_MUST_CONNECT;
-	priv->pads[MIPI_DPHY_SY_PAD_SINK].flags =
+	priv->pads[MIPI_DPHY_RX_PAD_SINK].flags =
 		MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 
 	ret = media_entity_init(&priv->sd.entity,
-				MIPI_DPHY_SY_PADS_NUM, priv->pads, 0);
+				MIPI_DPHY_RX_PADS_NUM, priv->pads, 0);
 	if (ret < 0)
 		return ret;
 
@@ -1292,7 +1292,7 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 	sd = &priv->sd;
 	v4l2_subdev_init(sd, &mipidphy_subdev_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	snprintf(sd->name, sizeof(sd->name), "rockchip-sy-mipi-dphy");
+	snprintf(sd->name, sizeof(sd->name), "rockchip-mipi-dphy-rx");
 	sd->dev = dev;
 
 	platform_set_drvdata(pdev, &sd->entity);
@@ -1328,7 +1328,7 @@ static struct platform_driver rockchip_isp_mipidphy_driver = {
 	.probe = rockchip_mipidphy_probe,
 	.remove = rockchip_mipidphy_remove,
 	.driver = {
-			.name = "rockchip-sy-mipi-dphy",
+			.name = "rockchip-mipi-dphy-rx",
 			.pm = &rockchip_mipidphy_pm_ops,
 			.of_match_table = rockchip_mipidphy_match_id,
 	},
@@ -1336,5 +1336,5 @@ static struct platform_driver rockchip_isp_mipidphy_driver = {
 
 module_platform_driver(rockchip_isp_mipidphy_driver);
 MODULE_AUTHOR("Rockchip Camera/ISP team");
-MODULE_DESCRIPTION("Rockchip MIPI DPHY driver");
+MODULE_DESCRIPTION("Rockchip MIPI RX DPHY driver");
 MODULE_LICENSE("Dual BSD/GPL");
