@@ -6109,7 +6109,7 @@ static int ae5_add_headphone_gain_enum(struct hda_codec *codec)
 {
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_MUTE_MONO("AE-5: Headphone Gain",
-				    AE5_HEADPHONE_GAIN_ENUM, 1, 0, HDA_INPUT);
+				    AE5_HEADPHONE_GAIN_ENUM, 1, 0, HDA_OUTPUT);
 	knew.info = ae5_headphone_gain_info;
 	knew.get = ae5_headphone_gain_get;
 	knew.put = ae5_headphone_gain_put;
@@ -6126,7 +6126,7 @@ static int ae5_add_sound_filter_enum(struct hda_codec *codec)
 {
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_MUTE_MONO("AE-5: Sound Filter",
-				    AE5_SOUND_FILTER_ENUM, 1, 0, HDA_INPUT);
+				    AE5_SOUND_FILTER_ENUM, 1, 0, HDA_OUTPUT);
 	knew.info = ae5_sound_filter_info;
 	knew.get = ae5_sound_filter_get;
 	knew.put = ae5_sound_filter_put;
