@@ -4174,6 +4174,12 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			ca0113_mmio_gpio_set(codec, 1, true);
 			chipio_set_control_param(codec, 0x0d, 0x18);
 			break;
+		case QUIRK_ZXR:
+			ca0113_mmio_gpio_set(codec, 2, true);
+			ca0113_mmio_gpio_set(codec, 3, true);
+			ca0113_mmio_gpio_set(codec, 5, false);
+			chipio_set_control_param(codec, 0x0d, 0x24);
+			break;
 		case QUIRK_R3DI:
 			chipio_set_control_param(codec, 0x0d, 0x24);
 			r3di_gpio_out_set(codec, R3DI_LINE_OUT);
@@ -4200,6 +4206,12 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			ca0113_mmio_gpio_set(codec, 4, true);
 			ca0113_mmio_gpio_set(codec, 1, false);
 			chipio_set_control_param(codec, 0x0d, 0x12);
+			break;
+		case QUIRK_ZXR:
+			ca0113_mmio_gpio_set(codec, 2, false);
+			ca0113_mmio_gpio_set(codec, 3, false);
+			ca0113_mmio_gpio_set(codec, 5, true);
+			chipio_set_control_param(codec, 0x0d, 0x21);
 			break;
 		case QUIRK_R3DI:
 			chipio_set_control_param(codec, 0x0d, 0x21);
@@ -4228,6 +4240,12 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			ca0113_mmio_gpio_set(codec, 4, true);
 			ca0113_mmio_gpio_set(codec, 1, true);
 			chipio_set_control_param(codec, 0x0d, 0x18);
+			break;
+		case QUIRK_ZXR:
+			ca0113_mmio_gpio_set(codec, 2, true);
+			ca0113_mmio_gpio_set(codec, 3, true);
+			ca0113_mmio_gpio_set(codec, 5, false);
+			chipio_set_control_param(codec, 0x0d, 0x24);
 			break;
 		case QUIRK_R3DI:
 			chipio_set_control_param(codec, 0x0d, 0x24);
@@ -4625,6 +4643,9 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 			ca0113_mmio_gpio_set(codec, 0, false);
 			tmp = FLOAT_THREE;
 			break;
+		case QUIRK_ZXR:
+			tmp = FLOAT_THREE;
+			break;
 		case QUIRK_R3DI:
 			r3di_gpio_mic_set(codec, R3DI_REAR_MIC);
 			tmp = FLOAT_ONE;
@@ -4651,6 +4672,10 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 		case QUIRK_SBZ:
 			chipio_write(codec, 0x18B098, 0x0000000C);
 			chipio_write(codec, 0x18B09C, 0x0000000C);
+			break;
+		case QUIRK_ZXR:
+			chipio_write(codec, 0x18B098, 0x0000000C);
+			chipio_write(codec, 0x18B09C, 0x000000CC);
 			break;
 		case QUIRK_AE5:
 			chipio_write(codec, 0x18B098, 0x0000000C);
