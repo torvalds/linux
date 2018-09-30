@@ -101,6 +101,7 @@ struct tls_rec {
 	struct list_head list;
 	int tx_ready;
 	int tx_flags;
+	int inplace_crypto;
 
 	/* AAD | sg_plaintext_data | sg_tag */
 	struct scatterlist sg_plaintext_data[MAX_SKB_FRAGS + 1];

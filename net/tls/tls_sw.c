@@ -281,24 +281,72 @@ static int alloc_encrypted_sg(struct sock *sk, int len)
 	return rc;
 }
 
-static int alloc_plaintext_sg(struct sock *sk, int len)
+static int move_to_plaintext_sg(struct sock *sk, int required_size)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
 	struct tls_rec *rec = ctx->open_rec;
-	int rc = 0;
+	struct scatterlist *plain_sg = &rec->sg_plaintext_data[1];
+	struct scatterlist *enc_sg = &rec->sg_encrypted_data[1];
+	int enc_sg_idx = 0;
+	int skip, len;
 
-	rc = sk_alloc_sg(sk, len,
-			 &rec->sg_plaintext_data[1], 0,
-			 &rec->sg_plaintext_num_elem,
-			 &rec->sg_plaintext_size,
-			 tls_ctx->pending_open_record_frags);
+	if (rec->sg_plaintext_num_elem == MAX_SKB_FRAGS)
+		return -ENOSPC;
 
-	if (rc == -ENOSPC)
-		rec->sg_plaintext_num_elem =
-			ARRAY_SIZE(rec->sg_plaintext_data) - 1;
+	/* We add page references worth len bytes from enc_sg at the
+	 * end of plain_sg. It is guaranteed that sg_encrypted_data
+	 * has enough required room (ensured by caller).
+	 */
+	len = required_size - rec->sg_plaintext_size;
 
-	return rc;
+	/* Skip initial bytes in sg_encrypted_data to be able
+	 * to use same offset of both plain and encrypted data.
+	 */
+	skip = tls_ctx->tx.prepend_size + rec->sg_plaintext_size;
+
+	while (enc_sg_idx < rec->sg_encrypted_num_elem) {
+		if (enc_sg[enc_sg_idx].length > skip)
+			break;
+
+		skip -= enc_sg[enc_sg_idx].length;
+		enc_sg_idx++;
+	}
+
+	/* unmark the end of plain_sg*/
+	sg_unmark_end(plain_sg + rec->sg_plaintext_num_elem - 1);
+
+	while (len) {
+		struct page *page = sg_page(&enc_sg[enc_sg_idx]);
+		int bytes = enc_sg[enc_sg_idx].length - skip;
+		int offset = enc_sg[enc_sg_idx].offset + skip;
+
+		if (bytes > len)
+			bytes = len;
+		else
+			enc_sg_idx++;
+
+		/* Skipping is required only one time */
+		skip = 0;
+
+		/* Increment page reference */
+		get_page(page);
+
+		sg_set_page(&plain_sg[rec->sg_plaintext_num_elem], page,
+			    bytes, offset);
+
+		sk_mem_charge(sk, bytes);
+
+		len -= bytes;
+		rec->sg_plaintext_size += bytes;
+
+		rec->sg_plaintext_num_elem++;
+
+		if (rec->sg_plaintext_num_elem == MAX_SKB_FRAGS)
+			return -ENOSPC;
+	}
+
+	return 0;
 }
 
 static void free_sg(struct sock *sk, struct scatterlist *sg,
@@ -459,16 +507,21 @@ static int tls_do_encryption(struct sock *sk,
 			     size_t data_len)
 {
 	struct tls_rec *rec = ctx->open_rec;
+	struct scatterlist *plain_sg = rec->sg_plaintext_data;
+	struct scatterlist *enc_sg = rec->sg_encrypted_data;
 	int rc;
 
 	/* Skip the first index as it contains AAD data */
 	rec->sg_encrypted_data[1].offset += tls_ctx->tx.prepend_size;
 	rec->sg_encrypted_data[1].length -= tls_ctx->tx.prepend_size;
 
+	/* If it is inplace crypto, then pass same SG list as both src, dst */
+	if (rec->inplace_crypto)
+		plain_sg = enc_sg;
+
 	aead_request_set_tfm(aead_req, ctx->aead_send);
 	aead_request_set_ad(aead_req, TLS_AAD_SPACE_SIZE);
-	aead_request_set_crypt(aead_req, rec->sg_plaintext_data,
-			       rec->sg_encrypted_data,
+	aead_request_set_crypt(aead_req, plain_sg, enc_sg,
 			       data_len, tls_ctx->tx.iv);
 
 	aead_request_set_callback(aead_req, CRYPTO_TFM_REQ_MAY_BACKLOG,
@@ -666,6 +719,7 @@ static struct tls_rec *get_rec(struct sock *sk)
 		   sizeof(rec->aad_space));
 
 	ctx->open_rec = rec;
+	rec->inplace_crypto = 1;
 
 	return rec;
 }
@@ -763,6 +817,8 @@ alloc_encrypted:
 			if (ret)
 				goto fallback_to_reg_send;
 
+			rec->inplace_crypto = 0;
+
 			num_zc++;
 			copied += try_to_copy;
 			ret = tls_push_record(sk, msg->msg_flags, record_type);
@@ -782,11 +838,11 @@ fallback_to_reg_send:
 		}
 
 		required_size = rec->sg_plaintext_size + try_to_copy;
-alloc_plaintext:
-		ret = alloc_plaintext_sg(sk, required_size);
+
+		ret = move_to_plaintext_sg(sk, required_size);
 		if (ret) {
 			if (ret != -ENOSPC)
-				goto wait_for_memory;
+				goto send_end;
 
 			/* Adjust try_to_copy according to the amount that was
 			 * actually allocated. The difference is due
@@ -831,8 +887,6 @@ trim_sgl:
 
 		if (rec->sg_encrypted_size < required_size)
 			goto alloc_encrypted;
-
-		goto alloc_plaintext;
 	}
 
 	if (!num_async) {
@@ -958,6 +1012,7 @@ alloc_payload:
 		if (full_record || eor ||
 		    rec->sg_plaintext_num_elem ==
 		    ARRAY_SIZE(rec->sg_plaintext_data) - 1) {
+			rec->inplace_crypto = 0;
 			ret = tls_push_record(sk, flags, record_type);
 			if (ret) {
 				if (ret == -EINPROGRESS)
