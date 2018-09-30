@@ -4125,6 +4125,7 @@ exit:
 }
 
 static int ae5_headphone_gain_set(struct hda_codec *codec, long val);
+static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val);
 
 static void ae5_mmio_select_out(struct hda_codec *codec)
 {
@@ -4365,12 +4366,19 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		snd_hda_set_pin_ctl(codec, spec->out_pins[3],
 				    pin_ctl | PIN_OUT);
 
-		if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
-			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_ONE);
-		else
-			dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_EIGHT);
+		dspio_set_uint_param(codec, 0x80, 0x04, FLOAT_EIGHT);
 		break;
 	}
+	/*
+	 * Surround always sets it's scp command to req 0x04 to FLOAT_EIGHT.
+	 * With this set though, X_BASS cannot be enabled. So, if we have OutFX
+	 * enabled, we need to make sure X_BASS is off, otherwise everything
+	 * sounds all muffled. Running ca0132_effects_set with X_BASS as the
+	 * effect should sort this out.
+	 */
+	if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
+		ca0132_effects_set(codec, X_BASS,
+			spec->effects_switch[X_BASS - EFFECT_START_NID]);
 
 	/* run through the output dsp commands for the selected output. */
 	for (i = 0; i < alt_out_presets[spec->cur_out_type].commands; i++) {
@@ -4409,7 +4417,6 @@ static void ca0132_unsol_hp_delayed(struct work_struct *work)
 
 static void ca0132_set_dmic(struct hda_codec *codec, int enable);
 static int ca0132_mic_boost_set(struct hda_codec *codec, long val);
-static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val);
 static void resume_mic1(struct hda_codec *codec, unsigned int oldval);
 static int stop_mic1(struct hda_codec *codec);
 static int ca0132_cvoice_switch_set(struct hda_codec *codec);
@@ -4786,6 +4793,8 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 	if ((nid >= OUT_EFFECT_START_NID) && (nid < OUT_EFFECT_END_NID)) {
 		/* if PE if off, turn off out effects. */
 		if (!spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID])
+			val = 0;
+		if (spec->cur_out_type == SURROUND_OUT && nid == X_BASS)
 			val = 0;
 	}
 
