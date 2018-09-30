@@ -154,7 +154,8 @@ enum {
 	SMART_VOLUME_ENUM,
 	MIC_BOOST_ENUM,
 	AE5_HEADPHONE_GAIN_ENUM,
-	AE5_SOUND_FILTER_ENUM
+	AE5_SOUND_FILTER_ENUM,
+	ZXR_HEADPHONE_GAIN
 #define EFFECTS_COUNT  (EFFECT_END_NID - EFFECT_START_NID)
 };
 
@@ -1031,7 +1032,8 @@ struct ca0132_spec {
 	/* AE-5 Control values */
 	unsigned char ae5_headphone_gain_val;
 	unsigned char ae5_filter_val;
-
+	/* ZxR Control Values */
+	unsigned char zxr_gain_set;
 
 	struct hda_codec *codec;
 	struct delayed_work unsol_hp_work;
@@ -4142,6 +4144,7 @@ exit:
 }
 
 static int ae5_headphone_gain_set(struct hda_codec *codec, long val);
+static int zxr_headphone_gain_set(struct hda_codec *codec, long val);
 static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val);
 
 static void ae5_mmio_select_out(struct hda_codec *codec)
@@ -4178,6 +4181,7 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			ca0113_mmio_gpio_set(codec, 2, true);
 			ca0113_mmio_gpio_set(codec, 3, true);
 			ca0113_mmio_gpio_set(codec, 5, false);
+			zxr_headphone_gain_set(codec, 0);
 			chipio_set_control_param(codec, 0x0d, 0x24);
 			break;
 		case QUIRK_R3DI:
@@ -4211,6 +4215,7 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			ca0113_mmio_gpio_set(codec, 2, false);
 			ca0113_mmio_gpio_set(codec, 3, false);
 			ca0113_mmio_gpio_set(codec, 5, true);
+			zxr_headphone_gain_set(codec, spec->zxr_gain_set);
 			chipio_set_control_param(codec, 0x0d, 0x21);
 			break;
 		case QUIRK_R3DI:
@@ -4245,6 +4250,7 @@ static void ca0132_alt_select_out_quirk_handler(struct hda_codec *codec)
 			ca0113_mmio_gpio_set(codec, 2, true);
 			ca0113_mmio_gpio_set(codec, 3, true);
 			ca0113_mmio_gpio_set(codec, 5, false);
+			zxr_headphone_gain_set(codec, 0);
 			chipio_set_control_param(codec, 0x0d, 0x24);
 			break;
 		case QUIRK_R3DI:
@@ -5019,6 +5025,17 @@ static int ae5_headphone_gain_set(struct hda_codec *codec, long val)
 	return 0;
 }
 
+/*
+ * gpio pin 1 is a relay that switches on/off, apparently setting the headphone
+ * amplifier to handle a 600 ohm load.
+ */
+static int zxr_headphone_gain_set(struct hda_codec *codec, long val)
+{
+	ca0113_mmio_gpio_set(codec, 1, val);
+
+	return 0;
+}
+
 static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -5777,6 +5794,16 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
 		goto exit;
 	}
 
+	if (nid == ZXR_HEADPHONE_GAIN) {
+		spec->zxr_gain_set = *valp;
+		if (spec->cur_out_type == HEADPHONE_OUT)
+			changed = zxr_headphone_gain_set(codec, *valp);
+		else
+			changed = 0;
+
+		goto exit;
+	}
+
 exit:
 	snd_hda_power_down(codec);
 	return changed;
@@ -6185,6 +6212,16 @@ static int ae5_add_sound_filter_enum(struct hda_codec *codec)
 				snd_ctl_new1(&knew, codec));
 }
 
+static int zxr_add_headphone_gain_switch(struct hda_codec *codec)
+{
+	struct snd_kcontrol_new knew =
+		CA0132_CODEC_MUTE_MONO("ZxR: 600 Ohm Gain",
+				    ZXR_HEADPHONE_GAIN, 1, HDA_OUTPUT);
+
+	return snd_hda_ctl_add(codec, ZXR_HEADPHONE_GAIN,
+				snd_ctl_new1(&knew, codec));
+}
+
 /*
  * Need to create slave controls for the alternate codecs that have surround
  * capabilities.
@@ -6415,6 +6452,9 @@ static int ca0132_build_controls(struct hda_codec *codec)
 		ae5_add_headphone_gain_enum(codec);
 		ae5_add_sound_filter_enum(codec);
 	}
+
+	if (spec->quirk == QUIRK_ZXR)
+		zxr_add_headphone_gain_switch(codec);
 #ifdef ENABLE_TUNING_CONTROLS
 	add_tuning_ctls(codec);
 #endif
