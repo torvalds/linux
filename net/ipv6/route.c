@@ -2524,8 +2524,7 @@ void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
 }
 EXPORT_SYMBOL_GPL(ip6_redirect);
 
-void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
-			    u32 mark)
+void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	const struct rd_msg *msg = (struct rd_msg *)icmp6_hdr(skb);
@@ -2533,7 +2532,6 @@ void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
 	struct flowi6 fl6 = {
 		.flowi6_iif = LOOPBACK_IFINDEX,
 		.flowi6_oif = oif,
-		.flowi6_mark = mark,
 		.daddr = msg->dest,
 		.saddr = iph->daddr,
 		.flowi6_uid = sock_net_uid(net, NULL),
