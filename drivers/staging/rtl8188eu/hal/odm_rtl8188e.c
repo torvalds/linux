@@ -90,9 +90,8 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
 	u32 AntCombination = 2;
 
-	if (*dm_odm->mp_mode == 1) {
+	if (*dm_odm->mp_mode == 1)
 		return;
-	}
 
 	for (i = 0; i < 6; i++) {
 		dm_fat_tbl->Bssid[i] = 0;
