@@ -354,7 +354,7 @@ struct hns_roce_v2_qp_context {
 	__le32	dmac;
 	__le32	byte_52_udpspn_dmac;
 	__le32	byte_56_dqpn_err;
-	__le32	byte_60_qpst_mapid;
+	__le32	byte_60_qpst_tempid;
 	__le32	qkey_xrcd;
 	__le32	byte_68_rq_db;
 	__le32	rq_db_record_addr;
@@ -496,26 +496,15 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_56_LP_PKTN_INI_S 28
 #define V2_QPC_BYTE_56_LP_PKTN_INI_M GENMASK(31, 28)
 
-#define	V2_QPC_BYTE_60_MAPID_S 0
-#define V2_QPC_BYTE_60_MAPID_M GENMASK(12, 0)
+#define	V2_QPC_BYTE_60_TEMPID_S 0
+#define V2_QPC_BYTE_60_TEMPID_M GENMASK(7, 0)
 
-#define	V2_QPC_BYTE_60_INNER_MAP_IND_S 13
+#define V2_QPC_BYTE_60_SCC_TOKEN_S 8
+#define V2_QPC_BYTE_60_SCC_TOKEN_M GENMASK(26, 8)
 
-#define	V2_QPC_BYTE_60_SQ_MAP_IND_S 14
+#define	V2_QPC_BYTE_60_SQ_DB_DOING_S 27
 
-#define	V2_QPC_BYTE_60_RQ_MAP_IND_S 15
-
-#define	V2_QPC_BYTE_60_TEMPID_S 16
-#define V2_QPC_BYTE_60_TEMPID_M  GENMASK(22, 16)
-
-#define	V2_QPC_BYTE_60_EXT_MAP_IND_S 23
-
-#define	V2_QPC_BYTE_60_RTY_NUM_INI_BAK_S 24
-#define V2_QPC_BYTE_60_RTY_NUM_INI_BAK_M GENMASK(26, 24)
-
-#define V2_QPC_BYTE_60_SQ_RLS_IND_S 27
-
-#define	V2_QPC_BYTE_60_SQ_EXT_IND_S 28
+#define	V2_QPC_BYTE_60_RQ_DB_DOING_S 28
 
 #define	V2_QPC_BYTE_60_QP_ST_S 29
 #define V2_QPC_BYTE_60_QP_ST_M GENMASK(31, 29)
@@ -592,7 +581,7 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_140_RR_MAX_S 12
 #define V2_QPC_BYTE_140_RR_MAX_M GENMASK(14, 12)
 
-#define	V2_QPC_BYTE_140_RSVD_RAQ_MAP_S 15
+#define	V2_QPC_BYTE_140_RQ_RTY_WAIT_DO_S 15
 
 #define	V2_QPC_BYTE_140_RAQ_TRRL_HEAD_S 16
 #define V2_QPC_BYTE_140_RAQ_TRRL_HEAD_M GENMASK(23, 16)
@@ -602,8 +591,6 @@ struct hns_roce_v2_qp_context {
 
 #define	V2_QPC_BYTE_144_RAQ_RTY_INI_PSN_S 0
 #define V2_QPC_BYTE_144_RAQ_RTY_INI_PSN_M GENMASK(23, 0)
-
-#define V2_QPC_BYTE_144_RAQ_RTY_INI_IND_S 24
 
 #define V2_QPC_BYTE_144_RAQ_CREDIT_S 25
 #define V2_QPC_BYTE_144_RAQ_CREDIT_M GENMASK(29, 25)
@@ -641,9 +628,9 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_168_LP_SGEN_INI_S 22
 #define V2_QPC_BYTE_168_LP_SGEN_INI_M GENMASK(23, 22)
 
-#define	V2_QPC_BYTE_168_SQ_SHIFT_BAK_S 24
-#define V2_QPC_BYTE_168_SQ_SHIFT_BAK_M GENMASK(27, 24)
-
+#define V2_QPC_BYTE_168_POLL_DB_WAIT_DO_S 25
+#define V2_QPC_BYTE_168_SCC_TOKEN_FORBID_SQ_DEQ_S 26
+#define V2_QPC_BYTE_168_WAIT_ACK_TIMEOUT_S 27
 #define	V2_QPC_BYTE_168_IRRL_IDX_LSB_S 28
 #define V2_QPC_BYTE_168_IRRL_IDX_LSB_M GENMASK(31, 28)
 
@@ -729,6 +716,10 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_232_IRRL_SGE_IDX_S 20
 #define V2_QPC_BYTE_232_IRRL_SGE_IDX_M GENMASK(28, 20)
 
+#define V2_QPC_BYTE_232_SO_LP_VLD_S 29
+#define V2_QPC_BYTE_232_FENCE_LP_VLD_S 30
+#define V2_QPC_BYTE_232_IRRL_LP_VLD_S 31
+
 #define	V2_QPC_BYTE_240_IRRL_TAIL_REAL_S 0
 #define V2_QPC_BYTE_240_IRRL_TAIL_REAL_M GENMASK(7, 0)
 
@@ -746,6 +737,9 @@ struct hns_roce_v2_qp_context {
 
 #define	V2_QPC_BYTE_244_RNR_CNT_S 27
 #define V2_QPC_BYTE_244_RNR_CNT_M GENMASK(29, 27)
+
+#define V2_QPC_BYTE_244_LCL_OP_FLG_S 30
+#define V2_QPC_BYTE_244_IRRL_RD_FLG_S 31
 
 #define	V2_QPC_BYTE_248_IRRL_PSN_S 0
 #define V2_QPC_BYTE_248_IRRL_PSN_M GENMASK(23, 0)
