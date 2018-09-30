@@ -255,16 +255,6 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	sof_pdata->platform = "sof-audio";
 	dev_set_drvdata(&pdev->dev, priv);
 
-	/* do we need to generate any machine plat data ? */
-	if (mach->new_mach_data) {
-		sof_pdata->pdev_mach = mach->new_mach_data(sof_pdata);
-
-		if (IS_ERR(sof_pdata->pdev_mach))
-			return PTR_ERR(sof_pdata->pdev_mach);
-		dev_dbg(dev, "created machine %s\n",
-			dev_name(&sof_pdata->pdev_mach->dev));
-	}
-
 	/* register sof-audio platform driver */
 	ret = sof_create_platform_device(priv);
 	if (ret) {

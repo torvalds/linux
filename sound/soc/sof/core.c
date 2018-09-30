@@ -232,6 +232,9 @@ static int sof_probe(struct platform_device *pdev)
 {
 	struct snd_sof_pdata *plat_data = dev_get_platdata(&pdev->dev);
 	struct snd_sof_dev *sdev;
+	const char *drv_name;
+	const void *mach;
+	int size;
 	int ret;
 
 	sdev = devm_kzalloc(&pdev->dev, sizeof(*sdev), GFP_KERNEL);
@@ -326,12 +329,20 @@ static int sof_probe(struct platform_device *pdev)
 		goto comp_err;
 	}
 
-	/* register machine driver */
-	plat_data->pdev_mach =
-		platform_device_register_data(sdev->dev,
-					      plat_data->machine->drv_name,
-					      -1, plat_data,
-					      sizeof(*plat_data));
+	/* do we need to generate any machine plat data ? */
+	if (plat_data->machine->new_mach_data) {
+		plat_data->pdev_mach =
+			plat_data->machine->new_mach_data(plat_data);
+	} else {
+		drv_name = plat_data->machine->drv_name;
+		mach = (const void *)plat_data;
+		size = sizeof(*plat_data);
+
+		/* register machine driver, pass machine info as pdata */
+		plat_data->pdev_mach =
+			platform_device_register_data(sdev->dev,
+						      drv_name, -1, mach, size);
+	}
 	if (IS_ERR(plat_data->pdev_mach)) {
 		ret = PTR_ERR(plat_data->pdev_mach);
 		goto comp_err;
