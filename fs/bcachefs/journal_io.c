@@ -1067,14 +1067,19 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 	 * entry - that's why we drop pointers to devices <= current free space,
 	 * i.e. whichever device was limiting the current journal entry size.
 	 */
-	extent_for_each_ptr_backwards(e, ptr) {
-		   ca = bch_dev_bkey_exists(c, ptr->dev);
+	bch2_extent_drop_ptrs(e, ptr, ({
+		ca = bch_dev_bkey_exists(c, ptr->dev);
 
-		if (ca->mi.state != BCH_MEMBER_STATE_RW ||
-		    ca->journal.sectors_free <= sectors)
-			__bch2_extent_drop_ptr(e, ptr);
-		else
-			ca->journal.sectors_free -= sectors;
+		ca->mi.state != BCH_MEMBER_STATE_RW ||
+		ca->journal.sectors_free <= sectors;
+	}));
+
+	extent_for_each_ptr(e, ptr) {
+		ca = bch_dev_bkey_exists(c, ptr->dev);
+
+		BUG_ON(ca->mi.state != BCH_MEMBER_STATE_RW ||
+		       ca->journal.sectors_free <= sectors);
+		ca->journal.sectors_free -= sectors;
 	}
 
 	replicas = bch2_extent_nr_ptrs(e.c);

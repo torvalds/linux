@@ -98,13 +98,9 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		bch2_cut_back(new->k.p, &insert->k);
 		bch2_cut_back(insert->k.p, &new->k);
 
-		if (m->data_cmd == DATA_REWRITE) {
-			struct bch_extent_ptr *ptr = (void *)
-				bch2_extent_has_device(extent_i_to_s_c(insert),
-						       m->data_opts.rewrite_dev);
-			BUG_ON(!ptr);
-			bch2_extent_drop_ptr(extent_i_to_s(insert), ptr);
-		}
+		if (m->data_cmd == DATA_REWRITE)
+			bch2_extent_drop_device(extent_i_to_s(insert),
+						m->data_opts.rewrite_dev);
 
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
 			if (bch2_extent_has_device(extent_i_to_s_c(insert), p.ptr.dev)) {

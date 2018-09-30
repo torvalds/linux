@@ -122,20 +122,11 @@ bch2_extent_has_device(struct bkey_s_c_extent e, unsigned dev)
 	return NULL;
 }
 
-bool bch2_extent_drop_device(struct bkey_s_extent e, unsigned dev)
+void bch2_extent_drop_device(struct bkey_s_extent e, unsigned dev)
 {
 	struct bch_extent_ptr *ptr;
-	bool dropped = false;
 
-	extent_for_each_ptr_backwards(e, ptr)
-		if (ptr->dev == dev) {
-			__bch2_extent_drop_ptr(e, ptr);
-			dropped = true;
-		}
-
-	if (dropped)
-		bch2_extent_drop_redundant_crcs(e);
-	return dropped;
+	bch2_extent_drop_ptrs(e, ptr, ptr->dev == dev);
 }
 
 const struct bch_extent_ptr *
@@ -267,21 +258,37 @@ bool bch2_extent_matches_ptr(struct bch_fs *c, struct bkey_s_c_extent e,
 	return false;
 }
 
-/* Doesn't cleanup redundant crcs */
-void __bch2_extent_drop_ptr(struct bkey_s_extent e, struct bch_extent_ptr *ptr)
+union bch_extent_entry *bch2_extent_drop_ptr(struct bkey_s_extent e,
+					     struct bch_extent_ptr *ptr)
 {
+	union bch_extent_entry *dst;
+	union bch_extent_entry *src;
+
 	EBUG_ON(ptr < &e.v->start->ptr ||
 		ptr >= &extent_entry_last(e)->ptr);
 	EBUG_ON(ptr->type != 1 << BCH_EXTENT_ENTRY_ptr);
-	memmove_u64s_down(ptr, ptr + 1,
-			  (u64 *) extent_entry_last(e) - (u64 *) (ptr + 1));
-	e.k->u64s -= sizeof(*ptr) / sizeof(u64);
-}
 
-void bch2_extent_drop_ptr(struct bkey_s_extent e, struct bch_extent_ptr *ptr)
-{
-	__bch2_extent_drop_ptr(e, ptr);
-	bch2_extent_drop_redundant_crcs(e);
+	src = to_entry(ptr + 1);
+
+	if (src != extent_entry_last(e) &&
+	    extent_entry_type(src) == BCH_EXTENT_ENTRY_ptr) {
+		dst = to_entry(ptr);
+	} else {
+		extent_for_each_entry(e, dst) {
+			if (dst == to_entry(ptr))
+				break;
+
+			if (extent_entry_next(dst) == to_entry(ptr) &&
+			    extent_entry_is_crc(dst))
+				break;
+		}
+	}
+
+	memmove_u64s_down(dst, src,
+			  (u64 *) extent_entry_last(e) - (u64 *) src);
+	e.k->u64s -= (u64 *) src - (u64 *) dst;
+
+	return dst;
 }
 
 static inline bool can_narrow_crc(struct bch_extent_crc_unpacked u,
@@ -349,7 +356,7 @@ restart_narrow_pointers:
 		if (can_narrow_crc(p.crc, n)) {
 			i->ptr.offset += p.crc.offset;
 			extent_ptr_append(e, i->ptr);
-			__bch2_extent_drop_ptr(extent_i_to_s(e), &i->ptr);
+			bch2_extent_drop_ptr(extent_i_to_s(e), &i->ptr);
 			goto restart_narrow_pointers;
 		}
 
@@ -431,27 +438,13 @@ drop:
 	EBUG_ON(bkey_val_u64s(e.k) && !bch2_extent_nr_ptrs(e.c));
 }
 
-static bool should_drop_ptr(const struct bch_fs *c,
-			    struct bkey_s_c_extent e,
-			    const struct bch_extent_ptr *ptr)
-{
-	return ptr->cached && ptr_stale(bch_dev_bkey_exists(c, ptr->dev), ptr);
-}
-
 static void bch2_extent_drop_stale(struct bch_fs *c, struct bkey_s_extent e)
 {
-	struct bch_extent_ptr *ptr = &e.v->start->ptr;
-	bool dropped = false;
+	struct bch_extent_ptr *ptr;
 
-	while ((ptr = extent_ptr_next(e, ptr)))
-		if (should_drop_ptr(c, e.c, ptr)) {
-			__bch2_extent_drop_ptr(e, ptr);
-			dropped = true;
-		} else
-			ptr++;
-
-	if (dropped)
-		bch2_extent_drop_redundant_crcs(e);
+	bch2_extent_drop_ptrs(e, ptr,
+		ptr->cached &&
+		ptr_stale(bch_dev_bkey_exists(c, ptr->dev), ptr));
 }
 
 bool bch2_ptr_normalize(struct bch_fs *c, struct btree *b, struct bkey_s k)

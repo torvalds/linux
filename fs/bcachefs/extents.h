@@ -84,7 +84,7 @@ void bch2_extent_mark_replicas_cached(struct bch_fs *, struct bkey_s_extent,
 
 const struct bch_extent_ptr *
 bch2_extent_has_device(struct bkey_s_c_extent, unsigned);
-bool bch2_extent_drop_device(struct bkey_s_extent, unsigned);
+void bch2_extent_drop_device(struct bkey_s_extent, unsigned);
 const struct bch_extent_ptr *
 bch2_extent_has_group(struct bch_fs *, struct bkey_s_c_extent, unsigned);
 const struct bch_extent_ptr *
@@ -400,29 +400,6 @@ out:									\
 
 /* Iterate over pointers backwards: */
 
-#define extent_ptr_prev(_e, _ptr)					\
-({									\
-	typeof(&(_e).v->start->ptr) _p;					\
-	typeof(&(_e).v->start->ptr) _prev = NULL;			\
-									\
-	extent_for_each_ptr(_e, _p) {					\
-		if (_p == (_ptr))					\
-			break;						\
-		_prev = _p;						\
-	}								\
-									\
-	_prev;								\
-})
-
-/*
- * Use this when you'll be dropping pointers as you iterate. Quadratic,
- * unfortunately:
- */
-#define extent_for_each_ptr_backwards(_e, _ptr)				\
-	for ((_ptr) = extent_ptr_prev(_e, NULL);			\
-	     (_ptr);							\
-	     (_ptr) = extent_ptr_prev(_e, _ptr))
-
 void bch2_extent_crc_append(struct bkey_i_extent *,
 			    struct bch_extent_crc_unpacked);
 
@@ -517,8 +494,22 @@ bool bch2_can_narrow_extent_crcs(struct bkey_s_c_extent,
 bool bch2_extent_narrow_crcs(struct bkey_i_extent *, struct bch_extent_crc_unpacked);
 void bch2_extent_drop_redundant_crcs(struct bkey_s_extent);
 
-void __bch2_extent_drop_ptr(struct bkey_s_extent, struct bch_extent_ptr *);
-void bch2_extent_drop_ptr(struct bkey_s_extent, struct bch_extent_ptr *);
+union bch_extent_entry *bch2_extent_drop_ptr(struct bkey_s_extent ,
+					     struct bch_extent_ptr *);
+
+#define bch2_extent_drop_ptrs(_e, _ptr, _cond)				\
+do {									\
+	_ptr = &(_e).v->start->ptr;					\
+									\
+	while ((_ptr = extent_ptr_next(e, _ptr))) {			\
+		if (_cond) {						\
+			_ptr = (void *) bch2_extent_drop_ptr(_e, _ptr);	\
+			continue;					\
+		}							\
+									\
+		(_ptr)++;						\
+	}								\
+} while (0)
 
 bool bch2_cut_front(struct bpos, struct bkey_i *);
 bool bch2_cut_back(struct bpos, struct bkey *);

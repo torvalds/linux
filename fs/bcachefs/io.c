@@ -327,9 +327,9 @@ static void __bch2_write_index(struct bch_write_op *op)
 		bkey_copy(dst, src);
 
 		e = bkey_i_to_s_extent(dst);
-		extent_for_each_ptr_backwards(e, ptr)
-			if (test_bit(ptr->dev, op->failed.d))
-				bch2_extent_drop_ptr(e, ptr);
+
+		bch2_extent_drop_ptrs(e, ptr,
+			test_bit(ptr->dev, op->failed.d));
 
 		if (!bch2_extent_nr_ptrs(e.c)) {
 			ret = -EIO;

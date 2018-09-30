@@ -1570,9 +1570,9 @@ retry:
 
 	new_key = bkey_i_to_extent(&tmp.k);
 	e = extent_i_to_s(new_key);
-	extent_for_each_ptr_backwards(e, ptr)
-		if (bch2_dev_list_has_dev(wbio->wbio.failed, ptr->dev))
-			bch2_extent_drop_ptr(e, ptr);
+
+	bch2_extent_drop_ptrs(e, ptr,
+		bch2_dev_list_has_dev(wbio->wbio.failed, ptr->dev));
 
 	if (!bch2_extent_nr_ptrs(e.c))
 		goto err;
