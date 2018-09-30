@@ -26,7 +26,7 @@ static u8 odm_QueryRxPwrPercentage(s8 AntPower)
 
 /*  2012/01/12 MH MOve some signal strength smooth method to MP HAL layer. */
 /*  IF other SW team do not support the feature, remove this section.?? */
-static s32 odm_SignalScaleMapping_92CSeries(struct odm_dm_struct *dm_odm, s32 CurrSig)
+static s32 odm_SignalScaleMapping(struct odm_dm_struct *dm_odm, s32 CurrSig)
 {
 	s32 RetSig = 0;
 
@@ -47,11 +47,6 @@ static s32 odm_SignalScaleMapping_92CSeries(struct odm_dm_struct *dm_odm, s32 Cu
 	else
 		RetSig = CurrSig;
 	return RetSig;
-}
-
-static s32 odm_SignalScaleMapping(struct odm_dm_struct *dm_odm, s32 CurrSig)
-{
-	return odm_SignalScaleMapping_92CSeries(dm_odm, CurrSig);
 }
 
 static u8 odm_EVMdbToPercentage(s8 Value)
