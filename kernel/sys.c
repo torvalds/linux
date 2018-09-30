@@ -71,9 +71,6 @@
 #include <asm/io.h>
 #include <asm/unistd.h>
 
-/* Hardening for Spectre-v1 */
-#include <linux/nospec.h>
-
 #include "uid16.h"
 
 #ifndef SET_UNALIGN_CTL

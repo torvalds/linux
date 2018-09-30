@@ -58,6 +58,7 @@ static int quirks_param_set(const char *val, const struct kernel_param *kp)
 	quirk_list = kcalloc(quirk_count, sizeof(struct quirk_entry),
 			     GFP_KERNEL);
 	if (!quirk_list) {
+		quirk_count = 0;
 		mutex_unlock(&quirk_mutex);
 		return -ENOMEM;
 	}
@@ -154,7 +155,7 @@ static struct kparam_string quirks_param_string = {
 	.string = quirks_param,
 };
 
-module_param_cb(quirks, &quirks_param_ops, &quirks_param_string, 0644);
+device_param_cb(quirks, &quirks_param_ops, &quirks_param_string, 0644);
 MODULE_PARM_DESC(quirks, "Add/modify USB quirks by specifying quirks=vendorID:productID:quirks");
 
 /* Lists of quirky USB devices, split in device quirks and interface quirks.

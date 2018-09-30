@@ -396,29 +396,6 @@ static void i40evf_map_rings_to_vectors(struct i40evf_adapter *adapter)
 	adapter->aq_required |= I40EVF_FLAG_AQ_MAP_VECTORS;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/**
- * i40evf_netpoll - A Polling 'interrupt' handler
- * @netdev: network interface device structure
- *
- * This is used by netconsole to send skbs without having to re-enable
- * interrupts.  It's not called while the normal interrupt routine is executing.
- **/
-static void i40evf_netpoll(struct net_device *netdev)
-{
-	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	int q_vectors = adapter->num_msix_vectors - NONQ_VECS;
-	int i;
-
-	/* if interface is down do nothing */
-	if (test_bit(__I40E_VSI_DOWN, adapter->vsi.state))
-		return;
-
-	for (i = 0; i < q_vectors; i++)
-		i40evf_msix_clean_rings(0, &adapter->q_vectors[i]);
-}
-
-#endif
 /**
  * i40evf_irq_affinity_notify - Callback for affinity changes
  * @notify: context as to what irq was changed
@@ -3229,9 +3206,6 @@ static const struct net_device_ops i40evf_netdev_ops = {
 	.ndo_features_check	= i40evf_features_check,
 	.ndo_fix_features	= i40evf_fix_features,
 	.ndo_set_features	= i40evf_set_features,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= i40evf_netpoll,
-#endif
 	.ndo_setup_tc		= i40evf_setup_tc,
 };
 

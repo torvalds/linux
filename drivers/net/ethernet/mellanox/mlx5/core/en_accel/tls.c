@@ -183,12 +183,13 @@ static const struct tlsdev_ops mlx5e_tls_ops = {
 
 void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 {
-	u32 caps = mlx5_accel_tls_device_caps(priv->mdev);
 	struct net_device *netdev = priv->netdev;
+	u32 caps;
 
 	if (!mlx5_accel_is_tls_device(priv->mdev))
 		return;
 
+	caps = mlx5_accel_tls_device_caps(priv->mdev);
 	if (caps & MLX5_ACCEL_TLS_TX) {
 		netdev->features          |= NETIF_F_HW_TLS_TX;
 		netdev->hw_features       |= NETIF_F_HW_TLS_TX;
