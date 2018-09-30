@@ -813,6 +813,12 @@ static int pp_dpm_read_sensor(void *handle, int idx,
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK:
 		*((uint32_t *)value) = hwmgr->pstate_mclk;
 		return 0;
+	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
+		*((uint32_t *)value) = hwmgr->thermal_controller.fanInfo.ulMinRPM;
+		return 0;
+	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
+		*((uint32_t *)value) = hwmgr->thermal_controller.fanInfo.ulMaxRPM;
+		return 0;
 	default:
 		mutex_lock(&hwmgr->smu_lock);
 		ret = hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value, size);

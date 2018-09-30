@@ -834,6 +834,8 @@ static int init_powerplay_table_information(
 
 	hwmgr->thermal_controller.ucType = powerplay_table->ucThermalControllerType;
 	pptable_information->uc_thermal_controller_type = powerplay_table->ucThermalControllerType;
+	hwmgr->thermal_controller.fanInfo.ulMinRPM = 0;
+	hwmgr->thermal_controller.fanInfo.ulMaxRPM = powerplay_table->smcPPTable.FanMaximumRpm;
 
 	set_hw_cap(hwmgr,
 		ATOM_VEGA20_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
