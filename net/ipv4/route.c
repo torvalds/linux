@@ -2780,7 +2780,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct rtable *rt = NULL;
 	struct sk_buff *skb;
 	struct rtmsg *rtm;
-	struct flowi4 fl4;
+	struct flowi4 fl4 = {};
 	__be32 dst = 0;
 	__be32 src = 0;
 	kuid_t uid;
@@ -2820,7 +2820,6 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (!skb)
 		return -ENOBUFS;
 
-	memset(&fl4, 0, sizeof(fl4));
 	fl4.daddr = dst;
 	fl4.saddr = src;
 	fl4.flowi4_tos = rtm->rtm_tos;
