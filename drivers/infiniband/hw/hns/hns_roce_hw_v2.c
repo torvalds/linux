@@ -933,7 +933,24 @@ static int hns_roce_cmq_query_hw_info(struct hns_roce_dev *hr_dev)
 
 	resp = (struct hns_roce_query_version *)desc.data;
 	hr_dev->hw_rev = le32_to_cpu(resp->rocee_hw_version);
-	hr_dev->vendor_id = le32_to_cpu(resp->rocee_vendor_id);
+	hr_dev->vendor_id = hr_dev->pci_dev->vendor;
+
+	return 0;
+}
+
+static int hns_roce_query_fw_ver(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_query_fw_info *resp;
+	struct hns_roce_cmq_desc desc;
+	int ret;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_QUERY_FW_VER, true);
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+
+	resp = (struct hns_roce_query_fw_info *)desc.data;
+	hr_dev->caps.fw_ver = (u64)(le32_to_cpu(resp->fw_ver));
 
 	return 0;
 }
@@ -1156,6 +1173,13 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 
 	ret = hns_roce_cmq_query_hw_info(hr_dev);
 	if (ret) {
+		dev_err(hr_dev->dev, "Query hardware version fail, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
+	ret = hns_roce_query_fw_ver(hr_dev);
+	if (ret) {
 		dev_err(hr_dev->dev, "Query firmware version fail, ret = %d.\n",
 			ret);
 		return ret;
@@ -1183,8 +1207,9 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
-	hr_dev->vendor_part_id = 0;
-	hr_dev->sys_image_guid = 0;
+
+	hr_dev->vendor_part_id = hr_dev->pci_dev->device;
+	hr_dev->sys_image_guid = be64_to_cpu(hr_dev->ib_dev.node_guid);
 
 	caps->num_qps		= HNS_ROCE_V2_MAX_QP_NUM;
 	caps->max_wqes		= HNS_ROCE_V2_MAX_WQE_NUM;

@@ -203,6 +203,7 @@ enum {
 
 /* CMQ command */
 enum hns_roce_opcode_type {
+	HNS_QUERY_FW_VER				= 0x0001,
 	HNS_ROCE_OPC_QUERY_HW_VER			= 0x8000,
 	HNS_ROCE_OPC_CFG_GLOBAL_PARAM			= 0x8001,
 	HNS_ROCE_OPC_ALLOC_PF_RES			= 0x8004,
@@ -1084,6 +1085,11 @@ struct hns_roce_v2_db {
 struct hns_roce_query_version {
 	__le16 rocee_vendor_id;
 	__le16 rocee_hw_version;
+	__le32 rsv[5];
+};
+
+struct hns_roce_query_fw_info {
+	__le32 fw_ver;
 	__le32 rsv[5];
 };
 
