@@ -1071,6 +1071,8 @@ enum {
 	QUIRK_ALIENWARE,
 	QUIRK_ALIENWARE_M17XR4,
 	QUIRK_SBZ,
+	QUIRK_ZXR,
+	QUIRK_ZXR_DBPRO,
 	QUIRK_R3DI,
 	QUIRK_R3D,
 	QUIRK_AE5,
@@ -8376,6 +8378,29 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	return 0;
 }
 
+/*
+ * The Sound Blaster ZxR shares the same PCI subsystem ID as some regular
+ * Sound Blaster Z cards. However, they have different HDA codec subsystem
+ * ID's. So, we check for the ZxR's subsystem ID, as well as the DBPro
+ * daughter boards ID.
+ */
+static void sbz_detect_quirk(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	switch (codec->core.subsystem_id) {
+	case 0x11020033:
+		spec->quirk = QUIRK_ZXR;
+		break;
+	case 0x1102003f:
+		spec->quirk = QUIRK_ZXR_DBPRO;
+		break;
+	default:
+		spec->quirk = QUIRK_SBZ;
+		break;
+	}
+}
+
 static int patch_ca0132(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec;
@@ -8400,6 +8425,9 @@ static int patch_ca0132(struct hda_codec *codec)
 		spec->quirk = quirk->value;
 	else
 		spec->quirk = QUIRK_NONE;
+
+	if (spec->quirk == QUIRK_SBZ)
+		sbz_detect_quirk(codec);
 
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
