@@ -66,6 +66,19 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
+	/*
+	 * The fan power supply comes from the baseboard.
+	 * For the standalone Sapphire one option is to connect a wire
+	 * from  R90030 DNP R0805 pin2  to  C90002 10uF C0805 pin1 (vcc_sys).
+	 */
+	fan0: gpio-fan {
+		#cooling-cells = <2>;
+		compatible = "gpio-fan";
+		gpio-fan,speed-map = <0 0 3000 1>;
+		gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
 	keys: gpio-keys {
 		compatible = "gpio-keys";
 		autorepeat;
@@ -181,6 +194,24 @@
 
 &cpu_b1 {
 	cpu-supply = <&vdd_cpu_b>;
+};
+
+&cpu_thermal {
+	trips {
+		cpu_hot: cpu_hot {
+			hysteresis = <10000>;
+			temperature = <55000>;
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map2 {
+			cooling-device =
+				<&fan0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			trip = <&cpu_hot>;
+		};
+	};
 };
 
 &emmc_phy {
@@ -469,6 +500,13 @@
 	buttons {
 		pwr_btn: pwr-btn {
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	fan {
+		motor_pwr: motor-pwr {
+			rockchip,pins =
+				<RK_GPIO1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
