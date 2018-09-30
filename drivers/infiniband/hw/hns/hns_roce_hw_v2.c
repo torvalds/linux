@@ -457,6 +457,10 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 				break;
 			case IB_WR_LOCAL_INV:
 				hr_op = HNS_ROCE_V2_WQE_OP_LOCAL_INV;
+				roce_set_bit(rc_sq_wqe->byte_4,
+					       V2_RC_SEND_WQE_BYTE_4_SO_S, 1);
+				rc_sq_wqe->inv_key =
+					    cpu_to_le32(wr->ex.invalidate_rkey);
 				break;
 			case IB_WR_ATOMIC_CMP_AND_SWP:
 				hr_op = HNS_ROCE_V2_WQE_OP_ATOM_CMP_AND_SWAP;
@@ -1722,7 +1726,7 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
 
 	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_RA_EN_S, 0);
 	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_R_INV_EN_S, 1);
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_L_INV_EN_S, 0);
+	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_L_INV_EN_S, 1);
 	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_BIND_EN_S,
 		     (mr->access & IB_ACCESS_MW_BIND ? 1 : 0));
 	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_ATOMIC_EN_S,
