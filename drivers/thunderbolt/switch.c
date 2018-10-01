@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Thunderbolt Cactus Ridge driver - switch/port utility functions
+ * Thunderbolt driver - switch/port utility functions
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/delay.h>

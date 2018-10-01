@@ -1,10 +1,11 @@
 /*
- * Thunderbolt Cactus Ridge driver - NHI driver
+ * Thunderbolt driver - NHI driver
  *
  * The NHI (native host interface) is the pci device that allows us to send and
  * receive frames from the thunderbolt bus.
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/pm_runtime.h>
