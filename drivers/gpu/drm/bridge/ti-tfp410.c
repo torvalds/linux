@@ -32,6 +32,7 @@ struct tfp410 {
 	struct i2c_adapter	*ddc;
 	struct gpio_desc	*hpd;
 	struct delayed_work	hpd_work;
+	struct gpio_desc	*powerdown;
 
 	struct device *dev;
 };
@@ -139,8 +140,24 @@ static int tfp410_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
+static void tfp410_enable(struct drm_bridge *bridge)
+{
+	struct tfp410 *dvi = drm_bridge_to_tfp410(bridge);
+
+	gpiod_set_value_cansleep(dvi->powerdown, 0);
+}
+
+static void tfp410_disable(struct drm_bridge *bridge)
+{
+	struct tfp410 *dvi = drm_bridge_to_tfp410(bridge);
+
+	gpiod_set_value_cansleep(dvi->powerdown, 1);
+}
+
 static const struct drm_bridge_funcs tfp410_bridge_funcs = {
 	.attach		= tfp410_attach,
+	.enable		= tfp410_enable,
+	.disable	= tfp410_disable,
 };
 
 static void tfp410_hpd_work_func(struct work_struct *work)
@@ -228,6 +245,13 @@ static int tfp410_init(struct device *dev)
 	ret = tfp410_get_connector_properties(dvi);
 	if (ret)
 		goto fail;
+
+	dvi->powerdown = devm_gpiod_get_optional(dev, "powerdown",
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(dvi->powerdown)) {
+		dev_err(dev, "failed to parse powerdown gpio\n");
+		return PTR_ERR(dvi->powerdown);
+	}
 
 	if (dvi->hpd) {
 		INIT_DELAYED_WORK(&dvi->hpd_work, tfp410_hpd_work_func);
