@@ -699,20 +699,33 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->get_rss_tuple)
+	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = h->kinfo.rss_size;
-		break;
+		cmd->data = h->kinfo.num_tqps;
+		return 0;
 	case ETHTOOL_GRXFH:
-		return h->ae_algo->ops->get_rss_tuple(h, cmd);
+		if (h->ae_algo->ops->get_rss_tuple)
+			return h->ae_algo->ops->get_rss_tuple(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_GRXCLSRLCNT:
+		if (h->ae_algo->ops->get_fd_rule_cnt)
+			return h->ae_algo->ops->get_fd_rule_cnt(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_GRXCLSRULE:
+		if (h->ae_algo->ops->get_fd_rule_info)
+			return h->ae_algo->ops->get_fd_rule_info(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_GRXCLSRLALL:
+		if (h->ae_algo->ops->get_fd_all_rules)
+			return h->ae_algo->ops->get_fd_all_rules(h, cmd,
+								 rule_locs);
+		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
 	}
-
-	return 0;
 }
 
 static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
