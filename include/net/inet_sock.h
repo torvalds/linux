@@ -132,8 +132,7 @@ static inline int inet_request_bound_dev_if(const struct sock *sk,
 
 static inline struct ip_options_rcu *ireq_opt_deref(const struct inet_request_sock *ireq)
 {
-	return rcu_dereference_check(ireq->ireq_opt,
-				     refcount_read(&ireq->req.rsk_refcnt) > 0);
+	return rcu_dereference(ireq->ireq_opt);
 }
 
 struct inet_cork {
