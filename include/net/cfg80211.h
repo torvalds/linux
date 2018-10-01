@@ -4012,7 +4012,6 @@ struct wiphy_iftype_ext_capab {
  *	by the driver in the .connect() callback. The bit position maps to the
  *	attribute indices defined in &enum nl80211_bss_select_attr.
  *
- * @cookie_counter: unique generic cookie counter, used to identify objects.
  * @nan_supported_bands: bands supported by the device in NAN mode, a
  *	bitmap of &enum nl80211_band values.  For instance, for
  *	NL80211_BAND_2GHZ, bit 0 would be set
@@ -4150,8 +4149,6 @@ struct wiphy {
 	u8 max_adj_channel_rssi_comp;
 
 	u32 bss_select_support;
-
-	u64 cookie_counter;
 
 	u8 nan_supported_bands;
 

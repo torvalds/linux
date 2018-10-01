@@ -7803,7 +7803,7 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 	 */
 	if (want_multi && rdev->wiphy.max_sched_scan_reqs > 1) {
 		while (!sched_scan_req->reqid)
-			sched_scan_req->reqid = rdev->wiphy.cookie_counter++;
+			sched_scan_req->reqid = cfg80211_assign_cookie(rdev);
 	}
 
 	err = rdev_sched_scan_start(rdev, dev, sched_scan_req);
@@ -11798,7 +11798,7 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
 	if (!func)
 		return -ENOMEM;
 
-	func->cookie = wdev->wiphy->cookie_counter++;
+	func->cookie = cfg80211_assign_cookie(rdev);
 
 	if (!tb[NL80211_NAN_FUNC_TYPE] ||
 	    nla_get_u8(tb[NL80211_NAN_FUNC_TYPE]) > NL80211_NAN_FUNC_MAX_TYPE) {

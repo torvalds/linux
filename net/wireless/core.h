@@ -66,6 +66,7 @@ struct cfg80211_registered_device {
 	/* protected by RTNL only */
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
+	u64 cookie_counter;
 
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
@@ -131,6 +132,16 @@ cfg80211_rdev_free_wowlan(struct cfg80211_registered_device *rdev)
 	kfree(rdev->wiphy.wowlan_config->nd_config);
 	kfree(rdev->wiphy.wowlan_config);
 #endif
+}
+
+static inline u64 cfg80211_assign_cookie(struct cfg80211_registered_device *rdev)
+{
+	u64 r = ++rdev->cookie_counter;
+
+	if (WARN_ON(r == 0))
+		r = ++rdev->cookie_counter;
+
+	return r;
 }
 
 extern struct workqueue_struct *cfg80211_wq;
