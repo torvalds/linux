@@ -54,13 +54,11 @@ static void cache_init(struct cache_head *h, struct cache_detail *detail)
 	h->last_refresh = now;
 }
 
-struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
-				       struct cache_head *key, int hash)
+static struct cache_head *sunrpc_cache_find(struct cache_detail *detail,
+					    struct cache_head *key, int hash)
 {
-	struct cache_head *new = NULL, *freeme = NULL, *tmp = NULL;
-	struct hlist_head *head;
-
-	head = &detail->hash_table[hash];
+	struct hlist_head *head = &detail->hash_table[hash];
+	struct cache_head *tmp;
 
 	read_lock(&detail->hash_lock);
 
@@ -75,7 +73,15 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 		}
 	}
 	read_unlock(&detail->hash_lock);
-	/* Didn't find anything, insert an empty entry */
+	return NULL;
+}
+
+static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
+						 struct cache_head *key,
+						 int hash)
+{
+	struct cache_head *new, *tmp, *freeme = NULL;
+	struct hlist_head *head = &detail->hash_table[hash];
 
 	new = detail->alloc();
 	if (!new)
@@ -114,8 +120,19 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 		cache_put(freeme, detail);
 	return new;
 }
-EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
 
+struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
+				       struct cache_head *key, int hash)
+{
+	struct cache_head *ret;
+
+	ret = sunrpc_cache_find(detail, key, hash);
+	if (ret)
+		return ret;
+	/* Didn't find anything, insert an empty entry */
+	return sunrpc_cache_add_entry(detail, key, hash);
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
 
 static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch);
 
