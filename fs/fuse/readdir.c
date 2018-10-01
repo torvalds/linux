@@ -8,6 +8,7 @@
 
 
 #include "fuse_i.h"
+#include <linux/iversion.h>
 #include <linux/posix_acl.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
@@ -447,6 +448,7 @@ retry_locked:
 		/* Starting cache? Set cache mtime. */
 		if (!ctx->pos && !fi->rdc.size) {
 			fi->rdc.mtime = inode->i_mtime;
+			fi->rdc.iversion = inode_query_iversion(inode);
 		}
 		spin_unlock(&fi->rdc.lock);
 		return UNCACHED;
@@ -457,7 +459,8 @@ retry_locked:
 	 * changed, and reset the cache if so.
 	 */
 	if (!ctx->pos) {
-		if (!timespec64_equal(&fi->rdc.mtime, &inode->i_mtime)) {
+		if (inode_peek_iversion(inode) != fi->rdc.iversion ||
+		    !timespec64_equal(&fi->rdc.mtime, &inode->i_mtime)) {
 			fuse_rdc_reset(inode);
 			goto retry_locked;
 		}
