@@ -224,7 +224,7 @@ static SUNXI_CCU_MP_WITH_MUX(psi_ahb1_ahb2_clk, "psi-ahb1-ahb2",
 			     psi_ahb1_ahb2_parents,
 			     0x510,
 			     0, 5,	/* M */
-			     16, 2,	/* P */
+			     8, 2,	/* P */
 			     24, 2,	/* mux */
 			     0);
 
@@ -233,19 +233,19 @@ static const char * const ahb3_apb1_apb2_parents[] = { "osc24M", "osc32k",
 						       "pll-periph0" };
 static SUNXI_CCU_MP_WITH_MUX(ahb3_clk, "ahb3", ahb3_apb1_apb2_parents, 0x51c,
 			     0, 5,	/* M */
-			     16, 2,	/* P */
+			     8, 2,	/* P */
 			     24, 2,	/* mux */
 			     0);
 
 static SUNXI_CCU_MP_WITH_MUX(apb1_clk, "apb1", ahb3_apb1_apb2_parents, 0x520,
 			     0, 5,	/* M */
-			     16, 2,	/* P */
+			     8, 2,	/* P */
 			     24, 2,	/* mux */
 			     0);
 
 static SUNXI_CCU_MP_WITH_MUX(apb2_clk, "apb2", ahb3_apb1_apb2_parents, 0x524,
 			     0, 5,	/* M */
-			     16, 2,	/* P */
+			     8, 2,	/* P */
 			     24, 2,	/* mux */
 			     0);
 
@@ -352,7 +352,7 @@ static SUNXI_CCU_GATE(bus_dbg_clk, "bus-dbg", "psi-ahb1-ahb2",
 static SUNXI_CCU_GATE(bus_psi_clk, "bus-psi", "psi-ahb1-ahb2",
 		      0x79c, BIT(0), 0);
 
-static SUNXI_CCU_GATE(bus_pwm_clk, "bus-pwm", "apb1", 0x79c, BIT(0), 0);
+static SUNXI_CCU_GATE(bus_pwm_clk, "bus-pwm", "apb1", 0x7ac, BIT(0), 0);
 
 static SUNXI_CCU_GATE(bus_iommu_clk, "bus-iommu", "apb1", 0x7bc, BIT(0), 0);
 
@@ -408,26 +408,29 @@ static SUNXI_CCU_GATE(bus_nand_clk, "bus-nand", "ahb3", 0x82c, BIT(0), 0);
 
 static const char * const mmc_parents[] = { "osc24M", "pll-periph0-2x",
 					    "pll-periph1-2x" };
-static SUNXI_CCU_MP_WITH_MUX_GATE(mmc0_clk, "mmc0", mmc_parents, 0x830,
-					0, 4,	/* M */
-					8, 2,	/* N */
-					24, 3,	/* mux */
-					BIT(31),/* gate */
-					0);
+static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc0_clk, "mmc0", mmc_parents, 0x830,
+					  0, 4,		/* M */
+					  8, 2,		/* N */
+					  24, 3,	/* mux */
+					  BIT(31),	/* gate */
+					  2,		/* post-div */
+					  0);
 
-static SUNXI_CCU_MP_WITH_MUX_GATE(mmc1_clk, "mmc1", mmc_parents, 0x834,
-					0, 4,	/* M */
-					8, 2,	/* N */
-					24, 3,	/* mux */
-					BIT(31),/* gate */
-					0);
+static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc1_clk, "mmc1", mmc_parents, 0x834,
+					  0, 4,		/* M */
+					  8, 2,		/* N */
+					  24, 3,	/* mux */
+					  BIT(31),	/* gate */
+					  2,		/* post-div */
+					  0);
 
-static SUNXI_CCU_MP_WITH_MUX_GATE(mmc2_clk, "mmc2", mmc_parents, 0x838,
-					0, 4,	/* M */
-					8, 2,	/* N */
-					24, 3,	/* mux */
-					BIT(31),/* gate */
-					0);
+static SUNXI_CCU_MP_WITH_MUX_GATE_POSTDIV(mmc2_clk, "mmc2", mmc_parents, 0x838,
+					  0, 4,		/* M */
+					  8, 2,		/* N */
+					  24, 3,	/* mux */
+					  BIT(31),	/* gate */
+					  2,		/* post-div */
+					  0);
 
 static SUNXI_CCU_GATE(bus_mmc0_clk, "bus-mmc0", "ahb3", 0x84c, BIT(0), 0);
 static SUNXI_CCU_GATE(bus_mmc1_clk, "bus-mmc1", "ahb3", 0x84c, BIT(1), 0);
