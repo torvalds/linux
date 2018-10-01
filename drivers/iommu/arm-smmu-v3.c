@@ -567,7 +567,8 @@ struct arm_smmu_device {
 
 	int				gerr_irq;
 	int				combined_irq;
-	atomic_t			sync_nr;
+	u32				sync_nr;
+	u8				prev_cmd_opcode;
 
 	unsigned long			ias; /* IPA */
 	unsigned long			oas; /* PA */
@@ -611,6 +612,7 @@ struct arm_smmu_domain {
 	struct mutex			init_mutex; /* Protects smmu pointer */
 
 	struct io_pgtable_ops		*pgtbl_ops;
+	bool				non_strict;
 
 	enum arm_smmu_domain_stage	stage;
 	union {
@@ -708,7 +710,7 @@ static void queue_inc_prod(struct arm_smmu_queue *q)
 }
 
 /*
- * Wait for the SMMU to consume items. If drain is true, wait until the queue
+ * Wait for the SMMU to consume items. If sync is true, wait until the queue
  * is empty. Otherwise, wait until there is at least one free slot.
  */
 static int queue_poll_cons(struct arm_smmu_queue *q, bool sync, bool wfe)
@@ -901,6 +903,8 @@ static void arm_smmu_cmdq_insert_cmd(struct arm_smmu_device *smmu, u64 *cmd)
 	struct arm_smmu_queue *q = &smmu->cmdq.q;
 	bool wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
 
+	smmu->prev_cmd_opcode = FIELD_GET(CMDQ_0_OP, cmd[0]);
+
 	while (queue_insert_raw(q, cmd) == -ENOSPC) {
 		if (queue_poll_cons(q, false, wfe))
 			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
@@ -948,15 +952,21 @@ static int __arm_smmu_cmdq_issue_sync_msi(struct arm_smmu_device *smmu)
 	struct arm_smmu_cmdq_ent ent = {
 		.opcode = CMDQ_OP_CMD_SYNC,
 		.sync	= {
-			.msidata = atomic_inc_return_relaxed(&smmu->sync_nr),
 			.msiaddr = virt_to_phys(&smmu->sync_count),
 		},
 	};
 
-	arm_smmu_cmdq_build_cmd(cmd, &ent);
-
 	spin_lock_irqsave(&smmu->cmdq.lock, flags);
-	arm_smmu_cmdq_insert_cmd(smmu, cmd);
+
+	/* Piggy-back on the previous command if it's a SYNC */
+	if (smmu->prev_cmd_opcode == CMDQ_OP_CMD_SYNC) {
+		ent.sync.msidata = smmu->sync_nr;
+	} else {
+		ent.sync.msidata = ++smmu->sync_nr;
+		arm_smmu_cmdq_build_cmd(cmd, &ent);
+		arm_smmu_cmdq_insert_cmd(smmu, cmd);
+	}
+
 	spin_unlock_irqrestore(&smmu->cmdq.lock, flags);
 
 	return __arm_smmu_sync_poll_msi(smmu, ent.sync.msidata);
@@ -1398,6 +1408,12 @@ static void arm_smmu_tlb_inv_context(void *cookie)
 		cmd.tlbi.vmid	= smmu_domain->s2_cfg.vmid;
 	}
 
+	/*
+	 * NOTE: when io-pgtable is in non-strict mode, we may get here with
+	 * PTEs previously cleared by unmaps on the current CPU not yet visible
+	 * to the SMMU. We are relying on the DSB implicit in queue_inc_prod()
+	 * to guarantee those are observed before the TLBI. Do be careful, 007.
+	 */
 	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
 	__arm_smmu_tlb_sync(smmu);
 }
@@ -1624,6 +1640,9 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain)
 	if (smmu->features & ARM_SMMU_FEAT_COHERENCY)
 		pgtbl_cfg.quirks = IO_PGTABLE_QUIRK_NO_DMA;
 
+	if (smmu_domain->non_strict)
+		pgtbl_cfg.quirks |= IO_PGTABLE_QUIRK_NON_STRICT;
+
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &pgtbl_cfg, smmu_domain);
 	if (!pgtbl_ops)
 		return -ENOMEM;
@@ -1772,6 +1791,14 @@ arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 	return ops->unmap(ops, iova, size);
 }
 
+static void arm_smmu_flush_iotlb_all(struct iommu_domain *domain)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+
+	if (smmu_domain->smmu)
+		arm_smmu_tlb_inv_context(smmu_domain);
+}
+
 static void arm_smmu_iotlb_sync(struct iommu_domain *domain)
 {
 	struct arm_smmu_device *smmu = to_smmu_domain(domain)->smmu;
@@ -1917,15 +1944,27 @@ static int arm_smmu_domain_get_attr(struct iommu_domain *domain,
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
-	if (domain->type != IOMMU_DOMAIN_UNMANAGED)
-		return -EINVAL;
-
-	switch (attr) {
-	case DOMAIN_ATTR_NESTING:
-		*(int *)data = (smmu_domain->stage == ARM_SMMU_DOMAIN_NESTED);
-		return 0;
+	switch (domain->type) {
+	case IOMMU_DOMAIN_UNMANAGED:
+		switch (attr) {
+		case DOMAIN_ATTR_NESTING:
+			*(int *)data = (smmu_domain->stage == ARM_SMMU_DOMAIN_NESTED);
+			return 0;
+		default:
+			return -ENODEV;
+		}
+		break;
+	case IOMMU_DOMAIN_DMA:
+		switch (attr) {
+		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
+			*(int *)data = smmu_domain->non_strict;
+			return 0;
+		default:
+			return -ENODEV;
+		}
+		break;
 	default:
-		return -ENODEV;
+		return -EINVAL;
 	}
 }
 
@@ -1935,26 +1974,37 @@ static int arm_smmu_domain_set_attr(struct iommu_domain *domain,
 	int ret = 0;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 
-	if (domain->type != IOMMU_DOMAIN_UNMANAGED)
-		return -EINVAL;
-
 	mutex_lock(&smmu_domain->init_mutex);
 
-	switch (attr) {
-	case DOMAIN_ATTR_NESTING:
-		if (smmu_domain->smmu) {
-			ret = -EPERM;
-			goto out_unlock;
+	switch (domain->type) {
+	case IOMMU_DOMAIN_UNMANAGED:
+		switch (attr) {
+		case DOMAIN_ATTR_NESTING:
+			if (smmu_domain->smmu) {
+				ret = -EPERM;
+				goto out_unlock;
+			}
+
+			if (*(int *)data)
+				smmu_domain->stage = ARM_SMMU_DOMAIN_NESTED;
+			else
+				smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
+			break;
+		default:
+			ret = -ENODEV;
 		}
-
-		if (*(int *)data)
-			smmu_domain->stage = ARM_SMMU_DOMAIN_NESTED;
-		else
-			smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
-
+		break;
+	case IOMMU_DOMAIN_DMA:
+		switch(attr) {
+		case DOMAIN_ATTR_DMA_USE_FLUSH_QUEUE:
+			smmu_domain->non_strict = *(int *)data;
+			break;
+		default:
+			ret = -ENODEV;
+		}
 		break;
 	default:
-		ret = -ENODEV;
+		ret = -EINVAL;
 	}
 
 out_unlock:
@@ -1999,7 +2049,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.attach_dev		= arm_smmu_attach_dev,
 	.map			= arm_smmu_map,
 	.unmap			= arm_smmu_unmap,
-	.flush_iotlb_all	= arm_smmu_iotlb_sync,
+	.flush_iotlb_all	= arm_smmu_flush_iotlb_all,
 	.iotlb_sync		= arm_smmu_iotlb_sync,
 	.iova_to_phys		= arm_smmu_iova_to_phys,
 	.add_device		= arm_smmu_add_device,
@@ -2180,7 +2230,6 @@ static int arm_smmu_init_structures(struct arm_smmu_device *smmu)
 {
 	int ret;
 
-	atomic_set(&smmu->sync_nr, 0);
 	ret = arm_smmu_init_queues(smmu);
 	if (ret)
 		return ret;
@@ -2353,8 +2402,8 @@ static int arm_smmu_setup_irqs(struct arm_smmu_device *smmu)
 	irq = smmu->combined_irq;
 	if (irq) {
 		/*
-		 * Cavium ThunderX2 implementation doesn't not support unique
-		 * irq lines. Use single irq line for all the SMMUv3 interrupts.
+		 * Cavium ThunderX2 implementation doesn't support unique irq
+		 * lines. Use a single irq line for all the SMMUv3 interrupts.
 		 */
 		ret = devm_request_threaded_irq(smmu->dev, irq,
 					arm_smmu_combined_irq_handler,

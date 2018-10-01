@@ -587,6 +587,7 @@ static size_t arm_v7s_split_blk_unmap(struct arm_v7s_io_pgtable *data,
 	}
 
 	io_pgtable_tlb_add_flush(&data->iop, iova, size, size, true);
+	io_pgtable_tlb_sync(&data->iop);
 	return size;
 }
 
@@ -642,6 +643,13 @@ static size_t __arm_v7s_unmap(struct arm_v7s_io_pgtable *data,
 				io_pgtable_tlb_sync(iop);
 				ptep = iopte_deref(pte[i], lvl);
 				__arm_v7s_free_table(ptep, lvl + 1, data);
+			} else if (iop->cfg.quirks & IO_PGTABLE_QUIRK_NON_STRICT) {
+				/*
+				 * Order the PTE update against queueing the IOVA, to
+				 * guarantee that a flush callback from a different CPU
+				 * has observed it before the TLBIALL can be issued.
+				 */
+				smp_wmb();
 			} else {
 				io_pgtable_tlb_add_flush(iop, iova, blk_size,
 							 blk_size, true);
@@ -712,7 +720,8 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
 			    IO_PGTABLE_QUIRK_NO_PERMS |
 			    IO_PGTABLE_QUIRK_TLBI_ON_MAP |
 			    IO_PGTABLE_QUIRK_ARM_MTK_4GB |
-			    IO_PGTABLE_QUIRK_NO_DMA))
+			    IO_PGTABLE_QUIRK_NO_DMA |
+			    IO_PGTABLE_QUIRK_NON_STRICT))
 		return NULL;
 
 	/* If ARM_MTK_4GB is enabled, the NO_PERMS is also expected. */
