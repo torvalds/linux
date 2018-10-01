@@ -3819,83 +3819,6 @@ out:
 	return ext4_mark_inode_dirty(handle, inode);
 }
 
-/**
- * Determines how many complete clusters (out of those specified by the 'map')
- * are under delalloc and were reserved quota for.
- * This function is called when we are writing out the blocks that were
- * originally written with their allocation delayed, but then the space was
- * allocated using fallocate() before the delayed allocation could be resolved.
- * The cases to look for are:
- * ('=' indicated delayed allocated blocks
- *  '-' indicates non-delayed allocated blocks)
- * (a) partial clusters towards beginning and/or end outside of allocated range
- *     are not delalloc'ed.
- *	Ex:
- *	|----c---=|====c====|====c====|===-c----|
- *	         |++++++ allocated ++++++|
- *	==> 4 complete clusters in above example
- *
- * (b) partial cluster (outside of allocated range) towards either end is
- *     marked for delayed allocation. In this case, we will exclude that
- *     cluster.
- *	Ex:
- *	|----====c========|========c========|
- *	     |++++++ allocated ++++++|
- *	==> 1 complete clusters in above example
- *
- *	Ex:
- *	|================c================|
- *            |++++++ allocated ++++++|
- *	==> 0 complete clusters in above example
- *
- * The ext4_da_update_reserve_space will be called only if we
- * determine here that there were some "entire" clusters that span
- * this 'allocated' range.
- * In the non-bigalloc case, this function will just end up returning num_blks
- * without ever calling ext4_find_delalloc_range.
- */
-static unsigned int
-get_reserved_cluster_alloc(struct inode *inode, ext4_lblk_t lblk_start,
-			   unsigned int num_blks)
-{
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	ext4_lblk_t alloc_cluster_start, alloc_cluster_end;
-	ext4_lblk_t lblk_from, lblk_to, c_offset;
-	unsigned int allocated_clusters = 0;
-
-	alloc_cluster_start = EXT4_B2C(sbi, lblk_start);
-	alloc_cluster_end = EXT4_B2C(sbi, lblk_start + num_blks - 1);
-
-	/* max possible clusters for this allocation */
-	allocated_clusters = alloc_cluster_end - alloc_cluster_start + 1;
-
-	trace_ext4_get_reserved_cluster_alloc(inode, lblk_start, num_blks);
-
-	/* Check towards left side */
-	c_offset = EXT4_LBLK_COFF(sbi, lblk_start);
-	if (c_offset) {
-		lblk_from = EXT4_LBLK_CMASK(sbi, lblk_start);
-		lblk_to = lblk_from + c_offset - 1;
-
-		if (ext4_es_scan_range(inode, &ext4_es_is_delayed, lblk_from,
-				       lblk_to))
-			allocated_clusters--;
-	}
-
-	/* Now check towards right. */
-	c_offset = EXT4_LBLK_COFF(sbi, lblk_start + num_blks);
-	if (allocated_clusters && c_offset) {
-		lblk_from = lblk_start + num_blks;
-		lblk_to = lblk_from + (sbi->s_cluster_ratio - c_offset) - 1;
-
-		if (ext4_es_scan_range(inode, &ext4_es_is_delayed, lblk_from,
-				       lblk_to))
-			allocated_clusters--;
-	}
-
-	return allocated_clusters;
-}
-
 static int
 convert_initialized_extent(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map,
@@ -4076,23 +3999,6 @@ out:
 		allocated = map->m_len;
 	}
 	map->m_len = allocated;
-
-	/*
-	 * If we have done fallocate with the offset that is already
-	 * delayed allocated, we would have block reservation
-	 * and quota reservation done in the delayed write path.
-	 * But fallocate would have already updated quota and block
-	 * count for this offset. So cancel these reservation
-	 */
-	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) {
-		unsigned int reserved_clusters;
-		reserved_clusters = get_reserved_cluster_alloc(inode,
-				map->m_lblk, map->m_len);
-		if (reserved_clusters)
-			ext4_da_update_reserve_space(inode,
-						     reserved_clusters,
-						     0);
-	}
 
 map_out:
 	map->m_flags |= EXT4_MAP_MAPPED;
@@ -4482,77 +4388,39 @@ got_allocated_blocks:
 	map->m_flags |= EXT4_MAP_NEW;
 
 	/*
-	 * Update reserved blocks/metadata blocks after successful
-	 * block allocation which had been deferred till now.
+	 * Reduce the reserved cluster count to reflect successful deferred
+	 * allocation of delayed allocated clusters or direct allocation of
+	 * clusters discovered to be delayed allocated.  Once allocated, a
+	 * cluster is not included in the reserved count.
 	 */
-	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) {
-		unsigned int reserved_clusters;
-		/*
-		 * Check how many clusters we had reserved this allocated range
-		 */
-		reserved_clusters = get_reserved_cluster_alloc(inode,
-						map->m_lblk, allocated);
-		if (!map_from_cluster) {
-			BUG_ON(allocated_clusters < reserved_clusters);
-			if (reserved_clusters < allocated_clusters) {
-				struct ext4_inode_info *ei = EXT4_I(inode);
-				int reservation = allocated_clusters -
-						  reserved_clusters;
-				/*
-				 * It seems we claimed few clusters outside of
-				 * the range of this allocation. We should give
-				 * it back to the reservation pool. This can
-				 * happen in the following case:
-				 *
-				 * * Suppose s_cluster_ratio is 4 (i.e., each
-				 *   cluster has 4 blocks. Thus, the clusters
-				 *   are [0-3],[4-7],[8-11]...
-				 * * First comes delayed allocation write for
-				 *   logical blocks 10 & 11. Since there were no
-				 *   previous delayed allocated blocks in the
-				 *   range [8-11], we would reserve 1 cluster
-				 *   for this write.
-				 * * Next comes write for logical blocks 3 to 8.
-				 *   In this case, we will reserve 2 clusters
-				 *   (for [0-3] and [4-7]; and not for [8-11] as
-				 *   that range has a delayed allocated blocks.
-				 *   Thus total reserved clusters now becomes 3.
-				 * * Now, during the delayed allocation writeout
-				 *   time, we will first write blocks [3-8] and
-				 *   allocate 3 clusters for writing these
-				 *   blocks. Also, we would claim all these
-				 *   three clusters above.
-				 * * Now when we come here to writeout the
-				 *   blocks [10-11], we would expect to claim
-				 *   the reservation of 1 cluster we had made
-				 *   (and we would claim it since there are no
-				 *   more delayed allocated blocks in the range
-				 *   [8-11]. But our reserved cluster count had
-				 *   already gone to 0.
-				 *
-				 *   Thus, at the step 4 above when we determine
-				 *   that there are still some unwritten delayed
-				 *   allocated blocks outside of our current
-				 *   block range, we should increment the
-				 *   reserved clusters count so that when the
-				 *   remaining blocks finally gets written, we
-				 *   could claim them.
-				 */
-				dquot_reserve_block(inode,
-						EXT4_C2B(sbi, reservation));
-				spin_lock(&ei->i_block_reservation_lock);
-				ei->i_reserved_data_blocks += reservation;
-				spin_unlock(&ei->i_block_reservation_lock);
-			}
+	if (test_opt(inode->i_sb, DELALLOC) && !map_from_cluster) {
+		if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) {
 			/*
-			 * We will claim quota for all newly allocated blocks.
-			 * We're updating the reserved space *after* the
-			 * correction above so we do not accidentally free
-			 * all the metadata reservation because we might
-			 * actually need it later on.
+			 * When allocating delayed allocated clusters, simply
+			 * reduce the reserved cluster count and claim quota
 			 */
 			ext4_da_update_reserve_space(inode, allocated_clusters,
 							1);
+		} else {
+			ext4_lblk_t lblk, len;
+			unsigned int n;
+
+			/*
+			 * When allocating non-delayed allocated clusters
+			 * (from fallocate, filemap, DIO, or clusters
+			 * allocated when delalloc has been disabled by
+			 * ext4_nonda_switch), reduce the reserved cluster
+			 * count by the number of allocated clusters that
+			 * have previously been delayed allocated.  Quota
+			 * has been claimed by ext4_mb_new_blocks() above,
+			 * so release the quota reservations made for any
+			 * previously delayed allocated clusters.
+			 */
+			lblk = EXT4_LBLK_CMASK(sbi, map->m_lblk);
+			len = allocated_clusters << sbi->s_cluster_bits;
+			n = ext4_es_delayed_clu(inode, lblk, len);
+			if (n > 0)
+				ext4_da_update_reserve_space(inode, (int) n, 0);
 		}
 	}
 

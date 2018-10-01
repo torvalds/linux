@@ -150,6 +150,8 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan);
 static int __es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
 		       struct ext4_inode_info *locked_ei);
+static void __revise_pending(struct inode *inode, ext4_lblk_t lblk,
+			     ext4_lblk_t len);
 
 int __init ext4_init_es(void)
 {
@@ -808,6 +810,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	struct extent_status newes;
 	ext4_lblk_t end = lblk + len - 1;
 	int err = 0;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 
 	es_debug("add [%u/%u) %llu %x to extent status tree of inode %lu\n",
 		 lblk, len, pblk, status, inode->i_ino);
@@ -843,6 +846,11 @@ retry:
 		goto retry;
 	if (err == -ENOMEM && !ext4_es_is_delayed(&newes))
 		err = 0;
+
+	if (sbi->s_cluster_ratio > 1 && test_opt(inode->i_sb, DELALLOC) &&
+	    (status & EXTENT_STATUS_WRITTEN ||
+	     status & EXTENT_STATUS_UNWRITTEN))
+		__revise_pending(inode, lblk, len);
 
 error:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
@@ -1604,4 +1612,171 @@ error:
 	ext4_print_pending_tree(inode);
 
 	return err;
+}
+
+/*
+ * __es_delayed_clu - count number of clusters containing blocks that
+ *                    are delayed only
+ *
+ * @inode - file containing block range
+ * @start - logical block defining start of range
+ * @end - logical block defining end of range
+ *
+ * Returns the number of clusters containing only delayed (not delayed
+ * and unwritten) blocks in the range specified by @start and @end.  Any
+ * cluster or part of a cluster within the range and containing a delayed
+ * and not unwritten block within the range is counted as a whole cluster.
+ */
+static unsigned int __es_delayed_clu(struct inode *inode, ext4_lblk_t start,
+				     ext4_lblk_t end)
+{
+	struct ext4_es_tree *tree = &EXT4_I(inode)->i_es_tree;
+	struct extent_status *es;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct rb_node *node;
+	ext4_lblk_t first_lclu, last_lclu;
+	unsigned long long last_counted_lclu;
+	unsigned int n = 0;
+
+	/* guaranteed to be unequal to any ext4_lblk_t value */
+	last_counted_lclu = ~0ULL;
+
+	es = __es_tree_search(&tree->root, start);
+
+	while (es && (es->es_lblk <= end)) {
+		if (ext4_es_is_delonly(es)) {
+			if (es->es_lblk <= start)
+				first_lclu = EXT4_B2C(sbi, start);
+			else
+				first_lclu = EXT4_B2C(sbi, es->es_lblk);
+
+			if (ext4_es_end(es) >= end)
+				last_lclu = EXT4_B2C(sbi, end);
+			else
+				last_lclu = EXT4_B2C(sbi, ext4_es_end(es));
+
+			if (first_lclu == last_counted_lclu)
+				n += last_lclu - first_lclu;
+			else
+				n += last_lclu - first_lclu + 1;
+			last_counted_lclu = last_lclu;
+		}
+		node = rb_next(&es->rb_node);
+		if (!node)
+			break;
+		es = rb_entry(node, struct extent_status, rb_node);
+	}
+
+	return n;
+}
+
+/*
+ * ext4_es_delayed_clu - count number of clusters containing blocks that
+ *                       are both delayed and unwritten
+ *
+ * @inode - file containing block range
+ * @lblk - logical block defining start of range
+ * @len - number of blocks in range
+ *
+ * Locking for external use of __es_delayed_clu().
+ */
+unsigned int ext4_es_delayed_clu(struct inode *inode, ext4_lblk_t lblk,
+				 ext4_lblk_t len)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	ext4_lblk_t end;
+	unsigned int n;
+
+	if (len == 0)
+		return 0;
+
+	end = lblk + len - 1;
+	WARN_ON(end < lblk);
+
+	read_lock(&ei->i_es_lock);
+
+	n = __es_delayed_clu(inode, lblk, end);
+
+	read_unlock(&ei->i_es_lock);
+
+	return n;
+}
+
+/*
+ * __revise_pending - makes, cancels, or leaves unchanged pending cluster
+ *                    reservations for a specified block range depending
+ *                    upon the presence or absence of delayed blocks
+ *                    outside the range within clusters at the ends of the
+ *                    range
+ *
+ * @inode - file containing the range
+ * @lblk - logical block defining the start of range
+ * @len  - length of range in blocks
+ *
+ * Used after a newly allocated extent is added to the extents status tree.
+ * Requires that the extents in the range have either written or unwritten
+ * status.  Must be called while holding i_es_lock.
+ */
+static void __revise_pending(struct inode *inode, ext4_lblk_t lblk,
+			     ext4_lblk_t len)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	ext4_lblk_t end = lblk + len - 1;
+	ext4_lblk_t first, last;
+	bool f_del = false, l_del = false;
+
+	if (len == 0)
+		return;
+
+	/*
+	 * Two cases - block range within single cluster and block range
+	 * spanning two or more clusters.  Note that a cluster belonging
+	 * to a range starting and/or ending on a cluster boundary is treated
+	 * as if it does not contain a delayed extent.  The new range may
+	 * have allocated space for previously delayed blocks out to the
+	 * cluster boundary, requiring that any pre-existing pending
+	 * reservation be canceled.  Because this code only looks at blocks
+	 * outside the range, it should revise pending reservations
+	 * correctly even if the extent represented by the range can't be
+	 * inserted in the extents status tree due to ENOSPC.
+	 */
+
+	if (EXT4_B2C(sbi, lblk) == EXT4_B2C(sbi, end)) {
+		first = EXT4_LBLK_CMASK(sbi, lblk);
+		if (first != lblk)
+			f_del = __es_scan_range(inode, &ext4_es_is_delonly,
+						first, lblk - 1);
+		if (f_del) {
+			__insert_pending(inode, first);
+		} else {
+			last = EXT4_LBLK_CMASK(sbi, end) +
+			       sbi->s_cluster_ratio - 1;
+			if (last != end)
+				l_del = __es_scan_range(inode,
+							&ext4_es_is_delonly,
+							end + 1, last);
+			if (l_del)
+				__insert_pending(inode, last);
+			else
+				__remove_pending(inode, last);
+		}
+	} else {
+		first = EXT4_LBLK_CMASK(sbi, lblk);
+		if (first != lblk)
+			f_del = __es_scan_range(inode, &ext4_es_is_delonly,
+						first, lblk - 1);
+		if (f_del)
+			__insert_pending(inode, first);
+		else
+			__remove_pending(inode, first);
+
+		last = EXT4_LBLK_CMASK(sbi, end) + sbi->s_cluster_ratio - 1;
+		if (last != end)
+			l_del = __es_scan_range(inode, &ext4_es_is_delonly,
+						end + 1, last);
+		if (l_del)
+			__insert_pending(inode, last);
+		else
+			__remove_pending(inode, last);
+	}
 }
