@@ -271,9 +271,7 @@ class MainWindow(QMainWindow):
 		self.setWindowTitle("Call Graph: " + dbname)
 		self.move(100, 100)
 		self.resize(800, 600)
-		style = self.style()
-		icon = style.standardIcon(QStyle.SP_MessageBoxInformation)
-		self.setWindowIcon(icon);
+		self.setWindowIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
 		self.setMinimumSize(200, 100)
 
 		self.model = TreeModel(db)
