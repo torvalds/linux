@@ -262,8 +262,6 @@ struct mt76_driver_ops {
 
 	void (*sta_ps)(struct mt76_dev *dev, struct ieee80211_sta *sta,
 		       bool ps);
-	s8 (*get_max_txpwr_adj)(struct mt76_dev *dev,
-				const struct ieee80211_tx_rate *rate);
 };
 
 struct mt76_channel_state {
