@@ -1019,35 +1019,48 @@ void cfg80211_cqm_config_free(struct wireless_dev *wdev)
 	wdev->cqm_config = NULL;
 }
 
-void cfg80211_unregister_wdev(struct wireless_dev *wdev)
+static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
 	ASSERT_RTNL();
 
-	if (WARN_ON(wdev->netdev))
-		return;
-
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
 	list_del_rcu(&wdev->list);
-	synchronize_rcu();
+	if (sync)
+		synchronize_rcu();
 	rdev->devlist_generation++;
+
+	cfg80211_mlme_purge_registrations(wdev);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		cfg80211_mlme_purge_registrations(wdev);
 		cfg80211_stop_p2p_device(rdev, wdev);
 		break;
 	case NL80211_IFTYPE_NAN:
 		cfg80211_stop_nan(rdev, wdev);
 		break;
 	default:
-		WARN_ON_ONCE(1);
 		break;
 	}
 
+#ifdef CONFIG_CFG80211_WEXT
+	kzfree(wdev->wext.keys);
+#endif
+	/* only initialized if we have a netdev */
+	if (wdev->netdev)
+		flush_work(&wdev->disconnect_wk);
+
 	cfg80211_cqm_config_free(wdev);
+}
+
+void cfg80211_unregister_wdev(struct wireless_dev *wdev)
+{
+	if (WARN_ON(wdev->netdev))
+		return;
+
+	__cfg80211_unregister_wdev(wdev, true);
 }
 EXPORT_SYMBOL(cfg80211_unregister_wdev);
 
@@ -1308,17 +1321,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * remove and clean it up.
 		 */
 		if (!list_empty(&wdev->list)) {
-			nl80211_notify_iface(rdev, wdev,
-					     NL80211_CMD_DEL_INTERFACE);
+			__cfg80211_unregister_wdev(wdev, false);
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
-			list_del_rcu(&wdev->list);
-			rdev->devlist_generation++;
-			cfg80211_mlme_purge_registrations(wdev);
-#ifdef CONFIG_CFG80211_WEXT
-			kzfree(wdev->wext.keys);
-#endif
-			flush_work(&wdev->disconnect_wk);
-			cfg80211_cqm_config_free(wdev);
 		}
 		/*
 		 * synchronise (so that we won't find this netdev
