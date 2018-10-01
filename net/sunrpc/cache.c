@@ -75,27 +75,6 @@ static struct cache_head *sunrpc_cache_find_rcu(struct cache_detail *detail,
 	return NULL;
 }
 
-static struct cache_head *sunrpc_cache_find(struct cache_detail *detail,
-					    struct cache_head *key, int hash)
-{
-	struct hlist_head *head = &detail->hash_table[hash];
-	struct cache_head *tmp;
-
-	read_lock(&detail->hash_lock);
-	hlist_for_each_entry(tmp, head, cache_list) {
-		if (detail->match(tmp, key)) {
-			if (cache_is_expired(detail, tmp))
-				/* This entry is expired, we will discard it. */
-				break;
-			cache_get(tmp);
-			read_unlock(&detail->hash_lock);
-			return tmp;
-		}
-	}
-	read_unlock(&detail->hash_lock);
-	return NULL;
-}
-
 static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 						 struct cache_head *key,
 						 int hash)
@@ -153,20 +132,6 @@ struct cache_head *sunrpc_cache_lookup_rcu(struct cache_detail *detail,
 	return sunrpc_cache_add_entry(detail, key, hash);
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_lookup_rcu);
-
-struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
-				       struct cache_head *key, int hash)
-{
-	struct cache_head *ret;
-
-	ret = sunrpc_cache_find(detail, key, hash);
-	if (ret)
-		return ret;
-	/* Didn't find anything, insert an empty entry */
-	return sunrpc_cache_add_entry(detail, key, hash);
-}
-EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
-
 
 static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch);
 
@@ -1369,17 +1334,7 @@ static void *__cache_seq_start(struct seq_file *m, loff_t *pos)
 				struct cache_head, cache_list);
 }
 
-void *cache_seq_start(struct seq_file *m, loff_t *pos)
-	__acquires(cd->hash_lock)
-{
-	struct cache_detail *cd = m->private;
-
-	read_lock(&cd->hash_lock);
-	return __cache_seq_start(m, pos);
-}
-EXPORT_SYMBOL_GPL(cache_seq_start);
-
-void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
+static void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
 {
 	struct cache_head *ch = p;
 	int hash = (*pos >> 32);
@@ -1410,14 +1365,6 @@ void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
 				struct cache_head, cache_list);
 }
 EXPORT_SYMBOL_GPL(cache_seq_next);
-
-void cache_seq_stop(struct seq_file *m, void *p)
-	__releases(cd->hash_lock)
-{
-	struct cache_detail *cd = m->private;
-	read_unlock(&cd->hash_lock);
-}
-EXPORT_SYMBOL_GPL(cache_seq_stop);
 
 void *cache_seq_start_rcu(struct seq_file *m, loff_t *pos)
 	__acquires(RCU)
@@ -1466,9 +1413,9 @@ static int c_show(struct seq_file *m, void *p)
 }
 
 static const struct seq_operations cache_content_op = {
-	.start	= cache_seq_start,
-	.next	= cache_seq_next,
-	.stop	= cache_seq_stop,
+	.start	= cache_seq_start_rcu,
+	.next	= cache_seq_next_rcu,
+	.stop	= cache_seq_stop_rcu,
 	.show	= c_show,
 };
 

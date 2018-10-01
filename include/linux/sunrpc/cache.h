@@ -171,9 +171,6 @@ extern struct cache_head *
 sunrpc_cache_lookup_rcu(struct cache_detail *detail,
 			struct cache_head *key, int hash);
 extern struct cache_head *
-sunrpc_cache_lookup(struct cache_detail *detail,
-		    struct cache_head *key, int hash);
-extern struct cache_head *
 sunrpc_cache_update(struct cache_detail *detail,
 		    struct cache_head *new, struct cache_head *old, int hash);
 
@@ -233,9 +230,6 @@ extern void sunrpc_cache_unregister_pipefs(struct cache_detail *);
 extern void sunrpc_cache_unhash(struct cache_detail *, struct cache_head *);
 
 /* Must store cache_detail in seq_file->private if using next three functions */
-extern void *cache_seq_start(struct seq_file *file, loff_t *pos);
-extern void *cache_seq_next(struct seq_file *file, void *p, loff_t *pos);
-extern void cache_seq_stop(struct seq_file *file, void *p);
 extern void *cache_seq_start_rcu(struct seq_file *file, loff_t *pos);
 extern void *cache_seq_next_rcu(struct seq_file *file, void *p, loff_t *pos);
 extern void cache_seq_stop_rcu(struct seq_file *file, void *p);
