@@ -20,7 +20,9 @@
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include "rga2_mmu_info.h"
-
+#if RGA2_DEBUGFS
+extern int RGA2_CHECK_MODE;
+#endif
 extern struct rga2_service_info rga2_service;
 extern struct rga2_mmu_buf_t rga2_mmu_buf;
 
@@ -290,6 +292,78 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
     return pageCount;
 }
 
+#if RGA2_DEBUGFS
+static int rga2_UserMemory_cheeck(struct page **pages, u32 w, u32 h, u32 format, int flag)
+{
+	int bits;
+	void *vaddr = NULL;
+	int taipage_num;
+	int taidata_num;
+	int *tai_vaddr = NULL;
+
+	switch (format) {
+	case RGA2_FORMAT_RGBA_8888:
+	case RGA2_FORMAT_RGBX_8888:
+	case RGA2_FORMAT_BGRA_8888:
+	case RGA2_FORMAT_BGRX_8888:
+		bits = 32;
+		break;
+	case RGA2_FORMAT_RGB_888:
+	case RGA2_FORMAT_BGR_888:
+		bits = 24;
+		break;
+	case RGA2_FORMAT_RGB_565:
+	case RGA2_FORMAT_RGBA_5551:
+	case RGA2_FORMAT_RGBA_4444:
+	case RGA2_FORMAT_BGR_565:
+	case RGA2_FORMAT_YCbCr_422_SP:
+	case RGA2_FORMAT_YCbCr_422_P:
+	case RGA2_FORMAT_YCrCb_422_SP:
+	case RGA2_FORMAT_YCrCb_422_P:
+	case RGA2_FORMAT_BGRA_5551:
+	case RGA2_FORMAT_BGRA_4444:
+		bits = 16;
+		break;
+	case RGA2_FORMAT_YCbCr_420_SP:
+	case RGA2_FORMAT_YCbCr_420_P:
+	case RGA2_FORMAT_YCrCb_420_SP:
+	case RGA2_FORMAT_YCrCb_420_P:
+		bits = 12;
+		break;
+	case RGA2_FORMAT_YCbCr_420_SP_10B:
+	case RGA2_FORMAT_YCrCb_420_SP_10B:
+	case RGA2_FORMAT_YCbCr_422_SP_10B:
+	case RGA2_FORMAT_YCrCb_422_SP_10B:
+		bits = 15;
+		break;
+	default:
+		printk("un know format\n");
+		return -1;
+	}
+	taipage_num = w * h * bits / 8 / (1024 * 4);
+	taidata_num = w * h * bits / 8 % (1024 * 4);
+	if (taidata_num == 0) {
+		vaddr = kmap(pages[taipage_num - 1]);
+		tai_vaddr = (int *)vaddr + 1023;
+	} else {
+		vaddr = kmap(pages[taipage_num]);
+		tai_vaddr = (int *)vaddr + taidata_num / 4 - 1;
+	}
+	if (flag == 1) {
+		printk(KERN_DEBUG "src user memory check\n");
+		printk(KERN_DEBUG "tai data is %d\n", *tai_vaddr);
+	} else {
+		printk(KERN_DEBUG "dst user memory check\n");
+		printk(KERN_DEBUG "tai data is %d\n", *tai_vaddr);
+	}
+	if (taidata_num == 0)
+		kunmap(pages[taipage_num - 1]);
+	else
+		kunmap(pages[taipage_num]);
+	return 0;
+}
+#endif
+
 static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 			      unsigned long Memory, uint32_t pageCount,
 			      int writeFlag)
@@ -438,6 +512,9 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 	Src0PageCount = 0;
 	Src1PageCount = 0;
 	DstPageCount = 0;
+	Src0Start = 0;
+	Src1Start = 0;
+	DstStart = 0;
 
 	/* cal src0 buf mmu info */
 	if (req->mmu_info.src0_mmu_flag & 1) {
@@ -497,12 +574,19 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 				(rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
         mutex_unlock(&rga2_service.lock);
         if (Src0MemSize) {
-		if (req->sg_src0)
+		if (req->sg_src0) {
 			ret = rga2_MapION(req->sg_src0,
 					  &MMU_Base[0], Src0MemSize);
-		else
+		} else {
 			ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0],
 						 Src0Start, Src0PageCount, 0);
+#if RGA2_DEBUGFS
+		if (RGA2_CHECK_MODE)
+			rga2_UserMemory_cheeck(&pages[0], req->src.vir_w,
+					       req->src.vir_h, req->src.format,
+					       1);
+#endif
+		}
 
 		if (ret < 0) {
 			pr_err("rga2 map src0 memory failed\n");
@@ -541,13 +625,20 @@ static int rga2_mmu_info_BitBlt_mode(struct rga2_reg *reg, struct rga2_req *req)
 		req->src1.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK));
 	}
         if (DstMemSize) {
-		if (req->sg_dst)
+		if (req->sg_dst) {
 			ret = rga2_MapION(req->sg_dst, MMU_Base + Src0MemSize
 					  + Src1MemSize, DstMemSize);
-		else
+		} else {
 			ret = rga2_MapUserMemory(&pages[0], MMU_Base
 						 + Src0MemSize + Src1MemSize,
 						 DstStart, DstPageCount, 1);
+#if RGA2_DEBUGFS
+		if (RGA2_CHECK_MODE)
+			rga2_UserMemory_cheeck(&pages[0], req->src.vir_w,
+					       req->src.vir_h, req->src.format,
+					       2);
+#endif
+		}
 		if (ret < 0) {
 			pr_err("rga2 map dst memory failed\n");
 			status = ret;

@@ -29,13 +29,12 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/wakelock.h>
+#include <linux/version.h>
 
 #include "rga2_reg_info.h"
-#include "../rga/rga_type.h"
-//#include "../rga/rga_rop.h"
+#include "rga2_type.h"
+#include "rga2_rop.h"
 #include "rga2.h"
-
-extern unsigned int rga2_ROP3_code[256];
 
 static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 {
@@ -632,14 +631,14 @@ static void RGA2_set_reg_rop_info(u8 *base, struct rga2_req *msg)
     bRGA_PAT_CON   = (RK_U32 *)(base + RGA2_PAT_CON_OFFSET);
 
     if(msg->rop_mode == 0) {
-	rop_code0 = rga2_ROP3_code[(msg->rop_code & 0xff)];
+	rop_code0 = RGA2_ROP3_code[(msg->rop_code & 0xff)];
     }
     else if(msg->rop_mode == 1) {
-	rop_code0 = rga2_ROP3_code[(msg->rop_code & 0xff)];
+	rop_code0 = RGA2_ROP3_code[(msg->rop_code & 0xff)];
     }
     else if(msg->rop_mode == 2) {
-	rop_code0 = rga2_ROP3_code[(msg->rop_code & 0xff)];
-	rop_code1 = rga2_ROP3_code[(msg->rop_code & 0xff00)>>8];
+	rop_code0 = RGA2_ROP3_code[(msg->rop_code & 0xff)];
+	rop_code1 = RGA2_ROP3_code[(msg->rop_code & 0xff00)>>8];
     }
 
     *bRGA_ROP_CTRL0 = rop_code0;
@@ -965,11 +964,12 @@ static void format_name_convert(uint32_t *df, uint32_t sf)
 void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
 {
 	u16 alpha_mode_0, alpha_mode_1;
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 	if (req_rga->render_mode & RGA_BUF_GEM_TYPE_MASK)
 		req->buf_type = RGA_BUF_GEM_TYPE_MASK & RGA_BUF_GEM_TYPE_DMA;
 
 	req_rga->render_mode &= (~RGA_BUF_GEM_TYPE_MASK);
+#endif
 
     if (req_rga->render_mode == 6)
         req->render_mode = update_palette_table_mode;
@@ -1188,12 +1188,12 @@ static void memcpy_img_info(struct rga_img_info_t *dst, struct rga_img_info_32_t
 void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
 {
 	u16 alpha_mode_0, alpha_mode_1;
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 	if (req_rga->render_mode & RGA_BUF_GEM_TYPE_MASK)
 		req->buf_type = RGA_BUF_GEM_TYPE_MASK & RGA_BUF_GEM_TYPE_DMA;
 
 	req_rga->render_mode &= (~RGA_BUF_GEM_TYPE_MASK);
-
+#endif
     if (req_rga->render_mode == 6)
         req->render_mode = update_palette_table_mode;
     else if (req_rga->render_mode == 7)

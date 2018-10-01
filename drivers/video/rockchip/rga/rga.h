@@ -26,7 +26,7 @@
 #define rgaNO_ERROR(status)			(status >= 0)
 #define rgaIS_SUCCESS(status)		(status == 0)
 
-
+#define RGA_DEBUGFS 1
 
 /* RGA process mode enum */
 enum

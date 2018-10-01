@@ -702,9 +702,7 @@ struct rga2_service_info {
 };
 
 #define RGA2_TEST_CASE 0
-#define RGA2_TEST      0
-#define RGA2_TEST_MSG  0
-#define RGA2_TEST_TIME 0
+#define RGA2_DEBUGFS 1
 
 //General Registers
 #define RGA2_SYS_CTRL             0x000
