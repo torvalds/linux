@@ -190,6 +190,11 @@ enum hclge_opcode_type {
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
 	HCLGE_OPC_VLAN_FILTER_VF_CFG	= 0x1102,
 
+	/* Flow Director commands */
+	HCLGE_OPC_FD_MODE_CTRL		= 0x1200,
+	HCLGE_OPC_FD_GET_ALLOCATION	= 0x1201,
+	HCLGE_OPC_FD_KEY_CONFIG		= 0x1202,
+
 	/* MDIO command */
 	HCLGE_OPC_MDIO_CONFIG		= 0x1900,
 
@@ -817,6 +822,33 @@ struct hclge_set_led_state_cmd {
 	u8 rsv1[3];
 	u8 locate_led_config;
 	u8 rsv2[20];
+};
+
+struct hclge_get_fd_mode_cmd {
+	u8 mode;
+	u8 enable;
+	u8 rsv[22];
+};
+
+struct hclge_get_fd_allocation_cmd {
+	__le32 stage1_entry_num;
+	__le32 stage2_entry_num;
+	__le16 stage1_counter_num;
+	__le16 stage2_counter_num;
+	u8 rsv[12];
+};
+
+struct hclge_set_fd_key_config_cmd {
+	u8 stage;
+	u8 key_select;
+	u8 inner_sipv6_word_en;
+	u8 inner_dipv6_word_en;
+	u8 outer_sipv6_word_en;
+	u8 outer_dipv6_word_en;
+	u8 rsv1[2];
+	__le32 tuple_mask;
+	__le32 meta_data_mask;
+	u8 rsv2[8];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);
