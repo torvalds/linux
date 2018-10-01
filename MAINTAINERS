@@ -13853,7 +13853,7 @@ F:	sound/soc/sti/
 STI CEC DRIVER
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
 S:	Maintained
-F:	drivers/staging/media/st-cec/
+F:	drivers/media/platform/sti/cec/
 F:	Documentation/devicetree/bindings/media/stih-cec.txt
 
 STK1160 USB VIDEO CAPTURE DRIVER
