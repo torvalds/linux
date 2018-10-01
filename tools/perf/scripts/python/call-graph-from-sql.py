@@ -280,6 +280,9 @@ class MainWindow(QMainWindow):
 		self.view = QTreeView()
 		self.view.setModel(self.model)
 
+		for c, w in ((0, 250), (1, 100), (2, 60), (3, 70), (4, 70), (5, 100)):
+			self.view.setColumnWidth(c, w)
+
 		self.setCentralWidget(self.view)
 
 if __name__ == '__main__':
