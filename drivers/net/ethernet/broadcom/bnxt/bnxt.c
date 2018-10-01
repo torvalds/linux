@@ -5913,12 +5913,12 @@ unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 	return bp->hw_resc.max_cp_rings;
 }
 
-void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max)
+unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp)
 {
-	bp->hw_resc.max_cp_rings = max;
+	return bp->hw_resc.max_cp_rings - bnxt_get_ulp_msix_num(bp);
 }
 
-unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
+static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
@@ -6684,6 +6684,8 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 		hw_resc->resv_rx_rings = 0;
 		hw_resc->resv_hw_ring_grps = 0;
 		hw_resc->resv_vnics = 0;
+		bp->tx_nr_rings = 0;
+		bp->rx_nr_rings = 0;
 	}
 	return rc;
 }
@@ -7670,21 +7672,6 @@ static void bnxt_tx_timeout(struct net_device *dev)
 	bnxt_queue_sp_work(bp);
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void bnxt_poll_controller(struct net_device *dev)
-{
-	struct bnxt *bp = netdev_priv(dev);
-	int i;
-
-	/* Only process tx rings/combined rings in netpoll mode. */
-	for (i = 0; i < bp->tx_nr_rings; i++) {
-		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
-
-		napi_schedule(&txr->bnapi->napi);
-	}
-}
-#endif
-
 static void bnxt_timer(struct timer_list *t)
 {
 	struct bnxt *bp = from_timer(bp, t, timer);
@@ -8025,7 +8012,7 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
 
-	rc = bnxt_approve_mac(bp, addr->sa_data);
+	rc = bnxt_approve_mac(bp, addr->sa_data, true);
 	if (rc)
 		return rc;
 
@@ -8518,9 +8505,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,
 	.ndo_set_vf_trust	= bnxt_set_vf_trust,
 #endif
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= bnxt_poll_controller,
-#endif
 	.ndo_setup_tc           = bnxt_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= bnxt_rx_flow_steer,
@@ -8629,7 +8613,8 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 
 	*max_tx = hw_resc->max_tx_rings;
 	*max_rx = hw_resc->max_rx_rings;
-	*max_cp = min_t(int, hw_resc->max_irqs, hw_resc->max_cp_rings);
+	*max_cp = min_t(int, bnxt_get_max_func_cp_rings_for_en(bp),
+			hw_resc->max_irqs);
 	*max_cp = min_t(int, *max_cp, hw_resc->max_stat_ctxs);
 	max_ring_grps = hw_resc->max_hw_ring_grps;
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && BNXT_PF(bp)) {
@@ -8769,20 +8754,25 @@ static int bnxt_init_dflt_ring_mode(struct bnxt *bp)
 	if (bp->tx_nr_rings)
 		return 0;
 
+	bnxt_ulp_irq_stop(bp);
+	bnxt_clear_int_mode(bp);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
 		netdev_err(bp->dev, "Not enough rings available.\n");
-		return rc;
+		goto init_dflt_ring_err;
 	}
 	rc = bnxt_init_int_mode(bp);
 	if (rc)
-		return rc;
+		goto init_dflt_ring_err;
+
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 	if (bnxt_rfs_supported(bp) && bnxt_rfs_capable(bp)) {
 		bp->flags |= BNXT_FLAG_RFS;
 		bp->dev->features |= NETIF_F_NTUPLE;
 	}
-	return 0;
+init_dflt_ring_err:
+	bnxt_ulp_irq_restart(bp, rc);
+	return rc;
 }
 
 int bnxt_restore_pf_fw_resources(struct bnxt *bp)
@@ -8819,14 +8809,19 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	} else {
 #ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
+		bool strict_approval = true;
 
 		if (is_valid_ether_addr(vf->mac_addr)) {
 			/* overwrite netdev dev_addr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+			/* Older PF driver or firmware may not approve this
+			 * correctly.
+			 */
+			strict_approval = false;
 		} else {
 			eth_hw_addr_random(bp->dev);
 		}
-		rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
+		rc = bnxt_approve_mac(bp, bp->dev->dev_addr, strict_approval);
 #endif
 	}
 	return rc;

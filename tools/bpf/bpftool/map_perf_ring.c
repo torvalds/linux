@@ -194,8 +194,10 @@ int do_event_pipe(int argc, char **argv)
 	}
 
 	while (argc) {
-		if (argc < 2)
+		if (argc < 2) {
 			BAD_ARG();
+			goto err_close_map;
+		}
 
 		if (is_prefix(*argv, "cpu")) {
 			char *endptr;
@@ -221,6 +223,7 @@ int do_event_pipe(int argc, char **argv)
 			NEXT_ARG();
 		} else {
 			BAD_ARG();
+			goto err_close_map;
 		}
 
 		do_all = false;

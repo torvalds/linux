@@ -15,10 +15,11 @@
 
 #include "pinctrl-intel.h"
 
-#define CNL_PAD_OWN	0x020
-#define CNL_PADCFGLOCK	0x080
-#define CNL_HOSTSW_OWN	0x0b0
-#define CNL_GPI_IE	0x120
+#define CNL_PAD_OWN		0x020
+#define CNL_PADCFGLOCK		0x080
+#define CNL_LP_HOSTSW_OWN	0x0b0
+#define CNL_H_HOSTSW_OWN	0x0c0
+#define CNL_GPI_IE		0x120
 
 #define CNL_GPP(r, s, e, g)				\
 	{						\
@@ -30,18 +31,24 @@
 
 #define CNL_NO_GPIO	-1
 
-#define CNL_COMMUNITY(b, s, e, g)			\
+#define CNL_COMMUNITY(b, s, e, o, g)			\
 	{						\
 		.barno = (b),				\
 		.padown_offset = CNL_PAD_OWN,		\
 		.padcfglock_offset = CNL_PADCFGLOCK,	\
-		.hostown_offset = CNL_HOSTSW_OWN,	\
+		.hostown_offset = (o),			\
 		.ie_offset = CNL_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
 		.gpps = (g),				\
 		.ngpps = ARRAY_SIZE(g),			\
 	}
+
+#define CNLLP_COMMUNITY(b, s, e, g)			\
+	CNL_COMMUNITY(b, s, e, CNL_LP_HOSTSW_OWN, g)
+
+#define CNLH_COMMUNITY(b, s, e, g)			\
+	CNL_COMMUNITY(b, s, e, CNL_H_HOSTSW_OWN, g)
 
 /* Cannon Lake-H */
 static const struct pinctrl_pin_desc cnlh_pins[] = {
@@ -379,7 +386,7 @@ static const struct intel_padgroup cnlh_community1_gpps[] = {
 static const struct intel_padgroup cnlh_community3_gpps[] = {
 	CNL_GPP(0, 155, 178, 192),		/* GPP_K */
 	CNL_GPP(1, 179, 202, 224),		/* GPP_H */
-	CNL_GPP(2, 203, 215, 258),		/* GPP_E */
+	CNL_GPP(2, 203, 215, 256),		/* GPP_E */
 	CNL_GPP(3, 216, 239, 288),		/* GPP_F */
 	CNL_GPP(4, 240, 248, CNL_NO_GPIO),	/* SPI */
 };
@@ -442,10 +449,10 @@ static const struct intel_function cnlh_functions[] = {
 };
 
 static const struct intel_community cnlh_communities[] = {
-	CNL_COMMUNITY(0, 0, 50, cnlh_community0_gpps),
-	CNL_COMMUNITY(1, 51, 154, cnlh_community1_gpps),
-	CNL_COMMUNITY(2, 155, 248, cnlh_community3_gpps),
-	CNL_COMMUNITY(3, 249, 298, cnlh_community4_gpps),
+	CNLH_COMMUNITY(0, 0, 50, cnlh_community0_gpps),
+	CNLH_COMMUNITY(1, 51, 154, cnlh_community1_gpps),
+	CNLH_COMMUNITY(2, 155, 248, cnlh_community3_gpps),
+	CNLH_COMMUNITY(3, 249, 298, cnlh_community4_gpps),
 };
 
 static const struct intel_pinctrl_soc_data cnlh_soc_data = {
@@ -803,9 +810,9 @@ static const struct intel_padgroup cnllp_community4_gpps[] = {
 };
 
 static const struct intel_community cnllp_communities[] = {
-	CNL_COMMUNITY(0, 0, 67, cnllp_community0_gpps),
-	CNL_COMMUNITY(1, 68, 180, cnllp_community1_gpps),
-	CNL_COMMUNITY(2, 181, 243, cnllp_community4_gpps),
+	CNLLP_COMMUNITY(0, 0, 67, cnllp_community0_gpps),
+	CNLLP_COMMUNITY(1, 68, 180, cnllp_community1_gpps),
+	CNLLP_COMMUNITY(2, 181, 243, cnllp_community4_gpps),
 };
 
 static const struct intel_pinctrl_soc_data cnllp_soc_data = {

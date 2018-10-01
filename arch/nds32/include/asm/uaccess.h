@@ -38,7 +38,7 @@ struct exception_table_entry {
 extern int fixup_exception(struct pt_regs *regs);
 
 #define KERNEL_DS 	((mm_segment_t) { ~0UL })
-#define USER_DS     	((mm_segment_t) {TASK_SIZE - 1})
+#define USER_DS		((mm_segment_t) {TASK_SIZE - 1})
 
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
@@ -49,11 +49,11 @@ static inline void set_fs(mm_segment_t fs)
 	current_thread_info()->addr_limit = fs;
 }
 
-#define segment_eq(a, b)    ((a) == (b))
+#define segment_eq(a, b)	((a) == (b))
 
 #define __range_ok(addr, size) (size <= get_fs() && addr <= (get_fs() -size))
 
-#define access_ok(type, addr, size)                 \
+#define access_ok(type, addr, size)	\
 	__range_ok((unsigned long)addr, (unsigned long)size)
 /*
  * Single-value transfer routines.  They automatically use the right
@@ -75,70 +75,73 @@ static inline void set_fs(mm_segment_t fs)
  * versions are void (ie, don't return a value as such).
  */
 
-#define get_user(x,p)							\
-({									\
-	long __e = -EFAULT;						\
-	if(likely(access_ok(VERIFY_READ,  p, sizeof(*p)))) {		\
-		__e = __get_user(x,p);					\
-	} else								\
-		x = 0;							\
-	__e;								\
-})
-#define __get_user(x,ptr)						\
+#define get_user	__get_user					\
+
+#define __get_user(x, ptr)						\
 ({									\
 	long __gu_err = 0;						\
-	__get_user_err((x),(ptr),__gu_err);				\
+	__get_user_check((x), (ptr), __gu_err);				\
 	__gu_err;							\
 })
 
-#define __get_user_error(x,ptr,err)					\
+#define __get_user_error(x, ptr, err)					\
 ({									\
-	__get_user_err((x),(ptr),err);					\
-	(void) 0;							\
+	__get_user_check((x), (ptr), (err));				\
+	(void)0;							\
 })
 
-#define __get_user_err(x,ptr,err)					\
+#define __get_user_check(x, ptr, err)					\
+({									\
+	const __typeof__(*(ptr)) __user *__p = (ptr);			\
+	might_fault();							\
+	if (access_ok(VERIFY_READ, __p, sizeof(*__p))) {		\
+		__get_user_err((x), __p, (err));			\
+	} else {							\
+		(x) = 0; (err) = -EFAULT;				\
+	}								\
+})
+
+#define __get_user_err(x, ptr, err)					\
 do {									\
-	unsigned long __gu_addr = (unsigned long)(ptr);			\
 	unsigned long __gu_val;						\
 	__chk_user_ptr(ptr);						\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__get_user_asm("lbi",__gu_val,__gu_addr,err);		\
+		__get_user_asm("lbi", __gu_val, (ptr), (err));		\
 		break;							\
 	case 2:								\
-		__get_user_asm("lhi",__gu_val,__gu_addr,err);		\
+		__get_user_asm("lhi", __gu_val, (ptr), (err));		\
 		break;							\
 	case 4:								\
-		__get_user_asm("lwi",__gu_val,__gu_addr,err);		\
+		__get_user_asm("lwi", __gu_val, (ptr), (err));		\
 		break;							\
 	case 8:								\
-		__get_user_asm_dword(__gu_val,__gu_addr,err);		\
+		__get_user_asm_dword(__gu_val, (ptr), (err));		\
 		break;							\
 	default:							\
 		BUILD_BUG(); 						\
 		break;							\
 	}								\
-	(x) = (__typeof__(*(ptr)))__gu_val;				\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
-#define __get_user_asm(inst,x,addr,err)					\
-	asm volatile(							\
-	"1:	"inst"	%1,[%2]\n"					\
-	"2:\n"								\
-	"	.section .fixup,\"ax\"\n"				\
-	"	.align	2\n"						\
-	"3:	move %0, %3\n"						\
-	"	move %1, #0\n"						\
-	"	b	2b\n"						\
-	"	.previous\n"						\
-	"	.section __ex_table,\"a\"\n"				\
-	"	.align	3\n"						\
-	"	.long	1b, 3b\n"					\
-	"	.previous"						\
-	: "+r" (err), "=&r" (x)						\
-	: "r" (addr), "i" (-EFAULT)					\
-	: "cc")
+#define __get_user_asm(inst, x, addr, err)				\
+	__asm__ __volatile__ (						\
+		"1:	"inst"	%1,[%2]\n"				\
+		"2:\n"							\
+		"	.section .fixup,\"ax\"\n"			\
+		"	.align	2\n"					\
+		"3:	move %0, %3\n"					\
+		"	move %1, #0\n"					\
+		"	b	2b\n"					\
+		"	.previous\n"					\
+		"	.section __ex_table,\"a\"\n"			\
+		"	.align	3\n"					\
+		"	.long	1b, 3b\n"				\
+		"	.previous"					\
+		: "+r" (err), "=&r" (x)					\
+		: "r" (addr), "i" (-EFAULT)				\
+		: "cc")
 
 #ifdef __NDS32_EB__
 #define __gu_reg_oper0 "%H1"
@@ -149,61 +152,66 @@ do {									\
 #endif
 
 #define __get_user_asm_dword(x, addr, err) 				\
-	asm volatile(			    				\
-	"\n1:\tlwi " __gu_reg_oper0 ",[%2]\n"				\
-	"\n2:\tlwi " __gu_reg_oper1 ",[%2+4]\n"				\
-	"3:\n"								\
-	"	.section .fixup,\"ax\"\n"				\
-	"	.align	2\n"						\
-	"4:	move	%0, %3\n"					\
-	"	b	3b\n"						\
-	"	.previous\n"						\
-	"	.section __ex_table,\"a\"\n"				\
-	"	.align	3\n"						\
-	"	.long	1b, 4b\n"					\
-	"	.long	2b, 4b\n"					\
-	"	.previous"						\
-	: "+r"(err), "=&r"(x)                				\
-	: "r"(addr), "i"(-EFAULT) 					\
-	: "cc")
-#define put_user(x,p)							\
-({									\
-	long __e = -EFAULT;						\
-	if(likely(access_ok(VERIFY_WRITE,  p, sizeof(*p)))) {		\
-		__e = __put_user(x,p);					\
-	}								\
-	__e;								\
-})
-#define __put_user(x,ptr)						\
+	__asm__ __volatile__ (						\
+		"\n1:\tlwi " __gu_reg_oper0 ",[%2]\n"			\
+		"\n2:\tlwi " __gu_reg_oper1 ",[%2+4]\n"			\
+		"3:\n"							\
+		"	.section .fixup,\"ax\"\n"			\
+		"	.align	2\n"					\
+		"4:	move	%0, %3\n"				\
+		"	b	3b\n"					\
+		"	.previous\n"					\
+		"	.section __ex_table,\"a\"\n"			\
+		"	.align	3\n"					\
+		"	.long	1b, 4b\n"				\
+		"	.long	2b, 4b\n"				\
+		"	.previous"					\
+		: "+r"(err), "=&r"(x)					\
+		: "r"(addr), "i"(-EFAULT)				\
+		: "cc")
+
+#define put_user	__put_user					\
+
+#define __put_user(x, ptr)						\
 ({									\
 	long __pu_err = 0;						\
-	__put_user_err((x),(ptr),__pu_err);				\
+	__put_user_err((x), (ptr), __pu_err);				\
 	__pu_err;							\
 })
 
-#define __put_user_error(x,ptr,err)					\
+#define __put_user_error(x, ptr, err)					\
 ({									\
-	__put_user_err((x),(ptr),err);					\
-	(void) 0;							\
+	__put_user_err((x), (ptr), (err));				\
+	(void)0;							\
 })
 
-#define __put_user_err(x,ptr,err)					\
+#define __put_user_check(x, ptr, err)					\
+({									\
+	__typeof__(*(ptr)) __user *__p = (ptr);				\
+	might_fault();							\
+	if (access_ok(VERIFY_WRITE, __p, sizeof(*__p))) {		\
+		__put_user_err((x), __p, (err));			\
+	} else	{							\
+		(err) = -EFAULT;					\
+	}								\
+})
+
+#define __put_user_err(x, ptr, err)					\
 do {									\
-	unsigned long __pu_addr = (unsigned long)(ptr);			\
 	__typeof__(*(ptr)) __pu_val = (x);				\
 	__chk_user_ptr(ptr);						\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__put_user_asm("sbi",__pu_val,__pu_addr,err);		\
+		__put_user_asm("sbi", __pu_val, (ptr), (err));		\
 		break;							\
 	case 2: 							\
-		__put_user_asm("shi",__pu_val,__pu_addr,err);		\
+		__put_user_asm("shi", __pu_val, (ptr), (err));		\
 		break;							\
 	case 4: 							\
-		__put_user_asm("swi",__pu_val,__pu_addr,err);		\
+		__put_user_asm("swi", __pu_val, (ptr), (err));		\
 		break;							\
 	case 8:								\
-		__put_user_asm_dword(__pu_val,__pu_addr,err);		\
+		__put_user_asm_dword(__pu_val, (ptr), (err));		\
 		break;							\
 	default:							\
 		BUILD_BUG(); 						\
@@ -211,22 +219,22 @@ do {									\
 	}								\
 } while (0)
 
-#define __put_user_asm(inst,x,addr,err)					\
-	asm volatile(							\
-	"1:	"inst"	%1,[%2]\n"					\
-	"2:\n"								\
-	"	.section .fixup,\"ax\"\n"				\
-	"	.align	2\n"						\
-	"3:	move	%0, %3\n"					\
-	"	b	2b\n"						\
-	"	.previous\n"						\
-	"	.section __ex_table,\"a\"\n"				\
-	"	.align	3\n"						\
-	"	.long	1b, 3b\n"					\
-	"	.previous"						\
-	: "+r" (err)							\
-	: "r" (x), "r" (addr), "i" (-EFAULT)				\
-	: "cc")
+#define __put_user_asm(inst, x, addr, err)				\
+	__asm__ __volatile__ (						\
+		"1:	"inst"	%1,[%2]\n"				\
+		"2:\n"							\
+		"	.section .fixup,\"ax\"\n"			\
+		"	.align	2\n"					\
+		"3:	move	%0, %3\n"				\
+		"	b	2b\n"					\
+		"	.previous\n"					\
+		"	.section __ex_table,\"a\"\n"			\
+		"	.align	3\n"					\
+		"	.long	1b, 3b\n"				\
+		"	.previous"					\
+		: "+r" (err)						\
+		: "r" (x), "r" (addr), "i" (-EFAULT)			\
+		: "cc")
 
 #ifdef __NDS32_EB__
 #define __pu_reg_oper0 "%H2"
@@ -237,23 +245,24 @@ do {									\
 #endif
 
 #define __put_user_asm_dword(x, addr, err) 				\
-	asm volatile(			    				\
-	"\n1:\tswi " __pu_reg_oper0 ",[%1]\n"				\
-	"\n2:\tswi " __pu_reg_oper1 ",[%1+4]\n"				\
-	"3:\n"								\
-	"	.section .fixup,\"ax\"\n"				\
-	"	.align	2\n"						\
-	"4:	move	%0, %3\n"					\
-	"	b	3b\n"						\
-	"	.previous\n"						\
-	"	.section __ex_table,\"a\"\n"				\
-	"	.align	3\n"						\
-	"	.long	1b, 4b\n"					\
-	"	.long	2b, 4b\n"					\
-	"	.previous"						\
-	: "+r"(err)                					\
-	: "r"(addr), "r"(x), "i"(-EFAULT) 				\
-	: "cc")
+	__asm__ __volatile__ (						\
+		"\n1:\tswi " __pu_reg_oper0 ",[%1]\n"			\
+		"\n2:\tswi " __pu_reg_oper1 ",[%1+4]\n"			\
+		"3:\n"							\
+		"	.section .fixup,\"ax\"\n"			\
+		"	.align	2\n"					\
+		"4:	move	%0, %3\n"				\
+		"	b	3b\n"					\
+		"	.previous\n"					\
+		"	.section __ex_table,\"a\"\n"			\
+		"	.align	3\n"					\
+		"	.long	1b, 4b\n"				\
+		"	.long	2b, 4b\n"				\
+		"	.previous"					\
+		: "+r"(err)						\
+		: "r"(addr), "r"(x), "i"(-EFAULT)			\
+		: "cc")
+
 extern unsigned long __arch_clear_user(void __user * addr, unsigned long n);
 extern long strncpy_from_user(char *dest, const char __user * src, long count);
 extern __must_check long strlen_user(const char __user * str);

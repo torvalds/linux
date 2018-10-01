@@ -40,7 +40,6 @@ MORUS1280_DECLARE_ALGS(sse2, "morus1280-sse2", 350);
 static int __init crypto_morus1280_sse2_module_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_XMM2) ||
-	    !boot_cpu_has(X86_FEATURE_OSXSAVE) ||
 	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
 		return -ENODEV;
 

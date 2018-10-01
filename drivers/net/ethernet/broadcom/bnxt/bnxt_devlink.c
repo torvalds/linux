@@ -46,6 +46,9 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 		}
 	}
 
+	if (i == ARRAY_SIZE(nvm_params))
+		return -EOPNOTSUPP;
+
 	if (nvm_param.dir_type == BNXT_NVM_PORT_CFG)
 		idx = bp->pf.port_id;
 	else if (nvm_param.dir_type == BNXT_NVM_FUNC_CFG)
