@@ -879,6 +879,10 @@ struct fuse_req *fuse_request_alloc(unsigned npages);
 
 struct fuse_req *fuse_request_alloc_nofs(unsigned npages);
 
+bool fuse_req_realloc_pages(struct fuse_conn *fc, struct fuse_req *req,
+			    gfp_t flags);
+
+
 /**
  * Free a request
  */

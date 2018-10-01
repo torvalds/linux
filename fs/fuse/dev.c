@@ -54,6 +54,18 @@ static void fuse_request_init(struct fuse_req *req, struct page **pages,
 	__set_bit(FR_PENDING, &req->flags);
 }
 
+static struct page **fuse_req_pages_alloc(unsigned int npages, gfp_t flags,
+					  struct fuse_page_desc **desc)
+{
+	struct page **pages;
+
+	pages = kzalloc(npages * (sizeof(struct page *) +
+				  sizeof(struct fuse_page_desc)), flags);
+	*desc = (void *) pages + npages * sizeof(struct page *);
+
+	return pages;
+}
+
 static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 {
 	struct fuse_req *req = kmem_cache_zalloc(fuse_req_cachep, flags);
@@ -63,13 +75,12 @@ static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 
 		WARN_ON(npages > FUSE_MAX_MAX_PAGES);
 		if (npages > FUSE_REQ_INLINE_PAGES) {
-			pages = kzalloc(npages * (sizeof(*pages) +
-						  sizeof(*page_descs)), flags);
+			pages = fuse_req_pages_alloc(npages, flags,
+						     &page_descs);
 			if (!pages) {
 				kmem_cache_free(fuse_req_cachep, req);
 				return NULL;
 			}
-			page_descs = (void *) pages + npages * sizeof(*pages);
 		} else if (npages) {
 			pages = req->inline_pages;
 			page_descs = req->inline_page_descs;
@@ -91,11 +102,41 @@ struct fuse_req *fuse_request_alloc_nofs(unsigned npages)
 	return __fuse_request_alloc(npages, GFP_NOFS);
 }
 
-void fuse_request_free(struct fuse_req *req)
+static void fuse_req_pages_free(struct fuse_req *req)
 {
 	if (req->pages != req->inline_pages)
 		kfree(req->pages);
+}
 
+bool fuse_req_realloc_pages(struct fuse_conn *fc, struct fuse_req *req,
+			    gfp_t flags)
+{
+	struct page **pages;
+	struct fuse_page_desc *page_descs;
+	unsigned int npages = min_t(unsigned int,
+				    max_t(unsigned int, req->max_pages * 2,
+					  FUSE_DEFAULT_MAX_PAGES_PER_REQ),
+				    fc->max_pages);
+	WARN_ON(npages <= req->max_pages);
+
+	pages = fuse_req_pages_alloc(npages, flags, &page_descs);
+	if (!pages)
+		return false;
+
+	memcpy(pages, req->pages, sizeof(struct page *) * req->max_pages);
+	memcpy(page_descs, req->page_descs,
+	       sizeof(struct fuse_page_desc) * req->max_pages);
+	fuse_req_pages_free(req);
+	req->pages = pages;
+	req->page_descs = page_descs;
+	req->max_pages = npages;
+
+	return true;
+}
+
+void fuse_request_free(struct fuse_req *req)
+{
+	fuse_req_pages_free(req);
 	kmem_cache_free(fuse_req_cachep, req);
 }
 

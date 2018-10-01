@@ -1827,7 +1827,13 @@ static int fuse_writepages_fill(struct page *page,
 	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
 		fuse_writepages_send(data);
 		data->req = NULL;
+	} else if (req && req->num_pages == req->max_pages) {
+		if (!fuse_req_realloc_pages(fc, req, GFP_NOFS)) {
+			fuse_writepages_send(data);
+			req = data->req = NULL;
+		}
 	}
+
 	err = -ENOMEM;
 	tmp_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
 	if (!tmp_page)
@@ -1850,7 +1856,7 @@ static int fuse_writepages_fill(struct page *page,
 		struct fuse_inode *fi = get_fuse_inode(inode);
 
 		err = -ENOMEM;
-		req = fuse_request_alloc_nofs(fc->max_pages);
+		req = fuse_request_alloc_nofs(FUSE_REQ_INLINE_PAGES);
 		if (!req) {
 			__free_page(tmp_page);
 			goto out_unlock;
