@@ -516,7 +516,7 @@ static void __jump_label_mod_update(struct static_key *key)
 		else
 			stop = m->jump_entries + m->num_jump_entries;
 		__jump_label_update(key, mod->entries, stop,
-				    m->state == MODULE_STATE_COMING);
+				    m && m->state == MODULE_STATE_COMING);
 	}
 }
 
