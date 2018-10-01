@@ -207,7 +207,7 @@ static int msm_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 		return 0;
 
 	/* For now assume function 0 is GPIO because it always is */
-	return msm_pinmux_set_mux(pctldev, 0, offset);
+	return msm_pinmux_set_mux(pctldev, g->funcs[0], offset);
 }
 
 static const struct pinmux_ops msm_pinmux_ops = {
