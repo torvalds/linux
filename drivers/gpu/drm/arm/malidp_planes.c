@@ -10,11 +10,14 @@
  * ARM Mali DP plane manipulation routines.
  */
 
+#include <linux/iommu.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 
@@ -56,6 +59,13 @@
  * opacity for 2-bit formats.
  */
 #define MALIDP_ALPHA_LUT 0xffaa5500
+
+/* page sizes the MMU prefetcher can support */
+#define MALIDP_MMU_PREFETCH_PARTIAL_PGSIZES	(SZ_4K | SZ_64K)
+#define MALIDP_MMU_PREFETCH_FULL_PGSIZES	(SZ_1M | SZ_2M)
+
+/* readahead for partial-frame prefetch */
+#define MALIDP_MMU_PREFETCH_READAHEAD		8
 
 static void malidp_de_plane_destroy(struct drm_plane *plane)
 {
@@ -101,6 +111,9 @@ drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 	state->format = m_state->format;
 	state->n_planes = m_state->n_planes;
 
+	state->mmu_prefetch_mode = m_state->mmu_prefetch_mode;
+	state->mmu_prefetch_pgsize = m_state->mmu_prefetch_pgsize;
+
 	return &state->base;
 }
 
@@ -113,6 +126,12 @@ static void malidp_destroy_plane_state(struct drm_plane *plane,
 	kfree(m_state);
 }
 
+static const char * const prefetch_mode_names[] = {
+	[MALIDP_PREFETCH_MODE_NONE] = "MMU_PREFETCH_NONE",
+	[MALIDP_PREFETCH_MODE_PARTIAL] = "MMU_PREFETCH_PARTIAL",
+	[MALIDP_PREFETCH_MODE_FULL] = "MMU_PREFETCH_FULL",
+};
+
 static void malidp_plane_atomic_print_state(struct drm_printer *p,
 					    const struct drm_plane_state *state)
 {
@@ -121,6 +140,9 @@ static void malidp_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\trotmem_size=%u\n", ms->rotmem_size);
 	drm_printf(p, "\tformat_id=%u\n", ms->format);
 	drm_printf(p, "\tn_planes=%u\n", ms->n_planes);
+	drm_printf(p, "\tmmu_prefetch_mode=%s\n",
+		   prefetch_mode_names[ms->mmu_prefetch_mode]);
+	drm_printf(p, "\tmmu_prefetch_pgsize=%d\n", ms->mmu_prefetch_pgsize);
 }
 
 static const struct drm_plane_funcs malidp_de_plane_funcs = {
@@ -172,6 +194,199 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 	mc->scaled_planes_mask |= mp->layer->id;
 	/* Defer scaling requirements calculation to the crtc check. */
 	return 0;
+}
+
+static u32 malidp_get_pgsize_bitmap(struct malidp_plane *mp)
+{
+	u32 pgsize_bitmap = 0;
+
+	if (iommu_present(&platform_bus_type)) {
+		struct iommu_domain *mmu_dom =
+			iommu_get_domain_for_dev(mp->base.dev->dev);
+
+		if (mmu_dom)
+			pgsize_bitmap = mmu_dom->pgsize_bitmap;
+	}
+
+	return pgsize_bitmap;
+}
+
+/*
+ * Check if the framebuffer is entirely made up of pages at least pgsize in
+ * size. Only a heuristic: assumes that each scatterlist entry has been aligned
+ * to the largest page size smaller than its length and that the MMU maps to
+ * the largest page size possible.
+ */
+static bool malidp_check_pages_threshold(struct malidp_plane_state *ms,
+					 u32 pgsize)
+{
+	int i;
+
+	for (i = 0; i < ms->n_planes; i++) {
+		struct drm_gem_object *obj;
+		struct drm_gem_cma_object *cma_obj;
+		struct sg_table *sgt;
+		struct scatterlist *sgl;
+
+		obj = drm_gem_fb_get_obj(ms->base.fb, i);
+		cma_obj = to_drm_gem_cma_obj(obj);
+
+		if (cma_obj->sgt)
+			sgt = cma_obj->sgt;
+		else
+			sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
+
+		if (!sgt)
+			return false;
+
+		sgl = sgt->sgl;
+
+		while (sgl) {
+			if (sgl->length < pgsize) {
+				if (!cma_obj->sgt)
+					kfree(sgt);
+				return false;
+			}
+
+			sgl = sg_next(sgl);
+		}
+		if (!cma_obj->sgt)
+			kfree(sgt);
+	}
+
+	return true;
+}
+
+/*
+ * Check if it is possible to enable partial-frame MMU prefetch given the
+ * current format, AFBC state and rotation.
+ */
+static bool malidp_partial_prefetch_supported(u32 format, u64 modifier,
+					      unsigned int rotation)
+{
+	bool afbc, sparse;
+
+	/* rotation and horizontal flip not supported for partial prefetch */
+	if (rotation & (DRM_MODE_ROTATE_90 | DRM_MODE_ROTATE_180 |
+			DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_X))
+		return false;
+
+	afbc = modifier & DRM_FORMAT_MOD_ARM_AFBC(0);
+	sparse = modifier & AFBC_FORMAT_MOD_SPARSE;
+
+	switch (format) {
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_BGRA1010102:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_RGB565:
+		/* always supported */
+		return true;
+
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_BGR565:
+		/* supported, but if AFBC then must be sparse mode */
+		return (!afbc) || (afbc && sparse);
+
+	case DRM_FORMAT_BGR888:
+		/* supported, but not for AFBC */
+		return !afbc;
+
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_YUV420:
+		/* not supported */
+		return false;
+
+	default:
+		return false;
+	}
+}
+
+/*
+ * Select the preferred MMU prefetch mode. Full-frame prefetch is preferred as
+ * long as the framebuffer is all large pages. Otherwise partial-frame prefetch
+ * is selected as long as it is supported for the current format. The selected
+ * page size for prefetch is returned in pgsize_bitmap.
+ */
+static enum mmu_prefetch_mode malidp_mmu_prefetch_select_mode
+		(struct malidp_plane_state *ms,	u32 *pgsize_bitmap)
+{
+	u32 pgsizes;
+
+	/* get the full-frame prefetch page size(s) supported by the MMU */
+	pgsizes = *pgsize_bitmap & MALIDP_MMU_PREFETCH_FULL_PGSIZES;
+
+	while (pgsizes) {
+		u32 largest_pgsize = 1 << __fls(pgsizes);
+
+		if (malidp_check_pages_threshold(ms, largest_pgsize)) {
+			*pgsize_bitmap = largest_pgsize;
+			return MALIDP_PREFETCH_MODE_FULL;
+		}
+
+		pgsizes -= largest_pgsize;
+	}
+
+	/* get the partial-frame prefetch page size(s) supported by the MMU */
+	pgsizes = *pgsize_bitmap & MALIDP_MMU_PREFETCH_PARTIAL_PGSIZES;
+
+	if (malidp_partial_prefetch_supported(ms->base.fb->format->format,
+					      ms->base.fb->modifier,
+					      ms->base.rotation)) {
+		/* partial prefetch using the smallest page size */
+		*pgsize_bitmap = 1 << __ffs(pgsizes);
+		return MALIDP_PREFETCH_MODE_PARTIAL;
+	}
+	*pgsize_bitmap = 0;
+	return MALIDP_PREFETCH_MODE_NONE;
+}
+
+static u32 malidp_calc_mmu_control_value(enum mmu_prefetch_mode mode,
+					 u8 readahead, u8 n_planes, u32 pgsize)
+{
+	u32 mmu_ctrl = 0;
+
+	if (mode != MALIDP_PREFETCH_MODE_NONE) {
+		mmu_ctrl |= MALIDP_MMU_CTRL_EN;
+
+		if (mode == MALIDP_PREFETCH_MODE_PARTIAL) {
+			mmu_ctrl |= MALIDP_MMU_CTRL_MODE;
+			mmu_ctrl |= MALIDP_MMU_CTRL_PP_NUM_REQ(readahead);
+		}
+
+		if (pgsize == SZ_64K || pgsize == SZ_2M) {
+			int i;
+
+			for (i = 0; i < n_planes; i++)
+				mmu_ctrl |= MALIDP_MMU_CTRL_PX_PS(i);
+		}
+	}
+
+	return mmu_ctrl;
+}
+
+static void malidp_de_prefetch_settings(struct malidp_plane *mp,
+					struct malidp_plane_state *ms)
+{
+	if (!mp->layer->mmu_ctrl_offset)
+		return;
+
+	/* get the page sizes supported by the MMU */
+	ms->mmu_prefetch_pgsize = malidp_get_pgsize_bitmap(mp);
+	ms->mmu_prefetch_mode  =
+		malidp_mmu_prefetch_select_mode(ms, &ms->mmu_prefetch_pgsize);
 }
 
 static int malidp_de_plane_check(struct drm_plane *plane,
@@ -250,6 +465,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	    fb->format->has_alpha)
 		return -EINVAL;
 
+	malidp_de_prefetch_settings(mp, ms);
+
 	return 0;
 }
 
@@ -326,6 +543,24 @@ static void malidp_de_set_color_encoding(struct malidp_plane *plane,
 	}
 }
 
+static void malidp_de_set_mmu_control(struct malidp_plane *mp,
+				      struct malidp_plane_state *ms)
+{
+	u32 mmu_ctrl;
+
+	/* check hardware supports MMU prefetch */
+	if (!mp->layer->mmu_ctrl_offset)
+		return;
+
+	mmu_ctrl = malidp_calc_mmu_control_value(ms->mmu_prefetch_mode,
+						 MALIDP_MMU_PREFETCH_READAHEAD,
+						 ms->n_planes,
+						 ms->mmu_prefetch_pgsize);
+
+	malidp_hw_write(mp->hwdev, mmu_ctrl,
+			mp->layer->base + mp->layer->mmu_ctrl_offset);
+}
+
 static void malidp_de_plane_update(struct drm_plane *plane,
 				   struct drm_plane_state *old_state)
 {
@@ -358,6 +593,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		malidp_hw_write(mp->hwdev, lower_32_bits(fb_addr), ptr);
 		malidp_hw_write(mp->hwdev, upper_32_bits(fb_addr), ptr + 4);
 	}
+
+	malidp_de_set_mmu_control(mp, ms);
+
 	malidp_de_set_plane_pitches(mp, ms->n_planes,
 				    state->fb->pitches);
 

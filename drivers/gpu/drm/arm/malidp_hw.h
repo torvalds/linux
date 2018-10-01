@@ -62,6 +62,7 @@ struct malidp_layer {
 	u16 ptr;		/* address offset for the pointer register */
 	u16 stride_offset;	/* offset to the first stride register. */
 	s16 yuv2rgb_offset;	/* offset to the YUV->RGB matrix entries */
+	u16 mmu_ctrl_offset;    /* offset to the MMU control register */
 };
 
 enum malidp_scaling_coeff_set {
