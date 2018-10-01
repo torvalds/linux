@@ -30,6 +30,7 @@ struct svc_cacherep {
 		struct sockaddr_in6	k_addr;
 	} c_key;
 
+	struct rb_node		c_node;
 	struct list_head	c_lru;
 	unsigned char		c_state,	/* unused, inprog, done */
 				c_type,		/* status, buffer */
