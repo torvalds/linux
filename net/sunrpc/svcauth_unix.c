@@ -97,6 +97,7 @@ struct ip_map {
 	char			m_class[8]; /* e.g. "nfsd" */
 	struct in6_addr		m_addr;
 	struct unix_domain	*m_client;
+	struct rcu_head		m_rcu;
 };
 
 static void ip_map_put(struct kref *kref)
@@ -107,7 +108,7 @@ static void ip_map_put(struct kref *kref)
 	if (test_bit(CACHE_VALID, &item->flags) &&
 	    !test_bit(CACHE_NEGATIVE, &item->flags))
 		auth_domain_put(&im->m_client->h);
-	kfree(im);
+	kfree_rcu(im, m_rcu);
 }
 
 static inline int hash_ip6(const struct in6_addr *ip)
@@ -286,9 +287,9 @@ static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class,
 
 	strcpy(ip.m_class, class);
 	ip.m_addr = *addr;
-	ch = sunrpc_cache_lookup(cd, &ip.h,
-				 hash_str(class, IP_HASHBITS) ^
-				 hash_ip6(addr));
+	ch = sunrpc_cache_lookup_rcu(cd, &ip.h,
+				     hash_str(class, IP_HASHBITS) ^
+				     hash_ip6(addr));
 
 	if (ch)
 		return container_of(ch, struct ip_map, h);
@@ -418,6 +419,7 @@ struct unix_gid {
 	struct cache_head	h;
 	kuid_t			uid;
 	struct group_info	*gi;
+	struct rcu_head		rcu;
 };
 
 static int unix_gid_hash(kuid_t uid)
@@ -432,7 +434,7 @@ static void unix_gid_put(struct kref *kref)
 	if (test_bit(CACHE_VALID, &item->flags) &&
 	    !test_bit(CACHE_NEGATIVE, &item->flags))
 		put_group_info(ug->gi);
-	kfree(ug);
+	kfree_rcu(ug, rcu);
 }
 
 static int unix_gid_match(struct cache_head *corig, struct cache_head *cnew)
@@ -625,7 +627,7 @@ static struct unix_gid *unix_gid_lookup(struct cache_detail *cd, kuid_t uid)
 	struct cache_head *ch;
 
 	ug.uid = uid;
-	ch = sunrpc_cache_lookup(cd, &ug.h, unix_gid_hash(uid));
+	ch = sunrpc_cache_lookup_rcu(cd, &ug.h, unix_gid_hash(uid));
 	if (ch)
 		return container_of(ch, struct unix_gid, h);
 	else
