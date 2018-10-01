@@ -292,12 +292,14 @@ static int live_preempt(void *arg)
 	ctx_hi = kernel_context(i915);
 	if (!ctx_hi)
 		goto err_spin_lo;
-	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
+	ctx_hi->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
 
 	ctx_lo = kernel_context(i915);
 	if (!ctx_lo)
 		goto err_ctx_hi;
-	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
+	ctx_lo->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
@@ -418,7 +420,7 @@ static int live_late_preempt(void *arg)
 			goto err_wedged;
 		}
 
-		attr.priority = I915_PRIORITY_MAX;
+		attr.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX);
 		engine->schedule(rq, &attr);
 
 		if (!wait_for_spinner(&spin_hi, rq)) {

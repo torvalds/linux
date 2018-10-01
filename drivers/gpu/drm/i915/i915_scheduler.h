@@ -19,6 +19,12 @@ enum {
 	I915_PRIORITY_INVALID = INT_MIN
 };
 
+#define I915_USER_PRIORITY_SHIFT 0
+#define I915_USER_PRIORITY(x) ((x) << I915_USER_PRIORITY_SHIFT)
+
+#define I915_PRIORITY_COUNT BIT(I915_USER_PRIORITY_SHIFT)
+#define I915_PRIORITY_MASK (I915_PRIORITY_COUNT - 1)
+
 struct i915_sched_attr {
 	/**
 	 * @priority: execution and service priority
