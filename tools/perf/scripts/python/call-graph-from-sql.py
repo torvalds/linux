@@ -1,15 +1,7 @@
 #!/usr/bin/python2
-# call-graph-from-sql.py: create call-graph from sql database
-# Copyright (c) 2014-2017, Intel Corporation.
-#
-# This program is free software; you can redistribute it and/or modify it
-# under the terms and conditions of the GNU General Public License,
-# version 2, as published by the Free Software Foundation.
-#
-# This program is distributed in the hope it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-# more details.
+# SPDX-License-Identifier: GPL-2.0
+# exported-sql-viewer.py: view data from sql database
+# Copyright (c) 2014-2018, Intel Corporation.
 
 # To use this script you will need to have exported data using either the
 # export-to-sqlite.py or the export-to-postgresql.py script.  Refer to those
