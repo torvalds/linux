@@ -269,7 +269,6 @@ class MainWindow(QMainWindow):
 
 		self.glb = glb
 
-		self.setObjectName("MainWindow")
 		self.setWindowTitle("Call Graph: " + glb.dbname)
 		self.move(100, 100)
 		self.resize(800, 600)
