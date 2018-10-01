@@ -1037,6 +1037,21 @@ static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 
 static BUS_ATTR_RO(ap_usage_domain_mask);
 
+static ssize_t ap_adapter_mask_show(struct bus_type *bus, char *buf)
+{
+	if (!ap_configuration)	/* QCI not supported */
+		return snprintf(buf, PAGE_SIZE, "not supported\n");
+
+	return snprintf(buf, PAGE_SIZE,
+			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			ap_configuration->apm[0], ap_configuration->apm[1],
+			ap_configuration->apm[2], ap_configuration->apm[3],
+			ap_configuration->apm[4], ap_configuration->apm[5],
+			ap_configuration->apm[6], ap_configuration->apm[7]);
+}
+
+static BUS_ATTR_RO(ap_adapter_mask);
+
 static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -1195,6 +1210,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
 	&bus_attr_ap_control_domain_mask,
 	&bus_attr_ap_usage_domain_mask,
+	&bus_attr_ap_adapter_mask,
 	&bus_attr_config_time,
 	&bus_attr_poll_thread,
 	&bus_attr_ap_interrupts,
