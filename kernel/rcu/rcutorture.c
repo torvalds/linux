@@ -1679,7 +1679,7 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 	sd = cur_ops->stall_dur() + 1;
 	sd4 = (sd + fwd_progress_div - 1) / fwd_progress_div;
 	dur = sd4 + torture_random(&trs) % (sd - sd4);
-	rcu_fwd_startat = jiffies;
+	WRITE_ONCE(rcu_fwd_startat, jiffies);
 	stopat = rcu_fwd_startat + dur;
 	while (time_before(jiffies, stopat) && !torture_must_stop()) {
 		idx = cur_ops->readlock();
@@ -1728,7 +1728,7 @@ static void rcu_torture_fwd_prog_cr(void)
 	/* Loop continuously posting RCU callbacks. */
 	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
 	cur_ops->sync(); /* Later readers see above write. */
-	rcu_fwd_startat = jiffies;
+	WRITE_ONCE(rcu_fwd_startat, jiffies);
 	stopat = rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
 	n_launders = 0;
 	n_launders_cb = 0;
