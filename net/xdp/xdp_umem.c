@@ -68,12 +68,9 @@ struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
 
 static void xdp_clear_umem_at_qid(struct net_device *dev, u16 queue_id)
 {
-	/* Zero out the entry independent on how many queues are configured
-	 * at this point in time, as it might be used in the future.
-	 */
-	if (queue_id < dev->num_rx_queues)
+	if (queue_id < dev->real_num_rx_queues)
 		dev->_rx[queue_id].umem = NULL;
-	if (queue_id < dev->num_tx_queues)
+	if (queue_id < dev->real_num_tx_queues)
 		dev->_tx[queue_id].umem = NULL;
 }
 
