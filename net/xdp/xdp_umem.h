@@ -9,7 +9,7 @@
 #include <net/xdp_sock.h>
 
 int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
-			u32 queue_id, u16 flags);
+			u16 queue_id, u16 flags);
 bool xdp_umem_validate_queues(struct xdp_umem *umem);
 void xdp_get_umem(struct xdp_umem *umem);
 void xdp_put_umem(struct xdp_umem *umem);
