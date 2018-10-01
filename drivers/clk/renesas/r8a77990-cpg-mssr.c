@@ -250,8 +250,8 @@ static const unsigned int r8a77990_crit_mod_clks[] __initconst = {
 /*
  * MD19		EXTAL (MHz)	PLL0		PLL1		PLL3
  *--------------------------------------------------------------------
- * 0		48 x 1		x100/4		x100/3		x100/3
- * 1		48 x 1		x100/4		x100/3		 x58/3
+ * 0		48 x 1		x100/1		x100/3		x100/3
+ * 1		48 x 1		x100/1		x100/3		 x58/3
  */
 #define CPG_PLL_CONFIG_INDEX(md)	(((md) & BIT(19)) >> 19)
 
