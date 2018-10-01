@@ -1600,6 +1600,48 @@ int dpni_get_api_version(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpni_set_rx_fs_dist() - Set Rx flow steering distribution
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @cfg: Distribution configuration
+ *
+ * If the FS is already enabled with a previous call the classification
+ * key will be changed but all the table rules are kept. If the
+ * existing rules do not match the key the results will not be
+ * predictable. It is the user responsibility to keep key integrity.
+ * If cfg.enable is set to 1 the command will create a flow steering table
+ * and will classify packets according to this table. The packets that
+ * miss all the table rules will be classified according to settings
+ * made in dpni_set_rx_hash_dist()
+ * If cfg.enable is set to 0 the command will clear flow steering table.
+ * The packets will be classified according to settings made in
+ * dpni_set_rx_hash_dist()
+ */
+int dpni_set_rx_fs_dist(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dpni_rx_dist_cfg *cfg)
+{
+	struct dpni_cmd_set_rx_fs_dist *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_SET_RX_FS_DIST,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpni_cmd_set_rx_fs_dist *)cmd.params;
+	cmd_params->dist_size = cpu_to_le16(cfg->dist_size);
+	dpni_set_field(cmd_params->enable, RX_FS_DIST_ENABLE, cfg->enable);
+	cmd_params->tc = cfg->tc;
+	cmd_params->miss_flow_id = cpu_to_le16(cfg->fs_miss_flow_id);
+	cmd_params->key_cfg_iova = cpu_to_le64(cfg->key_cfg_iova);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpni_set_rx_hash_dist() - Set Rx hash distribution
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'

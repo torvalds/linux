@@ -657,6 +657,11 @@ struct dpni_rx_dist_cfg {
 	u16 fs_miss_flow_id;
 };
 
+int dpni_set_rx_fs_dist(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			const struct dpni_rx_dist_cfg *cfg);
+
 int dpni_set_rx_hash_dist(struct fsl_mc_io *mc_io,
 			  u32 cmd_flags,
 			  u16 token,
