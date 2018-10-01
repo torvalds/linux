@@ -2600,10 +2600,10 @@ static void force_quiescent_state(void)
  * This function checks for grace-period requests that fail to motivate
  * RCU to come out of its idle mode.
  */
-static void
-rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
+void
+rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
+			 const unsigned long gpssdelay)
 {
-	const unsigned long gpssdelay = rcu_jiffies_till_stall_check();
 	unsigned long flags;
 	unsigned long j;
 	struct rcu_node *rnp_root = rcu_get_root();
@@ -2690,7 +2690,7 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 		local_irq_restore(flags);
 	}
 
-	rcu_check_gp_start_stall(rnp, rdp);
+	rcu_check_gp_start_stall(rnp, rdp, rcu_jiffies_till_stall_check());
 
 	/* If there are callbacks ready, invoke them. */
 	if (rcu_segcblist_ready_cbs(&rdp->cblist))
