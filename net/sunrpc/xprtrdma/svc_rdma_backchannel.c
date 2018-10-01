@@ -32,7 +32,6 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	struct kvec *dst, *src = &rcvbuf->head[0];
 	struct rpc_rqst *req;
-	unsigned long cwnd;
 	u32 credits;
 	size_t len;
 	__be32 xid;
@@ -66,6 +65,8 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	if (dst->iov_len < len)
 		goto out_unlock;
 	memcpy(dst->iov_base, p, len);
+	xprt_pin_rqst(req);
+	spin_unlock(&xprt->recv_lock);
 
 	credits = be32_to_cpup(rdma_resp + 2);
 	if (credits == 0)
@@ -74,15 +75,13 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 		credits = r_xprt->rx_buf.rb_bc_max_requests;
 
 	spin_lock_bh(&xprt->transport_lock);
-	cwnd = xprt->cwnd;
 	xprt->cwnd = credits << RPC_CWNDSHIFT;
-	if (xprt->cwnd > cwnd)
-		xprt_release_rqst_cong(req->rq_task);
 	spin_unlock_bh(&xprt->transport_lock);
 
-
+	spin_lock(&xprt->recv_lock);
 	ret = 0;
 	xprt_complete_rqst(req->rq_task, rcvbuf->len);
+	xprt_unpin_rqst(req);
 	rcvbuf->len = 0;
 
 out_unlock:
