@@ -332,14 +332,6 @@ static inline bool i915_request_completed(const struct i915_request *rq)
 	return __i915_request_completed(rq, seqno);
 }
 
-static inline bool i915_sched_node_signaled(const struct i915_sched_node *node)
-{
-	const struct i915_request *rq =
-		container_of(node, const struct i915_request, sched);
-
-	return i915_request_completed(rq);
-}
-
 void i915_retire_requests(struct drm_i915_private *i915);
 
 /*
