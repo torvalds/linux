@@ -276,6 +276,7 @@ frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 
 	ia->ri_max_segs = max_t(unsigned int, 1, RPCRDMA_MAX_DATA_SEGS /
 				ia->ri_max_frwr_depth);
+	ia->ri_max_segs += 2;	/* segments for head and tail buffers */
 	return 0;
 }
 

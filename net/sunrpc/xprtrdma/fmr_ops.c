@@ -187,6 +187,7 @@ fmr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 
 	ia->ri_max_segs = max_t(unsigned int, 1, RPCRDMA_MAX_DATA_SEGS /
 				RPCRDMA_MAX_FMR_SGES);
+	ia->ri_max_segs += 2;	/* segments for head and tail buffers */
 	return 0;
 }
 
