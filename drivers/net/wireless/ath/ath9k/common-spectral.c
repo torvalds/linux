@@ -71,7 +71,7 @@ ath_cmn_max_idx_verify_ht20_fft(u8 *sample_end, int bytes_read)
 	if (bytes_read < SPECTRAL_HT20_SAMPLE_LEN && max_index < 1)
 		return -1;
 
-	if (sample[max_index] != (max_magnitude >> max_exp))
+	if ((sample[max_index] & 0xf8) != ((max_magnitude >> max_exp) & 0xf8))
 		return -1;
 	else
 		return 0;
@@ -114,8 +114,10 @@ ath_cmn_max_idx_verify_ht20_40_fft(u8 *sample_end, int bytes_read)
 	   ((upper_max_index < 1) || (lower_max_index < 1)))
 		return -1;
 
-	if ((sample[upper_max_index + dc_pos] != (upper_mag >> max_exp)) ||
-	   (sample[lower_max_index] != (lower_mag >> max_exp)))
+	if (((sample[upper_max_index + dc_pos] & 0xf8) !=
+	     ((upper_mag >> max_exp) & 0xf8)) ||
+	    ((sample[lower_max_index] & 0xf8) !=
+	     ((lower_mag >> max_exp) & 0xf8)))
 		return -1;
 	else
 		return 0;
@@ -173,7 +175,8 @@ ath_cmn_process_ht20_fft(struct ath_rx_status *rs,
 					magnitude >> max_exp,
 					max_index);
 
-	if (fft_sample_20.data[max_index] != (magnitude >> max_exp)) {
+	if ((fft_sample_20.data[max_index] & 0xf8) !=
+	    ((magnitude >> max_exp) & 0xf8)) {
 		ath_dbg(common, SPECTRAL_SCAN, "Magnitude mismatch !\n");
 		ret = -1;
 	}
@@ -317,10 +320,10 @@ ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
 	/* Check if we got the expected magnitude values at
 	 * the expected bins
 	 */
-	if ((fft_sample_40.data[upper_max_index + dc_pos]
-	    != (upper_mag >> max_exp)) ||
-	   (fft_sample_40.data[lower_max_index]
-	    != (lower_mag >> max_exp))) {
+	if (((fft_sample_40.data[upper_max_index + dc_pos] & 0xf8)
+	    != ((upper_mag >> max_exp) & 0xf8)) ||
+	   ((fft_sample_40.data[lower_max_index] & 0xf8)
+	    != ((lower_mag >> max_exp) & 0xf8))) {
 		ath_dbg(common, SPECTRAL_SCAN, "Magnitude mismatch !\n");
 		ret = -1;
 	}
