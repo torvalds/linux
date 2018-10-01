@@ -782,6 +782,9 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
+	if (unlikely(test_bit(MLX5E_RQ_STATE_NO_CSUM_COMPLETE, &rq->state)))
+		goto csum_unnecessary;
+
 	if (likely(is_last_ethertype_ip(skb, &network_depth, &proto))) {
 		if (unlikely(get_ip_proto(skb, proto) == IPPROTO_SCTP))
 			goto csum_unnecessary;
@@ -805,7 +808,8 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 
 csum_unnecessary:
 	if (likely((cqe->hds_ip_ext & CQE_L3_OK) &&
-		   (cqe->hds_ip_ext & CQE_L4_OK))) {
+		   ((cqe->hds_ip_ext & CQE_L4_OK) ||
+		    (get_cqe_l4_hdr_type(cqe) == CQE_L4_HDR_TYPE_NONE)))) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (cqe_is_tunneled(cqe)) {
 			skb->csum_level = 1;

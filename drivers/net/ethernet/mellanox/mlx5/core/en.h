@@ -209,6 +209,7 @@ enum mlx5e_priv_flag {
 	MLX5E_PFLAG_TX_CQE_BASED_MODER = (1 << 1),
 	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 2),
 	MLX5E_PFLAG_RX_STRIDING_RQ = (1 << 3),
+	MLX5E_PFLAG_RX_NO_CSUM_COMPLETE = (1 << 4),
 };
 
 #define MLX5E_SET_PFLAG(params, pflag, enable)			\
@@ -290,6 +291,7 @@ struct mlx5e_dcbx_dp {
 enum {
 	MLX5E_RQ_STATE_ENABLED,
 	MLX5E_RQ_STATE_AM,
+	MLX5E_RQ_STATE_NO_CSUM_COMPLETE,
 };
 
 struct mlx5e_cq {
@@ -906,8 +908,8 @@ void mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq);
 
 int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv);
 
-int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv);
-void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv);
+int mlx5e_create_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc);
+void mlx5e_destroy_indirect_tirs(struct mlx5e_priv *priv, bool inner_ttc);
 
 int mlx5e_create_direct_rqts(struct mlx5e_priv *priv);
 void mlx5e_destroy_direct_rqts(struct mlx5e_priv *priv);
@@ -951,6 +953,8 @@ int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal);
 int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal);
+u32 mlx5e_ethtool_get_rxfh_key_size(struct mlx5e_priv *priv);
+u32 mlx5e_ethtool_get_rxfh_indir_size(struct mlx5e_priv *priv);
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 			      struct ethtool_ts_info *info);
 int mlx5e_ethtool_flash_device(struct mlx5e_priv *priv,
@@ -966,6 +970,9 @@ void mlx5e_destroy_netdev(struct mlx5e_priv *priv);
 void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
 			    u16 max_channels, u16 mtu);
+void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,
+			   struct mlx5e_params *params);
+void mlx5e_build_rss_params(struct mlx5e_params *params);
 u8 mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev);
 void mlx5e_rx_dim_work(struct work_struct *work);
 void mlx5e_tx_dim_work(struct work_struct *work);

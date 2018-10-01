@@ -131,14 +131,14 @@ set_ip4(void *headers_c, void *headers_v, __be32 ip4src_m,
 	if (ip4src_m) {
 		memcpy(MLX5E_FTE_ADDR_OF(headers_v, src_ipv4_src_ipv6.ipv4_layout.ipv4),
 		       &ip4src_v, sizeof(ip4src_v));
-		memset(MLX5E_FTE_ADDR_OF(headers_c, src_ipv4_src_ipv6.ipv4_layout.ipv4),
-		       0xff, sizeof(ip4src_m));
+		memcpy(MLX5E_FTE_ADDR_OF(headers_c, src_ipv4_src_ipv6.ipv4_layout.ipv4),
+		       &ip4src_m, sizeof(ip4src_m));
 	}
 	if (ip4dst_m) {
 		memcpy(MLX5E_FTE_ADDR_OF(headers_v, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 		       &ip4dst_v, sizeof(ip4dst_v));
-		memset(MLX5E_FTE_ADDR_OF(headers_c, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
-		       0xff, sizeof(ip4dst_m));
+		memcpy(MLX5E_FTE_ADDR_OF(headers_c, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
+		       &ip4dst_m, sizeof(ip4dst_m));
 	}
 
 	MLX5E_FTE_SET(headers_c, ethertype, 0xffff);
@@ -173,11 +173,11 @@ set_tcp(void *headers_c, void *headers_v, __be16 psrc_m, __be16 psrc_v,
 	__be16 pdst_m, __be16 pdst_v)
 {
 	if (psrc_m) {
-		MLX5E_FTE_SET(headers_c, tcp_sport, 0xffff);
+		MLX5E_FTE_SET(headers_c, tcp_sport, ntohs(psrc_m));
 		MLX5E_FTE_SET(headers_v, tcp_sport, ntohs(psrc_v));
 	}
 	if (pdst_m) {
-		MLX5E_FTE_SET(headers_c, tcp_dport, 0xffff);
+		MLX5E_FTE_SET(headers_c, tcp_dport, ntohs(pdst_m));
 		MLX5E_FTE_SET(headers_v, tcp_dport, ntohs(pdst_v));
 	}
 
@@ -190,12 +190,12 @@ set_udp(void *headers_c, void *headers_v, __be16 psrc_m, __be16 psrc_v,
 	__be16 pdst_m, __be16 pdst_v)
 {
 	if (psrc_m) {
-		MLX5E_FTE_SET(headers_c, udp_sport, 0xffff);
+		MLX5E_FTE_SET(headers_c, udp_sport, ntohs(psrc_m));
 		MLX5E_FTE_SET(headers_v, udp_sport, ntohs(psrc_v));
 	}
 
 	if (pdst_m) {
-		MLX5E_FTE_SET(headers_c, udp_dport, 0xffff);
+		MLX5E_FTE_SET(headers_c, udp_dport, ntohs(pdst_m));
 		MLX5E_FTE_SET(headers_v, udp_dport, ntohs(pdst_v));
 	}
 
@@ -508,26 +508,14 @@ static int validate_tcpudp4(struct ethtool_rx_flow_spec *fs)
 	if (l4_mask->tos)
 		return -EINVAL;
 
-	if (l4_mask->ip4src) {
-		if (!all_ones(l4_mask->ip4src))
-			return -EINVAL;
+	if (l4_mask->ip4src)
 		ntuples++;
-	}
-	if (l4_mask->ip4dst) {
-		if (!all_ones(l4_mask->ip4dst))
-			return -EINVAL;
+	if (l4_mask->ip4dst)
 		ntuples++;
-	}
-	if (l4_mask->psrc) {
-		if (!all_ones(l4_mask->psrc))
-			return -EINVAL;
+	if (l4_mask->psrc)
 		ntuples++;
-	}
-	if (l4_mask->pdst) {
-		if (!all_ones(l4_mask->pdst))
-			return -EINVAL;
+	if (l4_mask->pdst)
 		ntuples++;
-	}
 	/* Flow is TCP/UDP */
 	return ++ntuples;
 }
@@ -540,16 +528,10 @@ static int validate_ip4(struct ethtool_rx_flow_spec *fs)
 	if (l3_mask->l4_4_bytes || l3_mask->tos ||
 	    fs->h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4)
 		return -EINVAL;
-	if (l3_mask->ip4src) {
-		if (!all_ones(l3_mask->ip4src))
-			return -EINVAL;
+	if (l3_mask->ip4src)
 		ntuples++;
-	}
-	if (l3_mask->ip4dst) {
-		if (!all_ones(l3_mask->ip4dst))
-			return -EINVAL;
+	if (l3_mask->ip4dst)
 		ntuples++;
-	}
 	if (l3_mask->proto)
 		ntuples++;
 	/* Flow is IPv4 */
@@ -588,16 +570,10 @@ static int validate_tcpudp6(struct ethtool_rx_flow_spec *fs)
 	if (!ipv6_addr_any((struct in6_addr *)l4_mask->ip6dst))
 		ntuples++;
 
-	if (l4_mask->psrc) {
-		if (!all_ones(l4_mask->psrc))
-			return -EINVAL;
+	if (l4_mask->psrc)
 		ntuples++;
-	}
-	if (l4_mask->pdst) {
-		if (!all_ones(l4_mask->pdst))
-			return -EINVAL;
+	if (l4_mask->pdst)
 		ntuples++;
-	}
 	/* Flow is TCP/UDP */
 	return ++ntuples;
 }

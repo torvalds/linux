@@ -230,7 +230,8 @@ mlx5_eswitch_del_offloaded_rule(struct mlx5_eswitch *esw,
 				struct mlx5_esw_flow_attr *attr);
 
 struct mlx5_flow_handle *
-mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn);
+mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport,
+				  struct mlx5_flow_destination *dest);
 
 enum {
 	SET_VLAN_STRIP	= BIT(0),

@@ -775,10 +775,10 @@ static void esw_destroy_vport_rx_group(struct mlx5_eswitch *esw)
 }
 
 struct mlx5_flow_handle *
-mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
+mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport,
+				  struct mlx5_flow_destination *dest)
 {
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
 	void *misc;
@@ -796,12 +796,10 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
 
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS;
-	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
-	dest.tir_num = tirn;
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule = mlx5_add_flow_rules(esw->offloads.ft_offloads, spec,
-					&flow_act, &dest, 1);
+					&flow_act, dest, 1);
 	if (IS_ERR(flow_rule)) {
 		esw_warn(esw->dev, "fs offloads: Failed to add vport rx rule err %ld\n", PTR_ERR(flow_rule));
 		goto out;
