@@ -1654,6 +1654,7 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ae_dev->pdev = pdev;
 	ae_dev->flag = ent->driver_data;
 	ae_dev->dev_type = HNAE3_DEV_KNIC;
+	ae_dev->reset_type = HNAE3_NONE_RESET;
 	hns3_get_dev_capability(pdev, ae_dev);
 	pci_set_drvdata(pdev, ae_dev);
 
@@ -3150,6 +3151,25 @@ static void hns3_uninit_mac_addr(struct net_device *netdev)
 		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
 }
 
+static int hns3_restore_fd_rules(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	int ret = 0;
+
+	if (h->ae_algo->ops->restore_fd_rules)
+		ret = h->ae_algo->ops->restore_fd_rules(h);
+
+	return ret;
+}
+
+static void hns3_del_all_fd_rules(struct net_device *netdev, bool clear_list)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->del_all_fd_entries)
+		h->ae_algo->ops->del_all_fd_entries(h, clear_list);
+}
+
 static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3561,6 +3581,8 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	if (!(handle->flags & HNAE3_SUPPORT_VF))
 		hns3_restore_vlan(netdev);
 
+	hns3_restore_fd_rules(netdev);
+
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
@@ -3581,6 +3603,7 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 
 static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
@@ -3600,6 +3623,13 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 		netdev_err(netdev, "uninit ring error\n");
 
 	hns3_uninit_mac_addr(netdev);
+
+	/* it is cumbersome for hardware to pick-and-choose rules for deletion
+	 * from TCAM. Hence, for function reset software intervention is
+	 * required to delete the rules
+	 */
+	if (hns3_dev_ongoing_func_reset(ae_dev))
+		hns3_del_all_fd_rules(netdev, false);
 
 	return ret;
 }

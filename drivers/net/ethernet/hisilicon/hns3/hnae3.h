@@ -179,6 +179,7 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	enum hnae3_dev_type dev_type;
+	enum hnae3_reset_type reset_type;
 	void *priv;
 };
 
@@ -420,12 +421,15 @@ struct hnae3_ae_ops {
 			    struct ethtool_rxnfc *cmd);
 	int (*del_fd_entry)(struct hnae3_handle *handle,
 			    struct ethtool_rxnfc *cmd);
+	void (*del_all_fd_entries)(struct hnae3_handle *handle,
+				   bool clear_list);
 	int (*get_fd_rule_cnt)(struct hnae3_handle *handle,
 			       struct ethtool_rxnfc *cmd);
 	int (*get_fd_rule_info)(struct hnae3_handle *handle,
 				struct ethtool_rxnfc *cmd);
 	int (*get_fd_all_rules)(struct hnae3_handle *handle,
 				struct ethtool_rxnfc *cmd, u32 *rule_locs);
+	int (*restore_fd_rules)(struct hnae3_handle *handle);
 };
 
 struct hnae3_dcb_ops {

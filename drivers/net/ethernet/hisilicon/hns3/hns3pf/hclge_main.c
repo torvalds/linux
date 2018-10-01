@@ -2513,8 +2513,13 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 
 static void hclge_reset(struct hclge_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hnae3_handle *handle;
 
+	/* Initialize ae_dev reset status as well, in case enet layer wants to
+	 * know if device is undergoing reset
+	 */
+	ae_dev->reset_type = hdev->reset_type;
 	/* perform reset of the stack & ae device for a client */
 	handle = &hdev->vport[0].nic;
 	rtnl_lock();
@@ -2535,6 +2540,7 @@ static void hclge_reset(struct hclge_dev *hdev)
 	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 	handle->last_reset_time = jiffies;
 	rtnl_unlock();
+	ae_dev->reset_type = HNAE3_NONE_RESET;
 }
 
 static void hclge_reset_event(struct hnae3_handle *handle)
@@ -4297,6 +4303,62 @@ static int hclge_del_fd_entry(struct hnae3_handle *handle,
 
 	return hclge_fd_update_rule_list(hdev, NULL, fs->location,
 					 false);
+}
+
+static void hclge_del_all_fd_entries(struct hnae3_handle *handle,
+				     bool clear_list)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_fd_rule *rule;
+	struct hlist_node *node;
+
+	if (!hnae3_dev_fd_supported(hdev))
+		return;
+
+	if (clear_list) {
+		hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list,
+					  rule_node) {
+			hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true,
+					     rule->location, NULL, false);
+			hlist_del(&rule->rule_node);
+			kfree(rule);
+			hdev->hclge_fd_rule_num--;
+		}
+	} else {
+		hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list,
+					  rule_node)
+			hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true,
+					     rule->location, NULL, false);
+	}
+}
+
+static int hclge_restore_fd_entries(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_fd_rule *rule;
+	struct hlist_node *node;
+	int ret;
+
+	if (!hnae3_dev_fd_supported(hdev))
+		return -EOPNOTSUPP;
+
+	hlist_for_each_entry_safe(rule, node, &hdev->fd_rule_list, rule_node) {
+		ret = hclge_config_action(hdev, HCLGE_FD_STAGE_1, rule);
+		if (!ret)
+			ret = hclge_config_key(hdev, HCLGE_FD_STAGE_1, rule);
+
+		if (ret) {
+			dev_warn(&hdev->pdev->dev,
+				 "Restore rule %d failed, remove it\n",
+				 rule->location);
+			hlist_del(&rule->rule_node);
+			kfree(rule);
+			hdev->hclge_fd_rule_num--;
+		}
+	}
+	return 0;
 }
 
 static int hclge_get_fd_rule_cnt(struct hnae3_handle *handle,
@@ -7270,9 +7332,11 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_link_mode = hclge_get_link_mode,
 	.add_fd_entry = hclge_add_fd_entry,
 	.del_fd_entry = hclge_del_fd_entry,
+	.del_all_fd_entries = hclge_del_all_fd_entries,
 	.get_fd_rule_cnt = hclge_get_fd_rule_cnt,
 	.get_fd_rule_info = hclge_get_fd_rule_info,
 	.get_fd_all_rules = hclge_get_all_rules,
+	.restore_fd_rules = hclge_restore_fd_entries,
 };
 
 static struct hnae3_ae_algo ae_algo = {
