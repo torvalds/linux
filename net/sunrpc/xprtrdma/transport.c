@@ -256,6 +256,13 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	}
 }
 
+/**
+ * xprt_rdma_inject_disconnect - inject a connection fault
+ * @xprt: transport context
+ *
+ * If @xprt is connected, disconnect it to simulate spurious connection
+ * loss.
+ */
 static void
 xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
 {
@@ -266,16 +273,12 @@ xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
 	rdma_disconnect(r_xprt->rx_ia.ri_id);
 }
 
-/*
- * xprt_rdma_destroy
+/**
+ * xprt_rdma_destroy - Full tear down of transport
+ * @xprt: doomed transport context
  *
- * Destroy the xprt.
- * Free all memory associated with the object, including its own.
- * NOTE: none of the *destroy methods free memory for their top-level
- * objects, even though they may have allocated it (they do free
- * private memory). It's up to the caller to handle it. In this
- * case (RDMA transport), all structure memory is inlined with the
- * struct rpcrdma_xprt.
+ * Caller guarantees there will be no more calls to us with
+ * this @xprt.
  */
 static void
 xprt_rdma_destroy(struct rpc_xprt *xprt)
@@ -428,11 +431,12 @@ out1:
 }
 
 /**
- * xprt_rdma_close - Close down RDMA connection
- * @xprt: generic transport to be closed
+ * xprt_rdma_close - close a transport connection
+ * @xprt: transport context
  *
- * Called during transport shutdown reconnect, or device
- * removal. Caller holds the transport's write lock.
+ * Called during transport shutdown, reconnect, or device removal.
+ * Caller holds @xprt's send lock to prevent activity on this
+ * transport while the connection is torn down.
  */
 static void
 xprt_rdma_close(struct rpc_xprt *xprt)
@@ -511,6 +515,12 @@ xprt_rdma_timer(struct rpc_xprt *xprt, struct rpc_task *task)
 	xprt_force_disconnect(xprt);
 }
 
+/**
+ * xprt_rdma_connect - try to establish a transport connection
+ * @xprt: transport state
+ * @task: RPC scheduler context
+ *
+ */
 static void
 xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 {
@@ -630,13 +640,6 @@ rpcrdma_get_recvbuf(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
  *        0:	Success; rq_buffer points to RPC buffer to use
  *   ENOMEM:	Out of memory, call again later
  *      EIO:	A permanent error occurred, do not retry
- *
- * The RDMA allocate/free functions need the task structure as a place
- * to hide the struct rpcrdma_req, which is necessary for the actual
- * send/recv sequence.
- *
- * xprt_rdma_allocate provides buffers that are already mapped for
- * DMA, and a local DMA lkey is provided for each.
  */
 static int
 xprt_rdma_allocate(struct rpc_task *task)
