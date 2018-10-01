@@ -999,7 +999,6 @@ i915_error_object_create(struct drm_i915_private *i915,
 	}
 
 	compress_fini(&compress, dst);
-	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
 	return dst;
 }
 
@@ -1785,6 +1784,14 @@ static unsigned long capture_find_epoch(const struct i915_gpu_state *error)
 	return epoch;
 }
 
+static void capture_finish(struct i915_gpu_state *error)
+{
+	struct i915_ggtt *ggtt = &error->i915->ggtt;
+	const u64 slot = ggtt->error_capture.start;
+
+	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
+}
+
 static int capture(void *data)
 {
 	struct i915_gpu_state *error = data;
@@ -1809,6 +1816,7 @@ static int capture(void *data)
 
 	error->epoch = capture_find_epoch(error);
 
+	capture_finish(error);
 	return 0;
 }
 
