@@ -509,7 +509,7 @@ TRACE_EVENT(xprtrdma_post_send,
 	TP_STRUCT__entry(
 		__field(const void *, req)
 		__field(int, num_sge)
-		__field(bool, signaled)
+		__field(int, signaled)
 		__field(int, status)
 	),
 
