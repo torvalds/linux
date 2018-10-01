@@ -446,14 +446,6 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	rp->c_csum = csum;
 
 	lru_put_end(b, rp);
-
-	/* release any buffer */
-	if (rp->c_type == RC_REPLBUFF) {
-		drc_mem_usage -= rp->c_replvec.iov_len;
-		kfree(rp->c_replvec.iov_base);
-		rp->c_replvec.iov_base = NULL;
-	}
-	rp->c_type = RC_NOCACHE;
  out:
 	spin_unlock(&b->cache_lock);
 	return rtn;
