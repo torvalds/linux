@@ -169,11 +169,6 @@ static void msdc_clr_fifo(struct msdc_host *host)
 		sdr_clr_bits(host->base + MSDC_INTEN, val);	\
 	} while (0)
 
-#define msdc_irq_restore(val) \
-	do {					\
-		sdr_set_bits(host->base + MSDC_INTEN, val);	\
-	} while (0)
-
 /* clock source for host: global */
 #if defined(CONFIG_SOC_MT7620)
 static u32 hclks[] = {48000000}; /* +/- by chhung */
@@ -362,7 +357,7 @@ static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 	host->mclk = hz;
 	msdc_set_timeout(host, host->timeout_ns, host->timeout_clks); // need?
 
-	msdc_irq_restore(flags);
+	sdr_set_bits(host->base + MSDC_INTEN, flags);
 }
 
 /* Fix me. when need to abort */
