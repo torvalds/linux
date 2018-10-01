@@ -686,7 +686,7 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 			 * loop.
 			 */
 			if (len <= fft_len + 2)
-				break;
+				return 1;
 
 			sample_start = &vdata[i + 1];
 
