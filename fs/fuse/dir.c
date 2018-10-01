@@ -1414,8 +1414,11 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		file = NULL;
 	}
 
-	if (attr->ia_valid & ATTR_SIZE)
+	if (attr->ia_valid & ATTR_SIZE) {
+		if (WARN_ON(!S_ISREG(inode->i_mode)))
+			return -EIO;
 		is_truncate = true;
+	}
 
 	if (is_truncate) {
 		fuse_set_nowrite(inode);
@@ -1619,8 +1622,16 @@ void fuse_init_common(struct inode *inode)
 
 void fuse_init_dir(struct inode *inode)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
 	inode->i_op = &fuse_dir_inode_operations;
 	inode->i_fop = &fuse_dir_operations;
+
+	spin_lock_init(&fi->rdc.lock);
+	fi->rdc.cached = false;
+	fi->rdc.size = 0;
+	fi->rdc.pos = 0;
+	fi->rdc.version = 0;
 }
 
 void fuse_init_symlink(struct inode *inode)

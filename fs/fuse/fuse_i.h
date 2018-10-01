@@ -87,45 +87,51 @@ struct fuse_inode {
 	/** Version of last attribute change */
 	u64 attr_version;
 
-	/** Files usable in writepage.  Protected by fc->lock */
-	struct list_head write_files;
+	union {
+		/* Write related fields (regular file only) */
+		struct {
+			/* Files usable in writepage.  Protected by fc->lock */
+			struct list_head write_files;
 
-	/** Writepages pending on truncate or fsync */
-	struct list_head queued_writes;
+			/* Writepages pending on truncate or fsync */
+			struct list_head queued_writes;
 
-	/** Number of sent writes, a negative bias (FUSE_NOWRITE)
-	 * means more writes are blocked */
-	int writectr;
+			/* Number of sent writes, a negative bias
+			 * (FUSE_NOWRITE) means more writes are blocked */
+			int writectr;
 
-	/** Waitq for writepage completion */
-	wait_queue_head_t page_waitq;
+			/* Waitq for writepage completion */
+			wait_queue_head_t page_waitq;
 
-	/** List of writepage requestst (pending or sent) */
-	struct list_head writepages;
+			/* List of writepage requestst (pending or sent) */
+			struct list_head writepages;
+		};
 
-	/* readdir cache */
-	struct {
-		/* true if fully cached */
-		bool cached;
+		/* readdir cache (directory only) */
+		struct {
+			/* true if fully cached */
+			bool cached;
 
-		/* size of cache */
-		loff_t size;
+			/* size of cache */
+			loff_t size;
 
-		/* position at end of cache (position of next entry) */
-		loff_t pos;
+			/* position at end of cache (position of next entry) */
+			loff_t pos;
 
-		/* version of the cache */
-		u64 version;
+			/* version of the cache */
+			u64 version;
 
-		/* modification time of directory when cache was started */
-		struct timespec64 mtime;
+			/* modification time of directory when cache was
+			 * started */
+			struct timespec64 mtime;
 
-		/* iversion of directory when cache was started */
-		u64 iversion;
+			/* iversion of directory when cache was started */
+			u64 iversion;
 
-		/* protects above fields */
-		spinlock_t lock;
-	} rdc;
+			/* protects above fields */
+			spinlock_t lock;
+		} rdc;
+	};
 
 	/** Miscellaneous bits describing inode state */
 	unsigned long state;

@@ -93,18 +93,8 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi->nodeid = 0;
 	fi->nlookup = 0;
 	fi->attr_version = 0;
-	fi->writectr = 0;
 	fi->orig_ino = 0;
 	fi->state = 0;
-	INIT_LIST_HEAD(&fi->write_files);
-	INIT_LIST_HEAD(&fi->queued_writes);
-	INIT_LIST_HEAD(&fi->writepages);
-	init_waitqueue_head(&fi->page_waitq);
-	spin_lock_init(&fi->rdc.lock);
-	fi->rdc.cached = false;
-	fi->rdc.size = 0;
-	fi->rdc.pos = 0;
-	fi->rdc.version = 0;
 	mutex_init(&fi->mutex);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget) {
@@ -124,8 +114,10 @@ static void fuse_i_callback(struct rcu_head *head)
 static void fuse_destroy_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	BUG_ON(!list_empty(&fi->write_files));
-	BUG_ON(!list_empty(&fi->queued_writes));
+	if (S_ISREG(inode->i_mode)) {
+		WARN_ON(!list_empty(&fi->write_files));
+		WARN_ON(!list_empty(&fi->queued_writes));
+	}
 	mutex_destroy(&fi->mutex);
 	kfree(fi->forget);
 	call_rcu(&inode->i_rcu, fuse_i_callback);
