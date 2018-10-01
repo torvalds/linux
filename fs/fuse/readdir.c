@@ -289,7 +289,7 @@ static int parse_dirplusfile(char *buf, size_t nbytes, struct file *file,
 	return 0;
 }
 
-int fuse_readdir(struct file *file, struct dir_context *ctx)
+static int fuse_readdir_uncached(struct file *file, struct dir_context *ctx)
 {
 	int plus, err;
 	size_t nbytes;
@@ -299,9 +299,6 @@ int fuse_readdir(struct file *file, struct dir_context *ctx)
 	struct fuse_req *req;
 	u64 attr_version = 0;
 	bool locked;
-
-	if (is_bad_inode(inode))
-		return -EIO;
 
 	req = fuse_get_req(fc, 1);
 	if (IS_ERR(req))
@@ -349,5 +346,148 @@ int fuse_readdir(struct file *file, struct dir_context *ctx)
 
 	__free_page(page);
 	fuse_invalidate_atime(inode);
+	return err;
+}
+
+enum fuse_parse_result {
+	FOUND_ERR = -1,
+	FOUND_NONE = 0,
+	FOUND_SOME,
+	FOUND_ALL,
+};
+
+static enum fuse_parse_result fuse_parse_cache(struct fuse_file *ff,
+					       void *addr, unsigned int size,
+					       struct dir_context *ctx)
+{
+	unsigned int offset = ff->readdir.cache_off & ~PAGE_MASK;
+	enum fuse_parse_result res = FOUND_NONE;
+
+	WARN_ON(offset >= size);
+
+	for (;;) {
+		struct fuse_dirent *dirent = addr + offset;
+		unsigned int nbytes = size - offset;
+		size_t reclen = FUSE_DIRENT_SIZE(dirent);
+
+		if (nbytes < FUSE_NAME_OFFSET || !dirent->namelen)
+			break;
+
+		if (WARN_ON(dirent->namelen > FUSE_NAME_MAX))
+			return FOUND_ERR;
+		if (WARN_ON(reclen > nbytes))
+			return FOUND_ERR;
+		if (WARN_ON(memchr(dirent->name, '/', dirent->namelen) != NULL))
+			return FOUND_ERR;
+
+		if (ff->readdir.pos == ctx->pos) {
+			res = FOUND_SOME;
+			if (!dir_emit(ctx, dirent->name, dirent->namelen,
+				      dirent->ino, dirent->type))
+				return FOUND_ALL;
+			ctx->pos = dirent->off;
+		}
+		ff->readdir.pos = dirent->off;
+		ff->readdir.cache_off += reclen;
+
+		offset += reclen;
+	}
+
+	return res;
+}
+
+#define UNCACHED 1
+
+static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
+{
+	struct fuse_file *ff = file->private_data;
+	struct inode *inode = file_inode(file);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	enum fuse_parse_result res;
+	pgoff_t index;
+	unsigned int size;
+	struct page *page;
+	void *addr;
+
+	/* Seeked?  If so, reset the cache stream */
+	if (ff->readdir.pos != ctx->pos) {
+		ff->readdir.pos = 0;
+		ff->readdir.cache_off = 0;
+	}
+
+retry:
+	spin_lock(&fi->rdc.lock);
+	if (!fi->rdc.cached) {
+		spin_unlock(&fi->rdc.lock);
+		return UNCACHED;
+	}
+	WARN_ON(fi->rdc.size < ff->readdir.cache_off);
+
+	index = ff->readdir.cache_off >> PAGE_SHIFT;
+
+	if (index == (fi->rdc.size >> PAGE_SHIFT))
+		size = fi->rdc.size & ~PAGE_MASK;
+	else
+		size = PAGE_SIZE;
+	spin_unlock(&fi->rdc.lock);
+
+	/* EOF? */
+	if ((ff->readdir.cache_off & ~PAGE_MASK) == size)
+		return 0;
+
+	page = find_get_page_flags(file->f_mapping, index,
+				   FGP_ACCESSED | FGP_LOCK);
+	if (!page) {
+		/*
+		 * Uh-oh: page gone missing, cache is useless
+		 */
+		return UNCACHED;
+	}
+
+	addr = kmap(page);
+	res = fuse_parse_cache(ff, addr, size, ctx);
+	kunmap(page);
+	unlock_page(page);
+	put_page(page);
+
+	if (res == FOUND_ERR)
+		return -EIO;
+
+	if (res == FOUND_ALL)
+		return 0;
+
+	if (size == PAGE_SIZE) {
+		/* We hit end of page: skip to next page. */
+		ff->readdir.cache_off = ALIGN(ff->readdir.cache_off, PAGE_SIZE);
+		goto retry;
+	}
+
+	/*
+	 * End of cache reached.  If found position, then we are done, otherwise
+	 * need to fall back to uncached, since the position we were looking for
+	 * wasn't in the cache.
+	 */
+	return res == FOUND_SOME ? 0 : UNCACHED;
+}
+
+int fuse_readdir(struct file *file, struct dir_context *ctx)
+{
+	struct fuse_file *ff = file->private_data;
+	struct inode *inode = file_inode(file);
+	int err;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
+	mutex_lock(&ff->readdir.lock);
+
+	err = UNCACHED;
+	if (ff->open_flags & FOPEN_CACHE_DIR)
+		err = fuse_readdir_cached(file, ctx);
+	if (err == UNCACHED)
+		err = fuse_readdir_uncached(file, ctx);
+
+	mutex_unlock(&ff->readdir.lock);
+
 	return err;
 }

@@ -59,6 +59,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 	}
 
 	INIT_LIST_HEAD(&ff->write_entry);
+	mutex_init(&ff->readdir.lock);
 	refcount_set(&ff->count, 1);
 	RB_CLEAR_NODE(&ff->polled_node);
 	init_waitqueue_head(&ff->poll_wait);
@@ -73,6 +74,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 void fuse_file_free(struct fuse_file *ff)
 {
 	fuse_request_free(ff->reserved_req);
+	mutex_destroy(&ff->readdir.lock);
 	kfree(ff);
 }
 
