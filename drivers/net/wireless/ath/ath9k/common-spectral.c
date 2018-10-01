@@ -501,6 +501,7 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	u8 sample_buf[SPECTRAL_SAMPLE_MAX_LEN] = {0};
 	struct ath_hw *ah = spec_priv->ah;
 	struct ath_common *common = ath9k_hw_common(spec_priv->ah);
+	struct ath_softc *sc = (struct ath_softc *)common->priv;
 	u8 num_bins, *vdata = (u8 *)hdr;
 	struct ath_radar_info *radar_info;
 	int len = rs->rs_datalen;
@@ -649,8 +650,13 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 						       sample_buf, sample_len,
 						       sample_bytes);
 
-				fft_handler(rs, spec_priv, sample_buf,
-					    tsf, freq, chan_type);
+				ret = fft_handler(rs, spec_priv, sample_buf,
+						  tsf, freq, chan_type);
+
+				if (ret == 0)
+					RX_STAT_INC(rx_spectral_sample_good);
+				else
+					RX_STAT_INC(rx_spectral_sample_err);
 
 				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
 
@@ -664,6 +670,11 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 			if (sample_bytes == sample_len) {
 				ret = fft_handler(rs, spec_priv, sample_start,
 						  tsf, freq, chan_type);
+
+				if (ret == 0)
+					RX_STAT_INC(rx_spectral_sample_good);
+				else
+					RX_STAT_INC(rx_spectral_sample_err);
 
 				/* Mix the received bins to the /dev/random
 				 * pool
