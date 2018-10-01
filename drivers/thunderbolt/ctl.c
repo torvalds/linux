@@ -662,8 +662,7 @@ void tb_ctl_free(struct tb_ctl *ctl)
 		tb_ctl_pkg_free(ctl->rx_packets[i]);
 
 
-	if (ctl->frame_pool)
-		dma_pool_destroy(ctl->frame_pool);
+	dma_pool_destroy(ctl->frame_pool);
 	kfree(ctl);
 }
 
