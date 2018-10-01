@@ -508,6 +508,11 @@ static void mrs_handler(unsigned int esr, struct pt_regs *regs)
 		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc);
 }
 
+static void wfi_handler(unsigned int esr, struct pt_regs *regs)
+{
+	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+}
+
 struct sys64_hook {
 	unsigned int esr_mask;
 	unsigned int esr_val;
@@ -543,6 +548,12 @@ static struct sys64_hook sys64_hooks[] = {
 		.esr_mask = ESR_ELx_SYS64_ISS_SYS_MRS_OP_MASK,
 		.esr_val = ESR_ELx_SYS64_ISS_SYS_MRS_OP_VAL,
 		.handler = mrs_handler,
+	},
+	{
+		/* Trap WFI instructions executed in userspace */
+		.esr_mask = ESR_ELx_WFx_MASK,
+		.esr_val = ESR_ELx_WFx_WFI_VAL,
+		.handler = wfi_handler,
 	},
 	{},
 };
