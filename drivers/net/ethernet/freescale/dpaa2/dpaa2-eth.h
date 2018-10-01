@@ -367,6 +367,16 @@ static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 	return priv->dpni_ver_major - ver_major;
 }
 
+/* Minimum firmware version that supports a more flexible API
+ * for configuring the Rx flow hash key
+ */
+#define DPNI_RX_DIST_KEY_VER_MAJOR	7
+#define DPNI_RX_DIST_KEY_VER_MINOR	5
+
+#define dpaa2_eth_has_legacy_dist(priv)					\
+	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_RX_DIST_KEY_VER_MAJOR,	\
+				DPNI_RX_DIST_KEY_VER_MINOR) < 0)
+
 /* Hardware only sees DPAA2_ETH_RX_BUF_SIZE, but the skb built around
  * the buffer also needs space for its shared info struct, and we need
  * to allocate enough to accommodate hardware alignment restrictions

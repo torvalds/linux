@@ -629,6 +629,40 @@ int dpni_set_rx_tc_dist(struct fsl_mc_io			*mc_io,
 			const struct dpni_rx_tc_dist_cfg	*cfg);
 
 /**
+ * When used for fs_miss_flow_id in function dpni_set_rx_dist,
+ * will signal to dpni to drop all unclassified frames
+ */
+#define DPNI_FS_MISS_DROP		((uint16_t)-1)
+
+/**
+ * struct dpni_rx_dist_cfg - Rx distribution configuration
+ * @dist_size:	distribution size
+ * @key_cfg_iova: I/O virtual address of 256 bytes DMA-able memory filled with
+ *		the extractions to be used for the distribution key by calling
+ *		dpni_prepare_key_cfg(); relevant only when enable!=0 otherwise
+ *		it can be '0'
+ * @enable: enable/disable the distribution.
+ * @tc: TC id for which distribution is set
+ * @fs_miss_flow_id: when packet misses all rules from flow steering table and
+ *		hash is disabled it will be put into this queue id; use
+ *		DPNI_FS_MISS_DROP to drop frames. The value of this field is
+ *		used only when flow steering distribution is enabled and hash
+ *		distribution is disabled
+ */
+struct dpni_rx_dist_cfg {
+	u16 dist_size;
+	u64 key_cfg_iova;
+	u8 enable;
+	u8 tc;
+	u16 fs_miss_flow_id;
+};
+
+int dpni_set_rx_hash_dist(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  u16 token,
+			  const struct dpni_rx_dist_cfg *cfg);
+
+/**
  * enum dpni_dest - DPNI destination types
  * @DPNI_DEST_NONE: Unassigned destination; The queue is set in parked mode and
  *		does not generate FQDAN notifications; user is expected to

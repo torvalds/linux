@@ -1598,3 +1598,35 @@ int dpni_get_api_version(struct fsl_mc_io *mc_io,
 
 	return 0;
 }
+
+/**
+ * dpni_set_rx_hash_dist() - Set Rx hash distribution
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @cfg: Distribution configuration
+ * If cfg.enable is set to 1 the packets will be classified using a hash
+ * function based on the key received in cfg.key_cfg_iova parameter.
+ * If cfg.enable is set to 0 the packets will be sent to the default queue
+ */
+int dpni_set_rx_hash_dist(struct fsl_mc_io *mc_io,
+			  u32 cmd_flags,
+			  u16 token,
+			  const struct dpni_rx_dist_cfg *cfg)
+{
+	struct dpni_cmd_set_rx_hash_dist *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPNI_CMDID_SET_RX_HASH_DIST,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpni_cmd_set_rx_hash_dist *)cmd.params;
+	cmd_params->dist_size = cpu_to_le16(cfg->dist_size);
+	dpni_set_field(cmd_params->enable, RX_HASH_DIST_ENABLE, cfg->enable);
+	cmd_params->tc = cfg->tc;
+	cmd_params->key_cfg_iova = cpu_to_le64(cfg->key_cfg_iova);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}

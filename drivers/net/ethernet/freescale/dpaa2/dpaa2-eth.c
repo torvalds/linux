@@ -2049,6 +2049,46 @@ static const struct dpaa2_eth_hash_fields hash_fields[] = {
 	},
 };
 
+/* Configure the Rx hash key using the legacy API */
+static int config_legacy_hash_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_rx_tc_dist_cfg dist_cfg;
+	int err;
+
+	memset(&dist_cfg, 0, sizeof(dist_cfg));
+
+	dist_cfg.key_cfg_iova = key;
+	dist_cfg.dist_size = dpaa2_eth_queue_count(priv);
+	dist_cfg.dist_mode = DPNI_DIST_MODE_HASH;
+
+	err = dpni_set_rx_tc_dist(priv->mc_io, 0, priv->mc_token, 0, &dist_cfg);
+	if (err)
+		dev_err(dev, "dpni_set_rx_tc_dist failed\n");
+
+	return err;
+}
+
+/* Configure the Rx hash key using the new API */
+static int config_hash_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_rx_dist_cfg dist_cfg;
+	int err;
+
+	memset(&dist_cfg, 0, sizeof(dist_cfg));
+
+	dist_cfg.key_cfg_iova = key;
+	dist_cfg.dist_size = dpaa2_eth_queue_count(priv);
+	dist_cfg.enable = 1;
+
+	err = dpni_set_rx_hash_dist(priv->mc_io, 0, priv->mc_token, &dist_cfg);
+	if (err)
+		dev_err(dev, "dpni_set_rx_hash_dist failed\n");
+
+	return err;
+}
+
 /* Set RX hash options
  * flags is a combination of RXH_ bits
  */
@@ -2057,8 +2097,8 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpkg_profile_cfg cls_cfg;
-	struct dpni_rx_tc_dist_cfg dist_cfg;
 	u32 rx_hash_fields = 0;
+	dma_addr_t key_iova;
 	u8 *dma_mem;
 	int i;
 	int err = 0;
@@ -2098,34 +2138,29 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 	err = dpni_prepare_key_cfg(&cls_cfg, dma_mem);
 	if (err) {
 		dev_err(dev, "dpni_prepare_key_cfg error %d\n", err);
-		goto err_prep_key;
+		goto free_key;
 	}
-
-	memset(&dist_cfg, 0, sizeof(dist_cfg));
 
 	/* Prepare for setting the rx dist */
-	dist_cfg.key_cfg_iova = dma_map_single(dev, dma_mem,
-					       DPAA2_CLASSIFIER_DMA_SIZE,
-					       DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, dist_cfg.key_cfg_iova)) {
+	key_iova = dma_map_single(dev, dma_mem, DPAA2_CLASSIFIER_DMA_SIZE,
+				  DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, key_iova)) {
 		dev_err(dev, "DMA mapping failed\n");
 		err = -ENOMEM;
-		goto err_dma_map;
+		goto free_key;
 	}
 
-	dist_cfg.dist_size = dpaa2_eth_queue_count(priv);
-	dist_cfg.dist_mode = DPNI_DIST_MODE_HASH;
-
-	err = dpni_set_rx_tc_dist(priv->mc_io, 0, priv->mc_token, 0, &dist_cfg);
-	dma_unmap_single(dev, dist_cfg.key_cfg_iova,
-			 DPAA2_CLASSIFIER_DMA_SIZE, DMA_TO_DEVICE);
-	if (err)
-		dev_err(dev, "dpni_set_rx_tc_dist() error %d\n", err);
+	if (dpaa2_eth_has_legacy_dist(priv))
+		err = config_legacy_hash_key(priv, key_iova);
 	else
+		err = config_hash_key(priv, key_iova);
+
+	dma_unmap_single(dev, key_iova, DPAA2_CLASSIFIER_DMA_SIZE,
+			 DMA_TO_DEVICE);
+	if (!err)
 		priv->rx_hash_fields = rx_hash_fields;
 
-err_dma_map:
-err_prep_key:
+free_key:
 	kfree(dma_mem);
 	return err;
 }
