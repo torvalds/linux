@@ -32,7 +32,8 @@
  * The following internal entries have a special meaning:
  *
  * 0-62: Sibling entries
- * 256: Retry entry
+ * 256: Zero entry
+ * 257: Retry entry
  *
  * Errors are also represented as internal entries, but use the negative
  * space (-4094 to -2).  They're never stored in the slots array; only
@@ -277,6 +278,7 @@ void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *xa_cmpxchg(struct xarray *, unsigned long index,
 			void *old, void *entry, gfp_t);
+int xa_reserve(struct xarray *, unsigned long index, gfp_t);
 bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
@@ -369,6 +371,20 @@ static inline int xa_insert(struct xarray *xa, unsigned long index,
 	if (xa_is_err(curr))
 		return xa_err(curr);
 	return -EEXIST;
+}
+
+/**
+ * xa_release() - Release a reserved entry.
+ * @xa: XArray.
+ * @index: Index of entry.
+ *
+ * After calling xa_reserve(), you can call this function to release the
+ * reservation.  If the entry at @index has been stored to, this function
+ * will do nothing.
+ */
+static inline void xa_release(struct xarray *xa, unsigned long index)
+{
+	xa_cmpxchg(xa, index, NULL, NULL, 0);
 }
 
 /**
@@ -658,7 +674,19 @@ static inline bool xa_is_sibling(const void *entry)
 		(entry < xa_mk_sibling(XA_CHUNK_SIZE - 1));
 }
 
-#define XA_RETRY_ENTRY		xa_mk_internal(256)
+#define XA_ZERO_ENTRY		xa_mk_internal(256)
+#define XA_RETRY_ENTRY		xa_mk_internal(257)
+
+/**
+ * xa_is_zero() - Is the entry a zero entry?
+ * @entry: Entry retrieved from the XArray
+ *
+ * Return: %true if the entry is a zero entry.
+ */
+static inline bool xa_is_zero(const void *entry)
+{
+	return unlikely(entry == XA_ZERO_ENTRY);
+}
 
 /**
  * xa_is_retry() - Is the entry a retry entry?
@@ -880,6 +908,8 @@ static inline void xas_reset(struct xa_state *xas)
  */
 static inline bool xas_retry(struct xa_state *xas, const void *entry)
 {
+	if (xa_is_zero(entry))
+		return true;
 	if (!xa_is_retry(entry))
 		return false;
 	xas_reset(xas);

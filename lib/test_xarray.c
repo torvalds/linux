@@ -259,6 +259,45 @@ static noinline void check_cmpxchg(struct xarray *xa)
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
+static noinline void check_reserve(struct xarray *xa)
+{
+	void *entry;
+	unsigned long index = 0;
+
+	/* An array with a reserved entry is not empty */
+	XA_BUG_ON(xa, !xa_empty(xa));
+	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_empty(xa));
+	XA_BUG_ON(xa, xa_load(xa, 12345678));
+	xa_release(xa, 12345678);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* Releasing a used entry does nothing */
+	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_store_index(xa, 12345678, GFP_NOWAIT) != NULL);
+	xa_release(xa, 12345678);
+	xa_erase_index(xa, 12345678);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* cmpxchg sees a reserved entry as NULL */
+	xa_reserve(xa, 12345678, GFP_KERNEL);
+	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, NULL, xa_mk_value(12345678),
+				GFP_NOWAIT) != NULL);
+	xa_release(xa, 12345678);
+	xa_erase_index(xa, 12345678);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* Can iterate through a reserved entry */
+	xa_store_index(xa, 5, GFP_KERNEL);
+	xa_reserve(xa, 6, GFP_KERNEL);
+	xa_store_index(xa, 7, GFP_KERNEL);
+
+	xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+		XA_BUG_ON(xa, index != 5 && index != 7);
+	}
+	xa_destroy(xa);
+}
+
 static noinline void check_xas_erase(struct xarray *xa)
 {
 	XA_STATE(xas, xa, 0);
@@ -808,6 +847,7 @@ static int xarray_checks(void)
 	check_xa_shrink(&array);
 	check_xas_erase(&array);
 	check_cmpxchg(&array);
+	check_reserve(&array);
 	check_multi_store(&array);
 	check_find(&array);
 	check_destroy(&array);

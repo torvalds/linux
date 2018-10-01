@@ -293,6 +293,12 @@ to :c:func:`xas_retry`, and retry the operation if it returns ``true``.
        of this RCU period.  You should restart the lookup from the head
        of the array.
 
+   * - Zero
+     - :c:func:`xa_is_zero`
+     - Zero entries appear as ``NULL`` through the Normal API, but occupy
+       an entry in the XArray which can be used to reserve the index for
+       future use.
+
 Other internal entries may be added in the future.  As far as possible, they
 will be handled by :c:func:`xas_retry`.
 
