@@ -1552,3 +1552,56 @@ bool ext4_is_pending(struct inode *inode, ext4_lblk_t lblk)
 
 	return ret;
 }
+
+/*
+ * ext4_es_insert_delayed_block - adds a delayed block to the extents status
+ *                                tree, adding a pending reservation where
+ *                                needed
+ *
+ * @inode - file containing the newly added block
+ * @lblk - logical block to be added
+ * @allocated - indicates whether a physical cluster has been allocated for
+ *              the logical cluster that contains the block
+ *
+ * Returns 0 on success, negative error code on failure.
+ */
+int ext4_es_insert_delayed_block(struct inode *inode, ext4_lblk_t lblk,
+				 bool allocated)
+{
+	struct extent_status newes;
+	int err = 0;
+
+	es_debug("add [%u/1) delayed to extent status tree of inode %lu\n",
+		 lblk, inode->i_ino);
+
+	newes.es_lblk = lblk;
+	newes.es_len = 1;
+	ext4_es_store_pblock_status(&newes, ~0, EXTENT_STATUS_DELAYED);
+	trace_ext4_es_insert_delayed_block(inode, &newes, allocated);
+
+	ext4_es_insert_extent_check(inode, &newes);
+
+	write_lock(&EXT4_I(inode)->i_es_lock);
+
+	err = __es_remove_extent(inode, lblk, lblk);
+	if (err != 0)
+		goto error;
+retry:
+	err = __es_insert_extent(inode, &newes);
+	if (err == -ENOMEM && __es_shrink(EXT4_SB(inode->i_sb),
+					  128, EXT4_I(inode)))
+		goto retry;
+	if (err != 0)
+		goto error;
+
+	if (allocated)
+		__insert_pending(inode, lblk);
+
+error:
+	write_unlock(&EXT4_I(inode)->i_es_lock);
+
+	ext4_es_print_tree(inode);
+	ext4_print_pending_tree(inode);
+
+	return err;
+}
