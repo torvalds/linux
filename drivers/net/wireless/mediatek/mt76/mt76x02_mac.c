@@ -157,8 +157,9 @@ void mt76x02_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq)
 }
 EXPORT_SYMBOL_GPL(mt76x02_txq_init);
 
-void mt76x02_mac_fill_txwi(struct mt76x02_txwi *txwi, struct sk_buff *skb,
-			  struct ieee80211_sta *sta, int len, u8 nss)
+static void
+mt76x02_mac_fill_txwi(struct mt76x02_txwi *txwi, struct sk_buff *skb,
+		      struct ieee80211_sta *sta, int len, u8 nss)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -197,9 +198,8 @@ void mt76x02_mac_fill_txwi(struct mt76x02_txwi *txwi, struct sk_buff *skb,
 	txwi->flags |= cpu_to_le16(txwi_flags);
 	txwi->len_ctl = cpu_to_le16(len);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_fill_txwi);
 
-__le16
+static __le16
 mt76x02_mac_tx_rate_val(struct mt76_dev *dev,
 		       const struct ieee80211_tx_rate *rate, u8 *nss_val)
 {
@@ -249,7 +249,6 @@ mt76x02_mac_tx_rate_val(struct mt76_dev *dev,
 	*nss_val = nss;
 	return cpu_to_le16(rateval);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_tx_rate_val);
 
 void mt76x02_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			      const struct ieee80211_tx_rate *rate)

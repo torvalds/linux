@@ -20,6 +20,7 @@
 #include "../mt76x02_util.h"
 #include "../mt76x02_phy.h"
 #include "eeprom.h"
+#include "../mt76x02_usb.h"
 
 static void mt76x2u_init_dma(struct mt76x2_dev *dev)
 {
@@ -137,7 +138,7 @@ static int mt76x2u_init_eeprom(struct mt76x2_dev *dev)
 struct mt76x2_dev *mt76x2u_alloc_device(struct device *pdev)
 {
 	static const struct mt76_driver_ops drv_ops = {
-		.tx_prepare_skb = mt76x2u_tx_prepare_skb,
+		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x2_queue_rx_skb,

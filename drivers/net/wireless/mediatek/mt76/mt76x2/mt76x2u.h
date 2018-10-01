@@ -55,10 +55,6 @@ int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev);
 int mt76x2u_alloc_queues(struct mt76x2_dev *dev);
 void mt76x2u_queues_deinit(struct mt76x2_dev *dev);
 void mt76x2u_stop_queues(struct mt76x2_dev *dev);
-int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
-			   struct sk_buff *skb, struct mt76_queue *q,
-			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			   u32 *tx_info);
 int mt76x2u_skb_dma_info(struct sk_buff *skb, enum dma_msg_port port,
 			 u32 flags);
 

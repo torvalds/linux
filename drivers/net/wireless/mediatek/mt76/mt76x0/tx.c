@@ -17,44 +17,6 @@
 #include "../mt76x02_util.h"
 #include "../mt76x02_usb.h"
 
-struct mt76x02_txwi *
-mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
-		 struct ieee80211_sta *sta, struct mt76_wcid *wcid,
-		 int pkt_len)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_rate *rate = &info->control.rates[0];
-	struct mt76x02_txwi *txwi;
-	unsigned long flags;
-	u16 rate_ctl;
-	u8 nss;
-
-	txwi = (struct mt76x02_txwi *)skb_push(skb, sizeof(struct mt76x02_txwi));
-	memset(txwi, 0, sizeof(*txwi));
-
-	if (!wcid->tx_rate_set)
-		ieee80211_get_tx_rates(info->control.vif, sta, skb,
-				       info->control.rates, 1);
-
-	spin_lock_irqsave(&dev->mt76.lock, flags);
-	if (rate->idx < 0 || !rate->count) {
-		rate_ctl = wcid->tx_rate;
-		nss = wcid->tx_rate_nss;
-	} else {
-		rate_ctl = mt76x02_mac_tx_rate_val(&dev->mt76, rate, &nss);
-	}
-	spin_unlock_irqrestore(&dev->mt76.lock, flags);
-
-	txwi->wcid = wcid->idx;
-	txwi->rate = cpu_to_le16(rate_ctl);
-	txwi->pktid = (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) ? 1 : 0;
-
-	mt76x02_mac_fill_txwi(txwi, skb, sta, pkt_len, nss);
-
-	return txwi;
-}
-EXPORT_SYMBOL_GPL(mt76x0_push_txwi);
-
 void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	       struct sk_buff *skb)
 {
