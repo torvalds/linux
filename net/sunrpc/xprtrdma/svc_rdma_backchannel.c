@@ -5,8 +5,6 @@
  * Support for backward direction RPCs on RPC/RDMA (server-side).
  */
 
-#include <linux/module.h>
-
 #include <linux/sunrpc/svc_rdma.h>
 
 #include "xprt_rdma.h"
@@ -255,7 +253,6 @@ xprt_rdma_bc_put(struct rpc_xprt *xprt)
 	dprintk("svcrdma: %s: xprt %p\n", __func__, xprt);
 
 	xprt_free(xprt);
-	module_put(THIS_MODULE);
 }
 
 static const struct rpc_xprt_ops xprt_rdma_bc_procs = {
@@ -327,20 +324,9 @@ xprt_setup_rdma_bc(struct xprt_create *args)
 	args->bc_xprt->xpt_bc_xprt = xprt;
 	xprt->bc_xprt = args->bc_xprt;
 
-	if (!try_module_get(THIS_MODULE))
-		goto out_fail;
-
 	/* Final put for backchannel xprt is in __svc_rdma_free */
 	xprt_get(xprt);
 	return xprt;
-
-out_fail:
-	xprt_rdma_free_addresses(xprt);
-	args->bc_xprt->xpt_bc_xprt = NULL;
-	args->bc_xprt->xpt_bc_xps = NULL;
-	xprt_put(xprt);
-	xprt_free(xprt);
-	return ERR_PTR(-EINVAL);
 }
 
 struct xprt_class xprt_rdma_bc = {
