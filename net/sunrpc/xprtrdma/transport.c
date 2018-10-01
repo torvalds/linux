@@ -266,8 +266,7 @@ xprt_rdma_connect_worker(struct work_struct *work)
 static void
 xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
 {
-	struct rpcrdma_xprt *r_xprt = container_of(xprt, struct rpcrdma_xprt,
-						   rx_xprt);
+	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	trace_xprtrdma_inject_dsc(r_xprt);
 	rdma_disconnect(r_xprt->rx_ia.ri_id);
