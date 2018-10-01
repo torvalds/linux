@@ -117,6 +117,9 @@ struct fuse_inode {
 		/* version of the cache */
 		u64 version;
 
+		/* modification time of directory when cache was started */
+		struct timespec64 mtime;
+
 		/* protects above fields */
 		spinlock_t lock;
 	} rdc;

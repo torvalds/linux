@@ -399,8 +399,10 @@ static enum fuse_parse_result fuse_parse_cache(struct fuse_file *ff,
 	return res;
 }
 
-static void fuse_rdc_reset(struct fuse_inode *fi)
+static void fuse_rdc_reset(struct inode *inode)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
 	fi->rdc.cached = false;
 	fi->rdc.version++;
 	fi->rdc.size = 0;
@@ -413,6 +415,7 @@ static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
 {
 	struct fuse_file *ff = file->private_data;
 	struct inode *inode = file_inode(file);
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	enum fuse_parse_result res;
 	pgoff_t index;
@@ -426,12 +429,40 @@ static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
 		ff->readdir.cache_off = 0;
 	}
 
+	/*
+	 * We're just about to start reading into the cache or reading the
+	 * cache; both cases require an up-to-date mtime value.
+	 */
+	if (!ctx->pos && fc->auto_inval_data) {
+		int err = fuse_update_attributes(inode, file);
+
+		if (err)
+			return err;
+	}
+
 retry:
 	spin_lock(&fi->rdc.lock);
+retry_locked:
 	if (!fi->rdc.cached) {
+		/* Starting cache? Set cache mtime. */
+		if (!ctx->pos && !fi->rdc.size) {
+			fi->rdc.mtime = inode->i_mtime;
+		}
 		spin_unlock(&fi->rdc.lock);
 		return UNCACHED;
 	}
+	/*
+	 * When at the beginning of the directory (i.e. just after opendir(3) or
+	 * rewinddir(3)), then need to check whether directory contents have
+	 * changed, and reset the cache if so.
+	 */
+	if (!ctx->pos) {
+		if (!timespec64_equal(&fi->rdc.mtime, &inode->i_mtime)) {
+			fuse_rdc_reset(inode);
+			goto retry_locked;
+		}
+	}
+
 	/*
 	 * If cache version changed since the last getdents() call, then reset
 	 * the cache stream.
@@ -469,9 +500,8 @@ retry:
 		 * Uh-oh: page gone missing, cache is useless
 		 */
 		if (fi->rdc.version == ff->readdir.version)
-			fuse_rdc_reset(fi);
-		spin_unlock(&fi->rdc.lock);
-		return UNCACHED;
+			fuse_rdc_reset(inode);
+		goto retry_locked;
 	}
 
 	/* Make sure it's still the same version after getting the page. */
