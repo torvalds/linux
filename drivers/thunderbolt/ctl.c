@@ -631,7 +631,7 @@ struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data)
 		ctl->rx_packets[i]->frame.callback = tb_ctl_rx_callback;
 	}
 
-	tb_ctl_info(ctl, "control channel created\n");
+	tb_ctl_dbg(ctl, "control channel created\n");
 	return ctl;
 err:
 	tb_ctl_free(ctl);
@@ -672,7 +672,7 @@ void tb_ctl_free(struct tb_ctl *ctl)
 void tb_ctl_start(struct tb_ctl *ctl)
 {
 	int i;
-	tb_ctl_info(ctl, "control channel starting...\n");
+	tb_ctl_dbg(ctl, "control channel starting...\n");
 	tb_ring_start(ctl->tx); /* is used to ack hotplug packets, start first */
 	tb_ring_start(ctl->rx);
 	for (i = 0; i < TB_CTL_RX_PKG_COUNT; i++)
@@ -701,7 +701,7 @@ void tb_ctl_stop(struct tb_ctl *ctl)
 	if (!list_empty(&ctl->request_queue))
 		tb_ctl_WARN(ctl, "dangling request in request_queue\n");
 	INIT_LIST_HEAD(&ctl->request_queue);
-	tb_ctl_info(ctl, "control channel stopped\n");
+	tb_ctl_dbg(ctl, "control channel stopped\n");
 }
 
 /* public interface, commands */

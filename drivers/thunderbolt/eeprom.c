@@ -540,7 +540,7 @@ int tb_drom_read(struct tb_switch *sw)
 		return res;
 	size &= 0x3ff;
 	size += TB_DROM_DATA_START;
-	tb_sw_info(sw, "reading drom (length: %#x)\n", size);
+	tb_sw_dbg(sw, "reading drom (length: %#x)\n", size);
 	if (size < sizeof(*header)) {
 		tb_sw_warn(sw, "drom too small, aborting\n");
 		return -EIO;

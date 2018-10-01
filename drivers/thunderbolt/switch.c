@@ -436,15 +436,15 @@ static const char *tb_port_type(struct tb_regs_port_header *port)
 
 static void tb_dump_port(struct tb *tb, struct tb_regs_port_header *port)
 {
-	tb_info(tb,
-		" Port %d: %x:%x (Revision: %d, TB Version: %d, Type: %s (%#x))\n",
-		port->port_number, port->vendor_id, port->device_id,
-		port->revision, port->thunderbolt_version, tb_port_type(port),
-		port->type);
-	tb_info(tb, "  Max hop id (in/out): %d/%d\n",
-		port->max_in_hop_id, port->max_out_hop_id);
-	tb_info(tb, "  Max counters: %d\n", port->max_counters);
-	tb_info(tb, "  NFC Credits: %#x\n", port->nfc_credits);
+	tb_dbg(tb,
+	       " Port %d: %x:%x (Revision: %d, TB Version: %d, Type: %s (%#x))\n",
+	       port->port_number, port->vendor_id, port->device_id,
+	       port->revision, port->thunderbolt_version, tb_port_type(port),
+	       port->type);
+	tb_dbg(tb, "  Max hop id (in/out): %d/%d\n",
+	       port->max_in_hop_id, port->max_out_hop_id);
+	tb_dbg(tb, "  Max counters: %d\n", port->max_counters);
+	tb_dbg(tb, "  NFC Credits: %#x\n", port->nfc_credits);
 }
 
 /**
@@ -605,20 +605,18 @@ static int tb_init_port(struct tb_port *port)
 
 static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)
 {
-	tb_info(tb,
-		" Switch: %x:%x (Revision: %d, TB Version: %d)\n",
-		sw->vendor_id, sw->device_id, sw->revision,
-		sw->thunderbolt_version);
-	tb_info(tb, "  Max Port Number: %d\n", sw->max_port_number);
-	tb_info(tb, "  Config:\n");
-	tb_info(tb,
+	tb_dbg(tb, " Switch: %x:%x (Revision: %d, TB Version: %d)\n",
+	       sw->vendor_id, sw->device_id, sw->revision,
+	       sw->thunderbolt_version);
+	tb_dbg(tb, "  Max Port Number: %d\n", sw->max_port_number);
+	tb_dbg(tb, "  Config:\n");
+	tb_dbg(tb,
 		"   Upstream Port Number: %d Depth: %d Route String: %#llx Enabled: %d, PlugEventsDelay: %dms\n",
-		sw->upstream_port_number, sw->depth,
-		(((u64) sw->route_hi) << 32) | sw->route_lo,
-		sw->enabled, sw->plug_events_delay);
-	tb_info(tb,
-		"   unknown1: %#x unknown4: %#x\n",
-		sw->__unknown1, sw->__unknown4);
+	       sw->upstream_port_number, sw->depth,
+	       (((u64) sw->route_hi) << 32) | sw->route_lo,
+	       sw->enabled, sw->plug_events_delay);
+	tb_dbg(tb, "   unknown1: %#x unknown4: %#x\n",
+	       sw->__unknown1, sw->__unknown4);
 }
 
 /**
@@ -634,7 +632,7 @@ int tb_switch_reset(struct tb *tb, u64 route)
 		header.route_lo = route,
 		header.enabled = true,
 	};
-	tb_info(tb, "resetting switch at %llx\n", route);
+	tb_dbg(tb, "resetting switch at %llx\n", route);
 	res.err = tb_cfg_write(tb->ctl, ((u32 *) &header) + 2, route,
 			0, 2, 2, 2);
 	if (res.err)
@@ -1139,7 +1137,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	if (tb_cfg_read(tb->ctl, &sw->config, route, 0, TB_CFG_SWITCH, 0, 5))
 		goto err_free_sw_ports;
 
-	tb_info(tb, "current switch config:\n");
+	tb_dbg(tb, "current switch config:\n");
 	tb_dump_switch(tb, &sw->config);
 
 	/* configure switch */
@@ -1246,9 +1244,8 @@ int tb_switch_configure(struct tb_switch *sw)
 	int ret;
 
 	route = tb_route(sw);
-	tb_info(tb,
-		"initializing Switch at %#llx (depth: %d, up port: %d)\n",
-		route, tb_route_length(route), sw->config.upstream_port_number);
+	tb_dbg(tb, "initializing Switch at %#llx (depth: %d, up port: %d)\n",
+	       route, tb_route_length(route), sw->config.upstream_port_number);
 
 	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL)
 		tb_sw_warn(sw, "unknown switch vendor id %#x\n",
@@ -1386,13 +1383,13 @@ int tb_switch_add(struct tb_switch *sw)
 			tb_sw_warn(sw, "tb_eeprom_read_rom failed\n");
 			return ret;
 		}
-		tb_sw_info(sw, "uid: %#llx\n", sw->uid);
+		tb_sw_dbg(sw, "uid: %#llx\n", sw->uid);
 
 		tb_switch_set_uuid(sw);
 
 		for (i = 0; i <= sw->config.max_port_number; i++) {
 			if (sw->ports[i].disabled) {
-				tb_port_info(&sw->ports[i], "disabled by eeprom\n");
+				tb_port_dbg(&sw->ports[i], "disabled by eeprom\n");
 				continue;
 			}
 			ret = tb_init_port(&sw->ports[i]);
@@ -1483,7 +1480,7 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 int tb_switch_resume(struct tb_switch *sw)
 {
 	int i, err;
-	tb_sw_info(sw, "resuming switch\n");
+	tb_sw_dbg(sw, "resuming switch\n");
 
 	/*
 	 * Check for UID of the connected switches except for root
