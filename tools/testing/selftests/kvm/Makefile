@@ -6,7 +6,8 @@ UNAME_M := $(shell uname -m)
 LIBKVM = lib/assert.c lib/elf.c lib/io.c lib/kvm_util.c lib/sparsebit.c
 LIBKVM_x86_64 = lib/x86.c lib/vmx.c
 
-TEST_GEN_PROGS_x86_64 = set_sregs_test
+TEST_GEN_PROGS_x86_64 = platform_info_test
+TEST_GEN_PROGS_x86_64 += set_sregs_test
 TEST_GEN_PROGS_x86_64 += sync_regs_test
 TEST_GEN_PROGS_x86_64 += vmx_tsc_adjust_test
 TEST_GEN_PROGS_x86_64 += cr4_cpuid_sync_test
@@ -20,7 +21,7 @@ INSTALL_HDR_PATH = $(top_srcdir)/usr
 LINUX_HDR_PATH = $(INSTALL_HDR_PATH)/include/
 LINUX_TOOL_INCLUDE = $(top_srcdir)tools/include
 CFLAGS += -O2 -g -std=gnu99 -I$(LINUX_TOOL_INCLUDE) -I$(LINUX_HDR_PATH) -Iinclude -I$(<D) -I..
-LDFLAGS += -lpthread
+LDFLAGS += -pthread
 
 # After inclusion, $(OUTPUT) is defined and
 # $(TEST_GEN_PROGS) starts with $(OUTPUT)/
@@ -37,9 +38,6 @@ $(LIBKVM_OBJ): $(OUTPUT)/%.o: %.c
 $(OUTPUT)/libkvm.a: $(LIBKVM_OBJ)
 	$(AR) crs $@ $^
 
-$(LINUX_HDR_PATH):
-	make -C $(top_srcdir) headers_install
-
-all: $(STATIC_LIBS) $(LINUX_HDR_PATH)
+all: $(STATIC_LIBS)
 $(TEST_GEN_PROGS): $(STATIC_LIBS)
-$(TEST_GEN_PROGS) $(LIBKVM_OBJ): | $(LINUX_HDR_PATH)
+$(STATIC_LIBS):| khdr

@@ -1600,31 +1600,6 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 
 	dev_priv->active_display_unit = vmw_du_screen_target;
 
-	if (dev_priv->capabilities & SVGA_CAP_3D) {
-		/*
-		 * For 3D VMs, display (scanout) buffer size is the smaller of
-		 * max texture and max STDU
-		 */
-		uint32_t max_width, max_height;
-
-		max_width = min(dev_priv->texture_max_width,
-				dev_priv->stdu_max_width);
-		max_height = min(dev_priv->texture_max_height,
-				 dev_priv->stdu_max_height);
-
-		dev->mode_config.max_width = max_width;
-		dev->mode_config.max_height = max_height;
-	} else {
-		/*
-		 * Given various display aspect ratios, there's no way to
-		 * estimate these using prim_bb_mem.  So just set these to
-		 * something arbitrarily large and we will reject any layout
-		 * that doesn't fit prim_bb_mem later
-		 */
-		dev->mode_config.max_width = 8192;
-		dev->mode_config.max_height = 8192;
-	}
-
 	vmw_kms_create_implicit_placement_property(dev_priv, false);
 
 	for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i) {

@@ -1235,6 +1235,9 @@ void pci_bus_remove_resources(struct pci_bus *bus);
 int devm_request_pci_bus_resources(struct device *dev,
 				   struct list_head *resources);
 
+/* Temporary until new and working PCI SBR API in place */
+int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
+
 #define pci_bus_for_each_resource(bus, res, i)				\
 	for (i = 0;							\
 	    (res = pci_bus_resource_n(bus, i)) || i < PCI_BRIDGE_RESOURCE_NUM; \

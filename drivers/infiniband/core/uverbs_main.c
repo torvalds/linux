@@ -440,6 +440,7 @@ static int ib_uverbs_comp_event_close(struct inode *inode, struct file *filp)
 			list_del(&entry->obj_list);
 		kfree(entry);
 	}
+	file->ev_queue.is_closed = 1;
 	spin_unlock_irq(&file->ev_queue.lock);
 
 	uverbs_close_fd(filp);
@@ -1050,7 +1051,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
 	if (ib_uverbs_create_uapi(device, uverbs_dev))
-		goto err;
+		goto err_uapi;
 
 	cdev_init(&uverbs_dev->cdev, NULL);
 	uverbs_dev->cdev.owner = THIS_MODULE;
@@ -1077,11 +1078,10 @@ static void ib_uverbs_add_one(struct ib_device *device)
 
 err_class:
 	device_destroy(uverbs_class, uverbs_dev->cdev.dev);
-
 err_cdev:
 	cdev_del(&uverbs_dev->cdev);
+err_uapi:
 	clear_bit(devnum, dev_map);
-
 err:
 	if (atomic_dec_and_test(&uverbs_dev->refcount))
 		ib_uverbs_comp_dev(uverbs_dev);

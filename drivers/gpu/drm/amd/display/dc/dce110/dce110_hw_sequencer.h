@@ -68,11 +68,6 @@ void dce110_fill_display_configs(
 	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg);
 
-void dce110_set_bandwidth(
-		struct dc *dc,
-		struct dc_state *context,
-		bool decrease_allowed);
-
 uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context);
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);

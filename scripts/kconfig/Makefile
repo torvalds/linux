@@ -221,7 +221,6 @@ $(obj)/zconf.tab.o: $(obj)/zconf.lex.c
 
 # check if necessary packages are available, and configure build flags
 define filechk_conf_cfg
-	$(CONFIG_SHELL) $(srctree)/scripts/kconfig/check-pkgconfig.sh; \
 	$(CONFIG_SHELL) $<
 endef
 

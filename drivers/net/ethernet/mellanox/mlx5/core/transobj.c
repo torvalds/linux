@@ -509,7 +509,7 @@ static int mlx5_hairpin_modify_sq(struct mlx5_core_dev *peer_mdev, u32 sqn,
 
 	sqc = MLX5_ADDR_OF(modify_sq_in, in, ctx);
 
-	if (next_state == MLX5_RQC_STATE_RDY) {
+	if (next_state == MLX5_SQC_STATE_RDY) {
 		MLX5_SET(sqc, sqc, hairpin_peer_rq, peer_rq);
 		MLX5_SET(sqc, sqc, hairpin_peer_vhca, peer_vhca);
 	}

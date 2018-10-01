@@ -132,11 +132,11 @@ void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 	delayed_event_start(priv);
 
 	dev_ctx->context = intf->add(dev);
-	set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
-	if (intf->attach)
-		set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
-
 	if (dev_ctx->context) {
+		set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
+		if (intf->attach)
+			set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
+
 		spin_lock_irq(&priv->ctx_lock);
 		list_add_tail(&dev_ctx->list, &priv->ctx_list);
 
@@ -211,12 +211,17 @@ static void mlx5_attach_interface(struct mlx5_interface *intf, struct mlx5_priv 
 	if (intf->attach) {
 		if (test_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state))
 			goto out;
-		intf->attach(dev, dev_ctx->context);
+		if (intf->attach(dev, dev_ctx->context))
+			goto out;
+
 		set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
 	} else {
 		if (test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
 			goto out;
 		dev_ctx->context = intf->add(dev);
+		if (!dev_ctx->context)
+			goto out;
+
 		set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
 	}
 
@@ -391,16 +396,17 @@ void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol)
 		}
 }
 
-static u16 mlx5_gen_pci_id(struct mlx5_core_dev *dev)
+static u32 mlx5_gen_pci_id(struct mlx5_core_dev *dev)
 {
-	return (u16)((dev->pdev->bus->number << 8) |
+	return (u32)((pci_domain_nr(dev->pdev->bus) << 16) |
+		     (dev->pdev->bus->number << 8) |
 		     PCI_SLOT(dev->pdev->devfn));
 }
 
 /* Must be called with intf_mutex held */
 struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev)
 {
-	u16 pci_id = mlx5_gen_pci_id(dev);
+	u32 pci_id = mlx5_gen_pci_id(dev);
 	struct mlx5_core_dev *res = NULL;
 	struct mlx5_core_dev *tmp_dev;
 	struct mlx5_priv *priv;
