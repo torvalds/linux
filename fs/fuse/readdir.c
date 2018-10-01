@@ -9,6 +9,8 @@
 
 #include "fuse_i.h"
 #include <linux/posix_acl.h>
+#include <linux/pagemap.h>
+#include <linux/highmem.h>
 
 static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
 {
@@ -26,9 +28,91 @@ static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
 	return false;
 }
 
+static void fuse_add_dirent_to_cache(struct file *file,
+				     struct fuse_dirent *dirent, loff_t pos)
+{
+	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
+	size_t reclen = FUSE_DIRENT_SIZE(dirent);
+	pgoff_t index;
+	struct page *page;
+	loff_t size;
+	unsigned int offset;
+	void *addr;
+
+	spin_lock(&fi->rdc.lock);
+	/*
+	 * Is cache already completed?  Or this entry does not go at the end of
+	 * cache?
+	 */
+	if (fi->rdc.cached || pos != fi->rdc.pos) {
+		spin_unlock(&fi->rdc.lock);
+		return;
+	}
+	size = fi->rdc.size;
+	offset = size & ~PAGE_MASK;
+	index = size >> PAGE_SHIFT;
+	/* Dirent doesn't fit in current page?  Jump to next page. */
+	if (offset + reclen > PAGE_SIZE) {
+		index++;
+		offset = 0;
+	}
+	spin_unlock(&fi->rdc.lock);
+
+	if (offset) {
+		page = find_lock_page(file->f_mapping, index);
+	} else {
+		page = find_or_create_page(file->f_mapping, index,
+					   mapping_gfp_mask(file->f_mapping));
+	}
+	if (!page)
+		return;
+
+	spin_lock(&fi->rdc.lock);
+	/* Raced with another readdir */
+	if (fi->rdc.size != size || WARN_ON(fi->rdc.pos != pos))
+		goto unlock;
+
+	addr = kmap_atomic(page);
+	if (!offset)
+		clear_page(addr);
+	memcpy(addr + offset, dirent, reclen);
+	kunmap_atomic(addr);
+	fi->rdc.size = (index << PAGE_SHIFT) + offset + reclen;
+	fi->rdc.pos = dirent->off;
+unlock:
+	spin_unlock(&fi->rdc.lock);
+	unlock_page(page);
+	put_page(page);
+}
+
+static void fuse_readdir_cache_end(struct file *file, loff_t pos)
+{
+	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
+	loff_t end;
+
+	spin_lock(&fi->rdc.lock);
+	/* does cache end position match current position? */
+	if (fi->rdc.pos != pos) {
+		spin_unlock(&fi->rdc.lock);
+		return;
+	}
+
+	fi->rdc.cached = true;
+	end = ALIGN(fi->rdc.size, PAGE_SIZE);
+	spin_unlock(&fi->rdc.lock);
+
+	/* truncate unused tail of cache */
+	truncate_inode_pages(file->f_mapping, end);
+}
+
 static bool fuse_emit(struct file *file, struct dir_context *ctx,
 		      struct fuse_dirent *dirent)
 {
+	struct fuse_file *ff = file->private_data;
+
+	if (ff->open_flags & FOPEN_CACHE_DIR)
+		fuse_add_dirent_to_cache(file, dirent, ctx->pos);
+
 	return dir_emit(ctx, dirent->name, dirent->namelen, dirent->ino,
 			dirent->type);
 }
@@ -249,7 +333,12 @@ int fuse_readdir(struct file *file, struct dir_context *ctx)
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err) {
-		if (plus) {
+		if (!nbytes) {
+			struct fuse_file *ff = file->private_data;
+
+			if (ff->open_flags & FOPEN_CACHE_DIR)
+				fuse_readdir_cache_end(file, ctx->pos);
+		} else if (plus) {
 			err = parse_dirplusfile(page_address(page), nbytes,
 						file, ctx, attr_version);
 		} else {

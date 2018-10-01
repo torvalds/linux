@@ -100,6 +100,10 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&fi->queued_writes);
 	INIT_LIST_HEAD(&fi->writepages);
 	init_waitqueue_head(&fi->page_waitq);
+	spin_lock_init(&fi->rdc.lock);
+	fi->rdc.cached = false;
+	fi->rdc.size = 0;
+	fi->rdc.pos = 0;
 	mutex_init(&fi->mutex);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget) {

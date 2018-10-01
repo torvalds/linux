@@ -103,6 +103,21 @@ struct fuse_inode {
 	/** List of writepage requestst (pending or sent) */
 	struct list_head writepages;
 
+	/* readdir cache */
+	struct {
+		/* true if fully cached */
+		bool cached;
+
+		/* size of cache */
+		loff_t size;
+
+		/* position at end of cache (position of next entry) */
+		loff_t pos;
+
+		/* protects above fields */
+		spinlock_t lock;
+	} rdc;
+
 	/** Miscellaneous bits describing inode state */
 	unsigned long state;
 
