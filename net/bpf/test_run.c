@@ -12,7 +12,7 @@
 #include <linux/sched/signal.h>
 
 static __always_inline u32 bpf_test_run_one(struct bpf_prog *prog, void *ctx,
-					    struct bpf_cgroup_storage *storage)
+		struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE])
 {
 	u32 ret;
 
@@ -28,13 +28,20 @@ static __always_inline u32 bpf_test_run_one(struct bpf_prog *prog, void *ctx,
 
 static u32 bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat, u32 *time)
 {
-	struct bpf_cgroup_storage *storage = NULL;
+	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE] = { 0 };
+	enum bpf_cgroup_storage_type stype;
 	u64 time_start, time_spent = 0;
 	u32 ret = 0, i;
 
-	storage = bpf_cgroup_storage_alloc(prog);
-	if (IS_ERR(storage))
-		return PTR_ERR(storage);
+	for_each_cgroup_storage_type(stype) {
+		storage[stype] = bpf_cgroup_storage_alloc(prog, stype);
+		if (IS_ERR(storage[stype])) {
+			storage[stype] = NULL;
+			for_each_cgroup_storage_type(stype)
+				bpf_cgroup_storage_free(storage[stype]);
+			return -ENOMEM;
+		}
+	}
 
 	if (!repeat)
 		repeat = 1;
@@ -53,7 +60,8 @@ static u32 bpf_test_run(struct bpf_prog *prog, void *ctx, u32 repeat, u32 *time)
 	do_div(time_spent, repeat);
 	*time = time_spent > U32_MAX ? U32_MAX : (u32)time_spent;
 
-	bpf_cgroup_storage_free(storage);
+	for_each_cgroup_storage_type(stype)
+		bpf_cgroup_storage_free(storage[stype]);
 
 	return ret;
 }
