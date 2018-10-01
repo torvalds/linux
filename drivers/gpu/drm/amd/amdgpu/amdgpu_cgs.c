@@ -715,12 +715,14 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				break;
 			case CHIP_POLARIS10:
 				if (type == CGS_UCODE_ID_SMU) {
-					if ((adev->pdev->device == 0x67df) &&
-					    ((adev->pdev->revision == 0xe0) ||
-					     (adev->pdev->revision == 0xe3) ||
-					     (adev->pdev->revision == 0xe4) ||
-					     (adev->pdev->revision == 0xe5) ||
-					     (adev->pdev->revision == 0xe7) ||
+					if (((adev->pdev->device == 0x67df) &&
+					     ((adev->pdev->revision == 0xe0) ||
+					      (adev->pdev->revision == 0xe3) ||
+					      (adev->pdev->revision == 0xe4) ||
+					      (adev->pdev->revision == 0xe5) ||
+					      (adev->pdev->revision == 0xe7) ||
+					      (adev->pdev->revision == 0xef))) ||
+					    ((adev->pdev->device == 0x6fdf) &&
 					     (adev->pdev->revision == 0xef))) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris10_k_smc.bin");
