@@ -243,15 +243,15 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
 		ia->ri_async_rc = 0;
 		complete(&ia->ri_done);
-		break;
+		return 0;
 	case RDMA_CM_EVENT_ADDR_ERROR:
 		ia->ri_async_rc = -EPROTO;
 		complete(&ia->ri_done);
-		break;
+		return 0;
 	case RDMA_CM_EVENT_ROUTE_ERROR:
 		ia->ri_async_rc = -ENETUNREACH;
 		complete(&ia->ri_done);
-		break;
+		return 0;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 		pr_info("rpcrdma: removing device %s for %s:%s\n",
@@ -292,16 +292,15 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 connected:
 		rpcrdma_conn_func(ep);
 		wake_up_all(&ep->rep_connect_wait);
-		/*FALLTHROUGH*/
+		break;
 	default:
-		dprintk("RPC:       %s: %s:%s on %s/%s (ep 0x%p): %s\n",
-			__func__,
-			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
-			ia->ri_device->name, ia->ri_ops->ro_displayname,
-			ep, rdma_event_msg(event->event));
 		break;
 	}
 
+	dprintk("RPC:       %s: %s:%s on %s/%s: %s\n", __func__,
+		rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
+		ia->ri_device->name, ia->ri_ops->ro_displayname,
+		rdma_event_msg(event->event));
 	return 0;
 }
 
