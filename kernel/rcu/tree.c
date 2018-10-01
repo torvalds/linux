@@ -2603,7 +2603,7 @@ static void force_quiescent_state(void)
 static void
 rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
 {
-	const unsigned long gpssdelay = rcu_jiffies_till_stall_check() * HZ;
+	const unsigned long gpssdelay = rcu_jiffies_till_stall_check();
 	unsigned long flags;
 	unsigned long j;
 	struct rcu_node *rnp_root = rcu_get_root();
