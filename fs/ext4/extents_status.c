@@ -1780,3 +1780,93 @@ static void __revise_pending(struct inode *inode, ext4_lblk_t lblk,
 			__remove_pending(inode, last);
 	}
 }
+
+/*
+ * ext4_es_remove_blks - remove block range from extents status tree and
+ *                       reduce reservation count or cancel pending
+ *                       reservation as needed
+ *
+ * @inode - file containing range
+ * @lblk - first block in range
+ * @len - number of blocks to remove
+ *
+ */
+void ext4_es_remove_blks(struct inode *inode, ext4_lblk_t lblk,
+			 ext4_lblk_t len)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	unsigned int clu_size, reserved = 0;
+	ext4_lblk_t last_lclu, first, length, remainder, last;
+	bool delonly;
+	int err = 0;
+	struct pending_reservation *pr;
+	struct ext4_pending_tree *tree;
+
+	/*
+	 * Process cluster by cluster for bigalloc - there may be up to
+	 * two clusters in a 4k page with a 1k block size and two blocks
+	 * per cluster.  Also necessary for systems with larger page sizes
+	 * and potentially larger block sizes.
+	 */
+	clu_size = sbi->s_cluster_ratio;
+	last_lclu = EXT4_B2C(sbi, lblk + len - 1);
+
+	write_lock(&EXT4_I(inode)->i_es_lock);
+
+	for (first = lblk, remainder = len;
+	     remainder > 0;
+	     first += length, remainder -= length) {
+
+		if (EXT4_B2C(sbi, first) == last_lclu)
+			length = remainder;
+		else
+			length = clu_size - EXT4_LBLK_COFF(sbi, first);
+
+		/*
+		 * The BH_Delay flag, which triggers calls to this function,
+		 * and the contents of the extents status tree can be
+		 * inconsistent due to writepages activity. So, note whether
+		 * the blocks to be removed actually belong to an extent with
+		 * delayed only status.
+		 */
+		delonly = __es_scan_clu(inode, &ext4_es_is_delonly, first);
+
+		/*
+		 * because of the writepages effect, written and unwritten
+		 * blocks could be removed here
+		 */
+		last = first + length - 1;
+		err = __es_remove_extent(inode, first, last);
+		if (err)
+			ext4_warning(inode->i_sb,
+				     "%s: couldn't remove page (err = %d)",
+				     __func__, err);
+
+		/* non-bigalloc case: simply count the cluster for release */
+		if (sbi->s_cluster_ratio == 1 && delonly) {
+			reserved++;
+			continue;
+		}
+
+		/*
+		 * bigalloc case: if all delayed allocated only blocks have
+		 * just been removed from a cluster, either cancel a pending
+		 * reservation if it exists or count a cluster for release
+		 */
+		if (delonly &&
+		    !__es_scan_clu(inode, &ext4_es_is_delonly, first)) {
+			pr = __get_pending(inode, EXT4_B2C(sbi, first));
+			if (pr != NULL) {
+				tree = &EXT4_I(inode)->i_pending_tree;
+				rb_erase(&pr->rb_node, &tree->root);
+				kmem_cache_free(ext4_pending_cachep, pr);
+			} else {
+				reserved++;
+			}
+		}
+	}
+
+	write_unlock(&EXT4_I(inode)->i_es_lock);
+
+	ext4_da_release_space(inode, reserved);
+}
