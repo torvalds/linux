@@ -263,7 +263,7 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
 );
 
 #define DEFINE_MR_EVENT(name) \
-		DEFINE_EVENT(xprtrdma_mr, name, \
+		DEFINE_EVENT(xprtrdma_mr, xprtrdma_mr_##name, \
 				TP_PROTO( \
 					const struct rpcrdma_mr *mr \
 				), \
@@ -651,11 +651,11 @@ DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_fastreg);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_wake);
 
-DEFINE_MR_EVENT(xprtrdma_localinv);
-DEFINE_MR_EVENT(xprtrdma_dma_map);
-DEFINE_MR_EVENT(xprtrdma_dma_unmap);
-DEFINE_MR_EVENT(xprtrdma_remoteinv);
-DEFINE_MR_EVENT(xprtrdma_mr_recycle);
+DEFINE_MR_EVENT(localinv);
+DEFINE_MR_EVENT(map);
+DEFINE_MR_EVENT(unmap);
+DEFINE_MR_EVENT(remoteinv);
+DEFINE_MR_EVENT(recycle);
 
 /**
  ** Reply events

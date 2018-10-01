@@ -123,7 +123,7 @@ frwr_mr_recycle_worker(struct work_struct *work)
 	trace_xprtrdma_mr_recycle(mr);
 
 	if (state != FRWR_FLUSHED_LI) {
-		trace_xprtrdma_dma_unmap(mr);
+		trace_xprtrdma_mr_unmap(mr);
 		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
 	}
@@ -384,7 +384,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	mr->mr_nents = ib_dma_map_sg(ia->ri_device, mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
-	trace_xprtrdma_dma_map(mr);
+	trace_xprtrdma_mr_map(mr);
 
 	ibmr = frwr->fr_mr;
 	n = ib_map_mr_sg(ibmr, mr->mr_sg, mr->mr_nents, NULL, PAGE_SIZE);
@@ -466,7 +466,7 @@ frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
 			list_del_init(&mr->mr_list);
-			trace_xprtrdma_remoteinv(mr);
+			trace_xprtrdma_mr_remoteinv(mr);
 			mr->frwr.fr_state = FRWR_IS_INVALID;
 			rpcrdma_mr_unmap_and_put(mr);
 			break;	/* only one invalidated MR per RPC */
@@ -503,7 +503,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 		mr->frwr.fr_state = FRWR_IS_INVALID;
 
 		frwr = &mr->frwr;
-		trace_xprtrdma_localinv(mr);
+		trace_xprtrdma_mr_localinv(mr);
 
 		frwr->fr_cqe.done = frwr_wc_localinv;
 		last = &frwr->fr_invwr;

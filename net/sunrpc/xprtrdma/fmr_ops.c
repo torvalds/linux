@@ -97,7 +97,7 @@ fmr_mr_recycle_worker(struct work_struct *work)
 
 	trace_xprtrdma_mr_recycle(mr);
 
-	trace_xprtrdma_dma_unmap(mr);
+	trace_xprtrdma_mr_unmap(mr);
 	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 			mr->mr_sg, mr->mr_nents, mr->mr_dir);
 
@@ -234,7 +234,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 				     mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
-	trace_xprtrdma_dma_map(mr);
+	trace_xprtrdma_mr_map(mr);
 
 	for (i = 0, dma_pages = mr->fmr.fm_physaddrs; i < mr->mr_nents; i++)
 		dma_pages[i] = sg_dma_address(&mr->mr_sg[i]);
@@ -295,7 +295,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list) {
 		dprintk("RPC:       %s: unmapping fmr %p\n",
 			__func__, &mr->fmr);
-		trace_xprtrdma_localinv(mr);
+		trace_xprtrdma_mr_localinv(mr);
 		list_add_tail(&mr->fmr.fm_mr->list, &unmap_list);
 	}
 	r_xprt->rx_stats.local_inv_needed++;
