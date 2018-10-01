@@ -87,7 +87,6 @@ struct sysc {
 	u32 revision;
 	bool enabled;
 	bool needs_resume;
-	unsigned int noirq_suspend:1;
 	bool child_needs_resume;
 	struct delayed_work idle_work;
 };
@@ -702,137 +701,31 @@ awake:
 	return error;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int sysc_suspend(struct device *dev)
+static int __maybe_unused sysc_noirq_suspend(struct device *dev)
 {
 	struct sysc *ddata;
-	int error;
 
 	ddata = dev_get_drvdata(dev);
 
 	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
 		return 0;
 
-	if (!ddata->enabled || ddata->noirq_suspend)
-		return 0;
-
-	dev_dbg(ddata->dev, "%s %s\n", __func__,
-		ddata->name ? ddata->name : "");
-
-	error = pm_runtime_put_sync_suspend(dev);
-	if (error == -EBUSY) {
-		dev_dbg(ddata->dev, "%s busy, tagging for noirq suspend %s\n",
-			__func__, ddata->name ? ddata->name : "");
-
-		ddata->noirq_suspend = true;
-
-		return 0;
-	} else if (error < 0) {
-		dev_warn(ddata->dev, "%s cannot suspend %i %s\n",
-			 __func__, error,
-			 ddata->name ? ddata->name : "");
-
-		return 0;
-	}
-
-	ddata->needs_resume = true;
-
-	return 0;
+	return pm_runtime_force_suspend(dev);
 }
 
-static int sysc_resume(struct device *dev)
+static int __maybe_unused sysc_noirq_resume(struct device *dev)
 {
 	struct sysc *ddata;
-	int error;
 
 	ddata = dev_get_drvdata(dev);
 
 	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
 		return 0;
 
-	if (!ddata->needs_resume || ddata->noirq_suspend)
-		return 0;
-
-	dev_dbg(ddata->dev, "%s %s\n", __func__,
-		ddata->name ? ddata->name : "");
-
-	error = pm_runtime_get_sync(dev);
-	if (error < 0) {
-		dev_err(ddata->dev, "%s  error %i %s\n",
-			__func__, error,
-			ddata->name ? ddata->name : "");
-
-		return error;
-	}
-
-	ddata->needs_resume = false;
-
-	return 0;
+	return pm_runtime_force_resume(dev);
 }
-
-static int sysc_noirq_suspend(struct device *dev)
-{
-	struct sysc *ddata;
-	int error;
-
-	ddata = dev_get_drvdata(dev);
-
-	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
-		return 0;
-
-	if (!ddata->enabled || !ddata->noirq_suspend)
-		return 0;
-
-	dev_dbg(ddata->dev, "%s %s\n", __func__,
-		ddata->name ? ddata->name : "");
-
-	error = sysc_runtime_suspend(dev);
-	if (error) {
-		dev_warn(ddata->dev, "%s busy %i %s\n",
-			 __func__, error, ddata->name ? ddata->name : "");
-
-		return 0;
-	}
-
-	ddata->needs_resume = true;
-
-	return 0;
-}
-
-static int sysc_noirq_resume(struct device *dev)
-{
-	struct sysc *ddata;
-	int error;
-
-	ddata = dev_get_drvdata(dev);
-
-	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
-		return 0;
-
-	if (!ddata->needs_resume || !ddata->noirq_suspend)
-		return 0;
-
-	dev_dbg(ddata->dev, "%s %s\n", __func__,
-		ddata->name ? ddata->name : "");
-
-	error = sysc_runtime_resume(dev);
-	if (error) {
-		dev_warn(ddata->dev, "%s cannot resume %i %s\n",
-			 __func__, error,
-			 ddata->name ? ddata->name : "");
-
-		return error;
-	}
-
-	/* Maybe also reconsider clearing noirq_suspend at some point */
-	ddata->needs_resume = false;
-
-	return 0;
-}
-#endif
 
 static const struct dev_pm_ops sysc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sysc_suspend, sysc_resume)
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_noirq_suspend, sysc_noirq_resume)
 	SET_RUNTIME_PM_OPS(sysc_runtime_suspend,
 			   sysc_runtime_resume,
