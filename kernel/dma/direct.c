@@ -84,7 +84,14 @@ static gfp_t __dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 	else
 		*phys_mask = dma_to_phys(dev, dma_mask);
 
-	/* GFP_DMA32 and GFP_DMA are no ops without the corresponding zones: */
+	/*
+	 * Optimistically try the zone that the physical address mask falls
+	 * into first.  If that returns memory that isn't actually addressable
+	 * we will fallback to the next lower zone and try again.
+	 *
+	 * Note that GFP_DMA32 and GFP_DMA are no ops without the corresponding
+	 * zones.
+	 */
 	if (*phys_mask <= DMA_BIT_MASK(ARCH_ZONE_DMA_BITS))
 		return GFP_DMA;
 	if (*phys_mask <= DMA_BIT_MASK(32))
