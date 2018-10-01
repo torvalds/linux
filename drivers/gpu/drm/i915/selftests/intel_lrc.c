@@ -587,8 +587,10 @@ static int random_priority(struct rnd_state *rnd)
 struct preempt_smoke {
 	struct drm_i915_private *i915;
 	struct i915_gem_context **contexts;
+	struct intel_engine_cs *engine;
 	unsigned int ncontext;
 	struct rnd_state prng;
+	unsigned long count;
 };
 
 static struct i915_gem_context *smoke_context(struct preempt_smoke *smoke)
@@ -597,30 +599,77 @@ static struct i915_gem_context *smoke_context(struct preempt_smoke *smoke)
 							  &smoke->prng)];
 }
 
-static int smoke_crescendo(struct preempt_smoke *smoke)
+static int smoke_crescendo_thread(void *arg)
 {
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
+	struct preempt_smoke *smoke = arg;
+	IGT_TIMEOUT(end_time);
 	unsigned long count;
 
 	count = 0;
+	do {
+		struct i915_gem_context *ctx = smoke_context(smoke);
+		struct i915_request *rq;
+
+		mutex_lock(&smoke->i915->drm.struct_mutex);
+
+		ctx->sched.priority = count % I915_PRIORITY_MAX;
+
+		rq = i915_request_alloc(smoke->engine, ctx);
+		if (IS_ERR(rq)) {
+			mutex_unlock(&smoke->i915->drm.struct_mutex);
+			return PTR_ERR(rq);
+		}
+
+		i915_request_add(rq);
+
+		mutex_unlock(&smoke->i915->drm.struct_mutex);
+
+		count++;
+	} while (!__igt_timeout(end_time, NULL));
+
+	smoke->count = count;
+	return 0;
+}
+
+static int smoke_crescendo(struct preempt_smoke *smoke)
+{
+	struct task_struct *tsk[I915_NUM_ENGINES] = {};
+	struct preempt_smoke arg[I915_NUM_ENGINES];
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	unsigned long count;
+	int err = 0;
+
+	mutex_unlock(&smoke->i915->drm.struct_mutex);
+
 	for_each_engine(engine, smoke->i915, id) {
-		IGT_TIMEOUT(end_time);
+		arg[id] = *smoke;
+		arg[id].engine = engine;
+		arg[id].count = 0;
 
-		do {
-			struct i915_gem_context *ctx = smoke_context(smoke);
-			struct i915_request *rq;
-
-			ctx->sched.priority = count % I915_PRIORITY_MAX;
-
-			rq = i915_request_alloc(engine, ctx);
-			if (IS_ERR(rq))
-				return PTR_ERR(rq);
-
-			i915_request_add(rq);
-			count++;
-		} while (!__igt_timeout(end_time, NULL));
+		tsk[id] = kthread_run(smoke_crescendo_thread, &arg,
+				      "igt/smoke:%d", id);
+		if (IS_ERR(tsk[id])) {
+			err = PTR_ERR(tsk[id]);
+			break;
+		}
 	}
+
+	count = 0;
+	for_each_engine(engine, smoke->i915, id) {
+		int status;
+
+		if (IS_ERR_OR_NULL(tsk[id]))
+			continue;
+
+		status = kthread_stop(tsk[id]);
+		if (status && !err)
+			err = status;
+
+		count += arg[id].count;
+	}
+
+	mutex_lock(&smoke->i915->drm.struct_mutex);
 
 	pr_info("Submitted %lu crescendo requests across %d engines and %d contexts\n",
 		count, INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
