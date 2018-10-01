@@ -588,6 +588,7 @@ struct preempt_smoke {
 	struct drm_i915_private *i915;
 	struct i915_gem_context **contexts;
 	struct intel_engine_cs *engine;
+	struct drm_i915_gem_object *batch;
 	unsigned int ncontext;
 	struct rnd_state prng;
 	unsigned long count;
@@ -599,6 +600,49 @@ static struct i915_gem_context *smoke_context(struct preempt_smoke *smoke)
 							  &smoke->prng)];
 }
 
+static int smoke_submit(struct preempt_smoke *smoke,
+			struct i915_gem_context *ctx, int prio,
+			struct drm_i915_gem_object *batch)
+{
+	struct i915_request *rq;
+	struct i915_vma *vma = NULL;
+	int err = 0;
+
+	if (batch) {
+		vma = i915_vma_instance(batch, &ctx->ppgtt->vm, NULL);
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
+
+		err = i915_vma_pin(vma, 0, 0, PIN_USER);
+		if (err)
+			return err;
+	}
+
+	ctx->sched.priority = prio;
+
+	rq = i915_request_alloc(smoke->engine, ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto unpin;
+	}
+
+	if (vma) {
+		err = rq->engine->emit_bb_start(rq,
+						vma->node.start,
+						PAGE_SIZE, 0);
+		if (!err)
+			err = i915_vma_move_to_active(vma, rq, 0);
+	}
+
+	i915_request_add(rq);
+
+unpin:
+	if (vma)
+		i915_vma_unpin(vma);
+
+	return err;
+}
+
 static int smoke_crescendo_thread(void *arg)
 {
 	struct preempt_smoke *smoke = arg;
@@ -608,21 +652,15 @@ static int smoke_crescendo_thread(void *arg)
 	count = 0;
 	do {
 		struct i915_gem_context *ctx = smoke_context(smoke);
-		struct i915_request *rq;
+		int err;
 
 		mutex_lock(&smoke->i915->drm.struct_mutex);
-
-		ctx->sched.priority = count % I915_PRIORITY_MAX;
-
-		rq = i915_request_alloc(smoke->engine, ctx);
-		if (IS_ERR(rq)) {
-			mutex_unlock(&smoke->i915->drm.struct_mutex);
-			return PTR_ERR(rq);
-		}
-
-		i915_request_add(rq);
-
+		err = smoke_submit(smoke,
+				   ctx, count % I915_PRIORITY_MAX,
+				   smoke->batch);
 		mutex_unlock(&smoke->i915->drm.struct_mutex);
+		if (err)
+			return err;
 
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
@@ -631,7 +669,8 @@ static int smoke_crescendo_thread(void *arg)
 	return 0;
 }
 
-static int smoke_crescendo(struct preempt_smoke *smoke)
+static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
+#define BATCH BIT(0)
 {
 	struct task_struct *tsk[I915_NUM_ENGINES] = {};
 	struct preempt_smoke arg[I915_NUM_ENGINES];
@@ -645,6 +684,8 @@ static int smoke_crescendo(struct preempt_smoke *smoke)
 	for_each_engine(engine, smoke->i915, id) {
 		arg[id] = *smoke;
 		arg[id].engine = engine;
+		if (!(flags & BATCH))
+			arg[id].batch = NULL;
 		arg[id].count = 0;
 
 		tsk[id] = kthread_run(smoke_crescendo_thread, &arg,
@@ -671,37 +712,37 @@ static int smoke_crescendo(struct preempt_smoke *smoke)
 
 	mutex_lock(&smoke->i915->drm.struct_mutex);
 
-	pr_info("Submitted %lu crescendo requests across %d engines and %d contexts\n",
-		count, INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
+	pr_info("Submitted %lu crescendo:%x requests across %d engines and %d contexts\n",
+		count, flags,
+		INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
 	return 0;
 }
 
-static int smoke_random(struct preempt_smoke *smoke)
+static int smoke_random(struct preempt_smoke *smoke, unsigned int flags)
 {
-	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 
 	count = 0;
 	do {
-		for_each_engine(engine, smoke->i915, id) {
+		for_each_engine(smoke->engine, smoke->i915, id) {
 			struct i915_gem_context *ctx = smoke_context(smoke);
-			struct i915_request *rq;
+			int err;
 
-			ctx->sched.priority = random_priority(&smoke->prng);
+			err = smoke_submit(smoke,
+					   ctx, random_priority(&smoke->prng),
+					   flags & BATCH ? smoke->batch : NULL);
+			if (err)
+				return err;
 
-			rq = i915_request_alloc(engine, ctx);
-			if (IS_ERR(rq))
-				return PTR_ERR(rq);
-
-			i915_request_add(rq);
 			count++;
 		}
 	} while (!__igt_timeout(end_time, NULL));
 
-	pr_info("Submitted %lu random requests across %d engines and %d contexts\n",
-		count, INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
+	pr_info("Submitted %lu random:%x requests across %d engines and %d contexts\n",
+		count, flags,
+		INTEL_INFO(smoke->i915)->num_rings, smoke->ncontext);
 	return 0;
 }
 
@@ -712,7 +753,9 @@ static int live_preempt_smoke(void *arg)
 		.prng = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed),
 		.ncontext = 1024,
 	};
+	const unsigned int phase[] = { 0, BATCH };
 	int err = -ENOMEM;
+	u32 *cs;
 	int n;
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(smoke.i915))
@@ -727,19 +770,41 @@ static int live_preempt_smoke(void *arg)
 	mutex_lock(&smoke.i915->drm.struct_mutex);
 	intel_runtime_pm_get(smoke.i915);
 
+	smoke.batch = i915_gem_object_create_internal(smoke.i915, PAGE_SIZE);
+	if (IS_ERR(smoke.batch)) {
+		err = PTR_ERR(smoke.batch);
+		goto err_unlock;
+	}
+
+	cs = i915_gem_object_pin_map(smoke.batch, I915_MAP_WB);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		goto err_batch;
+	}
+	for (n = 0; n < PAGE_SIZE / sizeof(*cs) - 1; n++)
+		cs[n] = MI_ARB_CHECK;
+	cs[n] = MI_BATCH_BUFFER_END;
+	i915_gem_object_unpin_map(smoke.batch);
+
+	err = i915_gem_object_set_to_gtt_domain(smoke.batch, false);
+	if (err)
+		goto err_batch;
+
 	for (n = 0; n < smoke.ncontext; n++) {
 		smoke.contexts[n] = kernel_context(smoke.i915);
 		if (!smoke.contexts[n])
 			goto err_ctx;
 	}
 
-	err = smoke_crescendo(&smoke);
-	if (err)
-		goto err_ctx;
+	for (n = 0; n < ARRAY_SIZE(phase); n++) {
+		err = smoke_crescendo(&smoke, phase[n]);
+		if (err)
+			goto err_ctx;
 
-	err = smoke_random(&smoke);
-	if (err)
-		goto err_ctx;
+		err = smoke_random(&smoke, phase[n]);
+		if (err)
+			goto err_ctx;
+	}
 
 err_ctx:
 	if (igt_flush_test(smoke.i915, I915_WAIT_LOCKED))
@@ -751,6 +816,9 @@ err_ctx:
 		kernel_context_close(smoke.contexts[n]);
 	}
 
+err_batch:
+	i915_gem_object_put(smoke.batch);
+err_unlock:
 	intel_runtime_pm_put(smoke.i915);
 	mutex_unlock(&smoke.i915->drm.struct_mutex);
 	kfree(smoke.contexts);
