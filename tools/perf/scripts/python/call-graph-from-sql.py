@@ -264,17 +264,19 @@ class TreeModel(QAbstractItemModel):
 
 class MainWindow(QMainWindow):
 
-	def __init__(self, db, dbname, parent=None):
+	def __init__(self, glb, parent=None):
 		super(MainWindow, self).__init__(parent)
 
+		self.glb = glb
+
 		self.setObjectName("MainWindow")
-		self.setWindowTitle("Call Graph: " + dbname)
+		self.setWindowTitle("Call Graph: " + glb.dbname)
 		self.move(100, 100)
 		self.resize(800, 600)
 		self.setWindowIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
 		self.setMinimumSize(200, 100)
 
-		self.model = TreeModel(db)
+		self.model = TreeModel(glb.db)
 
 		self.view = QTreeView()
 		self.view.setModel(self.model)
@@ -283,6 +285,17 @@ class MainWindow(QMainWindow):
 			self.view.setColumnWidth(c, w)
 
 		self.setCentralWidget(self.view)
+
+# Global data
+
+class Glb():
+
+	def __init__(self, dbref, db, dbname):
+		self.dbref = dbref
+		self.db = db
+		self.dbname = dbname
+		self.app = None
+		self.mainwindow = None
 
 # Database reference
 
@@ -340,9 +353,12 @@ def Main():
 
 	dbref = DBRef(is_sqlite3, dbname)
 	db, dbname = dbref.Open("main")
+	glb = Glb(dbref, db, dbname)
 	app = QApplication(sys.argv)
-	window = MainWindow(db, dbname)
-	window.show()
+	glb.app = app
+	mainwindow = MainWindow(glb)
+	glb.mainwindow = mainwindow
+	mainwindow.show()
 	err = app.exec_()
 	db.close()
 	sys.exit(err)
