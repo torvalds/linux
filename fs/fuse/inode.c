@@ -104,6 +104,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi->rdc.cached = false;
 	fi->rdc.size = 0;
 	fi->rdc.pos = 0;
+	fi->rdc.version = 0;
 	mutex_init(&fi->mutex);
 	fi->forget = fuse_alloc_forget();
 	if (!fi->forget) {

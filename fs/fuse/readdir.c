@@ -36,6 +36,7 @@ static void fuse_add_dirent_to_cache(struct file *file,
 	pgoff_t index;
 	struct page *page;
 	loff_t size;
+	u64 version;
 	unsigned int offset;
 	void *addr;
 
@@ -48,6 +49,7 @@ static void fuse_add_dirent_to_cache(struct file *file,
 		spin_unlock(&fi->rdc.lock);
 		return;
 	}
+	version = fi->rdc.version;
 	size = fi->rdc.size;
 	offset = size & ~PAGE_MASK;
 	index = size >> PAGE_SHIFT;
@@ -69,7 +71,8 @@ static void fuse_add_dirent_to_cache(struct file *file,
 
 	spin_lock(&fi->rdc.lock);
 	/* Raced with another readdir */
-	if (fi->rdc.size != size || WARN_ON(fi->rdc.pos != pos))
+	if (fi->rdc.version != version || fi->rdc.size != size ||
+	    WARN_ON(fi->rdc.pos != pos))
 		goto unlock;
 
 	addr = kmap_atomic(page);
@@ -396,6 +399,14 @@ static enum fuse_parse_result fuse_parse_cache(struct fuse_file *ff,
 	return res;
 }
 
+static void fuse_rdc_reset(struct fuse_inode *fi)
+{
+	fi->rdc.cached = false;
+	fi->rdc.version++;
+	fi->rdc.size = 0;
+	fi->rdc.pos = 0;
+}
+
 #define UNCACHED 1
 
 static int fuse_readdir_cached(struct file *file, struct dir_context *ctx)
@@ -421,6 +432,21 @@ retry:
 		spin_unlock(&fi->rdc.lock);
 		return UNCACHED;
 	}
+	/*
+	 * If cache version changed since the last getdents() call, then reset
+	 * the cache stream.
+	 */
+	if (ff->readdir.version != fi->rdc.version) {
+		ff->readdir.pos = 0;
+		ff->readdir.cache_off = 0;
+	}
+	/*
+	 * If at the beginning of the cache, than reset version to
+	 * current.
+	 */
+	if (ff->readdir.pos == 0)
+		ff->readdir.version = fi->rdc.version;
+
 	WARN_ON(fi->rdc.size < ff->readdir.cache_off);
 
 	index = ff->readdir.cache_off >> PAGE_SHIFT;
@@ -437,13 +463,30 @@ retry:
 
 	page = find_get_page_flags(file->f_mapping, index,
 				   FGP_ACCESSED | FGP_LOCK);
+	spin_lock(&fi->rdc.lock);
 	if (!page) {
 		/*
 		 * Uh-oh: page gone missing, cache is useless
 		 */
+		if (fi->rdc.version == ff->readdir.version)
+			fuse_rdc_reset(fi);
+		spin_unlock(&fi->rdc.lock);
 		return UNCACHED;
 	}
 
+	/* Make sure it's still the same version after getting the page. */
+	if (ff->readdir.version != fi->rdc.version) {
+		spin_unlock(&fi->rdc.lock);
+		unlock_page(page);
+		put_page(page);
+		goto retry;
+	}
+	spin_unlock(&fi->rdc.lock);
+
+	/*
+	 * Contents of the page are now protected against changing by holding
+	 * the page lock.
+	 */
 	addr = kmap(page);
 	res = fuse_parse_cache(ff, addr, size, ctx);
 	kunmap(page);

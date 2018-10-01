@@ -114,6 +114,9 @@ struct fuse_inode {
 		/* position at end of cache (position of next entry) */
 		loff_t pos;
 
+		/* version of the cache */
+		u64 version;
+
 		/* protects above fields */
 		spinlock_t lock;
 	} rdc;
@@ -176,6 +179,10 @@ struct fuse_file {
 
 		/* Offset in cache */
 		loff_t cache_off;
+
+		/* Version of cache we are reading */
+		u64 version;
+
 	} readdir;
 
 	/** RB node to be linked on fuse_conn->polled_files */
