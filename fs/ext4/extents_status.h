@@ -90,11 +90,18 @@ extern void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 				 unsigned int status);
 extern int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len);
-extern void ext4_es_find_delayed_extent_range(struct inode *inode,
-					ext4_lblk_t lblk, ext4_lblk_t end,
-					struct extent_status *es);
+extern void ext4_es_find_extent_range(struct inode *inode,
+				      int (*match_fn)(struct extent_status *es),
+				      ext4_lblk_t lblk, ext4_lblk_t end,
+				      struct extent_status *es);
 extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 				 struct extent_status *es);
+extern bool ext4_es_scan_range(struct inode *inode,
+			       int (*matching_fn)(struct extent_status *es),
+			       ext4_lblk_t lblk, ext4_lblk_t end);
+extern bool ext4_es_scan_clu(struct inode *inode,
+			     int (*matching_fn)(struct extent_status *es),
+			     ext4_lblk_t lblk);
 
 static inline unsigned int ext4_es_status(struct extent_status *es)
 {

@@ -2351,8 +2351,8 @@ ext4_ext_put_gap_in_cache(struct inode *inode, ext4_lblk_t hole_start,
 {
 	struct extent_status es;
 
-	ext4_es_find_delayed_extent_range(inode, hole_start,
-					  hole_start + hole_len - 1, &es);
+	ext4_es_find_extent_range(inode, &ext4_es_is_delayed, hole_start,
+				  hole_start + hole_len - 1, &es);
 	if (es.es_len) {
 		/* There's delayed extent containing lblock? */
 		if (es.es_lblk <= hole_start)
@@ -3820,39 +3820,6 @@ out:
 }
 
 /**
- * ext4_find_delalloc_range: find delayed allocated block in the given range.
- *
- * Return 1 if there is a delalloc block in the range, otherwise 0.
- */
-int ext4_find_delalloc_range(struct inode *inode,
-			     ext4_lblk_t lblk_start,
-			     ext4_lblk_t lblk_end)
-{
-	struct extent_status es;
-
-	ext4_es_find_delayed_extent_range(inode, lblk_start, lblk_end, &es);
-	if (es.es_len == 0)
-		return 0; /* there is no delay extent in this tree */
-	else if (es.es_lblk <= lblk_start &&
-		 lblk_start < es.es_lblk + es.es_len)
-		return 1;
-	else if (lblk_start <= es.es_lblk && es.es_lblk <= lblk_end)
-		return 1;
-	else
-		return 0;
-}
-
-int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk)
-{
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	ext4_lblk_t lblk_start, lblk_end;
-	lblk_start = EXT4_LBLK_CMASK(sbi, lblk);
-	lblk_end = lblk_start + sbi->s_cluster_ratio - 1;
-
-	return ext4_find_delalloc_range(inode, lblk_start, lblk_end);
-}
-
-/**
  * Determines how many complete clusters (out of those specified by the 'map')
  * are under delalloc and were reserved quota for.
  * This function is called when we are writing out the blocks that were
@@ -3910,7 +3877,8 @@ get_reserved_cluster_alloc(struct inode *inode, ext4_lblk_t lblk_start,
 		lblk_from = EXT4_LBLK_CMASK(sbi, lblk_start);
 		lblk_to = lblk_from + c_offset - 1;
 
-		if (ext4_find_delalloc_range(inode, lblk_from, lblk_to))
+		if (ext4_es_scan_range(inode, &ext4_es_is_delayed, lblk_from,
+				       lblk_to))
 			allocated_clusters--;
 	}
 
@@ -3920,7 +3888,8 @@ get_reserved_cluster_alloc(struct inode *inode, ext4_lblk_t lblk_start,
 		lblk_from = lblk_start + num_blks;
 		lblk_to = lblk_from + (sbi->s_cluster_ratio - c_offset) - 1;
 
-		if (ext4_find_delalloc_range(inode, lblk_from, lblk_to))
+		if (ext4_es_scan_range(inode, &ext4_es_is_delayed, lblk_from,
+				       lblk_to))
 			allocated_clusters--;
 	}
 
@@ -5075,8 +5044,10 @@ static int ext4_find_delayed_extent(struct inode *inode,
 	ext4_lblk_t block, next_del;
 
 	if (newes->es_pblk == 0) {
-		ext4_es_find_delayed_extent_range(inode, newes->es_lblk,
-				newes->es_lblk + newes->es_len - 1, &es);
+		ext4_es_find_extent_range(inode, &ext4_es_is_delayed,
+					  newes->es_lblk,
+					  newes->es_lblk + newes->es_len - 1,
+					  &es);
 
 		/*
 		 * No extent in extent-tree contains block @newes->es_pblk,
@@ -5097,7 +5068,8 @@ static int ext4_find_delayed_extent(struct inode *inode,
 	}
 
 	block = newes->es_lblk + newes->es_len;
-	ext4_es_find_delayed_extent_range(inode, block, EXT_MAX_BLOCKS, &es);
+	ext4_es_find_extent_range(inode, &ext4_es_is_delayed, block,
+				  EXT_MAX_BLOCKS, &es);
 	if (es.es_len == 0)
 		next_del = EXT_MAX_BLOCKS;
 	else

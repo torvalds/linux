@@ -577,8 +577,8 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 		if (!(flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) &&
 		    !(status & EXTENT_STATUS_WRITTEN) &&
-		    ext4_find_delalloc_range(inode, map->m_lblk,
-					     map->m_lblk + map->m_len - 1))
+		    ext4_es_scan_range(inode, &ext4_es_is_delayed, map->m_lblk,
+				       map->m_lblk + map->m_len - 1))
 			status |= EXTENT_STATUS_DELAYED;
 		ret = ext4_es_insert_extent(inode, map->m_lblk,
 					    map->m_len, map->m_pblk, status);
@@ -701,8 +701,8 @@ found:
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
 		if (!(flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) &&
 		    !(status & EXTENT_STATUS_WRITTEN) &&
-		    ext4_find_delalloc_range(inode, map->m_lblk,
-					     map->m_lblk + map->m_len - 1))
+		    ext4_es_scan_range(inode, &ext4_es_is_delayed, map->m_lblk,
+				       map->m_lblk + map->m_len - 1))
 			status |= EXTENT_STATUS_DELAYED;
 		ret = ext4_es_insert_extent(inode, map->m_lblk, map->m_len,
 					    map->m_pblk, status);
@@ -1681,7 +1681,7 @@ static void ext4_da_page_release_reservation(struct page *page,
 		lblk = (page->index << (PAGE_SHIFT - inode->i_blkbits)) +
 			((num_clusters - 1) << sbi->s_cluster_bits);
 		if (sbi->s_cluster_ratio == 1 ||
-		    !ext4_find_delalloc_cluster(inode, lblk))
+		    !ext4_es_scan_clu(inode, &ext4_es_is_delayed, lblk))
 			ext4_da_release_space(inode, 1);
 
 		num_clusters--;
@@ -1859,6 +1859,7 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 add_delayed:
 	if (retval == 0) {
 		int ret;
+
 		/*
 		 * XXX: __block_prepare_write() unmaps passed block,
 		 * is it OK?
@@ -1869,7 +1870,8 @@ add_delayed:
 		 * to reserve metadata for every block we're going to write.
 		 */
 		if (EXT4_SB(inode->i_sb)->s_cluster_ratio == 1 ||
-		    !ext4_find_delalloc_cluster(inode, map->m_lblk)) {
+		    !ext4_es_scan_clu(inode,
+				      &ext4_es_is_delayed, map->m_lblk)) {
 			ret = ext4_da_reserve_space(inode);
 			if (ret) {
 				/* not enough space to reserve */
@@ -3450,7 +3452,8 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 			ext4_lblk_t end = map.m_lblk + map.m_len - 1;
 			struct extent_status es;
 
-			ext4_es_find_delayed_extent_range(inode, map.m_lblk, end, &es);
+			ext4_es_find_extent_range(inode, &ext4_es_is_delayed,
+						  map.m_lblk, end, &es);
 
 			if (!es.es_len || es.es_lblk > end) {
 				/* entire range is a hole */
