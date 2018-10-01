@@ -120,7 +120,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int ret, cpu;
 
-	ret = kvm_arm_config_vm(kvm, type);
+	ret = kvm_arm_setup_stage2(kvm, type);
 	if (ret)
 		return ret;
 

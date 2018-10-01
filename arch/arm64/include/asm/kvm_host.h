@@ -511,6 +511,6 @@ void kvm_set_ipa_limit(void);
 struct kvm *kvm_arch_alloc_vm(void);
 void kvm_arch_free_vm(struct kvm *kvm);
 
-int kvm_arm_config_vm(struct kvm *kvm, unsigned long type);
+int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type);
 
 #endif /* __ARM64_KVM_HOST_H__ */
