@@ -1127,8 +1127,20 @@ void i915_request_add(struct i915_request *request)
 	 */
 	local_bh_disable();
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
-	if (engine->schedule)
-		engine->schedule(request, &request->gem_context->sched);
+	if (engine->schedule) {
+		struct i915_sched_attr attr = request->gem_context->sched;
+
+		/*
+		 * Boost priorities to new clients (new request flows).
+		 *
+		 * Allow interactive/synchronous clients to jump ahead of
+		 * the bulk clients. (FQ_CODEL)
+		 */
+		if (!prev || i915_request_completed(prev))
+			attr.priority |= I915_PRIORITY_NEWCLIENT;
+
+		engine->schedule(request, &attr);
+	}
 	rcu_read_unlock();
 	i915_sw_fence_commit(&request->submit);
 	local_bh_enable(); /* Kick the execlists tasklet if just scheduled */

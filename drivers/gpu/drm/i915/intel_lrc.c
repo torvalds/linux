@@ -363,9 +363,9 @@ static void unwind_wa_tail(struct i915_request *rq)
 
 static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 {
-	struct i915_request *rq, *rn;
+	struct i915_request *rq, *rn, *active = NULL;
 	struct list_head *uninitialized_var(pl);
-	int last_prio = I915_PRIORITY_INVALID;
+	int prio = I915_PRIORITY_INVALID | I915_PRIORITY_NEWCLIENT;
 
 	lockdep_assert_held(&engine->timeline.lock);
 
@@ -373,19 +373,32 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 					 &engine->timeline.requests,
 					 link) {
 		if (i915_request_completed(rq))
-			return;
+			break;
 
 		__i915_request_unsubmit(rq);
 		unwind_wa_tail(rq);
 
 		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
-		if (rq_prio(rq) != last_prio) {
-			last_prio = rq_prio(rq);
-			pl = lookup_priolist(engine, last_prio);
+		if (rq_prio(rq) != prio) {
+			prio = rq_prio(rq);
+			pl = lookup_priolist(engine, prio);
 		}
 		GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 
 		list_add(&rq->sched.link, pl);
+
+		active = rq;
+	}
+
+	/*
+	 * The active request is now effectively the start of a new client
+	 * stream, so give it the equivalent small priority bump to prevent
+	 * it being gazumped a second time by another peer.
+	 */
+	if (!(prio & I915_PRIORITY_NEWCLIENT)) {
+		prio |= I915_PRIORITY_NEWCLIENT;
+		list_move_tail(&active->sched.link,
+			       lookup_priolist(engine, prio));
 	}
 }
 
