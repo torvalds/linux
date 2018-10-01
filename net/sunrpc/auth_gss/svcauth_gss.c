@@ -1764,12 +1764,19 @@ out_err:
 }
 
 static void
-svcauth_gss_domain_release(struct auth_domain *dom)
+svcauth_gss_domain_release_rcu(struct rcu_head *head)
 {
+	struct auth_domain *dom = container_of(head, struct auth_domain, rcu_head);
 	struct gss_domain *gd = container_of(dom, struct gss_domain, h);
 
 	kfree(dom->name);
 	kfree(gd);
+}
+
+static void
+svcauth_gss_domain_release(struct auth_domain *dom)
+{
+	call_rcu(&dom->rcu_head, svcauth_gss_domain_release_rcu);
 }
 
 static struct auth_ops svcauthops_gss = {

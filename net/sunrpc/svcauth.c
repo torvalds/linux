@@ -143,10 +143,11 @@ static struct hlist_head	auth_domain_table[DN_HASHMAX];
 static DEFINE_SPINLOCK(auth_domain_lock);
 
 static void auth_domain_release(struct kref *kref)
+	__releases(&auth_domain_lock)
 {
 	struct auth_domain *dom = container_of(kref, struct auth_domain, ref);
 
-	hlist_del(&dom->hash);
+	hlist_del_rcu(&dom->hash);
 	dom->flavour->domain_release(dom);
 	spin_unlock(&auth_domain_lock);
 }
@@ -175,7 +176,7 @@ auth_domain_lookup(char *name, struct auth_domain *new)
 		}
 	}
 	if (new)
-		hlist_add_head(&new->hash, head);
+		hlist_add_head_rcu(&new->hash, head);
 	spin_unlock(&auth_domain_lock);
 	return new;
 }
@@ -183,6 +184,21 @@ EXPORT_SYMBOL_GPL(auth_domain_lookup);
 
 struct auth_domain *auth_domain_find(char *name)
 {
-	return auth_domain_lookup(name, NULL);
+	struct auth_domain *hp;
+	struct hlist_head *head;
+
+	head = &auth_domain_table[hash_str(name, DN_HASHBITS)];
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(hp, head, hash) {
+		if (strcmp(hp->name, name)==0) {
+			if (!kref_get_unless_zero(&hp->ref))
+				hp = NULL;
+			rcu_read_unlock();
+			return hp;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(auth_domain_find);

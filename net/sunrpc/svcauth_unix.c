@@ -37,12 +37,18 @@ struct unix_domain {
 extern struct auth_ops svcauth_null;
 extern struct auth_ops svcauth_unix;
 
-static void svcauth_unix_domain_release(struct auth_domain *dom)
+static void svcauth_unix_domain_release_rcu(struct rcu_head *head)
 {
+	struct auth_domain *dom = container_of(head, struct auth_domain, rcu_head);
 	struct unix_domain *ud = container_of(dom, struct unix_domain, h);
 
 	kfree(dom->name);
 	kfree(ud);
+}
+
+static void svcauth_unix_domain_release(struct auth_domain *dom)
+{
+	call_rcu(&dom->rcu_head, svcauth_unix_domain_release_rcu);
 }
 
 struct auth_domain *unix_domain_find(char *name)
@@ -50,7 +56,7 @@ struct auth_domain *unix_domain_find(char *name)
 	struct auth_domain *rv;
 	struct unix_domain *new = NULL;
 
-	rv = auth_domain_lookup(name, NULL);
+	rv = auth_domain_find(name);
 	while(1) {
 		if (rv) {
 			if (new && rv != &new->h)
