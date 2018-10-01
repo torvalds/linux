@@ -111,6 +111,7 @@ struct clock_event_device decrementer_clockevent = {
 	.rating			= 200,
 	.irq			= 0,
 	.set_next_event		= decrementer_set_next_event,
+	.set_state_oneshot_stopped = decrementer_shutdown,
 	.set_state_shutdown	= decrementer_shutdown,
 	.tick_resume		= decrementer_shutdown,
 	.features		= CLOCK_EVT_FEAT_ONESHOT |
