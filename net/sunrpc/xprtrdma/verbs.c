@@ -1521,9 +1521,11 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 	struct ib_recv_wr *wr, *bad_wr;
 	int needed, count, rc;
 
+	rc = 0;
+	count = 0;
 	needed = buf->rb_credits + (buf->rb_bc_srv_max_requests << 1);
 	if (buf->rb_posted_receives > needed)
-		return;
+		goto out;
 	needed -= buf->rb_posted_receives;
 
 	count = 0;
@@ -1559,7 +1561,7 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 		--needed;
 	}
 	if (!count)
-		return;
+		goto out;
 
 	rc = ib_post_recv(r_xprt->rx_ia.ri_id->qp, wr,
 			  (const struct ib_recv_wr **)&bad_wr);
@@ -1573,5 +1575,6 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 		}
 	}
 	buf->rb_posted_receives += count;
+out:
 	trace_xprtrdma_post_recvs(r_xprt, count, rc);
 }
