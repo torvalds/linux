@@ -230,14 +230,15 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 static int
 rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
-	struct rpcrdma_xprt *xprt = id->context;
-	struct rpcrdma_ia *ia = &xprt->rx_ia;
-	struct rpcrdma_ep *ep = &xprt->rx_ep;
+	struct rpcrdma_xprt *r_xprt = id->context;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_ep *ep = &r_xprt->rx_ep;
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	int connstate = 0;
 
 	might_sleep();
 
-	trace_xprtrdma_cm_event(xprt, event);
+	trace_xprtrdma_cm_event(r_xprt, event);
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
@@ -256,11 +257,11 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 		pr_info("rpcrdma: removing device %s for %s:%s\n",
 			ia->ri_device->name,
-			rpcrdma_addrstr(xprt), rpcrdma_portstr(xprt));
+			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));
 #endif
 		set_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags);
 		ep->rep_connected = -ENODEV;
-		xprt_force_disconnect(&xprt->rx_xprt);
+		xprt_force_disconnect(xprt);
 		wait_for_completion(&ia->ri_remove_done);
 
 		ia->ri_id = NULL;
@@ -268,9 +269,9 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		/* Return 1 to ensure the core destroys the id. */
 		return 1;
 	case RDMA_CM_EVENT_ESTABLISHED:
-		++xprt->rx_xprt.connect_cookie;
+		++xprt->connect_cookie;
 		connstate = 1;
-		rpcrdma_update_connect_private(xprt, &event->param.conn);
+		rpcrdma_update_connect_private(r_xprt, &event->param.conn);
 		goto connected;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		connstate = -ENOTCONN;
@@ -280,14 +281,14 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		goto connected;
 	case RDMA_CM_EVENT_REJECTED:
 		dprintk("rpcrdma: connection to %s:%s rejected: %s\n",
-			rpcrdma_addrstr(xprt), rpcrdma_portstr(xprt),
+			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
 			rdma_reject_msg(id, event->status));
 		connstate = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
 			connstate = -EAGAIN;
 		goto connected;
 	case RDMA_CM_EVENT_DISCONNECTED:
-		++xprt->rx_xprt.connect_cookie;
+		++xprt->connect_cookie;
 		connstate = -ECONNABORTED;
 connected:
 		ep->rep_connected = connstate;
@@ -297,7 +298,7 @@ connected:
 	default:
 		dprintk("RPC:       %s: %s:%s on %s/%s (ep 0x%p): %s\n",
 			__func__,
-			rpcrdma_addrstr(xprt), rpcrdma_portstr(xprt),
+			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
 			ia->ri_device->name, ia->ri_ops->ro_displayname,
 			ep, rdma_event_msg(event->event));
 		break;
