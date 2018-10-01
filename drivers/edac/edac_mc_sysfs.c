@@ -405,7 +405,6 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 				    struct csrow_info *csrow, int index)
 {
 	csrow->dev.type = &csrow_attr_type;
-	csrow->dev.bus = mci->bus;
 	csrow->dev.groups = csrow_dev_groups;
 	device_initialize(&csrow->dev);
 	csrow->dev.parent = &mci->dev;
@@ -636,7 +635,6 @@ static int edac_create_dimm_object(struct mem_ctl_info *mci,
 	dimm->mci = mci;
 
 	dimm->dev.type = &dimm_attr_type;
-	dimm->dev.bus = mci->bus;
 	device_initialize(&dimm->dev);
 
 	dimm->dev.parent = &mci->dev;
@@ -940,7 +938,6 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 	device_initialize(&mci->dev);
 
 	mci->dev.parent = mci_pdev;
-	mci->dev.bus = mci->bus;
 	mci->dev.groups = groups;
 	dev_set_name(&mci->dev, "mc%d", mci->mc_idx);
 	dev_set_drvdata(&mci->dev, mci);
