@@ -36,7 +36,6 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			   u32 *tx_info)
 {
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
 	struct mt76x02_txwi *txwi;
 	int err, len = skb->len;
 
@@ -47,7 +46,7 @@ int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	mt76x02_insert_hdr_pad(skb);
 
 	txwi = skb_push(skb, sizeof(struct mt76x02_txwi));
-	mt76x2_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
+	mt76x02_mac_write_txwi(mdev, txwi, skb, wcid, sta, len);
 
 	return mt76x02u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
 }

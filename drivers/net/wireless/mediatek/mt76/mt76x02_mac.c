@@ -18,6 +18,7 @@
 #include "mt76.h"
 #include "mt76x02_regs.h"
 #include "mt76x02_mac.h"
+#include "mt76x02_util.h"
 
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
@@ -340,6 +341,68 @@ mt76x02_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 
 	return 0;
 }
+
+void mt76x02_mac_write_txwi(struct mt76_dev *dev, struct mt76x02_txwi *txwi,
+			    struct sk_buff *skb, struct mt76_wcid *wcid,
+			    struct ieee80211_sta *sta, int len)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_rate *rate = &info->control.rates[0];
+	struct ieee80211_key_conf *key = info->control.hw_key;
+	u16 rate_ht_mask = FIELD_PREP(MT_RXWI_RATE_PHY, BIT(1) | BIT(2));
+	u8 nss;
+	s8 txpwr_adj, max_txpwr_adj;
+	u8 ccmp_pn[8], nstreams = dev->chainmask & 0xf;
+
+	memset(txwi, 0, sizeof(*txwi));
+
+	if (wcid)
+		txwi->wcid = wcid->idx;
+	else
+		txwi->wcid = 0xff;
+
+	txwi->pktid = 1;
+
+	if (wcid && wcid->sw_iv && key) {
+		u64 pn = atomic64_inc_return(&key->tx_pn);
+		ccmp_pn[0] = pn;
+		ccmp_pn[1] = pn >> 8;
+		ccmp_pn[2] = 0;
+		ccmp_pn[3] = 0x20 | (key->keyidx << 6);
+		ccmp_pn[4] = pn >> 16;
+		ccmp_pn[5] = pn >> 24;
+		ccmp_pn[6] = pn >> 32;
+		ccmp_pn[7] = pn >> 40;
+		txwi->iv = *((__le32 *)&ccmp_pn[0]);
+		txwi->eiv = *((__le32 *)&ccmp_pn[1]);
+	}
+
+	spin_lock_bh(&dev->lock);
+	if (wcid && (rate->idx < 0 || !rate->count)) {
+		txwi->rate = wcid->tx_rate;
+		max_txpwr_adj = wcid->max_txpwr_adj;
+		nss = wcid->tx_rate_nss;
+	} else {
+		txwi->rate = mt76x02_mac_tx_rate_val(dev, rate, &nss);
+		max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(dev, rate);
+	}
+	spin_unlock_bh(&dev->lock);
+
+	if (dev->drv->get_tx_txpwr_adj) {
+		txpwr_adj = dev->drv->get_tx_txpwr_adj(dev, dev->txpower_conf,
+						       max_txpwr_adj);
+		txwi->ctl2 = FIELD_PREP(MT_TX_PWR_ADJ, txpwr_adj);
+	}
+
+	if (nstreams > 1 && mt76_rev(dev) >= MT76XX_REV_E4)
+		txwi->txstream = 0x13;
+	else if (nstreams > 1 && mt76_rev(dev) >= MT76XX_REV_E3 &&
+		 !(txwi->rate & cpu_to_le16(rate_ht_mask)))
+		txwi->txstream = 0x93;
+
+	mt76x02_mac_fill_txwi(txwi, skb, sta, len, nss);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_write_txwi);
 
 static void
 mt76x02_mac_fill_tx_status(struct mt76_dev *dev,

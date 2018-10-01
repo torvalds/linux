@@ -37,7 +37,7 @@ int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 	if (q == &dev->mt76.q_tx[MT_TXQ_PSD] && wcid && wcid->idx < 128)
 		mt76x02_mac_wcid_set_drop(&dev->mt76, wcid->idx, false);
 
-	mt76x2_mac_write_txwi(dev, txwi, skb, wcid, sta, skb->len);
+	mt76x02_mac_write_txwi(mdev, txwi, skb, wcid, sta, skb->len);
 
 	ret = mt76x02_insert_hdr_pad(skb);
 	if (ret < 0)
