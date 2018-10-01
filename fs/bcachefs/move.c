@@ -504,7 +504,6 @@ int bch2_move_data(struct bch_fs *c,
 			if (unlikely(freezing(current))) {
 				bch2_btree_iter_unlock(&stats->iter);
 				move_ctxt_wait_event(&ctxt, list_empty(&ctxt.reads));
-				closure_sync(&ctxt.cl);
 				try_to_freeze();
 			}
 		} while (delay);
