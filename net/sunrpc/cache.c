@@ -92,7 +92,7 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 	cache_init(new, detail);
 	detail->init(new, key);
 
-	write_lock(&detail->hash_lock);
+	spin_lock(&detail->hash_lock);
 
 	/* check if entry appeared while we slept */
 	hlist_for_each_entry_rcu(tmp, head, cache_list) {
@@ -104,7 +104,7 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 				break;
 			}
 			cache_get(tmp);
-			write_unlock(&detail->hash_lock);
+			spin_unlock(&detail->hash_lock);
 			cache_put(new, detail);
 			return tmp;
 		}
@@ -113,7 +113,7 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 	hlist_add_head_rcu(&new->cache_list, head);
 	detail->entries++;
 	cache_get(new);
-	write_unlock(&detail->hash_lock);
+	spin_unlock(&detail->hash_lock);
 
 	if (freeme)
 		cache_put(freeme, detail);
@@ -167,18 +167,18 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	struct cache_head *tmp;
 
 	if (!test_bit(CACHE_VALID, &old->flags)) {
-		write_lock(&detail->hash_lock);
+		spin_lock(&detail->hash_lock);
 		if (!test_bit(CACHE_VALID, &old->flags)) {
 			if (test_bit(CACHE_NEGATIVE, &new->flags))
 				set_bit(CACHE_NEGATIVE, &old->flags);
 			else
 				detail->update(old, new);
 			cache_fresh_locked(old, new->expiry_time, detail);
-			write_unlock(&detail->hash_lock);
+			spin_unlock(&detail->hash_lock);
 			cache_fresh_unlocked(old, detail);
 			return old;
 		}
-		write_unlock(&detail->hash_lock);
+		spin_unlock(&detail->hash_lock);
 	}
 	/* We need to insert a new entry */
 	tmp = detail->alloc();
@@ -189,7 +189,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	cache_init(tmp, detail);
 	detail->init(tmp, old);
 
-	write_lock(&detail->hash_lock);
+	spin_lock(&detail->hash_lock);
 	if (test_bit(CACHE_NEGATIVE, &new->flags))
 		set_bit(CACHE_NEGATIVE, &tmp->flags);
 	else
@@ -199,7 +199,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	cache_get(tmp);
 	cache_fresh_locked(tmp, new->expiry_time, detail);
 	cache_fresh_locked(old, 0, detail);
-	write_unlock(&detail->hash_lock);
+	spin_unlock(&detail->hash_lock);
 	cache_fresh_unlocked(tmp, detail);
 	cache_fresh_unlocked(old, detail);
 	cache_put(old, detail);
@@ -239,7 +239,7 @@ static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h
 {
 	int rv;
 
-	write_lock(&detail->hash_lock);
+	spin_lock(&detail->hash_lock);
 	rv = cache_is_valid(h);
 	if (rv == -EAGAIN) {
 		set_bit(CACHE_NEGATIVE, &h->flags);
@@ -247,7 +247,7 @@ static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h
 				   detail);
 		rv = -ENOENT;
 	}
-	write_unlock(&detail->hash_lock);
+	spin_unlock(&detail->hash_lock);
 	cache_fresh_unlocked(h, detail);
 	return rv;
 }
@@ -357,7 +357,7 @@ static struct delayed_work cache_cleaner;
 
 void sunrpc_init_cache_detail(struct cache_detail *cd)
 {
-	rwlock_init(&cd->hash_lock);
+	spin_lock_init(&cd->hash_lock);
 	INIT_LIST_HEAD(&cd->queue);
 	spin_lock(&cache_list_lock);
 	cd->nextcheck = 0;
@@ -377,11 +377,11 @@ void sunrpc_destroy_cache_detail(struct cache_detail *cd)
 {
 	cache_purge(cd);
 	spin_lock(&cache_list_lock);
-	write_lock(&cd->hash_lock);
+	spin_lock(&cd->hash_lock);
 	if (current_detail == cd)
 		current_detail = NULL;
 	list_del_init(&cd->others);
-	write_unlock(&cd->hash_lock);
+	spin_unlock(&cd->hash_lock);
 	spin_unlock(&cache_list_lock);
 	if (list_empty(&cache_list)) {
 		/* module must be being unloaded so its safe to kill the worker */
@@ -438,7 +438,7 @@ static int cache_clean(void)
 		struct hlist_head *head;
 		struct hlist_node *tmp;
 
-		write_lock(&current_detail->hash_lock);
+		spin_lock(&current_detail->hash_lock);
 
 		/* Ok, now to clean this strand */
 
@@ -455,7 +455,7 @@ static int cache_clean(void)
 			break;
 		}
 
-		write_unlock(&current_detail->hash_lock);
+		spin_unlock(&current_detail->hash_lock);
 		d = current_detail;
 		if (!ch)
 			current_index ++;
@@ -510,9 +510,9 @@ void cache_purge(struct cache_detail *detail)
 	struct hlist_node *tmp = NULL;
 	int i = 0;
 
-	write_lock(&detail->hash_lock);
+	spin_lock(&detail->hash_lock);
 	if (!detail->entries) {
-		write_unlock(&detail->hash_lock);
+		spin_unlock(&detail->hash_lock);
 		return;
 	}
 
@@ -524,13 +524,13 @@ void cache_purge(struct cache_detail *detail)
 			detail->entries--;
 
 			set_bit(CACHE_CLEANED, &ch->flags);
-			write_unlock(&detail->hash_lock);
+			spin_unlock(&detail->hash_lock);
 			cache_fresh_unlocked(ch, detail);
 			cache_put(ch, detail);
-			write_lock(&detail->hash_lock);
+			spin_lock(&detail->hash_lock);
 		}
 	}
-	write_unlock(&detail->hash_lock);
+	spin_unlock(&detail->hash_lock);
 }
 EXPORT_SYMBOL_GPL(cache_purge);
 
@@ -1873,13 +1873,13 @@ EXPORT_SYMBOL_GPL(sunrpc_cache_unregister_pipefs);
 
 void sunrpc_cache_unhash(struct cache_detail *cd, struct cache_head *h)
 {
-	write_lock(&cd->hash_lock);
+	spin_lock(&cd->hash_lock);
 	if (!hlist_unhashed(&h->cache_list)){
 		hlist_del_init_rcu(&h->cache_list);
 		cd->entries--;
-		write_unlock(&cd->hash_lock);
+		spin_unlock(&cd->hash_lock);
 		cache_put(h, cd);
 	} else
-		write_unlock(&cd->hash_lock);
+		spin_unlock(&cd->hash_lock);
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_unhash);

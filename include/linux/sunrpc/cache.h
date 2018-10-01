@@ -67,7 +67,7 @@ struct cache_detail {
 	struct module *		owner;
 	int			hash_size;
 	struct hlist_head *	hash_table;
-	rwlock_t		hash_lock;
+	spinlock_t		hash_lock;
 
 	char			*name;
 	void			(*cache_put)(struct kref *);
