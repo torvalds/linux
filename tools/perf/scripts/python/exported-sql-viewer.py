@@ -706,6 +706,20 @@ class WindowMenu():
 	def setActiveSubWindow(self, nr):
 		self.mdi_area.setActiveSubWindow(self.mdi_area.subWindowList()[nr - 1])
 
+# Font resize
+
+def ResizeFont(widget, diff):
+	font = widget.font()
+	sz = font.pointSize()
+	font.setPointSize(sz + diff)
+	widget.setFont(font)
+
+def ShrinkFont(widget):
+	ResizeFont(widget, -1)
+
+def EnlargeFont(widget):
+	ResizeFont(widget, 1)
+
 # Unique name for sub-windows
 
 def NumberedWindowName(name, nr):
@@ -765,6 +779,8 @@ class MainWindow(QMainWindow):
 
 		edit_menu = menu.addMenu("&Edit")
 		edit_menu.addAction(CreateAction("&Find...", "Find items", self.Find, self, QKeySequence.Find))
+		edit_menu.addAction(CreateAction("&Shrink Font", "Make text smaller", self.ShrinkFont, self, [QKeySequence("Ctrl+-")]))
+		edit_menu.addAction(CreateAction("&Enlarge Font", "Make text bigger", self.EnlargeFont, self, [QKeySequence("Ctrl++")]))
 
 		reports_menu = menu.addMenu("&Reports")
 		reports_menu.addAction(CreateAction("Context-Sensitive Call &Graph", "Create a new window containing a context-sensitive call graph", self.NewCallGraph, self))
@@ -778,6 +794,14 @@ class MainWindow(QMainWindow):
 				win.find_bar.Activate()
 			except:
 				pass
+
+	def ShrinkFont(self):
+		win = self.mdi_area.activeSubWindow()
+		ShrinkFont(win.view)
+
+	def EnlargeFont(self):
+		win = self.mdi_area.activeSubWindow()
+		EnlargeFont(win.view)
 
 	def NewCallGraph(self):
 		CallGraphWindow(self.glb, self)
