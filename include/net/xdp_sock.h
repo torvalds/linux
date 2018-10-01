@@ -86,6 +86,7 @@ struct xdp_umem_fq_reuse *xsk_reuseq_prepare(u32 nentries);
 struct xdp_umem_fq_reuse *xsk_reuseq_swap(struct xdp_umem *umem,
 					  struct xdp_umem_fq_reuse *newq);
 void xsk_reuseq_free(struct xdp_umem_fq_reuse *rq);
+struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev, u16 queue_id);
 
 static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
 {
@@ -181,6 +182,12 @@ static inline struct xdp_umem_fq_reuse *xsk_reuseq_swap(
 }
 static inline void xsk_reuseq_free(struct xdp_umem_fq_reuse *rq)
 {
+}
+
+static inline struct xdp_umem *xdp_get_umem_from_qid(struct net_device *dev,
+						     u16 queue_id)
+{
+	return NULL;
 }
 
 static inline char *xdp_umem_get_data(struct xdp_umem *umem, u64 addr)
