@@ -601,8 +601,6 @@ static void vcn_v1_0_clock_gating_dpg_mode(struct amdgpu_device *adev, uint8_t s
 		reg_data = 0 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	reg_data |= 1 << UVD_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
 	reg_data |= 4 << UVD_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
-	WREG32_SOC15_DPG_MODE(UVD, 0, mmUVD_CGC_CTRL, reg_data, 0xFFFFFFFF, sram_sel);
-
 	reg_data &= ~(UVD_CGC_CTRL__UDEC_RE_MODE_MASK |
 		 UVD_CGC_CTRL__UDEC_CM_MODE_MASK |
 		 UVD_CGC_CTRL__UDEC_IT_MODE_MASK |
