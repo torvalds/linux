@@ -7203,9 +7203,6 @@ static void __nft_release_tables(struct net *net)
 
 		list_for_each_entry(chain, &table->chains, list)
 			nf_tables_unregister_hook(net, table, chain);
-		list_for_each_entry(flowtable, &table->flowtables, list)
-			nf_unregister_net_hooks(net, flowtable->ops,
-						flowtable->ops_len);
 		/* No packets are walking on these chains anymore. */
 		ctx.table = table;
 		list_for_each_entry(chain, &table->chains, list) {
