@@ -176,32 +176,6 @@ static u32 hclks[] = {48000000}; /* +/- by chhung */
 static u32 hclks[] = {50000000}; /* +/- by chhung */
 #endif
 
-//============================================
-// the power for msdc host controller: global
-//    always keep the VMC on.
-//============================================
-#define msdc_vcore_on(host) \
-	do {								\
-		(void)hwPowerOn(MT65XX_POWER_LDO_VMC, VOL_3300, "SD");	\
-	} while (0)
-#define msdc_vcore_off(host) \
-	do {								\
-		(void)hwPowerDown(MT65XX_POWER_LDO_VMC, "SD");		\
-	} while (0)
-
-//====================================
-// the vdd output for card: global
-//   always keep the VMCH on.
-//====================================
-#define msdc_vdd_on(host) \
-	do {								\
-		(void)hwPowerOn(MT65XX_POWER_LDO_VMCH, VOL_3300, "SD"); \
-	} while (0)
-#define msdc_vdd_off(host) \
-	do {							\
-		(void)hwPowerDown(MT65XX_POWER_LDO_VMCH, "SD"); \
-	} while (0)
-
 #define sdc_is_busy()          (readl(host->base + SDC_STS) & SDC_STS_SDCBUSY)
 #define sdc_is_cmd_busy()      (readl(host->base + SDC_STS) & SDC_STS_CMDBUSY)
 
@@ -1722,7 +1696,6 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 		 * shouldn't be turned off. Here adds a reference count to keep
 		 * the core power alive.
 		 */
-		//msdc_vcore_on(host); //did in msdc_init_hw()
 
 		if (hw->config_gpio_pin) /* NULL */
 			hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_UP);
@@ -1745,7 +1718,6 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 		/* Here decreases a reference count to core power since card
 		 * detection circuit is shutdown.
 		 */
-		//msdc_vcore_off(host);
 	}
 }
 
