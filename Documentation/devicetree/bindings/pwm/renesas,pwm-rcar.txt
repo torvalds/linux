@@ -12,6 +12,8 @@ Required Properties:
  - "renesas,pwm-r8a7795": for R-Car H3
  - "renesas,pwm-r8a7796": for R-Car M3-W
  - "renesas,pwm-r8a77965": for R-Car M3-N
+ - "renesas,pwm-r8a77970": for R-Car V3M
+ - "renesas,pwm-r8a77980": for R-Car V3H
  - "renesas,pwm-r8a77990": for R-Car E3
  - "renesas,pwm-r8a77995": for R-Car D3
 - reg: base address and length of the registers block for the PWM.
