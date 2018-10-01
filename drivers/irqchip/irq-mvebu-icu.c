@@ -39,7 +39,6 @@
 struct mvebu_icu {
 	struct irq_chip irq_chip;
 	void __iomem *base;
-	struct irq_domain *domain;
 	struct device *dev;
 	atomic_t initialized;
 };
@@ -204,11 +203,39 @@ static const struct irq_domain_ops mvebu_icu_domain_ops = {
 	.free      = mvebu_icu_irq_domain_free,
 };
 
+static int mvebu_icu_subset_probe(struct platform_device *pdev)
+{
+	struct device_node *msi_parent_dn;
+	struct device *dev = &pdev->dev;
+	struct irq_domain *irq_domain;
+	struct mvebu_icu *icu;
+
+	icu = dev_get_drvdata(dev);
+
+	dev->msi_domain = of_msi_get_domain(dev, dev->of_node,
+					    DOMAIN_BUS_PLATFORM_MSI);
+	if (!dev->msi_domain)
+		return -EPROBE_DEFER;
+
+	msi_parent_dn = irq_domain_get_of_node(dev->msi_domain);
+	if (!msi_parent_dn)
+		return -ENODEV;
+
+	irq_domain = platform_msi_create_device_tree_domain(dev, ICU_MAX_IRQS,
+							    mvebu_icu_write_msg,
+							    &mvebu_icu_domain_ops,
+							    icu);
+	if (!irq_domain) {
+		dev_err(dev, "Failed to create ICU MSI domain\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int mvebu_icu_probe(struct platform_device *pdev)
 {
 	struct mvebu_icu *icu;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *gicp_dn;
 	struct resource *res;
 	int i;
 
@@ -241,19 +268,6 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 #endif
 
 	/*
-	 * We're probed after MSI domains have been resolved, so force
-	 * resolution here.
-	 */
-	pdev->dev.msi_domain = of_msi_get_domain(&pdev->dev, node,
-						 DOMAIN_BUS_PLATFORM_MSI);
-	if (!pdev->dev.msi_domain)
-		return -EPROBE_DEFER;
-
-	gicp_dn = irq_domain_get_of_node(pdev->dev.msi_domain);
-	if (!gicp_dn)
-		return -ENODEV;
-
-	/*
 	 * Clean all ICU interrupts with type SPI_NSR, required to
 	 * avoid unpredictable SPI assignments done by firmware.
 	 */
@@ -267,16 +281,9 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 			writel_relaxed(0x0, icu->base + ICU_INT_CFG(i));
 	}
 
-	icu->domain =
-		platform_msi_create_device_domain(&pdev->dev, ICU_MAX_IRQS,
-						  mvebu_icu_write_msg,
-						  &mvebu_icu_domain_ops, icu);
-	if (!icu->domain) {
-		dev_err(&pdev->dev, "Failed to create ICU domain\n");
-		return -ENOMEM;
-	}
+	platform_set_drvdata(pdev, icu);
 
-	return 0;
+	return mvebu_icu_subset_probe(pdev);
 }
 
 static const struct of_device_id mvebu_icu_of_match[] = {
