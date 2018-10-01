@@ -128,8 +128,7 @@ __mt76x2_mac_set_beacon(struct mt76x2_dev *dev, u8 bcn_idx, struct sk_buff *skb)
 	if (skb) {
 		ret = mt76_write_beacon(dev, beacon_addr, skb);
 		if (!ret)
-			dev->beacon_data_mask |= BIT(bcn_idx) &
-						 dev->beacon_mask;
+			dev->beacon_data_mask |= BIT(bcn_idx);
 	} else {
 		dev->beacon_data_mask &= ~BIT(bcn_idx);
 		for (i = 0; i < beacon_len; i += 4)
