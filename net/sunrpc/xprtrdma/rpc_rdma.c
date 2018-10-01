@@ -803,7 +803,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		struct rpcrdma_mr *mr;
 
 		mr = rpcrdma_mr_pop(&req->rl_registered);
-		rpcrdma_mr_defer_recovery(mr);
+		rpcrdma_mr_recycle(mr);
 	}
 
 	/* This implementation supports the following combinations

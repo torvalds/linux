@@ -792,7 +792,7 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.bad_reply_count,
 		   r_xprt->rx_stats.nomsg_call_count);
 	seq_printf(seq, "%lu %lu %lu %lu %lu %lu\n",
-		   r_xprt->rx_stats.mrs_recovered,
+		   r_xprt->rx_stats.mrs_recycled,
 		   r_xprt->rx_stats.mrs_orphaned,
 		   r_xprt->rx_stats.mrs_allocated,
 		   r_xprt->rx_stats.local_inv_needed,

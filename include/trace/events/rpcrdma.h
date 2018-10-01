@@ -655,7 +655,7 @@ DEFINE_MR_EVENT(xprtrdma_localinv);
 DEFINE_MR_EVENT(xprtrdma_dma_map);
 DEFINE_MR_EVENT(xprtrdma_dma_unmap);
 DEFINE_MR_EVENT(xprtrdma_remoteinv);
-DEFINE_MR_EVENT(xprtrdma_recover_mr);
+DEFINE_MR_EVENT(xprtrdma_mr_recycle);
 
 /**
  ** Reply events
