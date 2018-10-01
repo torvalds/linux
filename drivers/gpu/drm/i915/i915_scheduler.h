@@ -24,13 +24,14 @@ enum {
 	I915_PRIORITY_INVALID = INT_MIN
 };
 
-#define I915_USER_PRIORITY_SHIFT 1
+#define I915_USER_PRIORITY_SHIFT 2
 #define I915_USER_PRIORITY(x) ((x) << I915_USER_PRIORITY_SHIFT)
 
 #define I915_PRIORITY_COUNT BIT(I915_USER_PRIORITY_SHIFT)
 #define I915_PRIORITY_MASK (I915_PRIORITY_COUNT - 1)
 
-#define I915_PRIORITY_NEWCLIENT	((u8)BIT(0))
+#define I915_PRIORITY_WAIT	((u8)BIT(0))
+#define I915_PRIORITY_NEWCLIENT	((u8)BIT(1))
 
 struct i915_sched_attr {
 	/**
@@ -98,6 +99,8 @@ void i915_sched_node_fini(struct drm_i915_private *i915,
 
 void i915_schedule(struct i915_request *request,
 		   const struct i915_sched_attr *attr);
+
+void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump);
 
 struct list_head *
 i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio);

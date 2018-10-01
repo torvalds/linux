@@ -239,7 +239,8 @@ sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 	return engine;
 }
 
-void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
+static void __i915_schedule(struct i915_request *rq,
+			    const struct i915_sched_attr *attr)
 {
 	struct list_head *uninitialized_var(pl);
 	struct intel_engine_cs *engine, *last;
@@ -248,6 +249,8 @@ void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 	const int prio = attr->priority;
 	LIST_HEAD(dfs);
 
+	/* Needed in order to use the temporary link inside i915_dependency */
+	lockdep_assert_held(&schedule_lock);
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
 
 	if (i915_request_completed(rq))
@@ -255,9 +258,6 @@ void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 
 	if (prio <= READ_ONCE(rq->sched.attr.priority))
 		return;
-
-	/* Needed in order to use the temporary link inside i915_dependency */
-	spin_lock(&schedule_lock);
 
 	stack.signaler = &rq->sched;
 	list_add(&stack.dfs_link, &dfs);
@@ -312,7 +312,7 @@ void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 		rq->sched.attr = *attr;
 
 		if (stack.dfs_link.next == stack.dfs_link.prev)
-			goto out_unlock;
+			return;
 
 		__list_del_entry(&stack.dfs_link);
 	}
@@ -371,7 +371,29 @@ void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 	}
 
 	spin_unlock_irq(&engine->timeline.lock);
+}
 
-out_unlock:
+void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
+{
+	spin_lock(&schedule_lock);
+	__i915_schedule(rq, attr);
 	spin_unlock(&schedule_lock);
+}
+
+void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
+{
+	struct i915_sched_attr attr;
+
+	GEM_BUG_ON(bump & ~I915_PRIORITY_MASK);
+
+	if (READ_ONCE(rq->sched.attr.priority) == I915_PRIORITY_INVALID)
+		return;
+
+	spin_lock_bh(&schedule_lock);
+
+	attr = rq->sched.attr;
+	attr.priority |= bump;
+	__i915_schedule(rq, &attr);
+
+	spin_unlock_bh(&schedule_lock);
 }

@@ -1237,6 +1237,8 @@ long i915_request_wait(struct i915_request *rq,
 		add_wait_queue(errq, &reset);
 
 	intel_wait_init(&wait);
+	if (flags & I915_WAIT_PRIORITY)
+		i915_schedule_bump_priority(rq, I915_PRIORITY_WAIT);
 
 restart:
 	do {
