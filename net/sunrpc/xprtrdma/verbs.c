@@ -108,6 +108,25 @@ rpcrdma_destroy_wq(void)
 	}
 }
 
+/**
+ * rpcrdma_disconnect_worker - Force a disconnect
+ * @work: endpoint to be disconnected
+ *
+ * Provider callbacks can possibly run in an IRQ context. This function
+ * is invoked in a worker thread to guarantee that disconnect wake-up
+ * calls are always done in process context.
+ */
+static void
+rpcrdma_disconnect_worker(struct work_struct *work)
+{
+	struct rpcrdma_ep *ep = container_of(work, struct rpcrdma_ep,
+					     rep_disconnect_worker.work);
+	struct rpcrdma_xprt *r_xprt =
+		container_of(ep, struct rpcrdma_xprt, rx_ep);
+
+	xprt_force_disconnect(&r_xprt->rx_xprt);
+}
+
 static void
 rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 {
@@ -121,7 +140,7 @@ rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
-		rpcrdma_conn_func(ep);
+		schedule_delayed_work(&ep->rep_disconnect_worker, 0);
 		wake_up_all(&ep->rep_connect_wait);
 	}
 }
@@ -271,13 +290,14 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		++xprt->connect_cookie;
 		ep->rep_connected = 1;
 		rpcrdma_update_connect_private(r_xprt, &event->param.conn);
-		goto connected;
+		wake_up_all(&ep->rep_connect_wait);
+		break;
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		ep->rep_connected = -ENOTCONN;
-		goto connected;
+		goto disconnected;
 	case RDMA_CM_EVENT_UNREACHABLE:
 		ep->rep_connected = -ENETUNREACH;
-		goto connected;
+		goto disconnected;
 	case RDMA_CM_EVENT_REJECTED:
 		dprintk("rpcrdma: connection to %s:%s rejected: %s\n",
 			rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
@@ -285,12 +305,12 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		ep->rep_connected = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
 			ep->rep_connected = -EAGAIN;
-		goto connected;
+		goto disconnected;
 	case RDMA_CM_EVENT_DISCONNECTED:
 		++xprt->connect_cookie;
 		ep->rep_connected = -ECONNABORTED;
-connected:
-		rpcrdma_conn_func(ep);
+disconnected:
+		xprt_force_disconnect(xprt);
 		wake_up_all(&ep->rep_connect_wait);
 		break;
 	default:
@@ -550,7 +570,8 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 				   cdata->max_requests >> 2);
 	ep->rep_send_count = ep->rep_send_batch;
 	init_waitqueue_head(&ep->rep_connect_wait);
-	INIT_DELAYED_WORK(&ep->rep_connect_worker, rpcrdma_connect_worker);
+	INIT_DELAYED_WORK(&ep->rep_disconnect_worker,
+			  rpcrdma_disconnect_worker);
 
 	sendcq = ib_alloc_cq(ia->ri_device, NULL,
 			     ep->rep_attr.cap.max_send_wr + 1,
@@ -623,7 +644,7 @@ out1:
 void
 rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
-	cancel_delayed_work_sync(&ep->rep_connect_worker);
+	cancel_delayed_work_sync(&ep->rep_disconnect_worker);
 
 	if (ia->ri_id && ia->ri_id->qp) {
 		rpcrdma_ep_disconnect(ep, ia);
@@ -736,6 +757,7 @@ rpcrdma_ep_connect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
 	struct rpcrdma_xprt *r_xprt = container_of(ia, struct rpcrdma_xprt,
 						   rx_ia);
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	int rc;
 
 retry:
@@ -762,6 +784,8 @@ retry:
 	}
 
 	ep->rep_connected = 0;
+	xprt_clear_connected(xprt);
+
 	rpcrdma_post_recvs(r_xprt, true);
 
 	rc = rdma_connect(ia->ri_id, &ep->rep_remote_cma);

@@ -225,51 +225,35 @@ xprt_rdma_free_addresses(struct rpc_xprt *xprt)
 		}
 }
 
-void
-rpcrdma_conn_func(struct rpcrdma_ep *ep)
-{
-	schedule_delayed_work(&ep->rep_connect_worker, 0);
-}
-
-void
-rpcrdma_connect_worker(struct work_struct *work)
-{
-	struct rpcrdma_ep *ep =
-		container_of(work, struct rpcrdma_ep, rep_connect_worker.work);
-	struct rpcrdma_xprt *r_xprt =
-		container_of(ep, struct rpcrdma_xprt, rx_ep);
-	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
-
-	spin_lock_bh(&xprt->transport_lock);
-	if (ep->rep_connected > 0) {
-		if (!xprt_test_and_set_connected(xprt)) {
-			xprt->stat.connect_count++;
-			xprt->stat.connect_time += (long)jiffies -
-						   xprt->stat.connect_start;
-			xprt_wake_pending_tasks(xprt, 0);
-		}
-	} else {
-		if (xprt_test_and_clear_connected(xprt))
-			xprt_wake_pending_tasks(xprt, -ENOTCONN);
-	}
-	spin_unlock_bh(&xprt->transport_lock);
-}
-
+/**
+ * xprt_rdma_connect_worker - establish connection in the background
+ * @work: worker thread context
+ *
+ * Requester holds the xprt's send lock to prevent activity on this
+ * transport while a fresh connection is being established. RPC tasks
+ * sleep on the xprt's pending queue waiting for connect to complete.
+ */
 static void
 xprt_rdma_connect_worker(struct work_struct *work)
 {
 	struct rpcrdma_xprt *r_xprt = container_of(work, struct rpcrdma_xprt,
 						   rx_connect_worker.work);
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
-	int rc = 0;
-
-	xprt_clear_connected(xprt);
+	int rc;
 
 	rc = rpcrdma_ep_connect(&r_xprt->rx_ep, &r_xprt->rx_ia);
-	if (rc)
-		xprt_wake_pending_tasks(xprt, rc);
-
 	xprt_clear_connecting(xprt);
+	if (r_xprt->rx_ep.rep_connected > 0) {
+		if (!xprt_test_and_set_connected(xprt)) {
+			xprt->stat.connect_count++;
+			xprt->stat.connect_time += (long)jiffies -
+						   xprt->stat.connect_start;
+			xprt_wake_pending_tasks(xprt, -EAGAIN);
+		}
+	} else {
+		if (xprt_test_and_clear_connected(xprt))
+			xprt_wake_pending_tasks(xprt, rc);
+	}
 }
 
 static void
@@ -301,8 +285,6 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 	trace_xprtrdma_destroy(r_xprt);
 
 	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
-
-	xprt_clear_connected(xprt);
 
 	rpcrdma_ep_destroy(&r_xprt->rx_ep, &r_xprt->rx_ia);
 	rpcrdma_buffer_destroy(&r_xprt->rx_buf);
