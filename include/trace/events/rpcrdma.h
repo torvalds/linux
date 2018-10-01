@@ -306,7 +306,7 @@ DECLARE_EVENT_CLASS(xprtrdma_cb_event,
  ** Connection events
  **/
 
-TRACE_EVENT(xprtrdma_conn_upcall,
+TRACE_EVENT(xprtrdma_cm_event,
 	TP_PROTO(
 		const struct rpcrdma_xprt *r_xprt,
 		struct rdma_cm_event *event

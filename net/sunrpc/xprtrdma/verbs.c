@@ -219,15 +219,25 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 	rpcrdma_set_max_header_sizes(r_xprt);
 }
 
+/**
+ * rpcrdma_cm_event_handler - Handle RDMA CM events
+ * @id: rdma_cm_id on which an event has occurred
+ * @event: details of the event
+ *
+ * Called with @id's mutex held. Returns 1 if caller should
+ * destroy @id, otherwise 0.
+ */
 static int
-rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
+rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
 	struct rpcrdma_xprt *xprt = id->context;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
 	int connstate = 0;
 
-	trace_xprtrdma_conn_upcall(xprt, event);
+	might_sleep();
+
+	trace_xprtrdma_cm_event(xprt, event);
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
@@ -308,7 +318,7 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 	init_completion(&ia->ri_done);
 	init_completion(&ia->ri_remove_done);
 
-	id = rdma_create_id(xprt->rx_xprt.xprt_net, rpcrdma_conn_upcall,
+	id = rdma_create_id(xprt->rx_xprt.xprt_net, rpcrdma_cm_event_handler,
 			    xprt, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(id)) {
 		rc = PTR_ERR(id);
