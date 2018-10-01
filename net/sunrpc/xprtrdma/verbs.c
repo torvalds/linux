@@ -143,8 +143,9 @@ rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 						   rx_ep);
 
 	trace_xprtrdma_qp_event(r_xprt, event);
-	pr_err("rpcrdma: %s on device %s ep %p\n",
-	       ib_event_msg(event->event), event->device->name, context);
+	pr_err("rpcrdma: %s on device %s connected to %s:%s\n",
+	       ib_event_msg(event->event), event->device->name,
+	       rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt));
 
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
