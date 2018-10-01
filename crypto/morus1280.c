@@ -385,14 +385,11 @@ static void crypto_morus1280_final(struct morus1280_state *state,
 				   struct morus1280_block *tag_xor,
 				   u64 assoclen, u64 cryptlen)
 {
-	u64 assocbits = assoclen * 8;
-	u64 cryptbits = cryptlen * 8;
-
 	struct morus1280_block tmp;
 	unsigned int i;
 
-	tmp.words[0] = cpu_to_le64(assocbits);
-	tmp.words[1] = cpu_to_le64(cryptbits);
+	tmp.words[0] = assoclen * 8;
+	tmp.words[1] = cryptlen * 8;
 	tmp.words[2] = 0;
 	tmp.words[3] = 0;
 
