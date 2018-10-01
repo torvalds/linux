@@ -1186,6 +1186,8 @@ void cfg80211_init_wdev(struct cfg80211_registered_device *rdev,
 		wdev->identifier = ++rdev->wdev_id;
 	list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
 	rdev->devlist_generation++;
+
+	nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
 }
 
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
@@ -1213,7 +1215,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * called within code protected by it when interfaces
 		 * are added with nl80211.
 		 */
-		cfg80211_init_wdev(rdev, wdev);
 		/* can only change netns with wiphy */
 		dev->features |= NETIF_F_NETNS_LOCAL;
 
@@ -1242,7 +1243,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 
 		INIT_WORK(&wdev->disconnect_wk, cfg80211_autodisconnect_wk);
 
-		nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
+		cfg80211_init_wdev(rdev, wdev);
 		break;
 	case NETDEV_GOING_DOWN:
 		cfg80211_leave(rdev, wdev);
