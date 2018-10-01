@@ -59,8 +59,7 @@ ath_cmn_max_idx_verify_ht20_fft(u8 *sample_end, int bytes_read)
 
 	sample = sample_end - SPECTRAL_HT20_SAMPLE_LEN + 1;
 
-	max_index = spectral_max_index(mag_info->all_bins,
-				       SPECTRAL_HT20_NUM_BINS);
+	max_index = spectral_max_index_ht20(mag_info->all_bins);
 	max_magnitude = spectral_max_magnitude(mag_info->all_bins);
 
 	max_exp = mag_info->max_exp & 0xf;
@@ -100,12 +99,10 @@ ath_cmn_max_idx_verify_ht20_40_fft(u8 *sample_end, int bytes_read)
 	sample = sample_end - SPECTRAL_HT20_40_SAMPLE_LEN + 1;
 
 	lower_mag = spectral_max_magnitude(mag_info->lower_bins);
-	lower_max_index = spectral_max_index(mag_info->lower_bins,
-					     SPECTRAL_HT20_40_NUM_BINS);
+	lower_max_index = spectral_max_index_ht40(mag_info->lower_bins);
 
 	upper_mag = spectral_max_magnitude(mag_info->upper_bins);
-	upper_max_index = spectral_max_index(mag_info->upper_bins,
-					     SPECTRAL_HT20_40_NUM_BINS);
+	upper_max_index = spectral_max_index_ht40(mag_info->upper_bins);
 
 	max_exp = mag_info->max_exp & 0xf;
 
@@ -116,17 +113,6 @@ ath_cmn_max_idx_verify_ht20_40_fft(u8 *sample_end, int bytes_read)
 	if (bytes_read < SPECTRAL_HT20_40_SAMPLE_LEN &&
 	   ((upper_max_index < 1) || (lower_max_index < 1)))
 		return -1;
-
-	/* Some time hardware messes up the index and adds
-	 * the index of the middle point (dc_pos). Try to fix it.
-	 */
-	if ((upper_max_index - dc_pos > 0) &&
-	   (sample[upper_max_index] == (upper_mag >> max_exp)))
-		upper_max_index -= dc_pos;
-
-	if ((lower_max_index - dc_pos > 0) &&
-	   (sample[lower_max_index - dc_pos] == (lower_mag >> max_exp)))
-		lower_max_index -= dc_pos;
 
 	if ((sample[upper_max_index + dc_pos] != (upper_mag >> max_exp)) ||
 	   (sample[lower_max_index] != (lower_mag >> max_exp)))
@@ -169,8 +155,7 @@ ath_cmn_process_ht20_fft(struct ath_rx_status *rs,
 	magnitude = spectral_max_magnitude(mag_info->all_bins);
 	fft_sample_20.max_magnitude = __cpu_to_be16(magnitude);
 
-	max_index = spectral_max_index(mag_info->all_bins,
-					SPECTRAL_HT20_NUM_BINS);
+	max_index = spectral_max_index_ht20(mag_info->all_bins);
 	fft_sample_20.max_index = max_index;
 
 	bitmap_w = spectral_bitmap_weight(mag_info->all_bins);
@@ -302,12 +287,10 @@ ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
 	upper_mag = spectral_max_magnitude(mag_info->upper_bins);
 	fft_sample_40.upper_max_magnitude = __cpu_to_be16(upper_mag);
 
-	lower_max_index = spectral_max_index(mag_info->lower_bins,
-					SPECTRAL_HT20_40_NUM_BINS);
+	lower_max_index = spectral_max_index_ht40(mag_info->lower_bins);
 	fft_sample_40.lower_max_index = lower_max_index;
 
-	upper_max_index = spectral_max_index(mag_info->upper_bins,
-					SPECTRAL_HT20_40_NUM_BINS);
+	upper_max_index = spectral_max_index_ht40(mag_info->upper_bins);
 	fft_sample_40.upper_max_index = upper_max_index;
 
 	lower_bitmap_w = spectral_bitmap_weight(mag_info->lower_bins);
@@ -330,22 +313,6 @@ ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
 					lower_max_index,
 					upper_mag >> max_exp,
 					upper_max_index);
-
-	/* Some time hardware messes up the index and adds
-	 * the index of the middle point (dc_pos). Try to fix it.
-	 */
-	if ((upper_max_index - dc_pos > 0) &&
-	   (fft_sample_40.data[upper_max_index] == (upper_mag >> max_exp))) {
-		upper_max_index -= dc_pos;
-		fft_sample_40.upper_max_index = upper_max_index;
-	}
-
-	if ((lower_max_index - dc_pos > 0) &&
-	   (fft_sample_40.data[lower_max_index - dc_pos] ==
-	   (lower_mag >> max_exp))) {
-		lower_max_index -= dc_pos;
-		fft_sample_40.lower_max_index = lower_max_index;
-	}
 
 	/* Check if we got the expected magnitude values at
 	 * the expected bins
