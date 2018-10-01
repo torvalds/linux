@@ -1741,6 +1741,7 @@ static void debugfs_add_domain_dir(struct irq_domain *d)
 static void debugfs_remove_domain_dir(struct irq_domain *d)
 {
 	debugfs_remove(d->debugfs_file);
+	d->debugfs_file = NULL;
 }
 
 void __init irq_domain_debugfs_init(struct dentry *root)
