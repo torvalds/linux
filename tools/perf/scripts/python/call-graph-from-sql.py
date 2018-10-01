@@ -284,6 +284,42 @@ class MainWindow(QMainWindow):
 
 		self.setCentralWidget(self.view)
 
+# Database reference
+
+class DBRef():
+
+	def __init__(self, is_sqlite3, dbname):
+		self.is_sqlite3 = is_sqlite3
+		self.dbname = dbname
+
+	def Open(self, connection_name):
+		dbname = self.dbname
+		if self.is_sqlite3:
+			db = QSqlDatabase.addDatabase("QSQLITE", connection_name)
+		else:
+			db = QSqlDatabase.addDatabase("QPSQL", connection_name)
+			opts = dbname.split()
+			for opt in opts:
+				if "=" in opt:
+					opt = opt.split("=")
+					if opt[0] == "hostname":
+						db.setHostName(opt[1])
+					elif opt[0] == "port":
+						db.setPort(int(opt[1]))
+					elif opt[0] == "username":
+						db.setUserName(opt[1])
+					elif opt[0] == "password":
+						db.setPassword(opt[1])
+					elif opt[0] == "dbname":
+						dbname = opt[1]
+				else:
+					dbname = opt
+
+		db.setDatabaseName(dbname)
+		if not db.open():
+			raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
+		return db, dbname
+
 # Main
 
 def Main():
@@ -302,31 +338,8 @@ def Main():
 	except:
 		pass
 
-	if is_sqlite3:
-		db = QSqlDatabase.addDatabase('QSQLITE')
-	else:
-		db = QSqlDatabase.addDatabase('QPSQL')
-		opts = dbname.split()
-		for opt in opts:
-			if '=' in opt:
-				opt = opt.split('=')
-				if opt[0] == 'hostname':
-					db.setHostName(opt[1])
-				elif opt[0] == 'port':
-					db.setPort(int(opt[1]))
-				elif opt[0] == 'username':
-					db.setUserName(opt[1])
-				elif opt[0] == 'password':
-					db.setPassword(opt[1])
-				elif opt[0] == 'dbname':
-					dbname = opt[1]
-			else:
-				dbname = opt
-
-	db.setDatabaseName(dbname)
-	if not db.open():
-		raise Exception("Failed to open database " + dbname + " error: " + db.lastError().text())
-
+	dbref = DBRef(is_sqlite3, dbname)
+	db, dbname = dbref.Open("main")
 	app = QApplication(sys.argv)
 	window = MainWindow(db, dbname)
 	window.show()
