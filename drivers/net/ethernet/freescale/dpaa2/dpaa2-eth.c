@@ -2004,7 +2004,7 @@ static int setup_tx_flow(struct dpaa2_eth_priv *priv,
 }
 
 /* Supported header fields for Rx hash distribution key */
-static const struct dpaa2_eth_hash_fields hash_fields[] = {
+static const struct dpaa2_eth_dist_fields dist_fields[] = {
 	{
 		/* L2 header */
 		.rxnfc_field = RXH_L2DA,
@@ -2110,11 +2110,11 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 
 	memset(&cls_cfg, 0, sizeof(cls_cfg));
 
-	for (i = 0; i < ARRAY_SIZE(hash_fields); i++) {
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++) {
 		struct dpkg_extract *key =
 			&cls_cfg.extracts[cls_cfg.num_extracts];
 
-		if (!(flags & hash_fields[i].rxnfc_field))
+		if (!(flags & dist_fields[i].rxnfc_field))
 			continue;
 
 		if (cls_cfg.num_extracts >= DPKG_MAX_NUM_OF_EXTRACTS) {
@@ -2123,12 +2123,12 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 		}
 
 		key->type = DPKG_EXTRACT_FROM_HDR;
-		key->extract.from_hdr.prot = hash_fields[i].cls_prot;
+		key->extract.from_hdr.prot = dist_fields[i].cls_prot;
 		key->extract.from_hdr.type = DPKG_FULL_FIELD;
-		key->extract.from_hdr.field = hash_fields[i].cls_field;
+		key->extract.from_hdr.field = dist_fields[i].cls_field;
 		cls_cfg.num_extracts++;
 
-		rx_hash_fields |= hash_fields[i].rxnfc_field;
+		rx_hash_fields |= dist_fields[i].rxnfc_field;
 	}
 
 	dma_mem = kzalloc(DPAA2_CLASSIFIER_DMA_SIZE, GFP_KERNEL);

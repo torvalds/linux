@@ -290,7 +290,7 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_ch_stats stats;
 };
 
-struct dpaa2_eth_hash_fields {
+struct dpaa2_eth_dist_fields {
 	u64 rxnfc_field;
 	enum net_prot cls_prot;
 	int cls_field;
