@@ -218,6 +218,10 @@ struct dw_mipi_dsi_rockchip {
 	struct clk *grf_clk;
 	struct clk *phy_cfg_clk;
 
+	/* dual-channel */
+	bool is_slave;
+	struct dw_mipi_dsi_rockchip *slave;
+
 	unsigned int lane_mbps; /* per lane */
 	u16 input_div;
 	u16 feedback_div;
@@ -226,6 +230,7 @@ struct dw_mipi_dsi_rockchip {
 	struct dw_mipi_dsi *dmd;
 	const struct rockchip_dw_dsi_chip_data *cdata;
 	struct dw_mipi_dsi_plat_data pdata;
+	int devcnt;
 };
 
 struct dphy_pll_parameter_map {
@@ -602,6 +607,8 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
+	if (dsi->slave)
+		s->output_flags = ROCKCHIP_OUTPUT_DSI_DUAL;
 
 	return 0;
 }
@@ -617,6 +624,8 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 		return;
 
 	pm_runtime_get_sync(dsi->dev);
+	if (dsi->slave)
+		pm_runtime_get_sync(dsi->slave->dev);
 
 	/*
 	 * For the RK3399, the clk of grf must be enabled before writing grf
@@ -630,6 +639,8 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	dw_mipi_dsi_rockchip_config(dsi, mux);
+	if (dsi->slave)
+		dw_mipi_dsi_rockchip_config(dsi->slave, mux);
 
 	clk_disable_unprepare(dsi->grf_clk);
 }
@@ -638,6 +649,8 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
 
+	if (dsi->slave)
+		pm_runtime_put(dsi->slave->dev);
 	pm_runtime_put(dsi->dev);
 }
 
@@ -673,13 +686,112 @@ static int rockchip_dsi_drm_create_encoder(struct dw_mipi_dsi_rockchip *dsi,
 	return 0;
 }
 
+static struct device
+*dw_mipi_dsi_rockchip_find_second(struct dw_mipi_dsi_rockchip *dsi)
+{
+	const struct of_device_id *match;
+	struct device_node *node = NULL, *local;
+
+	match = of_match_device(dsi->dev->driver->of_match_table, dsi->dev);
+
+	local = of_graph_get_remote_node(dsi->dev->of_node, 1, 0);
+	if (!local)
+		return NULL;
+
+	while ((node = of_find_compatible_node(node, NULL,
+					       match->compatible))) {
+		struct device_node *remote;
+
+		/* found ourself */
+		if (node == dsi->dev->of_node)
+			continue;
+
+		remote = of_graph_get_remote_node(node, 1, 0);
+		if (!remote)
+			continue;
+
+		/* same display device in port1-ep0 for both */
+		if (remote == local) {
+			struct dw_mipi_dsi_rockchip *dsi2;
+			struct platform_device *pdev;
+
+			pdev = of_find_device_by_node(node);
+
+			/*
+			 * we have found the second, so will either return it
+			 * or return with an error. In any case won't need the
+			 * nodes anymore nor continue the loop.
+			 */
+			of_node_put(remote);
+			of_node_put(node);
+			of_node_put(local);
+
+			if (!pdev)
+				return ERR_PTR(-EPROBE_DEFER);
+
+			dsi2 = platform_get_drvdata(pdev);
+			if (!dsi2) {
+				platform_device_put(pdev);
+				return ERR_PTR(-EPROBE_DEFER);
+			}
+
+			return &pdev->dev;
+		}
+
+		of_node_put(remote);
+	}
+
+	of_node_put(local);
+
+	return NULL;
+}
+
 static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 				     struct device *master,
 				     void *data)
 {
 	struct dw_mipi_dsi_rockchip *dsi = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
+	struct device *second;
+	bool master1, master2;
 	int ret;
+
+	second = dw_mipi_dsi_rockchip_find_second(dsi);
+	if (IS_ERR(second))
+		return PTR_ERR(second);
+
+	if (second) {
+		master1 = of_property_read_bool(dsi->dev->of_node,
+						"clock-master");
+		master2 = of_property_read_bool(second->of_node,
+						"clock-master");
+
+		if (master1 && master2) {
+			DRM_DEV_ERROR(dsi->dev, "only one clock-master allowed\n");
+			return -EINVAL;
+		}
+
+		if (!master1 && !master2) {
+			DRM_DEV_ERROR(dsi->dev, "no clock-master defined\n");
+			return -EINVAL;
+		}
+
+		/* we are the slave in dual-DSI */
+		if (!master1) {
+			dsi->is_slave = true;
+			return 0;
+		}
+
+		dsi->slave = dev_get_drvdata(second);
+		if (!dsi->slave) {
+			DRM_DEV_ERROR(dev, "could not get slaves data\n");
+			return -ENODEV;
+		}
+
+		dsi->slave->is_slave = true;
+		dw_mipi_dsi_set_slave(dsi->dmd, dsi->slave->dmd);
+		put_device(second);
+	}
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
 	if (ret) {
@@ -708,6 +820,9 @@ static void dw_mipi_dsi_rockchip_unbind(struct device *dev,
 {
 	struct dw_mipi_dsi_rockchip *dsi = dev_get_drvdata(dev);
 
+	if (dsi->is_slave)
+		return;
+
 	dw_mipi_dsi_unbind(dsi->dmd);
 
 	clk_disable_unprepare(dsi->pllref_clk);
@@ -722,6 +837,7 @@ static int dw_mipi_dsi_rockchip_host_attach(void *priv_data,
 					    struct mipi_dsi_device *device)
 {
 	struct dw_mipi_dsi_rockchip *dsi = priv_data;
+	struct device *second;
 	int ret;
 
 	ret = component_add(dsi->dev, &dw_mipi_dsi_rockchip_ops);
@@ -731,6 +847,19 @@ static int dw_mipi_dsi_rockchip_host_attach(void *priv_data,
 		return ret;
 	}
 
+	second = dw_mipi_dsi_rockchip_find_second(dsi);
+	if (IS_ERR(second))
+		return PTR_ERR(second);
+	if (second) {
+		ret = component_add(second, &dw_mipi_dsi_rockchip_ops);
+		if (ret) {
+			DRM_DEV_ERROR(second,
+				      "Failed to register component: %d\n",
+				      ret);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -738,6 +867,11 @@ static int dw_mipi_dsi_rockchip_host_detach(void *priv_data,
 					    struct mipi_dsi_device *device)
 {
 	struct dw_mipi_dsi_rockchip *dsi = priv_data;
+	struct device *second;
+
+	second = dw_mipi_dsi_rockchip_find_second(dsi);
+	if (second && !IS_ERR(second))
+		component_del(second, &dw_mipi_dsi_rockchip_ops);
 
 	component_del(dsi->dev, &dw_mipi_dsi_rockchip_ops);
 
@@ -845,6 +979,9 @@ err_clkdisable:
 static int dw_mipi_dsi_rockchip_remove(struct platform_device *pdev)
 {
 	struct dw_mipi_dsi_rockchip *dsi = platform_get_drvdata(pdev);
+
+	if (dsi->devcnt == 0)
+		component_del(dsi->dev, &dw_mipi_dsi_rockchip_ops);
 
 	dw_mipi_dsi_remove(dsi->dmd);
 
