@@ -76,7 +76,7 @@ static int hang_init(struct hang *h, struct drm_i915_private *i915)
 	h->seqno = memset(vaddr, 0xff, PAGE_SIZE);
 
 	vaddr = i915_gem_object_pin_map(h->obj,
-					HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC);
+					i915_coherent_map_type(i915));
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto err_unpin_hws;
@@ -234,7 +234,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 			return ERR_CAST(obj);
 
 		vaddr = i915_gem_object_pin_map(obj,
-						HAS_LLC(h->i915) ? I915_MAP_WB : I915_MAP_WC);
+						i915_coherent_map_type(h->i915));
 		if (IS_ERR(vaddr)) {
 			i915_gem_object_put(obj);
 			return ERR_CAST(vaddr);

@@ -49,7 +49,7 @@ static int spinner_init(struct spinner *spin, struct drm_i915_private *i915)
 	}
 	spin->seqno = memset(vaddr, 0xff, PAGE_SIZE);
 
-	mode = HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
+	mode = i915_coherent_map_type(i915);
 	vaddr = i915_gem_object_pin_map(spin->obj, mode);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);

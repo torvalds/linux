@@ -1023,8 +1023,7 @@ i915_emit_bb_start(struct i915_request *rq,
 int intel_ring_pin(struct intel_ring *ring)
 {
 	struct i915_vma *vma = ring->vma;
-	enum i915_map_type map =
-		HAS_LLC(vma->vm->i915) ? I915_MAP_WB : I915_MAP_WC;
+	enum i915_map_type map = i915_coherent_map_type(vma->vm->i915);
 	unsigned int flags;
 	void *addr;
 	int ret;
