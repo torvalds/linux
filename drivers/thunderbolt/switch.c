@@ -1402,6 +1402,14 @@ int tb_switch_add(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
+	if (tb_route(sw)) {
+		dev_info(&sw->dev, "new device found, vendor=%#x device=%#x\n",
+			 sw->vendor, sw->device);
+		if (sw->vendor_name && sw->device_name)
+			dev_info(&sw->dev, "%s %s\n", sw->vendor_name,
+				 sw->device_name);
+	}
+
 	ret = tb_switch_nvm_add(sw);
 	if (ret) {
 		device_del(&sw->dev);
@@ -1453,6 +1461,9 @@ void tb_switch_remove(struct tb_switch *sw)
 		tb_plug_events_active(sw, false);
 
 	tb_switch_nvm_remove(sw);
+
+	if (tb_route(sw))
+		dev_info(&sw->dev, "device disconnected\n");
 	device_unregister(&sw->dev);
 }
 
