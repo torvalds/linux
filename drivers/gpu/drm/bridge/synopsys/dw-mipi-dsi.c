@@ -966,31 +966,22 @@ EXPORT_SYMBOL_GPL(dw_mipi_dsi_remove);
 /*
  * Bind/unbind API, used from platforms based on the component framework.
  */
-struct dw_mipi_dsi *
-dw_mipi_dsi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
-		 const struct dw_mipi_dsi_plat_data *plat_data)
+int dw_mipi_dsi_bind(struct dw_mipi_dsi *dsi, struct drm_encoder *encoder)
 {
-	struct dw_mipi_dsi *dsi;
 	int ret;
-
-	dsi = __dw_mipi_dsi_probe(pdev, plat_data);
-	if (IS_ERR(dsi))
-		return dsi;
 
 	ret = drm_bridge_attach(encoder, &dsi->bridge, NULL);
 	if (ret) {
-		dw_mipi_dsi_remove(dsi);
 		DRM_ERROR("Failed to initialize bridge with drm\n");
-		return ERR_PTR(ret);
+		return ret;
 	}
 
-	return dsi;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_bind);
 
 void dw_mipi_dsi_unbind(struct dw_mipi_dsi *dsi)
 {
-	__dw_mipi_dsi_remove(dsi);
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_unbind);
 
