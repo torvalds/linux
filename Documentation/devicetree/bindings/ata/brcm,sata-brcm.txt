@@ -9,6 +9,7 @@ Required properties:
 			"brcm,bcm7445-ahci"
 			"brcm,bcm-nsp-ahci"
 			"brcm,sata3-ahci"
+			"brcm,bcm63138-ahci"
 - reg                : register mappings for AHCI and SATA_TOP_CTRL
 - reg-names          : "ahci" and "top-ctrl"
 - interrupts         : interrupt mapping for SATA IRQ
