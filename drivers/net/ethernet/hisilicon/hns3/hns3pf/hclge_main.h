@@ -678,6 +678,8 @@ struct hclge_dev {
 	unsigned long vlan_table[VLAN_N_VID][BITS_TO_LONGS(HCLGE_VPORT_NUM)];
 
 	struct hclge_fd_cfg fd_cfg;
+	struct hlist_head fd_rule_list;
+	u16 hclge_fd_rule_num;
 };
 
 /* VPort level vlan tag configuration for TX direction */

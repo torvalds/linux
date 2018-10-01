@@ -795,12 +795,22 @@ static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_rss_tuple)
+	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:
-		return h->ae_algo->ops->set_rss_tuple(h, cmd);
+		if (h->ae_algo->ops->set_rss_tuple)
+			return h->ae_algo->ops->set_rss_tuple(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_SRXCLSRLINS:
+		if (h->ae_algo->ops->add_fd_entry)
+			return h->ae_algo->ops->add_fd_entry(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_SRXCLSRLDEL:
+		if (h->ae_algo->ops->del_fd_entry)
+			return h->ae_algo->ops->del_fd_entry(h, cmd);
+		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -416,6 +416,10 @@ struct hnae3_ae_ops {
 	void (*get_link_mode)(struct hnae3_handle *handle,
 			      unsigned long *supported,
 			      unsigned long *advertising);
+	int (*add_fd_entry)(struct hnae3_handle *handle,
+			    struct ethtool_rxnfc *cmd);
+	int (*del_fd_entry)(struct hnae3_handle *handle,
+			    struct ethtool_rxnfc *cmd);
 };
 
 struct hnae3_dcb_ops {
