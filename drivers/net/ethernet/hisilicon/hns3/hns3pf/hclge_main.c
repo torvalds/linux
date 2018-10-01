@@ -3471,6 +3471,335 @@ static int hclge_init_fd_config(struct hclge_dev *hdev)
 	return hclge_set_fd_key_config(hdev, HCLGE_FD_STAGE_1);
 }
 
+static int hclge_fd_tcam_config(struct hclge_dev *hdev, u8 stage, bool sel_x,
+				int loc, u8 *key, bool is_add)
+{
+	struct hclge_fd_tcam_config_1_cmd *req1;
+	struct hclge_fd_tcam_config_2_cmd *req2;
+	struct hclge_fd_tcam_config_3_cmd *req3;
+	struct hclge_desc desc[3];
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_FD_TCAM_OP, false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_FD_TCAM_OP, false);
+	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_OPC_FD_TCAM_OP, false);
+
+	req1 = (struct hclge_fd_tcam_config_1_cmd *)desc[0].data;
+	req2 = (struct hclge_fd_tcam_config_2_cmd *)desc[1].data;
+	req3 = (struct hclge_fd_tcam_config_3_cmd *)desc[2].data;
+
+	req1->stage = stage;
+	req1->xy_sel = sel_x ? 1 : 0;
+	hnae3_set_bit(req1->port_info, HCLGE_FD_EPORT_SW_EN_B, 0);
+	req1->index = cpu_to_le32(loc);
+	req1->entry_vld = sel_x ? is_add : 0;
+
+	if (key) {
+		memcpy(req1->tcam_data, &key[0], sizeof(req1->tcam_data));
+		memcpy(req2->tcam_data, &key[sizeof(req1->tcam_data)],
+		       sizeof(req2->tcam_data));
+		memcpy(req3->tcam_data, &key[sizeof(req1->tcam_data) +
+		       sizeof(req2->tcam_data)], sizeof(req3->tcam_data));
+	}
+
+	ret = hclge_cmd_send(&hdev->hw, desc, 3);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"config tcam key fail, ret=%d\n",
+			ret);
+
+	return ret;
+}
+
+static int hclge_fd_ad_config(struct hclge_dev *hdev, u8 stage, int loc,
+			      struct hclge_fd_ad_data *action)
+{
+	struct hclge_fd_ad_config_cmd *req;
+	struct hclge_desc desc;
+	u64 ad_data = 0;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_AD_OP, false);
+
+	req = (struct hclge_fd_ad_config_cmd *)desc.data;
+	req->index = cpu_to_le32(loc);
+	req->stage = stage;
+
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_WR_RULE_ID_B,
+		      action->write_rule_id_to_bd);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_RULE_ID_M, HCLGE_FD_AD_RULE_ID_S,
+			action->rule_id);
+	ad_data <<= 32;
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_DROP_B, action->drop_packet);
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_DIRECT_QID_B,
+		      action->forward_to_direct_queue);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_QID_M, HCLGE_FD_AD_QID_S,
+			action->queue_id);
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_USE_COUNTER_B, action->use_counter);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_COUNTER_NUM_M,
+			HCLGE_FD_AD_COUNTER_NUM_S, action->counter_id);
+	hnae3_set_bit(ad_data, HCLGE_FD_AD_NXT_STEP_B, action->use_next_stage);
+	hnae3_set_field(ad_data, HCLGE_FD_AD_NXT_KEY_M, HCLGE_FD_AD_NXT_KEY_S,
+			action->counter_id);
+
+	req->ad_data = cpu_to_le64(ad_data);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "fd ad config fail, ret=%d\n", ret);
+
+	return ret;
+}
+
+static bool hclge_fd_convert_tuple(u32 tuple_bit, u8 *key_x, u8 *key_y,
+				   struct hclge_fd_rule *rule)
+{
+	u16 tmp_x_s, tmp_y_s;
+	u32 tmp_x_l, tmp_y_l;
+	int i;
+
+	if (rule->unused_tuple & tuple_bit)
+		return true;
+
+	switch (tuple_bit) {
+	case 0:
+		return false;
+	case BIT(INNER_DST_MAC):
+		for (i = 0; i < 6; i++) {
+			calc_x(key_x[5 - i], rule->tuples.dst_mac[i],
+			       rule->tuples_mask.dst_mac[i]);
+			calc_y(key_y[5 - i], rule->tuples.dst_mac[i],
+			       rule->tuples_mask.dst_mac[i]);
+		}
+
+		return true;
+	case BIT(INNER_SRC_MAC):
+		for (i = 0; i < 6; i++) {
+			calc_x(key_x[5 - i], rule->tuples.src_mac[i],
+			       rule->tuples.src_mac[i]);
+			calc_y(key_y[5 - i], rule->tuples.src_mac[i],
+			       rule->tuples.src_mac[i]);
+		}
+
+		return true;
+	case BIT(INNER_VLAN_TAG_FST):
+		calc_x(tmp_x_s, rule->tuples.vlan_tag1,
+		       rule->tuples_mask.vlan_tag1);
+		calc_y(tmp_y_s, rule->tuples.vlan_tag1,
+		       rule->tuples_mask.vlan_tag1);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	case BIT(INNER_ETH_TYPE):
+		calc_x(tmp_x_s, rule->tuples.ether_proto,
+		       rule->tuples_mask.ether_proto);
+		calc_y(tmp_y_s, rule->tuples.ether_proto,
+		       rule->tuples_mask.ether_proto);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	case BIT(INNER_IP_TOS):
+		calc_x(*key_x, rule->tuples.ip_tos, rule->tuples_mask.ip_tos);
+		calc_y(*key_y, rule->tuples.ip_tos, rule->tuples_mask.ip_tos);
+
+		return true;
+	case BIT(INNER_IP_PROTO):
+		calc_x(*key_x, rule->tuples.ip_proto,
+		       rule->tuples_mask.ip_proto);
+		calc_y(*key_y, rule->tuples.ip_proto,
+		       rule->tuples_mask.ip_proto);
+
+		return true;
+	case BIT(INNER_SRC_IP):
+		calc_x(tmp_x_l, rule->tuples.src_ip[3],
+		       rule->tuples_mask.src_ip[3]);
+		calc_y(tmp_y_l, rule->tuples.src_ip[3],
+		       rule->tuples_mask.src_ip[3]);
+		*(__le32 *)key_x = cpu_to_le32(tmp_x_l);
+		*(__le32 *)key_y = cpu_to_le32(tmp_y_l);
+
+		return true;
+	case BIT(INNER_DST_IP):
+		calc_x(tmp_x_l, rule->tuples.dst_ip[3],
+		       rule->tuples_mask.dst_ip[3]);
+		calc_y(tmp_y_l, rule->tuples.dst_ip[3],
+		       rule->tuples_mask.dst_ip[3]);
+		*(__le32 *)key_x = cpu_to_le32(tmp_x_l);
+		*(__le32 *)key_y = cpu_to_le32(tmp_y_l);
+
+		return true;
+	case BIT(INNER_SRC_PORT):
+		calc_x(tmp_x_s, rule->tuples.src_port,
+		       rule->tuples_mask.src_port);
+		calc_y(tmp_y_s, rule->tuples.src_port,
+		       rule->tuples_mask.src_port);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	case BIT(INNER_DST_PORT):
+		calc_x(tmp_x_s, rule->tuples.dst_port,
+		       rule->tuples_mask.dst_port);
+		calc_y(tmp_y_s, rule->tuples.dst_port,
+		       rule->tuples_mask.dst_port);
+		*(__le16 *)key_x = cpu_to_le16(tmp_x_s);
+		*(__le16 *)key_y = cpu_to_le16(tmp_y_s);
+
+		return true;
+	default:
+		return false;
+	}
+}
+
+static u32 hclge_get_port_number(enum HLCGE_PORT_TYPE port_type, u8 pf_id,
+				 u8 vf_id, u8 network_port_id)
+{
+	u32 port_number = 0;
+
+	if (port_type == HOST_PORT) {
+		hnae3_set_field(port_number, HCLGE_PF_ID_M, HCLGE_PF_ID_S,
+				pf_id);
+		hnae3_set_field(port_number, HCLGE_VF_ID_M, HCLGE_VF_ID_S,
+				vf_id);
+		hnae3_set_bit(port_number, HCLGE_PORT_TYPE_B, HOST_PORT);
+	} else {
+		hnae3_set_field(port_number, HCLGE_NETWORK_PORT_ID_M,
+				HCLGE_NETWORK_PORT_ID_S, network_port_id);
+		hnae3_set_bit(port_number, HCLGE_PORT_TYPE_B, NETWORK_PORT);
+	}
+
+	return port_number;
+}
+
+static void hclge_fd_convert_meta_data(struct hclge_fd_key_cfg *key_cfg,
+				       __le32 *key_x, __le32 *key_y,
+				       struct hclge_fd_rule *rule)
+{
+	u32 tuple_bit, meta_data = 0, tmp_x, tmp_y, port_number;
+	u8 cur_pos = 0, tuple_size, shift_bits;
+	int i;
+
+	for (i = 0; i < MAX_META_DATA; i++) {
+		tuple_size = meta_data_key_info[i].key_length;
+		tuple_bit = key_cfg->meta_data_active & BIT(i);
+
+		switch (tuple_bit) {
+		case BIT(ROCE_TYPE):
+			hnae3_set_bit(meta_data, cur_pos, NIC_PACKET);
+			cur_pos += tuple_size;
+			break;
+		case BIT(DST_VPORT):
+			port_number = hclge_get_port_number(HOST_PORT, 0,
+							    rule->vf_id, 0);
+			hnae3_set_field(meta_data,
+					GENMASK(cur_pos + tuple_size, cur_pos),
+					cur_pos, port_number);
+			cur_pos += tuple_size;
+			break;
+		default:
+			break;
+		}
+	}
+
+	calc_x(tmp_x, meta_data, 0xFFFFFFFF);
+	calc_y(tmp_y, meta_data, 0xFFFFFFFF);
+	shift_bits = sizeof(meta_data) * 8 - cur_pos;
+
+	*key_x = cpu_to_le32(tmp_x << shift_bits);
+	*key_y = cpu_to_le32(tmp_y << shift_bits);
+}
+
+/* A complete key is combined with meta data key and tuple key.
+ * Meta data key is stored at the MSB region, and tuple key is stored at
+ * the LSB region, unused bits will be filled 0.
+ */
+static int hclge_config_key(struct hclge_dev *hdev, u8 stage,
+			    struct hclge_fd_rule *rule)
+{
+	struct hclge_fd_key_cfg *key_cfg = &hdev->fd_cfg.key_cfg[stage];
+	u8 key_x[MAX_KEY_BYTES], key_y[MAX_KEY_BYTES];
+	u8 *cur_key_x, *cur_key_y;
+	int i, ret, tuple_size;
+	u8 meta_data_region;
+
+	memset(key_x, 0, sizeof(key_x));
+	memset(key_y, 0, sizeof(key_y));
+	cur_key_x = key_x;
+	cur_key_y = key_y;
+
+	for (i = 0 ; i < MAX_TUPLE; i++) {
+		bool tuple_valid;
+		u32 check_tuple;
+
+		tuple_size = tuple_key_info[i].key_length / 8;
+		check_tuple = key_cfg->tuple_active & BIT(i);
+
+		tuple_valid = hclge_fd_convert_tuple(check_tuple, cur_key_x,
+						     cur_key_y, rule);
+		if (tuple_valid) {
+			cur_key_x += tuple_size;
+			cur_key_y += tuple_size;
+		}
+	}
+
+	meta_data_region = hdev->fd_cfg.max_key_length / 8 -
+			MAX_META_DATA_LENGTH / 8;
+
+	hclge_fd_convert_meta_data(key_cfg,
+				   (__le32 *)(key_x + meta_data_region),
+				   (__le32 *)(key_y + meta_data_region),
+				   rule);
+
+	ret = hclge_fd_tcam_config(hdev, stage, false, rule->location, key_y,
+				   true);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"fd key_y config fail, loc=%d, ret=%d\n",
+			rule->queue_id, ret);
+		return ret;
+	}
+
+	ret = hclge_fd_tcam_config(hdev, stage, true, rule->location, key_x,
+				   true);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"fd key_x config fail, loc=%d, ret=%d\n",
+			rule->queue_id, ret);
+	return ret;
+}
+
+static int hclge_config_action(struct hclge_dev *hdev, u8 stage,
+			       struct hclge_fd_rule *rule)
+{
+	struct hclge_fd_ad_data ad_data;
+
+	ad_data.ad_id = rule->location;
+
+	if (rule->action == HCLGE_FD_ACTION_DROP_PACKET) {
+		ad_data.drop_packet = true;
+		ad_data.forward_to_direct_queue = false;
+		ad_data.queue_id = 0;
+	} else {
+		ad_data.drop_packet = false;
+		ad_data.forward_to_direct_queue = true;
+		ad_data.queue_id = rule->queue_id;
+	}
+
+	ad_data.use_counter = false;
+	ad_data.counter_id = 0;
+
+	ad_data.use_next_stage = false;
+	ad_data.next_input_key = 0;
+
+	ad_data.write_rule_id_to_bd = true;
+	ad_data.rule_id = rule->location;
+
+	return hclge_fd_ad_config(hdev, stage, ad_data.ad_id, &ad_data);
+}
+
 static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 {
 	struct hclge_desc desc;

@@ -79,6 +79,19 @@
 #define HCLGE_VF_NUM_PER_CMD           64
 #define HCLGE_VF_NUM_PER_BYTE          8
 
+enum HLCGE_PORT_TYPE {
+	HOST_PORT,
+	NETWORK_PORT
+};
+
+#define HCLGE_PF_ID_S			0
+#define HCLGE_PF_ID_M			GENMASK(2, 0)
+#define HCLGE_VF_ID_S			3
+#define HCLGE_VF_ID_M			GENMASK(10, 3)
+#define HCLGE_PORT_TYPE_B		11
+#define HCLGE_NETWORK_PORT_ID_S		0
+#define HCLGE_NETWORK_PORT_ID_M		GENMASK(3, 0)
+
 /* Reset related Registers */
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_MISC_VECTOR_INT_STS	0x20800
@@ -485,6 +498,11 @@ enum HCLGE_FD_PACKET_TYPE {
 	ROCE_PACKET,
 };
 
+enum HCLGE_FD_ACTION {
+	HCLGE_FD_ACTION_ACCEPT_PACKET,
+	HCLGE_FD_ACTION_DROP_PACKET,
+};
+
 struct hclge_fd_key_cfg {
 	u8 key_sel;
 	u8 inner_sipv6_word_en;
@@ -504,6 +522,70 @@ struct hclge_fd_cfg {
 	u16 cnt_num[2]; /* rule hit counter number */
 	struct hclge_fd_key_cfg key_cfg[2];
 };
+
+struct hclge_fd_rule_tuples {
+	u8 src_mac[6];
+	u8 dst_mac[6];
+	u32 src_ip[4];
+	u32 dst_ip[4];
+	u16 src_port;
+	u16 dst_port;
+	u16 vlan_tag1;
+	u16 ether_proto;
+	u8 ip_tos;
+	u8 ip_proto;
+};
+
+struct hclge_fd_rule {
+	struct hlist_node rule_node;
+	struct hclge_fd_rule_tuples tuples;
+	struct hclge_fd_rule_tuples tuples_mask;
+	u32 unused_tuple;
+	u32 flow_type;
+	u8 action;
+	u16 vf_id;
+	u16 queue_id;
+	u16 location;
+};
+
+struct hclge_fd_ad_data {
+	u16 ad_id;
+	u8 drop_packet;
+	u8 forward_to_direct_queue;
+	u16 queue_id;
+	u8 use_counter;
+	u8 counter_id;
+	u8 use_next_stage;
+	u8 write_rule_id_to_bd;
+	u8 next_input_key;
+	u16 rule_id;
+};
+
+/* For each bit of TCAM entry, it uses a pair of 'x' and
+ * 'y' to indicate which value to match, like below:
+ * ----------------------------------
+ * | bit x | bit y |  search value  |
+ * ----------------------------------
+ * |   0   |   0   |   always hit   |
+ * ----------------------------------
+ * |   1   |   0   |   match '0'    |
+ * ----------------------------------
+ * |   0   |   1   |   match '1'    |
+ * ----------------------------------
+ * |   1   |   1   |   invalid      |
+ * ----------------------------------
+ * Then for input key(k) and mask(v), we can calculate the value by
+ * the formulae:
+ *	x = (~k) & v
+ *	y = (k ^ ~v) & k
+ */
+#define calc_x(x, k, v) ((x) = (~(k) & (v)))
+#define calc_y(y, k, v) \
+	do { \
+		const typeof(k) _k_ = (k); \
+		const typeof(v) _v_ = (v); \
+		(y) = (_k_ ^ ~_v_) & (_k_); \
+	} while (0)
 
 #define HCLGE_VPORT_NUM 256
 struct hclge_dev {
