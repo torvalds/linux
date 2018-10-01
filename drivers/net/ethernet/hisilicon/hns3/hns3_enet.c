@@ -1285,6 +1285,13 @@ static int hns3_nic_set_features(struct net_device *netdev,
 			return ret;
 	}
 
+	if ((changed & NETIF_F_NTUPLE) && h->ae_algo->ops->enable_fd) {
+		if (features & NETIF_F_NTUPLE)
+			h->ae_algo->ops->enable_fd(h, true);
+		else
+			h->ae_algo->ops->enable_fd(h, false);
+	}
+
 	netdev->features = features;
 	return 0;
 }
@@ -1770,8 +1777,14 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC;
 
-	if (pdev->revision != 0x20)
+	if (pdev->revision >= 0x21) {
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+		if (!(h->flags & HNAE3_SUPPORT_VF)) {
+			netdev->hw_features |= NETIF_F_NTUPLE;
+			netdev->features |= NETIF_F_NTUPLE;
+		}
+	}
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,

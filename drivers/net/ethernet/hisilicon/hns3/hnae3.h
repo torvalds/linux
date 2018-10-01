@@ -430,6 +430,7 @@ struct hnae3_ae_ops {
 	int (*get_fd_all_rules)(struct hnae3_handle *handle,
 				struct ethtool_rxnfc *cmd, u32 *rule_locs);
 	int (*restore_fd_rules)(struct hnae3_handle *handle);
+	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 };
 
 struct hnae3_dcb_ops {

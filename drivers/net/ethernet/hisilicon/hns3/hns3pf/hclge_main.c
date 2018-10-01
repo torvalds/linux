@@ -4597,6 +4597,18 @@ static int hclge_get_all_rules(struct hnae3_handle *handle,
 	return 0;
 }
 
+static void hclge_enable_fd(struct hnae3_handle *handle, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	hdev->fd_cfg.fd_en = enable;
+	if (!enable)
+		hclge_del_all_fd_entries(handle, false);
+	else
+		hclge_restore_fd_entries(handle);
+}
+
 static void hclge_cfg_mac_mode(struct hclge_dev *hdev, bool enable)
 {
 	struct hclge_desc desc;
@@ -7337,6 +7349,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fd_rule_info = hclge_get_fd_rule_info,
 	.get_fd_all_rules = hclge_get_all_rules,
 	.restore_fd_rules = hclge_restore_fd_entries,
+	.enable_fd = hclge_enable_fd,
 };
 
 static struct hnae3_ae_algo ae_algo = {
