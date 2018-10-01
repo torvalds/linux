@@ -284,7 +284,9 @@ class MainWindow(QMainWindow):
 
 		self.setCentralWidget(self.view)
 
-if __name__ == '__main__':
+# Main
+
+def Main():
 	if (len(sys.argv) < 2):
 		print >> sys.stderr, "Usage is: call-graph-from-sql.py <database name>"
 		raise Exception("Too few arguments")
@@ -331,3 +333,6 @@ if __name__ == '__main__':
 	err = app.exec_()
 	db.close()
 	sys.exit(err)
+
+if __name__ == "__main__":
+	Main()
