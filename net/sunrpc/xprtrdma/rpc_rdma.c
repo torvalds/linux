@@ -1216,7 +1216,6 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	struct rpc_rqst *rqst = rep->rr_rqst;
-	unsigned long cwnd;
 	int status;
 
 	xprt->reestablish_timeout = 0;
@@ -1239,11 +1238,6 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 
 out:
 	spin_lock(&xprt->recv_lock);
-	cwnd = xprt->cwnd;
-	xprt->cwnd = r_xprt->rx_buf.rb_credits << RPC_CWNDSHIFT;
-	if (xprt->cwnd > cwnd)
-		xprt_release_rqst_cong(rqst->rq_task);
-
 	xprt_complete_rqst(rqst->rq_task, status);
 	xprt_unpin_rqst(rqst);
 	spin_unlock(&xprt->recv_lock);
@@ -1350,14 +1344,18 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	if (!rqst)
 		goto out_norqst;
 	xprt_pin_rqst(rqst);
+	spin_unlock(&xprt->recv_lock);
 
 	if (credits == 0)
 		credits = 1;	/* don't deadlock */
 	else if (credits > buf->rb_max_requests)
 		credits = buf->rb_max_requests;
-	buf->rb_credits = credits;
-
-	spin_unlock(&xprt->recv_lock);
+	if (buf->rb_credits != credits) {
+		spin_lock_bh(&xprt->transport_lock);
+		buf->rb_credits = credits;
+		xprt->cwnd = credits << RPC_CWNDSHIFT;
+		spin_unlock_bh(&xprt->transport_lock);
+	}
 
 	req = rpcr_to_rdmar(rqst);
 	req->rl_reply = rep;
