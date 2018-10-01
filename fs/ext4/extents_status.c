@@ -142,6 +142,7 @@
  */
 
 static struct kmem_cache *ext4_es_cachep;
+static struct kmem_cache *ext4_pending_cachep;
 
 static int __es_insert_extent(struct inode *inode, struct extent_status *newes);
 static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
@@ -1364,4 +1365,190 @@ static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan)
 
 	ei->i_es_tree.cache_es = NULL;
 	return nr_shrunk;
+}
+
+#ifdef ES_DEBUG__
+static void ext4_print_pending_tree(struct inode *inode)
+{
+	struct ext4_pending_tree *tree;
+	struct rb_node *node;
+	struct pending_reservation *pr;
+
+	printk(KERN_DEBUG "pending reservations for inode %lu:", inode->i_ino);
+	tree = &EXT4_I(inode)->i_pending_tree;
+	node = rb_first(&tree->root);
+	while (node) {
+		pr = rb_entry(node, struct pending_reservation, rb_node);
+		printk(KERN_DEBUG " %u", pr->lclu);
+		node = rb_next(node);
+	}
+	printk(KERN_DEBUG "\n");
+}
+#else
+#define ext4_print_pending_tree(inode)
+#endif
+
+int __init ext4_init_pending(void)
+{
+	ext4_pending_cachep = kmem_cache_create("ext4_pending_reservation",
+					   sizeof(struct pending_reservation),
+					   0, (SLAB_RECLAIM_ACCOUNT), NULL);
+	if (ext4_pending_cachep == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+void ext4_exit_pending(void)
+{
+	kmem_cache_destroy(ext4_pending_cachep);
+}
+
+void ext4_init_pending_tree(struct ext4_pending_tree *tree)
+{
+	tree->root = RB_ROOT;
+}
+
+/*
+ * __get_pending - retrieve a pointer to a pending reservation
+ *
+ * @inode - file containing the pending cluster reservation
+ * @lclu - logical cluster of interest
+ *
+ * Returns a pointer to a pending reservation if it's a member of
+ * the set, and NULL if not.  Must be called holding i_es_lock.
+ */
+static struct pending_reservation *__get_pending(struct inode *inode,
+						 ext4_lblk_t lclu)
+{
+	struct ext4_pending_tree *tree;
+	struct rb_node *node;
+	struct pending_reservation *pr = NULL;
+
+	tree = &EXT4_I(inode)->i_pending_tree;
+	node = (&tree->root)->rb_node;
+
+	while (node) {
+		pr = rb_entry(node, struct pending_reservation, rb_node);
+		if (lclu < pr->lclu)
+			node = node->rb_left;
+		else if (lclu > pr->lclu)
+			node = node->rb_right;
+		else if (lclu == pr->lclu)
+			return pr;
+	}
+	return NULL;
+}
+
+/*
+ * __insert_pending - adds a pending cluster reservation to the set of
+ *                    pending reservations
+ *
+ * @inode - file containing the cluster
+ * @lblk - logical block in the cluster to be added
+ *
+ * Returns 0 on successful insertion and -ENOMEM on failure.  If the
+ * pending reservation is already in the set, returns successfully.
+ */
+static int __insert_pending(struct inode *inode, ext4_lblk_t lblk)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct ext4_pending_tree *tree = &EXT4_I(inode)->i_pending_tree;
+	struct rb_node **p = &tree->root.rb_node;
+	struct rb_node *parent = NULL;
+	struct pending_reservation *pr;
+	ext4_lblk_t lclu;
+	int ret = 0;
+
+	lclu = EXT4_B2C(sbi, lblk);
+	/* search to find parent for insertion */
+	while (*p) {
+		parent = *p;
+		pr = rb_entry(parent, struct pending_reservation, rb_node);
+
+		if (lclu < pr->lclu) {
+			p = &(*p)->rb_left;
+		} else if (lclu > pr->lclu) {
+			p = &(*p)->rb_right;
+		} else {
+			/* pending reservation already inserted */
+			goto out;
+		}
+	}
+
+	pr = kmem_cache_alloc(ext4_pending_cachep, GFP_ATOMIC);
+	if (pr == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	pr->lclu = lclu;
+
+	rb_link_node(&pr->rb_node, parent, p);
+	rb_insert_color(&pr->rb_node, &tree->root);
+
+out:
+	return ret;
+}
+
+/*
+ * __remove_pending - removes a pending cluster reservation from the set
+ *                    of pending reservations
+ *
+ * @inode - file containing the cluster
+ * @lblk - logical block in the pending cluster reservation to be removed
+ *
+ * Returns successfully if pending reservation is not a member of the set.
+ */
+static void __remove_pending(struct inode *inode, ext4_lblk_t lblk)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct pending_reservation *pr;
+	struct ext4_pending_tree *tree;
+
+	pr = __get_pending(inode, EXT4_B2C(sbi, lblk));
+	if (pr != NULL) {
+		tree = &EXT4_I(inode)->i_pending_tree;
+		rb_erase(&pr->rb_node, &tree->root);
+		kmem_cache_free(ext4_pending_cachep, pr);
+	}
+}
+
+/*
+ * ext4_remove_pending - removes a pending cluster reservation from the set
+ *                       of pending reservations
+ *
+ * @inode - file containing the cluster
+ * @lblk - logical block in the pending cluster reservation to be removed
+ *
+ * Locking for external use of __remove_pending.
+ */
+void ext4_remove_pending(struct inode *inode, ext4_lblk_t lblk)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+
+	write_lock(&ei->i_es_lock);
+	__remove_pending(inode, lblk);
+	write_unlock(&ei->i_es_lock);
+}
+
+/*
+ * ext4_is_pending - determine whether a cluster has a pending reservation
+ *                   on it
+ *
+ * @inode - file containing the cluster
+ * @lblk - logical block in the cluster
+ *
+ * Returns true if there's a pending reservation for the cluster in the
+ * set of pending reservations, and false if not.
+ */
+bool ext4_is_pending(struct inode *inode, ext4_lblk_t lblk)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	bool ret;
+
+	read_lock(&ei->i_es_lock);
+	ret = (bool)(__get_pending(inode, EXT4_B2C(sbi, lblk)) != NULL);
+	read_unlock(&ei->i_es_lock);
+
+	return ret;
 }

@@ -1030,6 +1030,9 @@ struct ext4_inode_info {
 	ext4_lblk_t i_da_metadata_calc_last_lblock;
 	int i_da_metadata_calc_len;
 
+	/* pending cluster reservations for bigalloc file systems */
+	struct ext4_pending_tree i_pending_tree;
+
 	/* on-disk additional length */
 	__u16 i_extra_isize;
 
