@@ -45,5 +45,6 @@ struct dw_mipi_dsi *dw_mipi_dsi_probe(struct platform_device *pdev,
 void dw_mipi_dsi_remove(struct dw_mipi_dsi *dsi);
 int dw_mipi_dsi_bind(struct dw_mipi_dsi *dsi, struct drm_encoder *encoder);
 void dw_mipi_dsi_unbind(struct dw_mipi_dsi *dsi);
+void dw_mipi_dsi_set_slave(struct dw_mipi_dsi *dsi, struct dw_mipi_dsi *slave);
 
 #endif /* __DW_MIPI_DSI__ */
