@@ -746,30 +746,28 @@ static bool __guc_dequeue(struct intel_engine_cs *engine)
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
+		int i;
 
-		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
+		priolist_for_each_request_consume(rq, rn, p, i) {
 			if (last && rq->hw_context != last->hw_context) {
-				if (port == last_port) {
-					__list_del_many(&p->requests,
-							&rq->sched.link);
+				if (port == last_port)
 					goto done;
-				}
 
 				if (submit)
 					port_assign(port, last);
 				port++;
 			}
 
-			INIT_LIST_HEAD(&rq->sched.link);
+			list_del_init(&rq->sched.link);
 
 			__i915_request_submit(rq);
 			trace_i915_request_in(rq, port_index(port, execlists));
+
 			last = rq;
 			submit = true;
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
-		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
 	}

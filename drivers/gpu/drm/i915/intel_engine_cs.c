@@ -1534,10 +1534,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	count = 0;
 	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
 	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
-		struct i915_priolist *p =
-			rb_entry(rb, typeof(*p), node);
+		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+		int i;
 
-		list_for_each_entry(rq, &p->requests, sched.link) {
+		priolist_for_each_request(rq, p, i) {
 			if (count++ < MAX_REQUESTS_TO_SHOW - 1)
 				print_request(m, rq, "\t\tQ ");
 			else

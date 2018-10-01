@@ -259,14 +259,49 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 	ce->lrc_desc = desc;
 }
 
-static struct i915_priolist *
+static void assert_priolists(struct intel_engine_execlists * const execlists,
+			     long queue_priority)
+{
+	struct rb_node *rb;
+	long last_prio, i;
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return;
+
+	GEM_BUG_ON(rb_first_cached(&execlists->queue) !=
+		   rb_first(&execlists->queue.rb_root));
+
+	last_prio = (queue_priority >> I915_USER_PRIORITY_SHIFT) + 1;
+	for (rb = rb_first_cached(&execlists->queue); rb; rb = rb_next(rb)) {
+		struct i915_priolist *p = to_priolist(rb);
+
+		GEM_BUG_ON(p->priority >= last_prio);
+		last_prio = p->priority;
+
+		GEM_BUG_ON(!p->used);
+		for (i = 0; i < ARRAY_SIZE(p->requests); i++) {
+			if (list_empty(&p->requests[i]))
+				continue;
+
+			GEM_BUG_ON(!(p->used & BIT(i)));
+		}
+	}
+}
+
+static struct list_head *
 lookup_priolist(struct intel_engine_cs *engine, int prio)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_priolist *p;
 	struct rb_node **parent, *rb;
 	bool first = true;
+	int idx, i;
 
+	assert_priolists(execlists, INT_MAX);
+
+	/* buckets sorted from highest [in slot 0] to lowest priority */
+	idx = I915_PRIORITY_COUNT - (prio & I915_PRIORITY_MASK) - 1;
+	prio >>= I915_USER_PRIORITY_SHIFT;
 	if (unlikely(execlists->no_priolist))
 		prio = I915_PRIORITY_NORMAL;
 
@@ -283,7 +318,7 @@ find_priolist:
 			parent = &rb->rb_right;
 			first = false;
 		} else {
-			return p;
+			goto out;
 		}
 	}
 
@@ -309,11 +344,15 @@ find_priolist:
 	}
 
 	p->priority = prio;
-	INIT_LIST_HEAD(&p->requests);
+	for (i = 0; i < ARRAY_SIZE(p->requests); i++)
+		INIT_LIST_HEAD(&p->requests[i]);
 	rb_link_node(&p->node, rb, parent);
 	rb_insert_color_cached(&p->node, &execlists->queue, first);
+	p->used = 0;
 
-	return p;
+out:
+	p->used |= BIT(idx);
+	return &p->requests[idx];
 }
 
 static void unwind_wa_tail(struct i915_request *rq)
@@ -325,7 +364,7 @@ static void unwind_wa_tail(struct i915_request *rq)
 static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq, *rn;
-	struct i915_priolist *uninitialized_var(p);
+	struct list_head *uninitialized_var(pl);
 	int last_prio = I915_PRIORITY_INVALID;
 
 	lockdep_assert_held(&engine->timeline.lock);
@@ -342,12 +381,11 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
 		if (rq_prio(rq) != last_prio) {
 			last_prio = rq_prio(rq);
-			p = lookup_priolist(engine, last_prio);
+			pl = lookup_priolist(engine, last_prio);
 		}
 		GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 
-		GEM_BUG_ON(p->priority != rq_prio(rq));
-		list_add(&rq->sched.link, &p->requests);
+		list_add(&rq->sched.link, pl);
 	}
 }
 
@@ -664,8 +702,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
+		int i;
 
-		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
+		priolist_for_each_request_consume(rq, rn, p, i) {
 			/*
 			 * Can we combine this request with the current port?
 			 * It has to be the same context/ringbuffer and not
@@ -684,11 +723,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 * combine this request with the last, then we
 				 * are done.
 				 */
-				if (port == last_port) {
-					__list_del_many(&p->requests,
-							&rq->sched.link);
+				if (port == last_port)
 					goto done;
-				}
 
 				/*
 				 * If GVT overrides us we only ever submit
@@ -698,11 +734,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 * request) to the second port.
 				 */
 				if (ctx_single_port_submission(last->hw_context) ||
-				    ctx_single_port_submission(rq->hw_context)) {
-					__list_del_many(&p->requests,
-							&rq->sched.link);
+				    ctx_single_port_submission(rq->hw_context))
 					goto done;
-				}
 
 				GEM_BUG_ON(last->hw_context == rq->hw_context);
 
@@ -713,15 +746,16 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				GEM_BUG_ON(port_isset(port));
 			}
 
-			INIT_LIST_HEAD(&rq->sched.link);
+			list_del_init(&rq->sched.link);
+
 			__i915_request_submit(rq);
 			trace_i915_request_in(rq, port_index(port, execlists));
+
 			last = rq;
 			submit = true;
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
-		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
@@ -745,6 +779,7 @@ done:
 	 */
 	execlists->queue_priority =
 		port != execlists->port ? rq_prio(last) : INT_MIN;
+	assert_priolists(execlists, execlists->queue_priority);
 
 	if (submit) {
 		port_assign(port, last);
@@ -856,16 +891,16 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	/* Flush the queued requests to the timeline list (for retiring). */
 	while ((rb = rb_first_cached(&execlists->queue))) {
 		struct i915_priolist *p = to_priolist(rb);
+		int i;
 
-		list_for_each_entry_safe(rq, rn, &p->requests, sched.link) {
-			INIT_LIST_HEAD(&rq->sched.link);
+		priolist_for_each_request_consume(rq, rn, p, i) {
+			list_del_init(&rq->sched.link);
 
 			dma_fence_set_error(&rq->fence, -EIO);
 			__i915_request_submit(rq);
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
-		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
@@ -1071,8 +1106,7 @@ static void queue_request(struct intel_engine_cs *engine,
 			  struct i915_sched_node *node,
 			  int prio)
 {
-	list_add_tail(&node->link,
-		      &lookup_priolist(engine, prio)->requests);
+	list_add_tail(&node->link, lookup_priolist(engine, prio));
 }
 
 static void __update_queue(struct intel_engine_cs *engine, int prio)
@@ -1142,7 +1176,7 @@ sched_lock_engine(struct i915_sched_node *node, struct intel_engine_cs *locked)
 static void execlists_schedule(struct i915_request *request,
 			       const struct i915_sched_attr *attr)
 {
-	struct i915_priolist *uninitialized_var(pl);
+	struct list_head *uninitialized_var(pl);
 	struct intel_engine_cs *engine, *last;
 	struct i915_dependency *dep, *p;
 	struct i915_dependency stack;
@@ -1241,8 +1275,7 @@ static void execlists_schedule(struct i915_request *request,
 				pl = lookup_priolist(engine, prio);
 				last = engine;
 			}
-			GEM_BUG_ON(pl->priority != prio);
-			list_move_tail(&node->link, &pl->requests);
+			list_move_tail(&node->link, pl);
 		} else {
 			/*
 			 * If the request is not in the priolist queue because
