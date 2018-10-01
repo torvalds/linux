@@ -983,6 +983,14 @@ int rtas_ibm_suspend_me(u64 handle)
 
 	cpu_hotplug_disable();
 
+	/* Check if we raced with a CPU-Offline Operation */
+	if (unlikely(!cpumask_equal(cpu_present_mask, cpu_online_mask))) {
+		pr_err("%s: Raced against a concurrent CPU-Offline\n",
+		       __func__);
+		atomic_set(&data.error, -EBUSY);
+		goto out_hotplug_enable;
+	}
+
 	/* Call function on all CPUs.  One of us will make the
 	 * rtas call
 	 */
@@ -994,6 +1002,7 @@ int rtas_ibm_suspend_me(u64 handle)
 	if (atomic_read(&data.error) != 0)
 		printk(KERN_ERR "Error doing global join\n");
 
+out_hotplug_enable:
 	cpu_hotplug_enable();
 
 	/* Take down CPUs not online prior to suspend */
