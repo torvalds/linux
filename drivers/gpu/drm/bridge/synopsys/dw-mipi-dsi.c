@@ -941,6 +941,8 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 
 static void __dw_mipi_dsi_remove(struct dw_mipi_dsi *dsi)
 {
+	mipi_dsi_host_unregister(&dsi->dsi_host);
+
 	pm_runtime_disable(dsi->dev);
 }
 
@@ -957,8 +959,6 @@ EXPORT_SYMBOL_GPL(dw_mipi_dsi_probe);
 
 void dw_mipi_dsi_remove(struct dw_mipi_dsi *dsi)
 {
-	mipi_dsi_host_unregister(&dsi->dsi_host);
-
 	__dw_mipi_dsi_remove(dsi);
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_remove);
