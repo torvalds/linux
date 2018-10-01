@@ -71,6 +71,7 @@
 #include "iwl-io.h"
 #include "file.h"
 #include "error-dump.h"
+#include "api/commands.h"
 
 /**
  * struct iwl_fw_dump_desc - describes the dump
@@ -81,6 +82,16 @@ struct iwl_fw_dump_desc {
 	size_t len;
 	/* must be last */
 	struct iwl_fw_error_dump_trigger_desc trig_desc;
+};
+
+/**
+ * struct iwl_fw_dbg_params - register values to restore
+ * @in_sample: DBGC_IN_SAMPLE value
+ * @out_ctrl: DBGC_OUT_CTRL value
+ */
+struct iwl_fw_dbg_params {
+	u32 in_sample;
+	u32 out_ctrl;
 };
 
 extern const struct iwl_fw_dump_desc iwl_dump_desc_assert;
@@ -196,15 +207,78 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-static inline void iwl_fw_dbg_stop_recording(struct iwl_trans *trans)
+static int iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
+{
+	struct iwl_continuous_record_cmd cont_rec = {};
+	struct iwl_host_cmd hcmd = {
+		.id = LDBG_CONFIG_CMD,
+		.flags = CMD_ASYNC,
+		.data[0] = &cont_rec,
+		.len[0] = sizeof(cont_rec),
+	};
+
+	cont_rec.record_mode.enable_recording = start ?
+		cpu_to_le16(START_DEBUG_RECORDING) :
+		cpu_to_le16(STOP_DEBUG_RECORDING);
+
+	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
+}
+
+static inline void
+_iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
+			   struct iwl_fw_dbg_params *params)
 {
 	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
-	} else {
-		iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
-		udelay(100);
-		iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+		return;
 	}
+
+	if (params) {
+		params->in_sample = iwl_read_prph(trans, DBGC_IN_SAMPLE);
+		params->out_ctrl = iwl_read_prph(trans, DBGC_OUT_CTRL);
+	}
+
+	iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
+	udelay(100);
+	iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+}
+
+static inline void
+iwl_fw_dbg_stop_recording(struct iwl_fw_runtime *fwrt,
+			  struct iwl_fw_dbg_params *params)
+{
+	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
+		_iwl_fw_dbg_stop_recording(fwrt->trans, params);
+	else
+		iwl_fw_dbg_start_stop_hcmd(fwrt, false);
+}
+
+static inline void
+_iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
+			      struct iwl_fw_dbg_params *params)
+{
+	if (WARN_ON(!params))
+		return;
+
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x100);
+		iwl_clear_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+		iwl_set_bits_prph(trans, MON_BUFF_SAMPLE_CTL, 0x1);
+	} else {
+		iwl_write_prph(trans, DBGC_IN_SAMPLE, params->in_sample);
+		udelay(100);
+		iwl_write_prph(trans, DBGC_OUT_CTRL, params->out_ctrl);
+	}
+}
+
+static inline void
+iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
+			     struct iwl_fw_dbg_params *params)
+{
+	if (fwrt->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560)
+		_iwl_fw_dbg_restart_recording(fwrt->trans, params);
+	else
+		iwl_fw_dbg_start_stop_hcmd(fwrt, true);
 }
 
 static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)

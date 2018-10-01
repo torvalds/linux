@@ -601,23 +601,21 @@ struct iwl_rx_mpdu_desc {
 	 */
 	u8 mac_phy_idx;
 	/* DW4 - carries csum data only when rpa_en == 1 */
-	struct {
+	/**
+	 * @raw_csum: raw checksum (alledgedly unreliable)
+	 */
+	__le16 raw_csum;
+
+	union {
 		/**
-		 * @raw_csum: raw checksum (alledgedly unreliable)
+		 * @l3l4_flags: &enum iwl_rx_l3l4_flags
 		 */
-		__le16 raw_csum;
+		__le16 l3l4_flags;
 
-		union {
-			/**
-			 * @l3l4_flags: &enum iwl_rx_l3l4_flags
-			 */
-			__le16 l3l4_flags;
-
-			/**
-			 * @sigb_common2: for HE sniffer, HE-SIG-B common part 2
-			 */
-			__le16 sigb_common2;
-		};
+		/**
+		 * @sigb_common2: for HE sniffer, HE-SIG-B common part 2
+		 */
+		__le16 sigb_common2;
 	};
 	/* DW5 */
 	/**

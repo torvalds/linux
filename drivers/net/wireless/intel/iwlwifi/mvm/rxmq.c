@@ -283,6 +283,10 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 		    !(status & IWL_RX_MPDU_RES_STATUS_TTAK_OK))
 			return 0;
 
+		if (mvm->trans->cfg->gen2 &&
+		    !(status & RX_MPDU_RES_STATUS_MIC_OK))
+			stats->flag |= RX_FLAG_MMIC_ERROR;
+
 		*crypt_len = IEEE80211_TKIP_IV_LEN;
 		/* fall through if TTAK OK */
 	case IWL_RX_MPDU_STATUS_SEC_WEP:
@@ -294,8 +298,11 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 				IWL_RX_MPDU_STATUS_SEC_WEP)
 			*crypt_len = IEEE80211_WEP_IV_LEN;
 
-		if (pkt_flags & FH_RSCSR_RADA_EN)
+		if (pkt_flags & FH_RSCSR_RADA_EN) {
 			stats->flag |= RX_FLAG_ICV_STRIPPED;
+			if (mvm->trans->cfg->gen2)
+				stats->flag |= RX_FLAG_MMIC_STRIPPED;
+		}
 
 		return 0;
 	case IWL_RX_MPDU_STATUS_SEC_EXT_ENC:
@@ -1102,7 +1109,8 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 			le16_encode_bits(offs,
 					 IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET);
 		he->data2 |=
-			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_KNOWN);
+			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_KNOWN |
+				    IEEE80211_RADIOTAP_HE_DATA2_RU_OFFSET_KNOWN);
 		if (he_phy_data & IWL_RX_HE_PHY_RU_ALLOC_SEC80)
 			he->data2 |=
 				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_SEC);
@@ -1150,7 +1158,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	he->data1 |= cpu_to_le16(he_type >> RATE_MCS_HE_TYPE_POS);
 
-	if (rate_n_flags & RATE_MCS_BF_POS)
+	if (rate_n_flags & RATE_MCS_BF_MSK)
 		he->data5 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA5_TXBF);
 
 	switch ((rate_n_flags & RATE_MCS_HE_GI_LTF_MSK) >>

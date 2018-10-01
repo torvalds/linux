@@ -554,8 +554,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->max_remain_on_channel_duration = 10000;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
-	/* we can compensate an offset of up to 3 channels = 15 MHz */
-	hw->wiphy->max_adj_channel_rssi_comp = 3 * 5;
 
 	/* Extract MAC address */
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
@@ -2476,6 +2474,9 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
+	kfree(mvmvif->ap_wep_key);
+	mvmvif->ap_wep_key = NULL;
+
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -2968,7 +2969,13 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     true);
 
-		ret = 0;
+		/* if wep is used, need to set the key for the station now */
+		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key)
+			ret = iwl_mvm_set_sta_key(mvm, vif, sta,
+						  mvmvif->ap_wep_key,
+						  STA_KEY_IDX_INVALID);
+		else
+			ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		/* disable beacon filtering */
@@ -3151,8 +3158,15 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		if (!mvm->trans->cfg->gen2) {
+			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		} else if (vif->type == NL80211_IFTYPE_STATION) {
+			key->flags |= IEEE80211_KEY_FLAG_PUT_MIC_SPACE;
+		} else {
+			IWL_DEBUG_MAC80211(mvm, "Use SW encryption for TKIP\n");
+			return -EOPNOTSUPP;
+		}
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_GCMP:
@@ -3167,13 +3181,17 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		/* For non-client mode, only use WEP keys for TX as we probably
-		 * don't have a station yet anyway and would then have to keep
-		 * track of the keys, linking them to each of the clients/peers
-		 * as they appear. For now, don't do that, for performance WEP
-		 * offload doesn't really matter much, but we need it for some
-		 * other offload features in client mode.
-		 */
+		if (vif->type == NL80211_IFTYPE_AP) {
+			struct iwl_mvm_vif *mvmvif =
+				iwl_mvm_vif_from_mac80211(vif);
+
+			mvmvif->ap_wep_key = kmemdup(key,
+						     sizeof(*key) + key->keylen,
+						     GFP_KERNEL);
+			if (!mvmvif->ap_wep_key)
+				return -ENOMEM;
+		}
+
 		if (vif->type != NL80211_IFTYPE_STATION)
 			return 0;
 		break;

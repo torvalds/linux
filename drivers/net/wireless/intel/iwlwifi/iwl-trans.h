@@ -679,6 +679,19 @@ enum iwl_plat_pm_mode {
  * enter/exit (in msecs).
  */
 #define IWL_TRANS_IDLE_TIMEOUT 2000
+#define IWL_MAX_DEBUG_ALLOCATIONS	1
+
+/**
+ * struct iwl_dram_data
+ * @physical: page phy pointer
+ * @block: pointer to the allocated block/page
+ * @size: size of the block/page
+ */
+struct iwl_dram_data {
+	dma_addr_t physical;
+	void *block;
+	int size;
+};
 
 /**
  * struct iwl_trans - transport common data
@@ -713,6 +726,8 @@ enum iwl_plat_pm_mode {
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
  * @dbg_trigger_tlv: array of pointers to triggers TLVs for debug
  * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
+ * @num_blocks: number of blocks in fw_mon
+ * @fw_mon: address of the buffers for firmware monitor
  * @system_pm_mode: the system-wide power management mode in use.
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
@@ -764,6 +779,8 @@ struct iwl_trans {
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
 	u32 dbg_dump_mask;
 	u8 dbg_dest_reg_num;
+	int num_blocks;
+	struct iwl_dram_data fw_mon[IWL_MAX_DEBUG_ALLOCATIONS];
 
 	enum iwl_plat_pm_mode system_pm_mode;
 	enum iwl_plat_pm_mode runtime_pm_mode;

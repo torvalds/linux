@@ -691,6 +691,15 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 	return bt_activity >= BT_LOW_TRAFFIC;
 }
 
+u8 iwl_mvm_bt_coex_get_single_ant_msk(struct iwl_mvm *mvm, u8 enabled_ants)
+{
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2) &&
+	    (mvm->cfg->non_shared_ant & enabled_ants))
+		return mvm->cfg->non_shared_ant;
+
+	return first_antenna(enabled_ants);
+}
+
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac)
 {
