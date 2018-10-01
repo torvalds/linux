@@ -87,8 +87,7 @@ struct netfront_cb {
 /* IRQ name is queue name with "-tx" or "-rx" appended */
 #define IRQ_NAME_SIZE (QUEUE_NAME_SIZE + 3)
 
-static DECLARE_WAIT_QUEUE_HEAD(module_load_q);
-static DECLARE_WAIT_QUEUE_HEAD(module_unload_q);
+static DECLARE_WAIT_QUEUE_HEAD(module_wq);
 
 struct netfront_stats {
 	u64			packets;
@@ -1331,11 +1330,11 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	netif_carrier_off(netdev);
 
 	xenbus_switch_state(dev, XenbusStateInitialising);
-	wait_event(module_load_q,
-			   xenbus_read_driver_state(dev->otherend) !=
-			   XenbusStateClosed &&
-			   xenbus_read_driver_state(dev->otherend) !=
-			   XenbusStateUnknown);
+	wait_event(module_wq,
+		   xenbus_read_driver_state(dev->otherend) !=
+		   XenbusStateClosed &&
+		   xenbus_read_driver_state(dev->otherend) !=
+		   XenbusStateUnknown);
 	return netdev;
 
  exit:
@@ -1603,6 +1602,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 {
 	unsigned short i;
 	int err = 0;
+	char *devid;
 
 	spin_lock_init(&queue->tx_lock);
 	spin_lock_init(&queue->rx_lock);
@@ -1610,8 +1610,9 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	setup_timer(&queue->rx_refill_timer, rx_refill_timeout,
 		    (unsigned long)queue);
 
-	snprintf(queue->name, sizeof(queue->name), "%s-q%u",
-		 queue->info->netdev->name, queue->id);
+	devid = strrchr(queue->info->xbdev->nodename, '/') + 1;
+	snprintf(queue->name, sizeof(queue->name), "vif%s-q%u",
+		 devid, queue->id);
 
 	/* Initialise tx_skbs as a free chain containing every entry. */
 	queue->tx_skb_freelist = 0;
@@ -2007,15 +2008,14 @@ static void netback_changed(struct xenbus_device *dev,
 
 	dev_dbg(&dev->dev, "%s\n", xenbus_strstate(backend_state));
 
+	wake_up_all(&module_wq);
+
 	switch (backend_state) {
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
-		break;
-
 	case XenbusStateUnknown:
-		wake_up_all(&module_unload_q);
 		break;
 
 	case XenbusStateInitWait:
@@ -2031,12 +2031,10 @@ static void netback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateClosed:
-		wake_up_all(&module_unload_q);
 		if (dev->state == XenbusStateClosed)
 			break;
 		/* Missed the backend's CLOSING state -- fallthrough */
 	case XenbusStateClosing:
-		wake_up_all(&module_unload_q);
 		xenbus_frontend_closed(dev);
 		break;
 	}
@@ -2144,14 +2142,14 @@ static int xennet_remove(struct xenbus_device *dev)
 
 	if (xenbus_read_driver_state(dev->otherend) != XenbusStateClosed) {
 		xenbus_switch_state(dev, XenbusStateClosing);
-		wait_event(module_unload_q,
+		wait_event(module_wq,
 			   xenbus_read_driver_state(dev->otherend) ==
 			   XenbusStateClosing ||
 			   xenbus_read_driver_state(dev->otherend) ==
 			   XenbusStateUnknown);
 
 		xenbus_switch_state(dev, XenbusStateClosed);
-		wait_event(module_unload_q,
+		wait_event(module_wq,
 			   xenbus_read_driver_state(dev->otherend) ==
 			   XenbusStateClosed ||
 			   xenbus_read_driver_state(dev->otherend) ==

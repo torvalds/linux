@@ -112,6 +112,11 @@
 #define CRYPTO_ALG_OPTIONAL_KEY		0x00004000
 
 /*
+ * Don't trigger module loading
+ */
+#define CRYPTO_NOLOAD			0x00008000
+
+/*
  * Transform masks and values (for crt_flags).
  */
 #define CRYPTO_TFM_NEED_KEY		0x00000001

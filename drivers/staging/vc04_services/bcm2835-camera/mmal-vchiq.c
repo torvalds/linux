@@ -834,6 +834,7 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 {
 	struct mmal_msg_context *msg_context;
 	int ret;
+	unsigned long timeout;
 
 	/* payload size must not cause message to exceed max size */
 	if (payload_len >
@@ -872,11 +873,11 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 		return ret;
 	}
 
-	ret = wait_for_completion_timeout(&msg_context->u.sync.cmplt, 3 * HZ);
-	if (ret <= 0) {
-		pr_err("error %d waiting for sync completion\n", ret);
-		if (ret == 0)
-			ret = -ETIME;
+	timeout = wait_for_completion_timeout(&msg_context->u.sync.cmplt,
+					      3 * HZ);
+	if (timeout == 0) {
+		pr_err("timed out waiting for sync completion\n");
+		ret = -ETIME;
 		/* todo: what happens if the message arrives after aborting */
 		release_msg_context(msg_context);
 		return ret;

@@ -225,9 +225,14 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 		goto err1;
 	}
 
+	if (unlikely(qpn == 0)) {
+		pr_warn_once("QP 0 not supported");
+		goto err1;
+	}
+
 	if (qpn != IB_MULTICAST_QPN) {
-		index = (qpn == 0) ? port->qp_smi_index :
-			((qpn == 1) ? port->qp_gsi_index : qpn);
+		index = (qpn == 1) ? port->qp_gsi_index : qpn;
+
 		qp = rxe_pool_get_index(&rxe->qp_pool, index);
 		if (unlikely(!qp)) {
 			pr_warn_ratelimited("no qp matches qpn 0x%x\n", qpn);

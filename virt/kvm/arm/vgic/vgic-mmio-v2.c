@@ -348,6 +348,9 @@ static void vgic_mmio_write_apr(struct kvm_vcpu *vcpu,
 
 		if (n > vgic_v3_max_apr_idx(vcpu))
 			return;
+
+		n = array_index_nospec(n, 4);
+
 		/* GICv3 only uses ICH_AP1Rn for memory mapped (GICv2) guests */
 		vgicv3->vgic_ap1r[n] = val;
 	}

@@ -162,7 +162,7 @@ static __init p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
 
 	if (pgd_none(*pgd)) {
 		unsigned long new_p4d_page = __get_free_page(gfp);
-		if (!new_p4d_page)
+		if (WARN_ON_ONCE(!new_p4d_page))
 			return NULL;
 
 		set_pgd(pgd, __pgd(_KERNPG_TABLE | __pa(new_p4d_page)));
@@ -181,13 +181,17 @@ static __init p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
 static __init pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 {
 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
-	p4d_t *p4d = pti_user_pagetable_walk_p4d(address);
+	p4d_t *p4d;
 	pud_t *pud;
+
+	p4d = pti_user_pagetable_walk_p4d(address);
+	if (!p4d)
+		return NULL;
 
 	BUILD_BUG_ON(p4d_large(*p4d) != 0);
 	if (p4d_none(*p4d)) {
 		unsigned long new_pud_page = __get_free_page(gfp);
-		if (!new_pud_page)
+		if (WARN_ON_ONCE(!new_pud_page))
 			return NULL;
 
 		set_p4d(p4d, __p4d(_KERNPG_TABLE | __pa(new_pud_page)));
@@ -201,7 +205,7 @@ static __init pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 	}
 	if (pud_none(*pud)) {
 		unsigned long new_pmd_page = __get_free_page(gfp);
-		if (!new_pmd_page)
+		if (WARN_ON_ONCE(!new_pmd_page))
 			return NULL;
 
 		set_pud(pud, __pud(_KERNPG_TABLE | __pa(new_pmd_page)));
@@ -223,8 +227,12 @@ static __init pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 static __init pte_t *pti_user_pagetable_walk_pte(unsigned long address)
 {
 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
-	pmd_t *pmd = pti_user_pagetable_walk_pmd(address);
+	pmd_t *pmd;
 	pte_t *pte;
+
+	pmd = pti_user_pagetable_walk_pmd(address);
+	if (!pmd)
+		return NULL;
 
 	/* We can't do anything sensible if we hit a large mapping. */
 	if (pmd_large(*pmd)) {
@@ -283,6 +291,10 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
 		p4d_t *p4d;
 		pud_t *pud;
 
+		/* Overflow check */
+		if (addr < start)
+			break;
+
 		pgd = pgd_offset_k(addr);
 		if (WARN_ON(pgd_none(*pgd)))
 			return;
@@ -319,6 +331,9 @@ static void __init pti_clone_p4d(unsigned long addr)
 	pgd_t *kernel_pgd;
 
 	user_p4d = pti_user_pagetable_walk_p4d(addr);
+	if (!user_p4d)
+		return;
+
 	kernel_pgd = pgd_offset_k(addr);
 	kernel_p4d = p4d_offset(kernel_pgd, addr);
 	*user_p4d = *kernel_p4d;

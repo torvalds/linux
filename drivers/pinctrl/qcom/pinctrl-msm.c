@@ -238,22 +238,30 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	/* Convert register value to pinconf value */
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		arg = arg == MSM_NO_PULL;
+		if (arg != MSM_NO_PULL)
+			return -EINVAL;
+		arg = 1;
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		arg = arg == MSM_PULL_DOWN;
+		if (arg != MSM_PULL_DOWN)
+			return -EINVAL;
+		arg = 1;
 		break;
 	case PIN_CONFIG_BIAS_BUS_HOLD:
 		if (pctrl->soc->pull_no_keeper)
 			return -ENOTSUPP;
 
-		arg = arg == MSM_KEEPER;
+		if (arg != MSM_KEEPER)
+			return -EINVAL;
+		arg = 1;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		if (pctrl->soc->pull_no_keeper)
 			arg = arg == MSM_PULL_UP_NO_KEEPER;
 		else
 			arg = arg == MSM_PULL_UP;
+		if (!arg)
+			return -EINVAL;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		arg = msm_regval_to_drive(arg);

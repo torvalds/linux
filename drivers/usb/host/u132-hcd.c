@@ -2559,7 +2559,7 @@ static int u132_get_frame(struct usb_hcd *hcd)
 	} else {
 		int frame = 0;
 		dev_err(&u132->platform_dev->dev, "TODO: u132_get_frame\n");
-		msleep(100);
+		mdelay(100);
 		return frame;
 	}
 }

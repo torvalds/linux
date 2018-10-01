@@ -1087,7 +1087,7 @@ static bool nfp_net_xdp_complete(struct nfp_net_tx_ring *tx_ring)
  * @dp:		NFP Net data path struct
  * @tx_ring:	TX ring structure
  *
- * Assumes that the device is stopped
+ * Assumes that the device is stopped, must be idempotent.
  */
 static void
 nfp_net_tx_ring_reset(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
@@ -1289,12 +1289,17 @@ static void nfp_net_rx_give_one(const struct nfp_net_dp *dp,
  * nfp_net_rx_ring_reset() - Reflect in SW state of freelist after disable
  * @rx_ring:	RX ring structure
  *
- * Warning: Do *not* call if ring buffers were never put on the FW freelist
- *	    (i.e. device was not enabled)!
+ * Assumes that the device is stopped, must be idempotent.
  */
 static void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring)
 {
 	unsigned int wr_idx, last_idx;
+
+	/* wr_p == rd_p means ring was never fed FL bufs.  RX rings are always
+	 * kept at cnt - 1 FL bufs.
+	 */
+	if (rx_ring->wr_p == 0 && rx_ring->rd_p == 0)
+		return;
 
 	/* Move the empty entry to the end of the list */
 	wr_idx = D_IDX(rx_ring, rx_ring->wr_p);
@@ -2505,6 +2510,8 @@ static void nfp_net_vec_clear_ring_data(struct nfp_net *nn, unsigned int idx)
 /**
  * nfp_net_clear_config_and_disable() - Clear control BAR and disable NFP
  * @nn:      NFP Net device to reconfigure
+ *
+ * Warning: must be fully idempotent.
  */
 static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 {

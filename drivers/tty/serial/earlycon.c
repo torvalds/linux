@@ -254,7 +254,6 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 		return -ENXIO;
 	}
 	port->mapbase = addr;
-	port->uartclk = BASE_BAUD * 16;
 
 	val = of_get_flat_dt_prop(node, "reg-offset", NULL);
 	if (val)
@@ -288,6 +287,10 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	val = of_get_flat_dt_prop(node, "current-speed", NULL);
 	if (val)
 		early_console_dev.baud = be32_to_cpu(*val);
+
+	val = of_get_flat_dt_prop(node, "clock-frequency", NULL);
+	if (val)
+		port->uartclk = be32_to_cpu(*val);
 
 	if (options) {
 		early_console_dev.baud = simple_strtoul(options, NULL, 0);
