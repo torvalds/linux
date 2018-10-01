@@ -539,4 +539,31 @@ struct dpni_cmd_set_rx_hash_dist {
 	__le64 key_cfg_iova;
 };
 
+struct dpni_cmd_add_fs_entry {
+	/* cmd word 0 */
+	__le16 options;
+	u8 tc_id;
+	u8 key_size;
+	__le16 index;
+	__le16 flow_id;
+	/* cmd word 1 */
+	__le64 key_iova;
+	/* cmd word 2 */
+	__le64 mask_iova;
+	/* cmd word 3 */
+	__le64 flc;
+};
+
+struct dpni_cmd_remove_fs_entry {
+	/* cmd word 0 */
+	__le16 pad0;
+	u8 tc_id;
+	u8 key_size;
+	__le32 pad1;
+	/* cmd word 1 */
+	__le64 key_iova;
+	/* cmd word 2 */
+	__le64 mask_iova;
+};
+
 #endif /* _FSL_DPNI_CMD_H */

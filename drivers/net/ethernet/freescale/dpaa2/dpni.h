@@ -855,6 +855,64 @@ struct dpni_rule_cfg {
 	u8	key_size;
 };
 
+/**
+ * Discard matching traffic. If set, this takes precedence over any other
+ * configuration and matching traffic is always discarded.
+ */
+ #define DPNI_FS_OPT_DISCARD            0x1
+
+/**
+ * Set FLC value. If set, flc member of struct dpni_fs_action_cfg is used to
+ * override the FLC value set per queue.
+ * For more details check the Frame Descriptor section in the hardware
+ * documentation.
+ */
+#define DPNI_FS_OPT_SET_FLC            0x2
+
+/**
+ * Indicates whether the 6 lowest significant bits of FLC are used for stash
+ * control. If set, the 6 least significant bits in value are interpreted as
+ * follows:
+ *     - bits 0-1: indicates the number of 64 byte units of context that are
+ *     stashed. FLC value is interpreted as a memory address in this case,
+ *     excluding the 6 LS bits.
+ *     - bits 2-3: indicates the number of 64 byte units of frame annotation
+ *     to be stashed. Annotation is placed at FD[ADDR].
+ *     - bits 4-5: indicates the number of 64 byte units of frame data to be
+ *     stashed. Frame data is placed at FD[ADDR] + FD[OFFSET].
+ * This flag is ignored if DPNI_FS_OPT_SET_FLC is not specified.
+ */
+#define DPNI_FS_OPT_SET_STASH_CONTROL  0x4
+
+/**
+ * struct dpni_fs_action_cfg - Action configuration for table look-up
+ * @flc:	FLC value for traffic matching this rule. Please check the
+ *		Frame Descriptor section in the hardware documentation for
+ *		more information.
+ * @flow_id:	Identifies the Rx queue used for matching traffic. Supported
+ *		values are in range 0 to num_queue-1.
+ * @options:	Any combination of DPNI_FS_OPT_ values.
+ */
+struct dpni_fs_action_cfg {
+	u64 flc;
+	u16 flow_id;
+	u16 options;
+};
+
+int dpni_add_fs_entry(struct fsl_mc_io *mc_io,
+		      u32 cmd_flags,
+		      u16 token,
+		      u8 tc_id,
+		      u16 index,
+		      const struct dpni_rule_cfg *cfg,
+		      const struct dpni_fs_action_cfg *action);
+
+int dpni_remove_fs_entry(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u8 tc_id,
+			 const struct dpni_rule_cfg *cfg);
+
 int dpni_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,

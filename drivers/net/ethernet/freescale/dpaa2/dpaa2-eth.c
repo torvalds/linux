@@ -1897,6 +1897,11 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	if (err)
 		goto close;
 
+	priv->cls_rules = devm_kzalloc(dev, sizeof(struct dpaa2_eth_cls_rule) *
+				       dpaa2_eth_fs_count(priv), GFP_KERNEL);
+	if (!priv->cls_rules)
+		goto close;
+
 	return 0;
 
 close:
@@ -2012,6 +2017,18 @@ static const struct dpaa2_eth_dist_fields dist_fields[] = {
 		.cls_field = NH_FLD_ETH_DA,
 		.size = 6,
 	}, {
+		.cls_prot = NET_PROT_ETH,
+		.cls_field = NH_FLD_ETH_SA,
+		.size = 6,
+	}, {
+		/* This is the last ethertype field parsed:
+		 * depending on frame format, it can be the MAC ethertype
+		 * or the VLAN etype.
+		 */
+		.cls_prot = NET_PROT_ETH,
+		.cls_field = NH_FLD_ETH_TYPE,
+		.size = 2,
+	}, {
 		/* VLAN header */
 		.rxnfc_field = RXH_VLAN,
 		.cls_prot = NET_PROT_VLAN,
@@ -2107,6 +2124,33 @@ static int config_cls_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
 		dev_err(dev, "dpni_set_rx_fs_dist failed\n");
 
 	return err;
+}
+
+/* Size of the Rx flow classification key */
+int dpaa2_eth_cls_key_size(void)
+{
+	int i, size = 0;
+
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++)
+		size += dist_fields[i].size;
+
+	return size;
+}
+
+/* Offset of header field in Rx classification key */
+int dpaa2_eth_cls_fld_off(int prot, int field)
+{
+	int i, off = 0;
+
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++) {
+		if (dist_fields[i].cls_prot == prot &&
+		    dist_fields[i].cls_field == field)
+			return off;
+		off += dist_fields[i].size;
+	}
+
+	WARN_ONCE(1, "Unsupported header field used for Rx flow cls\n");
+	return 0;
 }
 
 /* Set Rx distribution (hash or flow classification) key
