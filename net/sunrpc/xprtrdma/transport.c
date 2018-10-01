@@ -776,7 +776,7 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   0,	/* need a local port? */
 		   xprt->stat.bind_count,
 		   xprt->stat.connect_count,
-		   xprt->stat.connect_time,
+		   xprt->stat.connect_time / HZ,
 		   idle_time,
 		   xprt->stat.sends,
 		   xprt->stat.recvs,
