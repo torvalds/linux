@@ -19,6 +19,13 @@ struct dw_mipi_dsi_phy_ops {
 			     unsigned int *lane_mbps);
 };
 
+struct dw_mipi_dsi_host_ops {
+	int (*attach)(void *priv_data,
+		      struct mipi_dsi_device *dsi);
+	int (*detach)(void *priv_data,
+		      struct mipi_dsi_device *dsi);
+};
+
 struct dw_mipi_dsi_plat_data {
 	void __iomem *base;
 	unsigned int max_data_lanes;
@@ -27,6 +34,7 @@ struct dw_mipi_dsi_plat_data {
 					   const struct drm_display_mode *mode);
 
 	const struct dw_mipi_dsi_phy_ops *phy_ops;
+	const struct dw_mipi_dsi_host_ops *host_ops;
 
 	void *priv_data;
 };

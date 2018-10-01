@@ -270,6 +270,7 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
+	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	int ret;
@@ -300,6 +301,12 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 
 	drm_bridge_add(&dsi->bridge);
 
+	if (pdata->host_ops && pdata->host_ops->attach) {
+		ret = pdata->host_ops->attach(pdata->priv_data, device);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -307,6 +314,14 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
+	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
+	int ret;
+
+	if (pdata->host_ops && pdata->host_ops->detach) {
+		ret = pdata->host_ops->detach(pdata->priv_data, device);
+		if (ret < 0)
+			return ret;
+	}
 
 	drm_of_panel_bridge_remove(host->dev->of_node, 1, 0);
 
