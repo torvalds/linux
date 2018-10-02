@@ -1196,7 +1196,7 @@
 			};
 		};
 
-		r_rsb: i2c@8003400 {
+		r_rsb: rsb@8003400 {
 			compatible = "allwinner,sun8i-a23-rsb";
 			reg = <0x08003400 0x400>;
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
