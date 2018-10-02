@@ -631,8 +631,7 @@ static int ina3221_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ina3221_suspend(struct device *dev)
+static int __maybe_unused ina3221_suspend(struct device *dev)
 {
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	int ret;
@@ -655,7 +654,7 @@ static int ina3221_suspend(struct device *dev)
 	return 0;
 }
 
-static int ina3221_resume(struct device *dev)
+static int __maybe_unused ina3221_resume(struct device *dev)
 {
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	int ret;
@@ -681,7 +680,6 @@ static int ina3221_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops ina3221_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(ina3221_suspend, ina3221_resume)
