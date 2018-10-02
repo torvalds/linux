@@ -90,3 +90,11 @@
 		reg = <1>;
 	};
 };
+
+&usb0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
