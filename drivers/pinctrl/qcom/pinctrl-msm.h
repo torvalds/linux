@@ -119,7 +119,7 @@ struct msm_pinctrl_soc_data {
 	unsigned ngroups;
 	unsigned ngpios;
 	bool pull_no_keeper;
-	const char **tiles;
+	const char *const *tiles;
 	unsigned int ntiles;
 };
 
