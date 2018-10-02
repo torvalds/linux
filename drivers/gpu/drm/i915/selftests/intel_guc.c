@@ -159,6 +159,7 @@ static int igt_guc_clients(void *args)
 	 * Get rid of clients created during driver load because the test will
 	 * recreate them.
 	 */
+	guc_clients_disable(guc);
 	guc_clients_destroy(guc);
 	if (guc->execbuf_client || guc->preempt_client) {
 		pr_err("guc_clients_destroy lied!\n");
@@ -197,8 +198,8 @@ static int igt_guc_clients(void *args)
 		goto out;
 	}
 
-	/* Now create the doorbells */
-	guc_clients_doorbell_init(guc);
+	/* Now enable the clients */
+	guc_clients_enable(guc);
 
 	/* each client should now have received a doorbell */
 	if (!client_doorbell_in_sync(guc->execbuf_client) ||
@@ -212,7 +213,7 @@ static int igt_guc_clients(void *args)
 	 * Basic test - an attempt to reallocate a valid doorbell to the
 	 * client it is currently assigned should not cause a failure.
 	 */
-	err = guc_clients_doorbell_init(guc);
+	err = create_doorbell(guc->execbuf_client);
 	if (err)
 		goto out;
 
@@ -263,12 +264,10 @@ out:
 	 * Leave clean state for other test, plus the driver always destroy the
 	 * clients during unload.
 	 */
-	destroy_doorbell(guc->execbuf_client);
-	if (guc->preempt_client)
-		destroy_doorbell(guc->preempt_client);
+	guc_clients_disable(guc);
 	guc_clients_destroy(guc);
 	guc_clients_create(guc);
-	guc_clients_doorbell_init(guc);
+	guc_clients_enable(guc);
 unlock:
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -352,7 +351,7 @@ static int igt_guc_doorbells(void *arg)
 
 		db_id = clients[i]->doorbell_id;
 
-		err = create_doorbell(clients[i]);
+		err = __guc_client_enable(clients[i]);
 		if (err) {
 			pr_err("[%d] Failed to create a doorbell\n", i);
 			goto out;
@@ -378,7 +377,7 @@ static int igt_guc_doorbells(void *arg)
 out:
 	for (i = 0; i < ATTEMPTS; i++)
 		if (!IS_ERR_OR_NULL(clients[i])) {
-			destroy_doorbell(clients[i]);
+			__guc_client_disable(clients[i]);
 			guc_client_free(clients[i]);
 		}
 unlock:
