@@ -84,13 +84,13 @@
 
 /**
  * struct ad5933_platform_data - platform specific data
- * @ext_clk_Hz:		the external clock frequency in Hz, if not set
+ * @ext_clk_hz:		the external clock frequency in Hz, if not set
  *			the driver uses the internal clock (16.776 MHz)
  * @vref_mv:		the external reference voltage in millivolt
  */
 
 struct ad5933_platform_data {
-	unsigned long			ext_clk_Hz;
+	unsigned long			ext_clk_hz;
 	unsigned short			vref_mv;
 };
 
@@ -726,8 +726,8 @@ static int ad5933_probe(struct i2c_client *client,
 	else
 		st->vref_mv = pdata->vref_mv;
 
-	if (pdata->ext_clk_Hz) {
-		st->mclk_hz = pdata->ext_clk_Hz;
+	if (pdata->ext_clk_hz) {
+		st->mclk_hz = pdata->ext_clk_hz;
 		st->ctrl_lb = AD5933_CTRL_EXT_SYSCLK;
 	} else {
 		st->mclk_hz = AD5933_INT_OSC_FREQ_Hz;
