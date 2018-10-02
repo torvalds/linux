@@ -194,16 +194,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 	return 0;
 }
 
-/*
- * Number of registered extended console drivers.
- *
- * If extended consoles are present, in-kernel cont reassembly is disabled
- * and each fragment is stored as a separate log entry with proper
- * continuation flag so that every emitted message has full metadata.  This
- * doesn't change the result for regular consoles or /proc/kmsg.  For
- * /dev/kmsg, as long as the reader concatenates messages according to
- * consecutive continuation flags, the end result should be the same too.
- */
+/* Number of registered extended console drivers. */
 static int nr_ext_console_drivers;
 
 /*
@@ -1781,12 +1772,8 @@ static void cont_flush(void)
 
 static bool cont_add(int facility, int level, enum log_flags flags, const char *text, size_t len)
 {
-	/*
-	 * If ext consoles are present, flush and skip in-kernel
-	 * continuation.  See nr_ext_console_drivers definition.  Also, if
-	 * the line gets too long, split it up in separate records.
-	 */
-	if (nr_ext_console_drivers || cont.len + len > sizeof(cont.buf)) {
+	/* If the line gets too long, split it up in separate records. */
+	if (cont.len + len > sizeof(cont.buf)) {
 		cont_flush();
 		return false;
 	}
@@ -2706,8 +2693,7 @@ void register_console(struct console *newcon)
 	}
 
 	if (newcon->flags & CON_EXTENDED)
-		if (!nr_ext_console_drivers++)
-			pr_info("continuation disabled due to ext consoles, expect more fragments in /dev/kmsg\n");
+		nr_ext_console_drivers++;
 
 	if (newcon->flags & CON_PRINTBUFFER) {
 		/*
