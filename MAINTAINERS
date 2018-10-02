@@ -4359,13 +4359,6 @@ L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-gpio-mm.c
 
-DIGI NEO AND CLASSIC PCI PRODUCTS
-M:	Lidza Louina <lidza.louina@gmail.com>
-M:	Mark Hounschell <markh@compro.net>
-L:	driverdev-devel@linuxdriverproject.org
-S:	Maintained
-F:	drivers/staging/dgnc/
-
 DIOLAN U2C-12 I2C DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-i2c@vger.kernel.org
