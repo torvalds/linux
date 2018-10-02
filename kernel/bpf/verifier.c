@@ -2669,20 +2669,18 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 
-	if (ptr_reg->type == PTR_TO_MAP_VALUE_OR_NULL) {
-		verbose(env, "R%d pointer arithmetic on PTR_TO_MAP_VALUE_OR_NULL prohibited, null-check it first\n",
-			dst);
+	switch (ptr_reg->type) {
+	case PTR_TO_MAP_VALUE_OR_NULL:
+		verbose(env, "R%d pointer arithmetic on %s prohibited, null-check it first\n",
+			dst, reg_type_str[ptr_reg->type]);
 		return -EACCES;
-	}
-	if (ptr_reg->type == CONST_PTR_TO_MAP) {
-		verbose(env, "R%d pointer arithmetic on CONST_PTR_TO_MAP prohibited\n",
-			dst);
+	case CONST_PTR_TO_MAP:
+	case PTR_TO_PACKET_END:
+		verbose(env, "R%d pointer arithmetic on %s prohibited\n",
+			dst, reg_type_str[ptr_reg->type]);
 		return -EACCES;
-	}
-	if (ptr_reg->type == PTR_TO_PACKET_END) {
-		verbose(env, "R%d pointer arithmetic on PTR_TO_PACKET_END prohibited\n",
-			dst);
-		return -EACCES;
+	default:
+		break;
 	}
 
 	/* In case of 'scalar += pointer', dst_reg inherits pointer type and id.
