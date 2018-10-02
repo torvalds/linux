@@ -2658,6 +2658,26 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 }
 
 /*
+ * Do a forward-progress check for rcutorture.  This is normally invoked
+ * due to an OOM event.  The argument "j" gives the time period during
+ * which rcutorture would like progress to have been made.
+ */
+void rcu_fwd_progress_check(unsigned long j)
+{
+	struct rcu_data *rdp;
+
+	if (rcu_gp_in_progress()) {
+		show_rcu_gp_kthreads();
+	} else {
+		preempt_disable();
+		rdp = this_cpu_ptr(&rcu_data);
+		rcu_check_gp_start_stall(rdp->mynode, rdp, j);
+		preempt_enable();
+	}
+}
+EXPORT_SYMBOL_GPL(rcu_fwd_progress_check);
+
+/*
  * This does the RCU core processing work for the specified rcu_data
  * structures.  This may be called only from the CPU to whom the rdp
  * belongs.

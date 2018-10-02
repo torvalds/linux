@@ -56,6 +56,7 @@
 #include <linux/vmalloc.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/sysctl.h>
+#include <linux/oom.h>
 
 #include "rcu.h"
 
@@ -1624,6 +1625,7 @@ static struct rcu_fwd_cb *rcu_fwd_cb_head;
 static struct rcu_fwd_cb **rcu_fwd_cb_tail = &rcu_fwd_cb_head;
 static long n_launders_cb;
 static unsigned long rcu_fwd_startat;
+static bool rcu_fwd_emergency_stop;
 #define MAX_FWD_CB_JIFFIES	(8 * HZ) /* Maximum CB test duration. */
 #define MIN_FWD_CB_LAUNDERS	3	/* This many CB invocations to count. */
 #define MIN_FWD_CBS_LAUNDERED	100	/* Number of counted CBs. */
@@ -1681,7 +1683,8 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 	dur = sd4 + torture_random(&trs) % (sd - sd4);
 	WRITE_ONCE(rcu_fwd_startat, jiffies);
 	stopat = rcu_fwd_startat + dur;
-	while (time_before(jiffies, stopat) && !torture_must_stop()) {
+	while (time_before(jiffies, stopat) &&
+	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
 		idx = cur_ops->readlock();
 		udelay(10);
 		cur_ops->readunlock(idx);
@@ -1689,7 +1692,8 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 			cond_resched();
 	}
 	(*tested_tries)++;
-	if (!time_before(jiffies, stopat) && !torture_must_stop()) {
+	if (!time_before(jiffies, stopat) &&
+	    !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
 		(*tested)++;
 		cver = READ_ONCE(rcu_torture_current_version) - cver;
 		gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
@@ -1739,7 +1743,8 @@ static void rcu_torture_fwd_prog_cr(void)
 		n_launders_hist[i] = 0;
 	cver = READ_ONCE(rcu_torture_current_version);
 	gps = cur_ops->get_gp_seq();
-	while (time_before(jiffies, stopat) && !torture_must_stop()) {
+	while (time_before(jiffies, stopat) &&
+	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
 		rfcp = READ_ONCE(rcu_fwd_cb_head);
 		rfcpn = NULL;
 		if (rfcp)
@@ -1796,6 +1801,23 @@ static void rcu_torture_fwd_prog_cr(void)
 	}
 }
 
+
+/*
+ * OOM notifier, but this only prints diagnostic information for the
+ * current forward-progress test.
+ */
+static int rcutorture_oom_notify(struct notifier_block *self,
+				 unsigned long notused, void *nfreed)
+{
+	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rcu_fwd_startat) / 2));
+	WRITE_ONCE(rcu_fwd_emergency_stop, true);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rcutorture_oom_nb = {
+	.notifier_call = rcutorture_oom_notify
+};
+
 /* Carry out grace-period forward-progress testing. */
 static int rcu_torture_fwd_prog(void *args)
 {
@@ -1808,8 +1830,11 @@ static int rcu_torture_fwd_prog(void *args)
 		set_user_nice(current, MAX_NICE);
 	do {
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
+		WRITE_ONCE(rcu_fwd_emergency_stop, false);
+		register_oom_notifier(&rcutorture_oom_nb);
 		rcu_torture_fwd_prog_nr(&tested, &tested_tries);
 		rcu_torture_fwd_prog_cr();
+		unregister_oom_notifier(&rcutorture_oom_nb);
 
 		/* Avoid slow periods, better to test when busy. */
 		stutter_wait("rcu_torture_fwd_prog");
