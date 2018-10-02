@@ -64,11 +64,91 @@
 			linux,default-trigger = "mmc0";
 		};
 	};
+
+	idk-leds {
+		status = "disabled";
+		compatible = "gpio-leds";
+		red0-led {
+			label = "idk:red0";
+			gpios = <&gpio6 19 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		green0-led {
+			label = "idk:green0";
+			gpios = <&gpio4 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		blue0-led {
+			label = "idk:blue0";
+			gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		red1-led {
+			label = "idk:red1";
+			gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		green1-led {
+			label = "idk:green1";
+			gpios = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		blue1-led {
+			label = "idk:blue1";
+			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		red2-led {
+			label = "idk:red2";
+			gpios = <&gpio7 9 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		green2-led {
+			label = "idk:green2";
+			gpios = <&gpio7 8 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		blue2-led {
+			label = "idk:blue2";
+			gpios = <&gpio7 10 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		red3-led {
+			label = "idk:red3";
+			gpios = <&gpio7 11 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		green3-led {
+			label = "idk:green3";
+			gpios = <&gpio7 25 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		blue3-led {
+			label = "idk:blue3";
+			gpios = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
 };
 
 &extcon_usb2 {
 	id-gpio = <&gpio5 7 GPIO_ACTIVE_HIGH>;
 	vbus-gpio = <&gpio7 22 GPIO_ACTIVE_HIGH>;
+};
+
+&sn65hvs882 {
+	load-gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
 };
 
 &mailbox5 {
@@ -113,8 +193,4 @@
 	pinctrl-0 = <&mmc2_pins_default>;
 	pinctrl-1 = <&mmc2_pins_hs>;
 	pinctrl-2 = <&mmc2_pins_ddr_rev20 &mmc2_iodelay_ddr_conf>;
-};
-
-&cpu0 {
-	vdd-supply = <&smps12_reg>;
 };
