@@ -895,8 +895,8 @@ static void ixgbe_set_ivar(struct ixgbe_adapter *adapter, s8 direction,
 	}
 }
 
-static inline void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter,
-					  u64 qmask)
+void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter,
+			    u64 qmask)
 {
 	u32 mask;
 
@@ -8154,9 +8154,6 @@ static inline int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, u16 size)
 	return __ixgbe_maybe_stop_tx(tx_ring, size);
 }
 
-#define IXGBE_TXD_CMD (IXGBE_TXD_CMD_EOP | \
-		       IXGBE_TXD_CMD_RS)
-
 static int ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 			struct ixgbe_tx_buffer *first,
 			const u8 hdr_len)
@@ -10257,7 +10254,7 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
-static void ixgbe_xdp_ring_update_tail(struct ixgbe_ring *ring)
+void ixgbe_xdp_ring_update_tail(struct ixgbe_ring *ring)
 {
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.
