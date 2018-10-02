@@ -297,19 +297,13 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		data->needs_update = 0;
 	}
 
-	/* Special case when user has set very strict latency requirement */
-	if (unlikely(latency_req == 0)) {
-		*stop_tick = false;
-		return 0;
-	}
-
 	/* determine the expected residency time, round up */
 	data->next_timer_us = ktime_to_us(tick_nohz_get_sleep_length(&delta_next));
 
 	get_iowait_load(&nr_iowaiters, &cpu_load);
 	data->bucket = which_bucket(data->next_timer_us, nr_iowaiters);
 
-	if (unlikely(drv->state_count <= 1) ||
+	if (unlikely(drv->state_count <= 1 || latency_req == 0) ||
 	    ((data->next_timer_us < drv->states[1].target_residency ||
 	      latency_req < drv->states[1].exit_latency) &&
 	     !drv->states[0].disabled && !dev->states_usage[0].disable)) {
