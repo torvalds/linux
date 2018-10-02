@@ -375,10 +375,12 @@
 				reg = <0x0209c000 0x4000>;
 				interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_GPIO1>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 94 7>, <&iomuxc 7 25 25>;
 			};
 
 			gpio2: gpio@20a0000 {
@@ -386,10 +388,12 @@
 				reg = <0x020a0000 0x4000>;
 				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_GPIO2>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 50 32>;
 			};
 
 			gpio3: gpio@20a4000 {
@@ -397,10 +401,14 @@
 				reg = <0x020a4000 0x4000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_GPIO3>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 82 12>, <&iomuxc 12 103 4>,
+					      <&iomuxc 16 101 2>, <&iomuxc 18 5 1>,
+					      <&iomuxc 21 6 11>;
 			};
 
 			gpio4: gpio@20a8000 {
@@ -408,10 +416,20 @@
 				reg = <0x020a8000 0x4000>;
 				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_GPIO4>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 17 8>, <&iomuxc 8 107 8>,
+					      <&iomuxc 16 151 1>, <&iomuxc 17 149 1>,
+					      <&iomuxc 18 146 1>, <&iomuxc 19 144 1>,
+					      <&iomuxc 20 142 1>, <&iomuxc 21 143 1>,
+					      <&iomuxc 22 150 1>, <&iomuxc 23 148 1>,
+					      <&iomuxc 24 147 1>, <&iomuxc 25 145 1>,
+					      <&iomuxc 26 152 1>, <&iomuxc 27 125 1>,
+					      <&iomuxc 28 131 1>, <&iomuxc 29 134 1>,
+					      <&iomuxc 30 129 1>, <&iomuxc 31 133 1>;
 			};
 
 			gpio5: gpio@20ac000 {
@@ -419,10 +437,22 @@
 				reg = <0x020ac000 0x4000>;
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_GPIO5>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 135 1>, <&iomuxc 1 128 1>,
+					      <&iomuxc 2 132 1>, <&iomuxc 3 130 1>,
+					      <&iomuxc 4 127 1>, <&iomuxc 5 126 1>,
+					      <&iomuxc 6 120 1>, <&iomuxc 7 123 1>,
+					      <&iomuxc 8 118 1>, <&iomuxc 9 122 1>,
+					      <&iomuxc 10 124 1>, <&iomuxc 11 117 1>,
+					      <&iomuxc 12 121 1>, <&iomuxc 13 119 1>,
+					      <&iomuxc 14 116 1>, <&iomuxc 15 115 1>,
+					      <&iomuxc 16 140 2>, <&iomuxc 18 136 1>,
+					      <&iomuxc 19 138 1>, <&iomuxc 20 139 1>,
+					      <&iomuxc 21 137 1>;
 			};
 
 			gpio6: gpio@20b0000 {
@@ -430,6 +460,7 @@
 				reg = <0x020b0000 0x4000>;
 				interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SLL_CLK_GPIO6>;
 				gpio-controller;
 				#gpio-cells = <2>;
 				interrupt-controller;
