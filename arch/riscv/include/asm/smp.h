@@ -25,7 +25,12 @@
 extern unsigned long __cpuid_to_hartid_map[NR_CPUS];
 #define cpuid_to_hartid_map(cpu)    __cpuid_to_hartid_map[cpu]
 
+struct seq_file;
+
 #ifdef CONFIG_SMP
+
+/* print IPI stats */
+void show_ipi_stats(struct seq_file *p, int prec);
 
 /* SMP initialization hook for setup_arch */
 void __init setup_smp(void);
@@ -46,6 +51,10 @@ void riscv_cpuid_to_hartid_mask(const struct cpumask *in, struct cpumask *out);
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
 #else
+
+static inline void show_ipi_stats(struct seq_file *p, int prec)
+{
+}
 
 static inline int riscv_hartid_to_cpuid(int hartid)
 {
