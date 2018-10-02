@@ -130,8 +130,6 @@ static void bebob_free(struct snd_bebob *bebob)
 {
 	snd_bebob_stream_destroy_duplex(bebob);
 
-	kfree(bebob->maudio_special_quirk);
-
 	mutex_destroy(&bebob->mutex);
 	fw_unit_put(bebob->unit);
 }
@@ -262,8 +260,6 @@ do_registration(struct work_struct *work)
 error:
 	mutex_unlock(&devices_mutex);
 	snd_bebob_stream_destroy_duplex(bebob);
-	kfree(bebob->maudio_special_quirk);
-	bebob->maudio_special_quirk = NULL;
 	snd_card_free(bebob->card);
 	dev_info(&bebob->unit->device,
 		 "Sound card registration failed: %d\n", err);
