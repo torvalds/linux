@@ -40,6 +40,8 @@
 
 #include "nfp_net_repr.h"
 
+#define NFP_APP_CTRL_MTU_MAX	U32_MAX
+
 struct bpf_prog;
 struct net_device;
 struct netdev_bpf;
@@ -178,6 +180,7 @@ struct nfp_app_type {
  * @ctrl:	pointer to ctrl vNIC struct
  * @reprs:	array of pointers to representors
  * @type:	pointer to const application ops and info
+ * @ctrl_mtu:	MTU to set on the control vNIC (set in .init())
  * @priv:	app-specific priv data
  */
 struct nfp_app {
@@ -189,6 +192,7 @@ struct nfp_app {
 	struct nfp_reprs __rcu *reprs[NFP_REPR_TYPE_MAX + 1];
 
 	const struct nfp_app_type *type;
+	unsigned int ctrl_mtu;
 	void *priv;
 };
 
