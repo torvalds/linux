@@ -1474,21 +1474,6 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	return handle;
 }
 
-struct mlx5_fc *mlx5_flow_rule_counter(struct mlx5_flow_handle *handle)
-{
-	struct mlx5_flow_rule *dst;
-	struct fs_fte *fte;
-
-	fs_get_obj(fte, handle->rule[0]->node.parent);
-
-	fs_for_each_dst(dst, fte) {
-		if (dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
-			return dst->dest_attr.counter;
-	}
-
-	return NULL;
-}
-
 static bool counter_is_valid(struct mlx5_fc *counter, u32 action)
 {
 	if (!(action & MLX5_FLOW_CONTEXT_ACTION_COUNT))

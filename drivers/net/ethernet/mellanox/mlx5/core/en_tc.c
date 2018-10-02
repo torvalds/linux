@@ -61,6 +61,7 @@ struct mlx5_nic_flow_attr {
 	u32 hairpin_tirn;
 	u8 match_level;
 	struct mlx5_flow_table	*hairpin_ft;
+	struct mlx5_fc		*counter;
 };
 
 #define MLX5E_TC_FLOW_BASE (MLX5E_TC_LAST_EXPORTED_BIT + 1)
@@ -721,6 +722,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 		dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 		dest[dest_ix].counter = counter;
 		dest_ix++;
+		attr->counter = counter;
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
@@ -797,7 +799,7 @@ static void mlx5e_tc_del_nic_flow(struct mlx5e_priv *priv,
 	struct mlx5_nic_flow_attr *attr = flow->nic_attr;
 	struct mlx5_fc *counter = NULL;
 
-	counter = mlx5_flow_rule_counter(flow->rule[0]);
+	counter = attr->counter;
 	mlx5_del_flow_rules(flow->rule[0]);
 	mlx5_fc_destroy(priv->mdev, counter);
 
@@ -833,6 +835,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct net_device *out_dev, *encap_dev = NULL;
 	struct mlx5_flow_handle *rule = NULL;
+	struct mlx5_fc *counter = NULL;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
 	int err;
@@ -868,6 +871,16 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		}
 	}
 
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		counter = mlx5_fc_create(esw->dev, true);
+		if (IS_ERR(counter)) {
+			rule = ERR_CAST(counter);
+			goto err_create_counter;
+		}
+
+		attr->counter = counter;
+	}
+
 	/* we get here if (1) there's no error (rule being null) or when
 	 * (2) there's an encap action and we're on -EAGAIN (no valid neigh)
 	 */
@@ -888,6 +901,8 @@ err_fwd_rule:
 	mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
 	rule = flow->rule[1];
 err_add_rule:
+	mlx5_fc_destroy(esw->dev, counter);
+err_create_counter:
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
 err_mod_hdr:
@@ -921,6 +936,9 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
+
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
+		mlx5_fc_destroy(esw->dev, attr->counter);
 }
 
 void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
@@ -992,6 +1010,14 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	}
 }
 
+static struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow)
+{
+	if (flow->flags & MLX5E_TC_FLOW_ESWITCH)
+		return flow->esw_attr->counter;
+	else
+		return flow->nic_attr->counter;
+}
+
 void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 {
 	struct mlx5e_neigh *m_neigh = &nhe->m_neigh;
@@ -1017,7 +1043,7 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 			continue;
 		list_for_each_entry(flow, &e->flows, encap) {
 			if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
-				counter = mlx5_flow_rule_counter(flow->rule[0]);
+				counter = mlx5e_tc_get_counter(flow);
 				mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
 				if (time_after((unsigned long)lastuse, nhe->reported_lastuse)) {
 					neigh_used = true;
@@ -3019,7 +3045,7 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 	if (!(flow->flags & MLX5E_TC_FLOW_OFFLOADED))
 		return 0;
 
-	counter = mlx5_flow_rule_counter(flow->rule[0]);
+	counter = mlx5e_tc_get_counter(flow);
 	if (!counter)
 		return 0;
 
