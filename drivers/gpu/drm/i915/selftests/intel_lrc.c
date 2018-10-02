@@ -696,6 +696,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 			err = PTR_ERR(tsk[id]);
 			break;
 		}
+		get_task_struct(tsk[id]);
 	}
 
 	count = 0;
@@ -710,6 +711,8 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 			err = status;
 
 		count += arg[id].count;
+
+		put_task_struct(tsk[id]);
 	}
 
 	mutex_lock(&smoke->i915->drm.struct_mutex);
