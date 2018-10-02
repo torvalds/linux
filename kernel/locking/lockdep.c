@@ -3626,6 +3626,13 @@ __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 	curr->lockdep_depth = i;
 	curr->curr_chain_key = hlock->prev_chain_key;
 
+	/*
+	 * The most likely case is when the unlock is on the innermost
+	 * lock. In this case, we are done!
+	 */
+	if (i == depth-1)
+		return 1;
+
 	if (reacquire_held_locks(curr, depth, i + 1))
 		return 0;
 
@@ -3633,10 +3640,14 @@ __lock_release(struct lockdep_map *lock, int nested, unsigned long ip)
 	 * We had N bottles of beer on the wall, we drank one, but now
 	 * there's not N-1 bottles of beer left on the wall...
 	 */
-	if (DEBUG_LOCKS_WARN_ON(curr->lockdep_depth != depth - 1))
-		return 0;
+	DEBUG_LOCKS_WARN_ON(curr->lockdep_depth != depth-1);
 
-	return 1;
+	/*
+	 * Since reacquire_held_locks() would have called check_chain_key()
+	 * indirectly via __lock_acquire(), we don't need to do it again
+	 * on return.
+	 */
+	return 0;
 }
 
 static int __lock_is_held(const struct lockdep_map *lock, int read)
