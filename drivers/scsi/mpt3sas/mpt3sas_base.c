@@ -4463,14 +4463,13 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	i = 0;
 	do {
 		ioc->reply_post[i].reply_post_free =
-		    dma_pool_alloc(ioc->reply_post_free_dma_pool,
+		    dma_pool_zalloc(ioc->reply_post_free_dma_pool,
 		    GFP_KERNEL,
 		    &ioc->reply_post[i].reply_post_free_dma);
 		if (!ioc->reply_post[i].reply_post_free) {
 			ioc_err(ioc, "reply_post_free pool: dma_pool_alloc failed\n");
 			goto out;
 		}
-		memset(ioc->reply_post[i].reply_post_free, 0, sz);
 		dinitprintk(ioc,
 			    ioc_info(ioc, "reply post free pool (0x%p): depth(%d), element_size(%d), pool_size(%d kB)\n",
 				     ioc->reply_post[i].reply_post_free,
@@ -4781,13 +4780,12 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		ioc_err(ioc, "reply_free pool: dma_pool_create failed\n");
 		goto out;
 	}
-	ioc->reply_free = dma_pool_alloc(ioc->reply_free_dma_pool, GFP_KERNEL,
+	ioc->reply_free = dma_pool_zalloc(ioc->reply_free_dma_pool, GFP_KERNEL,
 	    &ioc->reply_free_dma);
 	if (!ioc->reply_free) {
 		ioc_err(ioc, "reply_free pool: dma_pool_alloc failed\n");
 		goto out;
 	}
-	memset(ioc->reply_free, 0, sz);
 	dinitprintk(ioc,
 		    ioc_info(ioc, "reply_free pool(0x%p): depth(%d), element_size(%d), pool_size(%d kB)\n",
 			     ioc->reply_free, ioc->reply_free_queue_depth,
