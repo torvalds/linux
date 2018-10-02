@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/of.h>
+#include <asm/smp.h>
 
 /*
  * Returns the hart ID of the given device tree node, or -1 if the device tree
@@ -138,11 +139,12 @@ static void c_stop(struct seq_file *m, void *v)
 
 static int c_show(struct seq_file *m, void *v)
 {
-	unsigned long hart_id = (unsigned long)v - 1;
-	struct device_node *node = of_get_cpu_node(hart_id, NULL);
+	unsigned long cpu_id = (unsigned long)v - 1;
+	struct device_node *node = of_get_cpu_node(cpuid_to_hartid_map(cpu_id),
+						   NULL);
 	const char *compat, *isa, *mmu;
 
-	seq_printf(m, "hart\t: %lu\n", hart_id);
+	seq_printf(m, "hart\t: %lu\n", cpu_id);
 	if (!of_property_read_string(node, "riscv,isa", &isa))
 		print_isa(m, isa);
 	if (!of_property_read_string(node, "mmu-type", &mmu))

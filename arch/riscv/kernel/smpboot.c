@@ -53,17 +53,23 @@ void __init setup_smp(void)
 	struct device_node *dn = NULL;
 	int hart;
 	bool found_boot_cpu = false;
+	int cpuid = 1;
 
 	while ((dn = of_find_node_by_type(dn, "cpu"))) {
 		hart = riscv_of_processor_hartid(dn);
-		if (hart >= 0) {
-			set_cpu_possible(hart, true);
-			set_cpu_present(hart, true);
-			if (hart == smp_processor_id()) {
-				BUG_ON(found_boot_cpu);
-				found_boot_cpu = true;
-			}
+		if (hart < 0)
+			continue;
+
+		if (hart == cpuid_to_hartid_map(0)) {
+			BUG_ON(found_boot_cpu);
+			found_boot_cpu = 1;
+			continue;
 		}
+
+		cpuid_to_hartid_map(cpuid) = hart;
+		set_cpu_possible(cpuid, true);
+		set_cpu_present(cpuid, true);
+		cpuid++;
 	}
 
 	BUG_ON(!found_boot_cpu);
@@ -71,6 +77,7 @@ void __init setup_smp(void)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
+	int hartid = cpuid_to_hartid_map(cpu);
 	tidle->thread_info.cpu = cpu;
 
 	/*
@@ -81,9 +88,9 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 * the spinning harts that they can continue the boot process.
 	 */
 	smp_mb();
-	WRITE_ONCE(__cpu_up_stack_pointer[cpu],
+	WRITE_ONCE(__cpu_up_stack_pointer[hartid],
 		  task_stack_page(tidle) + THREAD_SIZE);
-	WRITE_ONCE(__cpu_up_task_pointer[cpu], tidle);
+	WRITE_ONCE(__cpu_up_task_pointer[hartid], tidle);
 
 	while (!cpu_online(cpu))
 		cpu_relax();

@@ -8,6 +8,7 @@
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <asm/smp.h>
 #include <asm/sbi.h>
 
 /*
@@ -84,13 +85,16 @@ void riscv_timer_interrupt(void)
 
 static int __init riscv_timer_init_dt(struct device_node *n)
 {
-	int cpu_id = riscv_of_processor_hartid(n), error;
+	int cpuid, hartid, error;
 	struct clocksource *cs;
 
-	if (cpu_id != smp_processor_id())
+	hartid = riscv_of_processor_hartid(n);
+	cpuid = riscv_hartid_to_cpuid(hartid);
+
+	if (cpuid != smp_processor_id())
 		return 0;
 
-	cs = per_cpu_ptr(&riscv_clocksource, cpu_id);
+	cs = per_cpu_ptr(&riscv_clocksource, cpuid);
 	clocksource_register_hz(cs, riscv_timebase);
 
 	error = cpuhp_setup_state(CPUHP_AP_RISCV_TIMER_STARTING,
@@ -98,7 +102,7 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 			 riscv_timer_starting_cpu, riscv_timer_dying_cpu);
 	if (error)
 		pr_err("RISCV timer register failed [%d] for cpu = [%d]\n",
-		       error, cpu_id);
+		       error, cpuid);
 	return error;
 }
 
