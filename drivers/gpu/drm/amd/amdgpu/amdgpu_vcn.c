@@ -121,8 +121,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			version_major, version_minor, family_id);
 	}
 
-	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE
-		  +  AMDGPU_VCN_SESSION_SIZE * 40;
+	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
