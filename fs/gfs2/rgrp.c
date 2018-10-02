@@ -2023,7 +2023,7 @@ static inline int fast_to_acquire(struct gfs2_rgrpd *rgd)
  * We try our best to find an rgrp that has at least ap->target blocks
  * available. After a couple of passes (loops == 2), the prospects of finding
  * such an rgrp diminish. At this stage, we return the first rgrp that has
- * atleast ap->min_target blocks available. Either way, we set ap->allowed to
+ * at least ap->min_target blocks available. Either way, we set ap->allowed to
  * the number of blocks available in the chosen rgrp.
  *
  * Returns: 0 on success,
@@ -2092,7 +2092,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 			}
 		}
 
-		/* Skip unuseable resource groups */
+		/* Skip unusable resource groups */
 		if ((rs->rs_rbm.rgd->rd_flags & (GFS2_RGF_NOALLOC |
 						 GFS2_RDF_ERROR)) ||
 		    (loops == 0 && ap->target > rs->rs_rbm.rgd->rd_extfail_pt))
