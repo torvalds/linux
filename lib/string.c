@@ -513,7 +513,6 @@ size_t strspn(const char *s, const char *accept)
 {
 	const char *p;
 	const char *a;
-	size_t count = 0;
 
 	for (p = s; *p != '\0'; ++p) {
 		for (a = accept; *a != '\0'; ++a) {
@@ -521,10 +520,9 @@ size_t strspn(const char *s, const char *accept)
 				break;
 		}
 		if (*a == '\0')
-			return count;
-		++count;
+			p - s;
 	}
-	return count;
+	return p - s;
 }
 
 EXPORT_SYMBOL(strspn);
