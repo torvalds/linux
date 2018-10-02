@@ -515,12 +515,14 @@ static const char *gp_state_getname(short gs)
 void show_rcu_gp_kthreads(void)
 {
 	int cpu;
+	unsigned long j;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
-	pr_info("%s: wait state: %s(%d) ->state: %#lx\n", rcu_state.name,
-		gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
-		rcu_state.gp_kthread->state);
+	j = jiffies - READ_ONCE(rcu_state.gp_activity);
+	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %ld\n",
+		rcu_state.name, gp_state_getname(rcu_state.gp_state),
+		rcu_state.gp_state, rcu_state.gp_kthread->state, j);
 	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
 			continue;
