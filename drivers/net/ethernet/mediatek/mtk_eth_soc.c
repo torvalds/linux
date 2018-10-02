@@ -243,11 +243,7 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		if (dev->phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
 
-		if (dev->phydev->advertising & ADVERTISED_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_CAP;
-		if (dev->phydev->advertising & ADVERTISED_Asym_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_ASYM;
-
+		lcl_adv = ethtool_adv_to_lcl_adv_t(dev->phydev->advertising);
 		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 
 		if (flowctrl & FLOW_CTRL_TX)

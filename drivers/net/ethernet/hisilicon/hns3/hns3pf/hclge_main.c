@@ -5006,11 +5006,7 @@ int hclge_cfg_flowctrl(struct hclge_dev *hdev)
 	if (!phydev->link || !phydev->autoneg)
 		return 0;
 
-	if (phydev->advertising & ADVERTISED_Pause)
-		local_advertising = ADVERTISE_PAUSE_CAP;
-
-	if (phydev->advertising & ADVERTISED_Asym_Pause)
-		local_advertising |= ADVERTISE_PAUSE_ASYM;
+	local_advertising = ethtool_adv_to_lcl_adv_t(phydev->advertising);
 
 	if (phydev->pause)
 		remote_advertising = LPA_PAUSE_CAP;

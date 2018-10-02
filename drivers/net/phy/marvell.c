@@ -638,7 +638,7 @@ static void marvell_config_led(struct phy_device *phydev)
 	err = phy_write_paged(phydev, MII_MARVELL_LED_PAGE, MII_PHY_LED_CTRL,
 			      def_config);
 	if (err < 0)
-		pr_warn("Fail to config marvell phy LED.\n");
+		phydev_warn(phydev, "Fail to config marvell phy LED.\n");
 }
 
 static int marvell_config_init(struct phy_device *phydev)
@@ -2201,7 +2201,7 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id = MARVELL_PHY_ID_88E1510,
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1510",
-		.features = PHY_GBIT_FEATURES | SUPPORTED_FIBRE,
+		.features = PHY_GBIT_FIBRE_FEATURES,
 		.flags = PHY_HAS_INTERRUPT,
 		.probe = &m88e1510_probe,
 		.config_init = &m88e1510_config_init,
