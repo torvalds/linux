@@ -195,6 +195,9 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 	if (attr->key_size != sizeof(struct bpf_cgroup_storage_key))
 		return ERR_PTR(-EINVAL);
 
+	if (attr->value_size == 0)
+		return ERR_PTR(-EINVAL);
+
 	if (attr->value_size > PAGE_SIZE)
 		return ERR_PTR(-E2BIG);
 
