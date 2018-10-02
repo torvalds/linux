@@ -44,7 +44,7 @@
 #include "mad_priv.h"
 
 /* Total number of ports combined across all struct ib_devices's */
-#define RDMA_MAX_PORTS 1024
+#define RDMA_MAX_PORTS 8192
 
 struct pkey_index_qp_list {
 	struct list_head    pkey_index_list;
