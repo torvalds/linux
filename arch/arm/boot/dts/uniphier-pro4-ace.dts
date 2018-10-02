@@ -68,6 +68,10 @@
 	status = "okay";
 };
 
+&sd {
+	status = "okay";
+};
+
 &usb2 {
 	status = "okay";
 };

@@ -65,6 +65,10 @@
 	status = "okay";
 };
 
+&sd {
+	status = "okay";
+};
+
 &eth {
 	status = "okay";
 	phy-handle = <&ethphy>;

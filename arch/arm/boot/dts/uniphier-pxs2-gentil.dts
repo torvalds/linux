@@ -76,6 +76,10 @@
 	};
 };
 
+&emmc {
+	status = "okay";
+};
+
 &eth {
 	status = "okay";
 	phy-handle = <&ethphy>;
