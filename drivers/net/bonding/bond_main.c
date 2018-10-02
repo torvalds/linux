@@ -1187,6 +1187,7 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 
 		if (nskb) {
 			nskb->dev = bond->dev;
+			nskb->queue_mapping = 0;
 			netif_rx(nskb);
 		}
 		return RX_HANDLER_PASS;
