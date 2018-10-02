@@ -45,7 +45,7 @@ static void scan_pkey_feature(void)
 	 * Since any pkey can be used for data or execute, we will just treat
 	 * all keys as equal and track them as one entity.
 	 */
-	pkeys_total = be32_to_cpu(vals[0]);
+	pkeys_total = vals[0];
 	pkeys_devtree_defined = true;
 }
 
