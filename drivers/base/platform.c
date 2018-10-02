@@ -1179,6 +1179,7 @@ int __init platform_bus_init(void)
 	return error;
 }
 
+#ifndef ARCH_HAS_DMA_GET_REQUIRED_MASK
 static u64 dma_default_get_required_mask(struct device *dev)
 {
 	u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
@@ -1198,7 +1199,6 @@ static u64 dma_default_get_required_mask(struct device *dev)
 	return mask;
 }
 
-#ifndef ARCH_HAS_DMA_GET_REQUIRED_MASK
 u64 dma_get_required_mask(struct device *dev)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
