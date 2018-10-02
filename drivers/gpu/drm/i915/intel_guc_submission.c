@@ -209,7 +209,6 @@ static void __destroy_doorbell(struct intel_guc_client *client)
 
 	doorbell = __get_doorbell(client);
 	doorbell->db_status = GUC_DOORBELL_DISABLED;
-	doorbell->cookie = 0;
 
 	/* Doorbell release flow requires that we wait for GEN8_DRB_VALID bit
 	 * to go to zero after updating db_status before we call the GuC to
