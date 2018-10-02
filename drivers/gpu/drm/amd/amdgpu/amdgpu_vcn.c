@@ -263,7 +263,7 @@ static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
 
 				ring = &adev->vcn.ring_dec;
 				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
-					     lower_32_bits(ring->wptr) | 0x80000000);
+						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2));
 				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
 						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
 						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
@@ -320,7 +320,7 @@ static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
 
 				ring = &adev->vcn.ring_dec;
 				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
-					     lower_32_bits(ring->wptr) | 0x80000000);
+						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2));
 				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
 						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
 						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);

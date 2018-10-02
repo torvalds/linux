@@ -873,6 +873,8 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_RPTR, 0);
 
+	WREG32_SOC15(UVD, 0, mmUVD_SCRATCH2, 0);
+
 	ring->wptr = RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_RPTR);
 	WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
 			lower_32_bits(ring->wptr));
@@ -1049,6 +1051,8 @@ static int vcn_v1_0_start_dpg_mode(struct amdgpu_device *adev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_RPTR, 0);
 
+	WREG32_SOC15(UVD, 0, mmUVD_SCRATCH2, 0);
+
 	ring->wptr = RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_RPTR);
 	WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
 								lower_32_bits(ring->wptr));
@@ -1214,6 +1218,10 @@ static uint64_t vcn_v1_0_dec_ring_get_wptr(struct amdgpu_ring *ring)
 static void vcn_v1_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
+		WREG32_SOC15(UVD, 0, mmUVD_SCRATCH2,
+			lower_32_bits(ring->wptr) | 0x80000000);
 
 	WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 }
