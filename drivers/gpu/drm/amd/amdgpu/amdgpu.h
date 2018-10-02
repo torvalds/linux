@@ -432,7 +432,7 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	 * default non-graphics QWORD index is 0xe0 - 0xFF inclusive
 	 */
 
-	/* sDMA engines  reserved from 0xe0 -oxef  */
+	/* sDMA engines  reserved from 0xe0 -0xef  */
 	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xE0,
 	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xE1,
 	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xE8,
