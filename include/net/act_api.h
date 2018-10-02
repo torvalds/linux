@@ -13,7 +13,7 @@
 #include <net/netns/generic.h>
 
 struct tcf_idrinfo {
-	spinlock_t	lock;
+	struct mutex	lock;
 	struct idr	action_idr;
 };
 
@@ -117,7 +117,7 @@ int tc_action_net_init(struct tc_action_net *tn,
 	if (!tn->idrinfo)
 		return -ENOMEM;
 	tn->ops = ops;
-	spin_lock_init(&tn->idrinfo->lock);
+	mutex_init(&tn->idrinfo->lock);
 	idr_init(&tn->idrinfo->action_idr);
 	return err;
 }
