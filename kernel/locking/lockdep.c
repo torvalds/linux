@@ -3193,6 +3193,10 @@ static int __lock_is_held(const struct lockdep_map *lock, int read);
 /*
  * This gets called for every mutex_lock*()/spin_lock*() operation.
  * We maintain the dependency maps and validate the locking attempt:
+ *
+ * The callers must make sure that IRQs are disabled before calling it,
+ * otherwise we could get an interrupt which would want to take locks,
+ * which would end up in lockdep again.
  */
 static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check, int hardirqs_off,
@@ -3208,14 +3212,6 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	u64 chain_key;
 
 	if (unlikely(!debug_locks))
-		return 0;
-
-	/*
-	 * Lockdep should run with IRQs disabled, otherwise we could
-	 * get an interrupt which would want to take locks, which would
-	 * end up in lockdep and have you got a head-ache already?
-	 */
-	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
 		return 0;
 
 	if (!prove_locking || lock->key == &__lockdep_no_validate__)
@@ -3473,6 +3469,9 @@ static int reacquire_held_locks(struct task_struct *curr, unsigned int depth,
 			      int idx)
 {
 	struct held_lock *hlock;
+
+	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
+		return 0;
 
 	for (hlock = curr->held_locks + idx; idx < depth; idx++, hlock++) {
 		if (!__lock_acquire(hlock->instance,
