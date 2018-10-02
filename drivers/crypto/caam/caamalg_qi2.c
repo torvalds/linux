@@ -25,7 +25,7 @@
 #define CAAM_MAX_KEY_SIZE	(AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE + \
 				 SHA512_DIGEST_SIZE * 2)
 
-#ifndef CONFIG_CRYPTO_DEV_FSL_CAAM
+#if !IS_ENABLED(CONFIG_CRYPTO_DEV_FSL_CAAM)
 bool caam_little_end;
 EXPORT_SYMBOL(caam_little_end);
 bool caam_imx;
