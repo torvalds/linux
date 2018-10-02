@@ -2215,7 +2215,22 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
+	u32 act_freq = rps->cur_freq;
 	struct drm_file *file;
+
+	if (intel_runtime_pm_get_if_in_use(dev_priv)) {
+		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+			mutex_lock(&dev_priv->pcu_lock);
+			act_freq = vlv_punit_read(dev_priv,
+						  PUNIT_REG_GPU_FREQ_STS);
+			act_freq = (act_freq >> 8) & 0xff;
+			mutex_unlock(&dev_priv->pcu_lock);
+		} else {
+			act_freq = intel_get_cagf(dev_priv,
+						  I915_READ(GEN6_RPSTAT1));
+		}
+		intel_runtime_pm_put(dev_priv);
+	}
 
 	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
 	seq_printf(m, "GPU busy? %s [%d requests]\n",
@@ -2224,8 +2239,9 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
-	seq_printf(m, "Frequency requested %d\n",
-		   intel_gpu_freq(dev_priv, rps->cur_freq));
+	seq_printf(m, "Frequency requested %d, actual %d\n",
+		   intel_gpu_freq(dev_priv, rps->cur_freq),
+		   intel_gpu_freq(dev_priv, act_freq));
 	seq_printf(m, "  min hard:%d, soft:%d; max soft:%d, hard:%d\n",
 		   intel_gpu_freq(dev_priv, rps->min_freq),
 		   intel_gpu_freq(dev_priv, rps->min_freq_softlimit),
