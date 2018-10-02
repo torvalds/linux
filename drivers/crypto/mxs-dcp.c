@@ -99,6 +99,11 @@ struct dcp_sha_req_ctx {
 	unsigned int	fini:1;
 };
 
+struct dcp_export_state {
+	struct dcp_sha_req_ctx req_ctx;
+	struct dcp_async_ctx async_ctx;
+};
+
 /*
  * There can even be only one instance of the MXS DCP due to the
  * design of Linux Crypto API.
@@ -758,14 +763,32 @@ static int dcp_sha_digest(struct ahash_request *req)
 	return dcp_sha_finup(req);
 }
 
-static int dcp_sha_noimport(struct ahash_request *req, const void *in)
+static int dcp_sha_import(struct ahash_request *req, const void *in)
 {
-	return -ENOSYS;
+	struct dcp_sha_req_ctx *rctx = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct dcp_async_ctx *actx = crypto_ahash_ctx(tfm);
+	const struct dcp_export_state *export = in;
+
+	memset(rctx, 0, sizeof(struct dcp_sha_req_ctx));
+	memset(actx, 0, sizeof(struct dcp_async_ctx));
+	memcpy(rctx, &export->req_ctx, sizeof(struct dcp_sha_req_ctx));
+	memcpy(actx, &export->async_ctx, sizeof(struct dcp_async_ctx));
+
+	return 0;
 }
 
-static int dcp_sha_noexport(struct ahash_request *req, void *out)
+static int dcp_sha_export(struct ahash_request *req, void *out)
 {
-	return -ENOSYS;
+	struct dcp_sha_req_ctx *rctx_state = ahash_request_ctx(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct dcp_async_ctx *actx_state = crypto_ahash_ctx(tfm);
+	struct dcp_export_state *export = out;
+
+	memcpy(&export->req_ctx, rctx_state, sizeof(struct dcp_sha_req_ctx));
+	memcpy(&export->async_ctx, actx_state, sizeof(struct dcp_async_ctx));
+
+	return 0;
 }
 
 static int dcp_sha_cra_init(struct crypto_tfm *tfm)
@@ -838,10 +861,11 @@ static struct ahash_alg dcp_sha1_alg = {
 	.final	= dcp_sha_final,
 	.finup	= dcp_sha_finup,
 	.digest	= dcp_sha_digest,
-	.import = dcp_sha_noimport,
-	.export = dcp_sha_noexport,
+	.import = dcp_sha_import,
+	.export = dcp_sha_export,
 	.halg	= {
 		.digestsize	= SHA1_DIGEST_SIZE,
+		.statesize	= sizeof(struct dcp_export_state),
 		.base		= {
 			.cra_name		= "sha1",
 			.cra_driver_name	= "sha1-dcp",
@@ -864,10 +888,11 @@ static struct ahash_alg dcp_sha256_alg = {
 	.final	= dcp_sha_final,
 	.finup	= dcp_sha_finup,
 	.digest	= dcp_sha_digest,
-	.import = dcp_sha_noimport,
-	.export = dcp_sha_noexport,
+	.import = dcp_sha_import,
+	.export = dcp_sha_export,
 	.halg	= {
 		.digestsize	= SHA256_DIGEST_SIZE,
+		.statesize	= sizeof(struct dcp_export_state),
 		.base		= {
 			.cra_name		= "sha256",
 			.cra_driver_name	= "sha256-dcp",
