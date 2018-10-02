@@ -153,6 +153,12 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
  * PTR_TO_MAP_VALUE, PTR_TO_SOCKET_OR_NULL becomes PTR_TO_SOCKET when the type
  * passes through a NULL-check conditional. For the branch wherein the state is
  * changed to CONST_IMM, the verifier releases the reference.
+ *
+ * For each helper function that allocates a reference, such as
+ * bpf_sk_lookup_tcp(), there is a corresponding release function, such as
+ * bpf_sk_release(). When a reference type passes into the release function,
+ * the verifier also releases the reference. If any unchecked or unreleased
+ * reference remains at the end of the program, the verifier rejects it.
  */
 
 /* verifier_state + insn_idx are pushed to stack when branch is encountered */
@@ -300,7 +306,7 @@ static bool arg_type_is_refcounted(enum bpf_arg_type type)
  */
 static bool is_release_function(enum bpf_func_id func_id)
 {
-	return false;
+	return func_id == BPF_FUNC_sk_release;
 }
 
 /* string representation of 'enum bpf_reg_type' */
