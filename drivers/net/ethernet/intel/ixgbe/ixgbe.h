@@ -271,6 +271,7 @@ enum ixgbe_ring_state_t {
 	__IXGBE_TX_DETECT_HANG,
 	__IXGBE_HANG_CHECK_ARMED,
 	__IXGBE_TX_XDP_RING,
+	__IXGBE_TX_DISABLED,
 };
 
 #define ring_uses_build_skb(ring) \
