@@ -520,6 +520,12 @@ config SPI_RSPI
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
 
+config SPI_QCOM_QSPI
+	tristate "QTI QSPI controller"
+	depends on ARCH_QCOM
+	help
+	  QSPI(Quad SPI) driver for Qualcomm QSPI controller.
+
 config SPI_QUP
 	tristate "Qualcomm SPI controller with QUP interface"
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
