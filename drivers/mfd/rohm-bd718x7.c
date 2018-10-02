@@ -98,7 +98,7 @@ static int bd718xx_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	bd718xx->chip_irq = i2c->irq;
-	bd718xx->chip_type = (unsigned int)
+	bd718xx->chip_type = (unsigned int)(uintptr_t)
 				of_device_get_match_data(&i2c->dev);
 	bd718xx->dev = &i2c->dev;
 	dev_set_drvdata(&i2c->dev, bd718xx);
