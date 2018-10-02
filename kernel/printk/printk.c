@@ -1796,9 +1796,6 @@ static bool cont_add(int facility, int level, enum log_flags flags, const char *
 		cont_flush();
 	}
 
-	if (cont.len > (sizeof(cont.buf) * 80) / 100)
-		cont_flush();
-
 	return true;
 }
 
