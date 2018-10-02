@@ -126,7 +126,6 @@ static void oxfw_free(struct snd_oxfw *oxfw)
 		kfree(oxfw->rx_stream_formats[i]);
 	}
 
-	kfree(oxfw->spec);
 	mutex_destroy(&oxfw->mutex);
 	fw_unit_put(oxfw->unit);
 }
@@ -276,8 +275,6 @@ error:
 		oxfw->rx_stream_formats[i] = NULL;
 	}
 	snd_card_free(oxfw->card);
-	kfree(oxfw->spec);
-	oxfw->spec = NULL;
 	dev_info(&oxfw->unit->device,
 		 "Sound card registration failed: %d\n", err);
 }
