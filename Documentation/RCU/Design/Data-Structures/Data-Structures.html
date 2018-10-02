@@ -1227,9 +1227,11 @@ to overflow the counter, this approach corrects the
 CPU enters the idle loop from process context.
 
 </p><p>The <tt>-&gt;dynticks</tt> field counts the corresponding
-CPU's transitions to and from dyntick-idle mode, so that this counter
-has an even value when the CPU is in dyntick-idle mode and an odd
-value otherwise.
+CPU's transitions to and from either dyntick-idle or user mode, so
+that this counter has an even value when the CPU is in dyntick-idle
+mode or user mode and an odd value otherwise. The transitions to/from
+user mode need to be counted for user mode adaptive-ticks support
+(see timers/NO_HZ.txt).
 
 </p><p>The <tt>-&gt;rcu_need_heavy_qs</tt> field is used
 to record the fact that the RCU core code would really like to
@@ -1372,8 +1374,7 @@ that is, if the CPU is currently idle.
 Accessor Functions</a></h3>
 
 <p>The following listing shows the
-<tt>rcu_get_root()</tt>, <tt>rcu_for_each_node_breadth_first</tt>,
-<tt>rcu_for_each_nonleaf_node_breadth_first()</tt>, and
+<tt>rcu_get_root()</tt>, <tt>rcu_for_each_node_breadth_first</tt> and
 <tt>rcu_for_each_leaf_node()</tt> function and macros:
 
 <pre>
@@ -1386,13 +1387,9 @@ Accessor Functions</a></h3>
   7   for ((rnp) = &amp;(rsp)-&gt;node[0]; \
   8        (rnp) &lt; &amp;(rsp)-&gt;node[NUM_RCU_NODES]; (rnp)++)
   9
- 10 #define rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) \
- 11   for ((rnp) = &amp;(rsp)-&gt;node[0]; \
- 12        (rnp) &lt; (rsp)-&gt;level[NUM_RCU_LVLS - 1]; (rnp)++)
- 13
- 14 #define rcu_for_each_leaf_node(rsp, rnp) \
- 15   for ((rnp) = (rsp)-&gt;level[NUM_RCU_LVLS - 1]; \
- 16        (rnp) &lt; &amp;(rsp)-&gt;node[NUM_RCU_NODES]; (rnp)++)
+ 10 #define rcu_for_each_leaf_node(rsp, rnp) \
+ 11   for ((rnp) = (rsp)-&gt;level[NUM_RCU_LVLS - 1]; \
+ 12        (rnp) &lt; &amp;(rsp)-&gt;node[NUM_RCU_NODES]; (rnp)++)
 </pre>
 
 <p>The <tt>rcu_get_root()</tt> simply returns a pointer to the
@@ -1405,10 +1402,7 @@ macro takes advantage of the layout of the <tt>rcu_node</tt>
 structures in the <tt>rcu_state</tt> structure's
 <tt>-&gt;node[]</tt> array, performing a breadth-first traversal by
 simply traversing the array in order.
-The <tt>rcu_for_each_nonleaf_node_breadth_first()</tt> macro operates
-similarly, but traverses only the first part of the array, thus excluding
-the leaf <tt>rcu_node</tt> structures.
-Finally, the <tt>rcu_for_each_leaf_node()</tt> macro traverses only
+Similarly, the <tt>rcu_for_each_leaf_node()</tt> macro traverses only
 the last part of the array, thus traversing only the leaf
 <tt>rcu_node</tt> structures.
 
@@ -1416,15 +1410,14 @@ the last part of the array, thus traversing only the leaf
 <tr><th>&nbsp;</th></tr>
 <tr><th align="left">Quick Quiz:</th></tr>
 <tr><td>
-	What do <tt>rcu_for_each_nonleaf_node_breadth_first()</tt> and
+	What does
 	<tt>rcu_for_each_leaf_node()</tt> do if the <tt>rcu_node</tt> tree
 	contains only a single node?
 </td></tr>
 <tr><th align="left">Answer:</th></tr>
 <tr><td bgcolor="#ffffff"><font color="ffffff">
 	In the single-node case,
-	<tt>rcu_for_each_nonleaf_node_breadth_first()</tt> is a no-op
-	and <tt>rcu_for_each_leaf_node()</tt> traverses the single node.
+	<tt>rcu_for_each_leaf_node()</tt> traverses the single node.
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>
