@@ -34,6 +34,7 @@
 #include <net/tc_act/tc_mirred.h>
 #include <net/vxlan.h>
 #include <net/mpls.h>
+#include <net/xdp_sock.h>
 
 #include "ixgbe.h"
 #include "ixgbe_common.h"
@@ -3176,7 +3177,10 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 		per_ring_budget = budget;
 
 	ixgbe_for_each_ring(ring, q_vector->rx) {
-		int cleaned = ixgbe_clean_rx_irq(q_vector, ring,
+		int cleaned = ring->xsk_umem ?
+			      ixgbe_clean_rx_irq_zc(q_vector, ring,
+						    per_ring_budget) :
+			      ixgbe_clean_rx_irq(q_vector, ring,
 						 per_ring_budget);
 
 		work_done += cleaned;
@@ -3704,10 +3708,27 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 	srrctl = IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT;
 
 	/* configure the packet buffer length */
-	if (test_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state))
+	if (rx_ring->xsk_umem) {
+		u32 xsk_buf_len = rx_ring->xsk_umem->chunk_size_nohr -
+				  XDP_PACKET_HEADROOM;
+
+		/* If the MAC support setting RXDCTL.RLPML, the
+		 * SRRCTL[n].BSIZEPKT is set to PAGE_SIZE and
+		 * RXDCTL.RLPML is set to the actual UMEM buffer
+		 * size. If not, then we are stuck with a 1k buffer
+		 * size resolution. In this case frames larger than
+		 * the UMEM buffer size viewed in a 1k resolution will
+		 * be dropped.
+		 */
+		if (hw->mac.type != ixgbe_mac_82599EB)
+			srrctl |= PAGE_SIZE >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+		else
+			srrctl |= xsk_buf_len >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	} else if (test_bit(__IXGBE_RX_3K_BUFFER, &rx_ring->state)) {
 		srrctl |= IXGBE_RXBUFFER_3K >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	else
+	} else {
 		srrctl |= IXGBE_RXBUFFER_2K >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	}
 
 	/* configure descriptor type */
 	srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
@@ -4030,6 +4051,19 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	u32 rxdctl;
 	u8 reg_idx = ring->reg_idx;
 
+	xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
+	ring->xsk_umem = ixgbe_xsk_umem(adapter, ring);
+	if (ring->xsk_umem) {
+		ring->zca.free = ixgbe_zca_free;
+		WARN_ON(xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
+						   MEM_TYPE_ZERO_COPY,
+						   &ring->zca));
+
+	} else {
+		WARN_ON(xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
+						   MEM_TYPE_PAGE_SHARED, NULL));
+	}
+
 	/* disable queue to avoid use of these values while updating state */
 	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
 	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
@@ -4079,6 +4113,17 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 #endif
 	}
 
+	if (ring->xsk_umem && hw->mac.type != ixgbe_mac_82599EB) {
+		u32 xsk_buf_len = ring->xsk_umem->chunk_size_nohr -
+				  XDP_PACKET_HEADROOM;
+
+		rxdctl &= ~(IXGBE_RXDCTL_RLPMLMASK |
+			    IXGBE_RXDCTL_RLPML_EN);
+		rxdctl |= xsk_buf_len | IXGBE_RXDCTL_RLPML_EN;
+
+		ring->rx_buf_len = xsk_buf_len;
+	}
+
 	/* initialize rx_buffer_info */
 	memset(ring->rx_buffer_info, 0,
 	       sizeof(struct ixgbe_rx_buffer) * ring->count);
@@ -4092,7 +4137,10 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
 
 	ixgbe_rx_desc_queue_enable(adapter, ring);
-	ixgbe_alloc_rx_buffers(ring, ixgbe_desc_unused(ring));
+	if (ring->xsk_umem)
+		ixgbe_alloc_rx_buffers_zc(ring, ixgbe_desc_unused(ring));
+	else
+		ixgbe_alloc_rx_buffers(ring, ixgbe_desc_unused(ring));
 }
 
 static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
@@ -5206,6 +5254,11 @@ static void ixgbe_clean_rx_ring(struct ixgbe_ring *rx_ring)
 	u16 i = rx_ring->next_to_clean;
 	struct ixgbe_rx_buffer *rx_buffer = &rx_ring->rx_buffer_info[i];
 
+	if (rx_ring->xsk_umem) {
+		ixgbe_xsk_clean_rx_ring(rx_ring);
+		goto skip_free;
+	}
+
 	/* Free all the Rx ring sk_buffs */
 	while (i != rx_ring->next_to_alloc) {
 		if (rx_buffer->skb) {
@@ -5244,6 +5297,7 @@ static void ixgbe_clean_rx_ring(struct ixgbe_ring *rx_ring)
 		}
 	}
 
+skip_free:
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
@@ -6439,7 +6493,7 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	struct device *dev = rx_ring->dev;
 	int orig_node = dev_to_node(dev);
 	int ring_node = -1;
-	int size, err;
+	int size;
 
 	size = sizeof(struct ixgbe_rx_buffer) * rx_ring->count;
 
@@ -6475,13 +6529,6 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	if (xdp_rxq_info_reg(&rx_ring->xdp_rxq, adapter->netdev,
 			     rx_ring->queue_index) < 0)
 		goto err;
-
-	err = xdp_rxq_info_reg_mem_model(&rx_ring->xdp_rxq,
-					 MEM_TYPE_PAGE_SHARED, NULL);
-	if (err) {
-		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
-		goto err;
-	}
 
 	rx_ring->xdp_prog = adapter->xdp_prog;
 
@@ -10198,6 +10245,13 @@ static int ixgbe_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 		xdp->prog_id = adapter->xdp_prog ?
 			adapter->xdp_prog->aux->id : 0;
 		return 0;
+	case XDP_QUERY_XSK_UMEM:
+		return ixgbe_xsk_umem_query(adapter, &xdp->xsk.umem,
+					    xdp->xsk.queue_id);
+	case XDP_SETUP_XSK_UMEM:
+		return ixgbe_xsk_umem_setup(adapter, xdp->xsk.umem,
+					    xdp->xsk.queue_id);
+
 	default:
 		return -EINVAL;
 	}
