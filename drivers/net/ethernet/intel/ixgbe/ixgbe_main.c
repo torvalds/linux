@@ -40,6 +40,7 @@
 #include "ixgbe_dcb_82599.h"
 #include "ixgbe_sriov.h"
 #include "ixgbe_model.h"
+#include "ixgbe_txrx_common.h"
 
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
@@ -1673,9 +1674,9 @@ static void ixgbe_update_rsc_stats(struct ixgbe_ring *rx_ring,
  * order to populate the hash, checksum, VLAN, timestamp, protocol, and
  * other fields within the skb.
  **/
-static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
-				     union ixgbe_adv_rx_desc *rx_desc,
-				     struct sk_buff *skb)
+void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
+			      union ixgbe_adv_rx_desc *rx_desc,
+			      struct sk_buff *skb)
 {
 	struct net_device *dev = rx_ring->netdev;
 	u32 flags = rx_ring->q_vector->adapter->flags;
@@ -1708,8 +1709,8 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 	skb->protocol = eth_type_trans(skb, dev);
 }
 
-static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
-			 struct sk_buff *skb)
+void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
+		  struct sk_buff *skb)
 {
 	napi_gro_receive(&q_vector->napi, skb);
 }
@@ -1868,9 +1869,9 @@ static void ixgbe_dma_sync_frag(struct ixgbe_ring *rx_ring,
  *
  * Returns true if an error was encountered and skb was freed.
  **/
-static bool ixgbe_cleanup_headers(struct ixgbe_ring *rx_ring,
-				  union ixgbe_adv_rx_desc *rx_desc,
-				  struct sk_buff *skb)
+bool ixgbe_cleanup_headers(struct ixgbe_ring *rx_ring,
+			   union ixgbe_adv_rx_desc *rx_desc,
+			   struct sk_buff *skb)
 {
 	struct net_device *netdev = rx_ring->netdev;
 
@@ -2185,14 +2186,6 @@ static struct sk_buff *ixgbe_build_skb(struct ixgbe_ring *rx_ring,
 
 	return skb;
 }
-
-#define IXGBE_XDP_PASS		0
-#define IXGBE_XDP_CONSUMED	BIT(0)
-#define IXGBE_XDP_TX		BIT(1)
-#define IXGBE_XDP_REDIR		BIT(2)
-
-static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
-			       struct xdp_frame *xdpf);
 
 static struct sk_buff *ixgbe_run_xdp(struct ixgbe_adapter *adapter,
 				     struct ixgbe_ring *rx_ring,
@@ -8469,8 +8462,8 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 }
 
 #endif
-static int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
-			       struct xdp_frame *xdpf)
+int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
+			struct xdp_frame *xdpf)
 {
 	struct ixgbe_ring *ring = adapter->xdp_ring[smp_processor_id()];
 	struct ixgbe_tx_buffer *tx_buffer;
