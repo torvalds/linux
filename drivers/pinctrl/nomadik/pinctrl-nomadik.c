@@ -971,7 +971,7 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 			   data_out ? "hi" : "lo",
 			   (mode < 0) ? "unknown" : modes[mode]);
 	} else {
-		int irq = chip->to_irq(chip, gpio);
+		int irq = chip->to_irq(chip, offset);
 		struct irq_desc	*desc = irq_to_desc(irq);
 		int pullidx = 0;
 		int val;
