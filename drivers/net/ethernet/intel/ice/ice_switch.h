@@ -17,6 +17,7 @@ struct ice_vsi_ctx {
 	u16 vsis_unallocated;
 	u16 flags;
 	struct ice_aqc_vsi_props info;
+	struct ice_sched_vsi_info sched;
 	u8 alloc_from_pool;
 };
 
@@ -42,6 +43,14 @@ enum ice_sw_lkup_type {
 	ICE_SW_LKUP_LAST
 };
 
+/* type of filter src id */
+enum ice_src_id {
+	ICE_SRC_ID_UNKNOWN = 0,
+	ICE_SRC_ID_VSI,
+	ICE_SRC_ID_QUEUE,
+	ICE_SRC_ID_LPORT,
+};
+
 struct ice_fltr_info {
 	/* Look up information: how to look up packet */
 	enum ice_sw_lkup_type lkup_type;
@@ -56,6 +65,7 @@ struct ice_fltr_info {
 
 	/* Source VSI for LOOKUP_TX or source port for LOOKUP_RX */
 	u16 src;
+	enum ice_src_id src_id;
 
 	union {
 		struct {
@@ -77,7 +87,10 @@ struct ice_fltr_info {
 			u16 ethertype;
 			u8 mac_addr[ETH_ALEN]; /* optional */
 		} ethertype_mac;
-	} l_data;
+	} l_data; /* Make sure to zero out the memory of l_data before using
+		   * it or only set the data associated with lookup match
+		   * rest everything should be zero
+		   */
 
 	/* Depending on filter action */
 	union {
@@ -85,12 +98,16 @@ struct ice_fltr_info {
 		 * queue id in case of ICE_FWD_TO_QGRP.
 		 */
 		u16 q_id:11;
-		u16 vsi_id:10;
+		u16 hw_vsi_id:10;
 		u16 vsi_list_id:10;
 	} fwd_id;
 
+	/* Sw VSI handle */
+	u16 vsi_handle;
+
 	/* Set to num_queues if action is ICE_FWD_TO_QGRP. This field
-	 * determines the range of queues the packet needs to be forwarded to
+	 * determines the range of queues the packet needs to be forwarded to.
+	 * Note that qgrp_size must be set to a power of 2.
 	 */
 	u8 qgrp_size;
 
@@ -109,6 +126,7 @@ struct ice_sw_recipe {
 
 	/* List of type ice_fltr_mgmt_list_entry */
 	struct list_head filt_rules;
+	struct list_head filt_replay_rules;
 
 	/* linked list of type recipe_list_entry */
 	struct list_head rg_list;
@@ -129,6 +147,8 @@ struct ice_vsi_list_map_info {
 	struct list_head list_entry;
 	DECLARE_BITMAP(vsi_map, ICE_MAX_VSI);
 	u16 vsi_list_id;
+	/* counter to track how many rules are reusing this VSI list */
+	u16 ref_cnt;
 };
 
 struct ice_fltr_list_entry {
@@ -159,28 +179,33 @@ struct ice_fltr_mgmt_list_entry {
 
 /* VSI related commands */
 enum ice_status
-ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
-		  struct ice_sq_cd *cd);
-enum ice_status
 ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 	    struct ice_sq_cd *cd);
 enum ice_status
 ice_free_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 	     bool keep_vsi_alloc, struct ice_sq_cd *cd);
+enum ice_status
+ice_update_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
+	       struct ice_sq_cd *cd);
+bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle);
+struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 
 /* Switch/bridge related commands */
 enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
-void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_id);
+void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
 enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
 enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 enum ice_status
-ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_id, bool set, u8 direction);
-
-enum ice_status ice_replay_all_fltr(struct ice_hw *hw);
+ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction);
 
 enum ice_status ice_init_def_sw_recp(struct ice_hw *hw);
+u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);
+bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle);
+
+enum ice_status ice_replay_vsi_all_fltr(struct ice_hw *hw, u16 vsi_handle);
+void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw);
 
 #endif /* _ICE_SWITCH_H_ */

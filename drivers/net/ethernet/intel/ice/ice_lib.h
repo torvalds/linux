@@ -70,5 +70,7 @@ void ice_vsi_free_tx_rings(struct ice_vsi *vsi);
 
 int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc);
 
+int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
+
 irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data);
 #endif /* !_ICE_LIB_H_ */

@@ -18,6 +18,9 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 	return test_bit(tc, (unsigned long *)&bitmap);
 }
 
+/* Driver always calls main vsi_handle first */
+#define ICE_MAIN_VSI_HANDLE		0
+
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
 #define ICE_DBG_LINK		BIT_ULL(4)
@@ -147,12 +150,18 @@ struct ice_mac_info {
 	u8 perm_addr[ETH_ALEN];
 };
 
-/* Various RESET request, These are not tied with HW reset types */
+/* Reset types used to determine which kind of reset was requested. These
+ * defines match what the RESET_TYPE field of the GLGEN_RSTAT register.
+ * ICE_RESET_PFR does not match any RESET_TYPE field in the GLGEN_RSTAT register
+ * because its reset source is different than the other types listed.
+ */
 enum ice_reset_req {
+	ICE_RESET_POR	= 0,
 	ICE_RESET_INVAL	= 0,
-	ICE_RESET_PFR	= 1,
-	ICE_RESET_CORER	= 2,
-	ICE_RESET_GLOBR	= 3,
+	ICE_RESET_CORER	= 1,
+	ICE_RESET_GLOBR	= 2,
+	ICE_RESET_EMPR	= 3,
+	ICE_RESET_PFR	= 4,
 };
 
 /* Bus parameters */
@@ -186,7 +195,7 @@ struct ice_sched_node {
 	struct ice_sched_node **children;
 	struct ice_aqc_txsched_elem_data info;
 	u32 agg_id;			/* aggregator group id */
-	u16 vsi_id;
+	u16 vsi_handle;
 	u8 in_use;			/* suspended or in use */
 	u8 tx_sched_layer;		/* Logical Layer (1-9) */
 	u8 num_children;
@@ -245,8 +254,6 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
-	struct ice_sched_tx_policy sched_policy;
-	struct list_head vsi_info_list;
 	struct list_head agg_list;	/* lists all aggregator */
 	u8 lport;
 #define ICE_LPORT_MASK		0xff
@@ -326,16 +333,26 @@ struct ice_hw {
 	u32 fw_build;		/* firmware build number */
 
 	struct ice_fw_log_cfg fw_log;
-	/* minimum allowed value for different speeds */
-#define ICE_ITR_GRAN_MIN_200	1
-#define ICE_ITR_GRAN_MIN_100	1
-#define ICE_ITR_GRAN_MIN_50	2
-#define ICE_ITR_GRAN_MIN_25	4
+
+/* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
+ * register. Used for determining the itr/intrl granularity during
+ * initialization.
+ */
+#define ICE_MAX_AGG_BW_200G	0x0
+#define ICE_MAX_AGG_BW_100G	0X1
+#define ICE_MAX_AGG_BW_50G	0x2
+#define ICE_MAX_AGG_BW_25G	0x3
+	/* ITR granularity for different speeds */
+#define ICE_ITR_GRAN_ABOVE_25	2
+#define ICE_ITR_GRAN_MAX_25	4
 	/* ITR granularity in 1 us */
-	u8 itr_gran_200;
-	u8 itr_gran_100;
-	u8 itr_gran_50;
-	u8 itr_gran_25;
+	u8 itr_gran;
+	/* INTRL granularity for different speeds */
+#define ICE_INTRL_GRAN_ABOVE_25	4
+#define ICE_INTRL_GRAN_MAX_25	8
+	/* INTRL granularity in 1 us */
+	u8 intrl_gran;
+
 	u8 ucast_shared;	/* true if VSIs can share unicast addr */
 
 };

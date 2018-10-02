@@ -599,9 +599,7 @@ ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
 static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 {
 	struct ice_sched_agg_info *agg_info;
-	struct ice_sched_vsi_info *vsi_elem;
 	struct ice_sched_agg_info *atmp;
-	struct ice_sched_vsi_info *tmp;
 	struct ice_hw *hw;
 
 	if (!pi)
@@ -618,13 +616,6 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 			list_del(&agg_vsi_info->list_entry);
 			devm_kfree(ice_hw_to_dev(hw), agg_vsi_info);
 		}
-	}
-
-	/* remove the vsi list */
-	list_for_each_entry_safe(vsi_elem, tmp, &pi->vsi_info_list,
-				 list_entry) {
-		list_del(&vsi_elem->list_entry);
-		devm_kfree(ice_hw_to_dev(hw), vsi_elem);
 	}
 
 	if (pi->root) {
@@ -674,31 +665,6 @@ void ice_sched_cleanup_all(struct ice_hw *hw)
 	hw->num_tx_sched_phys_layers = 0;
 	hw->flattened_layers = 0;
 	hw->max_cgds = 0;
-}
-
-/**
- * ice_sched_create_vsi_info_entry - create an empty new VSI entry
- * @pi: port information structure
- * @vsi_id: VSI Id
- *
- * This function creates a new VSI entry and adds it to list
- */
-static struct ice_sched_vsi_info *
-ice_sched_create_vsi_info_entry(struct ice_port_info *pi, u16 vsi_id)
-{
-	struct ice_sched_vsi_info *vsi_elem;
-
-	if (!pi)
-		return NULL;
-
-	vsi_elem = devm_kzalloc(ice_hw_to_dev(pi->hw), sizeof(*vsi_elem),
-				GFP_KERNEL);
-	if (!vsi_elem)
-		return NULL;
-
-	list_add(&vsi_elem->list_entry, &pi->vsi_info_list);
-	vsi_elem->vsi_id = vsi_id;
-	return vsi_elem;
 }
 
 /**
@@ -1072,7 +1038,6 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 	pi->port_state = ICE_SCHED_PORT_STATE_READY;
 	mutex_init(&pi->sched_lock);
 	INIT_LIST_HEAD(&pi->agg_list);
-	INIT_LIST_HEAD(&pi->vsi_info_list);
 
 err_init_port:
 	if (status && pi->root) {
@@ -1142,27 +1107,6 @@ sched_query_out:
 }
 
 /**
- * ice_sched_get_vsi_info_entry - Get the vsi entry list for given vsi_id
- * @pi: port information structure
- * @vsi_id: vsi id
- *
- * This function retrieves the vsi list for the given vsi id
- */
-static struct ice_sched_vsi_info *
-ice_sched_get_vsi_info_entry(struct ice_port_info *pi, u16 vsi_id)
-{
-	struct ice_sched_vsi_info *list_elem;
-
-	if (!pi)
-		return NULL;
-
-	list_for_each_entry(list_elem, &pi->vsi_info_list, list_entry)
-		if (list_elem->vsi_id == vsi_id)
-			return list_elem;
-	return NULL;
-}
-
-/**
  * ice_sched_find_node_in_subtree - Find node in part of base node subtree
  * @hw: pointer to the hw struct
  * @base: pointer to the base node
@@ -1198,30 +1142,28 @@ ice_sched_find_node_in_subtree(struct ice_hw *hw, struct ice_sched_node *base,
 /**
  * ice_sched_get_free_qparent - Get a free lan or rdma q group node
  * @pi: port information structure
- * @vsi_id: vsi id
+ * @vsi_handle: software VSI handle
  * @tc: branch number
  * @owner: lan or rdma
  *
  * This function retrieves a free lan or rdma q group node
  */
 struct ice_sched_node *
-ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_id, u8 tc,
+ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			   u8 owner)
 {
 	struct ice_sched_node *vsi_node, *qgrp_node = NULL;
-	struct ice_sched_vsi_info *list_elem;
+	struct ice_vsi_ctx *vsi_ctx;
 	u16 max_children;
 	u8 qgrp_layer;
 
 	qgrp_layer = ice_sched_get_qgrp_layer(pi->hw);
 	max_children = pi->hw->max_children[qgrp_layer];
 
-	list_elem = ice_sched_get_vsi_info_entry(pi, vsi_id);
-	if (!list_elem)
-		goto lan_q_exit;
-
-	vsi_node = list_elem->vsi_node[tc];
-
+	vsi_ctx = ice_get_vsi_ctx(pi->hw, vsi_handle);
+	if (!vsi_ctx)
+		return NULL;
+	vsi_node = vsi_ctx->sched.vsi_node[tc];
 	/* validate invalid VSI id */
 	if (!vsi_node)
 		goto lan_q_exit;
@@ -1245,14 +1187,14 @@ lan_q_exit:
  * ice_sched_get_vsi_node - Get a VSI node based on VSI id
  * @hw: pointer to the hw struct
  * @tc_node: pointer to the TC node
- * @vsi_id: VSI id
+ * @vsi_handle: software VSI handle
  *
  * This function retrieves a VSI node for a given VSI id from a given
  * TC branch
  */
 static struct ice_sched_node *
 ice_sched_get_vsi_node(struct ice_hw *hw, struct ice_sched_node *tc_node,
-		       u16 vsi_id)
+		       u16 vsi_handle)
 {
 	struct ice_sched_node *node;
 	u8 vsi_layer;
@@ -1262,7 +1204,7 @@ ice_sched_get_vsi_node(struct ice_hw *hw, struct ice_sched_node *tc_node,
 
 	/* Check whether it already exists */
 	while (node) {
-		if (node->vsi_id == vsi_id)
+		if (node->vsi_handle == vsi_handle)
 			return node;
 		node = node->sibling;
 	}
@@ -1301,7 +1243,7 @@ ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
 /**
  * ice_sched_add_vsi_child_nodes - add VSI child nodes to tree
  * @pi: port information structure
- * @vsi_id: VSI id
+ * @vsi_handle: software VSI handle
  * @tc_node: pointer to the TC node
  * @num_nodes: pointer to the num nodes that needs to be added per layer
  * @owner: node owner (lan or rdma)
@@ -1310,7 +1252,7 @@ ice_sched_calc_vsi_child_nodes(struct ice_hw *hw, u16 num_qs, u16 *num_nodes)
  * lan and rdma separately.
  */
 static enum ice_status
-ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id,
+ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 			      struct ice_sched_node *tc_node, u16 *num_nodes,
 			      u8 owner)
 {
@@ -1323,7 +1265,7 @@ ice_sched_add_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id,
 
 	qgl = ice_sched_get_qgrp_layer(hw);
 	vsil = ice_sched_get_vsi_layer(hw);
-	parent = ice_sched_get_vsi_node(hw, tc_node, vsi_id);
+	parent = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
 	for (i = vsil + 1; i <= qgl; i++) {
 		if (!parent)
 			return ICE_ERR_CFG;
@@ -1436,7 +1378,7 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 /**
  * ice_sched_add_vsi_support_nodes - add VSI supported nodes into tx tree
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc_node: pointer to TC node
  * @num_nodes: pointer to num nodes array
  *
@@ -1444,7 +1386,7 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
  * VSI, its parent and intermediate nodes in below layers
  */
 static enum ice_status
-ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_id,
+ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_handle,
 				struct ice_sched_node *tc_node, u16 *num_nodes)
 {
 	struct ice_sched_node *parent = tc_node;
@@ -1478,7 +1420,7 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_id,
 			return ICE_ERR_CFG;
 
 		if (i == vsil)
-			parent->vsi_id = vsi_id;
+			parent->vsi_handle = vsi_handle;
 	}
 
 	return 0;
@@ -1487,13 +1429,13 @@ ice_sched_add_vsi_support_nodes(struct ice_port_info *pi, u16 vsi_id,
 /**
  * ice_sched_add_vsi_to_topo - add a new VSI into tree
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc: TC number
  *
  * This function adds a new VSI into scheduler tree
  */
 static enum ice_status
-ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_id, u8 tc)
+ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_handle, u8 tc)
 {
 	u16 num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
 	struct ice_sched_node *tc_node;
@@ -1507,13 +1449,14 @@ ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_id, u8 tc)
 	ice_sched_calc_vsi_support_nodes(hw, tc_node, num_nodes);
 
 	/* add vsi supported nodes to tc subtree */
-	return ice_sched_add_vsi_support_nodes(pi, vsi_id, tc_node, num_nodes);
+	return ice_sched_add_vsi_support_nodes(pi, vsi_handle, tc_node,
+					       num_nodes);
 }
 
 /**
  * ice_sched_update_vsi_child_nodes - update VSI child nodes
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc: TC number
  * @new_numqs: new number of max queues
  * @owner: owner of this subtree
@@ -1521,14 +1464,14 @@ ice_sched_add_vsi_to_topo(struct ice_port_info *pi, u16 vsi_id, u8 tc)
  * This function updates the VSI child nodes based on the number of queues
  */
 static enum ice_status
-ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id, u8 tc,
-				 u16 new_numqs, u8 owner)
+ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
+				 u8 tc, u16 new_numqs, u8 owner)
 {
 	u16 prev_num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
 	u16 new_num_nodes[ICE_AQC_TOPO_MAX_LEVEL_NUM] = { 0 };
 	struct ice_sched_node *vsi_node;
 	struct ice_sched_node *tc_node;
-	struct ice_sched_vsi_info *vsi;
+	struct ice_vsi_ctx *vsi_ctx;
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 	u16 prev_numqs;
@@ -1538,16 +1481,16 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id, u8 tc,
 	if (!tc_node)
 		return ICE_ERR_CFG;
 
-	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_id);
+	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
 	if (!vsi_node)
 		return ICE_ERR_CFG;
 
-	vsi = ice_sched_get_vsi_info_entry(pi, vsi_id);
-	if (!vsi)
-		return ICE_ERR_CFG;
+	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
+	if (!vsi_ctx)
+		return ICE_ERR_PARAM;
 
 	if (owner == ICE_SCHED_NODE_OWNER_LAN)
-		prev_numqs = vsi->max_lanq[tc];
+		prev_numqs = vsi_ctx->sched.max_lanq[tc];
 	else
 		return ICE_ERR_PARAM;
 
@@ -1572,13 +1515,13 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id, u8 tc,
 		for (i = 0; i < ICE_AQC_TOPO_MAX_LEVEL_NUM; i++)
 			new_num_nodes[i] -= prev_num_nodes[i];
 
-		status = ice_sched_add_vsi_child_nodes(pi, vsi_id, tc_node,
+		status = ice_sched_add_vsi_child_nodes(pi, vsi_handle, tc_node,
 						       new_num_nodes, owner);
 		if (status)
 			return status;
 	}
 
-	vsi->max_lanq[tc] = new_numqs;
+	vsi_ctx->sched.max_lanq[tc] = new_numqs;
 
 	return status;
 }
@@ -1586,7 +1529,7 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id, u8 tc,
 /**
  * ice_sched_cfg_vsi - configure the new/exisiting VSI
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc: TC number
  * @maxqs: max number of queues
  * @owner: lan or rdma
@@ -1597,25 +1540,21 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_id, u8 tc,
  * disabled then suspend the VSI if it is not already.
  */
 enum ice_status
-ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_id, u8 tc, u16 maxqs,
+ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		  u8 owner, bool enable)
 {
 	struct ice_sched_node *vsi_node, *tc_node;
-	struct ice_sched_vsi_info *vsi;
+	struct ice_vsi_ctx *vsi_ctx;
 	enum ice_status status = 0;
 	struct ice_hw *hw = pi->hw;
 
 	tc_node = ice_sched_get_tc_node(pi, tc);
 	if (!tc_node)
 		return ICE_ERR_PARAM;
-
-	vsi = ice_sched_get_vsi_info_entry(pi, vsi_id);
-	if (!vsi)
-		vsi = ice_sched_create_vsi_info_entry(pi, vsi_id);
-	if (!vsi)
-		return ICE_ERR_NO_MEMORY;
-
-	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_id);
+	vsi_ctx = ice_get_vsi_ctx(hw, vsi_handle);
+	if (!vsi_ctx)
+		return ICE_ERR_PARAM;
+	vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
 
 	/* suspend the VSI if tc is not enabled */
 	if (!enable) {
@@ -1632,20 +1571,26 @@ ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_id, u8 tc, u16 maxqs,
 
 	/* TC is enabled, if it is a new VSI then add it to the tree */
 	if (!vsi_node) {
-		status = ice_sched_add_vsi_to_topo(pi, vsi_id, tc);
+		status = ice_sched_add_vsi_to_topo(pi, vsi_handle, tc);
 		if (status)
 			return status;
 
-		vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_id);
+		vsi_node = ice_sched_get_vsi_node(hw, tc_node, vsi_handle);
 		if (!vsi_node)
 			return ICE_ERR_CFG;
 
-		vsi->vsi_node[tc] = vsi_node;
+		vsi_ctx->sched.vsi_node[tc] = vsi_node;
 		vsi_node->in_use = true;
+		/* invalidate the max queues whenever VSI gets added first time
+		 * into the scheduler tree (boot or after reset). We need to
+		 * recreate the child nodes all the time in these cases.
+		 */
+		vsi_ctx->sched.max_lanq[tc] = 0;
 	}
 
 	/* update the VSI child nodes */
-	status = ice_sched_update_vsi_child_nodes(pi, vsi_id, tc, maxqs, owner);
+	status = ice_sched_update_vsi_child_nodes(pi, vsi_handle, tc, maxqs,
+						  owner);
 	if (status)
 		return status;
 

@@ -88,6 +88,8 @@
 #define GLINT_DYN_CTL_SW_ITR_INDX_M		ICE_M(0x3, 25)
 #define GLINT_DYN_CTL_INTENA_MSK_M		BIT(31)
 #define GLINT_ITR(_i, _INT)			(0x00154000 + ((_i) * 8192 + (_INT) * 4))
+#define GLINT_RATE(_INT)			(0x0015A000 + ((_INT) * 4))
+#define GLINT_RATE_INTRL_ENA_M			BIT(6)
 #define PFINT_FW_CTL				0x0016C800
 #define PFINT_FW_CTL_MSIX_INDX_M		ICE_M(0x7FF, 0)
 #define PFINT_FW_CTL_ITR_INDX_S			11
@@ -173,6 +175,9 @@
 #define PF_FUNC_RID				0x0009E880
 #define PF_FUNC_RID_FUNC_NUM_S			0
 #define PF_FUNC_RID_FUNC_NUM_M			ICE_M(0x7, 0)
+#define GL_PWR_MODE_CTL				0x000B820C
+#define GL_PWR_MODE_CTL_CAR_MAX_BW_S		30
+#define GL_PWR_MODE_CTL_CAR_MAX_BW_M		ICE_M(0x3, 30)
 #define GLPRT_BPRCH(_i)				(0x00381384 + ((_i) * 8))
 #define GLPRT_BPRCL(_i)				(0x00381380 + ((_i) * 8))
 #define GLPRT_BPTCH(_i)				(0x00381244 + ((_i) * 8))
