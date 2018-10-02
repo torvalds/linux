@@ -1164,10 +1164,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int lastwqe = 0;
 	int mig = 0;
 	int pmtu = 0; /* for gcc warning only */
-	enum rdma_link_layer link;
 	int opa_ah;
-
-	link = rdma_port_get_link_layer(ibqp->device, qp->port_num);
 
 	spin_lock_irq(&qp->r_lock);
 	spin_lock(&qp->s_hlock);
@@ -1179,7 +1176,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	opa_ah = rdma_cap_opa_ah(ibqp->device, qp->port_num);
 
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
-				attr_mask, link))
+				attr_mask))
 		goto inval;
 
 	if (rdi->driver_f.check_modify_qp &&

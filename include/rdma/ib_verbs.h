@@ -2742,7 +2742,6 @@ static inline int ib_destroy_usecnt(atomic_t *usecnt,
  * @next_state: Next QP state
  * @type: QP type
  * @mask: Mask of supplied QP attributes
- * @ll : link layer of port
  *
  * This function is a helper function that a low-level driver's
  * modify_qp method can use to validate the consumer's input.  It
@@ -2751,8 +2750,7 @@ static inline int ib_destroy_usecnt(atomic_t *usecnt,
  * and that the attribute mask supplied is allowed for the transition.
  */
 bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
-			enum ib_qp_type type, enum ib_qp_attr_mask mask,
-			enum rdma_link_layer ll);
+			enum ib_qp_type type, enum ib_qp_attr_mask mask);
 
 void ib_register_event_handler(struct ib_event_handler *event_handler);
 void ib_unregister_event_handler(struct ib_event_handler *event_handler);
