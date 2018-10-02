@@ -115,8 +115,6 @@ void __slb_restore_bolted_realmode(void)
 
 /*
  * Insert the bolted entries into an empty SLB.
- * This is not the same as rebolt because the bolted segments are not
- * changed, just loaded from the shadow area.
  */
 void slb_restore_bolted_realmode(void)
 {
@@ -135,12 +133,15 @@ void slb_flush_all_realmode(void)
 	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 }
 
-void slb_flush_and_rebolt(void)
+/*
+ * This flushes non-bolted entries, it can be run in virtual mode. Must
+ * be called with interrupts disabled.
+ */
+void slb_flush_and_restore_bolted(void)
 {
-	/* If you change this make sure you change SLB_NUM_BOLTED
-	 * and PR KVM appropriately too. */
-	unsigned long linear_llp, lflags;
-	unsigned long ksp_esid_data, ksp_vsid_data;
+	struct slb_shadow *p = get_slb_shadow();
+
+	BUILD_BUG_ON(SLB_NUM_BOLTED != 2);
 
 	WARN_ON(!irqs_disabled());
 
@@ -150,30 +151,12 @@ void slb_flush_and_rebolt(void)
 	 */
 	hard_irq_disable();
 
-	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
-	lflags = SLB_VSID_KERNEL | linear_llp;
-
-	ksp_esid_data = mk_esid_data(get_paca()->kstack, mmu_kernel_ssize, KSTACK_INDEX);
-	if ((ksp_esid_data & ~0xfffffffUL) <= PAGE_OFFSET) {
-		ksp_esid_data &= ~SLB_ESID_V;
-		ksp_vsid_data = 0;
-		slb_shadow_clear(KSTACK_INDEX);
-	} else {
-		/* Update stack entry; others don't change */
-		slb_shadow_update(get_paca()->kstack, mmu_kernel_ssize, lflags, KSTACK_INDEX);
-		ksp_vsid_data =
-			be64_to_cpu(get_slb_shadow()->save_area[KSTACK_INDEX].vsid);
-	}
-
-	/* We need to do this all in asm, so we're sure we don't touch
-	 * the stack between the slbia and rebolting it. */
 	asm volatile("isync\n"
 		     "slbia\n"
-		     /* Slot 1 - kernel stack */
-		     "slbmte	%0,%1\n"
-		     "isync"
-		     :: "r"(ksp_vsid_data),
-		        "r"(ksp_esid_data)
+		     "slbmte  %0, %1\n"
+		     "isync\n"
+		     :: "r" (be64_to_cpu(p->save_area[KSTACK_INDEX].vsid)),
+			"r" (be64_to_cpu(p->save_area[KSTACK_INDEX].esid))
 		     : "memory");
 
 	get_paca()->slb_cache_ptr = 0;
@@ -254,7 +237,10 @@ void slb_dump_contents(struct slb_entry *slb_ptr)
 
 void slb_vmalloc_update(void)
 {
-	slb_flush_and_rebolt();
+	/*
+	 * vmalloc is not bolted, so just have to flush non-bolted.
+	 */
+	slb_flush_and_restore_bolted();
 }
 
 static bool preload_hit(struct thread_info *ti, unsigned long esid)

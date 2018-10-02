@@ -219,7 +219,7 @@ static void slice_flush_segments(void *parm)
 	copy_mm_to_paca(current->active_mm);
 
 	local_irq_save(flags);
-	slb_flush_and_rebolt();
+	slb_flush_and_restore_bolted();
 	local_irq_restore(flags);
 #endif
 }

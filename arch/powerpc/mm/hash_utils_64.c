@@ -1125,7 +1125,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 	if ((get_paca_psize(addr) != MMU_PAGE_4K) && (current->mm == mm)) {
 
 		copy_mm_to_paca(mm);
-		slb_flush_and_rebolt();
+		slb_flush_and_restore_bolted();
 	}
 }
 #endif /* CONFIG_PPC_64K_PAGES */
@@ -1197,7 +1197,7 @@ static void check_paca_psize(unsigned long ea, struct mm_struct *mm,
 	if (user_region) {
 		if (psize != get_paca_psize(ea)) {
 			copy_mm_to_paca(mm);
-			slb_flush_and_rebolt();
+			slb_flush_and_restore_bolted();
 		}
 	} else if (get_paca()->vmalloc_sllp !=
 		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
