@@ -512,6 +512,16 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		 * duration predictor do a better job next time.
 		 */
 		measured_us = 9 * MAX_INTERESTING / 10;
+	} else if ((drv->states[last_idx].flags & CPUIDLE_FLAG_POLLING) &&
+		   dev->poll_time_limit) {
+		/*
+		 * The CPU exited the "polling" state due to a time limit, so
+		 * the idle duration prediction leading to the selection of that
+		 * state was inaccurate.  If a better prediction had been made,
+		 * the CPU might have been woken up from idle by the next timer.
+		 * Assume that to be the case.
+		 */
+		measured_us = data->next_timer_us;
 	} else {
 		/* measured value */
 		measured_us = cpuidle_get_last_residency(dev);
