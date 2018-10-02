@@ -487,8 +487,6 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 extern void pseries_add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
-extern void hash__setup_new_exec(void);
-
 #ifdef CONFIG_PPC_PSERIES
 void hpte_init_pseries(void);
 #else
@@ -503,7 +501,6 @@ struct slb_entry {
 };
 
 extern void slb_initialize(void);
-extern void core_flush_all_slbs(struct mm_struct *mm);
 extern void slb_flush_and_rebolt(void);
 void slb_flush_all_realmode(void);
 void __slb_restore_bolted_realmode(void);

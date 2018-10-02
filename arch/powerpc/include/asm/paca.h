@@ -113,10 +113,7 @@ struct paca_struct {
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
-	u8 slb_cache_ptr;
-	u8 stab_rr;			/* stab/slb round-robin counter */
-	u32 slb_used_bitmap;		/* Bitmaps for first 32 SLB entries. */
-	u32 slb_kern_bitmap;
+	u16 slb_cache_ptr;
 	u32 slb_cache[SLB_CACHE_ENTRIES];
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
@@ -146,11 +143,24 @@ struct paca_struct {
 	struct tlb_core_data tcd;
 #endif /* CONFIG_PPC_BOOK3E */
 
+#ifdef CONFIG_PPC_BOOK3S
+	mm_context_id_t mm_ctx_id;
+#ifdef CONFIG_PPC_MM_SLICES
+	unsigned char mm_ctx_low_slices_psize[BITS_PER_LONG / BITS_PER_BYTE];
+	unsigned char mm_ctx_high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long mm_ctx_slb_addr_limit;
+#else
+	u16 mm_ctx_user_psize;
+	u16 mm_ctx_sllp;
+#endif
+#endif
+
 	/*
 	 * then miscellaneous read-write fields
 	 */
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
+	u64 stab_rr;			/* stab/slb round-robin counter */
 	u64 saved_r1;			/* r1 save for RTAS calls or PM or EE=0 */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u16 trap_save;			/* Used when bad stack is encountered */
@@ -248,6 +258,7 @@ struct paca_struct {
 #endif /* CONFIG_PPC_BOOK3S_64 */
 } ____cacheline_aligned;
 
+extern void copy_mm_to_paca(struct mm_struct *mm);
 extern struct paca_struct **paca_ptrs;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);

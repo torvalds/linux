@@ -2394,9 +2394,7 @@ static void dump_one_paca(int cpu)
 			}
 		}
 		DUMP(p, vmalloc_sllp, "%#-*x");
-		DUMP(p, stab_rr, "%#-*x");
-		DUMP(p, slb_used_bitmap, "%#-*x");
-		DUMP(p, slb_kern_bitmap, "%#-*x");
+		DUMP(p, stab_rr, "%#-*llx");
 
 		if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
 			DUMP(p, slb_cache_ptr, "%#-*x");
