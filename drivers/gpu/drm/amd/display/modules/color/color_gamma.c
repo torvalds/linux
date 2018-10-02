@@ -789,7 +789,8 @@ static void hermite_spline_eetf(struct fixed31_32 input_x,
 		// (t^3 - 2t^2 + t) * (1-ks)
 		E2 = dc_fixpt_add(E2, dc_fixpt_mul(temp2,
 				dc_fixpt_add(t, dc_fixpt_sub(t3, temp1))));
-	}
+	} else
+		E2 = dc_fixpt_one;
 
 	temp1 = dc_fixpt_sub(dc_fixpt_one, E2);
 	temp2 = dc_fixpt_mul(temp1, temp1);
