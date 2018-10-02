@@ -491,11 +491,6 @@ void rxe_loopback(struct sk_buff *skb)
 	rxe_rcv(skb);
 }
 
-static inline int addr_same(struct rxe_dev *rxe, struct rxe_av *av)
-{
-	return rxe->port.port_guid == av->grh.dgid.global.interface_id;
-}
-
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt)
 {
