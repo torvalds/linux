@@ -1763,8 +1763,7 @@ static int check_xadd(struct bpf_verifier_env *env, int insn_idx, struct bpf_ins
 	if (is_ctx_reg(env, insn->dst_reg) ||
 	    is_pkt_reg(env, insn->dst_reg)) {
 		verbose(env, "BPF_XADD stores into R%d %s is not allowed\n",
-			insn->dst_reg, is_ctx_reg(env, insn->dst_reg) ?
-			"context" : "packet");
+			insn->dst_reg, reg_type_str[insn->dst_reg]);
 		return -EACCES;
 	}
 
@@ -4871,8 +4870,8 @@ static int do_check(struct bpf_verifier_env *env)
 				return err;
 
 			if (is_ctx_reg(env, insn->dst_reg)) {
-				verbose(env, "BPF_ST stores into R%d context is not allowed\n",
-					insn->dst_reg);
+				verbose(env, "BPF_ST stores into R%d %s is not allowed\n",
+					insn->dst_reg, reg_type_str[insn->dst_reg]);
 				return -EACCES;
 			}
 
