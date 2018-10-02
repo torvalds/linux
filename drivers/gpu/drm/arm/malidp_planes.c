@@ -440,11 +440,20 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	/* packed RGB888 / BGR888 can't be rotated or flipped */
-	if (state->rotation != DRM_MODE_ROTATE_0 &&
-	    (fb->format->format == DRM_FORMAT_RGB888 ||
-	     fb->format->format == DRM_FORMAT_BGR888))
-		return -EINVAL;
+	/* validate the rotation constraints for each layer */
+	if (state->rotation != DRM_MODE_ROTATE_0) {
+		if (mp->layer->rot == ROTATE_NONE)
+			return -EINVAL;
+		if ((mp->layer->rot == ROTATE_COMPRESSED) && !(fb->modifier))
+			return -EINVAL;
+		/*
+		 * packed RGB888 / BGR888 can't be rotated or flipped
+		 * unless they are stored in a compressed way
+		 */
+		if ((fb->format->format == DRM_FORMAT_RGB888 ||
+		     fb->format->format == DRM_FORMAT_BGR888) && !(fb->modifier))
+			return -EINVAL;
+	}
 
 	ms->rotmem_size = 0;
 	if (state->rotation & MALIDP_ROTATED_MASK) {

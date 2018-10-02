@@ -36,6 +36,12 @@ enum {
 	SE_MEMWRITE = BIT(5),
 };
 
+enum rotation_features {
+	ROTATE_NONE,		/* does not support rotation at all */
+	ROTATE_ANY,		/* supports rotation on any buffers */
+	ROTATE_COMPRESSED,	/* supports rotation only on compressed buffers */
+};
+
 struct malidp_format_id {
 	u32 format;		/* DRM fourcc */
 	u8 layer;		/* bitmask of layers supporting it */
@@ -63,6 +69,7 @@ struct malidp_layer {
 	u16 stride_offset;	/* offset to the first stride register. */
 	s16 yuv2rgb_offset;	/* offset to the YUV->RGB matrix entries */
 	u16 mmu_ctrl_offset;    /* offset to the MMU control register */
+	enum rotation_features rot;	/* type of rotation supported */
 };
 
 enum malidp_scaling_coeff_set {
