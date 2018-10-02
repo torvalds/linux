@@ -207,6 +207,19 @@ static int rcu_gp_in_progress(void)
 	return rcu_seq_state(rcu_seq_current(&rcu_state.gp_seq));
 }
 
+/*
+ * Return the number of callbacks queued on the specified CPU.
+ * Handles both the nocbs and normal cases.
+ */
+static long rcu_get_n_cbs_cpu(int cpu)
+{
+	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+
+	if (rcu_segcblist_is_enabled(&rdp->cblist)) /* Online normal CPU? */
+		return rcu_segcblist_n_cbs(&rdp->cblist);
+	return rcu_get_n_cbs_nocb_cpu(rdp); /* Works for offline, too. */
+}
+
 void rcu_softirq_qs(void)
 {
 	rcu_qs();
@@ -1265,8 +1278,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 
 	print_cpu_stall_info_end();
 	for_each_possible_cpu(cpu)
-		totqlen += rcu_segcblist_n_cbs(&per_cpu_ptr(&rcu_data,
-							    cpu)->cblist);
+		totqlen += rcu_get_n_cbs_cpu(cpu);
 	pr_cont("(detected by %d, t=%ld jiffies, g=%ld, q=%lu)\n",
 	       smp_processor_id(), (long)(jiffies - rcu_state.gp_start),
 	       (long)rcu_seq_current(&rcu_state.gp_seq), totqlen);
@@ -1326,8 +1338,7 @@ static void print_cpu_stall(void)
 	raw_spin_unlock_irqrestore_rcu_node(rdp->mynode, flags);
 	print_cpu_stall_info_end();
 	for_each_possible_cpu(cpu)
-		totqlen += rcu_segcblist_n_cbs(&per_cpu_ptr(&rcu_data,
-							    cpu)->cblist);
+		totqlen += rcu_get_n_cbs_cpu(cpu);
 	pr_cont(" (t=%lu jiffies g=%ld q=%lu)\n",
 		jiffies - rcu_state.gp_start,
 		(long)rcu_seq_current(&rcu_state.gp_seq), totqlen);
