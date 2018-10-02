@@ -127,6 +127,8 @@ enum pkt_vec {
  *
  * @maps_neutral:	hash table of offload-neutral maps (on pointer)
  *
+ * @abi_version:	global BPF ABI version
+ *
  * @adjust_head:	adjust head capability
  * @adjust_head.flags:		extra flags for adjust head
  * @adjust_head.off_min:	minimal packet offset within buffer required
@@ -169,6 +171,8 @@ struct nfp_app_bpf {
 	unsigned int map_elems_in_use;
 
 	struct rhashtable maps_neutral;
+
+	u32 abi_version;
 
 	struct nfp_bpf_cap_adjust_head {
 		u32 flags;
