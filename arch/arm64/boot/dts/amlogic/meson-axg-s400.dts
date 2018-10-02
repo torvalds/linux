@@ -475,6 +475,8 @@
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 
+	mmc-pwrseq = <&emmc_pwrseq>;
+
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vddio_boot>;
 };
