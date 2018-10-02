@@ -200,6 +200,36 @@ cfg80211_get_dev_from_info(struct net *netns, struct genl_info *info)
 	return __cfg80211_rdev_from_attrs(netns, info->attrs);
 }
 
+static int validate_ie_attr(const struct nlattr *attr,
+			    struct netlink_ext_ack *extack)
+{
+	const u8 *pos;
+	int len;
+
+	pos = nla_data(attr);
+	len = nla_len(attr);
+
+	while (len) {
+		u8 elemlen;
+
+		if (len < 2)
+			goto error;
+		len -= 2;
+
+		elemlen = pos[1];
+		if (elemlen > len)
+			goto error;
+
+		len -= elemlen;
+		pos += 2 + elemlen;
+	}
+
+	return 0;
+error:
+	NL_SET_ERR_MSG_ATTR(extack, attr, "malformed information elements");
+	return -EINVAL;
+}
+
 /* policy for the attributes */
 static const struct nla_policy
 nl80211_ftm_responder_policy[NL80211_FTM_RESP_ATTR_MAX + 1] = {
@@ -250,8 +280,9 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_DTIM_PERIOD] = { .type = NLA_U32 },
 	[NL80211_ATTR_BEACON_HEAD] = { .type = NLA_BINARY,
 				       .len = IEEE80211_MAX_DATA_LEN },
-	[NL80211_ATTR_BEACON_TAIL] = { .type = NLA_BINARY,
-				       .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_BEACON_TAIL] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_ie_attr,
+				       IEEE80211_MAX_DATA_LEN),
 	[NL80211_ATTR_STA_AID] =
 		NLA_POLICY_RANGE(NLA_U16, 1, IEEE80211_MAX_AID),
 	[NL80211_ATTR_STA_FLAGS] = { .type = NLA_NESTED },
@@ -282,8 +313,9 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_HT_CAPABILITY] = { .len = NL80211_HT_CAPABILITY_LEN },
 
 	[NL80211_ATTR_MGMT_SUBTYPE] = { .type = NLA_U8 },
-	[NL80211_ATTR_IE] = { .type = NLA_BINARY,
-			      .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_IE] = NLA_POLICY_VALIDATE_FN(NLA_BINARY,
+						   validate_ie_attr,
+						   IEEE80211_MAX_DATA_LEN),
 	[NL80211_ATTR_SCAN_FREQUENCIES] = { .type = NLA_NESTED },
 	[NL80211_ATTR_SCAN_SSIDS] = { .type = NLA_NESTED },
 
@@ -341,10 +373,12 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_RANGE(NLA_U32,
 				 NL80211_HIDDEN_SSID_NOT_IN_USE,
 				 NL80211_HIDDEN_SSID_ZERO_CONTENTS),
-	[NL80211_ATTR_IE_PROBE_RESP] = { .type = NLA_BINARY,
-					 .len = IEEE80211_MAX_DATA_LEN },
-	[NL80211_ATTR_IE_ASSOC_RESP] = { .type = NLA_BINARY,
-					 .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_IE_PROBE_RESP] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_ie_attr,
+				       IEEE80211_MAX_DATA_LEN),
+	[NL80211_ATTR_IE_ASSOC_RESP] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_ie_attr,
+				       IEEE80211_MAX_DATA_LEN),
 	[NL80211_ATTR_ROAM_SUPPORT] = { .type = NLA_FLAG },
 	[NL80211_ATTR_SCHED_SCAN_MATCH] = { .type = NLA_NESTED },
 	[NL80211_ATTR_TX_NO_CCK_RATE] = { .type = NLA_FLAG },
@@ -647,36 +681,6 @@ static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
 	}
 
 	return 0;
-}
-
-/* IE validation */
-static bool is_valid_ie_attr(const struct nlattr *attr)
-{
-	const u8 *pos;
-	int len;
-
-	if (!attr)
-		return true;
-
-	pos = nla_data(attr);
-	len = nla_len(attr);
-
-	while (len) {
-		u8 elemlen;
-
-		if (len < 2)
-			return false;
-		len -= 2;
-
-		elemlen = pos[1];
-		if (elemlen > len)
-			return false;
-
-		len -= elemlen;
-		pos += 2 + elemlen;
-	}
-
-	return true;
 }
 
 /* message building helper */
@@ -4018,12 +4022,6 @@ static int nl80211_parse_beacon(struct cfg80211_registered_device *rdev,
 	bool haveinfo = false;
 	int err;
 
-	if (!is_valid_ie_attr(attrs[NL80211_ATTR_BEACON_TAIL]) ||
-	    !is_valid_ie_attr(attrs[NL80211_ATTR_IE]) ||
-	    !is_valid_ie_attr(attrs[NL80211_ATTR_IE_PROBE_RESP]) ||
-	    !is_valid_ie_attr(attrs[NL80211_ATTR_IE_ASSOC_RESP]))
-		return -EINVAL;
-
 	memset(bcn, 0, sizeof(*bcn));
 
 	if (attrs[NL80211_ATTR_BEACON_HEAD]) {
@@ -6189,8 +6187,9 @@ static const struct nla_policy
 	[NL80211_MESH_SETUP_USERSPACE_AUTH] = { .type = NLA_FLAG },
 	[NL80211_MESH_SETUP_AUTH_PROTOCOL] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_USERSPACE_MPM] = { .type = NLA_FLAG },
-	[NL80211_MESH_SETUP_IE] = { .type = NLA_BINARY,
-				    .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_MESH_SETUP_IE] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_ie_attr,
+				       IEEE80211_MAX_DATA_LEN),
 	[NL80211_MESH_SETUP_USERSPACE_AMPE] = { .type = NLA_FLAG },
 };
 
@@ -6370,8 +6369,6 @@ static int nl80211_parse_mesh_setup(struct genl_info *info,
 	if (tb[NL80211_MESH_SETUP_IE]) {
 		struct nlattr *ieattr =
 			tb[NL80211_MESH_SETUP_IE];
-		if (!is_valid_ie_attr(ieattr))
-			return -EINVAL;
 		setup->ie = nla_data(ieattr);
 		setup->ie_len = nla_len(ieattr);
 	}
@@ -7004,9 +7001,6 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	int err, tmp, n_ssids = 0, n_channels, i;
 	size_t ie_len;
 
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-		return -EINVAL;
-
 	wiphy = &rdev->wiphy;
 
 	if (wdev->iftype == NL80211_IFTYPE_NAN)
@@ -7359,9 +7353,6 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 	size_t ie_len;
 	struct nlattr *tb[NL80211_SCHED_SCAN_MATCH_ATTR_MAX + 1];
 	s32 default_match_rssi = NL80211_SCAN_RSSI_THOLD_OFF;
-
-	if (!is_valid_ie_attr(attrs[NL80211_ATTR_IE]))
-		return ERR_PTR(-EINVAL);
 
 	if (attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
 		n_channels = validate_scan_freqs(
@@ -8330,9 +8321,6 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	struct key_parse key;
 	bool local_state_change;
 
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-		return -EINVAL;
-
 	if (!info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
 
@@ -8571,9 +8559,6 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->conn_owner_nlportid != info->snd_portid)
 		return -EPERM;
 
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-		return -EINVAL;
-
 	if (!info->attrs[NL80211_ATTR_MAC] ||
 	    !info->attrs[NL80211_ATTR_SSID] ||
 	    !info->attrs[NL80211_ATTR_WIPHY_FREQ])
@@ -8697,9 +8682,6 @@ static int nl80211_deauthenticate(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->conn_owner_nlportid != info->snd_portid)
 		return -EPERM;
 
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-		return -EINVAL;
-
 	if (!info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
 
@@ -8747,9 +8729,6 @@ static int nl80211_disassociate(struct sk_buff *skb, struct genl_info *info)
 	if (dev->ieee80211_ptr->conn_owner_nlportid &&
 	    dev->ieee80211_ptr->conn_owner_nlportid != info->snd_portid)
 		return -EPERM;
-
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-		return -EINVAL;
 
 	if (!info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
@@ -8824,9 +8803,6 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	int err;
 
 	memset(&ibss, 0, sizeof(ibss));
-
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-		return -EINVAL;
 
 	if (!info->attrs[NL80211_ATTR_SSID] ||
 	    !nla_len(info->attrs[NL80211_ATTR_SSID]))
@@ -9265,9 +9241,6 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	memset(&connect, 0, sizeof(connect));
 
-	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-		return -EINVAL;
-
 	if (!info->attrs[NL80211_ATTR_SSID] ||
 	    !nla_len(info->attrs[NL80211_ATTR_SSID]))
 		return -EINVAL;
@@ -9498,8 +9471,6 @@ static int nl80211_update_connect_params(struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
-			return -EINVAL;
 		connect.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
 		connect.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 		changed |= UPDATE_ASSOC_IES;
@@ -12159,8 +12130,7 @@ static int nl80211_update_ft_ies(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[NL80211_ATTR_MDID] ||
-	    !info->attrs[NL80211_ATTR_IE] ||
-	    !is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
+	    !info->attrs[NL80211_ATTR_IE])
 		return -EINVAL;
 
 	memset(&ft_params, 0, sizeof(ft_params));
