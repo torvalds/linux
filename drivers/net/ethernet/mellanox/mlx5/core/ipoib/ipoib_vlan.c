@@ -275,14 +275,17 @@ static int mlx5i_pkey_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
-static void mlx5i_pkey_init(struct mlx5_core_dev *mdev,
-			     struct net_device *netdev,
-			     const struct mlx5e_profile *profile,
-			     void *ppriv)
+static int mlx5i_pkey_init(struct mlx5_core_dev *mdev,
+			   struct net_device *netdev,
+			   const struct mlx5e_profile *profile,
+			   void *ppriv)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
+	int err;
 
-	mlx5i_init(mdev, netdev, profile, ppriv);
+	err = mlx5i_init(mdev, netdev, profile, ppriv);
+	if (err)
+		return err;
 
 	/* Override parent ndo */
 	netdev->netdev_ops = &mlx5i_pkey_netdev_ops;
@@ -292,12 +295,14 @@ static void mlx5i_pkey_init(struct mlx5_core_dev *mdev,
 
 	/* Use dummy rqs */
 	priv->channels.params.log_rq_mtu_frames = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
+
+	return 0;
 }
 
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
 static void mlx5i_pkey_cleanup(struct mlx5e_priv *priv)
 {
-	/* Do nothing .. */
+	mlx5i_cleanup(priv);
 }
 
 static int mlx5i_pkey_init_tx(struct mlx5e_priv *priv)

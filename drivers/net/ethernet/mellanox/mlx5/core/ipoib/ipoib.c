@@ -71,13 +71,14 @@ static void mlx5i_build_nic_params(struct mlx5_core_dev *mdev,
 }
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
-void mlx5i_init(struct mlx5_core_dev *mdev,
-		struct net_device *netdev,
-		const struct mlx5e_profile *profile,
-		void *ppriv)
+int mlx5i_init(struct mlx5_core_dev *mdev,
+	       struct net_device *netdev,
+	       const struct mlx5e_profile *profile,
+	       void *ppriv)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
 	u16 max_mtu;
+	int err;
 
 	/* priv init */
 	priv->mdev        = mdev;
@@ -86,6 +87,10 @@ void mlx5i_init(struct mlx5_core_dev *mdev,
 	priv->ppriv       = ppriv;
 	priv->max_opened_tc = 1;
 	mutex_init(&priv->state_lock);
+
+	err = mlx5e_netdev_init(netdev, priv);
+	if (err)
+		return err;
 
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 	netdev->mtu = max_mtu;
@@ -108,12 +113,14 @@ void mlx5i_init(struct mlx5_core_dev *mdev,
 
 	netdev->netdev_ops = &mlx5i_netdev_ops;
 	netdev->ethtool_ops = &mlx5i_ethtool_ops;
+
+	return 0;
 }
 
 /* Called directly before IPoIB netdevice is destroyed to cleanup SW structs */
-static void mlx5i_cleanup(struct mlx5e_priv *priv)
+void mlx5i_cleanup(struct mlx5e_priv *priv)
 {
-	/* Do nothing .. */
+	mlx5e_netdev_cleanup(priv->netdev, priv);
 }
 
 static void mlx5i_grp_sw_update_stats(struct mlx5e_priv *priv)
@@ -650,7 +657,6 @@ static void mlx5_rdma_netdev_free(struct net_device *netdev)
 
 	mlx5e_detach_netdev(priv);
 	profile->cleanup(priv);
-	destroy_workqueue(priv->wq);
 
 	if (!ipriv->sub_interface) {
 		mlx5i_pkey_qpn_ht_cleanup(netdev);
@@ -683,16 +689,12 @@ static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u8 port_num,
 	ipriv = netdev_priv(netdev);
 	epriv = mlx5i_epriv(netdev);
 
-	epriv->wq = create_singlethread_workqueue("mlx5i");
-	if (!epriv->wq)
-		return -ENOMEM;
-
 	ipriv->sub_interface = mlx5_is_sub_interface(mdev);
 	if (!ipriv->sub_interface) {
 		err = mlx5i_pkey_qpn_ht_init(netdev);
 		if (err) {
 			mlx5_core_warn(mdev, "allocate qpn_to_netdev ht failed\n");
-			goto destroy_wq;
+			return err;
 		}
 
 		/* This should only be called once per mdev */
@@ -721,8 +723,6 @@ static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u8 port_num,
 
 destroy_ht:
 	mlx5i_pkey_qpn_ht_cleanup(netdev);
-destroy_wq:
-	destroy_workqueue(epriv->wq);
 	return err;
 }
 

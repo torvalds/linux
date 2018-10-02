@@ -4749,13 +4749,17 @@ void mlx5e_destroy_q_counters(struct mlx5e_priv *priv)
 		mlx5_core_dealloc_q_counter(priv->mdev, priv->drop_rq_q_counter);
 }
 
-static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
-			   struct net_device *netdev,
-			   const struct mlx5e_profile *profile,
-			   void *ppriv)
+static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
+			  struct net_device *netdev,
+			  const struct mlx5e_profile *profile,
+			  void *ppriv)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
+
+	err = mlx5e_netdev_init(netdev, priv);
+	if (err)
+		return err;
 
 	mlx5e_build_nic_netdev_priv(mdev, netdev, profile, ppriv);
 	err = mlx5e_ipsec_init(priv);
@@ -4766,12 +4770,15 @@ static void mlx5e_nic_init(struct mlx5_core_dev *mdev,
 		mlx5_core_err(mdev, "TLS initialization failed, %d\n", err);
 	mlx5e_build_nic_netdev(netdev);
 	mlx5e_build_tc2txq_maps(priv);
+
+	return 0;
 }
 
 static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 {
 	mlx5e_tls_cleanup(priv);
 	mlx5e_ipsec_cleanup(priv);
+	mlx5e_netdev_cleanup(priv->netdev, priv);
 }
 
 static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
@@ -4943,13 +4950,30 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 
 /* mlx5e generic netdev management API (move to en_common.c) */
 
+/* mlx5e_netdev_init/cleanup must be called from profile->init/cleanup callbacks */
+int mlx5e_netdev_init(struct net_device *netdev, struct mlx5e_priv *priv)
+{
+	netif_carrier_off(netdev);
+
+	priv->wq = create_singlethread_workqueue("mlx5e");
+	if (!priv->wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void mlx5e_netdev_cleanup(struct net_device *netdev, struct mlx5e_priv *priv)
+{
+	destroy_workqueue(priv->wq);
+}
+
 struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 				       const struct mlx5e_profile *profile,
 				       void *ppriv)
 {
 	int nch = profile->max_nch(mdev);
 	struct net_device *netdev;
-	struct mlx5e_priv *priv;
+	int err;
 
 	netdev = alloc_etherdev_mqs(sizeof(struct mlx5e_priv),
 				    nch * profile->max_tc,
@@ -4963,21 +4987,15 @@ struct net_device *mlx5e_create_netdev(struct mlx5_core_dev *mdev,
 	netdev->rx_cpu_rmap = mdev->rmap;
 #endif
 
-	profile->init(mdev, netdev, profile, ppriv);
-
-	netif_carrier_off(netdev);
-
-	priv = netdev_priv(netdev);
-
-	priv->wq = create_singlethread_workqueue("mlx5e");
-	if (!priv->wq)
-		goto err_cleanup_nic;
+	err = profile->init(mdev, netdev, profile, ppriv);
+	if (err) {
+		mlx5_core_err(mdev, "failed to init mlx5e profile %d\n", err);
+		goto err_free_netdev;
+	}
 
 	return netdev;
 
-err_cleanup_nic:
-	if (profile->cleanup)
-		profile->cleanup(priv);
+err_free_netdev:
 	free_netdev(netdev);
 
 	return NULL;
@@ -5031,7 +5049,6 @@ void mlx5e_destroy_netdev(struct mlx5e_priv *priv)
 	const struct mlx5e_profile *profile = priv->profile;
 	struct net_device *netdev = priv->netdev;
 
-	destroy_workqueue(priv->wq);
 	if (profile->cleanup)
 		profile->cleanup(priv);
 	free_netdev(netdev);
