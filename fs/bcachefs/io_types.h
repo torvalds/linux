@@ -55,7 +55,7 @@ struct bch_read_bio {
 
 	struct bch_devs_list	devs_have;
 
-	struct extent_pick_ptr	pick;
+	struct extent_ptr_decoded pick;
 	/* start pos of data we read (may not be pos of data we want) */
 	struct bpos		pos;
 	struct bversion		version;

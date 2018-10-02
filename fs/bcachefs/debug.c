@@ -36,7 +36,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	struct btree *v = c->verify_data;
 	struct btree_node *n_ondisk, *n_sorted, *n_inmemory;
 	struct bset *sorted, *inmemory;
-	struct extent_pick_ptr pick;
+	struct extent_ptr_decoded pick;
 	struct bch_dev *ca;
 	struct bio *bio;
 

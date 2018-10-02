@@ -55,11 +55,11 @@ struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
 
 int bch2_btree_pick_ptr(struct bch_fs *, const struct btree *,
 			struct bch_devs_mask *avoid,
-			struct extent_pick_ptr *);
+			struct extent_ptr_decoded *);
 
 int bch2_extent_pick_ptr(struct bch_fs *, struct bkey_s_c,
 			 struct bch_devs_mask *,
-			 struct extent_pick_ptr *);
+			 struct extent_ptr_decoded *);
 
 void bch2_extent_trim_atomic(struct bkey_i *, struct btree_iter *);
 

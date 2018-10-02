@@ -1407,7 +1407,7 @@ static void btree_node_read_endio(struct bio *bio)
 void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 			  bool sync)
 {
-	struct extent_pick_ptr pick;
+	struct extent_ptr_decoded pick;
 	struct btree_read_bio *rb;
 	struct bch_dev *ca;
 	struct bio *bio;

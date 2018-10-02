@@ -99,7 +99,7 @@ static inline struct bch_write_bio *wbio_init(struct bio *bio)
 
 struct bch_devs_mask;
 struct cache_promote_op;
-struct extent_pick_ptr;
+struct extent_ptr_decoded;
 
 int __bch2_read_extent(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
 		       struct bkey_s_c, struct bch_devs_mask *, unsigned);

@@ -19,9 +19,9 @@ struct bch_extent_crc_unpacked {
 	struct bch_csum		csum;
 };
 
-struct extent_pick_ptr {
-	struct bch_extent_ptr		ptr;
+struct extent_ptr_decoded {
 	struct bch_extent_crc_unpacked	crc;
+	struct bch_extent_ptr		ptr;
 };
 
 #endif /* _BCACHEFS_EXTENTS_TYPES_H */
