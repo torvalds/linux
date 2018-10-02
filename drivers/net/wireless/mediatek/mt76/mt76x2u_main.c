@@ -15,13 +15,14 @@
  */
 
 #include "mt76x2u.h"
+#include "mt76x02_util.h"
 
 static int mt76x2u_start(struct ieee80211_hw *hw)
 {
 	struct mt76x2_dev *dev = hw->priv;
 	int ret;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	ret = mt76x2u_mac_start(dev);
 	if (ret)
@@ -30,7 +31,7 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 out:
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 	return ret;
 }
 
@@ -38,27 +39,21 @@ static void mt76x2u_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	mt76x2u_stop_hw(dev);
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *)vif->drv_priv;
-	unsigned int idx = 0;
 
 	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))
 		mt76x2u_mac_setaddr(dev, vif->addr);
 
-	mvif->idx = idx;
-	mvif->group_wcid.idx = MT_VIF_WCID(idx);
-	mvif->group_wcid.hw_key_idx = -1;
-	mt76x2_txq_init(dev, vif->txq);
-
+	mt76x02_vif_init(&dev->mt76, vif, 0);
 	return 0;
 }
 
@@ -93,7 +88,7 @@ mt76x2u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		mt76x2u_phy_channel_calibrate(dev);
@@ -107,7 +102,7 @@ mt76x2u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			get_unaligned_le16(info->bssid + 4));
 	}
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -116,14 +111,14 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 	struct mt76x2_dev *dev = hw->priv;
 	int err = 0;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
-			dev->rxfilter |= MT_RX_FILTR_CFG_PROMISC;
+			dev->mt76.rxfilter |= MT_RX_FILTR_CFG_PROMISC;
 		else
-			dev->rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
-		mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+			dev->mt76.rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
+		mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
@@ -142,7 +137,7 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 			mt76x2_phy_set_txpower(dev);
 	}
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return err;
 }
@@ -169,17 +164,17 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.start = mt76x2u_start,
 	.stop = mt76x2u_stop,
 	.add_interface = mt76x2u_add_interface,
-	.remove_interface = mt76x2_remove_interface,
-	.sta_add = mt76x2_sta_add,
-	.sta_remove = mt76x2_sta_remove,
-	.set_key = mt76x2_set_key,
-	.ampdu_action = mt76x2_ampdu_action,
+	.remove_interface = mt76x02_remove_interface,
+	.sta_add = mt76x02_sta_add,
+	.sta_remove = mt76x02_sta_remove,
+	.set_key = mt76x02_set_key,
+	.ampdu_action = mt76x02_ampdu_action,
 	.config = mt76x2u_config,
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.bss_info_changed = mt76x2u_bss_info_changed,
-	.configure_filter = mt76x2_configure_filter,
-	.conf_tx = mt76x2_conf_tx,
+	.configure_filter = mt76x02_configure_filter,
+	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76x2u_sw_scan,
 	.sw_scan_complete = mt76x2u_sw_scan_complete,
-	.sta_rate_tbl_update = mt76x2_sta_rate_tbl_update,
+	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 };

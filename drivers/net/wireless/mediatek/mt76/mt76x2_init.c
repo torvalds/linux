@@ -18,6 +18,7 @@
 #include "mt76x2.h"
 #include "mt76x2_eeprom.h"
 #include "mt76x2_mcu.h"
+#include "mt76x02_util.h"
 
 static void
 mt76x2_mac_pbf_init(struct mt76x2_dev *dev)
@@ -101,7 +102,7 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 	u32 val;
 	int i, k;
 
-	if (!mt76x2_wait_for_mac(dev))
+	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
 	val = mt76_rr(dev, MT_WPDMA_GLO_CFG);
@@ -160,14 +161,14 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 		mt76_wr(dev, MT_WCID_DROP_BASE + i * 4, 0);
 
 	for (i = 0; i < 256; i++)
-		mt76x2_mac_wcid_setup(dev, i, 0, NULL);
+		mt76x02_mac_wcid_setup(&dev->mt76, i, 0, NULL);
 
 	for (i = 0; i < MT_MAX_VIFS; i++)
-		mt76x2_mac_wcid_setup(dev, MT_VIF_WCID(i), i, NULL);
+		mt76x02_mac_wcid_setup(&dev->mt76, MT_VIF_WCID(i), i, NULL);
 
 	for (i = 0; i < 16; i++)
 		for (k = 0; k < 4; k++)
-			mt76x2_mac_shared_key_setup(dev, i, k, NULL);
+			mt76x02_mac_shared_key_setup(&dev->mt76, i, k, NULL);
 
 	for (i = 0; i < 8; i++) {
 		mt76x2_mac_set_bssid(dev, i, null_addr);
@@ -214,7 +215,7 @@ int mt76x2_mac_start(struct mt76x2_dev *dev)
 
 	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX |
@@ -377,7 +378,7 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 	if (ret)
 		return ret;
 
-	dev->rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
+	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	ret = mt76x2_dma_init(dev);
 	if (ret)
@@ -401,7 +402,7 @@ void mt76x2_stop_hardware(struct mt76x2_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
-	mt76x2_mcu_set_radio_state(dev, false);
+	mt76x02_mcu_set_radio_state(&dev->mt76, false, true);
 	mt76x2_mac_stop(dev, false);
 }
 
@@ -411,19 +412,20 @@ void mt76x2_cleanup(struct mt76x2_dev *dev)
 	tasklet_disable(&dev->pre_tbtt_tasklet);
 	mt76x2_stop_hardware(dev);
 	mt76x2_dma_cleanup(dev);
-	mt76x2_mcu_cleanup(dev);
+	mt76x02_mcu_cleanup(&dev->mt76);
 }
 
 struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 {
 	static const struct mt76_driver_ops drv_ops = {
-		.txwi_size = sizeof(struct mt76x2_txwi),
+		.txwi_size = sizeof(struct mt76x02_txwi),
 		.update_survey = mt76x2_update_channel,
 		.tx_prepare_skb = mt76x2_tx_prepare_skb,
 		.tx_complete_skb = mt76x2_tx_complete_skb,
 		.rx_skb = mt76x2_queue_rx_skb,
 		.rx_poll_complete = mt76x2_rx_poll_complete,
 		.sta_ps = mt76x2_sta_ps,
+		.get_max_txpwr_adj = mt76x2_tx_get_max_txpwr_adj,
 	};
 	struct mt76x2_dev *dev;
 	struct mt76_dev *mdev;
@@ -435,7 +437,6 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 	dev = container_of(mdev, struct mt76x2_dev, mt76);
 	mdev->dev = pdev;
 	mdev->drv = &drv_ops;
-	mutex_init(&dev->mutex);
 	spin_lock_init(&dev->irq_lock);
 
 	return dev;
@@ -534,7 +535,7 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 	int fifo_size;
 	int i, ret;
 
-	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x2_tx_status));
+	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x02_tx_status));
 	status_fifo = devm_kzalloc(dev->mt76.dev, fifo_size, GFP_KERNEL);
 	if (!status_fifo)
 		return -ENOMEM;
@@ -584,8 +585,8 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 	dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;
 	dev->mt76.led_cdev.blink_set = mt76x2_led_set_blink;
 
-	ret = mt76_register_device(&dev->mt76, true, mt76x2_rates,
-				   ARRAY_SIZE(mt76x2_rates));
+	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
+				   ARRAY_SIZE(mt76x02_rates));
 	if (ret)
 		goto fail;
 

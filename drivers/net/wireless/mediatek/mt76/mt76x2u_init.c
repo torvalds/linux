@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 
 #include "mt76x2u.h"
+#include "mt76x02_util.h"
 #include "mt76x2_eeprom.h"
 
 static void mt76x2u_init_dma(struct mt76x2_dev *dev)
@@ -136,8 +137,8 @@ struct mt76x2_dev *mt76x2u_alloc_device(struct device *pdev)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.tx_prepare_skb = mt76x2u_tx_prepare_skb,
-		.tx_complete_skb = mt76x2u_tx_complete_skb,
-		.tx_status_data = mt76x2u_tx_status_data,
+		.tx_complete_skb = mt76x02_tx_complete_skb,
+		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x2_queue_rx_skb,
 	};
 	struct mt76x2_dev *dev;
@@ -150,8 +151,6 @@ struct mt76x2_dev *mt76x2u_alloc_device(struct device *pdev)
 	dev = container_of(mdev, struct mt76x2_dev, mt76);
 	mdev->dev = pdev;
 	mdev->drv = &drv_ops;
-
-	mutex_init(&dev->mutex);
 
 	return dev;
 }
@@ -184,7 +183,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	mt76x2_reset_wlan(dev, true);
 	mt76x2u_power_on(dev);
 
-	if (!mt76x2_wait_for_mac(dev))
+	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
 	err = mt76x2u_mcu_fw_init(dev);
@@ -197,7 +196,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 		return -EIO;
 
 	/* wait for asic ready after fw load. */
-	if (!mt76x2_wait_for_mac(dev))
+	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
 	mt76_wr(dev, MT_HEADER_TRANS_CTRL_REG, 0);
@@ -214,7 +213,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 		return err;
 
 	mt76x2u_mac_setaddr(dev, dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
-	dev->rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
+	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	mt76x2u_init_beacon_offsets(dev);
 
@@ -241,7 +240,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
 
-	err = mt76x2u_mcu_load_cr(dev, MT_RF_BBP_CR, 0, 0);
+	err = mt76x2_mcu_load_cr(dev, MT_RF_BBP_CR, 0, 0);
 	if (err < 0)
 		return err;
 
@@ -278,8 +277,8 @@ int mt76x2u_register_device(struct mt76x2_dev *dev)
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	err = mt76_register_device(&dev->mt76, true, mt76x2_rates,
-				   ARRAY_SIZE(mt76x2_rates));
+	err = mt76_register_device(&dev->mt76, true, mt76x02_rates,
+				   ARRAY_SIZE(mt76x02_rates));
 	if (err)
 		goto fail;
 
@@ -311,8 +310,8 @@ void mt76x2u_stop_hw(struct mt76x2_dev *dev)
 
 void mt76x2u_cleanup(struct mt76x2_dev *dev)
 {
-	mt76x2u_mcu_set_radio_state(dev, false);
+	mt76x02_mcu_set_radio_state(&dev->mt76, false, false);
 	mt76x2u_stop_hw(dev);
 	mt76u_queues_deinit(&dev->mt76);
-	mt76x2u_mcu_deinit(dev);
+	mt76u_mcu_deinit(&dev->mt76);
 }

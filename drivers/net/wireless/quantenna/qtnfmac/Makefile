@@ -23,6 +23,7 @@ obj-$(CONFIG_QTNFMAC_PEARL_PCIE) += qtnfmac_pearl_pcie.o
 
 qtnfmac_pearl_pcie-objs += \
 	shm_ipc.o \
-	pearl/pcie.o
+	pcie/pcie.o \
+	pcie/pearl_pcie.o
 
 qtnfmac_pearl_pcie-$(CONFIG_DEBUG_FS) += debug.o

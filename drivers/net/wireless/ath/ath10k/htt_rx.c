@@ -1176,11 +1176,11 @@ static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
 	 */
 
 	/* This probably shouldn't happen but warn just in case */
-	if (unlikely(WARN_ON_ONCE(!is_first)))
+	if (WARN_ON_ONCE(!is_first))
 		return;
 
 	/* This probably shouldn't happen but warn just in case */
-	if (unlikely(WARN_ON_ONCE(!(is_first && is_last))))
+	if (WARN_ON_ONCE(!(is_first && is_last)))
 		return;
 
 	skb_trim(msdu, msdu->len - FCS_LEN);

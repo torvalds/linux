@@ -17,6 +17,7 @@
 
 #include "mt76x2.h"
 #include "mt76x2_eeprom.h"
+#include "mt76x2_mcu.h"
 
 static void
 mt76x2_adjust_high_lna_gain(struct mt76x2_dev *dev, int reg, s8 offset)
@@ -303,7 +304,7 @@ EXPORT_SYMBOL_GPL(mt76x2_phy_set_band);
 
 int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 {
-	struct mt76x2_sta *sta;
+	struct mt76x02_sta *sta;
 	struct mt76_wcid *wcid;
 	int i, j, min_rssi = 0;
 	s8 cur_rssi;
@@ -311,8 +312,8 @@ int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 	local_bh_disable();
 	rcu_read_lock();
 
-	for (i = 0; i < ARRAY_SIZE(dev->wcid_mask); i++) {
-		unsigned long mask = dev->wcid_mask[i];
+	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid_mask); i++) {
+		unsigned long mask = dev->mt76.wcid_mask[i];
 
 		if (!mask)
 			continue;
@@ -321,11 +322,11 @@ int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 			if (!(mask & 1))
 				continue;
 
-			wcid = rcu_dereference(dev->wcid[j]);
+			wcid = rcu_dereference(dev->mt76.wcid[j]);
 			if (!wcid)
 				continue;
 
-			sta = container_of(wcid, struct mt76x2_sta, wcid);
+			sta = container_of(wcid, struct mt76x02_sta, wcid);
 			spin_lock(&dev->mt76.rx_lock);
 			if (sta->inactive_count++ < 5)
 				cur_rssi = ewma_signal_read(&sta->rssi);
@@ -347,3 +348,45 @@ int mt76x2_phy_get_min_avg_rssi(struct mt76x2_dev *dev)
 	return min_rssi;
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_get_min_avg_rssi);
+
+void mt76x2_phy_tssi_compensate(struct mt76x2_dev *dev, bool wait)
+{
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct mt76x2_tx_power_info txp;
+	struct mt76x2_tssi_comp t = {};
+
+	if (!dev->cal.tssi_cal_done)
+		return;
+
+	if (!dev->cal.tssi_comp_pending) {
+		/* TSSI trigger */
+		t.cal_mode = BIT(0);
+		mt76x2_mcu_tssi_comp(dev, &t);
+		dev->cal.tssi_comp_pending = true;
+	} else {
+		if (mt76_rr(dev, MT_BBP(CORE, 34)) & BIT(4))
+			return;
+
+		dev->cal.tssi_comp_pending = false;
+		mt76x2_get_power_info(dev, &txp, chan);
+
+		if (mt76x2_ext_pa_enabled(dev, chan->band))
+			t.pa_mode = 1;
+
+		t.cal_mode = BIT(1);
+		t.slope0 = txp.chain[0].tssi_slope;
+		t.offset0 = txp.chain[0].tssi_offset;
+		t.slope1 = txp.chain[1].tssi_slope;
+		t.offset1 = txp.chain[1].tssi_offset;
+		mt76x2_mcu_tssi_comp(dev, &t);
+
+		if (t.pa_mode || dev->cal.dpd_cal_done)
+			return;
+
+		usleep_range(10000, 20000);
+		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_DPD,
+				      chan->hw_value, wait);
+		dev->cal.dpd_cal_done = true;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x2_phy_tssi_compensate);

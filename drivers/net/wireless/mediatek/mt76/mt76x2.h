@@ -27,7 +27,6 @@
 #include <linux/mutex.h>
 #include <linux/bitops.h>
 #include <linux/kfifo.h>
-#include <linux/average.h>
 
 #define MT7662_FIRMWARE		"mt7662.bin"
 #define MT7662_ROM_PATCH	"mt7662_rom_patch.bin"
@@ -43,25 +42,10 @@
 
 #define MT_CALIBRATE_INTERVAL	HZ
 
-#define MT_MAX_VIFS		8
-#define MT_VIF_WCID(_n)		(254 - ((_n) & 7))
-
 #include "mt76.h"
-#include "mt76x2_regs.h"
+#include "mt76x02_regs.h"
 #include "mt76x2_mac.h"
 #include "mt76x2_dfs.h"
-
-DECLARE_EWMA(signal, 10, 8)
-
-struct mt76x2_mcu {
-	struct mutex mutex;
-
-	wait_queue_head_t wait;
-	struct sk_buff_head res_q;
-	struct mt76u_buf res_u;
-
-	u32 msg_seq;
-};
 
 struct mt76x2_rx_freq_cal {
 	s8 high_gain[MT_MAX_CHAINS];
@@ -98,15 +82,12 @@ struct mt76x2_dev {
 	struct mutex mutex;
 
 	const u16 *beacon_offsets;
-	unsigned long wcid_mask[128 / BITS_PER_LONG];
-
 	int txpower_conf;
 	int txpower_cur;
 
 	u8 txdone_seq;
-	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x2_tx_status);
+	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 
-	struct mt76x2_mcu mcu;
 	struct sk_buff *rx_head;
 
 	struct tasklet_struct tx_tasklet;
@@ -115,9 +96,6 @@ struct mt76x2_dev {
 	struct delayed_work mac_work;
 
 	u32 aggr_stats[32];
-
-	struct mt76_wcid global_wcid;
-	struct mt76_wcid __rcu *wcid[128];
 
 	spinlock_t irq_lock;
 	u32 irqmask;
@@ -131,8 +109,6 @@ struct mt76x2_dev {
 
 	u16 chainmask;
 
-	u32 rxfilter;
-
 	struct mt76x2_calibration cal;
 
 	s8 target_power;
@@ -145,40 +121,6 @@ struct mt76x2_dev {
 
 	struct mt76x2_dfs_pattern_detector dfs_pd;
 };
-
-struct mt76x2_vif {
-	u8 idx;
-
-	struct mt76_wcid group_wcid;
-};
-
-struct mt76x2_sta {
-	struct mt76_wcid wcid; /* must be first */
-
-	struct mt76x2_vif *vif;
-	struct mt76x2_tx_status status;
-	int n_frames;
-
-	struct ewma_signal rssi;
-	int inactive_count;
-};
-
-static inline bool mt76x2_wait_for_mac(struct mt76x2_dev *dev)
-{
-	int i;
-
-	for (i = 0; i < 500; i++) {
-		switch (mt76_rr(dev, MT_MAC_CSR0)) {
-		case 0:
-		case ~0:
-			break;
-		default:
-			return true;
-		}
-		usleep_range(5000, 10000);
-	}
-	return false;
-}
 
 static inline bool is_mt7612(struct mt76x2_dev *dev)
 {
@@ -222,8 +164,6 @@ static inline bool wait_for_wpdma(struct mt76x2_dev *dev)
 
 extern const struct ieee80211_ops mt76x2_ops;
 
-extern struct ieee80211_rate mt76x2_rates[12];
-
 struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev);
 int mt76x2_register_device(struct mt76x2_dev *dev);
 void mt76x2_init_debugfs(struct mt76x2_dev *dev);
@@ -248,21 +188,16 @@ void mt76x2_phy_set_txpower(struct mt76x2_dev *dev);
 int mt76x2_mcu_init(struct mt76x2_dev *dev);
 int mt76x2_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
 			   u8 bw_index, bool scan);
-int mt76x2_mcu_set_radio_state(struct mt76x2_dev *dev, bool on);
 int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 		       u8 channel);
-int mt76x2_mcu_cleanup(struct mt76x2_dev *dev);
 
 int mt76x2_dma_init(struct mt76x2_dev *dev);
 void mt76x2_dma_cleanup(struct mt76x2_dev *dev);
 
 void mt76x2_cleanup(struct mt76x2_dev *dev);
 
-int mt76x2_tx_queue_mcu(struct mt76x2_dev *dev, enum mt76_txq_id qid,
-			struct sk_buff *skb, int cmd, int seq);
 void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	       struct sk_buff *skb);
-void mt76x2_tx_complete(struct mt76x2_dev *dev, struct sk_buff *skb);
 int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 			  struct sk_buff *skb, struct mt76_queue *q,
 			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
@@ -281,43 +216,28 @@ void mt76x2_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 
 void mt76x2_update_channel(struct mt76_dev *mdev);
 
-s8 mt76x2_tx_get_max_txpwr_adj(struct mt76x2_dev *dev,
+s8 mt76x2_tx_get_max_txpwr_adj(struct mt76_dev *dev,
 			       const struct ieee80211_tx_rate *rate);
 s8 mt76x2_tx_get_txpwr_adj(struct mt76x2_dev *dev, s8 txpwr, s8 max_txpwr_adj);
 void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr);
 
-int mt76x2_insert_hdr_pad(struct sk_buff *skb);
 
-bool mt76x2_mac_load_tx_status(struct mt76x2_dev *dev,
-			       struct mt76x2_tx_status *stat);
-void mt76x2_send_tx_status(struct mt76x2_dev *dev,
-			   struct mt76x2_tx_status *stat, u8 *update);
 void mt76x2_reset_wlan(struct mt76x2_dev *dev, bool enable);
 void mt76x2_init_txpower(struct mt76x2_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt76_write_mac_initvals(struct mt76x2_dev *dev);
 
-int mt76x2_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_ampdu_params *params);
 int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
 int mt76x2_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 void mt76x2_remove_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
-int mt76x2_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		   struct ieee80211_key_conf *key);
 int mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params);
-void mt76x2_configure_filter(struct ieee80211_hw *hw,
-			     unsigned int changed_flags,
-			     unsigned int *total_flags, u64 multicast);
 void mt76x2_txq_init(struct mt76x2_dev *dev, struct ieee80211_txq *txq);
-void mt76x2_sta_rate_tbl_update(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta);
 
+void mt76x2_phy_tssi_compensate(struct mt76x2_dev *dev, bool wait);
 void mt76x2_phy_set_txpower_regs(struct mt76x2_dev *dev,
 				 enum nl80211_band band);
 void mt76x2_configure_tx_delay(struct mt76x2_dev *dev,

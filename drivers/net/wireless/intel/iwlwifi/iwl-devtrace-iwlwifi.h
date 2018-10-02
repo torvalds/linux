@@ -3,6 +3,7 @@
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -12,10 +13,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -75,13 +72,18 @@ TRACE_EVENT(iwlwifi_dev_rx,
 	TP_STRUCT__entry(
 		DEV_ENTRY
 		__field(u16, cmd)
-		__dynamic_array(u8, rxbuf, iwl_rx_trace_len(trans, pkt, len))
+		__field(u8, hdr_offset)
+		__dynamic_array(u8, rxbuf,
+				iwl_rx_trace_len(trans, pkt, len, NULL))
 	),
 	TP_fast_assign(
+		size_t hdr_offset = 0;
+
 		DEV_ASSIGN;
 		__entry->cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 		memcpy(__get_dynamic_array(rxbuf), pkt,
-		       iwl_rx_trace_len(trans, pkt, len));
+		       iwl_rx_trace_len(trans, pkt, len, &hdr_offset));
+		__entry->hdr_offset = hdr_offset;
 	),
 	TP_printk("[%s] RX cmd %#.2x",
 		  __get_str(dev), __entry->cmd)
@@ -124,61 +126,6 @@ TRACE_EVENT(iwlwifi_dev_tx,
 	TP_printk("[%s] TX %.2x (%zu bytes) skbaddr=%p",
 		  __get_str(dev), ((u8 *)__get_dynamic_array(buf0))[0],
 		  __entry->framelen, __entry->skbaddr)
-);
-
-struct iwl_error_event_table;
-TRACE_EVENT(iwlwifi_dev_ucode_error,
-	TP_PROTO(const struct device *dev, const struct iwl_error_event_table *table,
-		 u32 hw_ver, u32 brd_ver),
-	TP_ARGS(dev, table, hw_ver, brd_ver),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-		__field(u32, desc)
-		__field(u32, tsf_low)
-		__field(u32, data1)
-		__field(u32, data2)
-		__field(u32, line)
-		__field(u32, blink2)
-		__field(u32, ilink1)
-		__field(u32, ilink2)
-		__field(u32, bcon_time)
-		__field(u32, gp1)
-		__field(u32, gp2)
-		__field(u32, rev_type)
-		__field(u32, major)
-		__field(u32, minor)
-		__field(u32, hw_ver)
-		__field(u32, brd_ver)
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		__entry->desc = table->error_id;
-		__entry->tsf_low = table->tsf_low;
-		__entry->data1 = table->data1;
-		__entry->data2 = table->data2;
-		__entry->line = table->line;
-		__entry->blink2 = table->blink2;
-		__entry->ilink1 = table->ilink1;
-		__entry->ilink2 = table->ilink2;
-		__entry->bcon_time = table->bcon_time;
-		__entry->gp1 = table->gp1;
-		__entry->gp2 = table->gp2;
-		__entry->rev_type = table->gp3;
-		__entry->major = table->ucode_ver;
-		__entry->minor = table->hw_ver;
-		__entry->hw_ver = hw_ver;
-		__entry->brd_ver = brd_ver;
-	),
-	TP_printk("[%s] #%02d %010u data 0x%08X 0x%08X line %u, "
-		  "blink2 0x%05X ilink 0x%05X 0x%05X "
-		  "bcon_tm %010u gp 0x%08X 0x%08X rev_type 0x%08X major 0x%08X "
-		  "minor 0x%08X hw 0x%08X brd 0x%08X",
-		  __get_str(dev), __entry->desc, __entry->tsf_low,
-		  __entry->data1, __entry->data2, __entry->line,
-		  __entry->blink2, __entry->ilink1, __entry->ilink2,
-		  __entry->bcon_time, __entry->gp1, __entry->gp2,
-		  __entry->rev_type, __entry->major, __entry->minor,
-		  __entry->hw_ver, __entry->brd_ver)
 );
 
 TRACE_EVENT(iwlwifi_dev_ucode_event,

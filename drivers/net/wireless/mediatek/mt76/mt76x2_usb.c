@@ -17,9 +17,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#include "mt76x02_usb.h"
 #include "mt76x2u.h"
 
 static const struct usb_device_id mt76x2u_device_table[] = {
+	{ USB_DEVICE(0x0e8d, 0x7612) }, /* Alfa AWUS036ACM */
 	{ USB_DEVICE(0x0b05, 0x1833) },	/* Asus USB-AC54 */
 	{ USB_DEVICE(0x0b05, 0x17eb) },	/* Asus USB-AC55 */
 	{ USB_DEVICE(0x0b05, 0x180b) },	/* Asus USB-N53 B1 */
@@ -45,6 +47,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 	udev = usb_get_dev(udev);
 	usb_reset_device(udev);
 
+	mt76x02u_init_mcu(&dev->mt76);
 	err = mt76u_init(&dev->mt76, intf);
 	if (err < 0)
 		goto err;
@@ -107,16 +110,24 @@ static int __maybe_unused mt76x2u_resume(struct usb_interface *intf)
 			       mt76u_mcu_complete_urb,
 			       &usb->mcu.cmpl);
 	if (err < 0)
-		return err;
+		goto err;
 
 	err = mt76u_submit_rx_buffers(&dev->mt76);
 	if (err < 0)
-		return err;
+		goto err;
 
 	tasklet_enable(&usb->rx_tasklet);
 	tasklet_enable(&usb->tx_tasklet);
 
-	return mt76x2u_init_hardware(dev);
+	err = mt76x2u_init_hardware(dev);
+	if (err < 0)
+		goto err;
+
+	return 0;
+
+err:
+	mt76x2u_cleanup(dev);
+	return err;
 }
 
 MODULE_DEVICE_TABLE(usb, mt76x2u_device_table);

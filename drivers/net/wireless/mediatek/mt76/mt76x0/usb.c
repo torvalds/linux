@@ -13,11 +13,16 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/firmware.h>
 #include <linux/usb.h>
 
 #include "mt76x0.h"
-#include "usb.h"
+#include "mcu.h"
 #include "trace.h"
+#include "../mt76x02_util.h"
+#include "../mt76x02_usb.h"
+
+#define MT7610U_FIRMWARE		"mediatek/mt7610u.bin"
 
 static struct usb_device_id mt76x0_device_table[] = {
 	{ USB_DEVICE(0x148F, 0x7610) },	/* MT7610U */
@@ -46,230 +51,178 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ 0, }
 };
 
-bool mt76x0_usb_alloc_buf(struct mt76x0_dev *dev, size_t len,
-			   struct mt76x0_dma_buf *buf)
+#define MCU_FW_URB_MAX_PAYLOAD		0x38f8
+#define MCU_FW_URB_SIZE			(MCU_FW_URB_MAX_PAYLOAD + 12)
+
+static inline int mt76x0_firmware_running(struct mt76x0_dev *dev)
 {
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-
-	buf->len = len;
-	buf->urb = usb_alloc_urb(0, GFP_KERNEL);
-	buf->buf = usb_alloc_coherent(usb_dev, buf->len, GFP_KERNEL, &buf->dma);
-
-	return !buf->urb || !buf->buf;
+	return mt76_rr(dev, MT_MCU_COM_REG0) == 1;
 }
 
-void mt76x0_usb_free_buf(struct mt76x0_dev *dev, struct mt76x0_dma_buf *buf)
+static int
+mt76x0u_upload_firmware(struct mt76x0_dev *dev,
+			const struct mt76x02_fw_header *hdr)
 {
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
+	u8 *fw_payload = (u8 *)(hdr + 1);
+	u32 ilm_len, dlm_len;
+	void *ivb;
+	int err;
 
-	usb_free_coherent(usb_dev, buf->len, buf->buf, buf->dma);
-	usb_free_urb(buf->urb);
+	ivb = kmemdup(fw_payload, MT_MCU_IVB_SIZE, GFP_KERNEL);
+	if (!ivb)
+		return -ENOMEM;
+
+	ilm_len = le32_to_cpu(hdr->ilm_len) - MT_MCU_IVB_SIZE;
+	dev_dbg(dev->mt76.dev, "loading FW - ILM %u + IVB %u\n",
+		ilm_len, MT_MCU_IVB_SIZE);
+	err = mt76x02u_mcu_fw_send_data(&dev->mt76,
+					fw_payload + MT_MCU_IVB_SIZE,
+					ilm_len, MCU_FW_URB_MAX_PAYLOAD,
+					MT_MCU_IVB_SIZE);
+	if (err)
+		goto out;
+
+	dlm_len = le32_to_cpu(hdr->dlm_len);
+	dev_dbg(dev->mt76.dev, "loading FW - DLM %u\n", dlm_len);
+	err = mt76x02u_mcu_fw_send_data(&dev->mt76,
+					fw_payload + le32_to_cpu(hdr->ilm_len),
+					dlm_len, MCU_FW_URB_MAX_PAYLOAD,
+					MT_MCU_DLM_OFFSET);
+	if (err)
+		goto out;
+
+	err = mt76u_vendor_request(&dev->mt76, MT_VEND_DEV_MODE,
+				   USB_DIR_OUT | USB_TYPE_VENDOR,
+				   0x12, 0, ivb, MT_MCU_IVB_SIZE);
+	if (err < 0)
+		goto out;
+
+	if (!mt76_poll_msec(dev, MT_MCU_COM_REG0, 1, 1, 1000)) {
+		dev_err(dev->mt76.dev, "Firmware failed to start\n");
+		err = -ETIMEDOUT;
+		goto out;
+	}
+
+	dev_dbg(dev->mt76.dev, "Firmware running!\n");
+
+out:
+	kfree(ivb);
+
+	return err;
 }
 
-int mt76x0_usb_submit_buf(struct mt76x0_dev *dev, int dir, int ep_idx,
-			   struct mt76x0_dma_buf *buf, gfp_t gfp,
-			   usb_complete_t complete_fn, void *context)
+static int mt76x0u_load_firmware(struct mt76x0_dev *dev)
 {
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-	unsigned pipe;
-	int ret;
+	const struct firmware *fw;
+	const struct mt76x02_fw_header *hdr;
+	int len, ret;
+	u32 val;
 
-	if (dir == USB_DIR_IN)
-		pipe = usb_rcvbulkpipe(usb_dev, dev->in_ep[ep_idx]);
-	else
-		pipe = usb_sndbulkpipe(usb_dev, dev->out_ep[ep_idx]);
+	mt76_wr(dev, MT_USB_DMA_CFG, (MT_USB_DMA_CFG_RX_BULK_EN |
+				      MT_USB_DMA_CFG_TX_BULK_EN));
 
-	usb_fill_bulk_urb(buf->urb, usb_dev, pipe, buf->buf, buf->len,
-			  complete_fn, context);
-	buf->urb->transfer_dma = buf->dma;
-	buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	if (mt76x0_firmware_running(dev))
+		return 0;
 
-	trace_mt76x0_submit_urb(&dev->mt76, buf->urb);
-	ret = usb_submit_urb(buf->urb, gfp);
+	ret = request_firmware(&fw, MT7610U_FIRMWARE, dev->mt76.dev);
 	if (ret)
-		dev_err(dev->mt76.dev, "Error: submit URB dir:%d ep:%d failed:%d\n",
-			dir, ep_idx, ret);
-	return ret;
-}
+		return ret;
 
-void mt76x0_complete_urb(struct urb *urb)
-{
-	struct completion *cmpl = urb->context;
+	if (!fw || !fw->data || fw->size < sizeof(*hdr))
+		goto err_inv_fw;
 
-	complete(cmpl);
-}
+	hdr = (const struct mt76x02_fw_header *)fw->data;
 
-int mt76x0_vendor_request(struct mt76x0_dev *dev, const u8 req,
-			   const u8 direction, const u16 val, const u16 offset,
-			   void *buf, const size_t buflen)
-{
-	int i, ret;
-	struct usb_device *usb_dev = mt76x0_to_usb_dev(dev);
-	const u8 req_type = direction | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
-	const unsigned int pipe = (direction == USB_DIR_IN) ?
-		usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
+	if (le32_to_cpu(hdr->ilm_len) <= MT_MCU_IVB_SIZE)
+		goto err_inv_fw;
 
-	for (i = 0; i < MT_VEND_REQ_MAX_RETRY; i++) {
-		ret = usb_control_msg(usb_dev, pipe, req, req_type,
-				      val, offset, buf, buflen,
-				      MT_VEND_REQ_TOUT_MS);
-		trace_mt76x0_vend_req(&dev->mt76, pipe, req, req_type, val, offset,
-				  buf, buflen, ret);
+	len = sizeof(*hdr);
+	len += le32_to_cpu(hdr->ilm_len);
+	len += le32_to_cpu(hdr->dlm_len);
 
-		if (ret == -ENODEV)
-			set_bit(MT76_REMOVED, &dev->mt76.state);
-		if (ret >= 0 || ret == -ENODEV)
-			return ret;
+	if (fw->size != len)
+		goto err_inv_fw;
 
-		msleep(5);
-	}
+	val = le16_to_cpu(hdr->fw_ver);
+	dev_dbg(dev->mt76.dev,
+		"Firmware Version: %d.%d.%02d Build: %x Build time: %.16s\n",
+		(val >> 12) & 0xf, (val >> 8) & 0xf, val & 0xf,
+		le16_to_cpu(hdr->build_ver), hdr->build_time);
 
-	dev_err(dev->mt76.dev, "Vendor request req:%02x off:%04x failed:%d\n",
-		req, offset, ret);
+	len = le32_to_cpu(hdr->ilm_len);
 
-	return ret;
-}
+	mt76_wr(dev, 0x1004, 0x2c);
 
-void mt76x0_vendor_reset(struct mt76x0_dev *dev)
-{
-	mt76x0_vendor_request(dev, MT_VEND_DEV_MODE, USB_DIR_OUT,
-			      MT_VEND_DEV_MODE_RESET, 0, NULL, 0);
-}
+	mt76_set(dev, MT_USB_DMA_CFG, (MT_USB_DMA_CFG_RX_BULK_EN |
+				       MT_USB_DMA_CFG_TX_BULK_EN) |
+				       FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, 0x20));
+	mt76x02u_mcu_fw_reset(&dev->mt76);
+	msleep(5);
+/*
+	mt76x0_rmw(dev, MT_PBF_CFG, 0, (MT_PBF_CFG_TX0Q_EN |
+					 MT_PBF_CFG_TX1Q_EN |
+					 MT_PBF_CFG_TX2Q_EN |
+					 MT_PBF_CFG_TX3Q_EN));
+*/
 
-static u32 mt76x0_rr(struct mt76_dev *dev, u32 offset)
-{
-	struct mt76x0_dev *mdev = (struct mt76x0_dev *) dev;
-	int ret;
-	u32 val = ~0;
+	mt76_wr(dev, MT_FCE_PSE_CTRL, 1);
 
-	WARN_ONCE(offset > USHRT_MAX, "read high off:%08x", offset);
+	/* FCE tx_fs_base_ptr */
+	mt76_wr(dev, MT_TX_CPU_FROM_FCE_BASE_PTR, 0x400230);
+	/* FCE tx_fs_max_cnt */
+	mt76_wr(dev, MT_TX_CPU_FROM_FCE_MAX_COUNT, 1);
+	/* FCE pdma enable */
+	mt76_wr(dev, MT_FCE_PDMA_GLOBAL_CONF, 0x44);
+	/* FCE skip_fs_en */
+	mt76_wr(dev, MT_FCE_SKIP_FS, 3);
 
-	mutex_lock(&mdev->usb_ctrl_mtx);
+	val = mt76_rr(dev, MT_USB_DMA_CFG);
+	val |= MT_USB_DMA_CFG_UDMA_TX_WL_DROP;
+	mt76_wr(dev, MT_USB_DMA_CFG, val);
+	val &= ~MT_USB_DMA_CFG_UDMA_TX_WL_DROP;
+	mt76_wr(dev, MT_USB_DMA_CFG, val);
 
-	ret = mt76x0_vendor_request((struct mt76x0_dev *)dev, MT_VEND_MULTI_READ, USB_DIR_IN,
-				    0, offset, mdev->data, MT_VEND_BUF);
-	if (ret == MT_VEND_BUF)
-		val = get_unaligned_le32(mdev->data);
-	else if (ret > 0)
-		dev_err(dev->dev, "Error: wrong size read:%d off:%08x\n",
-			ret, offset);
+	ret = mt76x0u_upload_firmware(dev, hdr);
+	release_firmware(fw);
 
-	mutex_unlock(&mdev->usb_ctrl_mtx);
-
-	trace_mt76x0_reg_read(dev, offset, val);
-	return val;
-}
-
-int mt76x0_vendor_single_wr(struct mt76x0_dev *dev, const u8 req,
-			     const u16 offset, const u32 val)
-{
-	struct mt76x0_dev *mdev = dev;
-	int ret;
-
-	mutex_lock(&mdev->usb_ctrl_mtx);
-
-	ret = mt76x0_vendor_request(dev, req, USB_DIR_OUT,
-				    val & 0xffff, offset, NULL, 0);
-	if (!ret)
-		ret = mt76x0_vendor_request(dev, req, USB_DIR_OUT,
-					    val >> 16, offset + 2, NULL, 0);
-
-	mutex_unlock(&mdev->usb_ctrl_mtx);
+	mt76_wr(dev, MT_FCE_PSE_CTRL, 1);
 
 	return ret;
+
+err_inv_fw:
+	dev_err(dev->mt76.dev, "Invalid firmware image\n");
+	release_firmware(fw);
+	return -ENOENT;
 }
 
-static void mt76x0_wr(struct mt76_dev *dev, u32 offset, u32 val)
+static int mt76x0u_mcu_init(struct mt76x0_dev *dev)
 {
-	struct mt76x0_dev *mdev = (struct mt76x0_dev *) dev;
 	int ret;
 
-	WARN_ONCE(offset > USHRT_MAX, "write high off:%08x", offset);
+	ret = mt76x0u_load_firmware(dev);
+	if (ret < 0)
+		return ret;
 
-	mutex_lock(&mdev->usb_ctrl_mtx);
-
-	put_unaligned_le32(val, mdev->data);
-	ret = mt76x0_vendor_request(mdev, MT_VEND_MULTI_WRITE, USB_DIR_OUT,
-				    0, offset, mdev->data, MT_VEND_BUF);
-	trace_mt76x0_reg_write(dev, offset, val);
-
-	mutex_unlock(&mdev->usb_ctrl_mtx);
-}
-
-static u32 mt76x0_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
-{
-	val |= mt76x0_rr(dev, offset) & ~mask;
-	mt76x0_wr(dev, offset, val);
-	return val;
-}
-
-static void mt76x0_wr_copy(struct mt76_dev *dev, u32 offset,
-			   const void *data, int len)
-{
-	WARN_ONCE(offset & 3, "unaligned write copy off:%08x", offset);
-	WARN_ONCE(len & 3, "short write copy off:%08x", offset);
-
-	mt76x0_burst_write_regs((struct mt76x0_dev *) dev, offset, data, len / 4);
-}
-
-void mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
-{
-	mt76_wr(dev, offset, get_unaligned_le32(addr));
-	mt76_wr(dev, offset + 4, addr[4] | addr[5] << 8);
-}
-
-static int mt76x0_assign_pipes(struct usb_interface *usb_intf,
-				struct mt76x0_dev *dev)
-{
-	struct usb_endpoint_descriptor *ep_desc;
-	struct usb_host_interface *intf_desc = usb_intf->cur_altsetting;
-	unsigned i, ep_i = 0, ep_o = 0;
-
-	BUILD_BUG_ON(sizeof(dev->in_ep) < __MT_EP_IN_MAX);
-	BUILD_BUG_ON(sizeof(dev->out_ep) < __MT_EP_OUT_MAX);
-
-	for (i = 0; i < intf_desc->desc.bNumEndpoints; i++) {
-		ep_desc = &intf_desc->endpoint[i].desc;
-
-		if (usb_endpoint_is_bulk_in(ep_desc) &&
-		    ep_i++ < __MT_EP_IN_MAX) {
-			dev->in_ep[ep_i - 1] = usb_endpoint_num(ep_desc);
-			dev->in_max_packet = usb_endpoint_maxp(ep_desc);
-			/* Note: this is ignored by usb sub-system but vendor
-			 *	 code does it. We can drop this at some point.
-			 */
-			dev->in_ep[ep_i - 1] |= USB_DIR_IN;
-		} else if (usb_endpoint_is_bulk_out(ep_desc) &&
-			   ep_o++ < __MT_EP_OUT_MAX) {
-			dev->out_ep[ep_o - 1] = usb_endpoint_num(ep_desc);
-			dev->out_max_packet = usb_endpoint_maxp(ep_desc);
-		}
-	}
-
-	if (ep_i != __MT_EP_IN_MAX || ep_o != __MT_EP_OUT_MAX) {
-		dev_err(dev->mt76.dev, "Error: wrong pipe number in:%d out:%d\n",
-			ep_i, ep_o);
-		return -EINVAL;
-	}
+	set_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
 
 	return 0;
 }
 
-static int mt76x0_probe(struct usb_interface *usb_intf,
+static int mt76x0u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
+	static const struct mt76_driver_ops drv_ops = {
+		.tx_prepare_skb = mt76x0_tx_prepare_skb,
+		.tx_complete_skb = mt76x02_tx_complete_skb,
+		.tx_status_data = mt76x02_tx_status_data,
+		.rx_skb = mt76x0_queue_rx_skb,
+	};
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
 	struct mt76x0_dev *dev;
 	u32 asic_rev, mac_rev;
 	int ret;
-	static const struct mt76_bus_ops usb_ops = {
-		.rr = mt76x0_rr,
-		.wr = mt76x0_wr,
-		.rmw = mt76x0_rmw,
-		.copy = mt76x0_wr_copy,
-	};
 
-	dev = mt76x0_alloc_device(&usb_intf->dev);
+	dev = mt76x0_alloc_device(&usb_intf->dev, &drv_ops);
 	if (!dev)
 		return -ENOMEM;
 
@@ -278,18 +231,18 @@ static int mt76x0_probe(struct usb_interface *usb_intf,
 
 	usb_set_intfdata(usb_intf, dev);
 
-	dev->mt76.bus = &usb_ops;
-
-	ret = mt76x0_assign_pipes(usb_intf, dev);
+	mt76x02u_init_mcu(&dev->mt76);
+	ret = mt76u_init(&dev->mt76, usb_intf);
 	if (ret)
 		goto err;
 
 	/* Disable the HW, otherwise MCU fail to initalize on hot reboot */
 	mt76x0_chip_onoff(dev, false, false);
 
-	ret = mt76x0_wait_asic_ready(dev);
-	if (ret)
+	if (!mt76x02_wait_for_mac(&dev->mt76)) {
+		ret = -ETIMEDOUT;
 		goto err;
+	}
 
 	asic_rev = mt76_rr(dev, MT_ASIC_VERSION);
 	mac_rev = mt76_rr(dev, MT_MAC_CSR0);
@@ -300,9 +253,22 @@ static int mt76x0_probe(struct usb_interface *usb_intf,
 	if (!(mt76_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
 		dev_warn(dev->mt76.dev, "Warning: eFUSE not present\n");
 
-	ret = mt76x0_init_hardware(dev);
-	if (ret)
+	ret = mt76u_mcu_init_rx(&dev->mt76);
+	if (ret < 0)
 		goto err;
+
+	ret = mt76u_alloc_queues(&dev->mt76);
+	if (ret < 0)
+		goto err;
+
+	mt76x0_chip_onoff(dev, true, true);
+
+	if (!mt76x02_wait_for_mac(&dev->mt76))
+		return -ETIMEDOUT;
+
+	ret = mt76x0u_mcu_init(dev);
+	if (ret)
+		goto err_hw;
 
 	ret = mt76x0_register_device(dev);
 	if (ret)
@@ -317,7 +283,6 @@ err:
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 
-	destroy_workqueue(dev->stat_wq);
 	ieee80211_free_hw(dev->mt76.hw);
 	return ret;
 }
@@ -336,41 +301,62 @@ static void mt76x0_disconnect(struct usb_interface *usb_intf)
 	usb_set_intfdata(usb_intf, NULL);
 	usb_put_dev(interface_to_usbdev(usb_intf));
 
-	destroy_workqueue(dev->stat_wq);
 	ieee80211_free_hw(dev->mt76.hw);
 }
 
-static int mt76x0_suspend(struct usb_interface *usb_intf, pm_message_t state)
+static int __maybe_unused mt76x0_suspend(struct usb_interface *usb_intf,
+					 pm_message_t state)
 {
 	struct mt76x0_dev *dev = usb_get_intfdata(usb_intf);
+	struct mt76_usb *usb = &dev->mt76.usb;
 
-	mt76x0_cleanup(dev);
+	mt76u_stop_queues(&dev->mt76);
+	mt76x0_mac_stop(dev);
+	usb_kill_urb(usb->mcu.res.urb);
 
 	return 0;
 }
 
-static int mt76x0_resume(struct usb_interface *usb_intf)
+static int __maybe_unused mt76x0_resume(struct usb_interface *usb_intf)
 {
 	struct mt76x0_dev *dev = usb_get_intfdata(usb_intf);
+	struct mt76_usb *usb = &dev->mt76.usb;
 	int ret;
+
+	reinit_completion(&usb->mcu.cmpl);
+	ret = mt76u_submit_buf(&dev->mt76, USB_DIR_IN,
+			       MT_EP_IN_CMD_RESP,
+			       &usb->mcu.res, GFP_KERNEL,
+			       mt76u_mcu_complete_urb,
+			       &usb->mcu.cmpl);
+	if (ret < 0)
+		goto err;
+
+	ret = mt76u_submit_rx_buffers(&dev->mt76);
+	if (ret < 0)
+		goto err;
+
+	tasklet_enable(&usb->rx_tasklet);
+	tasklet_enable(&usb->tx_tasklet);
 
 	ret = mt76x0_init_hardware(dev);
 	if (ret)
-		return ret;
-
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+		goto err;
 
 	return 0;
+err:
+	mt76x0_cleanup(dev);
+	return ret;
 }
 
 MODULE_DEVICE_TABLE(usb, mt76x0_device_table);
-MODULE_FIRMWARE(MT7610_FIRMWARE);
+MODULE_FIRMWARE(MT7610U_FIRMWARE);
 MODULE_LICENSE("GPL");
 
 static struct usb_driver mt76x0_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= mt76x0_device_table,
-	.probe		= mt76x0_probe,
+	.probe		= mt76x0u_probe,
 	.disconnect	= mt76x0_disconnect,
 	.suspend	= mt76x0_suspend,
 	.resume		= mt76x0_resume,

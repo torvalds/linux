@@ -136,6 +136,7 @@ struct iwl_fw_runtime {
 
 		/* ts of the beginning of a non-collect fw dbg data period */
 		unsigned long non_collect_ts_start[FW_DBG_TRIGGER_MAX - 1];
+		u32 *d3_debug_data;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

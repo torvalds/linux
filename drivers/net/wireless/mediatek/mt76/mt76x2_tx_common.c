@@ -16,7 +16,7 @@
  */
 
 #include "mt76x2.h"
-#include "mt76x2_dma.h"
+#include "dma.h"
 
 void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	       struct sk_buff *skb)
@@ -24,22 +24,22 @@ void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76x2_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt76_wcid *wcid = &dev->global_wcid;
+	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 
 	if (control->sta) {
-		struct mt76x2_sta *msta;
+		struct mt76x02_sta *msta;
 
-		msta = (struct mt76x2_sta *)control->sta->drv_priv;
+		msta = (struct mt76x02_sta *)control->sta->drv_priv;
 		wcid = &msta->wcid;
 		/* sw encrypted frames */
-		if (!info->control.hw_key && wcid->hw_key_idx != -1)
+		if (!info->control.hw_key && wcid->hw_key_idx != 0xff)
 			control->sta = NULL;
 	}
 
 	if (vif && !control->sta) {
-		struct mt76x2_vif *mvif;
+		struct mt76x02_vif *mvif;
 
-		mvif = (struct mt76x2_vif *)vif->drv_priv;
+		mvif = (struct mt76x02_vif *)vif->drv_priv;
 		wcid = &mvif->group_wcid;
 	}
 
@@ -47,25 +47,10 @@ void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 }
 EXPORT_SYMBOL_GPL(mt76x2_tx);
 
-int mt76x2_insert_hdr_pad(struct sk_buff *skb)
-{
-	int len = ieee80211_get_hdrlen_from_skb(skb);
-
-	if (len % 4 == 0)
-		return 0;
-
-	skb_push(skb, 2);
-	memmove(skb->data, skb->data + 2, len);
-
-	skb->data[len] = 0;
-	skb->data[len + 1] = 0;
-	return 2;
-}
-EXPORT_SYMBOL_GPL(mt76x2_insert_hdr_pad);
-
-s8 mt76x2_tx_get_max_txpwr_adj(struct mt76x2_dev *dev,
+s8 mt76x2_tx_get_max_txpwr_adj(struct mt76_dev *mdev,
 			       const struct ieee80211_tx_rate *rate)
 {
+	struct mt76x2_dev *dev = (struct mt76x2_dev *) mdev;
 	s8 max_txpwr;
 
 	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
@@ -131,19 +116,3 @@ void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr)
 		       MT_PROT_AUTO_TX_CFG_AUTO_PADJ, txpwr_adj);
 }
 EXPORT_SYMBOL_GPL(mt76x2_tx_set_txpwr_auto);
-
-void mt76x2_tx_complete(struct mt76x2_dev *dev, struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-		ieee80211_free_txskb(mt76_hw(dev), skb);
-	} else {
-		ieee80211_tx_info_clear_status(info);
-		info->status.rates[0].idx = -1;
-		info->flags |= IEEE80211_TX_STAT_ACK;
-		ieee80211_tx_status(mt76_hw(dev), skb);
-	}
-}
-EXPORT_SYMBOL_GPL(mt76x2_tx_complete);
-

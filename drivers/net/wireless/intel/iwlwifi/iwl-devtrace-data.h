@@ -2,6 +2,7 @@
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,10 +12,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -76,12 +73,11 @@ TRACE_EVENT(iwlwifi_dev_rx_data,
 	TP_ARGS(dev, trans, rxbuf, len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-
 		__dynamic_array(u8, data,
-				len - iwl_rx_trace_len(trans, rxbuf, len))
+				len - iwl_rx_trace_len(trans, rxbuf, len, NULL))
 	),
 	TP_fast_assign(
-		size_t offs = iwl_rx_trace_len(trans, rxbuf, len);
+		size_t offs = iwl_rx_trace_len(trans, rxbuf, len, NULL);
 		DEV_ASSIGN;
 		if (offs < len)
 			memcpy(__get_dynamic_array(data),

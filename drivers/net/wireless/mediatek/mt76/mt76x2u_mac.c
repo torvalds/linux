@@ -122,7 +122,7 @@ int mt76x2u_mac_start(struct mt76x2_dev *dev)
 	wait_for_wpdma(dev);
 	usleep_range(50, 100);
 
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX |

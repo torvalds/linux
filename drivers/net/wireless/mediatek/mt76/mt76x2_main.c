@@ -15,6 +15,7 @@
  */
 
 #include "mt76x2.h"
+#include "mt76x02_util.h"
 
 static int
 mt76x2_start(struct ieee80211_hw *hw)
@@ -22,7 +23,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	struct mt76x2_dev *dev = hw->priv;
 	int ret;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	ret = mt76x2_mac_start(dev);
 	if (ret)
@@ -38,7 +39,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 out:
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 	return ret;
 }
 
@@ -47,44 +48,10 @@ mt76x2_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	mt76x2_stop_hardware(dev);
-	mutex_unlock(&dev->mutex);
-}
-
-static int
-mt76x2_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
-	unsigned int idx = 0;
-
-	if (vif->addr[0] & BIT(1))
-		idx = 1 + (((dev->mt76.macaddr[0] ^ vif->addr[0]) >> 2) & 7);
-
-	/*
-	 * Client mode typically only has one configurable BSSID register,
-	 * which is used for bssidx=0. This is linked to the MAC address.
-	 * Since mac80211 allows changing interface types, and we cannot
-	 * force the use of the primary MAC address for a station mode
-	 * interface, we need some other way of configuring a per-interface
-	 * remote BSSID.
-	 * The hardware provides an AP-Client feature, where bssidx 0-7 are
-	 * used for AP mode and bssidx 8-15 for client mode.
-	 * We shift the station interface bss index by 8 to force the
-	 * hardware to recognize the BSSID.
-	 * The resulting bssidx mismatch for unicast frames is ignored by hw.
-	 */
-	if (vif->type == NL80211_IFTYPE_STATION)
-		idx += 8;
-
-	mvif->idx = idx;
-	mvif->group_wcid.idx = MT_VIF_WCID(idx);
-	mvif->group_wcid.hw_key_idx = -1;
-	mt76x2_txq_init(dev, vif->txq);
-
-	return 0;
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -127,15 +94,15 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 	struct mt76x2_dev *dev = hw->priv;
 	int ret = 0;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
-			dev->rxfilter |= MT_RX_FILTR_CFG_PROMISC;
+			dev->mt76.rxfilter |= MT_RX_FILTR_CFG_PROMISC;
 		else
-			dev->rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
+			dev->mt76.rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
 
-		mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+		mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -156,7 +123,7 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 		ieee80211_wake_queues(hw);
 	}
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
 }
@@ -166,9 +133,9 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *info, u32 changed)
 {
 	struct mt76x2_dev *dev = hw->priv;
-	struct mt76x2_vif *mvif = (struct mt76x2_vif *) vif->drv_priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & BSS_CHANGED_BSSID)
 		mt76x2_mac_set_bssid(dev, mvif->idx, info->bssid);
@@ -195,18 +162,18 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mt76x2_set_tx_ackto(dev);
 	}
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 void
 mt76x2_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
-	struct mt76x2_sta *msta = (struct mt76x2_sta *) sta->drv_priv;
+	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
 	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
 	int idx = msta->wcid.idx;
 
 	mt76_stop_tx_queues(&dev->mt76, sta, true);
-	mt76x2_mac_wcid_set_drop(dev, idx, ps);
+	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, ps);
 }
 
 static void
@@ -252,10 +219,10 @@ static void mt76x2_set_coverage_class(struct ieee80211_hw *hw,
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	dev->coverage_class = coverage_class;
 	mt76x2_set_tx_ackto(dev);
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -272,7 +239,7 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 	if (!tx_ant || tx_ant > 3 || tx_ant != rx_ant)
 		return -EINVAL;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 
 	dev->chainmask = (tx_ant == 3) ? 0x202 : 0x101;
 	dev->mt76.antenna_mask = tx_ant;
@@ -280,7 +247,7 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 	mt76_set_stream_caps(&dev->mt76, true);
 	mt76x2_phy_set_antenna(dev);
 
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
@@ -290,10 +257,10 @@ static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mt76.mutex);
 	*tx_ant = dev->mt76.antenna_mask;
 	*rx_ant = dev->mt76.antenna_mask;
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
 }
@@ -317,22 +284,22 @@ const struct ieee80211_ops mt76x2_ops = {
 	.tx = mt76x2_tx,
 	.start = mt76x2_start,
 	.stop = mt76x2_stop,
-	.add_interface = mt76x2_add_interface,
-	.remove_interface = mt76x2_remove_interface,
+	.add_interface = mt76x02_add_interface,
+	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x2_config,
-	.configure_filter = mt76x2_configure_filter,
+	.configure_filter = mt76x02_configure_filter,
 	.bss_info_changed = mt76x2_bss_info_changed,
-	.sta_add = mt76x2_sta_add,
-	.sta_remove = mt76x2_sta_remove,
-	.set_key = mt76x2_set_key,
-	.conf_tx = mt76x2_conf_tx,
+	.sta_add = mt76x02_sta_add,
+	.sta_remove = mt76x02_sta_remove,
+	.set_key = mt76x02_set_key,
+	.conf_tx = mt76x02_conf_tx,
 	.sw_scan_start = mt76x2_sw_scan,
 	.sw_scan_complete = mt76x2_sw_scan_complete,
 	.flush = mt76x2_flush,
-	.ampdu_action = mt76x2_ampdu_action,
+	.ampdu_action = mt76x02_ampdu_action,
 	.get_txpower = mt76x2_get_txpower,
 	.wake_tx_queue = mt76_wake_tx_queue,
-	.sta_rate_tbl_update = mt76x2_sta_rate_tbl_update,
+	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.set_coverage_class = mt76x2_set_coverage_class,
 	.get_survey = mt76_get_survey,

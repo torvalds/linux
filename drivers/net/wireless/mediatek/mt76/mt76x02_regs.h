@@ -14,8 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __MT76x2_REGS_H
-#define __MT76x2_REGS_H
+#ifndef __MT76X02_REGS_H
+#define __MT76X02_REGS_H
 
 #define MT_ASIC_VERSION			0x0000
 
@@ -46,6 +46,11 @@
 #define MT_WLAN_FUN_CTRL_WLAN_CLK_EN	BIT(1)
 #define MT_WLAN_FUN_CTRL_WLAN_RESET_RF	BIT(2)
 
+#define MT_COEXCFG3			0x004c
+
+#define	MT_LDO_CTRL_0			0x006c
+#define	MT_LDO_CTRL_1			0x0070
+
 #define MT_WLAN_FUN_CTRL_WLAN_RESET	BIT(3) /* MT76x0 */
 #define MT_WLAN_FUN_CTRL_CSR_F20M_CKEN	BIT(3) /* MT76x2 */
 
@@ -74,6 +79,8 @@
 #define MT_XO_CTRL6_C2_CTRL		GENMASK(14, 8)
 
 #define MT_XO_CTRL7			0x011c
+
+#define MT_IOCFG_6			0x0124
 
 #define MT_USB_U3DMA_CFG		0x9018
 #define MT_USB_DMA_CFG_RX_BULK_AGG_TOUT	GENMASK(7, 0)
@@ -156,17 +163,22 @@
 #define MT_WMM_TXOP_SHIFT(_n)		((_n & 1) * 16)
 #define MT_WMM_TXOP_MASK		GENMASK(15, 0)
 
+#define MT_WMM_CTRL			0x0230 /* MT76x0 */
+#define MT_FCE_DMA_ADDR			0x0230
+#define MT_FCE_DMA_LEN			0x0234
+#define MT_USB_DMA_CFG			0x0238
+
 #define MT_TSO_CTRL			0x0250
 #define MT_HEADER_TRANS_CTRL_REG	0x0260
+
+#define MT_US_CYC_CFG			0x02a4
+#define MT_US_CYC_CNT			GENMASK(7, 0)
 
 #define MT_TX_RING_BASE			0x0300
 #define MT_RX_RING_BASE			0x03c0
 
 #define MT_TX_HW_QUEUE_MCU		8
 #define MT_TX_HW_QUEUE_MGMT		9
-
-#define MT_US_CYC_CFG			0x02a4
-#define MT_US_CYC_CNT			GENMASK(7, 0)
 
 #define MT_PBF_SYS_CTRL			0x0400
 #define MT_PBF_SYS_CTRL_MCU_RESET	BIT(0)
@@ -189,10 +201,20 @@
 #define MT_BCN_OFFSET_BASE		0x041c
 #define MT_BCN_OFFSET(_n)		(MT_BCN_OFFSET_BASE + ((_n) << 2))
 
+#define MT_RXQ_STA			0x0430
+#define MT_TXQ_STA			0x0434
+#define	MT_RF_CSR_CFG			0x0500
+#define MT_RF_CSR_CFG_DATA		GENMASK(7, 0)
+#define MT_RF_CSR_CFG_REG_ID		GENMASK(13, 8)
+#define MT_RF_CSR_CFG_REG_BANK		GENMASK(17, 14)
+#define MT_RF_CSR_CFG_WR		BIT(30)
+#define MT_RF_CSR_CFG_KICK		BIT(31)
+
 #define MT_RF_BYPASS_0			0x0504
 #define MT_RF_BYPASS_1			0x0508
 #define MT_RF_SETTING_0			0x050c
 
+#define MT_RF_MISC			0x0518
 #define MT_RF_DATA_WRITE		0x0524
 
 #define MT_RF_CTRL			0x0528
@@ -202,6 +224,11 @@
 #define MT_RF_CTRL_IDX			BIT(16)
 
 #define MT_RF_DATA_READ			0x052c
+
+#define MT_COM_REG0			0x0730
+#define MT_COM_REG1			0x0734
+#define MT_COM_REG2			0x0738
+#define MT_COM_REG3			0x073C
 
 #define MT_FCE_PSE_CTRL			0x0800
 #define MT_FCE_PARAMETERS		0x0804
@@ -222,6 +249,7 @@
 
 #define MT_TX_CPU_FROM_FCE_BASE_PTR	0x09a0
 #define MT_TX_CPU_FROM_FCE_MAX_COUNT	0x09a4
+#define MT_TX_CPU_FROM_FCE_CPU_DESC_IDX	0x09a8
 #define MT_FCE_PDMA_GLOBAL_CONF		0x09c4
 #define MT_FCE_SKIP_FS			0x0a6c
 
@@ -250,6 +278,9 @@
 #define MT_MAC_BSSID_DW1_MBSS_IDX_BYTE	GENMASK(26, 24)
 
 #define MT_MAX_LEN_CFG			0x1018
+#define MT_MAX_LEN_CFG_AMPDU		GENMASK(13, 12)
+
+#define MT_LED_CFG			0x102c
 
 #define MT_AMPDU_MAX_LEN_20M1S		0x1030
 #define MT_AMPDU_MAX_LEN_20M2S		0x1034
@@ -365,6 +396,8 @@
 #define MT_TX_SW_CFG2			0x1338
 
 #define MT_TXOP_CTRL_CFG		0x1340
+#define MT_TXOP_TRUN_EN			GENMASK(5, 0)
+#define MT_TXOP_EXT_CCA_DLY		GENMASK(15, 8)
 
 #define MT_TX_RTS_CFG			0x1344
 #define MT_TX_RTS_CFG_RETRY_LIMIT	GENMASK(7, 0)
@@ -376,7 +409,10 @@
 
 #define MT_TX_RETRY_CFG			0x134c
 #define MT_TX_LINK_CFG			0x1350
+#define MT_VHT_HT_FBK_CFG0		0x1354
 #define MT_VHT_HT_FBK_CFG1		0x1358
+#define MT_LG_FBK_CFG0			0x135c
+#define MT_LG_FBK_CFG1			0x1360
 
 #define MT_PROT_CFG_RATE		GENMASK(15, 0)
 #define MT_PROT_CFG_CTRL		GENMASK(17, 16)
@@ -390,6 +426,27 @@
 #define MT_MM40_PROT_CFG		0x1370
 #define MT_GF20_PROT_CFG		0x1374
 #define MT_GF40_PROT_CFG		0x1378
+
+#define MT_PROT_RATE			GENMASK(15, 0)
+#define MT_PROT_CTRL_RTS_CTS		BIT(16)
+#define MT_PROT_CTRL_CTS2SELF		BIT(17)
+#define MT_PROT_NAV_SHORT		BIT(18)
+#define MT_PROT_NAV_LONG		BIT(19)
+#define MT_PROT_TXOP_ALLOW_CCK		BIT(20)
+#define MT_PROT_TXOP_ALLOW_OFDM		BIT(21)
+#define MT_PROT_TXOP_ALLOW_MM20		BIT(22)
+#define MT_PROT_TXOP_ALLOW_MM40		BIT(23)
+#define MT_PROT_TXOP_ALLOW_GF20		BIT(24)
+#define MT_PROT_TXOP_ALLOW_GF40		BIT(25)
+#define MT_PROT_RTS_THR_EN		BIT(26)
+#define MT_PROT_RATE_CCK_11		0x0003
+#define MT_PROT_RATE_OFDM_6		0x4000
+#define MT_PROT_RATE_OFDM_24		0x4004
+#define MT_PROT_RATE_DUP_OFDM_24	0x4084
+#define MT_PROT_TXOP_ALLOW_ALL		GENMASK(25, 20)
+#define MT_PROT_TXOP_ALLOW_BW20		(MT_PROT_TXOP_ALLOW_ALL &	\
+					 ~MT_PROT_TXOP_ALLOW_MM40 &	\
+					 ~MT_PROT_TXOP_ALLOW_GF40)
 
 #define MT_EXP_ACK_TIME			0x1380
 
@@ -405,6 +462,8 @@
 
 #define MT_TX0_RF_GAIN_CORR		0x13a0
 #define MT_TX1_RF_GAIN_CORR		0x13a4
+#define MT_TX0_RF_GAIN_ATTEN		0x13a8
+#define MT_TX0_RF_GAIN_ATTEN		0x13a8 /* MT76x0 */
 
 #define MT_TX_ALC_CFG_0			0x13b0
 #define MT_TX_ALC_CFG_0_CH_INIT_0	GENMASK(5, 0)
@@ -421,6 +480,7 @@
 #define MT_TX_ALC_CFG_3			0x13ac
 #define MT_TX_ALC_CFG_4			0x13c0
 #define MT_TX_ALC_CFG_4_LOWGAIN_CH_EN	BIT(31)
+#define MT_TX0_BB_GAIN_ATTEN		0x13c0 /* MT76x0 */
 
 #define MT_TX_ALC_VGA3			0x13c8
 
@@ -451,10 +511,13 @@
 #define MT_RX_FILTR_CFG_CTRL_RSV	BIT(16)
 
 #define MT_AUTO_RSP_CFG			0x1404
+#define MT_AUTO_RSP_PREAMB_SHORT	BIT(4)
 #define MT_LEGACY_BASIC_RATE		0x1408
 #define MT_HT_BASIC_RATE		0x140c
 
 #define MT_HT_CTRL_CFG			0x1410
+#define MT_RX_PARSER_CFG		0x1418
+#define MT_RX_PARSER_RX_SET_NAV_ALL	BIT(0)
 
 #define MT_EXT_CCA_CFG			0x141c
 #define MT_EXT_CCA_CFG_CCA0		GENMASK(1, 0)
@@ -498,7 +561,10 @@
 #define MT_TX_STAT_FIFO_WCID		GENMASK(15, 8)
 #define MT_TX_STAT_FIFO_RATE		GENMASK(31, 16)
 
+#define MT_TX_AGG_STAT			0x171c
+
 #define MT_TX_AGG_CNT_BASE0		0x1720
+#define MT_MPDU_DENSITY_CNT		0x1740
 #define MT_TX_AGG_CNT_BASE1		0x174c
 
 #define MT_TX_AGG_CNT(_id)		((_id) < 8 ?			\
@@ -604,7 +670,7 @@ struct mt76_wcid_key {
 	u8 rx_mic[8];
 } __packed __aligned(4);
 
-enum mt76x2_cipher_type {
+enum mt76x02_cipher_type {
 	MT_CIPHER_NONE,
 	MT_CIPHER_WEP40,
 	MT_CIPHER_WEP104,

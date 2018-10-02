@@ -20,8 +20,8 @@
 #include <linux/device.h>
 
 #include "mt76x2.h"
-#include "mt76x2_dma.h"
 #include "mt76x2_mcu.h"
+#include "mt76x02_dma.h"
 
 #define MT7612U_EEPROM_SIZE		512
 
@@ -50,33 +50,18 @@ void mt76x2u_phy_set_txdac(struct mt76x2_dev *dev);
 void mt76x2u_phy_set_rxpath(struct mt76x2_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
-int mt76x2u_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
-			    u8 bw_index, bool scan);
-int mt76x2u_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
-			  u32 val);
-int mt76x2u_mcu_tssi_comp(struct mt76x2_dev *dev,
-			  struct mt76x2_tssi_comp *tssi_data);
-int mt76x2u_mcu_init_gain(struct mt76x2_dev *dev, u8 channel, u32 gain,
-			  bool force);
 int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
 				bool ext, int rssi, u32 false_cca);
-int mt76x2u_mcu_set_radio_state(struct mt76x2_dev *dev, bool val);
-int mt76x2u_mcu_load_cr(struct mt76x2_dev *dev, u8 type,
-			u8 temp_level, u8 channel);
 int mt76x2u_mcu_init(struct mt76x2_dev *dev);
 int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev);
-void mt76x2u_mcu_deinit(struct mt76x2_dev *dev);
 
 int mt76x2u_alloc_queues(struct mt76x2_dev *dev);
 void mt76x2u_queues_deinit(struct mt76x2_dev *dev);
 void mt76x2u_stop_queues(struct mt76x2_dev *dev);
-bool mt76x2u_tx_status_data(struct mt76_dev *mdev, u8 *update);
 int mt76x2u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			   struct sk_buff *skb, struct mt76_queue *q,
 			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			   u32 *tx_info);
-void mt76x2u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
-			     struct mt76_queue_entry *e, bool flush);
 int mt76x2u_skb_dma_info(struct sk_buff *skb, enum dma_msg_port port,
 			 u32 flags);
 

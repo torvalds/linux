@@ -21,7 +21,7 @@ static u32 mt76_mmio_rr(struct mt76_dev *dev, u32 offset)
 {
 	u32 val;
 
-	val = ioread32(dev->regs + offset);
+	val = ioread32(dev->mmio.regs + offset);
 	trace_reg_rr(dev, offset, val);
 
 	return val;
@@ -30,7 +30,7 @@ static u32 mt76_mmio_rr(struct mt76_dev *dev, u32 offset)
 static void mt76_mmio_wr(struct mt76_dev *dev, u32 offset, u32 val)
 {
 	trace_reg_wr(dev, offset, val);
-	iowrite32(val, dev->regs + offset);
+	iowrite32(val, dev->mmio.regs + offset);
 }
 
 static u32 mt76_mmio_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
@@ -43,7 +43,7 @@ static u32 mt76_mmio_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
 static void mt76_mmio_copy(struct mt76_dev *dev, u32 offset, const void *data,
 			   int len)
 {
-	__iowrite32_copy(dev->regs + offset, data, len >> 2);
+	__iowrite32_copy(dev->mmio.regs + offset, data, len >> 2);
 }
 
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
@@ -56,6 +56,10 @@ void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 	};
 
 	dev->bus = &mt76_mmio_ops;
-	dev->regs = regs;
+	dev->mmio.regs = regs;
+
+	skb_queue_head_init(&dev->mmio.mcu.res_q);
+	init_waitqueue_head(&dev->mmio.mcu.wait);
+	mutex_init(&dev->mmio.mcu.mutex);
 }
 EXPORT_SYMBOL_GPL(mt76_mmio_init);

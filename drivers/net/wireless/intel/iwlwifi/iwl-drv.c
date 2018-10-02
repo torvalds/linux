@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -1065,29 +1060,14 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		case IWL_UCODE_TLV_FW_MEM_SEG: {
 			struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
 				(void *)tlv_data;
-			u32 type;
 			size_t size;
 			struct iwl_fw_dbg_mem_seg_tlv *n;
 
 			if (tlv_len != (sizeof(*dbg_mem)))
 				goto invalid_tlv_len;
 
-			type = le32_to_cpu(dbg_mem->data_type);
-
 			IWL_DEBUG_INFO(drv, "Found debug memory segment: %u\n",
 				       dbg_mem->data_type);
-
-			switch (type & FW_DBG_MEM_TYPE_MASK) {
-			case FW_DBG_MEM_TYPE_REGULAR:
-			case FW_DBG_MEM_TYPE_PRPH:
-				/* we know how to handle these */
-				break;
-			default:
-				IWL_ERR(drv,
-					"Found debug memory segment with invalid type: 0x%x\n",
-					type);
-				return -EINVAL;
-			}
 
 			size = sizeof(*pieces->dbg_mem_tlv) *
 			       (pieces->n_dbg_mem_tlv + 1);
@@ -1275,8 +1255,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
-	/* dump all fw memory areas by default */
-	fw->dbg_dump_mask = 0xffffffff;
+	/* dump all fw memory areas by default except d3 debug data */
+	fw->dbg_dump_mask = 0xfffdffff;
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)

@@ -691,10 +691,7 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	const struct cfg80211_chan_def *chandef = &wdev->chandef;
 	struct ieee80211_channel *chan;
 	struct qtnf_chan_stats stats;
-	struct qtnf_vif *vif;
 	int ret;
-
-	vif = qtnf_netdev_get_priv(dev);
 
 	sband = wiphy->bands[NL80211_BAND_2GHZ];
 	if (sband && idx >= sband->n_channels) {
