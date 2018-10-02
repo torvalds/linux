@@ -3161,7 +3161,11 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 #endif
 
 	ixgbe_for_each_ring(ring, q_vector->tx) {
-		if (!ixgbe_clean_tx_irq(q_vector, ring, budget))
+		bool wd = ring->xsk_umem ?
+			  ixgbe_clean_xdp_tx_irq(q_vector, ring, budget) :
+			  ixgbe_clean_tx_irq(q_vector, ring, budget);
+
+		if (!wd)
 			clean_complete = false;
 	}
 
@@ -3469,6 +3473,10 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	int wait_loop = 10;
 	u32 txdctl = IXGBE_TXDCTL_ENABLE;
 	u8 reg_idx = ring->reg_idx;
+
+	ring->xsk_umem = NULL;
+	if (ring_is_xdp(ring))
+		ring->xsk_umem = ixgbe_xsk_umem(adapter, ring);
 
 	/* disable queue to avoid issues while updating state */
 	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), 0);
@@ -5942,6 +5950,11 @@ static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 	u16 i = tx_ring->next_to_clean;
 	struct ixgbe_tx_buffer *tx_buffer = &tx_ring->tx_buffer_info[i];
 
+	if (tx_ring->xsk_umem) {
+		ixgbe_xsk_clean_tx_ring(tx_ring);
+		goto out;
+	}
+
 	while (i != tx_ring->next_to_use) {
 		union ixgbe_adv_tx_desc *eop_desc, *tx_desc;
 
@@ -5993,6 +6006,7 @@ static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 	if (!ring_is_xdp(tx_ring))
 		netdev_tx_reset_queue(txring_txq(tx_ring));
 
+out:
 	/* reset next_to_use and next_to_clean */
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
@@ -10348,6 +10362,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_features_check	= ixgbe_features_check,
 	.ndo_bpf		= ixgbe_xdp,
 	.ndo_xdp_xmit		= ixgbe_xdp_xmit,
+	.ndo_xsk_async_xmit	= ixgbe_xsk_async_xmit,
 };
 
 static void ixgbe_disable_txr_hw(struct ixgbe_adapter *adapter,
