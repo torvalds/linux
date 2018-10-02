@@ -663,6 +663,7 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	if (err)
 		goto miss_rule_err;
 
+	kvfree(flow_group_in);
 	return 0;
 
 miss_rule_err:
