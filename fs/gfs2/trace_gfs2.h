@@ -561,6 +561,7 @@ TRACE_EVENT(gfs2_block_alloc,
 		__field(        u64,	rd_addr			)
 		__field(        u32,	rd_free_clone		)
 		__field(	u32,	rd_requested		)
+		__field(	u32,	rd_reserved		)
 	),
 
 	TP_fast_assign(
@@ -572,16 +573,19 @@ TRACE_EVENT(gfs2_block_alloc,
 		__entry->rd_addr	= rgd->rd_addr;
 		__entry->rd_free_clone	= rgd->rd_free_clone;
 		__entry->rd_requested	= rgd->rd_requested;
+		__entry->rd_reserved	= rgd->rd_reserved;
 	),
 
-	TP_printk("%u,%u bmap %llu alloc %llu/%lu %s rg:%llu rf:%u rr:%lu",
+	TP_printk("%u,%u bmap %llu alloc %llu/%lu %s rg:%llu rf:%u rq:%u rr:%u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->inum,
 		  (unsigned long long)__entry->start,
 		  (unsigned long)__entry->len,
 		  block_state_name(__entry->block_state),
 		  (unsigned long long)__entry->rd_addr,
-		  __entry->rd_free_clone, (unsigned long)__entry->rd_requested)
+		  __entry->rd_free_clone,
+		  __entry->rd_requested,
+		  __entry->rd_reserved)
 );
 
 /* Keep track of multi-block reservations as they are allocated/freed */
@@ -596,9 +600,11 @@ TRACE_EVENT(gfs2_rs,
 		__field(	u64,	rd_addr			)
 		__field(	u32,	rd_free_clone		)
 		__field(	u32,	rd_requested		)
+		__field(	u32,	rd_reserved		)
 		__field(	u64,	inum			)
 		__field(	u64,	start			)
 		__field(	u32,	requested		)
+		__field(	u32,	reserved		)
 		__field(	u8,	func			)
 	),
 
@@ -607,21 +613,26 @@ TRACE_EVENT(gfs2_rs,
 		__entry->rd_addr	= rs->rs_rgd->rd_addr;
 		__entry->rd_free_clone	= rs->rs_rgd->rd_free_clone;
 		__entry->rd_requested	= rs->rs_rgd->rd_requested;
+		__entry->rd_reserved	= rs->rs_rgd->rd_reserved;
 		__entry->inum		= container_of(rs, struct gfs2_inode,
 						       i_res)->i_no_addr;
 		__entry->start		= rs->rs_start;
 		__entry->requested	= rs->rs_requested;
+		__entry->reserved	= rs->rs_reserved;
 		__entry->func		= func;
 	),
 
-	TP_printk("%u,%u bmap %llu resrv %llu rg:%llu rf:%lu rr:%lu %s f:%lu",
+	TP_printk("%u,%u bmap %llu resrv %llu rg:%llu rf:%u rq:%u rr:%u %s q:%u r:%u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->inum,
 		  (unsigned long long)__entry->start,
 		  (unsigned long long)__entry->rd_addr,
-		  (unsigned long)__entry->rd_free_clone,
-		  (unsigned long)__entry->rd_requested,
-		  rs_func_name(__entry->func), (unsigned long)__entry->requested)
+		  __entry->rd_free_clone,
+		  __entry->rd_requested,
+		  __entry->rd_reserved,
+		  rs_func_name(__entry->func),
+		  __entry->requested,
+		  __entry->reserved)
 );
 
 #endif /* _TRACE_GFS2_H */

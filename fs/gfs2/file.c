@@ -1115,8 +1115,8 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 			goto out_qunlock;
 
 		/* check if the selected rgrp limits our max_blks further */
-		if (ap.allowed && ap.allowed < max_blks)
-			max_blks = ap.allowed;
+		if (ip->i_res.rs_reserved < max_blks)
+			max_blks = ip->i_res.rs_reserved;
 
 		/* Almost done. Calculate bytes that can be written using
 		 * max_blks. We also recompute max_bytes, data_blocks and
