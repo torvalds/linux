@@ -175,14 +175,8 @@ int rdma_restrack_put(struct rdma_restrack_entry *res);
  * @res:  resource entry
  * @task: task struct
  */
-static inline void rdma_restrack_set_task(struct rdma_restrack_entry *res,
-					  struct task_struct *task)
-{
-	if (res->task)
-		put_task_struct(res->task);
-	get_task_struct(task);
-	res->task = task;
-}
+void rdma_restrack_set_task(struct rdma_restrack_entry *res,
+			    struct task_struct *task);
 
 /*
  * Helper functions for rdma drivers when filling out

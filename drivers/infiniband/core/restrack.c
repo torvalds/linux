@@ -155,6 +155,16 @@ static bool res_is_user(struct rdma_restrack_entry *res)
 	}
 }
 
+void rdma_restrack_set_task(struct rdma_restrack_entry *res,
+			    struct task_struct *task)
+{
+	if (res->task)
+		put_task_struct(res->task);
+	get_task_struct(task);
+	res->task = task;
+}
+EXPORT_SYMBOL(rdma_restrack_set_task);
+
 void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
