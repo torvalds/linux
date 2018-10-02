@@ -356,7 +356,7 @@ nfp_bpf_parse_cap_abi_version(struct nfp_app_bpf *bpf, void __iomem *value,
 	}
 
 	bpf->abi_version = readl(value);
-	if (bpf->abi_version != 2) {
+	if (bpf->abi_version < 2 || bpf->abi_version > 3) {
 		nfp_warn(bpf->app->cpp, "unsupported BPF ABI version: %d\n",
 			 bpf->abi_version);
 		bpf->abi_version = 0;
@@ -485,6 +485,15 @@ static int nfp_bpf_init(struct nfp_app *app)
 	err = nfp_bpf_parse_capabilities(app);
 	if (err)
 		goto err_free_neutral_maps;
+
+	if (bpf->abi_version < 3) {
+		bpf->cmsg_key_sz = CMSG_MAP_KEY_LW * 4;
+		bpf->cmsg_val_sz = CMSG_MAP_VALUE_LW * 4;
+	} else {
+		bpf->cmsg_key_sz = bpf->maps.max_key_sz;
+		bpf->cmsg_val_sz = bpf->maps.max_val_sz;
+		app->ctrl_mtu = nfp_bpf_ctrl_cmsg_mtu(bpf);
+	}
 
 	bpf->bpf_dev = bpf_offload_dev_create();
 	err = PTR_ERR_OR_ZERO(bpf->bpf_dev);
