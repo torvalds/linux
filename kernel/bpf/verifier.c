@@ -249,6 +249,11 @@ static bool type_is_pkt_pointer(enum bpf_reg_type type)
 	       type == PTR_TO_PACKET_META;
 }
 
+static bool reg_type_may_be_null(enum bpf_reg_type type)
+{
+	return type == PTR_TO_MAP_VALUE_OR_NULL;
+}
+
 /* string representation of 'enum bpf_reg_type' */
 static const char * const reg_type_str[] = {
 	[NOT_INIT]		= "?",
@@ -3599,12 +3604,10 @@ static void reg_combine_min_max(struct bpf_reg_state *true_src,
 	}
 }
 
-static void mark_map_reg(struct bpf_reg_state *regs, u32 regno, u32 id,
-			 bool is_null)
+static void mark_ptr_or_null_reg(struct bpf_reg_state *reg, u32 id,
+				 bool is_null)
 {
-	struct bpf_reg_state *reg = &regs[regno];
-
-	if (reg->type == PTR_TO_MAP_VALUE_OR_NULL && reg->id == id) {
+	if (reg_type_may_be_null(reg->type) && reg->id == id) {
 		/* Old offset (both fixed and variable parts) should
 		 * have been known-zero, because we don't allow pointer
 		 * arithmetic on pointers that might be NULL.
@@ -3617,11 +3620,13 @@ static void mark_map_reg(struct bpf_reg_state *regs, u32 regno, u32 id,
 		}
 		if (is_null) {
 			reg->type = SCALAR_VALUE;
-		} else if (reg->map_ptr->inner_map_meta) {
-			reg->type = CONST_PTR_TO_MAP;
-			reg->map_ptr = reg->map_ptr->inner_map_meta;
-		} else {
-			reg->type = PTR_TO_MAP_VALUE;
+		} else if (reg->type == PTR_TO_MAP_VALUE_OR_NULL) {
+			if (reg->map_ptr->inner_map_meta) {
+				reg->type = CONST_PTR_TO_MAP;
+				reg->map_ptr = reg->map_ptr->inner_map_meta;
+			} else {
+				reg->type = PTR_TO_MAP_VALUE;
+			}
 		}
 		/* We don't need id from this point onwards anymore, thus we
 		 * should better reset it, so that state pruning has chances
@@ -3634,8 +3639,8 @@ static void mark_map_reg(struct bpf_reg_state *regs, u32 regno, u32 id,
 /* The logic is similar to find_good_pkt_pointers(), both could eventually
  * be folded together at some point.
  */
-static void mark_map_regs(struct bpf_verifier_state *vstate, u32 regno,
-			  bool is_null)
+static void mark_ptr_or_null_regs(struct bpf_verifier_state *vstate, u32 regno,
+				  bool is_null)
 {
 	struct bpf_func_state *state = vstate->frame[vstate->curframe];
 	struct bpf_reg_state *reg, *regs = state->regs;
@@ -3643,14 +3648,14 @@ static void mark_map_regs(struct bpf_verifier_state *vstate, u32 regno,
 	int i, j;
 
 	for (i = 0; i < MAX_BPF_REG; i++)
-		mark_map_reg(regs, i, id, is_null);
+		mark_ptr_or_null_reg(&regs[i], id, is_null);
 
 	for (j = 0; j <= vstate->curframe; j++) {
 		state = vstate->frame[j];
 		bpf_for_each_spilled_reg(i, state, reg) {
 			if (!reg)
 				continue;
-			mark_map_reg(&state->stack[i].spilled_ptr, 0, id, is_null);
+			mark_ptr_or_null_reg(reg, id, is_null);
 		}
 	}
 }
@@ -3852,12 +3857,14 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	/* detect if R == 0 where R is returned from bpf_map_lookup_elem() */
 	if (BPF_SRC(insn->code) == BPF_K &&
 	    insn->imm == 0 && (opcode == BPF_JEQ || opcode == BPF_JNE) &&
-	    dst_reg->type == PTR_TO_MAP_VALUE_OR_NULL) {
-		/* Mark all identical map registers in each branch as either
+	    reg_type_may_be_null(dst_reg->type)) {
+		/* Mark all identical registers in each branch as either
 		 * safe or unknown depending R == 0 or R != 0 conditional.
 		 */
-		mark_map_regs(this_branch, insn->dst_reg, opcode == BPF_JNE);
-		mark_map_regs(other_branch, insn->dst_reg, opcode == BPF_JEQ);
+		mark_ptr_or_null_regs(this_branch, insn->dst_reg,
+				      opcode == BPF_JNE);
+		mark_ptr_or_null_regs(other_branch, insn->dst_reg,
+				      opcode == BPF_JEQ);
 	} else if (!try_match_pkt_pointers(insn, dst_reg, &regs[insn->src_reg],
 					   this_branch, other_branch) &&
 		   is_pointer_value(env, insn->dst_reg)) {
