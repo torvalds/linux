@@ -946,8 +946,7 @@ next_pdu:
 		} else {
 			mids[0] = server->ops->find_mid(server, buf);
 			bufs[0] = buf;
-			if (mids[0])
-				num_mids = 1;
+			num_mids = 1;
 
 			if (!mids[0] || !mids[0]->receive)
 				length = standard_receive3(server, mids[0]);
