@@ -500,6 +500,16 @@ void rcu_force_quiescent_state(void)
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
+ * Convert a ->gp_state value to a character string.
+ */
+static const char *gp_state_getname(short gs)
+{
+	if (gs < 0 || gs >= ARRAY_SIZE(gp_state_names))
+		return "???";
+	return gp_state_names[gs];
+}
+
+/*
  * Show the state of the grace-period kthreads.
  */
 void show_rcu_gp_kthreads(void)
@@ -508,8 +518,9 @@ void show_rcu_gp_kthreads(void)
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
-	pr_info("%s: wait state: %d ->state: %#lx\n", rcu_state.name,
-		rcu_state.gp_state, rcu_state.gp_kthread->state);
+	pr_info("%s: wait state: %s(%d) ->state: %#lx\n", rcu_state.name,
+		gp_state_getname(rcu_state.gp_state), rcu_state.gp_state,
+		rcu_state.gp_kthread->state);
 	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
 			continue;
@@ -1140,16 +1151,6 @@ static void record_gp_stall_check_time(void)
 	smp_store_release(&rcu_state.jiffies_stall, j + j1); /* ^^^ */
 	rcu_state.jiffies_resched = j + j1 / 2;
 	rcu_state.n_force_qs_gpstart = READ_ONCE(rcu_state.n_force_qs);
-}
-
-/*
- * Convert a ->gp_state value to a character string.
- */
-static const char *gp_state_getname(short gs)
-{
-	if (gs < 0 || gs >= ARRAY_SIZE(gp_state_names))
-		return "???";
-	return gp_state_names[gs];
 }
 
 /*
