@@ -420,6 +420,7 @@ static const struct qede_link_mode_mapping qed_lm_map[] = {
 	{QED_LM_1000baseT_Half_BIT, ETHTOOL_LINK_MODE_1000baseT_Half_BIT},
 	{QED_LM_1000baseT_Full_BIT, ETHTOOL_LINK_MODE_1000baseT_Full_BIT},
 	{QED_LM_10000baseKR_Full_BIT, ETHTOOL_LINK_MODE_10000baseKR_Full_BIT},
+	{QED_LM_20000baseKR2_Full_BIT, ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT},
 	{QED_LM_25000baseKR_Full_BIT, ETHTOOL_LINK_MODE_25000baseKR_Full_BIT},
 	{QED_LM_40000baseLR4_Full_BIT, ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT},
 	{QED_LM_50000baseKR2_Full_BIT, ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT},
@@ -534,6 +535,14 @@ static int qede_set_link_ksettings(struct net_device *dev,
 				return -EINVAL;
 			}
 			params.adv_speeds = QED_LM_10000baseKR_Full_BIT;
+			break;
+		case SPEED_20000:
+			if (!(current_link.supported_caps &
+			      QED_LM_20000baseKR2_Full_BIT)) {
+				DP_INFO(edev, "20G speed not supported\n");
+				return -EINVAL;
+			}
+			params.adv_speeds = QED_LM_20000baseKR2_Full_BIT;
 			break;
 		case SPEED_25000:
 			if (!(current_link.supported_caps &
