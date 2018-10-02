@@ -3569,6 +3569,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	}
 
+	IWL_DEBUG_INFO(trans, "HW REV: 0x%0x\n", trans->hw_rev);
+
 	/*
 	 * 9000-series integrated A-step has a problem with suspend/resume
 	 * and sometimes even causes the whole platform to get stuck. This
@@ -3603,7 +3605,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 		   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		   trans->cfg != &iwl22260_2ax_cfg) {
+		   (trans->cfg != &iwl22260_2ax_cfg ||
+		    trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0)) {
 		u32 hw_status;
 
 		hw_status = iwl_read_prph(trans, UMAG_GEN_HW_STATUS);
