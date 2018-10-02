@@ -46,10 +46,8 @@ static void dg00x_free(struct snd_dg00x *dg00x)
 	snd_dg00x_stream_destroy_duplex(dg00x);
 	snd_dg00x_transaction_unregister(dg00x);
 
-	fw_unit_put(dg00x->unit);
-
 	mutex_destroy(&dg00x->mutex);
-	kfree(dg00x);
+	fw_unit_put(dg00x->unit);
 }
 
 static void dg00x_card_free(struct snd_card *card)
@@ -120,8 +118,9 @@ static int snd_dg00x_probe(struct fw_unit *unit,
 	struct snd_dg00x *dg00x;
 
 	/* Allocate this independent of sound card instance. */
-	dg00x = kzalloc(sizeof(struct snd_dg00x), GFP_KERNEL);
-	if (dg00x == NULL)
+	dg00x = devm_kzalloc(&unit->device, sizeof(struct snd_dg00x),
+			     GFP_KERNEL);
+	if (!dg00x)
 		return -ENOMEM;
 
 	dg00x->unit = fw_unit_get(unit);

@@ -188,12 +188,11 @@ static void efw_free(struct snd_efw *efw)
 {
 	snd_efw_stream_destroy_duplex(efw);
 	snd_efw_transaction_remove_instance(efw);
-	fw_unit_put(efw->unit);
 
 	kfree(efw->resp_buf);
 
 	mutex_destroy(&efw->mutex);
-	kfree(efw);
+	fw_unit_put(efw->unit);
 }
 
 /*
@@ -312,10 +311,9 @@ efw_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 {
 	struct snd_efw *efw;
 
-	efw = kzalloc(sizeof(struct snd_efw), GFP_KERNEL);
+	efw = devm_kzalloc(&unit->device, sizeof(struct snd_efw), GFP_KERNEL);
 	if (efw == NULL)
 		return -ENOMEM;
-
 	efw->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, efw);
 
