@@ -190,6 +190,13 @@ enum hclge_opcode_type {
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
 	HCLGE_OPC_VLAN_FILTER_VF_CFG	= 0x1102,
 
+	/* Flow Director commands */
+	HCLGE_OPC_FD_MODE_CTRL		= 0x1200,
+	HCLGE_OPC_FD_GET_ALLOCATION	= 0x1201,
+	HCLGE_OPC_FD_KEY_CONFIG		= 0x1202,
+	HCLGE_OPC_FD_TCAM_OP		= 0x1203,
+	HCLGE_OPC_FD_AD_OP		= 0x1204,
+
 	/* MDIO command */
 	HCLGE_OPC_MDIO_CONFIG		= 0x1900,
 
@@ -817,6 +824,76 @@ struct hclge_set_led_state_cmd {
 	u8 rsv1[3];
 	u8 locate_led_config;
 	u8 rsv2[20];
+};
+
+struct hclge_get_fd_mode_cmd {
+	u8 mode;
+	u8 enable;
+	u8 rsv[22];
+};
+
+struct hclge_get_fd_allocation_cmd {
+	__le32 stage1_entry_num;
+	__le32 stage2_entry_num;
+	__le16 stage1_counter_num;
+	__le16 stage2_counter_num;
+	u8 rsv[12];
+};
+
+struct hclge_set_fd_key_config_cmd {
+	u8 stage;
+	u8 key_select;
+	u8 inner_sipv6_word_en;
+	u8 inner_dipv6_word_en;
+	u8 outer_sipv6_word_en;
+	u8 outer_dipv6_word_en;
+	u8 rsv1[2];
+	__le32 tuple_mask;
+	__le32 meta_data_mask;
+	u8 rsv2[8];
+};
+
+#define HCLGE_FD_EPORT_SW_EN_B		0
+struct hclge_fd_tcam_config_1_cmd {
+	u8 stage;
+	u8 xy_sel;
+	u8 port_info;
+	u8 rsv1[1];
+	__le32 index;
+	u8 entry_vld;
+	u8 rsv2[7];
+	u8 tcam_data[8];
+};
+
+struct hclge_fd_tcam_config_2_cmd {
+	u8 tcam_data[24];
+};
+
+struct hclge_fd_tcam_config_3_cmd {
+	u8 tcam_data[20];
+	u8 rsv[4];
+};
+
+#define HCLGE_FD_AD_DROP_B		0
+#define HCLGE_FD_AD_DIRECT_QID_B	1
+#define HCLGE_FD_AD_QID_S		2
+#define HCLGE_FD_AD_QID_M		GENMASK(12, 2)
+#define HCLGE_FD_AD_USE_COUNTER_B	12
+#define HCLGE_FD_AD_COUNTER_NUM_S	13
+#define HCLGE_FD_AD_COUNTER_NUM_M	GENMASK(20, 13)
+#define HCLGE_FD_AD_NXT_STEP_B		20
+#define HCLGE_FD_AD_NXT_KEY_S		21
+#define HCLGE_FD_AD_NXT_KEY_M		GENMASK(26, 21)
+#define HCLGE_FD_AD_WR_RULE_ID_B	0
+#define HCLGE_FD_AD_RULE_ID_S		1
+#define HCLGE_FD_AD_RULE_ID_M		GENMASK(13, 1)
+
+struct hclge_fd_ad_config_cmd {
+	u8 stage;
+	u8 rsv1[3];
+	__le32 index;
+	__le64 ad_data;
+	u8 rsv2[8];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

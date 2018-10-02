@@ -1285,6 +1285,13 @@ static int hns3_nic_set_features(struct net_device *netdev,
 			return ret;
 	}
 
+	if ((changed & NETIF_F_NTUPLE) && h->ae_algo->ops->enable_fd) {
+		if (features & NETIF_F_NTUPLE)
+			h->ae_algo->ops->enable_fd(h, true);
+		else
+			h->ae_algo->ops->enable_fd(h, false);
+	}
+
 	netdev->features = features;
 	return 0;
 }
@@ -1622,6 +1629,13 @@ static void hns3_disable_sriov(struct pci_dev *pdev)
 	pci_disable_sriov(pdev);
 }
 
+static void hns3_get_dev_capability(struct pci_dev *pdev,
+				    struct hnae3_ae_dev *ae_dev)
+{
+	if (pdev->revision >= 0x21)
+		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B, 1);
+}
+
 /* hns3_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in hns3_pci_tbl
@@ -1647,6 +1661,8 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ae_dev->pdev = pdev;
 	ae_dev->flag = ent->driver_data;
 	ae_dev->dev_type = HNAE3_DEV_KNIC;
+	ae_dev->reset_type = HNAE3_NONE_RESET;
+	hns3_get_dev_capability(pdev, ae_dev);
 	pci_set_drvdata(pdev, ae_dev);
 
 	hnae3_register_ae_dev(ae_dev);
@@ -1761,8 +1777,14 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_SCTP_CRC;
 
-	if (pdev->revision != 0x20)
+	if (pdev->revision >= 0x21) {
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+		if (!(h->flags & HNAE3_SUPPORT_VF)) {
+			netdev->hw_features |= NETIF_F_NTUPLE;
+			netdev->features |= NETIF_F_NTUPLE;
+		}
+	}
 }
 
 static int hns3_alloc_buffer(struct hns3_enet_ring *ring,
@@ -3142,6 +3164,25 @@ static void hns3_uninit_mac_addr(struct net_device *netdev)
 		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
 }
 
+static int hns3_restore_fd_rules(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	int ret = 0;
+
+	if (h->ae_algo->ops->restore_fd_rules)
+		ret = h->ae_algo->ops->restore_fd_rules(h);
+
+	return ret;
+}
+
+static void hns3_del_all_fd_rules(struct net_device *netdev, bool clear_list)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->del_all_fd_entries)
+		h->ae_algo->ops->del_all_fd_entries(h, clear_list);
+}
+
 static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -3257,6 +3298,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
+
+	hns3_del_all_fd_rules(netdev, true);
 
 	hns3_force_clear_all_rx_ring(handle);
 
@@ -3553,6 +3596,8 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	if (!(handle->flags & HNAE3_SUPPORT_VF))
 		hns3_restore_vlan(netdev);
 
+	hns3_restore_fd_rules(netdev);
+
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
@@ -3573,6 +3618,7 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 
 static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
@@ -3592,6 +3638,13 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 		netdev_err(netdev, "uninit ring error\n");
 
 	hns3_uninit_mac_addr(netdev);
+
+	/* it is cumbersome for hardware to pick-and-choose rules for deletion
+	 * from TCAM. Hence, for function reset software intervention is
+	 * required to delete the rules
+	 */
+	if (hns3_dev_ongoing_func_reset(ae_dev))
+		hns3_del_all_fd_rules(netdev, false);
 
 	return ret;
 }

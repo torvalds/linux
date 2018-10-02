@@ -585,6 +585,11 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 	writel(value, reg_addr + reg);
 }
 
+static inline bool hns3_dev_ongoing_func_reset(struct hnae3_ae_dev *ae_dev)
+{
+	return (ae_dev && (ae_dev->reset_type == HNAE3_FUNC_RESET));
+}
+
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
 

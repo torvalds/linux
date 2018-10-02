@@ -51,6 +51,7 @@
 #define HNAE3_KNIC_CLIENT_INITED_B		0x3
 #define HNAE3_UNIC_CLIENT_INITED_B		0x4
 #define HNAE3_ROCE_CLIENT_INITED_B		0x5
+#define HNAE3_DEV_SUPPORT_FD_B			0x6
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
@@ -60,6 +61,9 @@
 
 #define hnae3_dev_dcb_supported(hdev) \
 	hnae3_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
+
+#define hnae3_dev_fd_supported(hdev) \
+	hnae3_get_bit((hdev)->ae_dev->flag, HNAE3_DEV_SUPPORT_FD_B)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
@@ -175,6 +179,7 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	enum hnae3_dev_type dev_type;
+	enum hnae3_reset_type reset_type;
 	void *priv;
 };
 
@@ -412,6 +417,20 @@ struct hnae3_ae_ops {
 	void (*get_link_mode)(struct hnae3_handle *handle,
 			      unsigned long *supported,
 			      unsigned long *advertising);
+	int (*add_fd_entry)(struct hnae3_handle *handle,
+			    struct ethtool_rxnfc *cmd);
+	int (*del_fd_entry)(struct hnae3_handle *handle,
+			    struct ethtool_rxnfc *cmd);
+	void (*del_all_fd_entries)(struct hnae3_handle *handle,
+				   bool clear_list);
+	int (*get_fd_rule_cnt)(struct hnae3_handle *handle,
+			       struct ethtool_rxnfc *cmd);
+	int (*get_fd_rule_info)(struct hnae3_handle *handle,
+				struct ethtool_rxnfc *cmd);
+	int (*get_fd_all_rules)(struct hnae3_handle *handle,
+				struct ethtool_rxnfc *cmd, u32 *rule_locs);
+	int (*restore_fd_rules)(struct hnae3_handle *handle);
+	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 };
 
 struct hnae3_dcb_ops {

@@ -79,6 +79,19 @@
 #define HCLGE_VF_NUM_PER_CMD           64
 #define HCLGE_VF_NUM_PER_BYTE          8
 
+enum HLCGE_PORT_TYPE {
+	HOST_PORT,
+	NETWORK_PORT
+};
+
+#define HCLGE_PF_ID_S			0
+#define HCLGE_PF_ID_M			GENMASK(2, 0)
+#define HCLGE_VF_ID_S			3
+#define HCLGE_VF_ID_M			GENMASK(10, 3)
+#define HCLGE_PORT_TYPE_B		11
+#define HCLGE_NETWORK_PORT_ID_S		0
+#define HCLGE_NETWORK_PORT_ID_M		GENMASK(3, 0)
+
 /* Reset related Registers */
 #define HCLGE_MISC_RESET_STS_REG	0x20700
 #define HCLGE_MISC_VECTOR_INT_STS	0x20800
@@ -359,6 +372,221 @@ struct hclge_vlan_type_cfg {
 	u16 tx_in_vlan_type;
 };
 
+enum HCLGE_FD_MODE {
+	HCLGE_FD_MODE_DEPTH_2K_WIDTH_400B_STAGE_1,
+	HCLGE_FD_MODE_DEPTH_1K_WIDTH_400B_STAGE_2,
+	HCLGE_FD_MODE_DEPTH_4K_WIDTH_200B_STAGE_1,
+	HCLGE_FD_MODE_DEPTH_2K_WIDTH_200B_STAGE_2,
+};
+
+enum HCLGE_FD_KEY_TYPE {
+	HCLGE_FD_KEY_BASE_ON_PTYPE,
+	HCLGE_FD_KEY_BASE_ON_TUPLE,
+};
+
+enum HCLGE_FD_STAGE {
+	HCLGE_FD_STAGE_1,
+	HCLGE_FD_STAGE_2,
+};
+
+/* OUTER_XXX indicates tuples in tunnel header of tunnel packet
+ * INNER_XXX indicate tuples in tunneled header of tunnel packet or
+ *           tuples of non-tunnel packet
+ */
+enum HCLGE_FD_TUPLE {
+	OUTER_DST_MAC,
+	OUTER_SRC_MAC,
+	OUTER_VLAN_TAG_FST,
+	OUTER_VLAN_TAG_SEC,
+	OUTER_ETH_TYPE,
+	OUTER_L2_RSV,
+	OUTER_IP_TOS,
+	OUTER_IP_PROTO,
+	OUTER_SRC_IP,
+	OUTER_DST_IP,
+	OUTER_L3_RSV,
+	OUTER_SRC_PORT,
+	OUTER_DST_PORT,
+	OUTER_L4_RSV,
+	OUTER_TUN_VNI,
+	OUTER_TUN_FLOW_ID,
+	INNER_DST_MAC,
+	INNER_SRC_MAC,
+	INNER_VLAN_TAG_FST,
+	INNER_VLAN_TAG_SEC,
+	INNER_ETH_TYPE,
+	INNER_L2_RSV,
+	INNER_IP_TOS,
+	INNER_IP_PROTO,
+	INNER_SRC_IP,
+	INNER_DST_IP,
+	INNER_L3_RSV,
+	INNER_SRC_PORT,
+	INNER_DST_PORT,
+	INNER_L4_RSV,
+	MAX_TUPLE,
+};
+
+enum HCLGE_FD_META_DATA {
+	PACKET_TYPE_ID,
+	IP_FRAGEMENT,
+	ROCE_TYPE,
+	NEXT_KEY,
+	VLAN_NUMBER,
+	SRC_VPORT,
+	DST_VPORT,
+	TUNNEL_PACKET,
+	MAX_META_DATA,
+};
+
+struct key_info {
+	u8 key_type;
+	u8 key_length;
+};
+
+static const struct key_info meta_data_key_info[] = {
+	{ PACKET_TYPE_ID, 6},
+	{ IP_FRAGEMENT, 1},
+	{ ROCE_TYPE, 1},
+	{ NEXT_KEY, 5},
+	{ VLAN_NUMBER, 2},
+	{ SRC_VPORT, 12},
+	{ DST_VPORT, 12},
+	{ TUNNEL_PACKET, 1},
+};
+
+static const struct key_info tuple_key_info[] = {
+	{ OUTER_DST_MAC, 48},
+	{ OUTER_SRC_MAC, 48},
+	{ OUTER_VLAN_TAG_FST, 16},
+	{ OUTER_VLAN_TAG_SEC, 16},
+	{ OUTER_ETH_TYPE, 16},
+	{ OUTER_L2_RSV, 16},
+	{ OUTER_IP_TOS, 8},
+	{ OUTER_IP_PROTO, 8},
+	{ OUTER_SRC_IP, 32},
+	{ OUTER_DST_IP, 32},
+	{ OUTER_L3_RSV, 16},
+	{ OUTER_SRC_PORT, 16},
+	{ OUTER_DST_PORT, 16},
+	{ OUTER_L4_RSV, 32},
+	{ OUTER_TUN_VNI, 24},
+	{ OUTER_TUN_FLOW_ID, 8},
+	{ INNER_DST_MAC, 48},
+	{ INNER_SRC_MAC, 48},
+	{ INNER_VLAN_TAG_FST, 16},
+	{ INNER_VLAN_TAG_SEC, 16},
+	{ INNER_ETH_TYPE, 16},
+	{ INNER_L2_RSV, 16},
+	{ INNER_IP_TOS, 8},
+	{ INNER_IP_PROTO, 8},
+	{ INNER_SRC_IP, 32},
+	{ INNER_DST_IP, 32},
+	{ INNER_L3_RSV, 16},
+	{ INNER_SRC_PORT, 16},
+	{ INNER_DST_PORT, 16},
+	{ INNER_L4_RSV, 32},
+};
+
+#define MAX_KEY_LENGTH	400
+#define MAX_KEY_DWORDS	DIV_ROUND_UP(MAX_KEY_LENGTH / 8, 4)
+#define MAX_KEY_BYTES	(MAX_KEY_DWORDS * 4)
+#define MAX_META_DATA_LENGTH	32
+
+enum HCLGE_FD_PACKET_TYPE {
+	NIC_PACKET,
+	ROCE_PACKET,
+};
+
+enum HCLGE_FD_ACTION {
+	HCLGE_FD_ACTION_ACCEPT_PACKET,
+	HCLGE_FD_ACTION_DROP_PACKET,
+};
+
+struct hclge_fd_key_cfg {
+	u8 key_sel;
+	u8 inner_sipv6_word_en;
+	u8 inner_dipv6_word_en;
+	u8 outer_sipv6_word_en;
+	u8 outer_dipv6_word_en;
+	u32 tuple_active;
+	u32 meta_data_active;
+};
+
+struct hclge_fd_cfg {
+	u8 fd_mode;
+	u8 fd_en;
+	u16 max_key_length;
+	u32 proto_support;
+	u32 rule_num[2]; /* rule entry number */
+	u16 cnt_num[2]; /* rule hit counter number */
+	struct hclge_fd_key_cfg key_cfg[2];
+};
+
+struct hclge_fd_rule_tuples {
+	u8 src_mac[6];
+	u8 dst_mac[6];
+	u32 src_ip[4];
+	u32 dst_ip[4];
+	u16 src_port;
+	u16 dst_port;
+	u16 vlan_tag1;
+	u16 ether_proto;
+	u8 ip_tos;
+	u8 ip_proto;
+};
+
+struct hclge_fd_rule {
+	struct hlist_node rule_node;
+	struct hclge_fd_rule_tuples tuples;
+	struct hclge_fd_rule_tuples tuples_mask;
+	u32 unused_tuple;
+	u32 flow_type;
+	u8 action;
+	u16 vf_id;
+	u16 queue_id;
+	u16 location;
+};
+
+struct hclge_fd_ad_data {
+	u16 ad_id;
+	u8 drop_packet;
+	u8 forward_to_direct_queue;
+	u16 queue_id;
+	u8 use_counter;
+	u8 counter_id;
+	u8 use_next_stage;
+	u8 write_rule_id_to_bd;
+	u8 next_input_key;
+	u16 rule_id;
+};
+
+/* For each bit of TCAM entry, it uses a pair of 'x' and
+ * 'y' to indicate which value to match, like below:
+ * ----------------------------------
+ * | bit x | bit y |  search value  |
+ * ----------------------------------
+ * |   0   |   0   |   always hit   |
+ * ----------------------------------
+ * |   1   |   0   |   match '0'    |
+ * ----------------------------------
+ * |   0   |   1   |   match '1'    |
+ * ----------------------------------
+ * |   1   |   1   |   invalid      |
+ * ----------------------------------
+ * Then for input key(k) and mask(v), we can calculate the value by
+ * the formulae:
+ *	x = (~k) & v
+ *	y = (k ^ ~v) & k
+ */
+#define calc_x(x, k, v) ((x) = (~(k) & (v)))
+#define calc_y(y, k, v) \
+	do { \
+		const typeof(k) _k_ = (k); \
+		const typeof(v) _v_ = (v); \
+		(y) = (_k_ ^ ~_v_) & (_k_); \
+	} while (0)
+
 #define HCLGE_VPORT_NUM 256
 struct hclge_dev {
 	struct pci_dev *pdev;
@@ -448,6 +676,10 @@ struct hclge_dev {
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
 	unsigned long vlan_table[VLAN_N_VID][BITS_TO_LONGS(HCLGE_VPORT_NUM)];
+
+	struct hclge_fd_cfg fd_cfg;
+	struct hlist_head fd_rule_list;
+	u16 hclge_fd_rule_num;
 };
 
 /* VPort level vlan tag configuration for TX direction */
