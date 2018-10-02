@@ -1389,7 +1389,6 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					stream_update->adjust->v_total_max);
 
 			if (stream_update->periodic_fn_vsync_delta &&
-					pipe_ctx->stream_res.tg &&
 					pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
 				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
 					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing,
