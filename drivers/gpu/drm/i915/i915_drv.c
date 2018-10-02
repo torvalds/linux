@@ -1627,14 +1627,16 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(struct intel_device_info *)ent->driver_data;
 	struct intel_device_info *device_info;
 	struct drm_i915_private *i915;
+	int err;
 
 	i915 = kzalloc(sizeof(*i915), GFP_KERNEL);
 	if (!i915)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	if (drm_dev_init(&i915->drm, &driver, &pdev->dev)) {
+	err = drm_dev_init(&i915->drm, &driver, &pdev->dev);
+	if (err) {
 		kfree(i915);
-		return NULL;
+		return ERR_PTR(err);
 	}
 
 	i915->drm.pdev = pdev;
@@ -1683,8 +1685,8 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int ret;
 
 	dev_priv = i915_driver_create(pdev, ent);
-	if (!dev_priv)
-		return -ENOMEM;
+	if (IS_ERR(dev_priv))
+		return PTR_ERR(dev_priv);
 
 	/* Disable nuclear pageflip by default on pre-ILK */
 	if (!i915_modparams.nuclear_pageflip && match_info->gen < 5)
