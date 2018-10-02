@@ -12652,18 +12652,18 @@ static int create_map(uint32_t type, uint32_t size_key,
 	return fd;
 }
 
-static int create_prog_dummy1(void)
+static int create_prog_dummy1(enum bpf_map_type prog_type)
 {
 	struct bpf_insn prog[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 42),
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog,
+	return bpf_load_program(prog_type, prog,
 				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 }
 
-static int create_prog_dummy2(int mfd, int idx)
+static int create_prog_dummy2(enum bpf_map_type prog_type, int mfd, int idx)
 {
 	struct bpf_insn prog[] = {
 		BPF_MOV64_IMM(BPF_REG_3, idx),
@@ -12674,11 +12674,12 @@ static int create_prog_dummy2(int mfd, int idx)
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog,
+	return bpf_load_program(prog_type, prog,
 				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 }
 
-static int create_prog_array(uint32_t max_elem, int p1key)
+static int create_prog_array(enum bpf_map_type prog_type, uint32_t max_elem,
+			     int p1key)
 {
 	int p2key = 1;
 	int mfd, p1fd, p2fd;
@@ -12690,8 +12691,8 @@ static int create_prog_array(uint32_t max_elem, int p1key)
 		return -1;
 	}
 
-	p1fd = create_prog_dummy1();
-	p2fd = create_prog_dummy2(mfd, p2key);
+	p1fd = create_prog_dummy1(prog_type);
+	p2fd = create_prog_dummy2(prog_type, mfd, p2key);
 	if (p1fd < 0 || p2fd < 0)
 		goto out;
 	if (bpf_map_update_elem(mfd, &p1key, &p1fd, BPF_ANY) < 0)
@@ -12748,8 +12749,8 @@ static int create_cgroup_storage(bool percpu)
 
 static char bpf_vlog[UINT_MAX >> 8];
 
-static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
-			  int *map_fds)
+static void do_test_fixup(struct bpf_test *test, enum bpf_map_type prog_type,
+			  struct bpf_insn *prog, int *map_fds)
 {
 	int *fixup_map1 = test->fixup_map1;
 	int *fixup_map2 = test->fixup_map2;
@@ -12805,7 +12806,7 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 	}
 
 	if (*fixup_prog1) {
-		map_fds[4] = create_prog_array(4, 0);
+		map_fds[4] = create_prog_array(prog_type, 4, 0);
 		do {
 			prog[*fixup_prog1].imm = map_fds[4];
 			fixup_prog1++;
@@ -12813,7 +12814,7 @@ static void do_test_fixup(struct bpf_test *test, struct bpf_insn *prog,
 	}
 
 	if (*fixup_prog2) {
-		map_fds[5] = create_prog_array(8, 7);
+		map_fds[5] = create_prog_array(prog_type, 8, 7);
 		do {
 			prog[*fixup_prog2].imm = map_fds[5];
 			fixup_prog2++;
@@ -12859,11 +12860,13 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	for (i = 0; i < MAX_NR_MAPS; i++)
 		map_fds[i] = -1;
 
-	do_test_fixup(test, prog, map_fds);
+	if (!prog_type)
+		prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	do_test_fixup(test, prog_type, prog, map_fds);
 	prog_len = probe_filter_length(prog);
 
-	fd_prog = bpf_verify_program(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER,
-				     prog, prog_len, test->flags & F_LOAD_WITH_STRICT_ALIGNMENT,
+	fd_prog = bpf_verify_program(prog_type, prog, prog_len,
+				     test->flags & F_LOAD_WITH_STRICT_ALIGNMENT,
 				     "GPL", 0, bpf_vlog, sizeof(bpf_vlog), 1);
 
 	expected_ret = unpriv && test->result_unpriv != UNDEF ?
