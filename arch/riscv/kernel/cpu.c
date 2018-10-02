@@ -15,8 +15,11 @@
 #include <linux/seq_file.h>
 #include <linux/of.h>
 
-/* Return -1 if not a valid hart */
-int riscv_of_processor_hart(struct device_node *node)
+/*
+ * Returns the hart ID of the given device tree node, or -1 if the device tree
+ * node isn't a RISC-V hart.
+ */
+int riscv_of_processor_hartid(struct device_node *node)
 {
 	const char *isa, *status;
 	u32 hart;
