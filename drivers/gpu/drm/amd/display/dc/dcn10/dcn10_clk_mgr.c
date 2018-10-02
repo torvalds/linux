@@ -196,6 +196,24 @@ static void notify_hard_min_dcfclk_to_smu(
 	pp_smu->set_hard_min_dcfclk_by_freq(&pp_smu->pp_smu, min_dcf_clk_mhz);
 }
 
+static void notify_hard_min_fclk_to_smu(
+		struct pp_smu_funcs_rv *pp_smu, int min_f_clk_khz)
+{
+	int min_f_clk_mhz; //minimum required F clock in mhz
+
+	/*
+	 * if function pointer not set up, this message is
+	 * sent as part of pplib_apply_display_requirements.
+	 * So just return.
+	 */
+	if (!pp_smu || !pp_smu->set_hard_min_fclk_by_freq)
+		return;
+
+	min_f_clk_mhz = min_f_clk_khz / 1000;
+
+	pp_smu->set_hard_min_fclk_by_freq(&pp_smu->pp_smu, min_f_clk_mhz);
+}
+
 static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 			struct dc_state *context,
 			bool safe_to_lower)
@@ -250,7 +268,8 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 		clock_voltage_req.clocks_in_khz = new_clocks->fclk_khz;
 		smu_req.hard_min_fclk_khz = new_clocks->fclk_khz;
 
-		dm_pp_apply_clock_for_voltage_request(clk_mgr->ctx, &clock_voltage_req);
+		notify_hard_min_fclk_to_smu(pp_smu, new_clocks->fclk_khz);
+
 		send_request_to_lower = true;
 	}
 
@@ -279,6 +298,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
 
 		notify_hard_min_dcfclk_to_smu(pp_smu, clock_voltage_req.clocks_in_khz);
+
 		if (pp_smu->set_display_requirement)
 			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
 
