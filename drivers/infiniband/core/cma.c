@@ -875,10 +875,7 @@ struct rdma_cm_id *__rdma_create_id(struct net *net,
 	if (!id_priv)
 		return ERR_PTR(-ENOMEM);
 
-	if (caller)
-		id_priv->res.kern_name = caller;
-	else
-		rdma_restrack_set_task(&id_priv->res, current);
+	rdma_restrack_set_task(&id_priv->res, caller);
 	id_priv->res.type = RDMA_RESTRACK_CM_ID;
 	id_priv->state = RDMA_CM_IDLE;
 	id_priv->id.context = context;
@@ -3945,10 +3942,7 @@ int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
 
 	id_priv = container_of(id, struct rdma_id_private, id);
 
-	if (caller)
-		id_priv->res.kern_name = caller;
-	else
-		rdma_restrack_set_task(&id_priv->res, current);
+	rdma_restrack_set_task(&id_priv->res, caller);
 
 	if (!cma_comp(id_priv, RDMA_CM_CONNECT))
 		return -EINVAL;

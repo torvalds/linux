@@ -264,7 +264,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	}
 
 	pd->res.type = RDMA_RESTRACK_PD;
-	pd->res.kern_name = caller;
+	rdma_restrack_set_task(&pd->res, caller);
 	rdma_restrack_add(&pd->res);
 
 	if (mr_access_flags) {
@@ -1889,7 +1889,7 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 		cq->cq_context    = cq_context;
 		atomic_set(&cq->usecnt, 0);
 		cq->res.type = RDMA_RESTRACK_CQ;
-		cq->res.kern_name = caller;
+		rdma_restrack_set_task(&cq->res, caller);
 		rdma_restrack_add(&cq->res);
 	}
 

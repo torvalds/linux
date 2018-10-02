@@ -156,12 +156,17 @@ static bool res_is_user(struct rdma_restrack_entry *res)
 }
 
 void rdma_restrack_set_task(struct rdma_restrack_entry *res,
-			    struct task_struct *task)
+			    const char *caller)
 {
+	if (caller) {
+		res->kern_name = caller;
+		return;
+	}
+
 	if (res->task)
 		put_task_struct(res->task);
-	get_task_struct(task);
-	res->task = task;
+	get_task_struct(current);
+	res->task = current;
 }
 EXPORT_SYMBOL(rdma_restrack_set_task);
 
@@ -177,7 +182,7 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 
 	if (res_is_user(res)) {
 		if (!res->task)
-			rdma_restrack_set_task(res, current);
+			rdma_restrack_set_task(res, NULL);
 		res->kern_name = NULL;
 	} else {
 		set_kern_name(res);
