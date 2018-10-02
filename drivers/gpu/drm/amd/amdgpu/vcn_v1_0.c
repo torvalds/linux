@@ -810,12 +810,12 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 
 		for (j = 0; j < 100; ++j) {
 			status = RREG32_SOC15(UVD, 0, mmUVD_STATUS);
-			if (status & 2)
+			if (status & UVD_STATUS__IDLE)
 				break;
 			mdelay(10);
 		}
 		r = 0;
-		if (status & 2)
+		if (status & UVD_STATUS__IDLE)
 			break;
 
 		DRM_ERROR("VCN decode not responding, trying to reset the VCPU!!!\n");
@@ -898,12 +898,13 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 
 	ring = &adev->vcn.ring_jpeg;
 	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
-	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, (0x00000001L | 0x00000002L));
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, UVD_JRBC_RB_CNTL__RB_NO_FETCH_MASK |
+			UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
 	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW, lower_32_bits(ring->gpu_addr));
 	WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH, upper_32_bits(ring->gpu_addr));
 	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR, 0);
 	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, 0);
-	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000002L);
+	WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
 
 	/* initialize wptr */
 	ring->wptr = RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
@@ -1122,8 +1123,9 @@ static int vcn_v1_0_stop_dpg_mode(struct amdgpu_device *adev)
 {
 	int ret_code;
 
-	/* Wait for power status to be 1 */
-	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS, 0x1,
+	/* Wait for power status to be UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF */
+	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
+			UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
 			UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
 
 	/* disable dynamic power gating mode */
@@ -1149,7 +1151,7 @@ static bool vcn_v1_0_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == 0x2);
+	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == UVD_STATUS__IDLE);
 }
 
 static int vcn_v1_0_wait_for_idle(void *handle)
@@ -1157,7 +1159,8 @@ static int vcn_v1_0_wait_for_idle(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret = 0;
 
-	SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_STATUS, 0x2, 0x2, ret);
+	SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_STATUS, UVD_STATUS__IDLE,
+		UVD_STATUS__IDLE, ret);
 
 	return ret;
 }

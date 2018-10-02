@@ -309,14 +309,17 @@ static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
 				/* Restore */
 				ring = &adev->vcn.ring_jpeg;
 				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000001L | 0x00000002L);
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
+							UVD_JRBC_RB_CNTL__RB_NO_FETCH_MASK |
+							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
 				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
-					     lower_32_bits(ring->gpu_addr));
+							lower_32_bits(ring->gpu_addr));
 				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
-					     upper_32_bits(ring->gpu_addr));
+							upper_32_bits(ring->gpu_addr));
 				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR, ring->wptr);
 				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, ring->wptr);
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000002L);
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
+							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
 
 				ring = &adev->vcn.ring_dec;
 				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
