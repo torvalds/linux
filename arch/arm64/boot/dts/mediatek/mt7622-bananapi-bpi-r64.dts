@@ -1,7 +1,6 @@
 /*
- * Copyright (c) 2017 MediaTek Inc.
- * Author: Ming Huang <ming.huang@mediatek.com>
- *	   Sean Wang <sean.wang@mediatek.com>
+ * Copyright (c) 2018 MediaTek Inc.
+ * Author: Ryder Lee <ryder.lee@mediatek.com>
  *
  * SPDX-License-Identifier: (GPL-2.0 OR MIT)
  */
@@ -14,8 +13,8 @@
 #include "mt6380.dtsi"
 
 / {
-	model = "MediaTek MT7622 RFB1 board";
-	compatible = "mediatek,mt7622-rfb1", "mediatek,mt7622";
+	model = "Bananapi BPI-R64";
+	compatible = "bananapi,bpi-r64", "mediatek,mt7622";
 
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0x11002000 console=ttyS0,115200n1 swiotlb=512";
@@ -35,23 +34,38 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		poll-interval = <100>;
 
 		factory {
 			label = "factory";
 			linux,code = <BTN_0>;
-			gpios = <&pio 0 0>;
+			gpios = <&pio 0 GPIO_ACTIVE_HIGH>;
 		};
 
 		wps {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&pio 102 0>;
+			gpios = <&pio 102 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		green {
+			label = "bpi-r64:pio:green";
+			gpios = <&pio 89 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		red {
+			label = "bpi-r64:pio:red";
+			gpios = <&pio 88 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
 		};
 	};
 
 	memory {
-		reg = <0 0x40000000 0 0x20000000>;
+		reg = <0 0x40000000 0 0x40000000>;
 	};
 
 	reg_1p8v: regulator-1p8v {
@@ -180,15 +194,28 @@
 
 &pcie {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-0 = <&pcie0_pins>, <&pcie1_pins>;
 	status = "okay";
 
 	pcie@0,0 {
 		status = "okay";
 	};
+
+	pcie@1,0 {
+		status = "okay";
+	};
 };
 
 &pio {
+	/* Attention: GPIO 90 is used to switch between PCIe@1,0 and
+	 * SATA functions. i.e. output-high: PCIe, output-low: SATA
+	 */
+	asm_sel {
+		gpio-hog;
+		gpios = <90 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
 	/* eMMC is shared pin with parallel NAND */
 	emmc_pins_default: emmc-pins-default {
 		mux {
@@ -455,11 +482,11 @@
 };
 
 &sata {
-	status = "okay";
+	status = "disable";
 };
 
 &sata_phy {
-	status = "okay";
+	status = "disable";
 };
 
 &spi0 {
