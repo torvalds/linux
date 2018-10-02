@@ -121,11 +121,16 @@ enum pkt_vec {
  * @cmsg_replies:	received cmsg replies waiting to be consumed
  * @cmsg_wq:		work queue for waiting for cmsg replies
  *
+ * @cmsg_key_sz:	size of key in cmsg element array
+ * @cmsg_val_sz:	size of value in cmsg element array
+ *
  * @map_list:		list of offloaded maps
  * @maps_in_use:	number of currently offloaded maps
  * @map_elems_in_use:	number of elements allocated to offloaded maps
  *
  * @maps_neutral:	hash table of offload-neutral maps (on pointer)
+ *
+ * @abi_version:	global BPF ABI version
  *
  * @adjust_head:	adjust head capability
  * @adjust_head.flags:		extra flags for adjust head
@@ -164,11 +169,16 @@ struct nfp_app_bpf {
 	struct sk_buff_head cmsg_replies;
 	struct wait_queue_head cmsg_wq;
 
+	unsigned int cmsg_key_sz;
+	unsigned int cmsg_val_sz;
+
 	struct list_head map_list;
 	unsigned int maps_in_use;
 	unsigned int map_elems_in_use;
 
 	struct rhashtable maps_neutral;
+
+	u32 abi_version;
 
 	struct nfp_bpf_cap_adjust_head {
 		u32 flags;
@@ -492,6 +502,7 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
 
+unsigned int nfp_bpf_ctrl_cmsg_mtu(struct nfp_app_bpf *bpf);
 long long int
 nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map);
 void
