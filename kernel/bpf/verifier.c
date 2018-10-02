@@ -388,60 +388,74 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 	verbose(env, "\n");
 }
 
-static int copy_stack_state(struct bpf_func_state *dst,
-			    const struct bpf_func_state *src)
-{
-	if (!src->stack)
-		return 0;
-	if (WARN_ON_ONCE(dst->allocated_stack < src->allocated_stack)) {
-		/* internal bug, make state invalid to reject the program */
-		memset(dst, 0, sizeof(*dst));
-		return -EFAULT;
-	}
-	memcpy(dst->stack, src->stack,
-	       sizeof(*src->stack) * (src->allocated_stack / BPF_REG_SIZE));
-	return 0;
+#define COPY_STATE_FN(NAME, COUNT, FIELD, SIZE)				\
+static int copy_##NAME##_state(struct bpf_func_state *dst,		\
+			       const struct bpf_func_state *src)	\
+{									\
+	if (!src->FIELD)						\
+		return 0;						\
+	if (WARN_ON_ONCE(dst->COUNT < src->COUNT)) {			\
+		/* internal bug, make state invalid to reject the program */ \
+		memset(dst, 0, sizeof(*dst));				\
+		return -EFAULT;						\
+	}								\
+	memcpy(dst->FIELD, src->FIELD,					\
+	       sizeof(*src->FIELD) * (src->COUNT / SIZE));		\
+	return 0;							\
 }
+/* copy_stack_state() */
+COPY_STATE_FN(stack, allocated_stack, stack, BPF_REG_SIZE)
+#undef COPY_STATE_FN
+
+#define REALLOC_STATE_FN(NAME, COUNT, FIELD, SIZE)			\
+static int realloc_##NAME##_state(struct bpf_func_state *state, int size, \
+				  bool copy_old)			\
+{									\
+	u32 old_size = state->COUNT;					\
+	struct bpf_##NAME##_state *new_##FIELD;				\
+	int slot = size / SIZE;						\
+									\
+	if (size <= old_size || !size) {				\
+		if (copy_old)						\
+			return 0;					\
+		state->COUNT = slot * SIZE;				\
+		if (!size && old_size) {				\
+			kfree(state->FIELD);				\
+			state->FIELD = NULL;				\
+		}							\
+		return 0;						\
+	}								\
+	new_##FIELD = kmalloc_array(slot, sizeof(struct bpf_##NAME##_state), \
+				    GFP_KERNEL);			\
+	if (!new_##FIELD)						\
+		return -ENOMEM;						\
+	if (copy_old) {							\
+		if (state->FIELD)					\
+			memcpy(new_##FIELD, state->FIELD,		\
+			       sizeof(*new_##FIELD) * (old_size / SIZE)); \
+		memset(new_##FIELD + old_size / SIZE, 0,		\
+		       sizeof(*new_##FIELD) * (size - old_size) / SIZE); \
+	}								\
+	state->COUNT = slot * SIZE;					\
+	kfree(state->FIELD);						\
+	state->FIELD = new_##FIELD;					\
+	return 0;							\
+}
+/* realloc_stack_state() */
+REALLOC_STATE_FN(stack, allocated_stack, stack, BPF_REG_SIZE)
+#undef REALLOC_STATE_FN
 
 /* do_check() starts with zero-sized stack in struct bpf_verifier_state to
  * make it consume minimal amount of memory. check_stack_write() access from
  * the program calls into realloc_func_state() to grow the stack size.
- * Note there is a non-zero parent pointer inside each reg of bpf_verifier_state
- * which this function copies over. It points to corresponding reg in previous
- * bpf_verifier_state which is never reallocated
+ * Note there is a non-zero 'parent' pointer inside bpf_verifier_state
+ * which realloc_stack_state() copies over. It points to previous
+ * bpf_verifier_state which is never reallocated.
  */
 static int realloc_func_state(struct bpf_func_state *state, int size,
 			      bool copy_old)
 {
-	u32 old_size = state->allocated_stack;
-	struct bpf_stack_state *new_stack;
-	int slot = size / BPF_REG_SIZE;
-
-	if (size <= old_size || !size) {
-		if (copy_old)
-			return 0;
-		state->allocated_stack = slot * BPF_REG_SIZE;
-		if (!size && old_size) {
-			kfree(state->stack);
-			state->stack = NULL;
-		}
-		return 0;
-	}
-	new_stack = kmalloc_array(slot, sizeof(struct bpf_stack_state),
-				  GFP_KERNEL);
-	if (!new_stack)
-		return -ENOMEM;
-	if (copy_old) {
-		if (state->stack)
-			memcpy(new_stack, state->stack,
-			       sizeof(*new_stack) * (old_size / BPF_REG_SIZE));
-		memset(new_stack + old_size / BPF_REG_SIZE, 0,
-		       sizeof(*new_stack) * (size - old_size) / BPF_REG_SIZE);
-	}
-	state->allocated_stack = slot * BPF_REG_SIZE;
-	kfree(state->stack);
-	state->stack = new_stack;
-	return 0;
+	return realloc_stack_state(state, size, copy_old);
 }
 
 static void free_func_state(struct bpf_func_state *state)
