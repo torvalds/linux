@@ -141,7 +141,7 @@ gss_seq_send64_fetch_and_inc(struct krb5_ctx *ctx)
 
 	do {
 		old = seq_send;
-		seq_send = cmpxchg(&ctx->seq_send64, old, old + 1);
+		seq_send = cmpxchg64(&ctx->seq_send64, old, old + 1);
 	} while (old != seq_send);
 	return seq_send;
 }
