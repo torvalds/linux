@@ -6,6 +6,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/mvebu-icu.h>
+#include <dt-bindings/thermal/thermal.h>
 
 #include "armada-common.dtsi"
 
@@ -19,6 +20,23 @@
 	 * save one indentation level
 	 */
 	CP110_NAME: CP110_NAME { };
+
+	/*
+	 * CPs only have one sensor in the thermal IC.
+	 *
+	 * The cooling maps are empty as there are no cooling devices.
+	 */
+	thermal-zones {
+		CP110_LABEL(thermal_ic): CP110_NODE_NAME(thermal-ic) {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&CP110_LABEL(thermal) 0>;
+
+			trips {	};
+			cooling-maps { };
+		};
+	};
 };
 
 &CP110_NAME {
@@ -52,9 +70,14 @@
 					<ICU_GRP_NSR 47 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 51 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 55 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 59 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 63 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 67 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 71 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 129 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
-					"tx-cpu3", "rx-shared", "link";
+				interrupt-names = "hif0", "hif1", "hif2",
+					"hif3", "hif4", "hif5", "hif6", "hif7",
+					"hif8", "link";
 				port-id = <0>;
 				gop-port-id = <0>;
 				status = "disabled";
@@ -66,9 +89,14 @@
 					<ICU_GRP_NSR 48 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 52 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 56 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 60 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 64 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 68 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 72 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 128 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
-					"tx-cpu3", "rx-shared", "link";
+				interrupt-names = "hif0", "hif1", "hif2",
+					"hif3", "hif4", "hif5", "hif6", "hif7",
+					"hif8", "link";
 				port-id = <1>;
 				gop-port-id = <2>;
 				status = "disabled";
@@ -80,9 +108,14 @@
 					<ICU_GRP_NSR 49 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 53 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 57 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 61 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 65 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 69 IRQ_TYPE_LEVEL_HIGH>,
+					<ICU_GRP_NSR 73 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 127 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "tx-cpu0", "tx-cpu1", "tx-cpu2",
-					"tx-cpu3", "rx-shared", "link";
+				interrupt-names = "hif0", "hif1", "hif2",
+					"hif3", "hif4", "hif5", "hif6", "hif7",
+					"hif8", "link";
 				port-id = <2>;
 				gop-port-id = <3>;
 				status = "disabled";
@@ -162,12 +195,6 @@
 			interrupts = <ICU_GRP_NSR 77 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		CP110_LABEL(thermal): thermal@400078 {
-			compatible = "marvell,armada-cp110-thermal";
-			reg = <0x400078 0x4>,
-			<0x400070 0x8>;
-		};
-
 		CP110_LABEL(syscon0): system-controller@440000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x440000 0x2000>;
@@ -205,6 +232,19 @@
 					<ICU_GRP_NSR 80 IRQ_TYPE_LEVEL_HIGH>,
 					<ICU_GRP_NSR 79 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
+			};
+		};
+
+		CP110_LABEL(syscon1): system-controller@400000 {
+			compatible = "syscon", "simple-mfd";
+			reg = <0x400000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			CP110_LABEL(thermal): thermal-sensor@70 {
+				compatible = "marvell,armada-cp110-thermal";
+				reg = <0x70 0x10>;
+				#thermal-sensor-cells = <1>;
 			};
 		};
 
