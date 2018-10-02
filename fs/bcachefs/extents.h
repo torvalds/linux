@@ -235,44 +235,6 @@ union bch_extent_crc {
 
 /* checksum entries: */
 
-enum bch_extent_crc_type {
-	BCH_EXTENT_CRC_NONE,
-	BCH_EXTENT_CRC32,
-	BCH_EXTENT_CRC64,
-	BCH_EXTENT_CRC128,
-};
-
-static inline enum bch_extent_crc_type
-__extent_crc_type(const union bch_extent_crc *crc)
-{
-	if (!crc)
-		return BCH_EXTENT_CRC_NONE;
-
-	switch (extent_entry_type(to_entry(crc))) {
-	case BCH_EXTENT_ENTRY_crc32:
-		return BCH_EXTENT_CRC32;
-	case BCH_EXTENT_ENTRY_crc64:
-		return BCH_EXTENT_CRC64;
-	case BCH_EXTENT_ENTRY_crc128:
-		return BCH_EXTENT_CRC128;
-	default:
-		BUG();
-	}
-}
-
-#define extent_crc_type(_crc)						\
-({									\
-	BUILD_BUG_ON(!type_is(_crc, struct bch_extent_crc32 *) &&	\
-		     !type_is(_crc, struct bch_extent_crc64 *) &&	\
-		     !type_is(_crc, struct bch_extent_crc128 *) &&	\
-		     !type_is(_crc, union bch_extent_crc *));		\
-									\
-	  type_is(_crc, struct bch_extent_crc32 *)  ? BCH_EXTENT_CRC32	\
-	: type_is(_crc, struct bch_extent_crc64 *)  ? BCH_EXTENT_CRC64	\
-	: type_is(_crc, struct bch_extent_crc128 *) ? BCH_EXTENT_CRC128	\
-	: __extent_crc_type((union bch_extent_crc *) _crc);		\
-})
-
 static inline struct bch_extent_crc_unpacked
 bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 {
@@ -284,14 +246,15 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 		.offset			= _crc.offset,			\
 		.live_size		= k->size
 
-	switch (extent_crc_type(crc)) {
-	case BCH_EXTENT_CRC_NONE:
+	if (!crc)
 		return (struct bch_extent_crc_unpacked) {
 			.compressed_size	= k->size,
 			.uncompressed_size	= k->size,
 			.live_size		= k->size,
 		};
-	case BCH_EXTENT_CRC32: {
+
+	switch (extent_entry_type(to_entry(crc))) {
+	case BCH_EXTENT_ENTRY_crc32: {
 		struct bch_extent_crc_unpacked ret = (struct bch_extent_crc_unpacked) {
 			common_fields(crc->crc32),
 		};
@@ -303,7 +266,7 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 
 		return ret;
 	}
-	case BCH_EXTENT_CRC64: {
+	case BCH_EXTENT_ENTRY_crc64: {
 		struct bch_extent_crc_unpacked ret = (struct bch_extent_crc_unpacked) {
 			common_fields(crc->crc64),
 			.nonce			= crc->crc64.nonce,
@@ -314,7 +277,7 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 
 		return ret;
 	}
-	case BCH_EXTENT_CRC128: {
+	case BCH_EXTENT_ENTRY_crc128: {
 		struct bch_extent_crc_unpacked ret = (struct bch_extent_crc_unpacked) {
 			common_fields(crc->crc128),
 			.nonce			= crc->crc128.nonce,
