@@ -58,6 +58,30 @@ static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
 	return __mk_vsid_data(get_kernel_vsid(ea, ssize), ssize, flags);
 }
 
+static void assert_slb_exists(unsigned long ea)
+{
+#ifdef CONFIG_DEBUG_VM
+	unsigned long tmp;
+
+	WARN_ON_ONCE(mfmsr() & MSR_EE);
+
+	asm volatile("slbfee. %0, %1" : "=r"(tmp) : "r"(ea) : "cr0");
+	WARN_ON(tmp == 0);
+#endif
+}
+
+static void assert_slb_notexists(unsigned long ea)
+{
+#ifdef CONFIG_DEBUG_VM
+	unsigned long tmp;
+
+	WARN_ON_ONCE(mfmsr() & MSR_EE);
+
+	asm volatile("slbfee. %0, %1" : "=r"(tmp) : "r"(ea) : "cr0");
+	WARN_ON(tmp != 0);
+#endif
+}
+
 static inline void slb_shadow_update(unsigned long ea, int ssize,
 				     unsigned long flags,
 				     enum slb_index index)
@@ -90,6 +114,7 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 	 */
 	slb_shadow_update(ea, ssize, flags, index);
 
+	assert_slb_notexists(ea);
 	asm volatile("slbmte  %0,%1" :
 		     : "r" (mk_vsid_data(ea, ssize, flags)),
 		       "r" (mk_esid_data(ea, ssize, index))
@@ -111,6 +136,8 @@ void __slb_restore_bolted_realmode(void)
 		     : "r" (be64_to_cpu(p->save_area[index].vsid)),
 		       "r" (be64_to_cpu(p->save_area[index].esid)));
 	}
+
+	assert_slb_exists(local_paca->kstack);
 }
 
 /*
@@ -158,6 +185,7 @@ void slb_flush_and_restore_bolted(void)
 		     :: "r" (be64_to_cpu(p->save_area[KSTACK_INDEX].vsid)),
 			"r" (be64_to_cpu(p->save_area[KSTACK_INDEX].esid))
 		     : "memory");
+	assert_slb_exists(get_paca()->kstack);
 
 	get_paca()->slb_cache_ptr = 0;
 
@@ -410,9 +438,17 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 			unsigned long slbie_data = 0;
 
 			for (i = 0; i < offset; i++) {
-				/* EA */
-				slbie_data = (unsigned long)
+				unsigned long ea;
+
+				ea = (unsigned long)
 					get_paca()->slb_cache[i] << SID_SHIFT;
+				/*
+				 * Could assert_slb_exists here, but hypervisor
+				 * or machine check could have come in and
+				 * removed the entry at this point.
+				 */
+
+				slbie_data = ea;
 				slbie_data |= user_segment_size(slbie_data)
 						<< SLBIE_SSIZE_SHIFT;
 				slbie_data |= SLBIE_C; /* user slbs have C=1 */
@@ -640,6 +676,7 @@ static long slb_insert_entry(unsigned long ea, unsigned long context,
 	 * User preloads should add isync afterwards in case the kernel
 	 * accesses user memory before it returns to userspace with rfid.
 	 */
+	assert_slb_notexists(ea);
 	asm volatile("slbmte %0, %1" : : "r" (vsid_data), "r" (esid_data));
 
 	barrier();
@@ -740,7 +777,17 @@ long do_slb_fault(struct pt_regs *regs, unsigned long ea)
 	 * if they go via fast_exception_return too.
 	 */
 	if (id >= KERNEL_REGION_ID) {
-		return slb_allocate_kernel(ea, id);
+		long err;
+#ifdef CONFIG_DEBUG_VM
+		/* Catch recursive kernel SLB faults. */
+		BUG_ON(local_paca->in_kernel_slb_handler);
+		local_paca->in_kernel_slb_handler = 1;
+#endif
+		err = slb_allocate_kernel(ea, id);
+#ifdef CONFIG_DEBUG_VM
+		local_paca->in_kernel_slb_handler = 0;
+#endif
+		return err;
 	} else {
 		struct mm_struct *mm = current->mm;
 		long err;

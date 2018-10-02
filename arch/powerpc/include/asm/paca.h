@@ -115,6 +115,9 @@ struct paca_struct {
 	u16 vmalloc_sllp;
 	u8 slb_cache_ptr;
 	u8 stab_rr;			/* stab/slb round-robin counter */
+#ifdef CONFIG_DEBUG_VM
+	u8 in_kernel_slb_handler;
+#endif
 	u32 slb_used_bitmap;		/* Bitmaps for first 32 SLB entries. */
 	u32 slb_kern_bitmap;
 	u32 slb_cache[SLB_CACHE_ENTRIES];
