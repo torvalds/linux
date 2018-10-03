@@ -15,6 +15,7 @@
 #define _COMEDI_NI_STC_H
 
 #include "ni_tio.h"
+#include "ni_routes.h"
 
 /*
  * Registers in the National Instruments DAQ-STC chip
@@ -1058,6 +1059,9 @@ struct ni_private {
 	 * possible.
 	 */
 	unsigned int ao_needs_arming:1;
+
+	/* device signal route tables */
+	struct ni_route_tables routing_tables;
 };
 
 static const struct comedi_lrange range_ni_E_ao_ext;
