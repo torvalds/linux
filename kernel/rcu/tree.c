@@ -2675,6 +2675,10 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
  */
 void rcu_fwd_progress_check(unsigned long j)
 {
+	unsigned long cbs;
+	int cpu;
+	unsigned long max_cbs = 0;
+	int max_cpu = -1;
 	struct rcu_data *rdp;
 
 	if (rcu_gp_in_progress()) {
@@ -2685,6 +2689,20 @@ void rcu_fwd_progress_check(unsigned long j)
 		rcu_check_gp_start_stall(rdp->mynode, rdp, j);
 		preempt_enable();
 	}
+	for_each_possible_cpu(cpu) {
+		cbs = rcu_get_n_cbs_cpu(cpu);
+		if (!cbs)
+			continue;
+		if (max_cpu < 0)
+			pr_info("%s: callbacks", __func__);
+		pr_cont(" %d: %lu", cpu, cbs);
+		if (cbs <= max_cbs)
+			continue;
+		max_cbs = cbs;
+		max_cpu = cpu;
+	}
+	if (max_cpu >= 0)
+		pr_cont("\n");
 }
 EXPORT_SYMBOL_GPL(rcu_fwd_progress_check);
 
