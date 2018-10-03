@@ -1631,6 +1631,20 @@ static bool rcu_fwd_emergency_stop;
 #define MIN_FWD_CBS_LAUNDERED	100	/* Number of counted CBs. */
 static long n_launders_hist[2 * MAX_FWD_CB_JIFFIES / HZ];
 
+static void rcu_torture_fwd_cb_hist(void)
+{
+	int i;
+	int j;
+
+	for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
+		if (n_launders_hist[i] > 0)
+			break;
+	pr_alert("%s: Callback-invocation histogram:", __func__);
+	for (j = 0; j <= i; j++)
+		pr_cont(" %ds: %ld", j + 1, n_launders_hist[j]);
+	pr_cont("\n");
+}
+
 /* Callback function for continuous-flood RCU callbacks. */
 static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 {
@@ -1718,7 +1732,6 @@ static void rcu_torture_fwd_prog_cr(void)
 	unsigned long cver;
 	unsigned long gps;
 	int i;
-	int j;
 	long n_launders;
 	long n_launders_cb_snap;
 	long n_launders_sa;
@@ -1791,13 +1804,7 @@ static void rcu_torture_fwd_prog_cr(void)
 			 n_launders + n_max_cbs - n_launders_cb_snap,
 			 n_launders, n_launders_sa,
 			 n_max_gps, n_max_cbs, cver, gps);
-		for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
-			if (n_launders_hist[i] > 0)
-				break;
-		pr_alert("Callback-invocation histogram:");
-		for (j = 0; j <= i; j++)
-			pr_cont(" %ds: %ld", j + 1, n_launders_hist[j]);
-		pr_cont("\n");
+		rcu_torture_fwd_cb_hist();
 	}
 }
 
@@ -1809,6 +1816,7 @@ static void rcu_torture_fwd_prog_cr(void)
 static int rcutorture_oom_notify(struct notifier_block *self,
 				 unsigned long notused, void *nfreed)
 {
+	rcu_torture_fwd_cb_hist();
 	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rcu_fwd_startat) / 2));
 	WRITE_ONCE(rcu_fwd_emergency_stop, true);
 	return NOTIFY_OK;
