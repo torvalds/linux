@@ -190,7 +190,7 @@ whitespace:
  notify_free      Depending on device usage scenario it may account
                   a) the number of pages freed because of swap slot free
                   notifications or b) the number of pages freed because of
-                  REQ_DISCARD requests sent by bio. The former ones are
+                  REQ_OP_DISCARD requests sent by bio. The former ones are
                   sent to a swap block device when a swap slot is freed,
                   which implies that this disk is being used as a swap disk.
                   The latter ones are sent by filesystem mounted with

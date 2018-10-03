@@ -1673,7 +1673,7 @@ static u32 bio_flags_to_wire(struct drbd_connection *connection,
 		return bio->bi_opf & REQ_SYNC ? DP_RW_SYNC : 0;
 }
 
-/* Used to send write or TRIM aka REQ_DISCARD requests
+/* Used to send write or TRIM aka REQ_OP_DISCARD requests
  * R_PRIMARY -> Peer	(P_DATA, P_TRIM)
  */
 int drbd_send_dblock(struct drbd_peer_device *peer_device, struct drbd_request *req)

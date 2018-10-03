@@ -429,7 +429,7 @@ enum {
 	__EE_CALL_AL_COMPLETE_IO,
 	__EE_MAY_SET_IN_SYNC,
 
-	/* is this a TRIM aka REQ_DISCARD? */
+	/* is this a TRIM aka REQ_OP_DISCARD? */
 	__EE_IS_TRIM,
 
 	/* In case a barrier failed,
