@@ -233,6 +233,13 @@
 	};
 };
 
+&cp0_pcie0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_pci0_reset_pins>;
+	reset-gpios = <&cp0_gpio2 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
 &cp0_gpio2 {
 	sata_reset {
 		gpio-hog;
