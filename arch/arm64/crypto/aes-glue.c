@@ -243,8 +243,11 @@ static int cts_cbc_encrypt(struct skcipher_request *req)
 
 	skcipher_request_set_tfm(&rctx->subreq, tfm);
 
-	if (req->cryptlen == AES_BLOCK_SIZE)
+	if (req->cryptlen <= AES_BLOCK_SIZE) {
+		if (req->cryptlen < AES_BLOCK_SIZE)
+			return -EINVAL;
 		cbc_blocks = 1;
+	}
 
 	if (cbc_blocks > 0) {
 		unsigned int blocks;
@@ -305,8 +308,11 @@ static int cts_cbc_decrypt(struct skcipher_request *req)
 
 	skcipher_request_set_tfm(&rctx->subreq, tfm);
 
-	if (req->cryptlen == AES_BLOCK_SIZE)
+	if (req->cryptlen <= AES_BLOCK_SIZE) {
+		if (req->cryptlen < AES_BLOCK_SIZE)
+			return -EINVAL;
 		cbc_blocks = 1;
+	}
 
 	if (cbc_blocks > 0) {
 		unsigned int blocks;
@@ -486,14 +492,13 @@ static struct skcipher_alg aes_algs[] = { {
 		.cra_driver_name	= "__cts-cbc-aes-" MODE,
 		.cra_priority		= PRIO,
 		.cra_flags		= CRYPTO_ALG_INTERNAL,
-		.cra_blocksize		= 1,
+		.cra_blocksize		= AES_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
 		.cra_module		= THIS_MODULE,
 	},
 	.min_keysize	= AES_MIN_KEY_SIZE,
 	.max_keysize	= AES_MAX_KEY_SIZE,
 	.ivsize		= AES_BLOCK_SIZE,
-	.chunksize	= AES_BLOCK_SIZE,
 	.walksize	= 2 * AES_BLOCK_SIZE,
 	.setkey		= skcipher_aes_setkey,
 	.encrypt	= cts_cbc_encrypt,
