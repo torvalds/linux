@@ -2621,7 +2621,7 @@ static enum port icl_mg_pll_id_to_port(enum intel_dpll_id id)
 	return id - DPLL_ID_ICL_MGPLL1 + PORT_C;
 }
 
-static enum intel_dpll_id icl_port_to_mg_pll_id(enum port port)
+enum intel_dpll_id icl_port_to_mg_pll_id(enum port port)
 {
 	return port - PORT_C + DPLL_ID_ICL_MGPLL1;
 }

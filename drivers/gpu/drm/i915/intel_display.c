@@ -9280,16 +9280,10 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 			return;
 		break;
 	case PORT_C:
-		id = DPLL_ID_ICL_MGPLL1;
-		break;
 	case PORT_D:
-		id = DPLL_ID_ICL_MGPLL2;
-		break;
 	case PORT_E:
-		id = DPLL_ID_ICL_MGPLL3;
-		break;
 	case PORT_F:
-		id = DPLL_ID_ICL_MGPLL4;
+		id = icl_port_to_mg_pll_id(port);
 		break;
 	default:
 		MISSING_CASE(port);
