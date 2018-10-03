@@ -107,6 +107,7 @@
 #define INSN_WRITE		(1 | INSN_MASK_WRITE)
 #define INSN_BITS		(2 | INSN_MASK_READ | INSN_MASK_WRITE)
 #define INSN_CONFIG		(3 | INSN_MASK_READ | INSN_MASK_WRITE)
+#define INSN_DEVICE_CONFIG	(INSN_CONFIG | INSN_MASK_SPECIAL)
 #define INSN_GTOD		(4 | INSN_MASK_READ | INSN_MASK_SPECIAL)
 #define INSN_WAIT		(5 | INSN_MASK_WRITE | INSN_MASK_SPECIAL)
 #define INSN_INTTRIG		(6 | INSN_MASK_WRITE | INSN_MASK_SPECIAL)
@@ -348,6 +349,23 @@ enum configuration_ids {
 	INSN_CONFIG_PWM_SET_H_BRIDGE = 5003,
 	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004,
 	INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS = 5005,
+};
+
+/**
+ * enum device_configuration_ids - COMEDI configuration instruction codes global
+ * to an entire device.
+ * @INSN_DEVICE_CONFIG_TEST_ROUTE:	Validate the possibility of a
+ *					globally-named route
+ * @INSN_DEVICE_CONFIG_CONNECT_ROUTE:	Connect a globally-named route
+ * @INSN_DEVICE_CONFIG_DISCONNECT_ROUTE:Disconnect a globally-named route
+ * @INSN_DEVICE_CONFIG_GET_ROUTES:	Get a list of all globally-named routes
+ *					that are valid for a particular device.
+ */
+enum device_config_route_ids {
+	INSN_DEVICE_CONFIG_TEST_ROUTE = 0,
+	INSN_DEVICE_CONFIG_CONNECT_ROUTE = 1,
+	INSN_DEVICE_CONFIG_DISCONNECT_ROUTE = 2,
+	INSN_DEVICE_CONFIG_GET_ROUTES = 3,
 };
 
 /**
