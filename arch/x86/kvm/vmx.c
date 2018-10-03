@@ -3589,12 +3589,12 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 		msrs->secondary_ctls_high);
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
-		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_DESC |
 		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		SECONDARY_EXEC_WBINVD_EXITING;
+
 	/*
 	 * We can emulate "VMCS shadowing," even if the hardware
 	 * doesn't support it.
@@ -3650,6 +3650,10 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 	if (enable_unrestricted_guest)
 		msrs->secondary_ctls_high |=
 			SECONDARY_EXEC_UNRESTRICTED_GUEST;
+
+	if (flexpriority_enabled)
+		msrs->secondary_ctls_high |=
+			SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 
 	/* miscellaneous data */
 	rdmsr(MSR_IA32_VMX_MISC,
