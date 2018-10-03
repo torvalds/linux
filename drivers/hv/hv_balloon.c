@@ -689,7 +689,7 @@ static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 	__online_page_increment_counters(pg);
 	__online_page_free(pg);
 
-	WARN_ON_ONCE(!spin_is_locked(&dm_device.ha_lock));
+	lockdep_assert_held(&dm_device.ha_lock);
 	dm_device.num_pages_onlined++;
 }
 
