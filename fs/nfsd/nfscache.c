@@ -131,15 +131,15 @@ nfsd_reply_cache_alloc(struct svc_rqst *rqstp, __wsum csum)
 		rp->c_type = RC_NOCACHE;
 		INIT_LIST_HEAD(&rp->c_lru);
 
-		rp->c_xid = rqstp->rq_xid;
-		rp->c_proc = rqstp->rq_proc;
-		memset(&rp->c_addr, 0, sizeof(rp->c_addr));
-		rpc_copy_addr((struct sockaddr *)&rp->c_addr, svc_addr(rqstp));
-		rpc_set_port((struct sockaddr *)&rp->c_addr, rpc_get_port(svc_addr(rqstp)));
-		rp->c_prot = rqstp->rq_prot;
-		rp->c_vers = rqstp->rq_vers;
-		rp->c_len = rqstp->rq_arg.len;
-		rp->c_csum = csum;
+		memset(&rp->c_key, 0, sizeof(rp->c_key));
+		rp->c_key.k_xid = rqstp->rq_xid;
+		rp->c_key.k_proc = rqstp->rq_proc;
+		rpc_copy_addr((struct sockaddr *)&rp->c_key.k_addr, svc_addr(rqstp));
+		rpc_set_port((struct sockaddr *)&rp->c_key.k_addr, rpc_get_port(svc_addr(rqstp)));
+		rp->c_key.k_prot = rqstp->rq_prot;
+		rp->c_key.k_vers = rqstp->rq_vers;
+		rp->c_key.k_len = rqstp->rq_arg.len;
+		rp->c_key.k_csum = csum;
 	}
 	return rp;
 }
@@ -330,27 +330,14 @@ nfsd_cache_csum(struct svc_rqst *rqstp)
 	return csum;
 }
 
-static bool
-nfsd_cache_match(const struct svc_cacherep *key, const struct svc_cacherep *rp)
+static int
+nfsd_cache_key_cmp(const struct svc_cacherep *key, const struct svc_cacherep *rp)
 {
-	/* Check RPC XID first */
-	if (key->c_xid != rp->c_xid)
-		return false;
-	/* compare checksum of NFS data */
-	if (key->c_csum != rp->c_csum) {
+	if (key->c_key.k_xid == rp->c_key.k_xid &&
+	    key->c_key.k_csum != rp->c_key.k_csum)
 		++payload_misses;
-		return false;
-	}
 
-	/* Other discriminators */
-	if (key->c_proc != rp->c_proc ||
-	    key->c_prot != rp->c_prot ||
-	    key->c_vers != rp->c_vers ||
-	    key->c_len != rp->c_len ||
-	    memcmp(&key->c_addr, &rp->c_addr, sizeof(key->c_addr)) != 0)
-		return false;
-
-	return true;
+	return memcmp(&key->c_key, &rp->c_key, sizeof(key->c_key));
 }
 
 /*
@@ -367,7 +354,7 @@ nfsd_cache_insert(struct nfsd_drc_bucket *b, struct svc_cacherep *key)
 
 	list_for_each_entry(rp, rh, c_lru) {
 		++entries;
-		if (nfsd_cache_match(key, rp)) {
+		if (nfsd_cache_key_cmp(key, rp) == 0) {
 			ret = rp;
 			break;
 		}
@@ -510,7 +497,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 	if (!rp)
 		return;
 
-	hash = nfsd_cache_hash(rp->c_xid);
+	hash = nfsd_cache_hash(rp->c_key.k_xid);
 	b = &drc_hashtbl[hash];
 
 	len = resv->iov_len - ((char*)statp - (char*)resv->iov_base);
