@@ -19,7 +19,7 @@ struct fanotify_event_info {
 	 * during this object's lifetime
 	 */
 	struct path path;
-	struct pid *tgid;
+	struct pid *pid;
 };
 
 /*
