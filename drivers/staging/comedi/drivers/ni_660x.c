@@ -7,7 +7,7 @@
  * Driver: ni_660x
  * Description: National Instruments 660x counter/timer boards
  * Devices: [National Instruments] PCI-6601 (ni_660x), PCI-6602, PXI-6602,
- *   PXI-6608, PCI-6624, PXI-6624
+ *   PCI-6608, PXI-6608, PCI-6624, PXI-6624
  * Author: J.P. Mellor <jpmellor@rose-hulman.edu>,
  *   Herman.Bruyninckx@mech.kuleuven.ac.be,
  *   Wim.Meeussen@mech.kuleuven.ac.be,
@@ -202,6 +202,7 @@ enum ni_660x_boardid {
 	BOARD_PCI6601,
 	BOARD_PCI6602,
 	BOARD_PXI6602,
+	BOARD_PCI6608,
 	BOARD_PXI6608,
 	BOARD_PCI6624,
 	BOARD_PXI6624
@@ -223,6 +224,10 @@ static const struct ni_660x_board ni_660x_boards[] = {
 	},
 	[BOARD_PXI6602] = {
 		.name		= "PXI-6602",
+		.n_chips	= 2,
+	},
+	[BOARD_PCI6608] = {
+		.name		= "PCI-6608",
 		.n_chips	= 2,
 	},
 	[BOARD_PXI6608] = {
@@ -925,6 +930,7 @@ static const struct pci_device_id ni_660x_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x1310), BOARD_PCI6602 },
 	{ PCI_VDEVICE(NI, 0x1360), BOARD_PXI6602 },
 	{ PCI_VDEVICE(NI, 0x2c60), BOARD_PCI6601 },
+	{ PCI_VDEVICE(NI, 0x2db0), BOARD_PCI6608 },
 	{ PCI_VDEVICE(NI, 0x2cc0), BOARD_PXI6608 },
 	{ PCI_VDEVICE(NI, 0x1e30), BOARD_PCI6624 },
 	{ PCI_VDEVICE(NI, 0x1e40), BOARD_PXI6624 },
