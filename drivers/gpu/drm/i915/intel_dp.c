@@ -4050,15 +4050,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 }
 
 static bool
-intel_dp_can_mst(struct intel_dp *intel_dp)
+intel_dp_sink_can_mst(struct intel_dp *intel_dp)
 {
 	u8 mstm_cap;
-
-	if (!i915_modparams.enable_dp_mst)
-		return false;
-
-	if (!intel_dp->can_mst)
-		return false;
 
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x12)
 		return false;
@@ -4069,21 +4063,30 @@ intel_dp_can_mst(struct intel_dp *intel_dp)
 	return mstm_cap & DP_MST_CAP;
 }
 
+static bool
+intel_dp_can_mst(struct intel_dp *intel_dp)
+{
+	return i915_modparams.enable_dp_mst &&
+		intel_dp->can_mst &&
+		intel_dp_sink_can_mst(intel_dp);
+}
+
 static void
 intel_dp_configure_mst(struct intel_dp *intel_dp)
 {
-	if (!i915_modparams.enable_dp_mst)
-		return;
+	struct intel_encoder *encoder =
+		&dp_to_dig_port(intel_dp)->base;
+	bool sink_can_mst = intel_dp_sink_can_mst(intel_dp);
+
+	DRM_DEBUG_KMS("MST support? port %c: %s, sink: %s, modparam: %s\n",
+		      port_name(encoder->port), yesno(intel_dp->can_mst),
+		      yesno(sink_can_mst), yesno(i915_modparams.enable_dp_mst));
 
 	if (!intel_dp->can_mst)
 		return;
 
-	intel_dp->is_mst = intel_dp_can_mst(intel_dp);
-
-	if (intel_dp->is_mst)
-		DRM_DEBUG_KMS("Sink is MST capable\n");
-	else
-		DRM_DEBUG_KMS("Sink is not MST capable\n");
+	intel_dp->is_mst = sink_can_mst &&
+		i915_modparams.enable_dp_mst;
 
 	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
 					intel_dp->is_mst);
