@@ -271,6 +271,26 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info);
 
 /*
+ * exserial - field_unit support for serial address spaces
+ */
+acpi_status
+acpi_ex_read_serial_bus(union acpi_operand_object *obj_desc,
+			union acpi_operand_object **return_buffer);
+
+acpi_status
+acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
+			 union acpi_operand_object *obj_desc,
+			 union acpi_operand_object **return_buffer);
+
+acpi_status
+acpi_ex_read_gpio(union acpi_operand_object *obj_desc, void *buffer);
+
+acpi_status
+acpi_ex_write_gpio(union acpi_operand_object *source_desc,
+		   union acpi_operand_object *obj_desc,
+		   union acpi_operand_object **return_buffer);
+
+/*
  * exsystem - Interface to OS services
  */
 acpi_status
