@@ -290,11 +290,16 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_ch_stats stats;
 };
 
-struct dpaa2_eth_hash_fields {
+struct dpaa2_eth_dist_fields {
 	u64 rxnfc_field;
 	enum net_prot cls_prot;
 	int cls_field;
 	int size;
+};
+
+struct dpaa2_eth_cls_rule {
+	struct ethtool_rx_flow_spec fs;
+	u8 in_use;
 };
 
 /* Driver private data */
@@ -340,6 +345,8 @@ struct dpaa2_eth_priv {
 
 	/* enabled ethtool hashing bits */
 	u64 rx_hash_fields;
+	struct dpaa2_eth_cls_rule *cls_rules;
+	u8 rx_cls_enabled;
 };
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \
@@ -366,6 +373,24 @@ static inline int dpaa2_eth_cmp_dpni_ver(struct dpaa2_eth_priv *priv,
 		return priv->dpni_ver_minor - ver_minor;
 	return priv->dpni_ver_major - ver_major;
 }
+
+/* Minimum firmware version that supports a more flexible API
+ * for configuring the Rx flow hash key
+ */
+#define DPNI_RX_DIST_KEY_VER_MAJOR	7
+#define DPNI_RX_DIST_KEY_VER_MINOR	5
+
+#define dpaa2_eth_has_legacy_dist(priv)					\
+	(dpaa2_eth_cmp_dpni_ver((priv), DPNI_RX_DIST_KEY_VER_MAJOR,	\
+				DPNI_RX_DIST_KEY_VER_MINOR) < 0)
+
+#define dpaa2_eth_fs_count(priv)        \
+	((priv)->dpni_attrs.fs_entries)
+
+enum dpaa2_eth_rx_dist {
+	DPAA2_ETH_RX_DIST_HASH,
+	DPAA2_ETH_RX_DIST_CLS
+};
 
 /* Hardware only sees DPAA2_ETH_RX_BUF_SIZE, but the skb built around
  * the buffer also needs space for its shared info struct, and we need
@@ -410,5 +435,7 @@ static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
 }
 
 int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags);
+int dpaa2_eth_cls_key_size(void);
+int dpaa2_eth_cls_fld_off(int prot, int field);
 
 #endif	/* __DPAA2_H */
