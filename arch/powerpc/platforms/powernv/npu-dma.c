@@ -17,7 +17,6 @@
 #include <linux/pci.h>
 #include <linux/memblock.h>
 #include <linux/iommu.h>
-#include <linux/debugfs.h>
 #include <linux/sizes.h>
 
 #include <asm/debugfs.h>
@@ -41,14 +40,6 @@
  * mm_struct.
  */
 static DEFINE_SPINLOCK(npu_context_lock);
-
-/*
- * When an address shootdown range exceeds this threshold we invalidate the
- * entire TLB on the GPU for the given PID rather than each specific address in
- * the range.
- */
-static uint64_t atsd_threshold = 2 * 1024 * 1024;
-static struct dentry *atsd_threshold_dentry;
 
 /*
  * Other types of TCE cache invalidation are not functional in the
@@ -965,11 +956,6 @@ int pnv_npu2_init(struct pnv_phb *phb)
 	struct pci_dev *gpdev;
 	static int npu_index;
 	uint64_t rc = 0;
-
-	if (!atsd_threshold_dentry) {
-		atsd_threshold_dentry = debugfs_create_x64("atsd_threshold",
-				   0600, powerpc_debugfs_root, &atsd_threshold);
-	}
 
 	phb->npu.nmmu_flush =
 		of_property_read_bool(phb->hose->dn, "ibm,nmmu-flush");
