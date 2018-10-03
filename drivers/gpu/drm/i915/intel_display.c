@@ -2768,10 +2768,6 @@ intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 		crtc_state->base.plane_mask |= drm_plane_mask(&plane->base);
 	else
 		crtc_state->base.plane_mask &= ~drm_plane_mask(&plane->base);
-
-	DRM_DEBUG_KMS("%s active planes 0x%x\n",
-		      crtc_state->base.crtc->name,
-		      crtc_state->active_planes);
 }
 
 static void fixup_active_planes(struct intel_crtc_state *crtc_state)
@@ -2798,6 +2794,10 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane_state *plane_state =
 		to_intel_plane_state(plane->base.state);
+
+	DRM_DEBUG_KMS("Disabling [PLANE:%d:%s] on [CRTC:%d:%s]\n",
+		      plane->base.base.id, plane->base.name,
+		      crtc->base.base.id, crtc->base.name);
 
 	intel_set_plane_visible(crtc_state, plane_state, false);
 	fixup_active_planes(crtc_state);
@@ -15523,8 +15523,8 @@ intel_sanitize_plane_mapping(struct drm_i915_private *dev_priv)
 		if (pipe == crtc->pipe)
 			continue;
 
-		DRM_DEBUG_KMS("%s attached to the wrong pipe, disabling plane\n",
-			      plane->base.name);
+		DRM_DEBUG_KMS("[PLANE:%d:%s] attached to the wrong pipe, disabling plane\n",
+			      plane->base.base.id, plane->base.name);
 
 		plane_crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 		intel_plane_disable_noatomic(plane_crtc, plane);
@@ -15713,6 +15713,10 @@ static void readout_plane_state(struct drm_i915_private *dev_priv)
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
 		intel_set_plane_visible(crtc_state, plane_state, visible);
+
+		DRM_DEBUG_KMS("[PLANE:%d:%s] hw state readout: %s, pipe %c\n",
+			      plane->base.base.id, plane->base.name,
+			      enableddisabled(visible), pipe_name(pipe));
 	}
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
