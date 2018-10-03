@@ -720,7 +720,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 			goto err_fc_create;
 		}
 		dest[dest_ix].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		dest[dest_ix].counter = counter;
+		dest[dest_ix].counter_id = mlx5_fc_id(counter);
 		dest_ix++;
 		attr->counter = counter;
 	}

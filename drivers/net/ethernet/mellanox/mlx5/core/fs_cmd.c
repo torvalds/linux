@@ -419,7 +419,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				continue;
 
 			MLX5_SET(flow_counter_list, in_dests, flow_counter_id,
-				 dst->dest_attr.counter->id);
+				 dst->dest_attr.counter_id);
 			in_dests += MLX5_ST_SZ_BYTES(dest_format_struct);
 			list_size++;
 		}

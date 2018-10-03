@@ -1198,7 +1198,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	if (counter) {
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
 		drop_ctr_dst.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		drop_ctr_dst.counter = counter;
+		drop_ctr_dst.counter_id = mlx5_fc_id(counter);
 		dst = &drop_ctr_dst;
 		dest_num++;
 	}
@@ -1285,7 +1285,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	if (counter) {
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
 		drop_ctr_dst.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		drop_ctr_dst.counter = counter;
+		drop_ctr_dst.counter_id = mlx5_fc_id(counter);
 		dst = &drop_ctr_dst;
 		dest_num++;
 	}

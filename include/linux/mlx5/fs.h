@@ -92,7 +92,7 @@ struct mlx5_flow_destination {
 		u32			tir_num;
 		u32			ft_num;
 		struct mlx5_flow_table	*ft;
-		struct mlx5_fc		*counter;
+		u32			counter_id;
 		struct {
 			u16		num;
 			u16		vhca_id;
@@ -192,6 +192,7 @@ void mlx5_fc_query_cached(struct mlx5_fc *counter,
 			  u64 *bytes, u64 *packets, u64 *lastuse);
 int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
 		  u64 *packets, u64 *bytes);
+u32 mlx5_fc_id(struct mlx5_fc *counter);
 
 int mlx5_fs_add_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn);
 int mlx5_fs_remove_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn);

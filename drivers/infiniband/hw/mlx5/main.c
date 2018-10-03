@@ -3320,15 +3320,18 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		struct mlx5_ib_mcounters *mcounters;
+
 		err = flow_counters_set_data(flow_act.counters, ucmd);
 		if (err)
 			goto free;
 
+		mcounters = to_mcounters(flow_act.counters);
 		handler->ibcounters = flow_act.counters;
 		dest_arr[dest_num].type =
 			MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		dest_arr[dest_num].counter =
-			to_mcounters(flow_act.counters)->hw_cntrs_hndl;
+		dest_arr[dest_num].counter_id =
+			mlx5_fc_id(mcounters->hw_cntrs_hndl);
 		dest_num++;
 	}
 

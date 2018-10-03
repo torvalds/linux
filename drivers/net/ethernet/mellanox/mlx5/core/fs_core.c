@@ -1474,14 +1474,8 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	return handle;
 }
 
-static bool counter_is_valid(struct mlx5_fc *counter, u32 action)
+static bool counter_is_valid(u32 action)
 {
-	if (!(action & MLX5_FLOW_CONTEXT_ACTION_COUNT))
-		return !counter;
-
-	if (!counter)
-		return false;
-
 	return (action & (MLX5_FLOW_CONTEXT_ACTION_DROP |
 			  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST));
 }
@@ -1491,7 +1485,7 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 			  struct mlx5_flow_table *ft)
 {
 	if (dest && (dest->type == MLX5_FLOW_DESTINATION_TYPE_COUNTER))
-		return counter_is_valid(dest->counter, action);
+		return counter_is_valid(action);
 
 	if (!(action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return true;
