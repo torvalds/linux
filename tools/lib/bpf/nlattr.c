@@ -17,13 +17,13 @@
 #include <string.h>
 #include <stdio.h>
 
-static uint16_t nla_attr_minlen[NLA_TYPE_MAX+1] = {
-	[NLA_U8]	= sizeof(uint8_t),
-	[NLA_U16]	= sizeof(uint16_t),
-	[NLA_U32]	= sizeof(uint32_t),
-	[NLA_U64]	= sizeof(uint64_t),
-	[NLA_STRING]	= 1,
-	[NLA_FLAG]	= 0,
+static uint16_t nla_attr_minlen[LIBBPF_NLA_TYPE_MAX+1] = {
+	[LIBBPF_NLA_U8]		= sizeof(uint8_t),
+	[LIBBPF_NLA_U16]	= sizeof(uint16_t),
+	[LIBBPF_NLA_U32]	= sizeof(uint32_t),
+	[LIBBPF_NLA_U64]	= sizeof(uint64_t),
+	[LIBBPF_NLA_STRING]	= 1,
+	[LIBBPF_NLA_FLAG]	= 0,
 };
 
 static struct nlattr *nla_next(const struct nlattr *nla, int *remaining)
@@ -47,9 +47,9 @@ static int nla_type(const struct nlattr *nla)
 }
 
 static int validate_nla(struct nlattr *nla, int maxtype,
-			struct nla_policy *policy)
+			struct libbpf_nla_policy *policy)
 {
-	struct nla_policy *pt;
+	struct libbpf_nla_policy *pt;
 	unsigned int minlen = 0;
 	int type = nla_type(nla);
 
@@ -58,23 +58,24 @@ static int validate_nla(struct nlattr *nla, int maxtype,
 
 	pt = &policy[type];
 
-	if (pt->type > NLA_TYPE_MAX)
+	if (pt->type > LIBBPF_NLA_TYPE_MAX)
 		return 0;
 
 	if (pt->minlen)
 		minlen = pt->minlen;
-	else if (pt->type != NLA_UNSPEC)
+	else if (pt->type != LIBBPF_NLA_UNSPEC)
 		minlen = nla_attr_minlen[pt->type];
 
-	if (nla_len(nla) < minlen)
+	if (libbpf_nla_len(nla) < minlen)
 		return -1;
 
-	if (pt->maxlen && nla_len(nla) > pt->maxlen)
+	if (pt->maxlen && libbpf_nla_len(nla) > pt->maxlen)
 		return -1;
 
-	if (pt->type == NLA_STRING) {
-		char *data = nla_data(nla);
-		if (data[nla_len(nla) - 1] != '\0')
+	if (pt->type == LIBBPF_NLA_STRING) {
+		char *data = libbpf_nla_data(nla);
+
+		if (data[libbpf_nla_len(nla) - 1] != '\0')
 			return -1;
 	}
 
@@ -104,15 +105,15 @@ static inline int nlmsg_len(const struct nlmsghdr *nlh)
  * @see nla_validate
  * @return 0 on success or a negative error code.
  */
-int nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head, int len,
-	      struct nla_policy *policy)
+int libbpf_nla_parse(struct nlattr *tb[], int maxtype, struct nlattr *head,
+		     int len, struct libbpf_nla_policy *policy)
 {
 	struct nlattr *nla;
 	int rem, err;
 
 	memset(tb, 0, sizeof(struct nlattr *) * (maxtype + 1));
 
-	nla_for_each_attr(nla, head, len, rem) {
+	libbpf_nla_for_each_attr(nla, head, len, rem) {
 		int type = nla_type(nla);
 
 		if (type > maxtype)
@@ -144,23 +145,25 @@ errout:
  * @arg policy          Attribute validation policy.
  *
  * Feeds the stream of attributes nested into the specified attribute
- * to nla_parse().
+ * to libbpf_nla_parse().
  *
- * @see nla_parse
+ * @see libbpf_nla_parse
  * @return 0 on success or a negative error code.
  */
-int nla_parse_nested(struct nlattr *tb[], int maxtype, struct nlattr *nla,
-		     struct nla_policy *policy)
+int libbpf_nla_parse_nested(struct nlattr *tb[], int maxtype,
+			    struct nlattr *nla,
+			    struct libbpf_nla_policy *policy)
 {
-	return nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy);
+	return libbpf_nla_parse(tb, maxtype, libbpf_nla_data(nla),
+				libbpf_nla_len(nla), policy);
 }
 
 /* dump netlink extended ack error message */
-int nla_dump_errormsg(struct nlmsghdr *nlh)
+int libbpf_nla_dump_errormsg(struct nlmsghdr *nlh)
 {
-	struct nla_policy extack_policy[NLMSGERR_ATTR_MAX + 1] = {
-		[NLMSGERR_ATTR_MSG]	= { .type = NLA_STRING },
-		[NLMSGERR_ATTR_OFFS]	= { .type = NLA_U32 },
+	struct libbpf_nla_policy extack_policy[NLMSGERR_ATTR_MAX + 1] = {
+		[NLMSGERR_ATTR_MSG]	= { .type = LIBBPF_NLA_STRING },
+		[NLMSGERR_ATTR_OFFS]	= { .type = LIBBPF_NLA_U32 },
 	};
 	struct nlattr *tb[NLMSGERR_ATTR_MAX + 1], *attr;
 	struct nlmsgerr *err;
@@ -181,14 +184,15 @@ int nla_dump_errormsg(struct nlmsghdr *nlh)
 	attr = (struct nlattr *) ((void *) err + hlen);
 	alen = nlh->nlmsg_len - hlen;
 
-	if (nla_parse(tb, NLMSGERR_ATTR_MAX, attr, alen, extack_policy) != 0) {
+	if (libbpf_nla_parse(tb, NLMSGERR_ATTR_MAX, attr, alen,
+			     extack_policy) != 0) {
 		fprintf(stderr,
 			"Failed to parse extended error attributes\n");
 		return 0;
 	}
 
 	if (tb[NLMSGERR_ATTR_MSG])
-		errmsg = (char *) nla_data(tb[NLMSGERR_ATTR_MSG]);
+		errmsg = (char *) libbpf_nla_data(tb[NLMSGERR_ATTR_MSG]);
 
 	fprintf(stderr, "Kernel error message: %s\n", errmsg);
 

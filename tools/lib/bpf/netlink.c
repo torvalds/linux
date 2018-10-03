@@ -103,7 +103,7 @@ static int bpf_netlink_recv(int sock, __u32 nl_pid, int seq,
 				if (!err->error)
 					continue;
 				ret = err->error;
-				nla_dump_errormsg(nh);
+				libbpf_nla_dump_errormsg(nh);
 				goto done;
 			case NLMSG_DONE:
 				return 0;
@@ -190,7 +190,7 @@ static int __dump_link_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifi));
 	attr = (struct nlattr *) ((void *) ifi + NLMSG_ALIGN(sizeof(*ifi)));
-	if (nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_link_nlmsg(cookie, ifi, tb);
@@ -228,7 +228,7 @@ static int __dump_class_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_class_nlmsg(cookie, t, tb);
@@ -267,7 +267,7 @@ static int __dump_qdisc_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_qdisc_nlmsg(cookie, t, tb);
@@ -306,7 +306,7 @@ static int __dump_filter_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_filter_nlmsg(cookie, t, tb);

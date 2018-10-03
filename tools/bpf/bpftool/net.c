@@ -69,7 +69,9 @@ static int dump_link_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 	snprintf(netinfo->devices[netinfo->used_len].devname,
 		 sizeof(netinfo->devices[netinfo->used_len].devname),
 		 "%s",
-		 tb[IFLA_IFNAME] ? nla_getattr_str(tb[IFLA_IFNAME]) : "");
+		 tb[IFLA_IFNAME]
+			 ? libbpf_nla_getattr_str(tb[IFLA_IFNAME])
+			 : "");
 	netinfo->used_len++;
 
 	return do_xdp_dump(ifinfo, tb);
@@ -83,7 +85,7 @@ static int dump_class_qdisc_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 	if (tcinfo->is_qdisc) {
 		/* skip clsact qdisc */
 		if (tb[TCA_KIND] &&
-		    strcmp(nla_data(tb[TCA_KIND]), "clsact") == 0)
+		    strcmp(libbpf_nla_data(tb[TCA_KIND]), "clsact") == 0)
 			return 0;
 		if (info->tcm_handle == 0)
 			return 0;
@@ -101,7 +103,9 @@ static int dump_class_qdisc_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 	snprintf(tcinfo->handle_array[tcinfo->used_len].kind,
 		 sizeof(tcinfo->handle_array[tcinfo->used_len].kind),
 		 "%s",
-		 tb[TCA_KIND] ? nla_getattr_str(tb[TCA_KIND]) : "unknown");
+		 tb[TCA_KIND]
+			 ? libbpf_nla_getattr_str(tb[TCA_KIND])
+			 : "unknown");
 	tcinfo->used_len++;
 
 	return 0;
