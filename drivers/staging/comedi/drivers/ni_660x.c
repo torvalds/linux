@@ -31,6 +31,7 @@
 
 #include "mite.h"
 #include "ni_tio.h"
+#include "ni_routes.h"
 
 /* See Register-Level Programmer Manual page 3.1 */
 enum ni_660x_register {
@@ -259,6 +260,7 @@ struct ni_660x_private {
 	unsigned int dma_cfg[NI660X_MAX_CHIPS];
 	unsigned int io_cfg[NI660X_NUM_PFI_CHANNELS];
 	u64 io_dir;
+	struct ni_route_tables routing_tables;
 };
 
 static void ni_660x_write(struct comedi_device *dev, unsigned int chip,
@@ -730,12 +732,23 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 
 	ni_660x_init_tio_chips(dev, board->n_chips);
 
+	/* prepare the device for globally-named routes. */
+	if (ni_assign_device_routes("ni_660x", board->name,
+				    &devpriv->routing_tables) < 0) {
+		dev_warn(dev->class_dev, "%s: %s device has no signal routing table.\n",
+			 __func__, board->name);
+		dev_warn(dev->class_dev, "%s: High level NI signal names will not be available for this %s board.\n",
+			 __func__, board->name);
+	}
+
 	n_counters = board->n_chips * NI660X_COUNTERS_PER_CHIP;
 	gpct_dev = ni_gpct_device_construct(dev,
 					    ni_660x_gpct_write,
 					    ni_660x_gpct_read,
 					    ni_gpct_variant_660x,
-					    n_counters);
+					    n_counters,
+					    NI660X_COUNTERS_PER_CHIP,
+					    &devpriv->routing_tables);
 	if (!gpct_dev)
 		return -ENOMEM;
 	devpriv->counter_dev = gpct_dev;
@@ -830,9 +843,6 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 		s = &dev->subdevices[subdev++];
 		if (i < n_counters) {
 			struct ni_gpct *counter = &gpct_dev->counters[i];
-
-			counter->chip_index = i / NI660X_COUNTERS_PER_CHIP;
-			counter->counter_index = i % NI660X_COUNTERS_PER_CHIP;
 
 			s->type		= COMEDI_SUBD_COUNTER;
 			s->subdev_flags	= SDF_READABLE | SDF_WRITABLE |

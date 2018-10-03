@@ -6213,7 +6213,9 @@ static int ni_E_init(struct comedi_device *dev,
 					(devpriv->is_m_series)
 						? ni_gpct_variant_m_series
 						: ni_gpct_variant_e_series,
-					NUM_GPCT);
+					NUM_GPCT,
+					NUM_GPCT,
+					&devpriv->routing_tables);
 	if (!devpriv->counter_dev)
 		return -ENOMEM;
 
@@ -6222,8 +6224,6 @@ static int ni_E_init(struct comedi_device *dev,
 		struct ni_gpct *gpct = &devpriv->counter_dev->counters[i];
 
 		/* setup and initialize the counter */
-		gpct->chip_index = 0;
-		gpct->counter_index = i;
 		ni_tio_init_counter(gpct);
 
 		s = &dev->subdevices[NI_GPCT_SUBDEV(i)];
