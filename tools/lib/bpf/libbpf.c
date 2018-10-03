@@ -1379,7 +1379,7 @@ out:
 
 int
 bpf_program__load(struct bpf_program *prog,
-		  char *license, u32 kern_version)
+		  char *license, __u32 kern_version)
 {
 	int err = 0, fd, i;
 
