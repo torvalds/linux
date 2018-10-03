@@ -5644,6 +5644,8 @@ static int get_output_select_source(int dest, struct comedi_device *dev)
 			/* there are only two g_out outputs. */
 			return -EINVAL;
 		reg = ni_get_gout_routing(dest, dev);
+	} else if (channel_is_ctr(dest)) {
+		reg = ni_tio_get_routing(devpriv->counter_dev, dest);
 	} else {
 		dev_dbg(dev->class_dev, "%s: unhandled destination (%d) queried\n",
 			__func__, dest);
@@ -5732,6 +5734,13 @@ static int connect_route(unsigned int src, unsigned int dest,
 			return -EINVAL;
 		if (ni_set_gout_routing(src, dest, dev))
 			return -EINVAL;
+	} else if (channel_is_ctr(dest)) {
+		/*
+		 * we are adding back the channel modifier info to set
+		 * invert/edge info passed by the user
+		 */
+		ni_tio_set_routing(devpriv->counter_dev, dest,
+				   reg | (src & ~CR_CHAN(-1)));
 	} else {
 		return -EINVAL;
 	}
@@ -5790,6 +5799,8 @@ static int disconnect_route(unsigned int src, unsigned int dest,
 			/* there are only two g_out outputs. */
 			return -EINVAL;
 		reg = ni_disable_gout_routing(dest, dev);
+	} else if (channel_is_ctr(dest)) {
+		ni_tio_unset_routing(devpriv->counter_dev, dest);
 	} else {
 		return -EINVAL;
 	}
