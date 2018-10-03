@@ -101,12 +101,16 @@ static inline void gfs2_setbit(const struct gfs2_rbm *rbm, bool do_clone,
 	cur_state = (*byte1 >> bit) & GFS2_BIT_MASK;
 
 	if (unlikely(!valid_change[new_state * 4 + cur_state])) {
-		pr_warn("buf_blk = 0x%x old_state=%d, new_state=%d\n",
+		struct gfs2_sbd *sdp = rbm->rgd->rd_sbd;
+
+		fs_warn(sdp, "buf_blk = 0x%x old_state=%d, new_state=%d\n",
 			rbm->offset, cur_state, new_state);
-		pr_warn("rgrp=0x%llx bi_start=0x%x\n",
-			(unsigned long long)rbm->rgd->rd_addr, bi->bi_start);
-		pr_warn("bi_offset=0x%x bi_len=0x%x\n",
-			bi->bi_offset, bi->bi_len);
+		fs_warn(sdp, "rgrp=0x%llx bi_start=0x%x biblk: 0x%llx\n",
+			(unsigned long long)rbm->rgd->rd_addr, bi->bi_start,
+			(unsigned long long)bi->bi_bh->b_blocknr);
+		fs_warn(sdp, "bi_offset=0x%x bi_len=0x%x block=0x%llx\n",
+			bi->bi_offset, bi->bi_len,
+			(unsigned long long)gfs2_rbm_to_block(rbm));
 		dump_stack();
 		gfs2_consist_rgrpd(rbm->rgd);
 		return;
@@ -738,11 +742,13 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 
 static void gfs2_rindex_print(const struct gfs2_rgrpd *rgd)
 {
-	pr_info("ri_addr = %llu\n", (unsigned long long)rgd->rd_addr);
-	pr_info("ri_length = %u\n", rgd->rd_length);
-	pr_info("ri_data0 = %llu\n", (unsigned long long)rgd->rd_data0);
-	pr_info("ri_data = %u\n", rgd->rd_data);
-	pr_info("ri_bitbytes = %u\n", rgd->rd_bitbytes);
+	struct gfs2_sbd *sdp = rgd->rd_sbd;
+
+	fs_info(sdp, "ri_addr = %llu\n", (unsigned long long)rgd->rd_addr);
+	fs_info(sdp, "ri_length = %u\n", rgd->rd_length);
+	fs_info(sdp, "ri_data0 = %llu\n", (unsigned long long)rgd->rd_data0);
+	fs_info(sdp, "ri_data = %u\n", rgd->rd_data);
+	fs_info(sdp, "ri_bitbytes = %u\n", rgd->rd_bitbytes);
 }
 
 /**
@@ -2423,7 +2429,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 		}
 	}
 	if (rbm.rgd->rd_free < *nblocks) {
-		pr_warn("nblocks=%u\n", *nblocks);
+		fs_warn(sdp, "nblocks=%u\n", *nblocks);
 		goto rgrp_error;
 	}
 
