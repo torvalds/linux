@@ -284,11 +284,15 @@
 #define NISTC_ATRIG_ETC_REG		61
 #define NISTC_ATRIG_ETC_GPFO_1_ENA	BIT(15)
 #define NISTC_ATRIG_ETC_GPFO_0_ENA	BIT(14)
-#define NISTC_ATRIG_ETC_GPFO_0_SEL(x)	(((x) & 0x3) << 11)
+#define NISTC_ATRIG_ETC_GPFO_0_SEL(x)	(((x) & 0x7) << 11)
+#define NISTC_ATRIG_ETC_GPFO_0_SEL_TO_SRC(x)	(((x) >> 11) & 0x7)
 #define NISTC_ATRIG_ETC_GPFO_1_SEL	BIT(7)
+#define NISTC_ATRIG_ETC_GPFO_1_SEL_TO_SRC(x)	(((x) >> 7) & 0x1)
 #define NISTC_ATRIG_ETC_DRV		BIT(4)
 #define NISTC_ATRIG_ETC_ENA		BIT(3)
 #define NISTC_ATRIG_ETC_MODE(x)		(((x) & 0x7) << 0)
+#define NISTC_GPFO_0_G_OUT		0 /* input to GPFO_0_SEL for Ctr0Out */
+#define NISTC_GPFO_1_G_OUT		0 /* input to GPFO_1_SEL for Ctr1Out */
 
 #define NISTC_AI_START_STOP_REG		62
 #define NISTC_AI_START_POLARITY		BIT(15)

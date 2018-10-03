@@ -5532,6 +5532,77 @@ static void ni_rtsi_init(struct comedi_device *dev)
 	set_rgout0_reg(0, dev);
 }
 
+/* Get route of GPFO_i/CtrOut pins */
+static inline int ni_get_gout_routing(unsigned int dest,
+				      struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+	unsigned int reg = devpriv->an_trig_etc_reg;
+
+	switch (dest) {
+	case 0:
+		if (reg & NISTC_ATRIG_ETC_GPFO_0_ENA)
+			return NISTC_ATRIG_ETC_GPFO_0_SEL_TO_SRC(reg);
+		break;
+	case 1:
+		if (reg & NISTC_ATRIG_ETC_GPFO_1_ENA)
+			return NISTC_ATRIG_ETC_GPFO_1_SEL_TO_SRC(reg);
+		break;
+	}
+
+	return -EINVAL;
+}
+
+/* Set route of GPFO_i/CtrOut pins */
+static inline int ni_disable_gout_routing(unsigned int dest,
+					  struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+
+	switch (dest) {
+	case 0:
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_0_ENA;
+		break;
+	case 1:
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_1_ENA;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ni_stc_writew(dev, devpriv->an_trig_etc_reg, NISTC_ATRIG_ETC_REG);
+	return 0;
+}
+
+/* Set route of GPFO_i/CtrOut pins */
+static inline int ni_set_gout_routing(unsigned int src, unsigned int dest,
+				      struct comedi_device *dev)
+{
+	struct ni_private *devpriv = dev->private;
+
+	switch (dest) {
+	case 0:
+		/* clear reg */
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_0_SEL(-1);
+		/* set reg */
+		devpriv->an_trig_etc_reg |= NISTC_ATRIG_ETC_GPFO_0_ENA
+					 |  NISTC_ATRIG_ETC_GPFO_0_SEL(src);
+		break;
+	case 1:
+		/* clear reg */
+		devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_GPFO_1_SEL;
+		src = src ? NISTC_ATRIG_ETC_GPFO_1_SEL : 0;
+		/* set reg */
+		devpriv->an_trig_etc_reg |= NISTC_ATRIG_ETC_GPFO_1_ENA | src;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ni_stc_writew(dev, devpriv->an_trig_etc_reg, NISTC_ATRIG_ETC_REG);
+	return 0;
+}
+
 /*
  * Retrieves the current source of the output selector for the given
  * destination.  If the terminal for the destination is not already configured
@@ -5563,6 +5634,16 @@ static int get_output_select_source(int dest, struct comedi_device *dev)
 				reg = get_ith_rtsi_brd_reg(i, dev);
 			}
 		}
+	} else if (dest >= NI_CtrOut(0) && dest <= NI_CtrOut(-1)) {
+		/*
+		 * not handled by ni_tio.  Only available for GPFO registers in
+		 * e/m series.
+		 */
+		dest -= NI_CtrOut(0);
+		if (dest > 1)
+			/* there are only two g_out outputs. */
+			return -EINVAL;
+		reg = ni_get_gout_routing(dest, dev);
 	} else {
 		dev_dbg(dev->class_dev, "%s: unhandled destination (%d) queried\n",
 			__func__, dest);
@@ -5640,6 +5721,17 @@ static int connect_route(unsigned int src, unsigned int dest,
 
 		ni_set_rtsi_direction(dev, dest, COMEDI_OUTPUT);
 		ni_set_rtsi_routing(dev, dest, reg);
+	} else if (dest >= NI_CtrOut(0) && dest <= NI_CtrOut(-1)) {
+		/*
+		 * not handled by ni_tio.  Only available for GPFO registers in
+		 * e/m series.
+		 */
+		dest -= NI_CtrOut(0);
+		if (dest > 1)
+			/* there are only two g_out outputs. */
+			return -EINVAL;
+		if (ni_set_gout_routing(src, dest, dev))
+			return -EINVAL;
 	} else {
 		return -EINVAL;
 	}
@@ -5688,6 +5780,16 @@ static int disconnect_route(unsigned int src, unsigned int dest,
 		reg = default_rtsi_routing[dest - TRIGGER_LINE(0)];
 		ni_set_rtsi_direction(dev, dest, COMEDI_INPUT);
 		ni_set_rtsi_routing(dev, dest, reg);
+	} else if (dest >= NI_CtrOut(0) && dest <= NI_CtrOut(-1)) {
+		/*
+		 * not handled by ni_tio.  Only available for GPFO registers in
+		 * e/m series.
+		 */
+		dest -= NI_CtrOut(0);
+		if (dest > 1)
+			/* there are only two g_out outputs. */
+			return -EINVAL;
+		reg = ni_disable_gout_routing(dest, dev);
 	} else {
 		return -EINVAL;
 	}
@@ -6146,6 +6248,10 @@ static int ni_E_init(struct comedi_device *dev,
 #endif
 		s->private	= gpct;
 	}
+
+	/* Initialize GPFO_{0,1} to produce output of counters */
+	ni_set_gout_routing(0, 0, dev); /* output of counter 0; DAQ STC, p338 */
+	ni_set_gout_routing(0, 1, dev); /* output of counter 1; DAQ STC, p338 */
 
 	/* Frequency output subdevice */
 	s = &dev->subdevices[NI_FREQ_OUT_SUBDEV];
