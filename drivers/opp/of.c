@@ -614,16 +614,18 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_cpumask_remove_table);
 int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 {
 	struct device *cpu_dev;
-	int cpu, ret = 0;
+	int cpu, ret;
 
-	WARN_ON(cpumask_empty(cpumask));
+	if (WARN_ON(cpumask_empty(cpumask)))
+		return -ENODEV;
 
 	for_each_cpu(cpu, cpumask) {
 		cpu_dev = get_cpu_device(cpu);
 		if (!cpu_dev) {
 			pr_err("%s: failed to get cpu%d device\n", __func__,
 			       cpu);
-			continue;
+			ret = -ENODEV;
+			goto remove_table;
 		}
 
 		ret = dev_pm_opp_of_add_table(cpu_dev);
@@ -635,11 +637,15 @@ int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask)
 			pr_debug("%s: couldn't find opp table for cpu:%d, %d\n",
 				 __func__, cpu, ret);
 
-			/* Free all other OPPs */
-			_dev_pm_opp_cpumask_remove_table(cpumask, cpu);
-			break;
+			goto remove_table;
 		}
 	}
+
+	return 0;
+
+remove_table:
+	/* Free all other OPPs */
+	_dev_pm_opp_cpumask_remove_table(cpumask, cpu);
 
 	return ret;
 }
