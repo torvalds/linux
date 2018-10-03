@@ -1128,8 +1128,6 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 		intel_psr_disable_locked(intel_dp);
 	/* clear status register */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, val);
-
-	/* TODO: handle PSR2 errors */
 exit:
 	mutex_unlock(&psr->lock);
 }
