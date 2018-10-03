@@ -1308,8 +1308,7 @@ static int adf7242_remove(struct spi_device *spi)
 {
 	struct adf7242_local *lp = spi_get_drvdata(spi);
 
-	if (!IS_ERR_OR_NULL(lp->debugfs_root))
-		debugfs_remove_recursive(lp->debugfs_root);
+	debugfs_remove_recursive(lp->debugfs_root);
 
 	cancel_delayed_work_sync(&lp->work);
 	destroy_workqueue(lp->wqueue);

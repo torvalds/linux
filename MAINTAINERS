@@ -2956,7 +2956,6 @@ F:	include/linux/bcm963xx_tag.h
 
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
 M:	Rasesh Mody <rasesh.mody@cavium.com>
-M:	Harish Patil <harish.patil@cavium.com>
 M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -2977,6 +2976,7 @@ F:	drivers/scsi/bnx2i/
 
 BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
 M:	Ariel Elior <ariel.elior@cavium.com>
+M:	Sudarsana Kalluru <sudarsana.kalluru@cavium.com>
 M:	everest-linux-l2@cavium.com
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -5470,7 +5470,8 @@ S:	Odd Fixes
 F:	drivers/net/ethernet/agere/
 
 ETHERNET BRIDGE
-M:	Stephen Hemminger <stephen@networkplumber.org>
+M:	Roopa Prabhu <roopa@cumulusnetworks.com>
+M:	Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
 L:	bridge@lists.linux-foundation.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net:Bridge
@@ -11979,7 +11980,7 @@ F:	Documentation/scsi/LICENSE.qla4xxx
 F:	drivers/scsi/qla4xxx/
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
-M:	Harish Patil <harish.patil@cavium.com>
+M:	Shahed Shaikh <Shahed.Shaikh@cavium.com>
 M:	Manish Chopra <manish.chopra@cavium.com>
 M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
@@ -11987,7 +11988,6 @@ S:	Supported
 F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Harish Patil <harish.patil@cavium.com>
 M:	Manish Chopra <manish.chopra@cavium.com>
 M:	Dept-GELinuxNICDev@cavium.com
 L:	netdev@vger.kernel.org
