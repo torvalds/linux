@@ -354,6 +354,14 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		if (!ring || !ring->ready)
 			continue;
 
+		/* skip IB tests for KIQ in general for the below reasons:
+		 * 1. We never submit IBs to the KIQ
+		 * 2. KIQ doesn't use the EOP interrupts,
+		 *    we use some other CP interrupt.
+		 */
+		if (ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+			continue;
+
 		/* MM engine need more time */
 		if (ring->funcs->type == AMDGPU_RING_TYPE_UVD ||
 			ring->funcs->type == AMDGPU_RING_TYPE_VCE ||
