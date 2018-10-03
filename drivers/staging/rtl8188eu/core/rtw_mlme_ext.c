@@ -3836,24 +3836,20 @@ Following are the initialization functions for WiFi MLME
 *****************************************************************************/
 
 static struct mlme_handler mlme_sta_tbl[] = {
-	{WIFI_ASSOCREQ,		"OnAssocReq",	&OnAssocReq},
-	{WIFI_ASSOCRSP,		"OnAssocRsp",	&OnAssocRsp},
-	{WIFI_REASSOCREQ,	"OnReAssocReq",	&OnAssocReq},
-	{WIFI_REASSOCRSP,	"OnReAssocRsp",	&OnAssocRsp},
-	{WIFI_PROBEREQ,		"OnProbeReq",	&OnProbeReq},
-	{WIFI_PROBERSP,		"OnProbeRsp",		&OnProbeRsp},
-
-	/*----------------------------------------------------------
-					below 2 are reserved
-	-----------------------------------------------------------*/
-	{0,					"DoReserved",		&DoReserved},
-	{0,					"DoReserved",		&DoReserved},
-	{WIFI_BEACON,		"OnBeacon",		&OnBeacon},
-	{WIFI_ATIM,			"OnATIM",		&OnAtim},
-	{WIFI_DISASSOC,		"OnDisassoc",		&OnDisassoc},
-	{WIFI_AUTH,			"OnAuth",		&OnAuthClient},
-	{WIFI_DEAUTH,		"OnDeAuth",		&OnDeAuth},
-	{WIFI_ACTION,		"OnAction",		&OnAction},
+	{WIFI_ASSOCREQ,	  "OnAssocReq",	  &OnAssocReq},
+	{WIFI_ASSOCRSP,	  "OnAssocRsp",	  &OnAssocRsp},
+	{WIFI_REASSOCREQ, "OnReAssocReq", &OnAssocReq},
+	{WIFI_REASSOCRSP, "OnReAssocRsp", &OnAssocRsp},
+	{WIFI_PROBEREQ,	  "OnProbeReq",	  &OnProbeReq},
+	{WIFI_PROBERSP,	  "OnProbeRsp",	  &OnProbeRsp},
+	{0,		  "DoReserved",	  &DoReserved},
+	{0,		  "DoReserved",	  &DoReserved},
+	{WIFI_BEACON,	  "OnBeacon",	  &OnBeacon},
+	{WIFI_ATIM,	  "OnATIM",	  &OnAtim},
+	{WIFI_DISASSOC,	  "OnDisassoc",	  &OnDisassoc},
+	{WIFI_AUTH,	  "OnAuth",	  &OnAuthClient},
+	{WIFI_DEAUTH,	  "OnDeAuth",	  &OnDeAuth},
+	{WIFI_ACTION,	  "OnAction",	  &OnAction},
 };
 
 int init_hw_mlme_ext(struct adapter *padapter)
