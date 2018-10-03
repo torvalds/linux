@@ -2001,7 +2001,7 @@ snic_dr_finish(struct snic *snic, struct scsi_cmnd *sc)
 	}
 
 dr_failed:
-	SNIC_BUG_ON(!spin_is_locked(io_lock));
+	lockdep_assert_held(io_lock);
 	if (rqi)
 		CMD_SP(sc) = NULL;
 	spin_unlock_irqrestore(io_lock, flags);
@@ -2604,7 +2604,7 @@ snic_internal_abort_io(struct snic *snic, struct scsi_cmnd *sc, int tmf)
 	ret = SUCCESS;
 
 skip_internal_abts:
-	SNIC_BUG_ON(!spin_is_locked(io_lock));
+	lockdep_assert_held(io_lock);
 	spin_unlock_irqrestore(io_lock, flags);
 
 	return ret;
