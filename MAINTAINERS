@@ -7475,7 +7475,6 @@ M:	Rajneesh Bhardwaj <rajneesh.bhardwaj@intel.com>
 M:	Vishwanath Somayaji <vishwanath.somayaji@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-F:	arch/x86/include/asm/pmc_core.h
 F:	drivers/platform/x86/intel_pmc_core*
 
 INTEL PMC/P-Unit IPC DRIVER
