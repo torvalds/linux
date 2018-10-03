@@ -3957,7 +3957,7 @@ static void init_channel_list(struct adapter *padapter,
 			if (!has_channel(channel_set, chanset_size, ch))
 				continue;
 
-			if ((0 == padapter->registrypriv.ht_enable) && (8 == o->inc))
+			if (!padapter->registrypriv.ht_enable && o->inc == 8)
 				continue;
 
 			if ((0 == (padapter->registrypriv.cbw40_enable & BIT(1))) &&
