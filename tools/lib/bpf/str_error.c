@@ -9,7 +9,7 @@
  * libc, while checking strerror_r() return to avoid having to check this in
  * all places calling it.
  */
-char *str_error(int err, char *dst, int len)
+char *libbpf_strerror_r(int err, char *dst, int len)
 {
 	int ret = strerror_r(err, dst, len);
 	if (ret)
