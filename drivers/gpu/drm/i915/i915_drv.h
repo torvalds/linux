@@ -634,7 +634,6 @@ struct i915_psr {
 	bool sink_psr2_support;
 	bool link_standby;
 	bool colorimetry_support;
-	bool alpm;
 	bool psr2_enabled;
 	u8 sink_sync_latency;
 	ktime_t last_entry_attempt;
