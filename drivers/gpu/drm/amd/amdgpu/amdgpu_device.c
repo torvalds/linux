@@ -1723,7 +1723,7 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	int i = 0, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.valid)
+		if (!adev->ip_blocks[i].status.hw)
 			continue;
 		if (adev->ip_blocks[i].version->funcs->late_init) {
 			r = adev->ip_blocks[i].version->funcs->late_init((void *)adev);
@@ -1732,8 +1732,8 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
 			}
-			adev->ip_blocks[i].status.late_initialized = true;
 		}
+		adev->ip_blocks[i].status.late_initialized = true;
 	}
 
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
