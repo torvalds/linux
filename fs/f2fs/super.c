@@ -3190,11 +3190,9 @@ try_onemore:
 	/* Enable quota usage during mount */
 	if (f2fs_sb_has_quota_ino(sb) && !f2fs_readonly(sb)) {
 		err = f2fs_enable_quotas(sb);
-		if (err) {
+		if (err)
 			f2fs_msg(sb, KERN_ERR,
 				"Cannot turn on quotas: error %d", err);
-			goto free_sysfs;
-		}
 	}
 #endif
 	/* if there are nt orphan nodes free them */
@@ -3295,9 +3293,6 @@ free_meta:
 	 * falls into an infinite loop in f2fs_sync_meta_pages().
 	 */
 	truncate_inode_pages_final(META_MAPPING(sbi));
-#ifdef CONFIG_QUOTA
-free_sysfs:
-#endif
 	f2fs_unregister_sysfs(sbi);
 free_root_inode:
 	dput(sb->s_root);
