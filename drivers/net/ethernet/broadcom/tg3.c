@@ -9278,6 +9278,15 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_restore_clk(tp);
 
+	/* Increase the core clock speed to fix tx timeout issue for 5762
+	 * with 100Mbps link speed.
+	 */
+	if (tg3_asic_rev(tp) == ASIC_REV_5762) {
+		val = tr32(TG3_CPMU_CLCK_ORIDE_ENABLE);
+		tw32(TG3_CPMU_CLCK_ORIDE_ENABLE, val |
+		     TG3_CPMU_MAC_ORIDE_ENABLE);
+	}
+
 	/* Reprobe ASF enable state.  */
 	tg3_flag_clear(tp, ENABLE_ASF);
 	tp->phy_flags &= ~(TG3_PHYFLG_1G_ON_VAUX_OK |

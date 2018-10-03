@@ -643,7 +643,7 @@ static ssize_t ocrdma_dbgfs_ops_write(struct file *filp,
 	struct ocrdma_stats *pstats = filp->private_data;
 	struct ocrdma_dev *dev = pstats->dev;
 
-	if (count > 32)
+	if (*ppos != 0 || count == 0 || count > sizeof(tmp_str))
 		goto err;
 
 	if (copy_from_user(tmp_str, buffer, count))

@@ -2113,6 +2113,8 @@ static void ahci_set_aggressive_devslp(struct ata_port *ap, bool sleep)
 		deto = 20;
 	}
 
+	/* Make dito, mdat, deto bits to 0s */
+	devslp &= ~GENMASK_ULL(24, 2);
 	devslp |= ((dito << PORT_DEVSLP_DITO_OFFSET) |
 		   (mdat << PORT_DEVSLP_MDAT_OFFSET) |
 		   (deto << PORT_DEVSLP_DETO_OFFSET) |

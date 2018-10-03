@@ -1277,6 +1277,11 @@ void __bnx2x_link_report(struct bnx2x *bp)
 {
 	struct bnx2x_link_report_data cur_data;
 
+	if (bp->force_link_down) {
+		bp->link_vars.link_up = 0;
+		return;
+	}
+
 	/* reread mf_cfg */
 	if (IS_PF(bp) && !CHIP_IS_E1(bp))
 		bnx2x_read_mf_cfg(bp);
@@ -2840,6 +2845,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		bp->pending_max = 0;
 	}
 
+	bp->force_link_down = false;
 	if (bp->port.pmf) {
 		rc = bnx2x_initial_phy_init(bp, load_mode);
 		if (rc)

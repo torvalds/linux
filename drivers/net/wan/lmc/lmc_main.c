@@ -1385,7 +1385,7 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
             case 0x001:
                 printk(KERN_WARNING "%s: Master Abort (naughty)\n", dev->name);
                 break;
-            case 0x010:
+            case 0x002:
                 printk(KERN_WARNING "%s: Target Abort (not so naughty)\n", dev->name);
                 break;
             default:

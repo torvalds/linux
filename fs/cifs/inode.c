@@ -1063,6 +1063,8 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, unsigned int xid,
 	if (!server->ops->set_file_info)
 		return -ENOSYS;
 
+	info_buf.Pad = 0;
+
 	if (attrs->ia_valid & ATTR_ATIME) {
 		set_time = true;
 		info_buf.LastAccessTime =

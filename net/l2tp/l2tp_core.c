@@ -1145,7 +1145,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 
 	/* Get routing info from the tunnel socket */
 	skb_dst_drop(skb);
-	skb_dst_set(skb, dst_clone(__sk_dst_check(sk, 0)));
+	skb_dst_set(skb, sk_dst_check(sk, 0));
 
 	inet = inet_sk(sk);
 	fl = &inet->cork.fl;

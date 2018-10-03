@@ -469,12 +469,8 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 		goto tx_err_dst_release;
 	}
 
-	skb_scrub_packet(skb, !net_eq(t->net, dev_net(dev)));
-	skb_dst_set(skb, dst);
-	skb->dev = skb_dst(skb)->dev;
-
 	mtu = dst_mtu(dst);
-	if (!skb->ignore_df && skb->len > mtu) {
+	if (skb->len > mtu) {
 		skb_dst(skb)->ops->update_pmtu(dst, NULL, skb, mtu);
 
 		if (skb->protocol == htons(ETH_P_IPV6)) {
@@ -487,8 +483,13 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 				  htonl(mtu));
 		}
 
-		return -EMSGSIZE;
+		err = -EMSGSIZE;
+		goto tx_err_dst_release;
 	}
+
+	skb_scrub_packet(skb, !net_eq(t->net, dev_net(dev)));
+	skb_dst_set(skb, dst);
+	skb->dev = skb_dst(skb)->dev;
 
 	err = dst_output(t->net, skb->sk, skb);
 	if (net_xmit_eval(err) == 0) {

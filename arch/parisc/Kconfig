@@ -178,7 +178,7 @@ config PREFETCH
 
 config MLONGCALLS
 	bool "Enable the -mlong-calls compiler option for big kernels"
-	def_bool y if (!MODULES)
+	default y
 	depends on PA8X00
 	help
 	  If you configure the kernel to include many drivers built-in instead

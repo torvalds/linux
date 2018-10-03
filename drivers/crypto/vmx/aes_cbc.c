@@ -111,24 +111,23 @@ static int p8_aes_cbc_encrypt(struct blkcipher_desc *desc,
 		ret = crypto_blkcipher_encrypt(&fallback_desc, dst, src,
 					       nbytes);
 	} else {
-		preempt_disable();
-		pagefault_disable();
-		enable_kernel_altivec();
-		enable_kernel_vsx();
-
 		blkcipher_walk_init(&walk, dst, src, nbytes);
 		ret = blkcipher_walk_virt(desc, &walk);
 		while ((nbytes = walk.nbytes)) {
+			preempt_disable();
+			pagefault_disable();
+			enable_kernel_vsx();
+			enable_kernel_altivec();
 			aes_p8_cbc_encrypt(walk.src.virt.addr,
 					   walk.dst.virt.addr,
 					   nbytes & AES_BLOCK_MASK,
 					   &ctx->enc_key, walk.iv, 1);
+			pagefault_enable();
+			preempt_enable();
+
 			nbytes &= AES_BLOCK_SIZE - 1;
 			ret = blkcipher_walk_done(desc, &walk, nbytes);
 		}
-
-		pagefault_enable();
-		preempt_enable();
 	}
 
 	return ret;
@@ -152,24 +151,23 @@ static int p8_aes_cbc_decrypt(struct blkcipher_desc *desc,
 		ret = crypto_blkcipher_decrypt(&fallback_desc, dst, src,
 					       nbytes);
 	} else {
-		preempt_disable();
-		pagefault_disable();
-		enable_kernel_altivec();
-		enable_kernel_vsx();
-
 		blkcipher_walk_init(&walk, dst, src, nbytes);
 		ret = blkcipher_walk_virt(desc, &walk);
 		while ((nbytes = walk.nbytes)) {
+			preempt_disable();
+			pagefault_disable();
+			enable_kernel_vsx();
+			enable_kernel_altivec();
 			aes_p8_cbc_encrypt(walk.src.virt.addr,
 					   walk.dst.virt.addr,
 					   nbytes & AES_BLOCK_MASK,
 					   &ctx->dec_key, walk.iv, 0);
+			pagefault_enable();
+			preempt_enable();
+
 			nbytes &= AES_BLOCK_SIZE - 1;
 			ret = blkcipher_walk_done(desc, &walk, nbytes);
 		}
-
-		pagefault_enable();
-		preempt_enable();
 	}
 
 	return ret;

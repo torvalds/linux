@@ -902,6 +902,8 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		ret = lan78xx_update_flowcontrol(dev, ecmd.duplex, ladv, radv);
 		netif_carrier_on(dev->net);
+
+		tasklet_schedule(&dev->bh);
 	}
 
 	return ret;

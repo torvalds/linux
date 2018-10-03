@@ -977,7 +977,7 @@ int omapfb_register_client(struct omapfb_notifier_block *omapfb_nb,
 {
 	int r;
 
-	if ((unsigned)omapfb_nb->plane_idx > OMAPFB_PLANE_NUM)
+	if ((unsigned)omapfb_nb->plane_idx >= OMAPFB_PLANE_NUM)
 		return -EINVAL;
 
 	if (!notifier_inited) {

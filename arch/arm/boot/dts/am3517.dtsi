@@ -74,6 +74,11 @@
 	};
 };
 
+/* Table Table 5-79 of the TRM shows 480ab000 is reserved */
+&usb_otg_hs {
+	status = "disabled";
+};
+
 &iva {
 	status = "disabled";
 };

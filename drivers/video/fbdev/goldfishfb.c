@@ -368,6 +368,7 @@ static int goldfish_fb_remove(struct platform_device *pdev)
 	dma_free_coherent(&pdev->dev, framesize, (void *)fb->fb.screen_base,
 						fb->fb.fix.smem_start);
 	iounmap(fb->reg_base);
+	kfree(fb);
 	return 0;
 }
 

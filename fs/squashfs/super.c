@@ -176,6 +176,7 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	msblk->inode_table = le64_to_cpu(sblk->inode_table_start);
 	msblk->directory_table = le64_to_cpu(sblk->directory_table_start);
 	msblk->inodes = le32_to_cpu(sblk->inodes);
+	msblk->fragments = le32_to_cpu(sblk->fragments);
 	flags = le16_to_cpu(sblk->flags);
 
 	TRACE("Found valid superblock on %s\n", bdevname(sb->s_bdev, b));
@@ -186,7 +187,7 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	TRACE("Filesystem size %lld bytes\n", msblk->bytes_used);
 	TRACE("Block size %d\n", msblk->block_size);
 	TRACE("Number of inodes %d\n", msblk->inodes);
-	TRACE("Number of fragments %d\n", le32_to_cpu(sblk->fragments));
+	TRACE("Number of fragments %d\n", msblk->fragments);
 	TRACE("Number of ids %d\n", le16_to_cpu(sblk->no_ids));
 	TRACE("sblk->inode_table_start %llx\n", msblk->inode_table);
 	TRACE("sblk->directory_table_start %llx\n", msblk->directory_table);
@@ -273,7 +274,7 @@ allocate_id_index_table:
 	sb->s_export_op = &squashfs_export_ops;
 
 handle_fragments:
-	fragments = le32_to_cpu(sblk->fragments);
+	fragments = msblk->fragments;
 	if (fragments == 0)
 		goto check_directory_table;
 

@@ -587,7 +587,7 @@ static int ismt_access(struct i2c_adapter *adap, u16 addr,
 
 	/* unmap the data buffer */
 	if (dma_size != 0)
-		dma_unmap_single(&adap->dev, dma_addr, dma_size, dma_direction);
+		dma_unmap_single(dev, dma_addr, dma_size, dma_direction);
 
 	if (unlikely(!time_left)) {
 		dev_err(dev, "completion wait timed out\n");

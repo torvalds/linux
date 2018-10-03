@@ -79,24 +79,33 @@ ENTRY(entry_SYSENTER_compat)
 	ASM_CLAC			/* Clear AC after saving FLAGS */
 
 	pushq	$__USER32_CS		/* pt_regs->cs */
-	xorq    %r8,%r8
-	pushq	%r8			/* pt_regs->ip = 0 (placeholder) */
+	pushq	$0			/* pt_regs->ip = 0 (placeholder) */
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
-	pushq   %r8                     /* pt_regs->r8  = 0 */
-	pushq   %r8                     /* pt_regs->r9  = 0 */
-	pushq   %r8                     /* pt_regs->r10 = 0 */
-	pushq   %r8                     /* pt_regs->r11 = 0 */
+	pushq   $0			/* pt_regs->r8  = 0 */
+	xorq	%r8, %r8		/* nospec   r8 */
+	pushq   $0			/* pt_regs->r9  = 0 */
+	xorq	%r9, %r9		/* nospec   r9 */
+	pushq   $0			/* pt_regs->r10 = 0 */
+	xorq	%r10, %r10		/* nospec   r10 */
+	pushq   $0			/* pt_regs->r11 = 0 */
+	xorq	%r11, %r11		/* nospec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
+	xorl	%ebx, %ebx		/* nospec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
-	pushq   %r8                     /* pt_regs->r12 = 0 */
-	pushq   %r8                     /* pt_regs->r13 = 0 */
-	pushq   %r8                     /* pt_regs->r14 = 0 */
-	pushq   %r8                     /* pt_regs->r15 = 0 */
+	xorl	%ebp, %ebp		/* nospec   rbp */
+	pushq   $0			/* pt_regs->r12 = 0 */
+	xorq	%r12, %r12		/* nospec   r12 */
+	pushq   $0			/* pt_regs->r13 = 0 */
+	xorq	%r13, %r13		/* nospec   r13 */
+	pushq   $0			/* pt_regs->r14 = 0 */
+	xorq	%r14, %r14		/* nospec   r14 */
+	pushq   $0			/* pt_regs->r15 = 0 */
+	xorq	%r15, %r15		/* nospec   r15 */
 	cld
 
 	/*
@@ -185,17 +194,26 @@ ENTRY(entry_SYSCALL_compat)
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rbp			/* pt_regs->cx (stashed in bp) */
 	pushq	$-ENOSYS		/* pt_regs->ax */
-	xorq    %r8,%r8
-	pushq   %r8                     /* pt_regs->r8  = 0 */
-	pushq   %r8                     /* pt_regs->r9  = 0 */
-	pushq   %r8                     /* pt_regs->r10 = 0 */
-	pushq   %r8                     /* pt_regs->r11 = 0 */
+	pushq   $0			/* pt_regs->r8  = 0 */
+	xorq	%r8, %r8		/* nospec   r8 */
+	pushq   $0			/* pt_regs->r9  = 0 */
+	xorq	%r9, %r9		/* nospec   r9 */
+	pushq   $0			/* pt_regs->r10 = 0 */
+	xorq	%r10, %r10		/* nospec   r10 */
+	pushq   $0			/* pt_regs->r11 = 0 */
+	xorq	%r11, %r11		/* nospec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
+	xorl	%ebx, %ebx		/* nospec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
-	pushq   %r8                     /* pt_regs->r12 = 0 */
-	pushq   %r8                     /* pt_regs->r13 = 0 */
-	pushq   %r8                     /* pt_regs->r14 = 0 */
-	pushq   %r8                     /* pt_regs->r15 = 0 */
+	xorl	%ebp, %ebp		/* nospec   rbp */
+	pushq   $0			/* pt_regs->r12 = 0 */
+	xorq	%r12, %r12		/* nospec   r12 */
+	pushq   $0			/* pt_regs->r13 = 0 */
+	xorq	%r13, %r13		/* nospec   r13 */
+	pushq   $0			/* pt_regs->r14 = 0 */
+	xorq	%r14, %r14		/* nospec   r14 */
+	pushq   $0			/* pt_regs->r15 = 0 */
+	xorq	%r15, %r15		/* nospec   r15 */
 
 	/*
 	 * User mode is traced as though IRQs are on, and SYSENTER
@@ -292,17 +310,26 @@ ENTRY(entry_INT80_compat)
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
-	xorq    %r8,%r8
-	pushq   %r8                     /* pt_regs->r8  = 0 */
-	pushq   %r8                     /* pt_regs->r9  = 0 */
-	pushq   %r8                     /* pt_regs->r10 = 0 */
-	pushq   %r8                     /* pt_regs->r11 = 0 */
+	pushq   $0			/* pt_regs->r8  = 0 */
+	xorq	%r8, %r8		/* nospec   r8 */
+	pushq   $0			/* pt_regs->r9  = 0 */
+	xorq	%r9, %r9		/* nospec   r9 */
+	pushq   $0			/* pt_regs->r10 = 0 */
+	xorq	%r10, %r10		/* nospec   r10 */
+	pushq   $0			/* pt_regs->r11 = 0 */
+	xorq	%r11, %r11		/* nospec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
+	xorl	%ebx, %ebx		/* nospec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp */
+	xorl	%ebp, %ebp		/* nospec   rbp */
 	pushq   %r12                    /* pt_regs->r12 */
+	xorq	%r12, %r12		/* nospec   r12 */
 	pushq   %r13                    /* pt_regs->r13 */
+	xorq	%r13, %r13		/* nospec   r13 */
 	pushq   %r14                    /* pt_regs->r14 */
+	xorq	%r14, %r14		/* nospec   r14 */
 	pushq   %r15                    /* pt_regs->r15 */
+	xorq	%r15, %r15		/* nospec   r15 */
 	cld
 
 	/*
