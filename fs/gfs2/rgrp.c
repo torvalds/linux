@@ -2668,13 +2668,12 @@ void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
  * gfs2_rlist_alloc - all RGs have been added to the rlist, now allocate
  *      and initialize an array of glock holders for them
  * @rlist: the list of resource groups
- * @state: the lock state to acquire the RG lock in
  *
  * FIXME: Don't use NOFAIL
  *
  */
 
-void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state)
+void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist)
 {
 	unsigned int x;
 
@@ -2683,7 +2682,7 @@ void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state)
 				      GFP_NOFS | __GFP_NOFAIL);
 	for (x = 0; x < rlist->rl_rgrps; x++)
 		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl,
-				state, 0,
+				LM_ST_EXCLUSIVE, 0,
 				&rlist->rl_ghs[x]);
 }
 
