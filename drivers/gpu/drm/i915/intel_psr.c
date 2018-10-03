@@ -580,28 +580,20 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		else
 			chicken &= ~VSC_DATA_SEL_SOFTWARE_CONTROL;
 		I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
-
-		I915_WRITE(EDP_PSR_DEBUG,
-			   EDP_PSR_DEBUG_MASK_MEMUP |
-			   EDP_PSR_DEBUG_MASK_HPD |
-			   EDP_PSR_DEBUG_MASK_LPSP |
-			   EDP_PSR_DEBUG_MASK_MAX_SLEEP |
-			   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
-	} else {
-		/*
-		 * Per Spec: Avoid continuous PSR exit by masking MEMUP
-		 * and HPD. also mask LPSP to avoid dependency on other
-		 * drivers that might block runtime_pm besides
-		 * preventing  other hw tracking issues now we can rely
-		 * on frontbuffer tracking.
-		 */
-		I915_WRITE(EDP_PSR_DEBUG,
-			   EDP_PSR_DEBUG_MASK_MEMUP |
-			   EDP_PSR_DEBUG_MASK_HPD |
-			   EDP_PSR_DEBUG_MASK_LPSP |
-			   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE |
-			   EDP_PSR_DEBUG_MASK_MAX_SLEEP);
 	}
+
+	/*
+	 * Per Spec: Avoid continuous PSR exit by masking MEMUP and HPD also
+	 * mask LPSP to avoid dependency on other drivers that might block
+	 * runtime_pm besides preventing  other hw tracking issues now we
+	 * can rely on frontbuffer tracking.
+	 */
+	I915_WRITE(EDP_PSR_DEBUG,
+		   EDP_PSR_DEBUG_MASK_MEMUP |
+		   EDP_PSR_DEBUG_MASK_HPD |
+		   EDP_PSR_DEBUG_MASK_LPSP |
+		   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE |
+		   EDP_PSR_DEBUG_MASK_MAX_SLEEP);
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
