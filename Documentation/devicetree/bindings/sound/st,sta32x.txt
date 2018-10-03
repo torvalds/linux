@@ -39,6 +39,9 @@ Optional properties:
   -  st,thermal-warning-recover:
 	If present, thermal warning recovery is enabled.
 
+  - st,fault-detect-recovery:
+	If present, fault detect recovery is enabled.
+
   -  st,thermal-warning-adjustment:
 	If present, thermal warning adjustment is enabled.
 
