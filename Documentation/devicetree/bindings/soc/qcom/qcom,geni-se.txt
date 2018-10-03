@@ -60,7 +60,6 @@ Required properties:
 - interrupts:		Must contain SPI controller interrupts.
 - clock-names:		Must contain "se".
 - clocks:		Serial engine core clock needed by the device.
-- spi-max-frequency:	Specifies maximum SPI clock frequency, units - Hz.
 - #address-cells:	Must be <1> to define a chip select address on
 			the SPI bus.
 - #size-cells:		Must be <0>.
@@ -112,7 +111,6 @@ Example:
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&qup_1_spi_2_active>;
 			pinctrl-1 = <&qup_1_spi_2_sleep>;
-			spi-max-frequency = <19200000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
