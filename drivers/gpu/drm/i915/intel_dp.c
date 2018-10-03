@@ -5003,19 +5003,14 @@ static bool icl_digital_port_connected(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_A:
-	case HPD_PORT_B:
+	if (intel_port_is_combophy(dev_priv, encoder->port))
 		return icl_combo_port_connected(dev_priv, dig_port);
-	case HPD_PORT_C:
-	case HPD_PORT_D:
-	case HPD_PORT_E:
-	case HPD_PORT_F:
+	else if (intel_port_is_tc(dev_priv, encoder->port))
 		return icl_tc_port_connected(dev_priv, dig_port);
-	default:
+	else
 		MISSING_CASE(encoder->hpd_pin);
-		return false;
-	}
+
+	return false;
 }
 
 /*
