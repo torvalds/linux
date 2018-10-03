@@ -164,7 +164,7 @@ static int ath10k_mac_get_rate_hw_value(int bitrate)
 	if (ath10k_mac_bitrate_is_cck(bitrate))
 		hw_value_prefix = WMI_RATE_PREAMBLE_CCK << 6;
 
-	for (i = 0; i < sizeof(ath10k_rates); i++) {
+	for (i = 0; i < ARRAY_SIZE(ath10k_rates); i++) {
 		if (ath10k_rates[i].bitrate == bitrate)
 			return hw_value_prefix | ath10k_rates[i].hw_value;
 	}
@@ -5682,22 +5682,22 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 			return;
 		}
 
-	sband = ar->hw->wiphy->bands[def.chan->band];
-	basic_rate_idx = ffs(vif->bss_conf.basic_rates) - 1;
-	bitrate = sband->bitrates[basic_rate_idx].bitrate;
+		sband = ar->hw->wiphy->bands[def.chan->band];
+		basic_rate_idx = ffs(vif->bss_conf.basic_rates) - 1;
+		bitrate = sband->bitrates[basic_rate_idx].bitrate;
 
-	hw_rate_code = ath10k_mac_get_rate_hw_value(bitrate);
-	if (hw_rate_code < 0) {
-		ath10k_warn(ar, "bitrate not supported %d\n", bitrate);
-		mutex_unlock(&ar->conf_mutex);
-		return;
-	}
+		hw_rate_code = ath10k_mac_get_rate_hw_value(bitrate);
+		if (hw_rate_code < 0) {
+			ath10k_warn(ar, "bitrate not supported %d\n", bitrate);
+			mutex_unlock(&ar->conf_mutex);
+			return;
+		}
 
-	vdev_param = ar->wmi.vdev_param->mgmt_rate;
-	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
-					hw_rate_code);
-	if (ret)
-		ath10k_warn(ar, "failed to set mgmt tx rate %d\n", ret);
+		vdev_param = ar->wmi.vdev_param->mgmt_rate;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+						hw_rate_code);
+		if (ret)
+			ath10k_warn(ar, "failed to set mgmt tx rate %d\n", ret);
 	}
 
 	mutex_unlock(&ar->conf_mutex);
