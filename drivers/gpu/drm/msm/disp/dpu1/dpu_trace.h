@@ -1004,6 +1004,53 @@ TRACE_EVENT(dpu_core_perf_update_clk,
 		  __entry->stop_req ? "true" : "false", __entry->clk_rate)
 );
 
+TRACE_EVENT(dpu_hw_ctl_update_pending_flush,
+	TP_PROTO(u32 new_bits, u32 pending_mask),
+	TP_ARGS(new_bits, pending_mask),
+	TP_STRUCT__entry(
+		__field(	u32,			new_bits	)
+		__field(	u32,			pending_mask	)
+	),
+	TP_fast_assign(
+		__entry->new_bits = new_bits;
+		__entry->pending_mask = pending_mask;
+	),
+	TP_printk("new=%x existing=%x", __entry->new_bits,
+		  __entry->pending_mask)
+);
+
+DECLARE_EVENT_CLASS(dpu_hw_ctl_pending_flush_template,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush),
+	TP_STRUCT__entry(
+		__field(	u32,			pending_mask	)
+		__field(	u32,			ctl_flush	)
+	),
+	TP_fast_assign(
+		__entry->pending_mask = pending_mask;
+		__entry->ctl_flush = ctl_flush;
+	),
+	TP_printk("pending_mask=%x CTL_FLUSH=%x", __entry->pending_mask,
+		  __entry->ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template, dpu_hw_ctl_clear_pending_flush,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template,
+	     dpu_hw_ctl_trigger_pending_flush,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template, dpu_hw_ctl_trigger_prepare,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template, dpu_hw_ctl_trigger_start,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
+);
+
 #define DPU_ATRACE_END(name) trace_tracing_mark_write(current->tgid, name, 0)
 #define DPU_ATRACE_BEGIN(name) trace_tracing_mark_write(current->tgid, name, 1)
 #define DPU_ATRACE_FUNC() DPU_ATRACE_BEGIN(__func__)

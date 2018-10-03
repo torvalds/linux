@@ -15,6 +15,7 @@
 #include "dpu_hw_ctl.h"
 #include "dpu_dbg.h"
 #include "dpu_kms.h"
+#include "dpu_trace.h"
 
 #define   CTL_LAYER(lm)                 \
 	(((lm) == LM_5) ? (0x024) : (((lm) - LM_0) * 0x004))
@@ -72,24 +73,39 @@ static int _mixer_stages(const struct dpu_lm_cfg *mixer, int count,
 	return stages;
 }
 
+static inline u32 dpu_hw_ctl_get_flush_register(struct dpu_hw_ctl *ctx)
+{
+	struct dpu_hw_blk_reg_map *c = &ctx->hw;
+
+	return DPU_REG_READ(c, CTL_FLUSH);
+}
+
 static inline void dpu_hw_ctl_trigger_start(struct dpu_hw_ctl *ctx)
 {
+	trace_dpu_hw_ctl_trigger_start(ctx->pending_flush_mask,
+				       dpu_hw_ctl_get_flush_register(ctx));
 	DPU_REG_WRITE(&ctx->hw, CTL_START, 0x1);
 }
 
 static inline void dpu_hw_ctl_trigger_pending(struct dpu_hw_ctl *ctx)
 {
+	trace_dpu_hw_ctl_trigger_prepare(ctx->pending_flush_mask,
+					 dpu_hw_ctl_get_flush_register(ctx));
 	DPU_REG_WRITE(&ctx->hw, CTL_PREPARE, 0x1);
 }
 
 static inline void dpu_hw_ctl_clear_pending_flush(struct dpu_hw_ctl *ctx)
 {
+	trace_dpu_hw_ctl_clear_pending_flush(ctx->pending_flush_mask,
+				     dpu_hw_ctl_get_flush_register(ctx));
 	ctx->pending_flush_mask = 0x0;
 }
 
 static inline void dpu_hw_ctl_update_pending_flush(struct dpu_hw_ctl *ctx,
 		u32 flushbits)
 {
+	trace_dpu_hw_ctl_update_pending_flush(flushbits,
+					      ctx->pending_flush_mask);
 	ctx->pending_flush_mask |= flushbits;
 }
 
@@ -103,15 +119,9 @@ static u32 dpu_hw_ctl_get_pending_flush(struct dpu_hw_ctl *ctx)
 
 static inline void dpu_hw_ctl_trigger_flush(struct dpu_hw_ctl *ctx)
 {
-
+	trace_dpu_hw_ctl_trigger_pending_flush(ctx->pending_flush_mask,
+				     dpu_hw_ctl_get_flush_register(ctx));
 	DPU_REG_WRITE(&ctx->hw, CTL_FLUSH, ctx->pending_flush_mask);
-}
-
-static inline u32 dpu_hw_ctl_get_flush_register(struct dpu_hw_ctl *ctx)
-{
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-
-	return DPU_REG_READ(c, CTL_FLUSH);
 }
 
 static inline uint32_t dpu_hw_ctl_get_bitmask_sspp(struct dpu_hw_ctl *ctx,
