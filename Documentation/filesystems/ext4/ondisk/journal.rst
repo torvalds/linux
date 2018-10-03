@@ -48,7 +48,7 @@ Layout
 Generally speaking, the journal has this format:
 
 .. list-table::
-   :widths: 1 1 78
+   :widths: 16 48 16
    :header-rows: 1
 
    * - Superblock
@@ -76,7 +76,7 @@ The journal superblock will be in the next full block after the
 superblock.
 
 .. list-table::
-   :widths: 1 1 1 1 76
+   :widths: 12 12 12 32 12
    :header-rows: 1
 
    * - 1024 bytes of padding
@@ -98,7 +98,7 @@ Every block in the journal starts with a common 12-byte header
 ``struct journal_header_s``:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -124,7 +124,7 @@ Every block in the journal starts with a common 12-byte header
 The journal block type can be any one of:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -154,7 +154,7 @@ The journal superblock is recorded as ``struct journal_superblock_s``,
 which is 1024 bytes long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -264,7 +264,7 @@ which is 1024 bytes long:
 The journal compat features are any combination of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -278,7 +278,7 @@ The journal compat features are any combination of the following:
 The journal incompat features are any combination of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -306,7 +306,7 @@ Journal checksum type codes are one of the following.  crc32 or crc32c are the
 most likely choices.
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -330,7 +330,7 @@ described by a data structure, but here is the block structure anyway.
 Descriptor blocks consume at least 36 bytes, but use a full block:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -355,7 +355,7 @@ defined as ``struct journal_block_tag3_s``, which looks like the
 following. The size is 16 or 32 bytes.
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -400,7 +400,7 @@ following. The size is 16 or 32 bytes.
 The journal tag flags are any combination of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -421,7 +421,7 @@ is defined as ``struct journal_block_tag_s``, which looks like the
 following. The size is 8, 12, 24, or 28 bytes:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -471,7 +471,7 @@ JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3 are set, the end of the block is a
 ``struct jbd2_journal_block_tail``, which looks like this:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -513,7 +513,7 @@ Revocation blocks are described in
 length, but use a full block:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -543,7 +543,7 @@ JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3 are set, the end of the revocation
 block is a ``struct jbd2_journal_revoke_tail``, which has this format:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -567,7 +567,7 @@ The commit block is described by ``struct commit_header``, which is 32
 bytes long (but uses a full block):
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset

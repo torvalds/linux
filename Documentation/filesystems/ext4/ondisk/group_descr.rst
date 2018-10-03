@@ -43,7 +43,7 @@ entire bitmap.
 The block group descriptor is laid out in ``struct ext4_group_desc``.
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -157,7 +157,7 @@ The block group descriptor is laid out in ``struct ext4_group_desc``.
 Block group flags can be any combination of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value

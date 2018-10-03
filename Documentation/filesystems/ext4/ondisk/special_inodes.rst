@@ -6,7 +6,7 @@ Special inodes
 ext4 reserves some inode for special features, as follows:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 6 70
    :header-rows: 1
 
    * - inode Number
