@@ -18,6 +18,9 @@
 #define SOL_NETLINK 270
 #endif
 
+typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, dump_nlmsg_t,
+			      void *cookie);
+
 int bpf_netlink_open(__u32 *nl_pid)
 {
 	struct sockaddr_nl sa;
