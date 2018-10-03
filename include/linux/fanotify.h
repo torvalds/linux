@@ -41,10 +41,16 @@
 /* Events that require a permission response from user */
 #define FANOTIFY_PERM_EVENTS	(FAN_OPEN_PERM | FAN_ACCESS_PERM)
 
+/* Extra flags that may be reported with event or control handling of events */
+#define FANOTIFY_EVENT_FLAGS	(FAN_EVENT_ON_CHILD | FAN_ONDIR)
+
 /* Events that may be reported to user */
 #define FANOTIFY_OUTGOING_EVENTS	(FANOTIFY_EVENTS | \
 					 FANOTIFY_PERM_EVENTS | \
 					 FAN_Q_OVERFLOW)
+
+#define ALL_FANOTIFY_EVENT_BITS		(FANOTIFY_OUTGOING_EVENTS | \
+					 FANOTIFY_EVENT_FLAGS)
 
 /* Do not use these old uapi constants internally */
 #undef FAN_ALL_CLASS_BITS
