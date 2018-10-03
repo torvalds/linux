@@ -1454,6 +1454,45 @@ static void hci_cc_le_write_def_data_len(struct hci_dev *hdev,
 	hdev->le_def_tx_time = le16_to_cpu(sent->tx_time);
 }
 
+static void hci_cc_le_add_to_resolv_list(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	struct hci_cp_le_add_to_resolv_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_ADD_TO_RESOLV_LIST);
+	if (!sent)
+		return;
+
+	hci_bdaddr_list_add_with_irk(&hdev->le_resolv_list, &sent->bdaddr,
+				sent->bdaddr_type, sent->peer_irk,
+				sent->local_irk);
+}
+
+static void hci_cc_le_del_from_resolv_list(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_cp_le_del_from_resolv_list *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_DEL_FROM_RESOLV_LIST);
+	if (!sent)
+		return;
+
+	hci_bdaddr_list_del_with_irk(&hdev->le_resolv_list, &sent->bdaddr,
+			    sent->bdaddr_type);
+}
+
 static void hci_cc_le_clear_resolv_list(struct hci_dev *hdev,
 				       struct sk_buff *skb)
 {
@@ -3277,6 +3316,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb,
 
 	case HCI_OP_LE_WRITE_DEF_DATA_LEN:
 		hci_cc_le_write_def_data_len(hdev, skb);
+		break;
+
+	case HCI_OP_LE_ADD_TO_RESOLV_LIST:
+		hci_cc_le_add_to_resolv_list(hdev, skb);
+		break;
+
+	case HCI_OP_LE_DEL_FROM_RESOLV_LIST:
+		hci_cc_le_del_from_resolv_list(hdev, skb);
 		break;
 
 	case HCI_OP_LE_CLEAR_RESOLV_LIST:

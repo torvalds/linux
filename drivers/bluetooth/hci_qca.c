@@ -167,7 +167,8 @@ struct qca_serdev {
 };
 
 static int qca_power_setup(struct hci_uart *hu, bool on);
-static void qca_power_shutdown(struct hci_dev *hdev);
+static void qca_power_shutdown(struct hci_uart *hu);
+static int qca_power_off(struct hci_dev *hdev);
 
 static void __serial_clock_on(struct tty_struct *tty)
 {
@@ -499,7 +500,6 @@ static int qca_open(struct hci_uart *hu)
 	hu->priv = qca;
 
 	if (hu->serdev) {
-		serdev_device_open(hu->serdev);
 
 		qcadev = serdev_device_get_drvdata(hu->serdev);
 		if (qcadev->btsoc_type != QCA_WCN3990) {
@@ -609,11 +609,10 @@ static int qca_close(struct hci_uart *hu)
 	if (hu->serdev) {
 		qcadev = serdev_device_get_drvdata(hu->serdev);
 		if (qcadev->btsoc_type == QCA_WCN3990)
-			qca_power_shutdown(hu->hdev);
+			qca_power_shutdown(hu);
 		else
 			gpiod_set_value_cansleep(qcadev->bt_en, 0);
 
-		serdev_device_close(hu->serdev);
 	}
 
 	kfree_skb(qca->rx_skb);
@@ -1101,7 +1100,25 @@ static int qca_set_speed(struct hci_uart *hu, enum qca_speed_type speed_type)
 static int qca_wcn3990_init(struct hci_uart *hu)
 {
 	struct hci_dev *hdev = hu->hdev;
+	struct qca_serdev *qcadev;
 	int ret;
+
+	/* Check for vregs status, may be hci down has turned
+	 * off the voltage regulator.
+	 */
+	qcadev = serdev_device_get_drvdata(hu->serdev);
+	if (!qcadev->bt_power->vregs_on) {
+		serdev_device_close(hu->serdev);
+		ret = qca_power_setup(hu, true);
+		if (ret)
+			return ret;
+
+		ret = serdev_device_open(hu->serdev);
+		if (ret) {
+			bt_dev_err(hu->hdev, "failed to open port");
+			return ret;
+		}
+	}
 
 	/* Forcefully enable wcn3990 to enter in to boot mode. */
 	host_set_baudrate(hu, 2400);
@@ -1154,6 +1171,12 @@ static int qca_setup(struct hci_uart *hu)
 
 	if (qcadev->btsoc_type == QCA_WCN3990) {
 		bt_dev_info(hdev, "setting up wcn3990");
+
+		/* Enable NON_PERSISTENT_SETUP QUIRK to ensure to execute
+		 * setup for every hci up.
+		 */
+		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
+		hu->hdev->shutdown = qca_power_off;
 		ret = qca_wcn3990_init(hu);
 		if (ret)
 			return ret;
@@ -1232,13 +1255,24 @@ static const struct qca_vreg_data qca_soc_data = {
 	.num_vregs = 4,
 };
 
-static void qca_power_shutdown(struct hci_dev *hdev)
+static void qca_power_shutdown(struct hci_uart *hu)
+{
+	struct serdev_device *serdev = hu->serdev;
+	unsigned char cmd = QCA_WCN3990_POWEROFF_PULSE;
+
+	host_set_baudrate(hu, 2400);
+	hci_uart_set_flow_control(hu, true);
+	serdev_device_write_buf(serdev, &cmd, sizeof(cmd));
+	hci_uart_set_flow_control(hu, false);
+	qca_power_setup(hu, false);
+}
+
+static int qca_power_off(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 
-	host_set_baudrate(hu, 2400);
-	qca_send_power_pulse(hdev, QCA_WCN3990_POWEROFF_PULSE);
-	qca_power_setup(hu, false);
+	qca_power_shutdown(hu);
+	return 0;
 }
 
 static int qca_enable_regulator(struct qca_vreg vregs,
@@ -1413,7 +1447,7 @@ static void qca_serdev_remove(struct serdev_device *serdev)
 	struct qca_serdev *qcadev = serdev_device_get_drvdata(serdev);
 
 	if (qcadev->btsoc_type == QCA_WCN3990)
-		qca_power_shutdown(qcadev->serdev_hu.hdev);
+		qca_power_shutdown(&qcadev->serdev_hu);
 	else
 		clk_disable_unprepare(qcadev->susclk);
 

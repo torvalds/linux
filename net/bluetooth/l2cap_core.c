@@ -51,9 +51,6 @@ static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN | L2CAP_FEAT_UCD;
 static LIST_HEAD(chan_list);
 static DEFINE_RWLOCK(chan_list_lock);
 
-static u16 le_max_credits = L2CAP_LE_MAX_CREDITS;
-static u16 le_default_mps = L2CAP_LE_DEFAULT_MPS;
-
 static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 				       u8 code, u8 ident, u16 dlen, void *data);
 static void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len,
@@ -519,8 +516,10 @@ static void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 	chan->sdu_last_frag = NULL;
 	chan->sdu_len = 0;
 	chan->tx_credits = 0;
-	chan->rx_credits = le_max_credits;
-	chan->mps = min_t(u16, chan->imtu, le_default_mps);
+	/* Derive MPS from connection MTU to stop HCI fragmentation */
+	chan->mps = min_t(u16, chan->imtu, chan->conn->mtu - L2CAP_HDR_SIZE);
+	/* Give enough credits for a full packet */
+	chan->rx_credits = (chan->imtu / chan->mps) + 1;
 
 	skb_queue_head_init(&chan->tx_q);
 }
@@ -1281,6 +1280,8 @@ static void l2cap_le_connect(struct l2cap_chan *chan)
 
 	if (test_and_set_bit(FLAG_LE_CONN_REQ_SENT, &chan->flags))
 		return;
+
+	l2cap_le_flowctl_init(chan);
 
 	req.psm     = chan->psm;
 	req.scid    = cpu_to_le16(chan->scid);
@@ -5493,8 +5494,6 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 		goto response_unlock;
 	}
 
-	l2cap_le_flowctl_init(chan);
-
 	bacpy(&chan->src, &conn->hcon->src);
 	bacpy(&chan->dst, &conn->hcon->dst);
 	chan->src_type = bdaddr_src_type(conn->hcon);
@@ -5506,6 +5505,9 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 	chan->tx_credits = __le16_to_cpu(req->credits);
 
 	__l2cap_chan_add(conn, chan);
+
+	l2cap_le_flowctl_init(chan);
+
 	dcid = chan->scid;
 	credits = chan->rx_credits;
 
@@ -6699,13 +6701,10 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 	struct l2cap_le_credits pkt;
 	u16 return_credits;
 
-	/* We return more credits to the sender only after the amount of
-	 * credits falls below half of the initial amount.
-	 */
-	if (chan->rx_credits >= (le_max_credits + 1) / 2)
-		return;
+	return_credits = ((chan->imtu / chan->mps) + 1) - chan->rx_credits;
 
-	return_credits = le_max_credits - chan->rx_credits;
+	if (!return_credits)
+		return;
 
 	BT_DBG("chan %p returning %u credits to sender", chan, return_credits);
 
@@ -6717,6 +6716,21 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 	chan->ident = l2cap_get_ident(conn);
 
 	l2cap_send_cmd(conn, chan->ident, L2CAP_LE_CREDITS, sizeof(pkt), &pkt);
+}
+
+static int l2cap_le_recv(struct l2cap_chan *chan, struct sk_buff *skb)
+{
+	int err;
+
+	BT_DBG("SDU reassemble complete: chan %p skb->len %u", chan, skb->len);
+
+	/* Wait recv to confirm reception before updating the credits */
+	err = chan->ops->recv(chan, skb);
+
+	/* Update credits whenever an SDU is received */
+	l2cap_chan_le_send_credits(chan);
+
+	return err;
 }
 
 static int l2cap_le_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
@@ -6737,7 +6751,11 @@ static int l2cap_le_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 	chan->rx_credits--;
 	BT_DBG("rx_credits %u -> %u", chan->rx_credits + 1, chan->rx_credits);
 
-	l2cap_chan_le_send_credits(chan);
+	/* Update if remote had run out of credits, this should only happens
+	 * if the remote is not using the entire MPS.
+	 */
+	if (!chan->rx_credits)
+		l2cap_chan_le_send_credits(chan);
 
 	err = 0;
 
@@ -6763,11 +6781,21 @@ static int l2cap_le_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 		}
 
 		if (skb->len == sdu_len)
-			return chan->ops->recv(chan, skb);
+			return l2cap_le_recv(chan, skb);
 
 		chan->sdu = skb;
 		chan->sdu_len = sdu_len;
 		chan->sdu_last_frag = skb;
+
+		/* Detect if remote is not able to use the selected MPS */
+		if (skb->len + L2CAP_SDULEN_SIZE < chan->mps) {
+			u16 mps_len = skb->len + L2CAP_SDULEN_SIZE;
+
+			/* Adjust the number of credits */
+			BT_DBG("chan->mps %u -> %u", chan->mps, mps_len);
+			chan->mps = mps_len;
+			l2cap_chan_le_send_credits(chan);
+		}
 
 		return 0;
 	}
@@ -6785,7 +6813,7 @@ static int l2cap_le_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 	skb = NULL;
 
 	if (chan->sdu->len == chan->sdu_len) {
-		err = chan->ops->recv(chan, chan->sdu);
+		err = l2cap_le_recv(chan, chan->sdu);
 		if (!err) {
 			chan->sdu = NULL;
 			chan->sdu_last_frag = NULL;
@@ -7102,7 +7130,6 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 	case L2CAP_MODE_BASIC:
 		break;
 	case L2CAP_MODE_LE_FLOWCTL:
-		l2cap_le_flowctl_init(chan);
 		break;
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
@@ -7644,11 +7671,6 @@ int __init l2cap_init(void)
 
 	l2cap_debugfs = debugfs_create_file("l2cap", 0444, bt_debugfs,
 					    NULL, &l2cap_debugfs_fops);
-
-	debugfs_create_u16("l2cap_le_max_credits", 0644, bt_debugfs,
-			   &le_max_credits);
-	debugfs_create_u16("l2cap_le_default_mps", 0644, bt_debugfs,
-			   &le_default_mps);
 
 	return 0;
 }
