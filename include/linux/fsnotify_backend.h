@@ -68,14 +68,19 @@
 
 #define ALL_FSNOTIFY_PERM_EVENTS (FS_OPEN_PERM | FS_ACCESS_PERM)
 
+/* Events that can be reported to backends */
 #define ALL_FSNOTIFY_EVENTS (FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
 			     FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN | \
 			     FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE | \
 			     FS_DELETE | FS_DELETE_SELF | FS_MOVE_SELF | \
 			     FS_UNMOUNT | FS_Q_OVERFLOW | FS_IN_IGNORED | \
-			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_EXCL_UNLINK | \
-			     FS_ISDIR | FS_IN_ONESHOT | FS_DN_RENAME | \
+			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_DN_RENAME)
+
+/* Extra flags that may be reported with event or control handling of events */
+#define ALL_FSNOTIFY_FLAGS  (FS_EXCL_UNLINK | FS_ISDIR | FS_IN_ONESHOT | \
 			     FS_DN_MULTISHOT | FS_EVENT_ON_CHILD)
+
+#define ALL_FSNOTIFY_BITS   (ALL_FSNOTIFY_EVENTS | ALL_FSNOTIFY_FLAGS)
 
 struct fsnotify_group;
 struct fsnotify_event;
