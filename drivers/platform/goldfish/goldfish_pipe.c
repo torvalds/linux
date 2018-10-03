@@ -844,8 +844,10 @@ static int goldfish_pipe_device_init(struct platform_device *pdev,
 	dev->pipes_capacity = INITIAL_PIPES_CAPACITY;
 	dev->pipes = kcalloc(dev->pipes_capacity, sizeof(*dev->pipes),
 			     GFP_KERNEL);
-	if (!dev->pipes)
+	if (!dev->pipes) {
+		misc_deregister(&dev->miscdev);
 		return -ENOMEM;
+	}
 
 	/*
 	 * We're going to pass two buffers, open_command_params and
@@ -858,6 +860,7 @@ static int goldfish_pipe_device_init(struct platform_device *pdev,
 		__get_free_page(GFP_KERNEL);
 	if (!dev->buffers) {
 		kfree(dev->pipes);
+		misc_deregister(&dev->miscdev);
 		return -ENOMEM;
 	}
 
