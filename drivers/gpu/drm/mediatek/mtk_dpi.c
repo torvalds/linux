@@ -76,8 +76,7 @@ struct mtk_dpi {
 	enum mtk_dpi_out_yc_map yc_map;
 	enum mtk_dpi_out_bit_num bit_num;
 	enum mtk_dpi_out_channel_swap channel_swap;
-	bool power_sta;
-	u8 power_ctl;
+	int refcount;
 };
 
 static inline struct mtk_dpi *mtk_dpi_from_encoder(struct drm_encoder *e)
@@ -88,11 +87,6 @@ static inline struct mtk_dpi *mtk_dpi_from_encoder(struct drm_encoder *e)
 enum mtk_dpi_polarity {
 	MTK_DPI_POLARITY_RISING,
 	MTK_DPI_POLARITY_FALLING,
-};
-
-enum mtk_dpi_power_ctl {
-	DPI_POWER_START = BIT(0),
-	DPI_POWER_ENABLE = BIT(1),
 };
 
 struct mtk_dpi_polarities {
@@ -367,40 +361,30 @@ static void mtk_dpi_config_color_format(struct mtk_dpi *dpi,
 	}
 }
 
-static void mtk_dpi_power_off(struct mtk_dpi *dpi, enum mtk_dpi_power_ctl pctl)
+static void mtk_dpi_power_off(struct mtk_dpi *dpi)
 {
-	dpi->power_ctl &= ~pctl;
-
-	if ((dpi->power_ctl & DPI_POWER_START) ||
-	    (dpi->power_ctl & DPI_POWER_ENABLE))
+	if (WARN_ON(dpi->refcount == 0))
 		return;
 
-	if (!dpi->power_sta)
+	if (--dpi->refcount != 0)
 		return;
 
 	mtk_dpi_disable(dpi);
 	clk_disable_unprepare(dpi->pixel_clk);
 	clk_disable_unprepare(dpi->engine_clk);
-	dpi->power_sta = false;
 }
 
-static int mtk_dpi_power_on(struct mtk_dpi *dpi, enum mtk_dpi_power_ctl pctl)
+static int mtk_dpi_power_on(struct mtk_dpi *dpi)
 {
 	int ret;
 
-	dpi->power_ctl |= pctl;
-
-	if (!(dpi->power_ctl & DPI_POWER_START) &&
-	    !(dpi->power_ctl & DPI_POWER_ENABLE))
-		return 0;
-
-	if (dpi->power_sta)
+	if (++dpi->refcount != 1)
 		return 0;
 
 	ret = clk_prepare_enable(dpi->engine_clk);
 	if (ret) {
 		dev_err(dpi->dev, "Failed to enable engine clock: %d\n", ret);
-		goto err_eng;
+		goto err_refcount;
 	}
 
 	ret = clk_prepare_enable(dpi->pixel_clk);
@@ -410,13 +394,12 @@ static int mtk_dpi_power_on(struct mtk_dpi *dpi, enum mtk_dpi_power_ctl pctl)
 	}
 
 	mtk_dpi_enable(dpi);
-	dpi->power_sta = true;
 	return 0;
 
 err_pixel:
 	clk_disable_unprepare(dpi->engine_clk);
-err_eng:
-	dpi->power_ctl &= ~pctl;
+err_refcount:
+	dpi->refcount--;
 	return ret;
 }
 
@@ -552,14 +535,14 @@ static void mtk_dpi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mtk_dpi *dpi = mtk_dpi_from_encoder(encoder);
 
-	mtk_dpi_power_off(dpi, DPI_POWER_ENABLE);
+	mtk_dpi_power_off(dpi);
 }
 
 static void mtk_dpi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct mtk_dpi *dpi = mtk_dpi_from_encoder(encoder);
 
-	mtk_dpi_power_on(dpi, DPI_POWER_ENABLE);
+	mtk_dpi_power_on(dpi);
 	mtk_dpi_set_display_mode(dpi, &dpi->mode);
 }
 
@@ -582,14 +565,14 @@ static void mtk_dpi_start(struct mtk_ddp_comp *comp)
 {
 	struct mtk_dpi *dpi = container_of(comp, struct mtk_dpi, ddp_comp);
 
-	mtk_dpi_power_on(dpi, DPI_POWER_START);
+	mtk_dpi_power_on(dpi);
 }
 
 static void mtk_dpi_stop(struct mtk_ddp_comp *comp)
 {
 	struct mtk_dpi *dpi = container_of(comp, struct mtk_dpi, ddp_comp);
 
-	mtk_dpi_power_off(dpi, DPI_POWER_START);
+	mtk_dpi_power_off(dpi);
 }
 
 static const struct mtk_ddp_comp_funcs mtk_dpi_funcs = {
