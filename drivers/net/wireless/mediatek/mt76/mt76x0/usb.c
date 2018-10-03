@@ -179,28 +179,28 @@ static int mt76x0u_register_device(struct mt76x0_dev *dev)
 	struct ieee80211_hw *hw = dev->mt76.hw;
 	int err;
 
-	err = mt76u_mcu_init_rx(&dev->mt76);
-	if (err < 0)
-		return err;
-
 	err = mt76u_alloc_queues(&dev->mt76);
 	if (err < 0)
-		return err;
+		goto out_err;
+
+	err = mt76u_mcu_init_rx(&dev->mt76);
+	if (err < 0)
+		goto out_err;
 
 	mt76x0_chip_onoff(dev, true, true);
 	if (!mt76x02_wait_for_mac(&dev->mt76)) {
 		err = -ETIMEDOUT;
-		goto err;
+		goto out_err;
 	}
 
 	err = mt76x0u_mcu_init(dev);
 	if (err < 0)
-		goto err;
+		goto out_err;
 
 	mt76x0_init_usb_dma(dev);
 	err = mt76x0_init_hardware(dev);
 	if (err < 0)
-		goto err;
+		goto out_err;
 
 	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG,
@@ -209,7 +209,7 @@ static int mt76x0u_register_device(struct mt76x0_dev *dev)
 
 	err = mt76x0_register_device(dev);
 	if (err < 0)
-		goto err;
+		goto out_err;
 
 	/* check hw sg support in order to enable AMSDU */
 	if (mt76u_check_sg(&dev->mt76))
@@ -221,7 +221,7 @@ static int mt76x0u_register_device(struct mt76x0_dev *dev)
 
 	return 0;
 
-err:
+out_err:
 	mt76x0u_cleanup(dev);
 	return err;
 }
