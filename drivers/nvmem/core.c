@@ -298,6 +298,7 @@ static void nvmem_cell_drop(struct nvmem_cell *cell)
 	mutex_lock(&nvmem_mutex);
 	list_del(&cell->node);
 	mutex_unlock(&nvmem_mutex);
+	kfree(cell->name);
 	kfree(cell);
 }
 
@@ -547,7 +548,7 @@ static int nvmem_add_cells_from_of(struct nvmem_device *nvmem)
 		cell->nvmem = nvmem;
 		cell->offset = be32_to_cpup(addr++);
 		cell->bytes = be32_to_cpup(addr);
-		cell->name = child->name;
+		cell->name = kasprintf(GFP_KERNEL, "%pOFn", child);
 
 		addr = of_get_property(child, "bits", &len);
 		if (addr && len == (2 * sizeof(u32))) {
@@ -564,6 +565,7 @@ static int nvmem_add_cells_from_of(struct nvmem_device *nvmem)
 			dev_err(dev, "cell %s unaligned to nvmem stride %d\n",
 				cell->name, nvmem->stride);
 			/* Cells already added will be freed later. */
+			kfree(cell->name);
 			kfree(cell);
 			return -EINVAL;
 		}
