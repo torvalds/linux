@@ -1656,7 +1656,7 @@ static int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
 
 	for (j = 0; j < adev->num_ip_blocks; j++) {
 		i = state == AMD_CG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
-		if (!adev->ip_blocks[i].status.valid)
+		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
@@ -1686,7 +1686,7 @@ static int amdgpu_device_set_pg_state(struct amdgpu_device *adev, enum amd_power
 
 	for (j = 0; j < adev->num_ip_blocks; j++) {
 		i = state == AMD_PG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
-		if (!adev->ip_blocks[i].status.valid)
+		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
