@@ -4195,7 +4195,7 @@ enum {
 #define   EDP_PSR_DEBUG_MASK_LPSP              (1 << 27)
 #define   EDP_PSR_DEBUG_MASK_MEMUP             (1 << 26)
 #define   EDP_PSR_DEBUG_MASK_HPD               (1 << 25)
-#define   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE    (1 << 16)
+#define   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE    (1 << 16) /* Reserved in ICL+ */
 #define   EDP_PSR_DEBUG_EXIT_ON_PIXEL_UNDERRUN (1 << 15) /* SKL+ */
 
 #define EDP_PSR2_CTL			_MMIO(0x6f900)
@@ -4232,7 +4232,7 @@ enum {
 #define  PSR_EVENT_FRONT_BUFFER_MODIFY		(1 << 9)
 #define  PSR_EVENT_WD_TIMER_EXPIRE		(1 << 8)
 #define  PSR_EVENT_PIPE_REGISTERS_UPDATE	(1 << 6)
-#define  PSR_EVENT_REGISTER_UPDATE		(1 << 5)
+#define  PSR_EVENT_REGISTER_UPDATE		(1 << 5) /* Reserved in ICL+ */
 #define  PSR_EVENT_HDCP_ENABLE			(1 << 4)
 #define  PSR_EVENT_KVMR_SESSION_ENABLE		(1 << 3)
 #define  PSR_EVENT_VBI_ENABLE			(1 << 2)

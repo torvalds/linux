@@ -563,6 +563,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	u32 mask;
 
 	/* Only HSW and BDW have PSR AUX registers that need to be setup. SKL+
 	 * use hardcoded values PSR AUX transactions
@@ -588,12 +589,15 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	 * runtime_pm besides preventing  other hw tracking issues now we
 	 * can rely on frontbuffer tracking.
 	 */
-	I915_WRITE(EDP_PSR_DEBUG,
-		   EDP_PSR_DEBUG_MASK_MEMUP |
-		   EDP_PSR_DEBUG_MASK_HPD |
-		   EDP_PSR_DEBUG_MASK_LPSP |
-		   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE |
-		   EDP_PSR_DEBUG_MASK_MAX_SLEEP);
+	mask = EDP_PSR_DEBUG_MASK_MEMUP |
+	       EDP_PSR_DEBUG_MASK_HPD |
+	       EDP_PSR_DEBUG_MASK_LPSP |
+	       EDP_PSR_DEBUG_MASK_MAX_SLEEP;
+
+	if (INTEL_GEN(dev_priv) < 11)
+		mask |= EDP_PSR_DEBUG_MASK_DISP_REG_WRITE;
+
+	I915_WRITE(EDP_PSR_DEBUG, mask);
 }
 
 static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
