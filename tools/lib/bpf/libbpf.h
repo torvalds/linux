@@ -128,10 +128,13 @@ void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex);
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
+int bpf_program__load(struct bpf_program *prog, char *license,
+		      u32 kern_version);
 int bpf_program__fd(struct bpf_program *prog);
 int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
 			      int instance);
 int bpf_program__pin(struct bpf_program *prog, const char *path);
+void bpf_program__unload(struct bpf_program *prog);
 
 struct bpf_insn;
 
