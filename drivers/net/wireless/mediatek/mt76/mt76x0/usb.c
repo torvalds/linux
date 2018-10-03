@@ -86,13 +86,13 @@ static void mt76x0u_cleanup(struct mt76x0_dev *dev)
 
 static void mt76x0u_mac_stop(struct mt76x0_dev *dev)
 {
-	if (test_bit(MT76_REMOVED, &dev->mt76.state))
-		return;
-
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
 	mt76u_stop_stat_wk(&dev->mt76);
+
+	if (test_bit(MT76_REMOVED, &dev->mt76.state))
+		return;
 
 	mt76_clear(dev, MT_BEACON_TIME_CFG, MT_BEACON_TIME_CFG_TIMER_EN |
 		   MT_BEACON_TIME_CFG_SYNC_MODE | MT_BEACON_TIME_CFG_TBTT_EN |
