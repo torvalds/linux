@@ -20,8 +20,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this program; if not,  see <http://www.gnu.org/licenses>
  */
-#ifndef __BPF_LIBBPF_H
-#define __BPF_LIBBPF_H
+#ifndef __LIBBPF_LIBBPF_H
+#define __LIBBPF_LIBBPF_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -315,4 +315,4 @@ int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
 int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
 			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
-#endif
+#endif /* __LIBBPF_LIBBPF_H */

@@ -11,8 +11,8 @@
  * Copyright (c) 2003-2013 Thomas Graf <tgraf@suug.ch>
  */
 
-#ifndef __NLATTR_H
-#define __NLATTR_H
+#ifndef __LIBBPF_NLATTR_H
+#define __LIBBPF_NLATTR_H
 
 #include <stdint.h>
 #include <linux/netlink.h>
@@ -108,4 +108,4 @@ int libbpf_nla_parse_nested(struct nlattr *tb[], int maxtype,
 
 int libbpf_nla_dump_errormsg(struct nlmsghdr *nlh);
 
-#endif /* __NLATTR_H */
+#endif /* __LIBBPF_NLATTR_H */
