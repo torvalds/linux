@@ -286,7 +286,7 @@ mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
 		void *data;
 		int offset;
 
-		data = page_frag_alloc(&q->rx_page, q->buf_size, GFP_ATOMIC);
+		data = page_frag_alloc(&q->rx_page, len, GFP_ATOMIC);
 		if (!data)
 			break;
 
