@@ -301,9 +301,7 @@ int dma_direct_supported(struct device *dev, u64 mask)
 
 	min_mask = min_t(u64, min_mask, (max_pfn - 1) << PAGE_SHIFT);
 
-	if (mask >= phys_to_dma(dev, min_mask))
-		return 0;
-	return 1;
+	return mask >= phys_to_dma(dev, min_mask);
 }
 
 int dma_direct_mapping_error(struct device *dev, dma_addr_t dma_addr)
