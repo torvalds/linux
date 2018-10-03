@@ -2754,18 +2754,31 @@ intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 
 	plane_state->base.visible = visible;
 
-	/* FIXME pre-g4x don't work like this */
-	if (visible) {
+	if (visible)
 		crtc_state->base.plane_mask |= drm_plane_mask(&plane->base);
-		crtc_state->active_planes |= BIT(plane->id);
-	} else {
+	else
 		crtc_state->base.plane_mask &= ~drm_plane_mask(&plane->base);
-		crtc_state->active_planes &= ~BIT(plane->id);
-	}
 
 	DRM_DEBUG_KMS("%s active planes 0x%x\n",
 		      crtc_state->base.crtc->name,
 		      crtc_state->active_planes);
+}
+
+static void fixup_active_planes(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_plane *plane;
+
+	/*
+	 * Active_planes aliases if multiple "primary" or cursor planes
+	 * have been used on the same (or wrong) pipe. plane_mask uses
+	 * unique ids, hence we can use that to reconstruct active_planes.
+	 */
+	crtc_state->active_planes = 0;
+
+	drm_for_each_plane_mask(plane, &dev_priv->drm,
+				crtc_state->base.plane_mask)
+		crtc_state->active_planes |= BIT(to_intel_plane(plane)->id);
 }
 
 static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
@@ -2777,6 +2790,7 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 		to_intel_plane_state(plane->base.state);
 
 	intel_set_plane_visible(crtc_state, plane_state, false);
+	fixup_active_planes(crtc_state);
 
 	if (plane->id == PLANE_PRIMARY)
 		intel_pre_disable_primary_noatomic(&crtc->base);
@@ -2795,7 +2809,6 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct drm_i915_gem_object *obj;
 	struct drm_plane *primary = intel_crtc->base.primary;
 	struct drm_plane_state *plane_state = primary->state;
-	struct drm_crtc_state *crtc_state = intel_crtc->base.state;
 	struct intel_plane *intel_plane = to_intel_plane(primary);
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane_state);
@@ -2884,10 +2897,6 @@ valid_fb:
 
 	plane_state->fb = fb;
 	plane_state->crtc = &intel_crtc->base;
-
-	intel_set_plane_visible(to_intel_crtc_state(crtc_state),
-				to_intel_plane_state(plane_state),
-				true);
 
 	atomic_or(to_intel_plane(primary)->frontbuffer_bit,
 		  &obj->frontbuffer_bits);
@@ -15365,17 +15374,6 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	POSTING_READ(DPLL(pipe));
 }
 
-static bool intel_plane_mapping_ok(struct intel_crtc *crtc,
-				   struct intel_plane *plane)
-{
-	enum pipe pipe;
-
-	if (!plane->get_hw_state(plane, &pipe))
-		return true;
-
-	return pipe == crtc->pipe;
-}
-
 static void
 intel_sanitize_plane_mapping(struct drm_i915_private *dev_priv)
 {
@@ -15387,13 +15385,20 @@ intel_sanitize_plane_mapping(struct drm_i915_private *dev_priv)
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_plane *plane =
 			to_intel_plane(crtc->base.primary);
+		struct intel_crtc *plane_crtc;
+		enum pipe pipe;
 
-		if (intel_plane_mapping_ok(crtc, plane))
+		if (!plane->get_hw_state(plane, &pipe))
+			continue;
+
+		if (pipe == crtc->pipe)
 			continue;
 
 		DRM_DEBUG_KMS("%s attached to the wrong pipe, disabling plane\n",
 			      plane->base.name);
-		intel_plane_disable_noatomic(crtc, plane);
+
+		plane_crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+		intel_plane_disable_noatomic(plane_crtc, plane);
 	}
 }
 
@@ -15565,22 +15570,31 @@ void i915_redisable_vga(struct drm_i915_private *dev_priv)
 }
 
 /* FIXME read out full plane state for all planes */
-static void readout_plane_state(struct intel_crtc *crtc)
+static void readout_plane_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_crtc_state *crtc_state =
-		to_intel_crtc_state(crtc->base.state);
 	struct intel_plane *plane;
+	struct intel_crtc *crtc;
 
-	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+	for_each_intel_plane(&dev_priv->drm, plane) {
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
-		enum pipe pipe;
+		struct intel_crtc_state *crtc_state;
+		enum pipe pipe = PIPE_A;
 		bool visible;
 
 		visible = plane->get_hw_state(plane, &pipe);
 
+		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+		crtc_state = to_intel_crtc_state(crtc->base.state);
+
 		intel_set_plane_visible(crtc_state, plane_state, visible);
+	}
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		fixup_active_planes(crtc_state);
 	}
 }
 
@@ -15613,12 +15627,12 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (crtc_state->base.active)
 			dev_priv->active_crtcs |= 1 << crtc->pipe;
 
-		readout_plane_state(crtc);
-
 		DRM_DEBUG_KMS("[CRTC:%d:%s] hw state readout: %s\n",
 			      crtc->base.base.id, crtc->base.name,
 			      enableddisabled(crtc_state->base.active));
 	}
+
+	readout_plane_state(dev_priv);
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
