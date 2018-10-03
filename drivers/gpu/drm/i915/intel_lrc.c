@@ -282,6 +282,8 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		__i915_request_unsubmit(rq);
 		unwind_wa_tail(rq);
 
+		GEM_BUG_ON(rq->hw_context->active);
+
 		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
 		if (rq_prio(rq) != prio) {
 			prio = rq_prio(rq);
@@ -345,13 +347,17 @@ execlists_user_end(struct intel_engine_execlists *execlists)
 static inline void
 execlists_context_schedule_in(struct i915_request *rq)
 {
+	GEM_BUG_ON(rq->hw_context->active);
+
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
 	intel_engine_context_in(rq->engine);
+	rq->hw_context->active = rq->engine;
 }
 
 static inline void
 execlists_context_schedule_out(struct i915_request *rq, unsigned long status)
 {
+	rq->hw_context->active = NULL;
 	intel_engine_context_out(rq->engine);
 	execlists_context_status_change(rq, status);
 	trace_i915_request_out(rq);
@@ -1079,6 +1085,28 @@ static void execlists_context_destroy(struct intel_context *ce)
 
 static void execlists_context_unpin(struct intel_context *ce)
 {
+	struct intel_engine_cs *engine;
+
+	/*
+	 * The tasklet may still be using a pointer to our state, via an
+	 * old request. However, since we know we only unpin the context
+	 * on retirement of the following request, we know that the last
+	 * request referencing us will have had a completion CS interrupt.
+	 * If we see that it is still active, it means that the tasklet hasn't
+	 * had the chance to run yet; let it run before we teardown the
+	 * reference it may use.
+	 */
+	engine = READ_ONCE(ce->active);
+	if (unlikely(engine)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&engine->timeline.lock, flags);
+		process_csb(engine);
+		spin_unlock_irqrestore(&engine->timeline.lock, flags);
+
+		GEM_BUG_ON(READ_ONCE(ce->active));
+	}
+
 	i915_gem_context_unpin_hw_id(ce->gem_context);
 
 	intel_ring_unpin(ce->ring);
