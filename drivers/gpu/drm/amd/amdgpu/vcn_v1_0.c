@@ -1171,6 +1171,16 @@ static int vcn_v1_0_stop_dpg_mode(struct amdgpu_device *adev)
 			UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
 			UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
 
+	if (ret_code) {
+		int tmp = RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR) & 0x7FFFFFFF;
+		/* wait for read ptr to be equal to write ptr */
+		SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_RBC_RB_RPTR, tmp, 0xFFFFFFFF, ret_code);
+
+		SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
+			UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
+			UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+	}
+
 	/* disable dynamic power gating mode */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_POWER_STATUS), 0,
 			~UVD_POWER_STATUS__UVD_PG_MODE_MASK);
