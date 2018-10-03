@@ -2626,6 +2626,11 @@ enum intel_dpll_id icl_port_to_mg_pll_id(enum port port)
 	return port - PORT_C + DPLL_ID_ICL_MGPLL1;
 }
 
+bool intel_dpll_is_combophy(enum intel_dpll_id id)
+{
+	return id == DPLL_ID_ICL_DPLL0 || id == DPLL_ID_ICL_DPLL1;
+}
+
 static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				     uint32_t *target_dco_khz,
 				     struct intel_dpll_hw_state *state)
@@ -2919,21 +2924,16 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 
 static i915_reg_t icl_pll_id_to_enable_reg(enum intel_dpll_id id)
 {
-	switch (id) {
-	default:
-		MISSING_CASE(id);
-		/* fall through */
-	case DPLL_ID_ICL_DPLL0:
-	case DPLL_ID_ICL_DPLL1:
+	if (intel_dpll_is_combophy(id))
 		return CNL_DPLL_ENABLE(id);
-	case DPLL_ID_ICL_TBTPLL:
+	else if (id == DPLL_ID_ICL_TBTPLL)
 		return TBT_PLL_ENABLE;
-	case DPLL_ID_ICL_MGPLL1:
-	case DPLL_ID_ICL_MGPLL2:
-	case DPLL_ID_ICL_MGPLL3:
-	case DPLL_ID_ICL_MGPLL4:
+	else
+		/*
+		 * TODO: Make MG_PLL macros use
+		 * tc port id instead of port id
+		 */
 		return MG_PLL_ENABLE(icl_mg_pll_id_to_port(id));
-	}
 }
 
 static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
@@ -2952,17 +2952,11 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	if (!(val & PLL_ENABLE))
 		goto out;
 
-	switch (id) {
-	case DPLL_ID_ICL_DPLL0:
-	case DPLL_ID_ICL_DPLL1:
-	case DPLL_ID_ICL_TBTPLL:
+	if (intel_dpll_is_combophy(id) ||
+	    id == DPLL_ID_ICL_TBTPLL) {
 		hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
-		break;
-	case DPLL_ID_ICL_MGPLL1:
-	case DPLL_ID_ICL_MGPLL2:
-	case DPLL_ID_ICL_MGPLL3:
-	case DPLL_ID_ICL_MGPLL4:
+	} else {
 		port = icl_mg_pll_id_to_port(id);
 		hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(port));
 		hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
@@ -3000,9 +2994,6 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 
 		hw_state->mg_pll_tdc_coldst_bias &= hw_state->mg_pll_tdc_coldst_bias_mask;
 		hw_state->mg_pll_bias &= hw_state->mg_pll_bias_mask;
-		break;
-	default:
-		MISSING_CASE(id);
 	}
 
 	ret = true;
@@ -3091,21 +3082,10 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 				    PLL_POWER_STATE, 1))
 		DRM_ERROR("PLL %d Power not enabled\n", id);
 
-	switch (id) {
-	case DPLL_ID_ICL_DPLL0:
-	case DPLL_ID_ICL_DPLL1:
-	case DPLL_ID_ICL_TBTPLL:
+	if (intel_dpll_is_combophy(id) || id == DPLL_ID_ICL_TBTPLL)
 		icl_dpll_write(dev_priv, pll);
-		break;
-	case DPLL_ID_ICL_MGPLL1:
-	case DPLL_ID_ICL_MGPLL2:
-	case DPLL_ID_ICL_MGPLL3:
-	case DPLL_ID_ICL_MGPLL4:
+	else
 		icl_mg_pll_write(dev_priv, pll);
-		break;
-	default:
-		MISSING_CASE(id);
-	}
 
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
