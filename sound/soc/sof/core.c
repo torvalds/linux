@@ -308,6 +308,14 @@ static int sof_probe(struct platform_device *pdev)
 		goto fw_run_err;
 	}
 
+	/* init DMA trace */
+	ret = snd_sof_init_trace(sdev);
+	if (ret < 0) {
+		/* non fatal */
+		dev_warn(sdev->dev,
+			 "warning: failed to initialize trace %d\n", ret);
+	}
+
 	/* now register audio DSP platform driver and dai */
 	ret = snd_soc_register_component(&pdev->dev,  &sdev->plat_drv,
 					 sdev->ops->drv,
@@ -331,14 +339,6 @@ static int sof_probe(struct platform_device *pdev)
 
 	dev_dbg(sdev->dev, "created machine %s\n",
 		dev_name(&plat_data->pdev_mach->dev));
-
-	/* init DMA trace */
-	ret = snd_sof_init_trace(sdev);
-	if (ret < 0) {
-		/* non fatal */
-		dev_warn(sdev->dev,
-			 "warning: failed to initialize trace %d\n", ret);
-	}
 
 	/* autosuspend sof device */
 	pm_runtime_mark_last_busy(sdev->dev);
