@@ -686,7 +686,7 @@ static irqreturn_t marvell_nfc_isr(int irq, void *dev_id)
 
 	marvell_nfc_disable_int(nfc, st & NDCR_ALL_INT);
 
-	if (!(st & (NDSR_RDDREQ | NDSR_WRDREQ | NDSR_WRCMDREQ)))
+	if (st & (NDSR_RDY(0) | NDSR_RDY(1)))
 		complete(&nfc->complete);
 
 	return IRQ_HANDLED;
