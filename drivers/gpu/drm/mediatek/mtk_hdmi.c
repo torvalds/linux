@@ -241,8 +241,13 @@ static void mtk_hdmi_hw_make_reg_writable(struct mtk_hdmi *hdmi, bool enable)
 	 * The ARM trusted firmware provides an API for the HDMI driver to set
 	 * this control bit to enable HDMI output in supervisor mode.
 	 */
-	arm_smccc_smc(MTK_SIP_SET_AUTHORIZED_SECURE_REG, 0x14000904, 0x80000000,
-		      0, 0, 0, 0, 0, &res);
+	if (hdmi_phy->conf && hdmi_phy->conf->tz_disabled)
+		regmap_update_bits(hdmi->sys_regmap,
+				   hdmi->sys_offset + HDMI_SYS_CFG20,
+				   0x80008005, enable ? 0x80000005 : 0x8000);
+	else
+		arm_smccc_smc(MTK_SIP_SET_AUTHORIZED_SECURE_REG, 0x14000904,
+			      0x80000000, 0, 0, 0, 0, 0, &res);
 
 	regmap_update_bits(hdmi->sys_regmap, hdmi->sys_offset + HDMI_SYS_CFG20,
 			   HDMI_PCLK_FREE_RUN, enable ? HDMI_PCLK_FREE_RUN : 0);

@@ -214,6 +214,9 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id mtk_hdmi_phy_match[] = {
+	{ .compatible = "mediatek,mt2701-hdmi-phy",
+	  .data = &mtk_hdmi_phy_2701_conf,
+	},
 	{ .compatible = "mediatek,mt8173-hdmi-phy",
 	  .data = &mtk_hdmi_phy_8173_conf,
 	},
