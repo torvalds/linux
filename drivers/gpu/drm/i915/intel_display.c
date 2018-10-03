@@ -9269,24 +9269,17 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	u32 temp;
 
 	/* TODO: TBT pll not implemented. */
-	switch (port) {
-	case PORT_A:
-	case PORT_B:
+	if (intel_port_is_combophy(dev_priv, port)) {
 		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
 		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
 
 		if (WARN_ON(id != DPLL_ID_ICL_DPLL0 && id != DPLL_ID_ICL_DPLL1))
 			return;
-		break;
-	case PORT_C:
-	case PORT_D:
-	case PORT_E:
-	case PORT_F:
+	} else if (intel_port_is_tc(dev_priv, port)) {
 		id = icl_port_to_mg_pll_id(port);
-		break;
-	default:
-		MISSING_CASE(port);
+	} else {
+		WARN(1, "Invalid port %x\n", port);
 		return;
 	}
 

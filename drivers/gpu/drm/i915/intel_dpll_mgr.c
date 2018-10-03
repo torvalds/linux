@@ -2867,6 +2867,7 @@ static struct intel_shared_dpll *
 icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *intel_dig_port =
 			enc_to_dig_port(&encoder->base);
 	struct intel_shared_dpll *pll;
@@ -2876,18 +2877,12 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	int clock = crtc_state->port_clock;
 	bool ret;
 
-	switch (port) {
-	case PORT_A:
-	case PORT_B:
+	if (intel_port_is_combophy(dev_priv, port)) {
 		min = DPLL_ID_ICL_DPLL0;
 		max = DPLL_ID_ICL_DPLL1;
 		ret = icl_calc_dpll_state(crtc_state, encoder, clock,
 					  &pll_state);
-		break;
-	case PORT_C:
-	case PORT_D:
-	case PORT_E:
-	case PORT_F:
+	} else if (intel_port_is_tc(dev_priv, port)) {
 		if (intel_dig_port->tc_type == TC_PORT_TBT) {
 			min = DPLL_ID_ICL_TBTPLL;
 			max = min;
@@ -2899,8 +2894,7 @@ icl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			ret = icl_calc_mg_pll_state(crtc_state, encoder, clock,
 						    &pll_state);
 		}
-		break;
-	default:
+	} else {
 		MISSING_CASE(port);
 		return NULL;
 	}
