@@ -12,7 +12,7 @@ Here are the rules:
     kernel better. Period.
 
   * Only men can contribute.  A woman can contribute only after obtaining 
-    permissionfrom her husband, her child (if she is a mother), and gets endorsed 
+    permission from her husband, her child (if she is a mother), and gets endorsed 
     by a man developer.
 
     Unless the cost of giving opportunities to people is zero, or that people are all
