@@ -8,7 +8,7 @@
 #include "ice.h"
 #include "ice_lib.h"
 
-#define DRV_VERSION	"0.7.1-k"
+#define DRV_VERSION	"0.7.2-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -342,6 +342,10 @@ ice_prepare_for_reset(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
 
+	/* Notify VFs of impending reset */
+	if (ice_check_sq_alive(hw, &hw->mailboxq))
+		ice_vc_notify_reset(pf);
+
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf);
 
@@ -661,6 +665,8 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi)
 		}
 	}
 
+	ice_vc_notify_link_state(pf);
+
 	return 0;
 }
 
@@ -710,6 +716,10 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 	case ICE_CTL_Q_ADMIN:
 		cq = &hw->adminq;
 		qtype = "Admin";
+		break;
+	case ICE_CTL_Q_MAILBOX:
+		cq = &hw->mailboxq;
+		qtype = "Mailbox";
 		break;
 	default:
 		dev_warn(&pf->pdev->dev, "Unknown control queue type 0x%x\n",
@@ -792,6 +802,9 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 				dev_err(&pf->pdev->dev,
 					"Could not handle link event\n");
 			break;
+		case ice_mbx_opc_send_msg_to_pf:
+			ice_vc_process_vf_msg(pf, &event);
+			break;
 		case ice_aqc_opc_fw_logging:
 			ice_output_fw_log(hw, &event.desc, event.msg_buf);
 			break;
@@ -846,6 +859,28 @@ static void ice_clean_adminq_subtask(struct ice_pf *pf)
 	 */
 	if (ice_ctrlq_pending(hw, &hw->adminq))
 		__ice_clean_ctrlq(pf, ICE_CTL_Q_ADMIN);
+
+	ice_flush(hw);
+}
+
+/**
+ * ice_clean_mailboxq_subtask - clean the MailboxQ rings
+ * @pf: board private structure
+ */
+static void ice_clean_mailboxq_subtask(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+
+	if (!test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state))
+		return;
+
+	if (__ice_clean_ctrlq(pf, ICE_CTL_Q_MAILBOX))
+		return;
+
+	clear_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state);
+
+	if (ice_ctrlq_pending(hw, &hw->mailboxq))
+		__ice_clean_ctrlq(pf, ICE_CTL_Q_MAILBOX);
 
 	ice_flush(hw);
 }
@@ -916,6 +951,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 	struct ice_hw *hw = &pf->hw;
 	bool mdd_detected = false;
 	u32 reg;
+	int i;
 
 	if (!test_bit(__ICE_MDD_EVENT_PENDING, pf->state))
 		return;
@@ -1005,6 +1041,51 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 		}
 	}
 
+	/* see if one of the VFs needs to be reset */
+	for (i = 0; i < pf->num_alloc_vfs && mdd_detected; i++) {
+		struct ice_vf *vf = &pf->vf[i];
+
+		reg = rd32(hw, VP_MDET_TX_PQM(i));
+		if (reg & VP_MDET_TX_PQM_VALID_M) {
+			wr32(hw, VP_MDET_TX_PQM(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		reg = rd32(hw, VP_MDET_TX_TCLAN(i));
+		if (reg & VP_MDET_TX_TCLAN_VALID_M) {
+			wr32(hw, VP_MDET_TX_TCLAN(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		reg = rd32(hw, VP_MDET_TX_TDPU(i));
+		if (reg & VP_MDET_TX_TDPU_VALID_M) {
+			wr32(hw, VP_MDET_TX_TDPU(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		reg = rd32(hw, VP_MDET_RX(i));
+		if (reg & VP_MDET_RX_VALID_M) {
+			wr32(hw, VP_MDET_RX(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "RX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		if (vf->num_mdd_events > ICE_DFLT_NUM_MDD_EVENTS_ALLOWED) {
+			dev_info(&pf->pdev->dev,
+				 "Too many MDD events on VF %d, disabled\n", i);
+			dev_info(&pf->pdev->dev,
+				 "Use PF Control I/F to re-enable the VF\n");
+			set_bit(ICE_VF_STATE_DIS, vf->vf_states);
+		}
+	}
+
 	/* re-enable MDD interrupt cause */
 	clear_bit(__ICE_MDD_EVENT_PENDING, pf->state);
 	reg = rd32(hw, PFINT_OICR_ENA);
@@ -1038,8 +1119,10 @@ static void ice_service_task(struct work_struct *work)
 	ice_check_for_hang_subtask(pf);
 	ice_sync_fltr_subtask(pf);
 	ice_handle_mdd_event(pf);
+	ice_process_vflr_event(pf);
 	ice_watchdog_subtask(pf);
 	ice_clean_adminq_subtask(pf);
+	ice_clean_mailboxq_subtask(pf);
 
 	/* Clear __ICE_SERVICE_SCHED flag to allow scheduling next event */
 	ice_service_task_complete(pf);
@@ -1050,6 +1133,8 @@ static void ice_service_task(struct work_struct *work)
 	 */
 	if (time_after(jiffies, (start_time + pf->serv_tmr_period)) ||
 	    test_bit(__ICE_MDD_EVENT_PENDING, pf->state) ||
+	    test_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
+	    test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		mod_timer(&pf->serv_tmr, jiffies);
 }
@@ -1064,6 +1149,10 @@ static void ice_set_ctrlq_len(struct ice_hw *hw)
 	hw->adminq.num_sq_entries = ICE_AQ_LEN;
 	hw->adminq.rq_buf_size = ICE_AQ_MAX_BUF_LEN;
 	hw->adminq.sq_buf_size = ICE_AQ_MAX_BUF_LEN;
+	hw->mailboxq.num_rq_entries = ICE_MBXQ_LEN;
+	hw->mailboxq.num_sq_entries = ICE_MBXQ_LEN;
+	hw->mailboxq.rq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
+	hw->mailboxq.sq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
 }
 
 /**
@@ -1197,6 +1286,7 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 	       PFINT_OICR_MAL_DETECT_M |
 	       PFINT_OICR_GRST_M |
 	       PFINT_OICR_PCI_EXCEPTION_M |
+	       PFINT_OICR_VFLR_M |
 	       PFINT_OICR_HMC_ERR_M |
 	       PFINT_OICR_PE_CRITERR_M);
 
@@ -1220,6 +1310,7 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	u32 oicr, ena_mask;
 
 	set_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state);
+	set_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state);
 
 	oicr = rd32(hw, PFINT_OICR);
 	ena_mask = rd32(hw, PFINT_OICR_ENA);
@@ -1227,6 +1318,10 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	if (oicr & PFINT_OICR_MAL_DETECT_M) {
 		ena_mask &= ~PFINT_OICR_MAL_DETECT_M;
 		set_bit(__ICE_MDD_EVENT_PENDING, pf->state);
+	}
+	if (oicr & PFINT_OICR_VFLR_M) {
+		ena_mask &= ~PFINT_OICR_VFLR_M;
+		set_bit(__ICE_VFLR_EVENT_PENDING, pf->state);
 	}
 
 	if (oicr & PFINT_OICR_GRST_M) {
@@ -1405,6 +1500,11 @@ skip_req_irq:
 	val = ((pf->hw_oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
 	       PFINT_FW_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_FW_CTL, val);
+
+	/* This enables Mailbox queue Interrupt causes */
+	val = ((pf->hw_oicr_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
+	       PFINT_MBX_CTL_CAUSE_ENA_M);
+	wr32(hw, PFINT_MBX_CTL, val);
 
 	itr_gran = hw->itr_gran;
 
@@ -1775,6 +1875,15 @@ static void ice_init_pf(struct ice_pf *pf)
 {
 	bitmap_zero(pf->flags, ICE_PF_FLAGS_NBITS);
 	set_bit(ICE_FLAG_MSIX_ENA, pf->flags);
+#ifdef CONFIG_PCI_IOV
+	if (pf->hw.func_caps.common_cap.sr_iov_1_1) {
+		struct ice_hw *hw = &pf->hw;
+
+		set_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags);
+		pf->num_vfs_supported = min_t(int, hw->func_caps.num_allocd_vfs,
+					      ICE_MAX_VF_COUNT);
+	}
+#endif /* CONFIG_PCI_IOV */
 
 	mutex_init(&pf->sw_mutex);
 	mutex_init(&pf->avail_q_mutex);
@@ -2138,6 +2247,8 @@ static void ice_remove(struct pci_dev *pdev)
 	set_bit(__ICE_DOWN, pf->state);
 	ice_service_task_stop(pf);
 
+	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags))
+		ice_free_vfs(pf);
 	ice_vsi_release_all(pf);
 	ice_free_irq_msix_misc(pf);
 	ice_for_each_vsi(pf, i) {
@@ -2173,6 +2284,7 @@ static struct pci_driver ice_driver = {
 	.id_table = ice_pci_tbl,
 	.probe = ice_probe,
 	.remove = ice_remove,
+	.sriov_configure = ice_sriov_configure,
 };
 
 /**
@@ -2908,7 +3020,7 @@ int ice_down(struct ice_vsi *vsi)
 	}
 
 	ice_vsi_dis_irq(vsi);
-	tx_err = ice_vsi_stop_tx_rings(vsi);
+	tx_err = ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, 0);
 	if (tx_err)
 		netdev_err(vsi->netdev,
 			   "Failed stop Tx rings, VSI %d error %d\n",
@@ -3102,13 +3214,14 @@ static void ice_dis_vsi(struct ice_vsi *vsi)
 
 	set_bit(__ICE_NEEDS_RESTART, vsi->state);
 
-	if (vsi->netdev && netif_running(vsi->netdev) &&
-	    vsi->type == ICE_VSI_PF) {
-		rtnl_lock();
-		vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-		rtnl_unlock();
-	} else {
-		ice_vsi_close(vsi);
+	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
+			rtnl_lock();
+			vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+			rtnl_unlock();
+		} else {
+			ice_vsi_close(vsi);
+		}
 	}
 }
 
@@ -3120,12 +3233,16 @@ static int ice_ena_vsi(struct ice_vsi *vsi)
 {
 	int err = 0;
 
-	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state))
-		if (vsi->netdev && netif_running(vsi->netdev)) {
+	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state) &&
+	    vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
 			rtnl_lock();
 			err = vsi->netdev->netdev_ops->ndo_open(vsi->netdev);
 			rtnl_unlock();
+		} else {
+			err = ice_vsi_open(vsi);
 		}
+	}
 
 	return err;
 }
@@ -3172,6 +3289,10 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 		int err;
 
 		if (!pf->vsi[i])
+			continue;
+
+		/* VF VSI rebuild isn't supported yet */
+		if (pf->vsi[i]->type == ICE_VSI_VF)
 			continue;
 
 		err = ice_vsi_rebuild(pf->vsi[i]);
@@ -3310,6 +3431,7 @@ static void ice_rebuild(struct ice_pf *pf)
 		goto err_vsi_rebuild;
 	}
 
+	ice_reset_all_vfs(pf, true);
 	/* if we get here, reset flow is successful */
 	clear_bit(__ICE_RESET_FAILED, pf->state);
 	return;
@@ -3818,6 +3940,12 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = ice_change_mtu,
 	.ndo_get_stats64 = ice_get_stats64,
+	.ndo_set_vf_spoofchk = ice_set_vf_spoofchk,
+	.ndo_set_vf_mac = ice_set_vf_mac,
+	.ndo_get_vf_config = ice_get_vf_cfg,
+	.ndo_set_vf_trust = ice_set_vf_trust,
+	.ndo_set_vf_vlan = ice_set_vf_port_vlan,
+	.ndo_set_vf_link_state = ice_set_vf_link_state,
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_set_features = ice_set_features,

@@ -28,6 +28,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/if_bridge.h>
+#include <linux/avf/virtchnl.h>
 #include <net/ipv6.h>
 #include "ice_devids.h"
 #include "ice_type.h"
@@ -35,6 +36,8 @@
 #include "ice_switch.h"
 #include "ice_common.h"
 #include "ice_sched.h"
+#include "ice_virtchnl_pf.h"
+#include "ice_sriov.h"
 
 extern const char ice_drv_ver[];
 #define ICE_BAR0		0
@@ -46,6 +49,7 @@ extern const char ice_drv_ver[];
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
 #define ICE_ETHTOOL_FWVER_LEN	32
 #define ICE_AQ_LEN		64
+#define ICE_MBXQ_LEN		64
 #define ICE_MIN_MSIX		2
 #define ICE_NO_VSI		0xffff
 #define ICE_MAX_VSI_ALLOC	130
@@ -63,6 +67,14 @@ extern const char ice_drv_ver[];
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
 #define ICE_INVAL_VFID		256
+#define ICE_MAX_VF_COUNT	256
+#define ICE_MAX_QS_PER_VF		256
+#define ICE_MIN_QS_PER_VF		1
+#define ICE_DFLT_QS_PER_VF		4
+#define ICE_MAX_BASE_QS_PER_VF		16
+#define ICE_MAX_INTR_PER_VF		65
+#define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
+#define ICE_DFLT_INTR_PER_VF		(ICE_DFLT_QS_PER_VF + 1)
 
 #define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
 
@@ -133,9 +145,21 @@ enum ice_state {
 	__ICE_EMPR_RECV,		/* set by OICR handler */
 	__ICE_SUSPENDED,		/* set on module remove path */
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
+	/* When checking for the PF to be in a nominal operating state, the
+	 * bits that are grouped at the beginning of the list need to be
+	 * checked.  Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
+	 * be checked.  If you need to add a bit into consideration for nominal
+	 * operating state, it must be added before
+	 * __ICE_STATE_NOMINAL_CHECK_BITS.  Do not move this entry's position
+	 * without appropriate consideration.
+	 */
+	__ICE_STATE_NOMINAL_CHECK_BITS,
 	__ICE_ADMINQ_EVENT_PENDING,
+	__ICE_MAILBOXQ_EVENT_PENDING,
 	__ICE_MDD_EVENT_PENDING,
+	__ICE_VFLR_EVENT_PENDING,
 	__ICE_FLTR_OVERFLOW_PROMISC,
+	__ICE_VF_DIS,
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
 	__ICE_SERVICE_DIS,
@@ -180,6 +204,8 @@ struct ice_vsi {
 
 	/* Interrupt thresholds */
 	u16 work_lmt;
+
+	s16 vf_id;			/* VF ID for SR-IOV VSIs */
 
 	/* RSS config */
 	u16 rss_table_size;	/* HW RSS table size */
@@ -240,6 +266,8 @@ enum ice_pf_flags {
 	ICE_FLAG_MSIX_ENA,
 	ICE_FLAG_FLTR_SYNC,
 	ICE_FLAG_RSS_ENA,
+	ICE_FLAG_SRIOV_ENA,
+	ICE_FLAG_SRIOV_CAPABLE,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
@@ -255,6 +283,12 @@ struct ice_pf {
 
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
+	/* Virtchnl/SR-IOV config info */
+	struct ice_vf *vf;
+	int num_alloc_vfs;		/* actual number of VFs allocated */
+	u16 num_vfs_supported;		/* num VFs supported for this PF */
+	u16 num_vf_qps;			/* num queue pairs per VF */
+	u16 num_vf_msix;		/* num vectors per VF */
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	DECLARE_BITMAP(avail_txqs, ICE_MAX_TXQS);
 	DECLARE_BITMAP(avail_rxqs, ICE_MAX_RXQS);

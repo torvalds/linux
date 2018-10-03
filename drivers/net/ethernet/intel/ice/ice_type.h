@@ -84,6 +84,7 @@ enum ice_media_type {
 
 enum ice_vsi_type {
 	ICE_VSI_PF = 0,
+	ICE_VSI_VF,
 };
 
 struct ice_link_status {
@@ -101,6 +102,15 @@ struct ice_link_status {
 	 * ice_aqc_get_phy_caps structure
 	 */
 	u8 module_type[ICE_MODULE_TYPE_TOTAL_BYTE];
+};
+
+/* Different reset sources for which a disable queue AQ call has to be made in
+ * order to clean the TX scheduler as a part of the reset
+ */
+enum ice_disq_rst_src {
+	ICE_NO_RESET = 0,
+	ICE_VM_RESET,
+	ICE_VF_RESET,
 };
 
 /* PHY info such as phy_type, etc... */
@@ -127,6 +137,9 @@ struct ice_hw_common_caps {
 	/* Max MTU for function or device */
 	u16 max_mtu;
 
+	/* Virtualization support */
+	u8 sr_iov_1_1;			/* SR-IOV enabled */
+
 	/* RSS related capabilities */
 	u16 rss_table_size;		/* 512 for PFs and 64 for VFs */
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
@@ -135,12 +148,15 @@ struct ice_hw_common_caps {
 /* Function specific capabilities */
 struct ice_hw_func_caps {
 	struct ice_hw_common_caps common_cap;
+	u32 num_allocd_vfs;		/* Number of allocated VFs */
+	u32 vf_base_id;			/* Logical ID of the first VF */
 	u32 guaranteed_num_vsi;
 };
 
 /* Device wide capabilities */
 struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
+	u32 num_vfs_exposed;		/* Total number of VFs exposed */
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
 };
 
@@ -321,6 +337,7 @@ struct ice_hw {
 
 	/* Control Queue info */
 	struct ice_ctl_q_info adminq;
+	struct ice_ctl_q_info mailboxq;
 
 	u8 api_branch;		/* API branch version */
 	u8 api_maj_ver;		/* API major version */
@@ -425,5 +442,8 @@ struct ice_hw_port_stats {
 #define ICE_OEM_VER_MASK		(0xff << ICE_OEM_VER_SHIFT)
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 #define ICE_SR_WORDS_IN_1KB		512
+
+/* Hash redirection LUT for VSI - maximum array size */
+#define ICE_VSIQF_HLUT_ARRAY_SIZE	((VSIQF_HLUT_MAX_INDEX + 1) * 4)
 
 #endif /* _ICE_TYPE_H_ */

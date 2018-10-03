@@ -19,6 +19,7 @@ struct ice_vsi_ctx {
 	struct ice_aqc_vsi_props info;
 	struct ice_sched_vsi_info sched;
 	u8 alloc_from_pool;
+	u8 vf_num;
 };
 
 enum ice_sw_fwd_act_type {

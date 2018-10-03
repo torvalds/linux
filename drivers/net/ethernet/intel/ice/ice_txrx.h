@@ -105,8 +105,9 @@ enum ice_rx_dtype {
 #define ICE_TX_ITR	ICE_IDX_ITR1
 #define ICE_ITR_DYNAMIC	0x8000  /* use top bit as a flag */
 #define ICE_ITR_8K	125
-#define ICE_DFLT_TX_ITR	ICE_ITR_8K
-#define ICE_DFLT_RX_ITR	ICE_ITR_8K
+#define ICE_ITR_20K	50
+#define ICE_DFLT_TX_ITR	ICE_ITR_20K
+#define ICE_DFLT_RX_ITR	ICE_ITR_20K
 /* apply ITR granularity translation to program the register. itr_gran is either
  * 2 or 4 usecs so we need to divide by 2 first then shift by that value
  */
@@ -134,13 +135,6 @@ struct ice_ring {
 	};
 	u16 q_index;			/* Queue number of ring */
 	u32 txq_teid;			/* Added Tx queue TEID */
-
-	/* high bit set means dynamic, use accessor routines to read/write.
-	 * hardware supports 4us/2us resolution for the ITR registers.
-	 * these values always store the USER setting, and must be converted
-	 * before programming to a register.
-	 */
-	u16 itr_setting;
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
@@ -178,6 +172,7 @@ struct ice_ring_container {
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_pkts;	/* total packets processed this int */
 	enum ice_latency_range latency_range;
+	int itr_idx;	/* index in the interrupt vector */
 	u16 itr;
 };
 

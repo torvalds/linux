@@ -187,6 +187,7 @@ ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 	if (!vsi_ctx->alloc_from_pool)
 		cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num |
 					   ICE_AQ_VSI_IS_VALID);
+	cmd->vf_id = vsi_ctx->vf_num;
 
 	cmd->vsi_flags = cpu_to_le16(vsi_ctx->flags);
 
@@ -655,6 +656,7 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 	u8 *eth_hdr;
 	u32 act = 0;
 	__be16 *off;
+	u8 q_rgn;
 
 	if (opc == ice_aqc_opc_remove_sw_rules) {
 		s_rule->pdata.lkup_tx_rx.act = 0;
@@ -693,13 +695,18 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		act |= (f_info->fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
 			ICE_SINGLE_ACT_Q_INDEX_M;
 		break;
-	case ICE_FWD_TO_QGRP:
-		act |= ICE_SINGLE_ACT_TO_Q;
-		act |= (f_info->qgrp_size << ICE_SINGLE_ACT_Q_REGION_S) &
-			ICE_SINGLE_ACT_Q_REGION_M;
-		break;
 	case ICE_DROP_PACKET:
-		act |= ICE_SINGLE_ACT_VSI_FORWARDING | ICE_SINGLE_ACT_DROP;
+		act |= ICE_SINGLE_ACT_VSI_FORWARDING | ICE_SINGLE_ACT_DROP |
+			ICE_SINGLE_ACT_VALID_BIT;
+		break;
+	case ICE_FWD_TO_QGRP:
+		q_rgn = f_info->qgrp_size > 0 ?
+			(u8)ilog2(f_info->qgrp_size) : 0;
+		act |= ICE_SINGLE_ACT_TO_Q;
+		act |= (f_info->fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
+			ICE_SINGLE_ACT_Q_INDEX_M;
+		act |= (q_rgn << ICE_SINGLE_ACT_Q_REGION_S) &
+			ICE_SINGLE_ACT_Q_REGION_M;
 		break;
 	default:
 		return;
@@ -1415,8 +1422,8 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 	fm_list->vsi_count--;
 	clear_bit(vsi_handle, fm_list->vsi_list_info->vsi_map);
 
-	if ((fm_list->vsi_count == 1 && lkup_type != ICE_SW_LKUP_VLAN) ||
-	    (fm_list->vsi_count == 0 && lkup_type == ICE_SW_LKUP_VLAN)) {
+	if (fm_list->vsi_count == 1 && lkup_type != ICE_SW_LKUP_VLAN) {
+		struct ice_fltr_info tmp_fltr_info = fm_list->fltr_info;
 		struct ice_vsi_list_map_info *vsi_list_info =
 			fm_list->vsi_list_info;
 		u16 rem_vsi_handle;
@@ -1425,6 +1432,8 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 						ICE_MAX_VSI);
 		if (!ice_is_vsi_valid(hw, rem_vsi_handle))
 			return ICE_ERR_OUT_OF_RANGE;
+
+		/* Make sure VSI list is empty before removing it below */
 		status = ice_update_vsi_list_rule(hw, &rem_vsi_handle, 1,
 						  vsi_list_id, true,
 						  ice_aqc_opc_update_sw_rules,
@@ -1432,16 +1441,34 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 		if (status)
 			return status;
 
+		tmp_fltr_info.fltr_act = ICE_FWD_TO_VSI;
+		tmp_fltr_info.fwd_id.hw_vsi_id =
+			ice_get_hw_vsi_num(hw, rem_vsi_handle);
+		tmp_fltr_info.vsi_handle = rem_vsi_handle;
+		status = ice_update_pkt_fwd_rule(hw, &tmp_fltr_info);
+		if (status) {
+			ice_debug(hw, ICE_DBG_SW,
+				  "Failed to update pkt fwd rule to FWD_TO_VSI on HW VSI %d, error %d\n",
+				  tmp_fltr_info.fwd_id.hw_vsi_id, status);
+			return status;
+		}
+
+		fm_list->fltr_info = tmp_fltr_info;
+	}
+
+	if ((fm_list->vsi_count == 1 && lkup_type != ICE_SW_LKUP_VLAN) ||
+	    (fm_list->vsi_count == 0 && lkup_type == ICE_SW_LKUP_VLAN)) {
+		struct ice_vsi_list_map_info *vsi_list_info =
+			fm_list->vsi_list_info;
+
 		/* Remove the VSI list since it is no longer used */
 		status = ice_remove_vsi_list_rule(hw, vsi_list_id, lkup_type);
-		if (status)
+		if (status) {
+			ice_debug(hw, ICE_DBG_SW,
+				  "Failed to remove VSI list %d, error %d\n",
+				  vsi_list_id, status);
 			return status;
-
-		/* Change the list entry action from VSI_LIST to VSI */
-		fm_list->fltr_info.fltr_act = ICE_FWD_TO_VSI;
-		fm_list->fltr_info.fwd_id.hw_vsi_id =
-			ice_get_hw_vsi_num(hw, rem_vsi_handle);
-		fm_list->fltr_info.vsi_handle = rem_vsi_handle;
+		}
 
 		list_del(&vsi_list_info->list_entry);
 		devm_kfree(ice_hw_to_dev(hw), vsi_list_info);
@@ -1983,12 +2010,12 @@ out:
 enum ice_status
 ice_remove_mac(struct ice_hw *hw, struct list_head *m_list)
 {
-	struct ice_fltr_list_entry *list_itr;
+	struct ice_fltr_list_entry *list_itr, *tmp;
 
 	if (!m_list)
 		return ICE_ERR_PARAM;
 
-	list_for_each_entry(list_itr, m_list, list_entry) {
+	list_for_each_entry_safe(list_itr, tmp, m_list, list_entry) {
 		enum ice_sw_lkup_type l_type = list_itr->fltr_info.lkup_type;
 
 		if (l_type != ICE_SW_LKUP_MAC)
@@ -2010,12 +2037,12 @@ ice_remove_mac(struct ice_hw *hw, struct list_head *m_list)
 enum ice_status
 ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list)
 {
-	struct ice_fltr_list_entry *v_list_itr;
+	struct ice_fltr_list_entry *v_list_itr, *tmp;
 
 	if (!v_list || !hw)
 		return ICE_ERR_PARAM;
 
-	list_for_each_entry(v_list_itr, v_list, list_entry) {
+	list_for_each_entry_safe(v_list_itr, tmp, v_list, list_entry) {
 		enum ice_sw_lkup_type l_type = v_list_itr->fltr_info.lkup_type;
 
 		if (l_type != ICE_SW_LKUP_VLAN)
@@ -2115,7 +2142,7 @@ ice_add_to_vsi_fltr_list(struct ice_hw *hw, u16 vsi_handle,
 		struct ice_fltr_info *fi;
 
 		fi = &fm_entry->fltr_info;
-		if (!ice_vsi_uses_fltr(fm_entry, vsi_handle))
+		if (!fi || !ice_vsi_uses_fltr(fm_entry, vsi_handle))
 			continue;
 
 		status = ice_add_entry_to_vsi_fltr_list(hw, vsi_handle,
@@ -2232,7 +2259,8 @@ ice_replay_vsi_fltr(struct ice_hw *hw, u16 vsi_handle, u8 recp_id,
 				goto end;
 			continue;
 		}
-		if (!test_bit(vsi_handle, itr->vsi_list_info->vsi_map))
+		if (!itr->vsi_list_info ||
+		    !test_bit(vsi_handle, itr->vsi_list_info->vsi_map))
 			continue;
 		/* Clearing it so that the logic can add it back */
 		clear_bit(vsi_handle, itr->vsi_list_info->vsi_map);

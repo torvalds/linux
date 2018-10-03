@@ -6,6 +6,9 @@
 
 /* Error Codes */
 enum ice_status {
+	ICE_SUCCESS				= 0,
+
+	/* Generic codes : Range -1..-49 */
 	ICE_ERR_PARAM				= -1,
 	ICE_ERR_NOT_IMPL			= -2,
 	ICE_ERR_NOT_READY			= -3,
