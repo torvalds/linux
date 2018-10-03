@@ -568,6 +568,7 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 	ast_bo_unreserve(bo);
 
+	ast_set_offset_reg(crtc);
 	ast_set_start_address_crt1(crtc, (u32)gpu_addr);
 
 	return 0;
