@@ -596,6 +596,37 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev,
 	ni_660x_write(dev, active_chip, bits, NI660X_IO_CFG(chan));
 }
 
+static void ni_660x_set_pfi_direction(struct comedi_device *dev,
+				      unsigned int chan,
+				      unsigned int direction)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	u64 bit;
+
+	bit = 1ULL << chan;
+
+	if (direction == COMEDI_OUTPUT) {
+		devpriv->io_dir |= bit;
+		/* reset the output to currently assigned output value */
+		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
+	} else {
+		devpriv->io_dir &= ~bit;
+		/* set pin to high-z; do not change currently assigned route */
+		ni_660x_select_pfi_output(dev, chan, 0);
+	}
+}
+
+static unsigned int ni_660x_get_pfi_direction(struct comedi_device *dev,
+					      unsigned int chan)
+{
+	struct ni_660x_private *devpriv = dev->private;
+	u64 bit;
+
+	bit = 1ULL << chan;
+
+	return (devpriv->io_dir & bit) ? COMEDI_OUTPUT : COMEDI_INPUT;
+}
+
 static int ni_660x_set_pfi_routing(struct comedi_device *dev,
 				   unsigned int chan, unsigned int source)
 {
@@ -614,9 +645,27 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev,
 	}
 
 	devpriv->io_cfg[chan] = source;
-	if (devpriv->io_dir & (1ULL << chan))
+	if (ni_660x_get_pfi_direction(dev, chan) == COMEDI_OUTPUT)
 		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
 	return 0;
+}
+
+static int ni_660x_get_pfi_routing(struct comedi_device *dev, unsigned int chan)
+{
+	struct ni_660x_private *devpriv = dev->private;
+
+	return devpriv->io_cfg[chan];
+}
+
+static void ni_660x_set_pfi_filter(struct comedi_device *dev,
+				   unsigned int chan, unsigned int value)
+{
+	unsigned int val;
+
+	val = ni_660x_read(dev, 0, NI660X_IO_CFG(chan));
+	val &= ~NI660X_IO_CFG_IN_SEL_MASK(chan);
+	val |= NI660X_IO_CFG_IN_SEL(chan, value);
+	ni_660x_write(dev, 0, val, NI660X_IO_CFG(chan));
 }
 
 static int ni_660x_dio_insn_config(struct comedi_device *dev,
@@ -624,26 +673,20 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct ni_660x_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	u64 bit = 1ULL << chan;
-	unsigned int val;
 	int ret;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		devpriv->io_dir |= bit;
-		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
+		ni_660x_set_pfi_direction(dev, chan, COMEDI_OUTPUT);
 		break;
 
 	case INSN_CONFIG_DIO_INPUT:
-		devpriv->io_dir &= ~bit;
-		ni_660x_select_pfi_output(dev, chan, 0);	/* high-z */
+		ni_660x_set_pfi_direction(dev, chan, COMEDI_INPUT);
 		break;
 
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (devpriv->io_dir & bit) ? COMEDI_OUTPUT
-						  : COMEDI_INPUT;
+		data[1] = ni_660x_get_pfi_direction(dev, chan);
 		break;
 
 	case INSN_CONFIG_SET_ROUTING:
@@ -653,14 +696,11 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 		break;
 
 	case INSN_CONFIG_GET_ROUTING:
-		data[1] = devpriv->io_cfg[chan];
+		data[1] = ni_660x_get_pfi_routing(dev, chan);
 		break;
 
 	case INSN_CONFIG_FILTER:
-		val = ni_660x_read(dev, 0, NI660X_IO_CFG(chan));
-		val &= ~NI660X_IO_CFG_IN_SEL_MASK(chan);
-		val |= NI660X_IO_CFG_IN_SEL(chan, data[1]);
-		ni_660x_write(dev, 0, val, NI660X_IO_CFG(chan));
+		ni_660x_set_pfi_filter(dev, chan, data[1]);
 		break;
 
 	default:
@@ -840,7 +880,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 					      : NI_660X_PFI_OUTPUT_COUNTER;
 
 		ni_660x_set_pfi_routing(dev, i, source);
-		ni_660x_select_pfi_output(dev, i, 0);		/* high-z */
+		ni_660x_set_pfi_direction(dev, i, COMEDI_INPUT);/* high-z */
 	}
 
 	/* Counter subdevices (4 NI TIO General Purpose Counters per chip) */
