@@ -2549,7 +2549,7 @@ retry:
 	if (!PageUptodate(ipage))
 		SetPageUptodate(ipage);
 	fill_node_footer(ipage, ino, ino, 0, true);
-	set_cold_node(page, false);
+	set_cold_node(ipage, false);
 
 	src = F2FS_INODE(page);
 	dst = F2FS_INODE(ipage);
