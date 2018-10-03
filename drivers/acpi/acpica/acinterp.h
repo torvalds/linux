@@ -124,6 +124,9 @@ acpi_ex_trace_point(acpi_trace_event_type type,
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
 acpi_status
+acpi_ex_get_protocol_buffer_length(u32 protocol_id, u32 *return_length);
+
+acpi_status
 acpi_ex_common_buffer_setup(union acpi_operand_object *obj_desc,
 			    u32 buffer_length, u32 * datum_count);
 
