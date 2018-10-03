@@ -1027,20 +1027,16 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 
 	/* By definition flush = invalidate + flush */
 	if (frontbuffer_bits) {
-		if (dev_priv->psr.psr2_enabled) {
-			intel_psr_exit(dev_priv);
-		} else {
-			/*
-			 * Display WA #0884: all
-			 * This documented WA for bxt can be safely applied
-			 * broadly so we can force HW tracking to exit PSR
-			 * instead of disabling and re-enabling.
-			 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
-			 * but it makes more sense write to the current active
-			 * pipe.
-			 */
-			I915_WRITE(CURSURFLIVE(pipe), 0);
-		}
+		/*
+		 * Display WA #0884: all
+		 * This documented WA for bxt can be safely applied
+		 * broadly so we can force HW tracking to exit PSR
+		 * instead of disabling and re-enabling.
+		 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
+		 * but it makes more sense write to the current active
+		 * pipe.
+		 */
+		I915_WRITE(CURSURFLIVE(pipe), 0);
 	}
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
