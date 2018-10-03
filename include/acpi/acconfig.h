@@ -176,8 +176,9 @@
 /* SMBus, GSBus and IPMI bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
-#define ACPI_GSBUS_BUFFER_SIZE          34
 #define ACPI_IPMI_BUFFER_SIZE           66
+#define ACPI_GSBUS_BUFFER_SIZE          34	/* Not clear if this is needed */
+#define ACPI_MAX_GSBUS_BUFFER_SIZE      255	/* Worst-case bidirectional buffer */
 
 /* _sx_d and _sx_w control methods */
 

@@ -60,9 +60,17 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length)
 
 	case AML_FIELD_ATTRIB_MULTIBYTE:
 	case AML_FIELD_ATTRIB_RAW_BYTES:
-	case AML_FIELD_ATTRIB_RAW_PROCESS:
 
 		length = access_length;
+		break;
+
+	case AML_FIELD_ATTRIB_RAW_PROCESS:
+		/*
+		 * Worst case bidirectional buffer size. This ignores the
+		 * access_length argument to access_as because it is not needed.
+		 * August 2018.
+		 */
+		length = ACPI_MAX_GSBUS_BUFFER_SIZE;
 		break;
 
 	case AML_FIELD_ATTRIB_BLOCK:
@@ -147,6 +155,13 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 		} else if (obj_desc->field.region_obj->region.space_id ==
 			   ACPI_ADR_SPACE_GSBUS) {
 			accessor_type = obj_desc->field.attribute;
+			if (accessor_type == AML_FIELD_ATTRIB_RAW_PROCESS) {
+				ACPI_ERROR((AE_INFO,
+					    "Invalid direct read using bidirectional write-then-read protocol"));
+
+				return_ACPI_STATUS(AE_AML_PROTOCOL);
+			}
+
 			length =
 			    acpi_ex_get_serial_access_length(accessor_type,
 							     obj_desc->field.
@@ -305,6 +320,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 {
 	acpi_status status;
 	u32 length;
+	u32 data_length;
 	void *buffer;
 	union acpi_operand_object *buffer_desc;
 	u32 function;
@@ -361,6 +377,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		if (obj_desc->field.region_obj->region.space_id ==
 		    ACPI_ADR_SPACE_SMBUS) {
 			length = ACPI_SMBUS_BUFFER_SIZE;
+			data_length = length;
 			function =
 			    ACPI_WRITE | (obj_desc->field.attribute << 16);
 		} else if (obj_desc->field.region_obj->region.space_id ==
@@ -372,38 +389,47 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 							     access_length);
 
 			/*
-			 * Add additional 2 bytes for the generic_serial_bus data buffer:
-			 *
+			 * Buffer format for Generic Serial Bus protocols:
 			 *     Status;    (Byte 0 of the data buffer)
 			 *     Length;    (Byte 1 of the data buffer)
 			 *     Data[x-1]: (Bytes 2-x of the arbitrary length data buffer)
 			 */
-			length += 2;
+			data_length = source_desc->buffer.pointer[1];	/* Data length is 2nd byte */
+			if (!data_length) {
+				ACPI_ERROR((AE_INFO,
+					    "Invalid zero data length in transfer buffer"));
+
+				return_ACPI_STATUS(AE_AML_BUFFER_LENGTH);
+			}
+
 			function = ACPI_WRITE | (accessor_type << 16);
 		} else {	/* IPMI */
 
 			length = ACPI_IPMI_BUFFER_SIZE;
+			data_length = length;
 			function = ACPI_WRITE;
 		}
 
-		if (source_desc->buffer.length < length) {
+		if (source_desc->buffer.length < data_length) {
 			ACPI_ERROR((AE_INFO,
 				    "SMBus/IPMI/GenericSerialBus write requires "
-				    "Buffer of length %u, found length %u",
-				    length, source_desc->buffer.length));
+				    "Buffer data length %u, found buffer length %u",
+				    data_length, source_desc->buffer.length));
 
 			return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
 		}
 
-		/* Create the bi-directional buffer */
+		/* Create the transfer/bidirectional buffer */
 
 		buffer_desc = acpi_ut_create_buffer_object(length);
 		if (!buffer_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
+		/* Copy the input buffer data to the transfer buffer */
+
 		buffer = buffer_desc->buffer.pointer;
-		memcpy(buffer, source_desc->buffer.pointer, length);
+		memcpy(buffer, source_desc->buffer.pointer, data_length);
 
 		/* Lock entire transaction if requested */
 
