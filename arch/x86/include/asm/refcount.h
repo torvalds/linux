@@ -79,16 +79,17 @@ static __always_inline void refcount_dec(refcount_t *r)
 static __always_inline __must_check
 bool refcount_sub_and_test(unsigned int i, refcount_t *r)
 {
-	GEN_BINARY_SUFFIXED_RMWcc(LOCK_PREFIX "subl",
-				  "REFCOUNT_CHECK_LT_ZERO counter=\"%0\"",
-				  r->refs.counter, "er", i, "%0", e, "cx");
+
+	return GEN_BINARY_SUFFIXED_RMWcc(LOCK_PREFIX "subl",
+					 "REFCOUNT_CHECK_LT_ZERO counter=\"%[var]\"",
+					 r->refs.counter, e, "er", i, "cx");
 }
 
 static __always_inline __must_check bool refcount_dec_and_test(refcount_t *r)
 {
-	GEN_UNARY_SUFFIXED_RMWcc(LOCK_PREFIX "decl",
-				 "REFCOUNT_CHECK_LT_ZERO counter=\"%0\"",
-				 r->refs.counter, "%0", e, "cx");
+	return GEN_UNARY_SUFFIXED_RMWcc(LOCK_PREFIX "decl",
+					"REFCOUNT_CHECK_LT_ZERO counter=\"%[var]\"",
+					r->refs.counter, e, "cx");
 }
 
 static __always_inline __must_check
