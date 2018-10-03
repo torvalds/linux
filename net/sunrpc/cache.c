@@ -54,6 +54,27 @@ static void cache_init(struct cache_head *h, struct cache_detail *detail)
 	h->last_refresh = now;
 }
 
+static struct cache_head *sunrpc_cache_find_rcu(struct cache_detail *detail,
+						struct cache_head *key,
+						int hash)
+{
+	struct hlist_head *head = &detail->hash_table[hash];
+	struct cache_head *tmp;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(tmp, head, cache_list) {
+		if (detail->match(tmp, key)) {
+			if (cache_is_expired(detail, tmp))
+				continue;
+			tmp = cache_get_rcu(tmp);
+			rcu_read_unlock();
+			return tmp;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
+
 static struct cache_head *sunrpc_cache_find(struct cache_detail *detail,
 					    struct cache_head *key, int hash)
 {
@@ -61,7 +82,6 @@ static struct cache_head *sunrpc_cache_find(struct cache_detail *detail,
 	struct cache_head *tmp;
 
 	read_lock(&detail->hash_lock);
-
 	hlist_for_each_entry(tmp, head, cache_list) {
 		if (detail->match(tmp, key)) {
 			if (cache_is_expired(detail, tmp))
@@ -96,10 +116,10 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 	write_lock(&detail->hash_lock);
 
 	/* check if entry appeared while we slept */
-	hlist_for_each_entry(tmp, head, cache_list) {
+	hlist_for_each_entry_rcu(tmp, head, cache_list) {
 		if (detail->match(tmp, key)) {
 			if (cache_is_expired(detail, tmp)) {
-				hlist_del_init(&tmp->cache_list);
+				hlist_del_init_rcu(&tmp->cache_list);
 				detail->entries --;
 				freeme = tmp;
 				break;
@@ -111,7 +131,7 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 		}
 	}
 
-	hlist_add_head(&new->cache_list, head);
+	hlist_add_head_rcu(&new->cache_list, head);
 	detail->entries++;
 	cache_get(new);
 	write_unlock(&detail->hash_lock);
@@ -120,6 +140,19 @@ static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 		cache_put(freeme, detail);
 	return new;
 }
+
+struct cache_head *sunrpc_cache_lookup_rcu(struct cache_detail *detail,
+					   struct cache_head *key, int hash)
+{
+	struct cache_head *ret;
+
+	ret = sunrpc_cache_find_rcu(detail, key, hash);
+	if (ret)
+		return ret;
+	/* Didn't find anything, insert an empty entry */
+	return sunrpc_cache_add_entry(detail, key, hash);
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_lookup_rcu);
 
 struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 				       struct cache_head *key, int hash)
@@ -133,6 +166,7 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	return sunrpc_cache_add_entry(detail, key, hash);
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
+
 
 static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch);
 
@@ -450,7 +484,7 @@ static int cache_clean(void)
 			if (!cache_is_expired(current_detail, ch))
 				continue;
 
-			hlist_del_init(&ch->cache_list);
+			hlist_del_init_rcu(&ch->cache_list);
 			current_detail->entries--;
 			rv = 1;
 			break;
@@ -521,7 +555,7 @@ void cache_purge(struct cache_detail *detail)
 	for (i = 0; i < detail->hash_size; i++) {
 		head = &detail->hash_table[i];
 		hlist_for_each_entry_safe(ch, tmp, head, cache_list) {
-			hlist_del_init(&ch->cache_list);
+			hlist_del_init_rcu(&ch->cache_list);
 			detail->entries--;
 
 			set_bit(CACHE_CLEANED, &ch->flags);
@@ -1306,21 +1340,19 @@ EXPORT_SYMBOL_GPL(qword_get);
  * get a header, then pass each real item in the cache
  */
 
-void *cache_seq_start(struct seq_file *m, loff_t *pos)
-	__acquires(cd->hash_lock)
+static void *__cache_seq_start(struct seq_file *m, loff_t *pos)
 {
 	loff_t n = *pos;
 	unsigned int hash, entry;
 	struct cache_head *ch;
 	struct cache_detail *cd = m->private;
 
-	read_lock(&cd->hash_lock);
 	if (!n--)
 		return SEQ_START_TOKEN;
 	hash = n >> 32;
 	entry = n & ((1LL<<32) - 1);
 
-	hlist_for_each_entry(ch, &cd->hash_table[hash], cache_list)
+	hlist_for_each_entry_rcu(ch, &cd->hash_table[hash], cache_list)
 		if (!entry--)
 			return ch;
 	n &= ~((1LL<<32) - 1);
@@ -1332,8 +1364,18 @@ void *cache_seq_start(struct seq_file *m, loff_t *pos)
 	if (hash >= cd->hash_size)
 		return NULL;
 	*pos = n+1;
-	return hlist_entry_safe(cd->hash_table[hash].first,
+	return hlist_entry_safe(rcu_dereference_raw(
+				hlist_first_rcu(&cd->hash_table[hash])),
 				struct cache_head, cache_list);
+}
+
+void *cache_seq_start(struct seq_file *m, loff_t *pos)
+	__acquires(cd->hash_lock)
+{
+	struct cache_detail *cd = m->private;
+
+	read_lock(&cd->hash_lock);
+	return __cache_seq_start(m, pos);
 }
 EXPORT_SYMBOL_GPL(cache_seq_start);
 
@@ -1350,7 +1392,8 @@ void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
 		*pos += 1LL<<32;
 	} else {
 		++*pos;
-		return hlist_entry_safe(ch->cache_list.next,
+		return hlist_entry_safe(rcu_dereference_raw(
+					hlist_next_rcu(&ch->cache_list)),
 					struct cache_head, cache_list);
 	}
 	*pos &= ~((1LL<<32) - 1);
@@ -1362,7 +1405,8 @@ void *cache_seq_next(struct seq_file *m, void *p, loff_t *pos)
 	if (hash >= cd->hash_size)
 		return NULL;
 	++*pos;
-	return hlist_entry_safe(cd->hash_table[hash].first,
+	return hlist_entry_safe(rcu_dereference_raw(
+				hlist_first_rcu(&cd->hash_table[hash])),
 				struct cache_head, cache_list);
 }
 EXPORT_SYMBOL_GPL(cache_seq_next);
@@ -1374,6 +1418,27 @@ void cache_seq_stop(struct seq_file *m, void *p)
 	read_unlock(&cd->hash_lock);
 }
 EXPORT_SYMBOL_GPL(cache_seq_stop);
+
+void *cache_seq_start_rcu(struct seq_file *m, loff_t *pos)
+	__acquires(RCU)
+{
+	rcu_read_lock();
+	return __cache_seq_start(m, pos);
+}
+EXPORT_SYMBOL_GPL(cache_seq_start_rcu);
+
+void *cache_seq_next_rcu(struct seq_file *file, void *p, loff_t *pos)
+{
+	return cache_seq_next(file, p, pos);
+}
+EXPORT_SYMBOL_GPL(cache_seq_next_rcu);
+
+void cache_seq_stop_rcu(struct seq_file *m, void *p)
+	__releases(RCU)
+{
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(cache_seq_stop_rcu);
 
 static int c_show(struct seq_file *m, void *p)
 {
@@ -1863,7 +1928,7 @@ void sunrpc_cache_unhash(struct cache_detail *cd, struct cache_head *h)
 {
 	write_lock(&cd->hash_lock);
 	if (!hlist_unhashed(&h->cache_list)){
-		hlist_del_init(&h->cache_list);
+		hlist_del_init_rcu(&h->cache_list);
 		cd->entries--;
 		write_unlock(&cd->hash_lock);
 		cache_put(h, cd);
