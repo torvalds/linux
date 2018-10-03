@@ -925,7 +925,7 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	 *  reading device version back: this allows the host implementation to
 	 *  detect the old driver (if there was no version write before read).
 	 */
-	writel((u32)PIPE_DRIVER_VERSION, dev->base + PIPE_REG_VERSION);
+	writel(PIPE_DRIVER_VERSION, dev->base + PIPE_REG_VERSION);
 	dev->version = readl(dev->base + PIPE_REG_VERSION);
 	if (WARN_ON(dev->version < PIPE_CURRENT_DEVICE_VERSION))
 		return -EINVAL;
