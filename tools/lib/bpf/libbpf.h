@@ -305,14 +305,14 @@ int bpf_perf_event_read_simple(void *mem, unsigned long size,
 			       bpf_perf_event_print_t fn, void *priv);
 
 struct nlattr;
-typedef int (*dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
-int bpf_netlink_open(unsigned int *nl_pid);
-int nl_get_link(int sock, unsigned int nl_pid, dump_nlmsg_t dump_link_nlmsg,
-		void *cookie);
-int nl_get_class(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_class_nlmsg, void *cookie);
-int nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
-int nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
-		  dump_nlmsg_t dump_filter_nlmsg, void *cookie);
+typedef int (*libbpf_dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
+int libbpf_netlink_open(unsigned int *nl_pid);
+int libbpf_nl_get_link(int sock, unsigned int nl_pid,
+		       libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie);
+int libbpf_nl_get_class(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_class_nlmsg, void *cookie);
+int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
+int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
+			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
 #endif
