@@ -131,8 +131,8 @@ static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
 	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
 		return false;
 
-	if (event_mask & FAN_ALL_OUTGOING_EVENTS & marks_mask &
-				 ~marks_ignored_mask)
+	if (event_mask & FANOTIFY_OUTGOING_EVENTS &
+	    marks_mask & ~marks_ignored_mask)
 		return true;
 
 	return false;
@@ -236,7 +236,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
 	if (ret) {
 		/* Permission events shouldn't be merged */
-		BUG_ON(ret == 1 && mask & FAN_ALL_PERM_EVENTS);
+		BUG_ON(ret == 1 && mask & FANOTIFY_PERM_EVENTS);
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
 

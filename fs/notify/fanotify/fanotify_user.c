@@ -131,7 +131,7 @@ static int fill_event_metadata(struct fsnotify_group *group,
 	metadata->metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
 	metadata->reserved = 0;
-	metadata->mask = fsn_event->mask & FAN_ALL_OUTGOING_EVENTS;
+	metadata->mask = fsn_event->mask & FANOTIFY_OUTGOING_EVENTS;
 	metadata->pid = pid_vnr(event->tgid);
 	if (unlikely(fsn_event->mask & FAN_Q_OVERFLOW))
 		metadata->fd = FAN_NOFD;
@@ -395,7 +395,7 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	 */
 	while (!fsnotify_notify_queue_is_empty(group)) {
 		fsn_event = fsnotify_remove_first_event(group);
-		if (!(fsn_event->mask & FAN_ALL_PERM_EVENTS)) {
+		if (!(fsn_event->mask & FANOTIFY_PERM_EVENTS)) {
 			spin_unlock(&group->notification_lock);
 			fsnotify_destroy_event(group, fsn_event);
 			spin_lock(&group->notification_lock);
@@ -691,9 +691,9 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		return -EPERM;
 
 #ifdef CONFIG_AUDITSYSCALL
-	if (flags & ~(FAN_ALL_INIT_FLAGS | FAN_ENABLE_AUDIT))
+	if (flags & ~(FANOTIFY_INIT_FLAGS | FAN_ENABLE_AUDIT))
 #else
-	if (flags & ~FAN_ALL_INIT_FLAGS)
+	if (flags & ~FANOTIFY_INIT_FLAGS)
 #endif
 		return -EINVAL;
 
@@ -745,7 +745,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group->fanotify_data.f_flags = event_f_flags;
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
-	switch (flags & FAN_ALL_CLASS_BITS) {
+	switch (flags & FANOTIFY_CLASS_BITS) {
 	case FAN_CLASS_NOTIF:
 		group->priority = FS_PRIO_0;
 		break;
@@ -803,8 +803,8 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	struct fsnotify_group *group;
 	struct fd f;
 	struct path path;
-	u32 valid_mask = FAN_ALL_EVENTS | FAN_EVENT_ON_CHILD | FAN_ONDIR;
-	unsigned int mark_type = flags & FAN_MARK_TYPE_MASK;
+	u32 valid_mask = FANOTIFY_EVENTS | FAN_EVENT_ON_CHILD | FAN_ONDIR;
+	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
 	int ret;
 
 	pr_debug("%s: fanotify_fd=%d flags=%x dfd=%d pathname=%p mask=%llx\n",
@@ -814,7 +814,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	if (mask & ((__u64)0xffffffff << 32))
 		return -EINVAL;
 
-	if (flags & ~FAN_ALL_MARK_FLAGS)
+	if (flags & ~FANOTIFY_MARK_FLAGS)
 		return -EINVAL;
 
 	switch (mark_type) {
@@ -833,7 +833,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 			return -EINVAL;
 		break;
 	case FAN_MARK_FLUSH:
-		if (flags & ~(FAN_MARK_TYPE_MASK | FAN_MARK_FLUSH))
+		if (flags & ~(FANOTIFY_MARK_TYPE_BITS | FAN_MARK_FLUSH))
 			return -EINVAL;
 		break;
 	default:
@@ -841,7 +841,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	}
 
 	if (IS_ENABLED(CONFIG_FANOTIFY_ACCESS_PERMISSIONS))
-		valid_mask |= FAN_ALL_PERM_EVENTS;
+		valid_mask |= FANOTIFY_PERM_EVENTS;
 
 	if (mask & ~valid_mask)
 		return -EINVAL;
@@ -861,7 +861,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	 * allowed to set permissions events.
 	 */
 	ret = -EINVAL;
-	if (mask & FAN_ALL_PERM_EVENTS &&
+	if (mask & FANOTIFY_PERM_EVENTS &&
 	    group->priority == FS_PRIO_0)
 		goto fput_and_out;
 

@@ -31,6 +31,8 @@
 #define FAN_CLASS_NOTIF		0x00000000
 #define FAN_CLASS_CONTENT	0x00000004
 #define FAN_CLASS_PRE_CONTENT	0x00000008
+
+/* Deprecated - do not use this in programs and do not add new flags here! */
 #define FAN_ALL_CLASS_BITS	(FAN_CLASS_NOTIF | FAN_CLASS_CONTENT | \
 				 FAN_CLASS_PRE_CONTENT)
 
@@ -38,6 +40,7 @@
 #define FAN_UNLIMITED_MARKS	0x00000020
 #define FAN_ENABLE_AUDIT	0x00000040
 
+/* Deprecated - do not use this in programs and do not add new flags here! */
 #define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_NONBLOCK | \
 				 FAN_ALL_CLASS_BITS | FAN_UNLIMITED_QUEUE |\
 				 FAN_UNLIMITED_MARKS)
@@ -57,23 +60,18 @@
 #define FAN_MARK_INODE		0x00000000
 #define FAN_MARK_MOUNT		0x00000010
 #define FAN_MARK_FILESYSTEM	0x00000100
-#define FAN_MARK_TYPE_MASK	(FAN_MARK_INODE | FAN_MARK_MOUNT | \
-				 FAN_MARK_FILESYSTEM)
 
+/* Deprecated - do not use this in programs and do not add new flags here! */
 #define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
 				 FAN_MARK_REMOVE |\
 				 FAN_MARK_DONT_FOLLOW |\
 				 FAN_MARK_ONLYDIR |\
+				 FAN_MARK_MOUNT |\
 				 FAN_MARK_IGNORED_MASK |\
 				 FAN_MARK_IGNORED_SURV_MODIFY |\
-				 FAN_MARK_FLUSH|\
-				 FAN_MARK_TYPE_MASK)
+				 FAN_MARK_FLUSH)
 
-/*
- * All of the events - we build the list by hand so that we can add flags in
- * the future and not break backward compatibility.  Apps will get only the
- * events that they originally wanted.  Be sure to add new events here!
- */
+/* Deprecated - do not use this in programs and do not add new flags here! */
 #define FAN_ALL_EVENTS (FAN_ACCESS |\
 			FAN_MODIFY |\
 			FAN_CLOSE |\
@@ -82,9 +80,11 @@
 /*
  * All events which require a permission response from userspace
  */
+/* Deprecated - do not use this in programs and do not add new flags here! */
 #define FAN_ALL_PERM_EVENTS (FAN_OPEN_PERM |\
 			     FAN_ACCESS_PERM)
 
+/* Deprecated - do not use this in programs and do not add new flags here! */
 #define FAN_ALL_OUTGOING_EVENTS	(FAN_ALL_EVENTS |\
 				 FAN_ALL_PERM_EVENTS |\
 				 FAN_Q_OVERFLOW)
