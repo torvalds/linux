@@ -297,15 +297,21 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
  * removed by dev_pm_opp_remove.
  *
  * Return:
- * 0		On success OR
+ * Valid OPP pointer:
+ *		On success
+ * NULL:
  *		Duplicate OPPs (both freq and volt are same) and opp->available
- * -EEXIST	Freq are same and volt are different OR
+ *		OR if the OPP is not supported by hardware.
+ * ERR_PTR(-EEXIST):
+ *		Freq are same and volt are different OR
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
- * -ENOMEM	Memory allocation failure
- * -EINVAL	Failed parsing the OPP node
+ * ERR_PTR(-ENOMEM):
+ *		Memory allocation failure
+ * ERR_PTR(-EINVAL):
+ *		Failed parsing the OPP node
  */
-static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
-			      struct device_node *np)
+static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
+		struct device *dev, struct device_node *np)
 {
 	struct dev_pm_opp *new_opp;
 	u64 rate = 0;
@@ -315,7 +321,7 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	ret = of_property_read_u64(np, "opp-hz", &rate);
 	if (ret < 0) {
@@ -390,12 +396,12 @@ static int _opp_add_static_v2(struct opp_table *opp_table, struct device *dev,
 	 * frequency/voltage list.
 	 */
 	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_ADD, new_opp);
-	return 0;
+	return new_opp;
 
 free_opp:
 	_opp_free(new_opp);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /* Initializes OPP tables based on new bindings */
@@ -415,14 +421,15 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 
 	/* We have opp-table node now, iterate over it and add OPPs */
 	for_each_available_child_of_node(opp_table->np, np) {
-		count++;
-
-		ret = _opp_add_static_v2(opp_table, dev, np);
-		if (ret) {
+		opp = _opp_add_static_v2(opp_table, dev, np);
+		if (IS_ERR(opp)) {
+			ret = PTR_ERR(opp);
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
 			of_node_put(np);
 			goto put_list_kref;
+		} else if (opp) {
+			count++;
 		}
 	}
 
