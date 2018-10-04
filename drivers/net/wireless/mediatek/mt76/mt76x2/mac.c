@@ -64,34 +64,6 @@ int mt76x2_mac_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain)
 	return rssi;
 }
 
-static struct mt76x02_sta *
-mt76x2_rx_get_sta(struct mt76x2_dev *dev, u8 idx)
-{
-	struct mt76_wcid *wcid;
-
-	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
-		return NULL;
-
-	wcid = rcu_dereference(dev->mt76.wcid[idx]);
-	if (!wcid)
-		return NULL;
-
-	return container_of(wcid, struct mt76x02_sta, wcid);
-}
-
-static struct mt76_wcid *
-mt76x2_rx_get_sta_wcid(struct mt76x2_dev *dev, struct mt76x02_sta *sta,
-		       bool unicast)
-{
-	if (!sta)
-		return NULL;
-
-	if (unicast)
-		return &sta->wcid;
-	else
-		return &sta->vif->group_wcid;
-}
-
 int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 			  void *rxi)
 {
@@ -122,8 +94,8 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 	}
 
 	wcid = FIELD_GET(MT_RXWI_CTL_WCID, ctl);
-	sta = mt76x2_rx_get_sta(dev, wcid);
-	status->wcid = mt76x2_rx_get_sta_wcid(dev, sta, unicast);
+	sta = mt76x02_rx_get_sta(&dev->mt76, wcid);
+	status->wcid = mt76x02_rx_get_sta_wcid(sta, unicast);
 
 	len = FIELD_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
 	pn_len = FIELD_GET(MT_RXINFO_PN_LEN, rxinfo);

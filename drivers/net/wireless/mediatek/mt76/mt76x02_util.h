@@ -18,6 +18,8 @@
 #ifndef __MT76X02_UTIL_H
 #define __MT76X02_UTIL_H
 
+#include "mt76x02_mac.h"
+
 extern struct ieee80211_rate mt76x02_rates[12];
 
 void mt76x02_configure_filter(struct ieee80211_hw *hw,
@@ -75,6 +77,33 @@ mt76x02_wait_for_txrx_idle(struct mt76_dev *dev)
 	return __mt76_poll_msec(dev, MT_MAC_STATUS,
 				MT_MAC_STATUS_TX | MT_MAC_STATUS_RX,
 				0, 100);
+}
+
+static inline struct mt76x02_sta *
+mt76x02_rx_get_sta(struct mt76_dev *dev, u8 idx)
+{
+	struct mt76_wcid *wcid;
+
+	if (idx >= ARRAY_SIZE(dev->wcid))
+		return NULL;
+
+	wcid = rcu_dereference(dev->wcid[idx]);
+	if (!wcid)
+		return NULL;
+
+	return container_of(wcid, struct mt76x02_sta, wcid);
+}
+
+static inline struct mt76_wcid *
+mt76x02_rx_get_sta_wcid(struct mt76x02_sta *sta, bool unicast)
+{
+	if (!sta)
+		return NULL;
+
+	if (unicast)
+		return &sta->wcid;
+	else
+		return &sta->vif->group_wcid;
 }
 
 #endif
