@@ -281,7 +281,7 @@ mt76x2_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 }
 
 const struct ieee80211_ops mt76x2_ops = {
-	.tx = mt76x2_tx,
+	.tx = mt76x02_tx,
 	.start = mt76x2_start,
 	.stop = mt76x2_stop,
 	.add_interface = mt76x02_add_interface,

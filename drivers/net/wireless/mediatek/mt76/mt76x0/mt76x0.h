@@ -84,8 +84,4 @@ void mt76x0_mac_set_short_preamble(struct mt76x02_dev *dev, bool short_preamb);
 void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval);
 void mt76x0_mac_set_ampdu_factor(struct mt76x02_dev *dev);
 
-/* TX */
-void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
-		struct sk_buff *skb);
-
 #endif

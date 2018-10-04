@@ -18,35 +18,6 @@
 #include "mt76x2.h"
 #include "../dma.h"
 
-void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
-	       struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct mt76x02_dev *dev = hw->priv;
-	struct ieee80211_vif *vif = info->control.vif;
-	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
-
-	if (control->sta) {
-		struct mt76x02_sta *msta;
-
-		msta = (struct mt76x02_sta *)control->sta->drv_priv;
-		wcid = &msta->wcid;
-		/* sw encrypted frames */
-		if (!info->control.hw_key && wcid->hw_key_idx != 0xff)
-			control->sta = NULL;
-	}
-
-	if (vif && !control->sta) {
-		struct mt76x02_vif *mvif;
-
-		mvif = (struct mt76x02_vif *)vif->drv_priv;
-		wcid = &mvif->group_wcid;
-	}
-
-	mt76_tx(&dev->mt76, control->sta, wcid, skb);
-}
-EXPORT_SYMBOL_GPL(mt76x2_tx);
-
 s8 mt76x2_tx_get_txpwr_adj(struct mt76_dev *mdev, s8 txpwr, s8 max_txpwr_adj)
 {
 	struct mt76x02_dev  *dev = container_of(mdev, struct mt76x02_dev, mt76);

@@ -160,7 +160,7 @@ mt76x2u_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 const struct ieee80211_ops mt76x2u_ops = {
-	.tx = mt76x2_tx,
+	.tx = mt76x02_tx,
 	.start = mt76x2u_start,
 	.stop = mt76x2u_stop,
 	.add_interface = mt76x2u_add_interface,

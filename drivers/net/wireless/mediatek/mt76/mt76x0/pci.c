@@ -70,7 +70,7 @@ static void mt76x0e_stop(struct ieee80211_hw *hw)
 }
 
 static const struct ieee80211_ops mt76x0e_ops = {
-	.tx = mt76x0_tx,
+	.tx = mt76x02_tx,
 	.start = mt76x0e_start,
 	.stop = mt76x0e_stop,
 	.config = mt76x0_config,
