@@ -22,7 +22,7 @@ void mt76x2_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	       struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 
@@ -49,7 +49,7 @@ EXPORT_SYMBOL_GPL(mt76x2_tx);
 
 s8 mt76x2_tx_get_txpwr_adj(struct mt76_dev *mdev, s8 txpwr, s8 max_txpwr_adj)
 {
-	struct mt76x2_dev  *dev = container_of(mdev, struct mt76x2_dev, mt76);
+	struct mt76x02_dev  *dev = container_of(mdev, struct mt76x02_dev, mt76);
 
 	txpwr = min_t(s8, txpwr, dev->mt76.txpower_conf);
 	txpwr -= (dev->target_power + dev->target_power_delta[0]);
@@ -64,7 +64,7 @@ s8 mt76x2_tx_get_txpwr_adj(struct mt76_dev *mdev, s8 txpwr, s8 max_txpwr_adj)
 }
 EXPORT_SYMBOL_GPL(mt76x2_tx_get_txpwr_adj);
 
-void mt76x2_tx_set_txpwr_auto(struct mt76x2_dev *dev, s8 txpwr)
+void mt76x2_tx_set_txpwr_auto(struct mt76x02_dev *dev, s8 txpwr)
 {
 	s8 txpwr_adj;
 

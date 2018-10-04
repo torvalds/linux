@@ -18,7 +18,7 @@
 #include "eeprom.h"
 #include "../mt76x02_phy.h"
 
-void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev)
+void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	bool is_5ghz = chan->band == NL80211_BAND_5GHZ;
@@ -40,7 +40,7 @@ void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2u_phy_update_channel_gain(struct mt76x2_dev *dev)
+mt76x2u_phy_update_channel_gain(struct mt76x02_dev *dev)
 {
 	u8 channel = dev->mt76.chandef.chan->hw_value;
 	int freq, freq1;
@@ -79,9 +79,9 @@ mt76x2u_phy_update_channel_gain(struct mt76x2_dev *dev)
 
 void mt76x2u_phy_calibrate(struct work_struct *work)
 {
-	struct mt76x2_dev *dev;
+	struct mt76x02_dev *dev;
 
-	dev = container_of(work, struct mt76x2_dev, cal_work.work);
+	dev = container_of(work, struct mt76x02_dev, cal_work.work);
 	mt76x2_phy_tssi_compensate(dev, false);
 	mt76x2u_phy_update_channel_gain(dev);
 
@@ -89,7 +89,7 @@ void mt76x2u_phy_calibrate(struct work_struct *work)
 				     MT_CALIBRATE_INTERVAL);
 }
 
-int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
+int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			    struct cfg80211_chan_def *chandef)
 {
 	u32 ext_cca_chan[4] = {

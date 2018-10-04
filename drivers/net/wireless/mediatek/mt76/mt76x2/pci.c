@@ -31,7 +31,7 @@ static const struct pci_device_id mt76pci_device_table[] = {
 static int
 mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct mt76x2_dev *dev;
+	struct mt76x02_dev *dev;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -89,7 +89,7 @@ static void
 mt76pci_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 
 	mt76_unregister_device(mdev);
 	mt76x2_cleanup(dev);

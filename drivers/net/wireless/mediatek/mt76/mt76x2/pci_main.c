@@ -20,7 +20,7 @@
 static int
 mt76x2_start(struct ieee80211_hw *hw)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -46,7 +46,7 @@ out:
 static void
 mt76x2_stop(struct ieee80211_hw *hw)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
@@ -55,7 +55,7 @@ mt76x2_stop(struct ieee80211_hw *hw)
 }
 
 static int
-mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
+mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 {
 	int ret;
 
@@ -91,7 +91,7 @@ mt76x2_set_channel(struct mt76x2_dev *dev, struct cfg80211_chan_def *chandef)
 static int
 mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	int ret = 0;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -132,7 +132,7 @@ static void
 mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *info, u32 changed)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -169,7 +169,7 @@ void
 mt76x2_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 {
 	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	int idx = msta->wcid.idx;
 
 	mt76_stop_tx_queues(&dev->mt76, sta, true);
@@ -180,7 +180,7 @@ static void
 mt76x2_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       const u8 *mac)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	tasklet_disable(&dev->pre_tbtt_tasklet);
 	set_bit(MT76_SCANNING, &dev->mt76.state);
@@ -189,7 +189,7 @@ mt76x2_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static void
 mt76x2_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
 	tasklet_enable(&dev->pre_tbtt_tasklet);
@@ -204,7 +204,7 @@ mt76x2_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static int
 mt76x2_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif, int *dbm)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	*dbm = dev->mt76.txpower_cur / 2;
 
@@ -217,7 +217,7 @@ mt76x2_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif, int *dbm)
 static void mt76x2_set_coverage_class(struct ieee80211_hw *hw,
 				      s16 coverage_class)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 	dev->coverage_class = coverage_class;
@@ -234,7 +234,7 @@ mt76x2_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 			      u32 rx_ant)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	if (!tx_ant || tx_ant > 3 || tx_ant != rx_ant)
 		return -EINVAL;
@@ -255,7 +255,7 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
 			      u32 *rx_ant)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 	*tx_ant = dev->mt76.antenna_mask;
@@ -268,7 +268,7 @@ static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
 static int
 mt76x2_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	if (val != ~0 && val > 0xffff)
 		return -EINVAL;

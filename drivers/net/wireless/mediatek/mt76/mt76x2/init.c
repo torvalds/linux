@@ -20,7 +20,7 @@
 #include "../mt76x02_phy.h"
 
 static void
-mt76x2_set_wlan_state(struct mt76x2_dev *dev, bool enable)
+mt76x2_set_wlan_state(struct mt76x02_dev *dev, bool enable)
 {
 	u32 val = mt76_rr(dev, MT_WLAN_FUN_CTRL);
 
@@ -35,7 +35,7 @@ mt76x2_set_wlan_state(struct mt76x2_dev *dev, bool enable)
 	udelay(20);
 }
 
-void mt76x2_reset_wlan(struct mt76x2_dev *dev, bool enable)
+void mt76x2_reset_wlan(struct mt76x02_dev *dev, bool enable)
 {
 	u32 val;
 
@@ -62,7 +62,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt76x2_reset_wlan);
 
-void mt76_write_mac_initvals(struct mt76x2_dev *dev)
+void mt76_write_mac_initvals(struct mt76x02_dev *dev)
 {
 #define DEFAULT_PROT_CFG_CCK				\
 	(FIELD_PREP(MT_PROT_CFG_RATE, 0x3) |		\
@@ -158,7 +158,7 @@ void mt76_write_mac_initvals(struct mt76x2_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76_write_mac_initvals);
 
-void mt76x2_init_device(struct mt76x2_dev *dev)
+void mt76x2_init_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 
@@ -187,7 +187,7 @@ void mt76x2_init_device(struct mt76x2_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x2_init_device);
 
-void mt76x2_init_txpower(struct mt76x2_dev *dev,
+void mt76x2_init_txpower(struct mt76x02_dev *dev,
 			 struct ieee80211_supported_band *sband)
 {
 	struct ieee80211_channel *chan;

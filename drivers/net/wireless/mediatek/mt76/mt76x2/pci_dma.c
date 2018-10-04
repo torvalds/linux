@@ -20,7 +20,7 @@
 
 void mt76x2_tx_tasklet(unsigned long data)
 {
-	struct mt76x2_dev *dev = (struct mt76x2_dev *) data;
+	struct mt76x02_dev *dev = (struct mt76x02_dev *) data;
 	int i;
 
 	mt76x2_mac_process_tx_status_fifo(dev);
@@ -32,7 +32,7 @@ void mt76x2_tx_tasklet(unsigned long data)
 	mt76x02_irq_enable(&dev->mt76, MT_INT_TX_DONE_ALL);
 }
 
-void mt76x2_dma_cleanup(struct mt76x2_dev *dev)
+void mt76x2_dma_cleanup(struct mt76x02_dev *dev)
 {
 	tasklet_kill(&dev->tx_tasklet);
 	mt76_dma_cleanup(&dev->mt76);

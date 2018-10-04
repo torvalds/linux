@@ -19,7 +19,7 @@
 
 static int mt76x2u_start(struct ieee80211_hw *hw)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	int ret;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -37,7 +37,7 @@ out:
 
 static void mt76x2u_stop(struct ieee80211_hw *hw)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
@@ -48,7 +48,7 @@ static void mt76x2u_stop(struct ieee80211_hw *hw)
 static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))
 		mt76x02_mac_setaddr(&dev->mt76, vif->addr);
@@ -58,7 +58,7 @@ static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 }
 
 static int
-mt76x2u_set_channel(struct mt76x2_dev *dev,
+mt76x2u_set_channel(struct mt76x02_dev *dev,
 		    struct cfg80211_chan_def *chandef)
 {
 	int err;
@@ -86,7 +86,7 @@ static void
 mt76x2u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_bss_conf *info, u32 changed)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -108,7 +108,7 @@ mt76x2u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static int
 mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	int err = 0;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -146,7 +146,7 @@ static void
 mt76x2u_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		const u8 *mac)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	set_bit(MT76_SCANNING, &dev->mt76.state);
 }
@@ -154,7 +154,7 @@ mt76x2u_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static void
 mt76x2u_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
 }

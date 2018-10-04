@@ -22,7 +22,7 @@
 #include "eeprom.h"
 #include "../mt76x02_usb.h"
 
-static void mt76x2u_init_dma(struct mt76x2_dev *dev)
+static void mt76x2u_init_dma(struct mt76x02_dev *dev)
 {
 	u32 val = mt76_rr(dev, MT_VEND_ADDR(CFG, MT_USB_U3DMA_CFG));
 
@@ -37,7 +37,7 @@ static void mt76x2u_init_dma(struct mt76x2_dev *dev)
 	mt76_wr(dev, MT_VEND_ADDR(CFG, MT_USB_U3DMA_CFG), val);
 }
 
-static void mt76x2u_power_on_rf_patch(struct mt76x2_dev *dev)
+static void mt76x2u_power_on_rf_patch(struct mt76x02_dev *dev)
 {
 	mt76_set(dev, MT_VEND_ADDR(CFG, 0x130), BIT(0) | BIT(16));
 	udelay(1);
@@ -57,7 +57,7 @@ static void mt76x2u_power_on_rf_patch(struct mt76x2_dev *dev)
 	mt76_set(dev, MT_VEND_ADDR(CFG, 0x14c), BIT(19) | BIT(20));
 }
 
-static void mt76x2u_power_on_rf(struct mt76x2_dev *dev, int unit)
+static void mt76x2u_power_on_rf(struct mt76x02_dev *dev, int unit)
 {
 	int shift = unit ? 8 : 0;
 	u32 val = (BIT(1) | BIT(3) | BIT(4) | BIT(5)) << shift;
@@ -79,7 +79,7 @@ static void mt76x2u_power_on_rf(struct mt76x2_dev *dev, int unit)
 	mt76_set(dev, 0x530, 0xf);
 }
 
-static void mt76x2u_power_on(struct mt76x2_dev *dev)
+static void mt76x2u_power_on(struct mt76x02_dev *dev)
 {
 	u32 val;
 
@@ -115,7 +115,7 @@ static void mt76x2u_power_on(struct mt76x2_dev *dev)
 	mt76x2u_power_on_rf(dev, 1);
 }
 
-static int mt76x2u_init_eeprom(struct mt76x2_dev *dev)
+static int mt76x2u_init_eeprom(struct mt76x02_dev *dev)
 {
 	u32 val, i;
 
@@ -135,7 +135,7 @@ static int mt76x2u_init_eeprom(struct mt76x2_dev *dev)
 	return 0;
 }
 
-struct mt76x2_dev *mt76x2u_alloc_device(struct device *pdev)
+struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
@@ -143,21 +143,21 @@ struct mt76x2_dev *mt76x2u_alloc_device(struct device *pdev)
 		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x2_queue_rx_skb,
 	};
-	struct mt76x2_dev *dev;
+	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
 
 	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2u_ops);
 	if (!mdev)
 		return NULL;
 
-	dev = container_of(mdev, struct mt76x2_dev, mt76);
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
 	mdev->dev = pdev;
 	mdev->drv = &drv_ops;
 
 	return dev;
 }
 
-static void mt76x2u_init_beacon_offsets(struct mt76x2_dev *dev)
+static void mt76x2u_init_beacon_offsets(struct mt76x02_dev *dev)
 {
 	mt76_wr(dev, MT_BCN_OFFSET(0), 0x18100800);
 	mt76_wr(dev, MT_BCN_OFFSET(1), 0x38302820);
@@ -165,7 +165,7 @@ static void mt76x2u_init_beacon_offsets(struct mt76x2_dev *dev)
 	mt76_wr(dev, MT_BCN_OFFSET(3), 0x78706860);
 }
 
-int mt76x2u_init_hardware(struct mt76x2_dev *dev)
+int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 {
 	const struct mt76_wcid_addr addr = {
 		.macaddr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
@@ -244,7 +244,7 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	return mt76x2u_mac_stop(dev);
 }
 
-int mt76x2u_register_device(struct mt76x2_dev *dev)
+int mt76x2u_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
@@ -295,14 +295,14 @@ fail:
 	return err;
 }
 
-void mt76x2u_stop_hw(struct mt76x2_dev *dev)
+void mt76x2u_stop_hw(struct mt76x02_dev *dev)
 {
 	mt76u_stop_stat_wk(&dev->mt76);
 	cancel_delayed_work_sync(&dev->cal_work);
 	mt76x2u_mac_stop(dev);
 }
 
-void mt76x2u_cleanup(struct mt76x2_dev *dev)
+void mt76x2u_cleanup(struct mt76x02_dev *dev)
 {
 	mt76x02_mcu_set_radio_state(&dev->mt76, false, false);
 	mt76x2u_stop_hw(dev);

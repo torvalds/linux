@@ -17,7 +17,7 @@
 #include "mt76x2u.h"
 #include "eeprom.h"
 
-static void mt76x2u_mac_reset_counters(struct mt76x2_dev *dev)
+static void mt76x2u_mac_reset_counters(struct mt76x02_dev *dev)
 {
 	mt76_rr(dev, MT_RX_STAT_0);
 	mt76_rr(dev, MT_RX_STAT_1);
@@ -27,7 +27,7 @@ static void mt76x2u_mac_reset_counters(struct mt76x2_dev *dev)
 	mt76_rr(dev, MT_TX_STA_2);
 }
 
-static void mt76x2u_mac_fixup_xtal(struct mt76x2_dev *dev)
+static void mt76x2u_mac_fixup_xtal(struct mt76x02_dev *dev)
 {
 	s8 offset = 0;
 	u16 eep_val;
@@ -80,7 +80,7 @@ static void mt76x2u_mac_fixup_xtal(struct mt76x2_dev *dev)
 	}
 }
 
-int mt76x2u_mac_reset(struct mt76x2_dev *dev)
+int mt76x2u_mac_reset(struct mt76x02_dev *dev)
 {
 	mt76_wr(dev, MT_WPDMA_GLO_CFG, BIT(4) | BIT(5));
 
@@ -114,7 +114,7 @@ int mt76x2u_mac_reset(struct mt76x2_dev *dev)
 	return 0;
 }
 
-int mt76x2u_mac_start(struct mt76x2_dev *dev)
+int mt76x2u_mac_start(struct mt76x02_dev *dev)
 {
 	mt76x2u_mac_reset_counters(dev);
 
@@ -131,7 +131,7 @@ int mt76x2u_mac_start(struct mt76x2_dev *dev)
 	return 0;
 }
 
-int mt76x2u_mac_stop(struct mt76x2_dev *dev)
+int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 {
 	int i, count = 0, val;
 	bool stopped = false;
@@ -212,7 +212,7 @@ int mt76x2u_mac_stop(struct mt76x2_dev *dev)
 	return 0;
 }
 
-void mt76x2u_mac_resume(struct mt76x2_dev *dev)
+void mt76x2u_mac_resume(struct mt76x02_dev *dev)
 {
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX |

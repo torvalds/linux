@@ -20,7 +20,7 @@
 static int
 mt76x2_ampdu_stat_read(struct seq_file *file, void *data)
 {
-	struct mt76x2_dev *dev = file->private;
+	struct mt76x02_dev *dev = file->private;
 	int i, j;
 
 	for (i = 0; i < 4; i++) {
@@ -49,7 +49,7 @@ mt76x2_ampdu_stat_open(struct inode *inode, struct file *f)
 
 static int read_txpower(struct seq_file *file, void *data)
 {
-	struct mt76x2_dev *dev = dev_get_drvdata(file->private);
+	struct mt76x02_dev *dev = dev_get_drvdata(file->private);
 
 	seq_printf(file, "Target power: %d\n", dev->target_power);
 
@@ -68,9 +68,9 @@ static const struct file_operations fops_ampdu_stat = {
 static int
 mt76x2_dfs_stat_read(struct seq_file *file, void *data)
 {
+	struct mt76x02_dev *dev = file->private;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 	int i;
-	struct mt76x2_dev *dev = file->private;
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	seq_printf(file, "allocated sequences:\t%d\n",
 		   dfs_pd->seq_stats.seq_pool_len);
@@ -106,7 +106,7 @@ static const struct file_operations fops_dfs_stat = {
 
 static int read_agc(struct seq_file *file, void *data)
 {
-	struct mt76x2_dev *dev = dev_get_drvdata(file->private);
+	struct mt76x02_dev *dev = dev_get_drvdata(file->private);
 
 	seq_printf(file, "avg_rssi: %d\n", dev->cal.avg_rssi_all);
 	seq_printf(file, "low_gain: %d\n", dev->cal.low_gain);
@@ -116,7 +116,7 @@ static int read_agc(struct seq_file *file, void *data)
 	return 0;
 }
 
-void mt76x2_init_debugfs(struct mt76x2_dev *dev)
+void mt76x2_init_debugfs(struct mt76x02_dev *dev)
 {
 	struct dentry *dir;
 

@@ -26,7 +26,7 @@ void mt76x2_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 
 irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
 {
-	struct mt76x2_dev *dev = dev_instance;
+	struct mt76x02_dev *dev = dev_instance;
 	u32 intr;
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);

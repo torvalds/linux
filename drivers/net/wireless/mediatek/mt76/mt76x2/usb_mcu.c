@@ -29,7 +29,7 @@
 #define MT76U_MCU_DLM_OFFSET		0x110000
 #define MT76U_MCU_ROM_PATCH_OFFSET	0x90000
 
-int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
+int mt76x2u_mcu_set_dynamic_vga(struct mt76x02_dev *dev, u8 channel, bool ap,
 				bool ext, int rssi, u32 false_cca)
 {
 	struct {
@@ -53,14 +53,14 @@ int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
 	return mt76_mcu_send_msg(dev, skb, CMD_DYNC_VGA_OP, true);
 }
 
-static void mt76x2u_mcu_load_ivb(struct mt76x2_dev *dev)
+static void mt76x2u_mcu_load_ivb(struct mt76x02_dev *dev)
 {
 	mt76u_vendor_request(&dev->mt76, MT_VEND_DEV_MODE,
 			     USB_DIR_OUT | USB_TYPE_VENDOR,
 			     0x12, 0, NULL, 0);
 }
 
-static void mt76x2u_mcu_enable_patch(struct mt76x2_dev *dev)
+static void mt76x2u_mcu_enable_patch(struct mt76x02_dev *dev)
 {
 	struct mt76_usb *usb = &dev->mt76.usb;
 	const u8 data[] = {
@@ -75,7 +75,7 @@ static void mt76x2u_mcu_enable_patch(struct mt76x2_dev *dev)
 			     0x12, 0, usb->data, sizeof(data));
 }
 
-static void mt76x2u_mcu_reset_wmt(struct mt76x2_dev *dev)
+static void mt76x2u_mcu_reset_wmt(struct mt76x02_dev *dev)
 {
 	struct mt76_usb *usb = &dev->mt76.usb;
 	u8 data[] = {
@@ -89,7 +89,7 @@ static void mt76x2u_mcu_reset_wmt(struct mt76x2_dev *dev)
 			     0x12, 0, usb->data, sizeof(data));
 }
 
-static int mt76x2u_mcu_load_rom_patch(struct mt76x2_dev *dev)
+static int mt76x2u_mcu_load_rom_patch(struct mt76x02_dev *dev)
 {
 	bool rom_protect = !is_mt7612(dev);
 	struct mt76x02_patch_header *hdr;
@@ -176,7 +176,7 @@ out:
 	return err;
 }
 
-static int mt76x2u_mcu_load_firmware(struct mt76x2_dev *dev)
+static int mt76x2u_mcu_load_firmware(struct mt76x02_dev *dev)
 {
 	u32 val, dlm_offset = MT76U_MCU_DLM_OFFSET;
 	const struct mt76x02_fw_header *hdr;
@@ -268,7 +268,7 @@ out:
 	return err;
 }
 
-int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev)
+int mt76x2u_mcu_fw_init(struct mt76x02_dev *dev)
 {
 	int err;
 
@@ -279,7 +279,7 @@ int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev)
 	return mt76x2u_mcu_load_firmware(dev);
 }
 
-int mt76x2u_mcu_init(struct mt76x2_dev *dev)
+int mt76x2u_mcu_init(struct mt76x02_dev *dev)
 {
 	int err;
 

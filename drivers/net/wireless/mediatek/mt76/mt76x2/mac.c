@@ -18,7 +18,7 @@
 #include "mt76x2.h"
 #include "../mt76x02_util.h"
 
-void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
+void mt76x2_mac_stop(struct mt76x02_dev *dev, bool force)
 {
 	bool stopped = false;
 	u32 rts_cfg;
@@ -54,9 +54,9 @@ void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force)
 }
 EXPORT_SYMBOL_GPL(mt76x2_mac_stop);
 
-int mt76x2_mac_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain)
+int mt76x2_mac_get_rssi(struct mt76x02_dev *dev, s8 rssi, int chain)
 {
-	struct mt76x2_rx_freq_cal *cal = &dev->cal.rx;
+	struct mt76x02_rx_freq_cal *cal = &dev->cal.rx;
 
 	rssi += cal->rssi_offset[chain];
 	rssi -= cal->lna_gain;
@@ -64,7 +64,7 @@ int mt76x2_mac_get_rssi(struct mt76x2_dev *dev, s8 rssi, int chain)
 	return rssi;
 }
 
-int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
+int mt76x2_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 			  void *rxi)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;

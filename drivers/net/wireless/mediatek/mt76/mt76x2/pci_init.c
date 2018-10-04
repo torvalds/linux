@@ -22,7 +22,7 @@
 #include "../mt76x02_dma.h"
 
 static void
-mt76x2_mac_pbf_init(struct mt76x2_dev *dev)
+mt76x2_mac_pbf_init(struct mt76x02_dev *dev)
 {
 	u32 val;
 
@@ -40,7 +40,7 @@ mt76x2_mac_pbf_init(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_fixup_xtal(struct mt76x2_dev *dev)
+mt76x2_fixup_xtal(struct mt76x02_dev *dev)
 {
 	u16 eep_val;
 	s8 offset = 0;
@@ -79,7 +79,7 @@ mt76x2_fixup_xtal(struct mt76x2_dev *dev)
 	}
 }
 
-static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
+static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 {
 	static const u8 null_addr[ETH_ALEN] = {};
 	const u8 *macaddr = dev->mt76.macaddr;
@@ -177,7 +177,7 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 	return 0;
 }
 
-int mt76x2_mac_start(struct mt76x2_dev *dev)
+int mt76x2_mac_start(struct mt76x02_dev *dev)
 {
 	int i;
 
@@ -193,7 +193,7 @@ int mt76x2_mac_start(struct mt76x2_dev *dev)
 	return 0;
 }
 
-void mt76x2_mac_resume(struct mt76x2_dev *dev)
+void mt76x2_mac_resume(struct mt76x02_dev *dev)
 {
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX |
@@ -201,7 +201,7 @@ void mt76x2_mac_resume(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_power_on_rf_patch(struct mt76x2_dev *dev)
+mt76x2_power_on_rf_patch(struct mt76x02_dev *dev)
 {
 	mt76_set(dev, 0x10130, BIT(0) | BIT(16));
 	udelay(1);
@@ -222,7 +222,7 @@ mt76x2_power_on_rf_patch(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_power_on_rf(struct mt76x2_dev *dev, int unit)
+mt76x2_power_on_rf(struct mt76x02_dev *dev, int unit)
 {
 	int shift = unit ? 8 : 0;
 
@@ -244,7 +244,7 @@ mt76x2_power_on_rf(struct mt76x2_dev *dev, int unit)
 }
 
 static void
-mt76x2_power_on(struct mt76x2_dev *dev)
+mt76x2_power_on(struct mt76x02_dev *dev)
 {
 	u32 val;
 
@@ -279,7 +279,7 @@ mt76x2_power_on(struct mt76x2_dev *dev)
 	mt76x2_power_on_rf(dev, 1);
 }
 
-void mt76x2_set_tx_ackto(struct mt76x2_dev *dev)
+void mt76x2_set_tx_ackto(struct mt76x02_dev *dev)
 {
 	u8 ackto, sifs, slottime = dev->slottime;
 
@@ -296,7 +296,7 @@ void mt76x2_set_tx_ackto(struct mt76x2_dev *dev)
 		       MT_TX_TIMEOUT_CFG_ACKTO, ackto);
 }
 
-int mt76x2_init_hardware(struct mt76x2_dev *dev)
+int mt76x2_init_hardware(struct mt76x02_dev *dev)
 {
 	int ret;
 
@@ -335,7 +335,7 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 	return 0;
 }
 
-void mt76x2_stop_hardware(struct mt76x2_dev *dev)
+void mt76x2_stop_hardware(struct mt76x02_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
@@ -343,7 +343,7 @@ void mt76x2_stop_hardware(struct mt76x2_dev *dev)
 	mt76x2_mac_stop(dev, false);
 }
 
-void mt76x2_cleanup(struct mt76x2_dev *dev)
+void mt76x2_cleanup(struct mt76x02_dev *dev)
 {
 	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 	tasklet_disable(&dev->pre_tbtt_tasklet);
@@ -352,7 +352,7 @@ void mt76x2_cleanup(struct mt76x2_dev *dev)
 	mt76x02_mcu_cleanup(&dev->mt76);
 }
 
-struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
+struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
@@ -364,14 +364,14 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 		.sta_ps = mt76x2_sta_ps,
 		.get_tx_txpwr_adj = mt76x2_tx_get_txpwr_adj,
 	};
-	struct mt76x2_dev *dev;
+	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
 
 	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2_ops);
 	if (!mdev)
 		return NULL;
 
-	dev = container_of(mdev, struct mt76x2_dev, mt76);
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
 	mdev->dev = pdev;
 	mdev->drv = &drv_ops;
 
@@ -382,7 +382,7 @@ static void mt76x2_regd_notifier(struct wiphy *wiphy,
 				 struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct mt76x2_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mt76x2_dfs_set_domain(dev, request->dfs_region);
 }
@@ -418,8 +418,8 @@ static const struct ieee80211_iface_combination if_comb[] = {
 static void mt76x2_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 				  u8 delay_off)
 {
-	struct mt76x2_dev *dev = container_of(mt76, struct mt76x2_dev,
-					      mt76);
+	struct mt76x02_dev *dev = container_of(mt76, struct mt76x02_dev,
+					       mt76);
 	u32 val;
 
 	val = MT_LED_STATUS_DURATION(0xff) |
@@ -463,7 +463,7 @@ static void mt76x2_led_set_brightness(struct led_classdev *led_cdev,
 		mt76x2_led_set_config(mt76, 0xff, 0);
 }
 
-int mt76x2_register_device(struct mt76x2_dev *dev)
+int mt76x2_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;

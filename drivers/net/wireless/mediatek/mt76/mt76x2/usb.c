@@ -37,7 +37,7 @@ static int mt76x2u_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
-	struct mt76x2_dev *dev;
+	struct mt76x02_dev *dev;
 	int err;
 
 	dev = mt76x2u_alloc_device(&intf->dev);
@@ -72,7 +72,7 @@ err:
 static void mt76x2u_disconnect(struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
-	struct mt76x2_dev *dev = usb_get_intfdata(intf);
+	struct mt76x02_dev *dev = usb_get_intfdata(intf);
 	struct ieee80211_hw *hw = mt76_hw(dev);
 
 	set_bit(MT76_REMOVED, &dev->mt76.state);
@@ -87,7 +87,7 @@ static void mt76x2u_disconnect(struct usb_interface *intf)
 static int __maybe_unused mt76x2u_suspend(struct usb_interface *intf,
 					  pm_message_t state)
 {
-	struct mt76x2_dev *dev = usb_get_intfdata(intf);
+	struct mt76x02_dev *dev = usb_get_intfdata(intf);
 	struct mt76_usb *usb = &dev->mt76.usb;
 
 	mt76u_stop_queues(&dev->mt76);
@@ -99,7 +99,7 @@ static int __maybe_unused mt76x2u_suspend(struct usb_interface *intf,
 
 static int __maybe_unused mt76x2u_resume(struct usb_interface *intf)
 {
-	struct mt76x2_dev *dev = usb_get_intfdata(intf);
+	struct mt76x02_dev *dev = usb_get_intfdata(intf);
 	struct mt76_usb *usb = &dev->mt76.usb;
 	int err;
 

@@ -21,7 +21,7 @@
 #include "trace.h"
 #include "../mt76x02_util.h"
 
-void mt76x2_mac_set_bssid(struct mt76x2_dev *dev, u8 idx, const u8 *addr)
+void mt76x2_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 {
 	idx &= 7;
 	mt76_wr(dev, MT_MAC_APC_BSSID_L(idx), get_unaligned_le32(addr));
@@ -29,7 +29,7 @@ void mt76x2_mac_set_bssid(struct mt76x2_dev *dev, u8 idx, const u8 *addr)
 		       get_unaligned_le16(addr + 4));
 }
 
-void mt76x2_mac_poll_tx_status(struct mt76x2_dev *dev, bool irq)
+void mt76x2_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 {
 	struct mt76x02_tx_status stat = {};
 	unsigned long flags;
@@ -61,7 +61,7 @@ void mt76x2_mac_poll_tx_status(struct mt76x2_dev *dev, bool irq)
 }
 
 static void
-mt76x2_mac_queue_txdone(struct mt76x2_dev *dev, struct sk_buff *skb,
+mt76x2_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,
 			void *txwi_ptr)
 {
 	struct mt76x2_tx_info *txi = mt76x2_skb_tx_info(skb);
@@ -77,7 +77,7 @@ mt76x2_mac_queue_txdone(struct mt76x2_dev *dev, struct sk_buff *skb,
 	mt76x02_tx_complete(&dev->mt76, skb);
 }
 
-void mt76x2_mac_process_tx_status_fifo(struct mt76x2_dev *dev)
+void mt76x2_mac_process_tx_status_fifo(struct mt76x02_dev *dev)
 {
 	struct mt76x02_tx_status stat;
 	u8 update = 1;
@@ -89,7 +89,7 @@ void mt76x2_mac_process_tx_status_fifo(struct mt76x2_dev *dev)
 void mt76x2_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e, bool flush)
 {
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 
 	if (e->txwi)
 		mt76x2_mac_queue_txdone(dev, e->skb, &e->txwi->txwi);
@@ -98,7 +98,7 @@ void mt76x2_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 }
 
 static int
-mt76_write_beacon(struct mt76x2_dev *dev, int offset, struct sk_buff *skb)
+mt76_write_beacon(struct mt76x02_dev *dev, int offset, struct sk_buff *skb)
 {
 	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
 	struct mt76x02_txwi txwi;
@@ -116,7 +116,7 @@ mt76_write_beacon(struct mt76x2_dev *dev, int offset, struct sk_buff *skb)
 }
 
 static int
-__mt76x2_mac_set_beacon(struct mt76x2_dev *dev, u8 bcn_idx, struct sk_buff *skb)
+__mt76x2_mac_set_beacon(struct mt76x02_dev *dev, u8 bcn_idx, struct sk_buff *skb)
 {
 	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
 	int beacon_addr = mt76x02_beacon_offsets[bcn_idx];
@@ -141,7 +141,7 @@ __mt76x2_mac_set_beacon(struct mt76x2_dev *dev, u8 bcn_idx, struct sk_buff *skb)
 	return ret;
 }
 
-int mt76x2_mac_set_beacon(struct mt76x2_dev *dev, u8 vif_idx,
+int mt76x2_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 			  struct sk_buff *skb)
 {
 	bool force_update = false;
@@ -176,7 +176,8 @@ int mt76x2_mac_set_beacon(struct mt76x2_dev *dev, u8 vif_idx,
 	return 0;
 }
 
-void mt76x2_mac_set_beacon_enable(struct mt76x2_dev *dev, u8 vif_idx, bool val)
+void mt76x2_mac_set_beacon_enable(struct mt76x02_dev *dev,
+				  u8 vif_idx, bool val)
 {
 	u8 old_mask = dev->beacon_mask;
 	bool en;
@@ -208,7 +209,7 @@ void mt76x2_mac_set_beacon_enable(struct mt76x2_dev *dev, u8 vif_idx, bool val)
 
 void mt76x2_update_channel(struct mt76_dev *mdev)
 {
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76_channel_state *state;
 	u32 active, busy;
 
@@ -225,8 +226,8 @@ void mt76x2_update_channel(struct mt76_dev *mdev)
 
 void mt76x2_mac_work(struct work_struct *work)
 {
-	struct mt76x2_dev *dev = container_of(work, struct mt76x2_dev,
-					    mac_work.work);
+	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
+					       mac_work.work);
 	int i, idx;
 
 	mt76x2_update_channel(&dev->mt76);
@@ -241,7 +242,7 @@ void mt76x2_mac_work(struct work_struct *work)
 				     MT_CALIBRATE_INTERVAL);
 }
 
-void mt76x2_mac_set_tx_protection(struct mt76x2_dev *dev, u32 val)
+void mt76x2_mac_set_tx_protection(struct mt76x02_dev *dev, u32 val)
 {
 	u32 data = 0;
 

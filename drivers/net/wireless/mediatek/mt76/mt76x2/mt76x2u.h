@@ -30,31 +30,31 @@
 
 extern const struct ieee80211_ops mt76x2u_ops;
 
-struct mt76x2_dev *mt76x2u_alloc_device(struct device *pdev);
-int mt76x2u_register_device(struct mt76x2_dev *dev);
-int mt76x2u_init_hardware(struct mt76x2_dev *dev);
-void mt76x2u_cleanup(struct mt76x2_dev *dev);
-void mt76x2u_stop_hw(struct mt76x2_dev *dev);
+struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev);
+int mt76x2u_register_device(struct mt76x02_dev *dev);
+int mt76x2u_init_hardware(struct mt76x02_dev *dev);
+void mt76x2u_cleanup(struct mt76x02_dev *dev);
+void mt76x2u_stop_hw(struct mt76x02_dev *dev);
 
-int mt76x2u_mac_reset(struct mt76x2_dev *dev);
-void mt76x2u_mac_resume(struct mt76x2_dev *dev);
-int mt76x2u_mac_start(struct mt76x2_dev *dev);
-int mt76x2u_mac_stop(struct mt76x2_dev *dev);
+int mt76x2u_mac_reset(struct mt76x02_dev *dev);
+void mt76x2u_mac_resume(struct mt76x02_dev *dev);
+int mt76x2u_mac_start(struct mt76x02_dev *dev);
+int mt76x2u_mac_stop(struct mt76x02_dev *dev);
 
-int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
+int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			    struct cfg80211_chan_def *chandef);
 void mt76x2u_phy_calibrate(struct work_struct *work);
-void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev);
+void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
-int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,
+int mt76x2u_mcu_set_dynamic_vga(struct mt76x02_dev *dev, u8 channel, bool ap,
 				bool ext, int rssi, u32 false_cca);
-int mt76x2u_mcu_init(struct mt76x2_dev *dev);
-int mt76x2u_mcu_fw_init(struct mt76x2_dev *dev);
+int mt76x2u_mcu_init(struct mt76x02_dev *dev);
+int mt76x2u_mcu_fw_init(struct mt76x02_dev *dev);
 
-int mt76x2u_alloc_queues(struct mt76x2_dev *dev);
-void mt76x2u_queues_deinit(struct mt76x2_dev *dev);
-void mt76x2u_stop_queues(struct mt76x2_dev *dev);
+int mt76x2u_alloc_queues(struct mt76x02_dev *dev);
+void mt76x2u_queues_deinit(struct mt76x02_dev *dev);
+void mt76x2u_stop_queues(struct mt76x02_dev *dev);
 int mt76x2u_skb_dma_info(struct sk_buff *skb, enum dma_msg_port port,
 			 u32 flags);
 

@@ -18,7 +18,76 @@
 #ifndef __MT76X02_UTIL_H
 #define __MT76X02_UTIL_H
 
+#include <linux/kfifo.h>
+
 #include "mt76x02_mac.h"
+#include "mt76x02_dfs.h"
+
+#define MT_MAX_CHAINS		2
+struct mt76x02_rx_freq_cal {
+	s8 high_gain[MT_MAX_CHAINS];
+	s8 rssi_offset[MT_MAX_CHAINS];
+	s8 lna_gain;
+	u32 mcu_gain;
+};
+
+struct mt76x02_calibration {
+	struct mt76x02_rx_freq_cal rx;
+
+	u8 agc_gain_init[MT_MAX_CHAINS];
+	u8 agc_gain_cur[MT_MAX_CHAINS];
+
+	u16 false_cca;
+	s8 avg_rssi_all;
+	s8 agc_gain_adjust;
+	s8 low_gain;
+
+	u8 temp;
+
+	bool init_cal_done;
+	bool tssi_cal_done;
+	bool tssi_comp_pending;
+	bool dpd_cal_done;
+	bool channel_cal_done;
+};
+
+struct mt76x02_dev {
+	struct mt76_dev mt76; /* must be first */
+
+	struct mac_address macaddr_list[8];
+
+	struct mutex mutex;
+
+	u8 txdone_seq;
+	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
+
+	struct sk_buff *rx_head;
+
+	struct tasklet_struct tx_tasklet;
+	struct tasklet_struct pre_tbtt_tasklet;
+	struct delayed_work cal_work;
+	struct delayed_work mac_work;
+
+	u32 aggr_stats[32];
+
+	struct sk_buff *beacons[8];
+	u8 beacon_mask;
+	u8 beacon_data_mask;
+
+	u8 tbtt_count;
+	u16 beacon_int;
+
+	struct mt76x02_calibration cal;
+
+	s8 target_power;
+	s8 target_power_delta[2];
+	bool enable_tpc;
+
+	u8 coverage_class;
+	u8 slottime;
+
+	struct mt76x02_dfs_pattern_detector dfs_pd;
+};
 
 extern struct ieee80211_rate mt76x02_rates[12];
 

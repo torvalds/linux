@@ -24,7 +24,7 @@
 #include "eeprom.h"
 #include "../mt76x02_dma.h"
 
-int mt76x2_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
+int mt76x2_mcu_set_channel(struct mt76x02_dev *dev, u8 channel, u8 bw,
 			   u8 bw_index, bool scan)
 {
 	struct sk_buff *skb;
@@ -57,7 +57,7 @@ int mt76x2_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_set_channel);
 
-int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
+int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 		       u8 channel)
 {
 	struct mt76_dev *mdev = &dev->mt76;
@@ -87,7 +87,7 @@ int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_load_cr);
 
-int mt76x2_mcu_init_gain(struct mt76x2_dev *dev, u8 channel, u32 gain,
+int mt76x2_mcu_init_gain(struct mt76x02_dev *dev, u8 channel, u32 gain,
 			 bool force)
 {
 	struct sk_buff *skb;
@@ -107,7 +107,7 @@ int mt76x2_mcu_init_gain(struct mt76x2_dev *dev, u8 channel, u32 gain,
 }
 EXPORT_SYMBOL_GPL(mt76x2_mcu_init_gain);
 
-int mt76x2_mcu_tssi_comp(struct mt76x2_dev *dev,
+int mt76x2_mcu_tssi_comp(struct mt76x02_dev *dev,
 			 struct mt76x2_tssi_comp *tssi_data)
 {
 	struct sk_buff *skb;

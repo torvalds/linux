@@ -21,7 +21,7 @@
 #include "../mt76x02_phy.h"
 
 static bool
-mt76x2_phy_tssi_init_cal(struct mt76x2_dev *dev)
+mt76x2_phy_tssi_init_cal(struct mt76x02_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	u32 flag = 0;
@@ -44,7 +44,7 @@ mt76x2_phy_tssi_init_cal(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_phy_channel_calibrate(struct mt76x2_dev *dev, bool mac_stopped)
+mt76x2_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	bool is_5ghz = chan->band == NL80211_BAND_5GHZ;
@@ -78,7 +78,7 @@ mt76x2_phy_channel_calibrate(struct mt76x2_dev *dev, bool mac_stopped)
 	dev->cal.channel_cal_done = true;
 }
 
-void mt76x2_phy_set_antenna(struct mt76x2_dev *dev)
+void mt76x2_phy_set_antenna(struct mt76x02_dev *dev)
 {
 	u32 val;
 
@@ -125,14 +125,14 @@ void mt76x2_phy_set_antenna(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_get_agc_gain(struct mt76x2_dev *dev, u8 *dest)
+mt76x2_get_agc_gain(struct mt76x02_dev *dev, u8 *dest)
 {
 	dest[0] = mt76_get_field(dev, MT_BBP(AGC, 8), MT_BBP_AGC_GAIN);
 	dest[1] = mt76_get_field(dev, MT_BBP(AGC, 9), MT_BBP_AGC_GAIN);
 }
 
 static int
-mt76x2_get_rssi_gain_thresh(struct mt76x2_dev *dev)
+mt76x2_get_rssi_gain_thresh(struct mt76x02_dev *dev)
 {
 	switch (dev->mt76.chandef.width) {
 	case NL80211_CHAN_WIDTH_80:
@@ -145,7 +145,7 @@ mt76x2_get_rssi_gain_thresh(struct mt76x2_dev *dev)
 }
 
 static int
-mt76x2_get_low_rssi_gain_thresh(struct mt76x2_dev *dev)
+mt76x2_get_low_rssi_gain_thresh(struct mt76x02_dev *dev)
 {
 	switch (dev->mt76.chandef.width) {
 	case NL80211_CHAN_WIDTH_80:
@@ -158,7 +158,7 @@ mt76x2_get_low_rssi_gain_thresh(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_phy_set_gain_val(struct mt76x2_dev *dev)
+mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 {
 	u32 val;
 	u8 gain_val[2];
@@ -183,7 +183,7 @@ mt76x2_phy_set_gain_val(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_phy_adjust_vga_gain(struct mt76x2_dev *dev)
+mt76x2_phy_adjust_vga_gain(struct mt76x02_dev *dev)
 {
 	u32 false_cca;
 	u8 limit = dev->cal.low_gain > 0 ? 16 : 4;
@@ -202,7 +202,7 @@ mt76x2_phy_adjust_vga_gain(struct mt76x2_dev *dev)
 }
 
 static void
-mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
+mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 {
 	u8 *gain = dev->cal.agc_gain_init;
 	u8 low_gain_delta, gain_delta;
@@ -265,7 +265,7 @@ mt76x2_phy_update_channel_gain(struct mt76x2_dev *dev)
 	mt76_rr(dev, MT_RX_STAT_1);
 }
 
-int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
+int mt76x2_phy_set_channel(struct mt76x02_dev *dev,
 			   struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_channel *chan = chandef->chan;
@@ -405,7 +405,7 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 }
 
 static void
-mt76x2_phy_temp_compensate(struct mt76x2_dev *dev)
+mt76x2_phy_temp_compensate(struct mt76x02_dev *dev)
 {
 	struct mt76x2_temp_comp t;
 	int temp, db_diff;
@@ -434,9 +434,9 @@ mt76x2_phy_temp_compensate(struct mt76x2_dev *dev)
 
 void mt76x2_phy_calibrate(struct work_struct *work)
 {
-	struct mt76x2_dev *dev;
+	struct mt76x02_dev *dev;
 
-	dev = container_of(work, struct mt76x2_dev, cal_work.work);
+	dev = container_of(work, struct mt76x02_dev, cal_work.work);
 	mt76x2_phy_channel_calibrate(dev, false);
 	mt76x2_phy_tssi_compensate(dev, true);
 	mt76x2_phy_temp_compensate(dev);
@@ -445,7 +445,7 @@ void mt76x2_phy_calibrate(struct work_struct *work)
 				     MT_CALIBRATE_INTERVAL);
 }
 
-int mt76x2_phy_start(struct mt76x2_dev *dev)
+int mt76x2_phy_start(struct mt76x02_dev *dev)
 {
 	int ret;
 

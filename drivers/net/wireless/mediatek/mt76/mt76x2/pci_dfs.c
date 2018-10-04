@@ -37,7 +37,7 @@
 	.pwr_jmp = power_jmp				\
 }
 
-static const struct mt76x2_radar_specs etsi_radar_specs[] = {
+static const struct mt76x02_radar_specs etsi_radar_specs[] = {
 	/* 20MHz */
 	RADAR_SPEC(0, 8, 2, 15, 106, 150, 10, 4900, 100096, 10, 0,
 		   0x7fffffff, 0x155cc0, 0x19cc),
@@ -67,7 +67,7 @@ static const struct mt76x2_radar_specs etsi_radar_specs[] = {
 		   0x7fffffff, 0x2191c0, 0x15cc)
 };
 
-static const struct mt76x2_radar_specs fcc_radar_specs[] = {
+static const struct mt76x02_radar_specs fcc_radar_specs[] = {
 	/* 20MHz */
 	RADAR_SPEC(0, 8, 2, 12, 106, 150, 5, 2900, 80100, 5, 0,
 		   0x7fffffff, 0xfe808, 0x13dc),
@@ -97,7 +97,7 @@ static const struct mt76x2_radar_specs fcc_radar_specs[] = {
 		   0x3938700, 0x57bcf00, 0x1289)
 };
 
-static const struct mt76x2_radar_specs jp_w56_radar_specs[] = {
+static const struct mt76x02_radar_specs jp_w56_radar_specs[] = {
 	/* 20MHz */
 	RADAR_SPEC(0, 8, 2, 7, 106, 150, 5, 2900, 80100, 5, 0,
 		   0x7fffffff, 0x14c080, 0x13dc),
@@ -127,7 +127,7 @@ static const struct mt76x2_radar_specs jp_w56_radar_specs[] = {
 		   0x3938700, 0X57bcf00, 0x1289)
 };
 
-static const struct mt76x2_radar_specs jp_w53_radar_specs[] = {
+static const struct mt76x02_radar_specs jp_w53_radar_specs[] = {
 	/* 20MHz */
 	RADAR_SPEC(0, 8, 2, 9, 106, 150, 20, 28400, 77000, 20, 0,
 		   0x7fffffff, 0x14c080, 0x16cc),
@@ -151,8 +151,9 @@ static const struct mt76x2_radar_specs jp_w53_radar_specs[] = {
 	{ 0 }
 };
 
-static void mt76x2_dfs_set_capture_mode_ctrl(struct mt76x2_dev *dev,
-					     u8 enable)
+static void
+mt76x2_dfs_set_capture_mode_ctrl(struct mt76x02_dev *dev,
+				 u8 enable)
 {
 	u32 data;
 
@@ -160,10 +161,10 @@ static void mt76x2_dfs_set_capture_mode_ctrl(struct mt76x2_dev *dev,
 	mt76_wr(dev, MT_BBP(DFS, 36), data);
 }
 
-static void mt76x2_dfs_seq_pool_put(struct mt76x2_dev *dev,
-				    struct mt76x2_dfs_sequence *seq)
+static void mt76x2_dfs_seq_pool_put(struct mt76x02_dev *dev,
+				    struct mt76x02_dfs_sequence *seq)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	list_add(&seq->head, &dfs_pd->seq_pool);
 
@@ -171,17 +172,17 @@ static void mt76x2_dfs_seq_pool_put(struct mt76x2_dev *dev,
 	dfs_pd->seq_stats.seq_len--;
 }
 
-static
-struct mt76x2_dfs_sequence *mt76x2_dfs_seq_pool_get(struct mt76x2_dev *dev)
+static struct mt76x02_dfs_sequence *
+mt76x2_dfs_seq_pool_get(struct mt76x02_dev *dev)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_sequence *seq;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_sequence *seq;
 
 	if (list_empty(&dfs_pd->seq_pool)) {
 		seq = devm_kzalloc(dev->mt76.dev, sizeof(*seq), GFP_ATOMIC);
 	} else {
 		seq = list_first_entry(&dfs_pd->seq_pool,
-				       struct mt76x2_dfs_sequence,
+				       struct mt76x02_dfs_sequence,
 				       head);
 		list_del(&seq->head);
 		dfs_pd->seq_stats.seq_pool_len--;
@@ -214,10 +215,10 @@ static int mt76x2_dfs_get_multiple(int val, int frac, int margin)
 	return factor;
 }
 
-static void mt76x2_dfs_detector_reset(struct mt76x2_dev *dev)
+static void mt76x2_dfs_detector_reset(struct mt76x02_dev *dev)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_sequence *seq, *tmp_seq;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_sequence *seq, *tmp_seq;
 	int i;
 
 	/* reset hw detector */
@@ -235,11 +236,11 @@ static void mt76x2_dfs_detector_reset(struct mt76x2_dev *dev)
 	}
 }
 
-static bool mt76x2_dfs_check_chirp(struct mt76x2_dev *dev)
+static bool mt76x2_dfs_check_chirp(struct mt76x02_dev *dev)
 {
 	bool ret = false;
 	u32 current_ts, delta_ts;
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	current_ts = mt76_rr(dev, MT_PBF_LIFE_TIMER);
 	delta_ts = current_ts - dfs_pd->chirp_pulse_ts;
@@ -256,8 +257,8 @@ static bool mt76x2_dfs_check_chirp(struct mt76x2_dev *dev)
 	return ret;
 }
 
-static void mt76x2_dfs_get_hw_pulse(struct mt76x2_dev *dev,
-				    struct mt76x2_dfs_hw_pulse *pulse)
+static void mt76x2_dfs_get_hw_pulse(struct mt76x02_dev *dev,
+				    struct mt76x02_dfs_hw_pulse *pulse)
 {
 	u32 data;
 
@@ -276,8 +277,8 @@ static void mt76x2_dfs_get_hw_pulse(struct mt76x2_dev *dev,
 	pulse->burst = mt76_rr(dev, MT_BBP(DFS, 22));
 }
 
-static bool mt76x2_dfs_check_hw_pulse(struct mt76x2_dev *dev,
-				      struct mt76x2_dfs_hw_pulse *pulse)
+static bool mt76x2_dfs_check_hw_pulse(struct mt76x02_dev *dev,
+				      struct mt76x02_dfs_hw_pulse *pulse)
 {
 	bool ret = false;
 
@@ -371,8 +372,8 @@ static bool mt76x2_dfs_check_hw_pulse(struct mt76x2_dev *dev,
 	return ret;
 }
 
-static bool mt76x2_dfs_fetch_event(struct mt76x2_dev *dev,
-				   struct mt76x2_dfs_event *event)
+static bool mt76x2_dfs_fetch_event(struct mt76x02_dev *dev,
+				   struct mt76x02_dfs_event *event)
 {
 	u32 data;
 
@@ -398,12 +399,12 @@ static bool mt76x2_dfs_fetch_event(struct mt76x2_dev *dev,
 	return true;
 }
 
-static bool mt76x2_dfs_check_event(struct mt76x2_dev *dev,
-				   struct mt76x2_dfs_event *event)
+static bool mt76x2_dfs_check_event(struct mt76x02_dev *dev,
+				   struct mt76x02_dfs_event *event)
 {
 	if (event->engine == 2) {
-		struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-		struct mt76x2_dfs_event_rb *event_buff = &dfs_pd->event_rb[1];
+		struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+		struct mt76x02_dfs_event_rb *event_buff = &dfs_pd->event_rb[1];
 		u16 last_event_idx;
 		u32 delta_ts;
 
@@ -417,11 +418,11 @@ static bool mt76x2_dfs_check_event(struct mt76x2_dev *dev,
 	return true;
 }
 
-static void mt76x2_dfs_queue_event(struct mt76x2_dev *dev,
-				   struct mt76x2_dfs_event *event)
+static void mt76x2_dfs_queue_event(struct mt76x02_dev *dev,
+				   struct mt76x02_dfs_event *event)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_event_rb *event_buff;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_event_rb *event_buff;
 
 	/* add radar event to ring buffer */
 	event_buff = event->engine == 2 ? &dfs_pd->event_rb[1]
@@ -435,16 +436,16 @@ static void mt76x2_dfs_queue_event(struct mt76x2_dev *dev,
 					     MT_DFS_EVENT_BUFLEN);
 }
 
-static int mt76x2_dfs_create_sequence(struct mt76x2_dev *dev,
-				      struct mt76x2_dfs_event *event,
+static int mt76x2_dfs_create_sequence(struct mt76x02_dev *dev,
+				      struct mt76x02_dfs_event *event,
 				      u16 cur_len)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_sw_detector_params *sw_params;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_sw_detector_params *sw_params;
 	u32 width_delta, with_sum, factor, cur_pri;
-	struct mt76x2_dfs_sequence seq, *seq_p;
-	struct mt76x2_dfs_event_rb *event_rb;
-	struct mt76x2_dfs_event *cur_event;
+	struct mt76x02_dfs_sequence seq, *seq_p;
+	struct mt76x02_dfs_event_rb *event_rb;
+	struct mt76x02_dfs_event *cur_event;
 	int i, j, end, pri;
 
 	event_rb = event->engine == 2 ? &dfs_pd->event_rb[1]
@@ -522,12 +523,12 @@ next:
 	return 0;
 }
 
-static u16 mt76x2_dfs_add_event_to_sequence(struct mt76x2_dev *dev,
-					    struct mt76x2_dfs_event *event)
+static u16 mt76x2_dfs_add_event_to_sequence(struct mt76x02_dev *dev,
+					    struct mt76x02_dfs_event *event)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_sw_detector_params *sw_params;
-	struct mt76x2_dfs_sequence *seq, *tmp_seq;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_sw_detector_params *sw_params;
+	struct mt76x02_dfs_sequence *seq, *tmp_seq;
 	u16 max_seq_len = 0;
 	u32 factor, pri;
 
@@ -554,10 +555,10 @@ static u16 mt76x2_dfs_add_event_to_sequence(struct mt76x2_dev *dev,
 	return max_seq_len;
 }
 
-static bool mt76x2_dfs_check_detection(struct mt76x2_dev *dev)
+static bool mt76x2_dfs_check_detection(struct mt76x02_dev *dev)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_sequence *seq;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_sequence *seq;
 
 	if (list_empty(&dfs_pd->sequences))
 		return false;
@@ -571,10 +572,10 @@ static bool mt76x2_dfs_check_detection(struct mt76x2_dev *dev)
 	return false;
 }
 
-static void mt76x2_dfs_add_events(struct mt76x2_dev *dev)
+static void mt76x2_dfs_add_events(struct mt76x02_dev *dev)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_event event;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_event event;
 	int i, seq_len;
 
 	/* disable debug mode */
@@ -598,11 +599,11 @@ static void mt76x2_dfs_add_events(struct mt76x2_dev *dev)
 	mt76x2_dfs_set_capture_mode_ctrl(dev, true);
 }
 
-static void mt76x2_dfs_check_event_window(struct mt76x2_dev *dev)
+static void mt76x2_dfs_check_event_window(struct mt76x02_dev *dev)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
-	struct mt76x2_dfs_event_rb *event_buff;
-	struct mt76x2_dfs_event *event;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_event_rb *event_buff;
+	struct mt76x02_dfs_event *event;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dfs_pd->event_rb); i++) {
@@ -623,8 +624,8 @@ static void mt76x2_dfs_check_event_window(struct mt76x2_dev *dev)
 
 static void mt76x2_dfs_tasklet(unsigned long arg)
 {
-	struct mt76x2_dev *dev = (struct mt76x2_dev *)arg;
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 	u32 engine_mask;
 	int i;
 
@@ -654,7 +655,7 @@ static void mt76x2_dfs_tasklet(unsigned long arg)
 		goto out;
 
 	for (i = 0; i < MT_DFS_NUM_ENGINES; i++) {
-		struct mt76x2_dfs_hw_pulse pulse;
+		struct mt76x02_dfs_hw_pulse pulse;
 
 		if (!(engine_mask & (1 << i)))
 			continue;
@@ -682,9 +683,9 @@ out:
 	mt76x02_irq_enable(&dev->mt76, MT_INT_GPTIMER);
 }
 
-static void mt76x2_dfs_init_sw_detector(struct mt76x2_dev *dev)
+static void mt76x2_dfs_init_sw_detector(struct mt76x02_dev *dev)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	switch (dev->dfs_pd.region) {
 	case NL80211_DFS_FCC:
@@ -708,11 +709,11 @@ static void mt76x2_dfs_init_sw_detector(struct mt76x2_dev *dev)
 	}
 }
 
-static void mt76x2_dfs_set_bbp_params(struct mt76x2_dev *dev)
+static void mt76x2_dfs_set_bbp_params(struct mt76x02_dev *dev)
 {
-	u32 data;
+	const struct mt76x02_radar_specs *radar_specs;
 	u8 i, shift;
-	const struct mt76x2_radar_specs *radar_specs;
+	u32 data;
 
 	switch (dev->mt76.chandef.width) {
 	case NL80211_CHAN_WIDTH_40:
@@ -803,7 +804,7 @@ static void mt76x2_dfs_set_bbp_params(struct mt76x2_dev *dev)
 	mt76_wr(dev, 0x212c, 0x0c350001);
 }
 
-void mt76x2_dfs_adjust_agc(struct mt76x2_dev *dev)
+void mt76x2_dfs_adjust_agc(struct mt76x02_dev *dev)
 {
 	u32 agc_r8, agc_r4, val_r8, val_r4, dfs_r31;
 
@@ -824,7 +825,7 @@ void mt76x2_dfs_adjust_agc(struct mt76x2_dev *dev)
 	mt76_wr(dev, MT_BBP(DFS, 32), 0x00040071);
 }
 
-void mt76x2_dfs_init_params(struct mt76x2_dev *dev)
+void mt76x2_dfs_init_params(struct mt76x02_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 
@@ -851,9 +852,9 @@ void mt76x2_dfs_init_params(struct mt76x2_dev *dev)
 	}
 }
 
-void mt76x2_dfs_init_detector(struct mt76x2_dev *dev)
+void mt76x2_dfs_init_detector(struct mt76x02_dev *dev)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	INIT_LIST_HEAD(&dfs_pd->sequences);
 	INIT_LIST_HEAD(&dfs_pd->seq_pool);
@@ -863,10 +864,10 @@ void mt76x2_dfs_init_detector(struct mt76x2_dev *dev)
 		     (unsigned long)dev);
 }
 
-void mt76x2_dfs_set_domain(struct mt76x2_dev *dev,
+void mt76x2_dfs_set_domain(struct mt76x02_dev *dev,
 			   enum nl80211_dfs_regions region)
 {
-	struct mt76x2_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
+	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	if (dfs_pd->region != region) {
 		tasklet_disable(&dfs_pd->dfs_tasklet);

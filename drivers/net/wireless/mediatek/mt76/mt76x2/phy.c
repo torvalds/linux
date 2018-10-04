@@ -21,7 +21,7 @@
 #include "../mt76x02_phy.h"
 
 static void
-mt76x2_adjust_high_lna_gain(struct mt76x2_dev *dev, int reg, s8 offset)
+mt76x2_adjust_high_lna_gain(struct mt76x02_dev *dev, int reg, s8 offset)
 {
 	s8 gain;
 
@@ -31,7 +31,7 @@ mt76x2_adjust_high_lna_gain(struct mt76x2_dev *dev, int reg, s8 offset)
 }
 
 static void
-mt76x2_adjust_agc_gain(struct mt76x2_dev *dev, int reg, s8 offset)
+mt76x2_adjust_agc_gain(struct mt76x02_dev *dev, int reg, s8 offset)
 {
 	s8 gain;
 
@@ -40,7 +40,7 @@ mt76x2_adjust_agc_gain(struct mt76x2_dev *dev, int reg, s8 offset)
 	mt76_rmw_field(dev, MT_BBP(AGC, reg), MT_BBP_AGC_GAIN, gain);
 }
 
-void mt76x2_apply_gain_adj(struct mt76x2_dev *dev)
+void mt76x2_apply_gain_adj(struct mt76x02_dev *dev)
 {
 	s8 *gain_adj = dev->cal.rx.high_gain;
 
@@ -52,7 +52,7 @@ void mt76x2_apply_gain_adj(struct mt76x2_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x2_apply_gain_adj);
 
-void mt76x2_phy_set_txpower_regs(struct mt76x2_dev *dev,
+void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 				 enum nl80211_band band)
 {
 	u32 pa_mode[2];
@@ -144,7 +144,7 @@ mt76x2_get_min_rate_power(struct mt76_rate_power *r)
 	return ret;
 }
 
-void mt76x2_phy_set_txpower(struct mt76x2_dev *dev)
+void mt76x2_phy_set_txpower(struct mt76x02_dev *dev)
 {
 	enum nl80211_chan_width width = dev->mt76.chandef.width;
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
@@ -191,7 +191,7 @@ void mt76x2_phy_set_txpower(struct mt76x2_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_set_txpower);
 
-void mt76x2_configure_tx_delay(struct mt76x2_dev *dev,
+void mt76x2_configure_tx_delay(struct mt76x02_dev *dev,
 			       enum nl80211_band band, u8 bw)
 {
 	u32 cfg0, cfg1;
@@ -210,7 +210,7 @@ void mt76x2_configure_tx_delay(struct mt76x2_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mt76x2_configure_tx_delay);
 
-void mt76x2_phy_set_bw(struct mt76x2_dev *dev, int width, u8 ctrl)
+void mt76x2_phy_set_bw(struct mt76x02_dev *dev, int width, u8 ctrl)
 {
 	int core_val, agc_val;
 
@@ -236,7 +236,7 @@ void mt76x2_phy_set_bw(struct mt76x2_dev *dev, int width, u8 ctrl)
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_set_bw);
 
-void mt76x2_phy_set_band(struct mt76x2_dev *dev, int band, bool primary_upper)
+void mt76x2_phy_set_band(struct mt76x02_dev *dev, int band, bool primary_upper)
 {
 	switch (band) {
 	case NL80211_BAND_2GHZ:
@@ -254,7 +254,7 @@ void mt76x2_phy_set_band(struct mt76x2_dev *dev, int band, bool primary_upper)
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_set_band);
 
-void mt76x2_phy_tssi_compensate(struct mt76x2_dev *dev, bool wait)
+void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	struct mt76x2_tx_power_info txp;

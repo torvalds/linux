@@ -19,7 +19,7 @@
 #include "../mt76x02_dma.h"
 
 struct beacon_bc_data {
-	struct mt76x2_dev *dev;
+	struct mt76x02_dev *dev;
 	struct sk_buff_head q;
 	struct sk_buff *tail[8];
 };
@@ -29,7 +29,7 @@ int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			  u32 *tx_info)
 {
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int qsel = MT_QSEL_EDCA;
 	int ret;
@@ -58,7 +58,7 @@ int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 static void
 mt76x2_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
-	struct mt76x2_dev *dev = (struct mt76x2_dev *) priv;
+	struct mt76x02_dev *dev = (struct mt76x02_dev *) priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	struct sk_buff *skb = NULL;
 
@@ -76,7 +76,7 @@ static void
 mt76x2_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct beacon_bc_data *data = priv;
-	struct mt76x2_dev *dev = data->dev;
+	struct mt76x02_dev *dev = data->dev;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
@@ -97,7 +97,7 @@ mt76x2_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
-mt76x2_resync_beacon_timer(struct mt76x2_dev *dev)
+mt76x2_resync_beacon_timer(struct mt76x02_dev *dev)
 {
 	u32 timer_val = dev->beacon_int << 4;
 
@@ -129,7 +129,7 @@ mt76x2_resync_beacon_timer(struct mt76x2_dev *dev)
 
 void mt76x2_pre_tbtt_tasklet(unsigned long arg)
 {
-	struct mt76x2_dev *dev = (struct mt76x2_dev *) arg;
+	struct mt76x02_dev *dev = (struct mt76x02_dev *) arg;
 	struct mt76_queue *q = &dev->mt76.q_tx[MT_TXQ_PSD];
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;

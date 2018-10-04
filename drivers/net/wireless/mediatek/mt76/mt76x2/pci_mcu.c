@@ -24,7 +24,7 @@
 #include "../mt76x02_dma.h"
 
 static int
-mt76pci_load_rom_patch(struct mt76x2_dev *dev)
+mt76pci_load_rom_patch(struct mt76x02_dev *dev)
 {
 	const struct firmware *fw = NULL;
 	struct mt76x02_patch_header *hdr;
@@ -90,7 +90,7 @@ out:
 }
 
 static int
-mt76pci_load_firmware(struct mt76x2_dev *dev)
+mt76pci_load_firmware(struct mt76x02_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt76x02_fw_header *hdr;
@@ -166,7 +166,7 @@ error:
 	return -ENOENT;
 }
 
-int mt76x2_mcu_init(struct mt76x2_dev *dev)
+int mt76x2_mcu_init(struct mt76x02_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x2_mcu_ops = {
 		.mcu_msg_alloc = mt76x02_mcu_msg_alloc,
