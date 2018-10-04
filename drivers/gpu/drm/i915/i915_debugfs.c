@@ -4189,7 +4189,7 @@ i915_drop_caches_set(void *data, u64 val)
 						     I915_WAIT_LOCKED,
 						     MAX_SCHEDULE_TIMEOUT);
 
-		if (val & DROP_RESET_SEQNO) {
+		if (ret == 0 && val & DROP_RESET_SEQNO) {
 			intel_runtime_pm_get(i915);
 			ret = i915_gem_set_global_seqno(&i915->drm, 1);
 			intel_runtime_pm_put(i915);
