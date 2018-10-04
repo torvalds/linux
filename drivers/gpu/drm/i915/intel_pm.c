@@ -5037,8 +5037,6 @@ static void skl_write_plane_wm(struct intel_crtc *intel_crtc,
 	skl_write_wm_level(dev_priv, PLANE_WM_TRANS(pipe, plane_id),
 			   &wm->trans_wm);
 
-	skl_ddb_entry_write(dev_priv, PLANE_BUF_CFG(pipe, plane_id),
-			    &ddb->plane[pipe][plane_id]);
 	/* FIXME: add proper NV12 support for ICL. */
 	if (INTEL_GEN(dev_priv) >= 11)
 		return skl_ddb_entry_write(dev_priv,
