@@ -582,3 +582,108 @@ void mt76x02_mac_setaddr(struct mt76_dev *dev, u8 *addr)
 		  FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_setaddr);
+
+static int
+mt76x02_mac_get_rssi(struct mt76x02_dev *dev, s8 rssi, int chain)
+{
+	struct mt76x02_rx_freq_cal *cal = &dev->cal.rx;
+
+	rssi += cal->rssi_offset[chain];
+	rssi -= cal->lna_gain;
+
+	return rssi;
+}
+
+int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
+			   void *rxi)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct mt76x02_rxwi *rxwi = rxi;
+	struct mt76x02_sta *sta;
+	u32 rxinfo = le32_to_cpu(rxwi->rxinfo);
+	u32 ctl = le32_to_cpu(rxwi->ctl);
+	u16 rate = le16_to_cpu(rxwi->rate);
+	u16 tid_sn = le16_to_cpu(rxwi->tid_sn);
+	bool unicast = rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST);
+	int i, pad_len = 0, nstreams = dev->mt76.chainmask & 0xf;
+	s8 signal;
+	u8 pn_len;
+	u8 wcid;
+	int len;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		return -EINVAL;
+
+	if (rxinfo & MT_RXINFO_L2PAD)
+		pad_len += 2;
+
+	if (rxinfo & MT_RXINFO_DECRYPT) {
+		status->flag |= RX_FLAG_DECRYPTED;
+		status->flag |= RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MIC_STRIPPED;
+		status->flag |= RX_FLAG_IV_STRIPPED;
+	}
+
+	wcid = FIELD_GET(MT_RXWI_CTL_WCID, ctl);
+	sta = mt76x02_rx_get_sta(&dev->mt76, wcid);
+	status->wcid = mt76x02_rx_get_sta_wcid(sta, unicast);
+
+	len = FIELD_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
+	pn_len = FIELD_GET(MT_RXINFO_PN_LEN, rxinfo);
+	if (pn_len) {
+		int offset = ieee80211_get_hdrlen_from_skb(skb) + pad_len;
+		u8 *data = skb->data + offset;
+
+		status->iv[0] = data[7];
+		status->iv[1] = data[6];
+		status->iv[2] = data[5];
+		status->iv[3] = data[4];
+		status->iv[4] = data[1];
+		status->iv[5] = data[0];
+
+		/*
+		 * Driver CCMP validation can't deal with fragments.
+		 * Let mac80211 take care of it.
+		 */
+		if (rxinfo & MT_RXINFO_FRAG) {
+			status->flag &= ~RX_FLAG_IV_STRIPPED;
+		} else {
+			pad_len += pn_len << 2;
+			len -= pn_len << 2;
+		}
+	}
+
+	mt76x02_remove_hdr_pad(skb, pad_len);
+
+	if ((rxinfo & MT_RXINFO_BA) && !(rxinfo & MT_RXINFO_NULL))
+		status->aggr = true;
+
+	if (WARN_ON_ONCE(len > skb->len))
+		return -EINVAL;
+
+	pskb_trim(skb, len);
+
+	status->chains = BIT(0);
+	signal = mt76x02_mac_get_rssi(dev, rxwi->rssi[0], 0);
+	for (i = 1; i < nstreams; i++) {
+		status->chains |= BIT(i);
+		status->chain_signal[i] = mt76x02_mac_get_rssi(dev,
+							       rxwi->rssi[i],
+							       i);
+		signal = max_t(s8, signal, status->chain_signal[i]);
+	}
+	status->signal = signal;
+	status->freq = dev->mt76.chandef.chan->center_freq;
+	status->band = dev->mt76.chandef.chan->band;
+
+	status->tid = FIELD_GET(MT_RXWI_TID, tid_sn);
+	status->seqno = FIELD_GET(MT_RXWI_SN, tid_sn);
+
+	if (sta) {
+		ewma_signal_add(&sta->rssi, status->signal);
+		sta->inactive_count = 0;
+	}
+
+	return mt76x02_mac_process_rate(status, rate);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_process_rx);

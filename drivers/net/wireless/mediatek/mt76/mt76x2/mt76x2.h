@@ -74,7 +74,6 @@ void mt76x2_phy_set_antenna(struct mt76x02_dev *dev);
 int mt76x2_phy_start(struct mt76x02_dev *dev);
 int mt76x2_phy_set_channel(struct mt76x02_dev *dev,
 			   struct cfg80211_chan_def *chandef);
-int mt76x2_mac_get_rssi(struct mt76x02_dev *dev, s8 rssi, int chain);
 void mt76x2_phy_calibrate(struct work_struct *work);
 void mt76x2_phy_set_txpower(struct mt76x02_dev *dev);
 

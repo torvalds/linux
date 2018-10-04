@@ -20,6 +20,8 @@
 
 #include <linux/average.h>
 
+struct mt76x02_dev;
+
 struct mt76x02_tx_status {
 	u8 valid:1;
 	u8 success:1;
@@ -195,6 +197,8 @@ bool mt76x02_mac_load_tx_status(struct mt76_dev *dev,
 			       struct mt76x02_tx_status *stat);
 void mt76x02_send_tx_status(struct mt76_dev *dev,
 			   struct mt76x02_tx_status *stat, u8 *update);
+int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
+			   void *rxi);
 int
 mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate);
 void mt76x02_mac_setaddr(struct mt76_dev *dev, u8 *addr);

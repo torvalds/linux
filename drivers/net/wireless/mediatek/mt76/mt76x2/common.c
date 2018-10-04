@@ -32,7 +32,7 @@ void mt76x2_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	}
 
 	skb_pull(skb, sizeof(struct mt76x02_rxwi));
-	if (mt76x2_mac_process_rx(dev, skb, rxwi)) {
+	if (mt76x02_mac_process_rx(dev, skb, rxwi)) {
 		dev_kfree_skb(skb);
 		return;
 	}
