@@ -97,43 +97,17 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	return count;
 }
 
-/**
- * drm_plane_helper_check_update() - Check plane update for validity
- * @plane: plane object to update
- * @crtc: owning CRTC of owning plane
- * @fb: framebuffer to flip onto plane
- * @src: source coordinates in 16.16 fixed point
- * @dst: integer destination coordinates
- * @rotation: plane rotation
- * @min_scale: minimum @src:@dest scaling factor in 16.16 fixed point
- * @max_scale: maximum @src:@dest scaling factor in 16.16 fixed point
- * @can_position: is it legal to position the plane such that it
- *                doesn't cover the entire crtc?  This will generally
- *                only be false for primary planes.
- * @can_update_disabled: can the plane be updated while the crtc
- *                       is disabled?
- * @visible: output parameter indicating whether plane is still visible after
- *           clipping
- *
- * Checks that a desired plane update is valid.  Drivers that provide
- * their own plane handling rather than helper-provided implementations may
- * still wish to call this function to avoid duplication of error checking
- * code.
- *
- * RETURNS:
- * Zero if update appears valid, error code on failure
- */
-int drm_plane_helper_check_update(struct drm_plane *plane,
-				  struct drm_crtc *crtc,
-				  struct drm_framebuffer *fb,
-				  struct drm_rect *src,
-				  struct drm_rect *dst,
-				  unsigned int rotation,
-				  int min_scale,
-				  int max_scale,
-				  bool can_position,
-				  bool can_update_disabled,
-				  bool *visible)
+static int drm_plane_helper_check_update(struct drm_plane *plane,
+					 struct drm_crtc *crtc,
+					 struct drm_framebuffer *fb,
+					 struct drm_rect *src,
+					 struct drm_rect *dst,
+					 unsigned int rotation,
+					 int min_scale,
+					 int max_scale,
+					 bool can_position,
+					 bool can_update_disabled,
+					 bool *visible)
 {
 	struct drm_plane_state plane_state = {
 		.plane = plane,
@@ -170,7 +144,6 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_plane_helper_check_update);
 
 static int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 				     struct drm_framebuffer *fb,
