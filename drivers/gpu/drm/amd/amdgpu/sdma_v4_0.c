@@ -725,11 +725,6 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	/* before programing wptr to a less value, need set minor_ptr_update first */
 	WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_MINOR_PTR_UPDATE), 1);
 
-	if (!amdgpu_sriov_vf(adev)) { /* only bare-metal use register write for wptr */
-		WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_WPTR), lower_32_bits(ring->wptr) << 2);
-		WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_WPTR_HI), upper_32_bits(ring->wptr) << 2);
-	}
-
 	doorbell = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_DOORBELL));
 	doorbell_offset = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_DOORBELL_OFFSET));
 
@@ -745,8 +740,7 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	adev->nbio_funcs->sdma_doorbell_range(adev, i, ring->use_doorbell,
 					      ring->doorbell_index);
 
-	if (amdgpu_sriov_vf(adev))
-		sdma_v4_0_ring_set_wptr(ring);
+	sdma_v4_0_ring_set_wptr(ring);
 
 	/* set minor_ptr_update to 0 after wptr programed */
 	WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_MINOR_PTR_UPDATE), 0);
