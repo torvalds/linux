@@ -232,7 +232,7 @@ struct afs_addr_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
  */
 void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 {
-	struct sockaddr_in6 *p;
+	struct sockaddr_rxrpc *srx;
 	u32 addr = ntohl(xdr);
 	int i;
 
@@ -240,9 +240,9 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 		return;
 
 	for (i = 0; i < alist->nr_ipv4; i++) {
-		struct sockaddr_in6 *a = &alist->addrs[i].transport.sin6;
-		u32 a_addr = ntohl(a->sin6_addr.s6_addr32[3]);
-		u16 a_port = ntohs(a->sin6_port);
+		struct sockaddr_in *a = &alist->addrs[i].transport.sin;
+		u32 a_addr = ntohl(a->sin_addr.s_addr);
+		u16 a_port = ntohs(a->sin_port);
 
 		if (addr == a_addr && port == a_port)
 			return;
@@ -257,12 +257,11 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	p = &alist->addrs[i].transport.sin6;
-	p->sin6_port		  = htons(port);
-	p->sin6_addr.s6_addr32[0] = 0;
-	p->sin6_addr.s6_addr32[1] = 0;
-	p->sin6_addr.s6_addr32[2] = htonl(0xffff);
-	p->sin6_addr.s6_addr32[3] = xdr;
+	srx = &alist->addrs[i];
+	srx->transport_len = sizeof(srx->transport.sin);
+	srx->transport.sin.sin_family = AF_INET;
+	srx->transport.sin.sin_port = htons(port);
+	srx->transport.sin.sin_addr.s_addr = xdr;
 	alist->nr_ipv4++;
 	alist->nr_addrs++;
 }
@@ -272,7 +271,7 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
  */
 void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 {
-	struct sockaddr_in6 *p;
+	struct sockaddr_rxrpc *srx;
 	int i, diff;
 
 	if (alist->nr_addrs >= alist->max_addrs)
@@ -296,9 +295,11 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	p = &alist->addrs[i].transport.sin6;
-	p->sin6_port = htons(port);
-	memcpy(&p->sin6_addr, xdr, 16);
+	srx = &alist->addrs[i];
+	srx->transport_len = sizeof(srx->transport.sin6);
+	srx->transport.sin6.sin6_family = AF_INET6;
+	srx->transport.sin6.sin6_port = htons(port);
+	memcpy(&srx->transport.sin6.sin6_addr, xdr, 16);
 	alist->nr_addrs++;
 }
 

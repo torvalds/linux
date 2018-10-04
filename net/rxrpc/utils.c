@@ -25,20 +25,11 @@ int rxrpc_extract_addr_from_skb(struct rxrpc_local *local,
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
-		if (local->srx.transport.family == AF_INET6) {
-			srx->transport_type = SOCK_DGRAM;
-			srx->transport_len = sizeof(srx->transport.sin6);
-			srx->transport.sin6.sin6_family = AF_INET6;
-			srx->transport.sin6.sin6_port = udp_hdr(skb)->source;
-			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-			srx->transport.sin6.sin6_addr.s6_addr32[3] = ip_hdr(skb)->saddr;
-		} else {
-			srx->transport_type = SOCK_DGRAM;
-			srx->transport_len = sizeof(srx->transport.sin);
-			srx->transport.sin.sin_family = AF_INET;
-			srx->transport.sin.sin_port = udp_hdr(skb)->source;
-			srx->transport.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
-		}
+		srx->transport_type = SOCK_DGRAM;
+		srx->transport_len = sizeof(srx->transport.sin);
+		srx->transport.sin.sin_family = AF_INET;
+		srx->transport.sin.sin_port = udp_hdr(skb)->source;
+		srx->transport.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
 		return 0;
 
 #ifdef CONFIG_AF_RXRPC_IPV6

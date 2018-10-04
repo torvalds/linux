@@ -97,7 +97,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	    srx->transport_len > len)
 		return -EINVAL;
 
-	if (srx->transport.family != rx->family)
+	if (srx->transport.family != rx->family &&
+	    srx->transport.family == AF_INET && rx->family != AF_INET6)
 		return -EAFNOSUPPORT;
 
 	switch (srx->transport.family) {
