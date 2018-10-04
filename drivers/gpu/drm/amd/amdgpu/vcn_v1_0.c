@@ -938,7 +938,7 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 static int vcn_v1_0_start_dpg_mode(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
-	uint32_t rb_bufsz, tmp, reg_data;
+	uint32_t rb_bufsz, tmp;
 	uint32_t lmi_swap_cntl;
 
 	/* disable byte swapping */
@@ -947,19 +947,19 @@ static int vcn_v1_0_start_dpg_mode(struct amdgpu_device *adev)
 	vcn_1_0_enable_static_power_gating(adev);
 
 	/* enable dynamic power gating mode */
-	reg_data = RREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS);
-	reg_data |= UVD_POWER_STATUS__UVD_PG_MODE_MASK;
-	reg_data |= UVD_POWER_STATUS__UVD_PG_EN_MASK;
-	WREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS, reg_data);
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS);
+	tmp |= UVD_POWER_STATUS__UVD_PG_MODE_MASK;
+	tmp |= UVD_POWER_STATUS__UVD_PG_EN_MASK;
+	WREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS, tmp);
 
 	/* enable clock gating */
 	vcn_v1_0_clock_gating_dpg_mode(adev, 0);
 
 	/* enable VCPU clock */
-	reg_data = (0xFF << UVD_VCPU_CNTL__PRB_TIMEOUT_VAL__SHIFT);
-	reg_data |= UVD_VCPU_CNTL__CLK_EN_MASK;
-	reg_data |= UVD_VCPU_CNTL__MIF_WR_LOW_THRESHOLD_BP_MASK;
-	WREG32_SOC15_DPG_MODE(UVD, 0, mmUVD_VCPU_CNTL, reg_data, 0xFFFFFFFF, 0);
+	tmp = (0xFF << UVD_VCPU_CNTL__PRB_TIMEOUT_VAL__SHIFT);
+	tmp |= UVD_VCPU_CNTL__CLK_EN_MASK;
+	tmp |= UVD_VCPU_CNTL__MIF_WR_LOW_THRESHOLD_BP_MASK;
+	WREG32_SOC15_DPG_MODE(UVD, 0, mmUVD_VCPU_CNTL, tmp, 0xFFFFFFFF, 0);
 
 	/* disable interupt */
 	WREG32_SOC15_DPG_MODE(UVD, 0, mmUVD_MASTINT_EN,
