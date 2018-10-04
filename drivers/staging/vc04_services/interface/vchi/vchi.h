@@ -36,7 +36,6 @@
 
 #include "interface/vchi/vchi_cfg.h"
 #include "interface/vchi/vchi_common.h"
-#include "interface/vchi/connections/connection.h"
 #include "vchi_mh.h"
 
 /******************************************************************************
