@@ -97,7 +97,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	    srx->transport_len > len)
 		return -EINVAL;
 
-	if (srx->transport.family != rx->family)
+	if (srx->transport.family != rx->family &&
+	    srx->transport.family == AF_INET && rx->family != AF_INET6)
 		return -EAFNOSUPPORT;
 
 	switch (srx->transport.family) {
@@ -383,6 +384,20 @@ u32 rxrpc_kernel_check_life(struct socket *sock, struct rxrpc_call *call)
 	return call->acks_latest;
 }
 EXPORT_SYMBOL(rxrpc_kernel_check_life);
+
+/**
+ * rxrpc_kernel_get_epoch - Retrieve the epoch value from a call.
+ * @sock: The socket the call is on
+ * @call: The call to query
+ *
+ * Allow a kernel service to retrieve the epoch value from a service call to
+ * see if the client at the other end rebooted.
+ */
+u32 rxrpc_kernel_get_epoch(struct socket *sock, struct rxrpc_call *call)
+{
+	return call->conn->proto.epoch;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_epoch);
 
 /**
  * rxrpc_kernel_check_call - Check a call's state

@@ -39,7 +39,7 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 
 	_enter("");
 
-	if (rxrpc_extract_addr_from_skb(local, &srx, skb) < 0)
+	if (rxrpc_extract_addr_from_skb(&srx, skb) < 0)
 		return;
 
 	msg.msg_name	= &srx.transport;

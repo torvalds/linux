@@ -1176,7 +1176,7 @@ void rxrpc_data_ready(struct sock *udp_sk)
 		static int lose;
 		if ((lose++ & 7) == 7) {
 			trace_rxrpc_rx_lose(sp);
-			rxrpc_lose_skb(skb, rxrpc_skb_rx_lost);
+			rxrpc_free_skb(skb, rxrpc_skb_rx_lost);
 			return;
 		}
 	}
