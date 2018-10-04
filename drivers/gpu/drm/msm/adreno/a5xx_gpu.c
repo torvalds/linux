@@ -1436,12 +1436,20 @@ static struct msm_ringbuffer *a5xx_active_ring(struct msm_gpu *gpu)
 	return a5xx_gpu->cur_ring;
 }
 
-static int a5xx_gpu_busy(struct msm_gpu *gpu, uint64_t *value)
+static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
 {
-	*value = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
-		REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
+	u64 busy_cycles;
+	unsigned long busy_time;
 
-	return 0;
+	busy_cycles = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
+			REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
+
+	busy_time = (busy_cycles - gpu->devfreq.busy_cycles) /
+		(clk_get_rate(gpu->core_clk) / 1000000);
+
+	gpu->devfreq.busy_cycles = busy_cycles;
+
+	return busy_time;
 }
 
 static const struct adreno_gpu_funcs funcs = {
