@@ -5694,10 +5694,9 @@ static void icl_pipe_mbus_enable(struct intel_crtc *crtc)
 	enum pipe pipe = crtc->pipe;
 	uint32_t val;
 
-	val = MBUS_DBOX_BW_CREDIT(1) | MBUS_DBOX_A_CREDIT(2);
-
-	/* Program B credit equally to all pipes */
-	val |= MBUS_DBOX_B_CREDIT(24 / INTEL_INFO(dev_priv)->num_pipes);
+	val = MBUS_DBOX_A_CREDIT(2);
+	val |= MBUS_DBOX_BW_CREDIT(1);
+	val |= MBUS_DBOX_B_CREDIT(8);
 
 	I915_WRITE(PIPE_MBUS_DBOX_CTL(pipe), val);
 }
