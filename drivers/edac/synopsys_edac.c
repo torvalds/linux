@@ -22,6 +22,8 @@
 #include <linux/edac.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include "edac_module.h"
 
@@ -130,6 +132,7 @@ struct synps_ecc_status {
  * @baseaddr:	Base address of the DDR controller.
  * @message:	Buffer for framing the event specific info.
  * @stat:	ECC status information.
+ * @p_data:	Platform data.
  * @ce_cnt:	Correctable Error count.
  * @ue_cnt:	Uncorrectable Error count.
  */
@@ -137,20 +140,41 @@ struct synps_edac_priv {
 	void __iomem *baseaddr;
 	char message[SYNPS_EDAC_MSG_SIZE];
 	struct synps_ecc_status stat;
+	const struct synps_platform_data *p_data;
 	u32 ce_cnt;
 	u32 ue_cnt;
 };
 
 /**
- * get_error_info - Get the current ECC error info.
- * @base:	Base address of the DDR memory controller.
- * @p:		Synopsys ECC status structure.
- *
- * Return: one if there is no error otherwise zero.
+ * struct synps_platform_data -  synps platform data structure.
+ * @get_error_info:	Get EDAC error info.
+ * @get_mtype:		Get mtype.
+ * @get_dtype:		Get dtype.
+ * @get_ecc_state:	Get ECC state.
+ * @quirks:		To differentiate IPs.
  */
-static int get_error_info(void __iomem *base, struct synps_ecc_status *p)
+struct synps_platform_data {
+	int (*get_error_info)(struct synps_edac_priv *priv);
+	enum mem_type (*get_mtype)(const void __iomem *base);
+	enum dev_type (*get_dtype)(const void __iomem *base);
+	bool (*get_ecc_state)(void __iomem *base);
+	int quirks;
+};
+
+/**
+ * zynq_get_error_info - Get the current ECC error info.
+ * @priv:	DDR memory controller private instance data.
+ *
+ * Return: one if there is no error, otherwise zero.
+ */
+static int zynq_get_error_info(struct synps_edac_priv *priv)
 {
+	struct synps_ecc_status *p;
 	u32 regval, clearval = 0;
+	void __iomem *base;
+
+	base = priv->baseaddr;
+	p = &priv->stat;
 
 	regval = readl(base + STAT_OFST);
 	if (!regval)
@@ -236,9 +260,10 @@ static void handle_error(struct mem_ctl_info *mci, struct synps_ecc_status *p)
 static void check_errors(struct mem_ctl_info *mci)
 {
 	struct synps_edac_priv *priv = mci->pvt_info;
+	const struct synps_platform_data *p_data = priv->p_data;
 	int status;
 
-	status = get_error_info(priv->baseaddr, &priv->stat);
+	status = p_data->get_error_info(priv);
 	if (status)
 		return;
 
@@ -251,7 +276,7 @@ static void check_errors(struct mem_ctl_info *mci)
 }
 
 /**
- * get_dtype - Return the controller memory width.
+ * zynq_get_dtype - Return the controller memory width.
  * @base:	DDR memory controller base address.
  *
  * Get the EDAC device type width appropriate for the current controller
@@ -259,7 +284,7 @@ static void check_errors(struct mem_ctl_info *mci)
  *
  * Return: a device type width enumeration.
  */
-static enum dev_type get_dtype(const void __iomem *base)
+static enum dev_type zynq_get_dtype(const void __iomem *base)
 {
 	enum dev_type dt;
 	u32 width;
@@ -282,20 +307,20 @@ static enum dev_type get_dtype(const void __iomem *base)
 }
 
 /**
- * get_ecc_state - Return the controller ECC enable/disable status.
+ * zynq_get_ecc_state - Return the controller ECC enable/disable status.
  * @base:	DDR memory controller base address.
  *
  * Get the ECC enable/disable status of the controller.
  *
  * Return: true if enabled, otherwise false.
  */
-static bool get_ecc_state(void __iomem *base)
+static bool zynq_get_ecc_state(void __iomem *base)
 {
 	bool state = false;
 	enum dev_type dt;
 	u32 ecctype;
 
-	dt = get_dtype(base);
+	dt = zynq_get_dtype(base);
 	if (dt == DEV_UNKNOWN)
 		return state;
 
@@ -321,7 +346,7 @@ static u32 get_memsize(void)
 }
 
 /**
- * get_mtype - Return the controller memory type.
+ * zynq_get_mtype - Return the controller memory type.
  * @base:	Synopsys ECC status structure.
  *
  * Get the EDAC memory type appropriate for the current controller
@@ -329,7 +354,7 @@ static u32 get_memsize(void)
  *
  * Return: a memory type enumeration.
  */
-static enum mem_type get_mtype(const void __iomem *base)
+static enum mem_type zynq_get_mtype(const void __iomem *base)
 {
 	enum mem_type mt;
 	u32 memtype;
@@ -354,10 +379,13 @@ static enum mem_type get_mtype(const void __iomem *base)
 static void init_csrows(struct mem_ctl_info *mci)
 {
 	struct synps_edac_priv *priv = mci->pvt_info;
+	const struct synps_platform_data *p_data;
 	struct csrow_info *csi;
 	struct dimm_info *dimm;
 	u32 size, row;
 	int j;
+
+	p_data = priv->p_data;
 
 	for (row = 0; row < mci->nr_csrows; row++) {
 		csi = mci->csrows[row];
@@ -366,10 +394,10 @@ static void init_csrows(struct mem_ctl_info *mci)
 		for (j = 0; j < csi->nr_channels; j++) {
 			dimm		= csi->channels[j]->dimm;
 			dimm->edac_mode	= EDAC_FLAG_SECDED;
-			dimm->mtype	= get_mtype(priv->baseaddr);
+			dimm->mtype	= p_data->get_mtype(priv->baseaddr);
 			dimm->nr_pages	= (size >> PAGE_SHIFT) / csi->nr_channels;
 			dimm->grain	= SYNPS_EDAC_ERR_GRAIN;
-			dimm->dtype	= get_dtype(priv->baseaddr);
+			dimm->dtype	= p_data->get_dtype(priv->baseaddr);
 		}
 	}
 }
@@ -409,6 +437,21 @@ static void mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
 	init_csrows(mci);
 }
 
+static const struct synps_platform_data zynq_edac_def = {
+	.get_error_info	= zynq_get_error_info,
+	.get_mtype	= zynq_get_mtype,
+	.get_dtype	= zynq_get_dtype,
+	.get_ecc_state	= zynq_get_ecc_state,
+	.quirks		= 0,
+};
+
+static const struct of_device_id synps_edac_match[] = {
+	{ .compatible = "xlnx,zynq-ddrc-a05", .data = (void *)&zynq_edac_def },
+	{ /* end of table */ }
+};
+
+MODULE_DEVICE_TABLE(of, synps_edac_match);
+
 /**
  * mc_probe - Check controller and bind driver.
  * @pdev:	platform device.
@@ -420,6 +463,7 @@ static void mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
  */
 static int mc_probe(struct platform_device *pdev)
 {
+	const struct synps_platform_data *p_data;
 	struct edac_mc_layer layers[2];
 	struct synps_edac_priv *priv;
 	struct mem_ctl_info *mci;
@@ -432,7 +476,8 @@ static int mc_probe(struct platform_device *pdev)
 	if (IS_ERR(baseaddr))
 		return PTR_ERR(baseaddr);
 
-	if (!get_ecc_state(baseaddr)) {
+	p_data = of_device_get_match_data(&pdev->dev);
+	if (!p_data->get_ecc_state(baseaddr)) {
 		edac_printk(KERN_INFO, EDAC_MC, "ECC not enabled\n");
 		return -ENXIO;
 	}
@@ -454,6 +499,8 @@ static int mc_probe(struct platform_device *pdev)
 
 	priv = mci->pvt_info;
 	priv->baseaddr = baseaddr;
+	priv->p_data = p_data;
+
 	mc_init(mci, pdev);
 
 	rc = edac_mc_add_mc(mci);
@@ -491,13 +538,6 @@ static int mc_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id synps_edac_match[] = {
-	{ .compatible = "xlnx,zynq-ddrc-a05", },
-	{ /* end of table */ }
-};
-
-MODULE_DEVICE_TABLE(of, synps_edac_match);
 
 static struct platform_driver synps_edac_mc_driver = {
 	.driver = {
