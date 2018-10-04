@@ -903,7 +903,6 @@ static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 
 static void vc4_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 }
 
