@@ -454,15 +454,10 @@ static const struct acpi_device_id glk_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, glk_pinctrl_acpi_match);
 
-static int glk_pinctrl_probe(struct platform_device *pdev)
-{
-	return intel_pinctrl_probe_by_uid(pdev);
-}
-
 static INTEL_PINCTRL_PM_OPS(glk_pinctrl_pm_ops);
 
 static struct platform_driver glk_pinctrl_driver = {
-	.probe = glk_pinctrl_probe,
+	.probe = intel_pinctrl_probe_by_uid,
 	.driver = {
 		.name = "geminilake-pinctrl",
 		.acpi_match_table = glk_pinctrl_acpi_match,
