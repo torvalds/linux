@@ -37,6 +37,11 @@
 
 #include "ivsrcid/vcn/irqsrcs_vcn_1_0.h"
 
+#define mmUVD_RBC_XX_IB_REG_CHECK				0x05ab
+#define mmUVD_RBC_XX_IB_REG_CHECK_BASE_IDX	1
+#define mmUVD_REG_XX_MASK							0x05ac
+#define mmUVD_REG_XX_MASK_BASE_IDX				1
+
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev);
@@ -1030,6 +1035,9 @@ static int vcn_v1_0_start_dpg_mode(struct amdgpu_device *adev)
 		 (0x2 << UVD_MPC_SET_MUX__SET_2__SHIFT)), 0xFFFFFFFF, 0);
 
 	vcn_v1_0_mc_resume_dpg_mode(adev);
+
+	WREG32_SOC15_DPG_MODE(UVD, 0, mmUVD_REG_XX_MASK, 0x10, 0xFFFFFFFF, 0);
+	WREG32_SOC15_DPG_MODE(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK, 0x3, 0xFFFFFFFF, 0);
 
 	/* take all subblocks out of reset, except VCPU */
 	WREG32_SOC15_DPG_MODE(UVD, 0, mmUVD_SOFT_RESET,
