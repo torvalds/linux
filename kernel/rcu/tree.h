@@ -328,6 +328,8 @@ struct rcu_state {
 						/*  force_quiescent_state(). */
 	unsigned long gp_start;			/* Time at which GP started, */
 						/*  but in jiffies. */
+	unsigned long gp_end;			/* Time last GP ended, again */
+						/*  in jiffies. */
 	unsigned long gp_activity;		/* Time of last GP kthread */
 						/*  activity in jiffies. */
 	unsigned long gp_req_activity;		/* Time of last GP request */
