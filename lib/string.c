@@ -520,7 +520,7 @@ size_t strspn(const char *s, const char *accept)
 				break;
 		}
 		if (*a == '\0')
-			p - s;
+			return p - s;
 	}
 	return p - s;
 }
