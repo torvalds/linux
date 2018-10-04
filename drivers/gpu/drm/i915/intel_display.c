@@ -141,15 +141,15 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 static int intel_framebuffer_init(struct intel_framebuffer *ifb,
 				  struct drm_i915_gem_object *obj,
 				  struct drm_mode_fb_cmd2 *mode_cmd);
-static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc);
 static void intel_set_pipe_timings(struct intel_crtc *intel_crtc);
 static void intel_set_pipe_src_size(struct intel_crtc *intel_crtc);
 static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 					 struct intel_link_m_n *m_n,
 					 struct intel_link_m_n *m2_n2);
-static void ironlake_set_pipeconf(struct drm_crtc *crtc);
-static void haswell_set_pipeconf(struct drm_crtc *crtc);
-static void haswell_set_pipemisc(struct drm_crtc *crtc);
+static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
+static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state);
+static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state);
+static void haswell_set_pipemisc(const struct intel_crtc_state *crtc_state);
 static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
@@ -5613,7 +5613,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 				     &intel_crtc->config->fdi_m_n, NULL);
 	}
 
-	ironlake_set_pipeconf(crtc);
+	ironlake_set_pipeconf(pipe_config);
 
 	intel_crtc->active = true;
 
@@ -5746,9 +5746,9 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	}
 
 	if (!transcoder_is_dsi(cpu_transcoder))
-		haswell_set_pipeconf(crtc);
+		haswell_set_pipeconf(pipe_config);
 
-	haswell_set_pipemisc(crtc);
+	haswell_set_pipemisc(pipe_config);
 
 	intel_color_set_csc(&pipe_config->base);
 
@@ -6082,7 +6082,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 		I915_WRITE(CHV_CANVAS(pipe), 0);
 	}
 
-	i9xx_set_pipeconf(intel_crtc);
+	i9xx_set_pipeconf(pipe_config);
 
 	intel_color_set_csc(&pipe_config->base);
 
@@ -6147,7 +6147,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_set_pipe_timings(intel_crtc);
 	intel_set_pipe_src_size(intel_crtc);
 
-	i9xx_set_pipeconf(intel_crtc);
+	i9xx_set_pipeconf(pipe_config);
 
 	intel_crtc->active = true;
 
@@ -7489,29 +7489,30 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 	drm_mode_set_name(mode);
 }
 
-static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
+static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	uint32_t pipeconf;
 
 	pipeconf = 0;
 
 	/* we keep both pipes enabled on 830 */
 	if (IS_I830(dev_priv))
-		pipeconf |= I915_READ(PIPECONF(intel_crtc->pipe)) & PIPECONF_ENABLE;
+		pipeconf |= I915_READ(PIPECONF(crtc->pipe)) & PIPECONF_ENABLE;
 
-	if (intel_crtc->config->double_wide)
+	if (crtc_state->double_wide)
 		pipeconf |= PIPECONF_DOUBLE_WIDE;
 
 	/* only g4x and later have fancy bpc/dither controls */
 	if (IS_G4X(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
 	    IS_CHERRYVIEW(dev_priv)) {
 		/* Bspec claims that we can't use dithering for 30bpp pipes. */
-		if (intel_crtc->config->dither && intel_crtc->config->pipe_bpp != 30)
+		if (crtc_state->dither && crtc_state->pipe_bpp != 30)
 			pipeconf |= PIPECONF_DITHER_EN |
 				    PIPECONF_DITHER_TYPE_SP;
 
-		switch (intel_crtc->config->pipe_bpp) {
+		switch (crtc_state->pipe_bpp) {
 		case 18:
 			pipeconf |= PIPECONF_6BPC;
 			break;
@@ -7527,9 +7528,9 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		}
 	}
 
-	if (intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	if (crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		if (INTEL_GEN(dev_priv) < 4 ||
-		    intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_SDVO))
+		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
 			pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		else
 			pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
@@ -7537,11 +7538,11 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	     intel_crtc->config->limited_color_range)
+	     crtc_state->limited_color_range)
 		pipeconf |= PIPECONF_COLOR_RANGE_SELECT;
 
-	I915_WRITE(PIPECONF(intel_crtc->pipe), pipeconf);
-	POSTING_READ(PIPECONF(intel_crtc->pipe));
+	I915_WRITE(PIPECONF(crtc->pipe), pipeconf);
+	POSTING_READ(PIPECONF(crtc->pipe));
 }
 
 static int i8xx_crtc_compute_clock(struct intel_crtc *crtc,
@@ -8440,16 +8441,16 @@ void intel_init_pch_refclk(struct drm_i915_private *dev_priv)
 		lpt_init_pch_refclk(dev_priv);
 }
 
-static void ironlake_set_pipeconf(struct drm_crtc *crtc)
+static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	uint32_t val;
 
 	val = 0;
 
-	switch (intel_crtc->config->pipe_bpp) {
+	switch (crtc_state->pipe_bpp) {
 	case 18:
 		val |= PIPECONF_6BPC;
 		break;
@@ -8467,32 +8468,32 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc)
 		BUG();
 	}
 
-	if (intel_crtc->config->dither)
+	if (crtc_state->dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
-	if (intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+	if (crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		val |= PIPECONF_INTERLACED_ILK;
 	else
 		val |= PIPECONF_PROGRESSIVE;
 
-	if (intel_crtc->config->limited_color_range)
+	if (crtc_state->limited_color_range)
 		val |= PIPECONF_COLOR_RANGE_SELECT;
 
 	I915_WRITE(PIPECONF(pipe), val);
 	POSTING_READ(PIPECONF(pipe));
 }
 
-static void haswell_set_pipeconf(struct drm_crtc *crtc)
+static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val = 0;
 
-	if (IS_HASWELL(dev_priv) && intel_crtc->config->dither)
+	if (IS_HASWELL(dev_priv) && crtc_state->dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
-	if (intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
+	if (crtc_state->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		val |= PIPECONF_INTERLACED_ILK;
 	else
 		val |= PIPECONF_PROGRESSIVE;
@@ -8501,16 +8502,15 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 	POSTING_READ(PIPECONF(cpu_transcoder));
 }
 
-static void haswell_set_pipemisc(struct drm_crtc *crtc)
+static void haswell_set_pipemisc(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *config = intel_crtc->config;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 
 	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9) {
 		u32 val = 0;
 
-		switch (intel_crtc->config->pipe_bpp) {
+		switch (crtc_state->pipe_bpp) {
 		case 18:
 			val |= PIPEMISC_DITHER_6_BPC;
 			break;
@@ -8528,10 +8528,10 @@ static void haswell_set_pipemisc(struct drm_crtc *crtc)
 			BUG();
 		}
 
-		if (intel_crtc->config->dither)
+		if (crtc_state->dither)
 			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
 
-		if (config->ycbcr420) {
+		if (crtc_state->ycbcr420) {
 			val |= PIPEMISC_OUTPUT_COLORSPACE_YUV |
 				PIPEMISC_YUV420_ENABLE |
 				PIPEMISC_YUV420_MODE_FULL_BLEND;
