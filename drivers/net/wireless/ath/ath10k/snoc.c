@@ -62,6 +62,7 @@ static void ath10k_snoc_htt_tx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_snoc_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_snoc_htt_rx_cb(struct ath10k_ce_pipe *ce_state);
 static void ath10k_snoc_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
+static void ath10k_snoc_pktlog_rx_cb(struct ath10k_ce_pipe *ce_state);
 
 static const struct ath10k_snoc_drv_priv drv_priv = {
 	.hw_rev = ATH10K_HW_WCN3990,
@@ -171,7 +172,7 @@ static struct ce_attr host_ce_config_wlan[] = {
 		.src_nentries = 0,
 		.src_sz_max = 2048,
 		.dest_nentries = 512,
-		.recv_cb = ath10k_snoc_htt_htc_rx_cb,
+		.recv_cb = ath10k_snoc_pktlog_rx_cb,
 	},
 };
 
@@ -436,6 +437,14 @@ static void ath10k_snoc_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state)
 	ath10k_snoc_process_rx_cb(ce_state, ath10k_htc_rx_completion_handler);
 }
 
+/* Called by lower (CE) layer when data is received from the Target.
+ * WCN3990 firmware uses separate CE(CE11) to transfer pktlog data.
+ */
+static void ath10k_snoc_pktlog_rx_cb(struct ath10k_ce_pipe *ce_state)
+{
+	ath10k_snoc_process_rx_cb(ce_state, ath10k_htc_rx_completion_handler);
+}
+
 static void ath10k_snoc_htt_rx_deliver(struct ath10k *ar, struct sk_buff *skb)
 {
 	skb_pull(skb, sizeof(struct ath10k_htc_hdr));
@@ -616,7 +625,7 @@ static int ath10k_snoc_hif_map_service_to_pipe(struct ath10k *ar,
 		}
 	}
 
-	if (WARN_ON(!ul_set || !dl_set))
+	if (!ul_set || !dl_set)
 		return -ENOENT;
 
 	return 0;
@@ -722,14 +731,15 @@ static void ath10k_snoc_buffer_cleanup(struct ath10k *ar)
 static void ath10k_snoc_hif_stop(struct ath10k *ar)
 {
 	ath10k_snoc_irq_disable(ar);
-	ath10k_snoc_buffer_cleanup(ar);
 	napi_synchronize(&ar->napi);
 	napi_disable(&ar->napi);
+	ath10k_snoc_buffer_cleanup(ar);
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif stop\n");
 }
 
 static int ath10k_snoc_hif_start(struct ath10k *ar)
 {
+	napi_enable(&ar->napi);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
 
@@ -792,7 +802,6 @@ static int ath10k_snoc_hif_power_up(struct ath10k *ar)
 		goto err_wlan_enable;
 	}
 
-	napi_enable(&ar->napi);
 	return 0;
 
 err_wlan_enable:
@@ -1274,6 +1283,7 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 	struct ath10k *ar;
 	int ret;
 	u32 i;
+	struct ath10k_bus_params bus_params;
 
 	of_id = of_match_device(ath10k_snoc_dt_match, &pdev->dev);
 	if (!of_id) {
@@ -1341,7 +1351,9 @@ static int ath10k_snoc_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
-	ret = ath10k_core_register(ar, drv_data->hw_rev);
+	bus_params.dev_type = ATH10K_DEV_TYPE_LL;
+	bus_params.chip_id = drv_data->hw_rev;
+	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {
 		ath10k_err(ar, "failed to register driver core: %d\n", ret);
 		goto err_hw_power_off;
