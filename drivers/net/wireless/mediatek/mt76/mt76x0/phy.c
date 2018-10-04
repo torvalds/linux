@@ -186,7 +186,6 @@ int mt76x0_wait_bbp_ready(struct mt76x02_dev *dev)
 
 	do {
 		val = mt76_rr(dev, MT_BBP(CORE, 0));
-		printk("BBP version %08x\n", val);
 		if (val && ~val)
 			break;
 	} while (--i);
@@ -196,6 +195,7 @@ int mt76x0_wait_bbp_ready(struct mt76x02_dev *dev)
 		return -EIO;
 	}
 
+	dev_dbg(dev->mt76.dev, "BBP version %08x\n", val);
 	return 0;
 }
 
