@@ -5403,7 +5403,8 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 	 *
 	 * WaCxSRDisabledForSpriteScaling:ivb
 	 */
-	if (pipe_config->disable_lp_wm && ilk_disable_lp_wm(dev))
+	if (pipe_config->disable_lp_wm && ilk_disable_lp_wm(dev) &&
+	    old_crtc_state->base.active)
 		intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	/*
@@ -10717,14 +10718,40 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 		pipe_config->fb_bits |= plane->frontbuffer_bit;
 
 	/*
-	 * WaCxSRDisabledForSpriteScaling:ivb
+	 * ILK/SNB DVSACNTR/Sprite Enable
+	 * IVB SPR_CTL/Sprite Enable
+	 * "When in Self Refresh Big FIFO mode, a write to enable the
+	 *  plane will be internally buffered and delayed while Big FIFO
+	 *  mode is exiting."
 	 *
-	 * cstate->update_wm was already set above, so this flag will
-	 * take effect when we commit and program watermarks.
+	 * Which means that enabling the sprite can take an extra frame
+	 * when we start in big FIFO mode (LP1+). Thus we need to drop
+	 * down to LP0 and wait for vblank in order to make sure the
+	 * sprite gets enabled on the next vblank after the register write.
+	 * Doing otherwise would risk enabling the sprite one frame after
+	 * we've already signalled flip completion. We can resume LP1+
+	 * once the sprite has been enabled.
+	 *
+	 *
+	 * WaCxSRDisabledForSpriteScaling:ivb
+	 * IVB SPR_SCALE/Scaling Enable
+	 * "Low Power watermarks must be disabled for at least one
+	 *  frame before enabling sprite scaling, and kept disabled
+	 *  until sprite scaling is disabled."
+	 *
+	 * ILK/SNB DVSASCALE/Scaling Enable
+	 * "When in Self Refresh Big FIFO mode, scaling enable will be
+	 *  masked off while Big FIFO mode is exiting."
+	 *
+	 * Despite the w/a only being listed for IVB we assume that
+	 * the ILK/SNB note has similar ramifications, hence we apply
+	 * the w/a on all three platforms.
 	 */
-	if (plane->id == PLANE_SPRITE0 && IS_IVYBRIDGE(dev_priv) &&
-	    needs_scaling(to_intel_plane_state(plane_state)) &&
-	    !needs_scaling(old_plane_state))
+	if (plane->id == PLANE_SPRITE0 &&
+	    (IS_GEN5(dev_priv) || IS_GEN6(dev_priv) ||
+	     IS_IVYBRIDGE(dev_priv)) &&
+	    (turn_on || (!needs_scaling(old_plane_state) &&
+			 needs_scaling(to_intel_plane_state(plane_state)))))
 		pipe_config->disable_lp_wm = true;
 
 	return 0;
