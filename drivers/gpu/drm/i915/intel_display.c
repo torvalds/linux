@@ -5906,6 +5906,17 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
+bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port)
+{
+	if (port == PORT_NONE)
+		return false;
+
+	if (IS_ICELAKE(dev_priv))
+		return port <= PORT_B;
+
+	return false;
+}
+
 bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port)
 {
 	if (IS_ICELAKE(dev_priv))

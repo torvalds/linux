@@ -916,7 +916,7 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 	level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
 	if (IS_ICELAKE(dev_priv)) {
-		if (port == PORT_A || port == PORT_B)
+		if (intel_port_is_combophy(dev_priv, port))
 			icl_get_combo_buf_trans(dev_priv, port,
 						INTEL_OUTPUT_HDMI, &n_entries);
 		else
@@ -1535,7 +1535,7 @@ static void icl_ddi_clock_get(struct intel_encoder *encoder,
 	uint32_t pll_id;
 
 	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
-	if (port == PORT_A || port == PORT_B) {
+	if (intel_port_is_combophy(dev_priv, port)) {
 		if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
 			link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
 		else
@@ -2242,7 +2242,7 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 	int n_entries;
 
 	if (IS_ICELAKE(dev_priv)) {
-		if (port == PORT_A || port == PORT_B)
+		if (intel_port_is_combophy(dev_priv, port))
 			icl_get_combo_buf_trans(dev_priv, port, encoder->type,
 						&n_entries);
 		else
@@ -2676,9 +2676,10 @@ static void icl_ddi_vswing_sequence(struct intel_encoder *encoder,
 				    u32 level,
 				    enum intel_output_type type)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 
-	if (port == PORT_A || port == PORT_B)
+	if (intel_port_is_combophy(dev_priv, port))
 		icl_combo_phy_ddi_vswing_sequence(encoder, level, type);
 	else
 		icl_mg_phy_ddi_vswing_sequence(encoder, link_clock, level);
@@ -2764,7 +2765,7 @@ void icl_map_plls_to_ports(struct drm_crtc *crtc,
 		val = I915_READ(DPCLKA_CFGCR0_ICL);
 		WARN_ON((val & DPCLKA_CFGCR0_DDI_CLK_OFF(port)) == 0);
 
-		if (port == PORT_A || port == PORT_B) {
+		if (intel_port_is_combophy(dev_priv, port)) {
 			val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 			val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
 			I915_WRITE(DPCLKA_CFGCR0_ICL, val);
@@ -2818,7 +2819,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 	mutex_lock(&dev_priv->dpll_lock);
 
 	if (IS_ICELAKE(dev_priv)) {
-		if (port >= PORT_C)
+		if (!intel_port_is_combophy(dev_priv, port))
 			I915_WRITE(DDI_CLK_SEL(port),
 				   icl_pll_to_ddi_pll_sel(encoder, crtc_state));
 	} else if (IS_CANNONLAKE(dev_priv)) {
@@ -2860,7 +2861,7 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 	enum port port = encoder->port;
 
 	if (IS_ICELAKE(dev_priv)) {
-		if (port >= PORT_C)
+		if (!intel_port_is_combophy(dev_priv, port))
 			I915_WRITE(DDI_CLK_SEL(port), DDI_CLK_SEL_NONE);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		I915_WRITE(DPCLKA_CFGCR0, I915_READ(DPCLKA_CFGCR0) |
