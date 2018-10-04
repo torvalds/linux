@@ -822,6 +822,7 @@ static long _zcrypt_send_cprb(struct ap_perms *perms,
 
 	trace_s390_zcrypt_req(xcRB, TB_ZSECSENDCPRB);
 
+	xcRB->status = 0;
 	ap_init_message(&ap_msg);
 	rc = get_cprb_fc(xcRB, &ap_msg, &func_code, &domain);
 	if (rc)
@@ -1321,7 +1322,8 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				rc = _zcrypt_send_cprb(perms, &xcRB);
 			} while (rc == -EAGAIN);
 		if (rc)
-			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d\n", rc);
+			ZCRYPT_DBF(DBF_DEBUG, "ioctl ZSENDCPRB rc=%d status=0x%x\n",
+				   rc, xcRB.status);
 		if (copy_to_user(uxcRB, &xcRB, sizeof(xcRB)))
 			return -EFAULT;
 		return rc;
