@@ -863,7 +863,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &port->dev;
 	int data_bits, stop_bits, parity_type, parity_enable;
-	unsigned cflag, iflag;
+	unsigned int cflag;
 	unsigned long flags;
 	__u8 oldlines;
 	int linechange = 0;
@@ -899,7 +899,6 @@ static void cypress_set_termios(struct tty_struct *tty,
 	tty->termios.c_cflag &= ~(CMSPAR|CRTSCTS);
 
 	cflag = tty->termios.c_cflag;
-	iflag = tty->termios.c_iflag;
 
 	/* check if there are new settings */
 	if (old_termios) {
