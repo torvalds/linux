@@ -341,7 +341,7 @@ static void cec_data_completed(struct cec_data *data)
  *
  * This function is called with adap->lock held.
  */
-static void cec_data_cancel(struct cec_data *data)
+static void cec_data_cancel(struct cec_data *data, u8 tx_status)
 {
 	/*
 	 * It's either the current transmit, or it is a pending
@@ -356,13 +356,11 @@ static void cec_data_cancel(struct cec_data *data)
 	}
 
 	if (data->msg.tx_status & CEC_TX_STATUS_OK) {
-		/* Mark the canceled RX as a timeout */
 		data->msg.rx_ts = ktime_get_ns();
-		data->msg.rx_status = CEC_RX_STATUS_TIMEOUT;
+		data->msg.rx_status = CEC_RX_STATUS_ABORTED;
 	} else {
-		/* Mark the canceled TX as an error */
 		data->msg.tx_ts = ktime_get_ns();
-		data->msg.tx_status |= CEC_TX_STATUS_ERROR |
+		data->msg.tx_status |= tx_status |
 				       CEC_TX_STATUS_MAX_RETRIES;
 		data->msg.tx_error_cnt++;
 		data->attempts = 0;
@@ -390,15 +388,15 @@ static void cec_flush(struct cec_adapter *adap)
 	while (!list_empty(&adap->transmit_queue)) {
 		data = list_first_entry(&adap->transmit_queue,
 					struct cec_data, list);
-		cec_data_cancel(data);
+		cec_data_cancel(data, CEC_TX_STATUS_ABORTED);
 	}
 	if (adap->transmitting)
-		cec_data_cancel(adap->transmitting);
+		cec_data_cancel(adap->transmitting, CEC_TX_STATUS_ABORTED);
 
 	/* Cancel the pending timeout work. */
 	list_for_each_entry_safe(data, n, &adap->wait_queue, list) {
 		if (cancel_delayed_work(&data->work))
-			cec_data_cancel(data);
+			cec_data_cancel(data, CEC_TX_STATUS_OK);
 		/*
 		 * If cancel_delayed_work returned false, then
 		 * the cec_wait_timeout function is running,
@@ -474,12 +472,13 @@ int cec_thread_func(void *_adap)
 			 * so much traffic on the bus that the adapter was
 			 * unable to transmit for CEC_XFER_TIMEOUT_MS (2.1s).
 			 */
-			dprintk(1, "%s: message %*ph timed out\n", __func__,
+			pr_warn("cec-%s: message %*ph timed out\n", adap->name,
 				adap->transmitting->msg.len,
 				adap->transmitting->msg.msg);
 			adap->tx_timeouts++;
 			/* Just give up on this. */
-			cec_data_cancel(adap->transmitting);
+			cec_data_cancel(adap->transmitting,
+					CEC_TX_STATUS_TIMEOUT);
 			goto unlock;
 		}
 
@@ -530,7 +529,7 @@ int cec_thread_func(void *_adap)
 		/* Tell the adapter to transmit, cancel on error */
 		if (adap->ops->adap_transmit(adap, data->attempts,
 					     signal_free_time, &data->msg))
-			cec_data_cancel(data);
+			cec_data_cancel(data, CEC_TX_STATUS_ABORTED);
 
 unlock:
 		mutex_unlock(&adap->lock);
@@ -702,8 +701,6 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 {
 	struct cec_data *data;
 	u8 last_initiator = 0xff;
-	unsigned int timeout;
-	int res = 0;
 
 	msg->rx_ts = 0;
 	msg->tx_ts = 0;
@@ -846,47 +843,20 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		return 0;
 
 	/*
-	 * If we don't get a completion before this time something is really
-	 * wrong and we time out.
-	 */
-	timeout = CEC_XFER_TIMEOUT_MS;
-	/* Add the requested timeout if we have to wait for a reply as well */
-	if (msg->timeout)
-		timeout += msg->timeout;
-
-	/*
 	 * Release the lock and wait, retake the lock afterwards.
 	 */
 	mutex_unlock(&adap->lock);
-	res = wait_for_completion_killable_timeout(&data->c,
-						   msecs_to_jiffies(timeout));
+	wait_for_completion_killable(&data->c);
 	mutex_lock(&adap->lock);
 
-	if (data->completed) {
-		/* The transmit completed (possibly with an error) */
-		*msg = data->msg;
-		kfree(data);
-		return 0;
-	}
-	/*
-	 * The wait for completion timed out or was interrupted, so mark this
-	 * as non-blocking and disconnect from the filehandle since it is
-	 * still 'in flight'. When it finally completes it will just drop the
-	 * result silently.
-	 */
-	data->blocking = false;
-	if (data->fh)
-		list_del(&data->xfer_list);
-	data->fh = NULL;
+	/* Cancel the transmit if it was interrupted */
+	if (!data->completed)
+		cec_data_cancel(data, CEC_TX_STATUS_ABORTED);
 
-	if (res == 0) { /* timed out */
-		/* Check if the reply or the transmit failed */
-		if (msg->timeout && (msg->tx_status & CEC_TX_STATUS_OK))
-			msg->rx_status = CEC_RX_STATUS_TIMEOUT;
-		else
-			msg->tx_status = CEC_TX_STATUS_MAX_RETRIES;
-	}
-	return res > 0 ? 0 : res;
+	/* The transmit completed (possibly with an error) */
+	*msg = data->msg;
+	kfree(data);
+	return 0;
 }
 
 /* Helper function to be used by drivers and this framework. */
