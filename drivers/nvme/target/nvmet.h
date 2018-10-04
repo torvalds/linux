@@ -26,6 +26,7 @@
 #include <linux/configfs.h>
 #include <linux/rcupdate.h>
 #include <linux/blkdev.h>
+#include <linux/radix-tree.h>
 
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
@@ -77,11 +78,19 @@ struct nvmet_ns {
 	struct completion	disable_done;
 	mempool_t		*bvec_pool;
 	struct kmem_cache	*bvec_cache;
+
+	int			use_p2pmem;
+	struct pci_dev		*p2p_dev;
 };
 
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct nvmet_ns, group);
+}
+
+static inline struct device *nvmet_ns_dev(struct nvmet_ns *ns)
+{
+	return ns->bdev ? disk_to_dev(ns->bdev->bd_disk) : NULL;
 }
 
 struct nvmet_cq {
@@ -184,6 +193,9 @@ struct nvmet_ctrl {
 
 	char			subsysnqn[NVMF_NQN_FIELD_LEN];
 	char			hostnqn[NVMF_NQN_FIELD_LEN];
+
+	struct device *p2p_client;
+	struct radix_tree_root p2p_ns_map;
 };
 
 struct nvmet_subsys {
@@ -294,6 +306,9 @@ struct nvmet_req {
 
 	void (*execute)(struct nvmet_req *req);
 	const struct nvmet_fabrics_ops *ops;
+
+	struct pci_dev *p2p_dev;
+	struct device *p2p_client;
 };
 
 extern struct workqueue_struct *buffered_io_wq;
