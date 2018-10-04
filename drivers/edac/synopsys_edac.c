@@ -142,7 +142,7 @@ struct synps_edac_priv {
 };
 
 /**
- * synps_edac_geterror_info - Get the current ecc error info
+ * get_error_info - Get the current ecc error info
  * @base:	Pointer to the base address of the ddr memory controller
  * @p:		Pointer to the synopsys ecc status structure
  *
@@ -150,8 +150,7 @@ struct synps_edac_priv {
  *
  * Return: one if there is no error otherwise returns zero
  */
-static int synps_edac_geterror_info(void __iomem *base,
-				    struct synps_ecc_status *p)
+static int get_error_info(void __iomem *base, struct synps_ecc_status *p)
 {
 	u32 regval, clearval = 0;
 
@@ -196,14 +195,13 @@ out:
 }
 
 /**
- * synps_edac_handle_error - Handle controller error types CE and UE
+ * handle_error - Handle controller error types CE and UE
  * @mci:	Pointer to the edac memory controller instance
  * @p:		Pointer to the synopsys ecc status structure
  *
- * Handles the controller ECC correctable and un correctable error.
+ * Handles the controller ECC correctable and uncorrectable error.
  */
-static void synps_edac_handle_error(struct mem_ctl_info *mci,
-				    struct synps_ecc_status *p)
+static void handle_error(struct mem_ctl_info *mci, struct synps_ecc_status *p)
 {
 	struct synps_edac_priv *priv = mci->pvt_info;
 	struct ecc_error_info *pinf;
@@ -232,30 +230,30 @@ static void synps_edac_handle_error(struct mem_ctl_info *mci,
 }
 
 /**
- * synps_edac_check - Check controller for ECC errors
+ * check_errors - Check controller for ECC errors
  * @mci:	Pointer to the edac memory controller instance
  *
  * Used to check and post ECC errors. Called by the polling thread
  */
-static void synps_edac_check(struct mem_ctl_info *mci)
+static void check_errors(struct mem_ctl_info *mci)
 {
 	struct synps_edac_priv *priv = mci->pvt_info;
 	int status;
 
-	status = synps_edac_geterror_info(priv->baseaddr, &priv->stat);
+	status = get_error_info(priv->baseaddr, &priv->stat);
 	if (status)
 		return;
 
 	priv->ce_cnt += priv->stat.ce_cnt;
 	priv->ue_cnt += priv->stat.ue_cnt;
-	synps_edac_handle_error(mci, &priv->stat);
+	handle_error(mci, &priv->stat);
 
 	edac_dbg(3, "Total error count CE %d UE %d\n",
 		 priv->ce_cnt, priv->ue_cnt);
 }
 
 /**
- * synps_edac_get_dtype - Return the controller memory width
+ * get_dtype - Return the controller memory width
  * @base:	Pointer to the ddr memory controller base address
  *
  * Get the EDAC device type width appropriate for the current controller
@@ -263,7 +261,7 @@ static void synps_edac_check(struct mem_ctl_info *mci)
  *
  * Return: a device type width enumeration.
  */
-static enum dev_type synps_edac_get_dtype(const void __iomem *base)
+static enum dev_type get_dtype(const void __iomem *base)
 {
 	enum dev_type dt;
 	u32 width;
@@ -286,20 +284,20 @@ static enum dev_type synps_edac_get_dtype(const void __iomem *base)
 }
 
 /**
- * synps_edac_get_eccstate - Return the controller ecc enable/disable status
- * @base:	Pointer to the ddr memory controller base address
+ * get_ecc_state - Return the controller ECC enable/disable status
+ * @base:	Pointer to the DDR memory controller base address
  *
- * Get the ECC enable/disable status for the controller
+ * Get the ECC enable/disable status for the controller.
  *
- * Return: a ecc status boolean i.e true/false - enabled/disabled.
+ * Return: a ECC status boolean i.e true/false - enabled/disabled.
  */
-static bool synps_edac_get_eccstate(void __iomem *base)
+static bool get_ecc_state(void __iomem *base)
 {
 	bool state = false;
 	enum dev_type dt;
 	u32 ecctype;
 
-	dt = synps_edac_get_dtype(base);
+	dt = get_dtype(base);
 	if (dt == DEV_UNKNOWN)
 		return state;
 
@@ -311,11 +309,11 @@ static bool synps_edac_get_eccstate(void __iomem *base)
 }
 
 /**
- * synps_edac_get_memsize - reads the size of the attached memory device
+ * get_memsize - reads the size of the attached memory device
  *
  * Return: the memory size in bytes
  */
-static u32 synps_edac_get_memsize(void)
+static u32 get_memsize(void)
 {
 	struct sysinfo inf;
 
@@ -325,7 +323,7 @@ static u32 synps_edac_get_memsize(void)
 }
 
 /**
- * synps_edac_get_mtype - Returns controller memory type
+ * get_mtype - Returns controller memory type
  * @base:	pointer to the synopsys ecc status structure
  *
  * Get the EDAC memory type appropriate for the current controller
@@ -333,7 +331,7 @@ static u32 synps_edac_get_memsize(void)
  *
  * Return: a memory type enumeration.
  */
-static enum mem_type synps_edac_get_mtype(const void __iomem *base)
+static enum mem_type get_mtype(const void __iomem *base)
 {
 	enum mem_type mt;
 	u32 memtype;
@@ -349,7 +347,7 @@ static enum mem_type synps_edac_get_mtype(const void __iomem *base)
 }
 
 /**
- * synps_edac_init_csrows - Initialize the cs row data
+ * init_csrows - Initialize the cs row data
  * @mci:	Pointer to the edac memory controller instance
  *
  * Initializes the chip select rows associated with the EDAC memory
@@ -357,7 +355,7 @@ static enum mem_type synps_edac_get_mtype(const void __iomem *base)
  *
  * Return: Unconditionally 0.
  */
-static int synps_edac_init_csrows(struct mem_ctl_info *mci)
+static int init_csrows(struct mem_ctl_info *mci)
 {
 	struct synps_edac_priv *priv = mci->pvt_info;
 	struct csrow_info *csi;
@@ -367,15 +365,15 @@ static int synps_edac_init_csrows(struct mem_ctl_info *mci)
 
 	for (row = 0; row < mci->nr_csrows; row++) {
 		csi = mci->csrows[row];
-		size = synps_edac_get_memsize();
+		size = get_memsize();
 
 		for (j = 0; j < csi->nr_channels; j++) {
 			dimm		= csi->channels[j]->dimm;
 			dimm->edac_mode	= EDAC_FLAG_SECDED;
-			dimm->mtype	= synps_edac_get_mtype(priv->baseaddr);
+			dimm->mtype	= get_mtype(priv->baseaddr);
 			dimm->nr_pages	= (size >> PAGE_SHIFT) / csi->nr_channels;
 			dimm->grain	= SYNPS_EDAC_ERR_GRAIN;
-			dimm->dtype	= synps_edac_get_dtype(priv->baseaddr);
+			dimm->dtype	= get_dtype(priv->baseaddr);
 		}
 	}
 
@@ -383,7 +381,7 @@ static int synps_edac_init_csrows(struct mem_ctl_info *mci)
 }
 
 /**
- * synps_edac_mc_init - Initialize driver instance
+ * mc_init - Initialize driver instance
  * @mci:	Pointer to the edac memory controller instance
  * @pdev:	Pointer to the platform_device struct
  *
@@ -393,8 +391,7 @@ static int synps_edac_init_csrows(struct mem_ctl_info *mci)
  *
  * Return: Always zero.
  */
-static int synps_edac_mc_init(struct mem_ctl_info *mci,
-				 struct platform_device *pdev)
+static int mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
 {
 	int status;
 	struct synps_edac_priv *priv;
@@ -415,16 +412,16 @@ static int synps_edac_mc_init(struct mem_ctl_info *mci,
 	mci->mod_name = SYNPS_EDAC_MOD_VER;
 
 	edac_op_state = EDAC_OPSTATE_POLL;
-	mci->edac_check = synps_edac_check;
+	mci->edac_check = check_errors;
 	mci->ctl_page_to_phys = NULL;
 
-	status = synps_edac_init_csrows(mci);
+	status = init_csrows(mci);
 
 	return status;
 }
 
 /**
- * synps_edac_mc_probe - Check controller and bind driver
+ * mc_probe - Check controller and bind driver
  * @pdev:	Pointer to the platform_device struct
  *
  * Probes a specific controller instance for binding with the driver.
@@ -432,7 +429,7 @@ static int synps_edac_mc_init(struct mem_ctl_info *mci,
  * Return: 0 if the controller instance was successfully bound to the
  * driver; otherwise, < 0 on error.
  */
-static int synps_edac_mc_probe(struct platform_device *pdev)
+static int mc_probe(struct platform_device *pdev)
 {
 	struct edac_mc_layer layers[2];
 	struct synps_edac_priv *priv;
@@ -446,7 +443,7 @@ static int synps_edac_mc_probe(struct platform_device *pdev)
 	if (IS_ERR(baseaddr))
 		return PTR_ERR(baseaddr);
 
-	if (!synps_edac_get_eccstate(baseaddr)) {
+	if (!get_ecc_state(baseaddr)) {
 		edac_printk(KERN_INFO, EDAC_MC, "ECC not enabled\n");
 		return -ENXIO;
 	}
@@ -468,7 +465,7 @@ static int synps_edac_mc_probe(struct platform_device *pdev)
 
 	priv = mci->pvt_info;
 	priv->baseaddr = baseaddr;
-	rc = synps_edac_mc_init(mci, pdev);
+	rc = mc_init(mci, pdev);
 	if (rc) {
 		edac_printk(KERN_ERR, EDAC_MC,
 			    "Failed to initialize instance\n");
@@ -496,12 +493,12 @@ free_edac_mc:
 }
 
 /**
- * synps_edac_mc_remove - Unbind driver from controller
+ * mc_remove - Unbind driver from controller
  * @pdev:	Pointer to the platform_device struct
  *
  * Return: Unconditionally 0
  */
-static int synps_edac_mc_remove(struct platform_device *pdev)
+static int mc_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
@@ -523,8 +520,8 @@ static struct platform_driver synps_edac_mc_driver = {
 		   .name = "synopsys-edac",
 		   .of_match_table = synps_edac_match,
 		   },
-	.probe = synps_edac_mc_probe,
-	.remove = synps_edac_mc_remove,
+	.probe = mc_probe,
+	.remove = mc_remove,
 };
 
 module_platform_driver(synps_edac_mc_driver);
