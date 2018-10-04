@@ -688,12 +688,9 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	u32 wb_offset;
 	u32 doorbell;
 	u32 doorbell_offset;
-	u32 temp;
 	u64 wptr_gpu_addr;
 
 	wb_offset = (ring->rptr_offs * 4);
-
-	WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_SEM_WAIT_FAIL_TIMER_CNTL), 0);
 
 	/* Set ring buffer size in dwords */
 	rb_bufsz = order_base_2(ring->ring_size / 4);
@@ -753,18 +750,6 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 
 	/* set minor_ptr_update to 0 after wptr programed */
 	WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_MINOR_PTR_UPDATE), 0);
-
-	/* set utc l1 enable flag always to 1 */
-	temp = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_CNTL));
-	temp = REG_SET_FIELD(temp, SDMA0_CNTL, UTC_L1_ENABLE, 1);
-	WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_CNTL), temp);
-
-	if (!amdgpu_sriov_vf(adev)) {
-		/* unhalt engine */
-		temp = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_F32_CNTL));
-		temp = REG_SET_FIELD(temp, SDMA0_F32_CNTL, HALT, 0);
-		WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_F32_CNTL), temp);
-	}
 
 	/* setup the wptr shadow polling */
 	wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
@@ -944,8 +929,27 @@ static int sdma_v4_0_start(struct amdgpu_device *adev)
 	}
 
 	/* start the gfx rings and rlc compute queues */
-	for (i = 0; i < adev->sdma.num_instances; i++)
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		uint32_t temp;
+
+		WREG32(sdma_v4_0_get_reg_offset(adev, i,
+				mmSDMA0_SEM_WAIT_FAIL_TIMER_CNTL), 0);
 		sdma_v4_0_gfx_resume(adev, i);
+
+		/* set utc l1 enable flag always to 1 */
+		temp = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_CNTL));
+		temp = REG_SET_FIELD(temp, SDMA0_CNTL, UTC_L1_ENABLE, 1);
+		WREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_CNTL), temp);
+
+		if (!amdgpu_sriov_vf(adev)) {
+			/* unhalt engine */
+			temp = RREG32(sdma_v4_0_get_reg_offset(adev, i,
+					mmSDMA0_F32_CNTL));
+			temp = REG_SET_FIELD(temp, SDMA0_F32_CNTL, HALT, 0);
+			WREG32(sdma_v4_0_get_reg_offset(adev, i,
+					mmSDMA0_F32_CNTL), temp);
+		}
+	}
 
 	if (amdgpu_sriov_vf(adev)) {
 		sdma_v4_0_ctx_switch_enable(adev, true);
