@@ -1265,24 +1265,24 @@ pte_list_desc_remove_entry(struct kvm_rmap_head *rmap_head,
 	mmu_free_pte_list_desc(desc);
 }
 
-static void pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
+static void __pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 {
 	struct pte_list_desc *desc;
 	struct pte_list_desc *prev_desc;
 	int i;
 
 	if (!rmap_head->val) {
-		printk(KERN_ERR "pte_list_remove: %p 0->BUG\n", spte);
+		pr_err("%s: %p 0->BUG\n", __func__, spte);
 		BUG();
 	} else if (!(rmap_head->val & 1)) {
-		rmap_printk("pte_list_remove:  %p 1->0\n", spte);
+		rmap_printk("%s:  %p 1->0\n", __func__, spte);
 		if ((u64 *)rmap_head->val != spte) {
-			printk(KERN_ERR "pte_list_remove:  %p 1->BUG\n", spte);
+			pr_err("%s:  %p 1->BUG\n", __func__, spte);
 			BUG();
 		}
 		rmap_head->val = 0;
 	} else {
-		rmap_printk("pte_list_remove:  %p many->many\n", spte);
+		rmap_printk("%s:  %p many->many\n", __func__, spte);
 		desc = (struct pte_list_desc *)(rmap_head->val & ~1ul);
 		prev_desc = NULL;
 		while (desc) {
@@ -1296,7 +1296,7 @@ static void pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 			prev_desc = desc;
 			desc = desc->more;
 		}
-		pr_err("pte_list_remove: %p many->many\n", spte);
+		pr_err("%s: %p many->many\n", __func__, spte);
 		BUG();
 	}
 }
@@ -1349,7 +1349,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	sp = page_header(__pa(spte));
 	gfn = kvm_mmu_page_get_gfn(sp, spte - sp->spt);
 	rmap_head = gfn_to_rmap(kvm, gfn, sp);
-	pte_list_remove(spte, rmap_head);
+	__pte_list_remove(spte, rmap_head);
 }
 
 /*
@@ -1988,7 +1988,7 @@ static void mmu_page_add_parent_pte(struct kvm_vcpu *vcpu,
 static void mmu_page_remove_parent_pte(struct kvm_mmu_page *sp,
 				       u64 *parent_pte)
 {
-	pte_list_remove(parent_pte, &sp->parent_ptes);
+	__pte_list_remove(parent_pte, &sp->parent_ptes);
 }
 
 static void drop_parent_pte(struct kvm_mmu_page *sp,
