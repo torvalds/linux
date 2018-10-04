@@ -23,8 +23,6 @@ to each other.
 	The <tt>rcu_segcblist</tt> Structure</a>
 <li>	<a href="#The rcu_data Structure">
 	The <tt>rcu_data</tt> Structure</a>
-<li>	<a href="#The rcu_dynticks Structure">
-	The <tt>rcu_dynticks</tt> Structure</a>
 <li>	<a href="#The rcu_head Structure">
 	The <tt>rcu_head</tt> Structure</a>
 <li>	<a href="#RCU-Specific Fields in the task_struct Structure">
@@ -174,16 +172,8 @@ said to be in <i>dyntick-idle mode</i>.
 RCU must handle dyntick-idle CPUs specially
 because RCU would otherwise wake up each CPU on every grace period,
 which would defeat the whole purpose of <tt>CONFIG_NO_HZ_IDLE</tt>.
-RCU uses the <tt>rcu_dynticks</tt> structure to track
-which CPUs are in dyntick idle mode, as shown below:
-
-</p><p><img src="BigTreeClassicRCUBHdyntick.svg" alt="BigTreeClassicRCUBHdyntick.svg" width="33%">
-
-</p><p>However, if a CPU is in dyntick-idle mode, it is in that mode
-for all flavors of RCU.
-Therefore, a single <tt>rcu_dynticks</tt> structure is allocated per
-CPU, and all of a given CPU's <tt>rcu_data</tt> structures share
-that <tt>rcu_dynticks</tt>, as shown in the figure.
+RCU uses the dynticks related fields in the <tt>rcu_data</tt> structure
+to track which CPUs are in dyntick idle mode.
 
 </p><p>Kernels built with <tt>CONFIG_PREEMPT_RCU</tt> support
 rcu_preempt in addition to rcu_sched and rcu_bh, as shown below:
@@ -216,9 +206,6 @@ its own synchronization:
 <li>	Each <tt>rcu_node</tt> structure has a spinlock.
 <li>	The fields in <tt>rcu_data</tt> are private to the corresponding
 	CPU, although a few can be read and written by other CPUs.
-<li>	Similarly, the fields in <tt>rcu_dynticks</tt> are private
-	to the corresponding CPU, although a few can be read by
-	other CPUs.
 </ol>
 
 <p>It is important to note that different data structures can have
@@ -274,11 +261,6 @@ follows:
 	access to this information from the corresponding CPU.
 	Finally, this structure records past dyntick-idle state
 	for the corresponding CPU and also tracks statistics.
-<li>	<tt>rcu_dynticks</tt>:
-	This per-CPU structure tracks the current dyntick-idle
-	state for the corresponding CPU.
-	Unlike the other three structures, the <tt>rcu_dynticks</tt>
-	structure is not replicated per RCU flavor.
 <li>	<tt>rcu_head</tt>:
 	This structure represents RCU callbacks, and is the
 	only structure allocated and managed by RCU users.
@@ -289,8 +271,8 @@ follows:
 <p>If all you wanted from this article was a general notion of how
 RCU's data structures are related, you are done.
 Otherwise, each of the following sections give more details on
-the <tt>rcu_state</tt>, <tt>rcu_node</tt>, <tt>rcu_data</tt>,
-and <tt>rcu_dynticks</tt> data structures.
+the <tt>rcu_state</tt>, <tt>rcu_node</tt> and <tt>rcu_data</tt> data
+structures.
 
 <h3><a name="The rcu_state Structure">
 The <tt>rcu_state</tt> Structure</a></h3>
@@ -1017,30 +999,19 @@ as follows:
 
 <pre>
   1   int cpu;
-  2   struct rcu_state *rsp;
-  3   struct rcu_node *mynode;
-  4   struct rcu_dynticks *dynticks;
-  5   unsigned long grpmask;
-  6   bool beenonline;
+  2   struct rcu_node *mynode;
+  3   unsigned long grpmask;
+  4   bool beenonline;
 </pre>
 
 <p>The <tt>-&gt;cpu</tt> field contains the number of the
-corresponding CPU, the <tt>-&gt;rsp</tt> pointer references
-the corresponding <tt>rcu_state</tt> structure (and is most frequently
-used to locate the name of the corresponding flavor of RCU for tracing),
-and the <tt>-&gt;mynode</tt> field references the corresponding
-<tt>rcu_node</tt> structure.
+corresponding CPU and the <tt>-&gt;mynode</tt> field references the
+corresponding <tt>rcu_node</tt> structure.
 The <tt>-&gt;mynode</tt> is used to propagate quiescent states
 up the combining tree.
-<p>The <tt>-&gt;dynticks</tt> pointer references the
-<tt>rcu_dynticks</tt> structure corresponding to this
-CPU.
-Recall that a single per-CPU instance of the <tt>rcu_dynticks</tt>
-structure is shared among all flavors of RCU.
-These first four fields are constant and therefore require not
-synchronization.
+These two fields are constant and therefore do not require synchronization.
 
-</p><p>The <tt>-&gt;grpmask</tt> field indicates the bit in
+<p>The <tt>-&gt;grpmask</tt> field indicates the bit in
 the <tt>-&gt;mynode-&gt;qsmask</tt> corresponding to this
 <tt>rcu_data</tt> structure, and is also used when propagating
 quiescent states.
@@ -1181,25 +1152,21 @@ Finally, the <tt>-&gt;dynticks_fqs</tt> field is used to
 count the number of times this CPU is determined to be in
 dyntick-idle state, and is used for tracing and debugging purposes.
 
-<h3><a name="The rcu_dynticks Structure">
-The <tt>rcu_dynticks</tt> Structure</a></h3>
-
-<p>The <tt>rcu_dynticks</tt> maintains the per-CPU dyntick-idle state
-for the corresponding CPU.
-Unlike the other structures, <tt>rcu_dynticks</tt> is not
-replicated over the different flavors of RCU.
-The fields in this structure may be accessed only from the corresponding
-CPU (and from tracing) unless otherwise stated.
-Its fields are as follows:
+<p>
+This portion of the rcu_data structure is declared as follows:
 
 <pre>
   1   long dynticks_nesting;
   2   long dynticks_nmi_nesting;
   3   atomic_t dynticks;
   4   bool rcu_need_heavy_qs;
-  5   unsigned long rcu_qs_ctr;
-  6   bool rcu_urgent_qs;
+  5   bool rcu_urgent_qs;
 </pre>
+
+<p>These fields in the rcu_data structure maintain the per-CPU dyntick-idle
+state for the corresponding CPU.
+The fields may be accessed only from the corresponding CPU (and from tracing)
+unless otherwise stated.
 
 <p>The <tt>-&gt;dynticks_nesting</tt> field counts the
 nesting depth of process execution, so that in normal circumstances
@@ -1242,19 +1209,12 @@ it is willing to call for heavy-weight dyntick-counter operations.
 This flag is checked by RCU's context-switch and <tt>cond_resched()</tt>
 code, which provide a momentary idle sojourn in response.
 
-</p><p>The <tt>-&gt;rcu_qs_ctr</tt> field is used to record
-quiescent states from <tt>cond_resched()</tt>.
-Because <tt>cond_resched()</tt> can execute quite frequently, this
-must be quite lightweight, as in a non-atomic increment of this
-per-CPU field.
-
 </p><p>Finally, the <tt>-&gt;rcu_urgent_qs</tt> field is used to record
-the fact that the RCU core code would really like to see a quiescent
-state from the corresponding CPU, with the various other fields indicating
-just how badly RCU wants this quiescent state.
-This flag is checked by RCU's context-switch and <tt>cond_resched()</tt>
-code, which, if nothing else, non-atomically increment <tt>-&gt;rcu_qs_ctr</tt>
-in response.
+the fact that the RCU core code would really like to see a quiescent state from
+the corresponding CPU, with the various other fields indicating just how badly
+RCU wants this quiescent state.
+This flag is checked by RCU's context-switch path
+(<tt>rcu_note_context_switch</tt>) and the cond_resched code.
 
 <table>
 <tr><th>&nbsp;</th></tr>
@@ -1431,7 +1391,7 @@ So each flavor of RCU is represented by an <tt>rcu_state</tt> structure,
 which contains a combining tree of <tt>rcu_node</tt> and
 <tt>rcu_data</tt> structures.
 Finally, in <tt>CONFIG_NO_HZ_IDLE</tt> kernels, each CPU's dyntick-idle
-state is tracked by an <tt>rcu_dynticks</tt> structure.
+state is tracked by dynticks-related fields in the <tt>rcu_data</tt> structure.
 
 If you made it this far, you are well prepared to read the code
 walkthroughs in the other articles in this series.
