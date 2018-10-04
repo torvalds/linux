@@ -154,36 +154,9 @@ on that root <tt>rcu_node</tt> structure remains acceptably low.
 keeping lock contention under control at all tree levels regardless
 of the level of loading on the system.
 
-</p><p>The Linux kernel actually supports multiple flavors of RCU
-running concurrently, so RCU builds separate data structures for each
-flavor.
-For example, for <tt>CONFIG_TREE_RCU=y</tt> kernels, RCU provides
-rcu_sched and rcu_bh, as shown below:
-
-</p><p><img src="BigTreeClassicRCUBH.svg" alt="BigTreeClassicRCUBH.svg" width="33%">
-
-</p><p>Energy efficiency is increasingly important, and for that
-reason the Linux kernel provides <tt>CONFIG_NO_HZ_IDLE</tt>, which
-turns off the scheduling-clock interrupts on idle CPUs, which in
-turn allows those CPUs to attain deeper sleep states and to consume
-less energy.
-CPUs whose scheduling-clock interrupts have been turned off are
-said to be in <i>dyntick-idle mode</i>.
-RCU must handle dyntick-idle CPUs specially
-because RCU would otherwise wake up each CPU on every grace period,
-which would defeat the whole purpose of <tt>CONFIG_NO_HZ_IDLE</tt>.
-RCU uses the dynticks related fields in the <tt>rcu_data</tt> structure
-to track which CPUs are in dyntick idle mode.
-
-</p><p>Kernels built with <tt>CONFIG_PREEMPT_RCU</tt> support
-rcu_preempt in addition to rcu_sched and rcu_bh, as shown below:
-
-</p><p><img src="BigTreePreemptRCUBHdyntick.svg" alt="BigTreePreemptRCUBHdyntick.svg" width="35%">
-
 </p><p>RCU updaters wait for normal grace periods by registering
 RCU callbacks, either directly via <tt>call_rcu()</tt> and
 friends (namely <tt>call_rcu_bh()</tt> and <tt>call_rcu_sched()</tt>),
-there being a separate interface per flavor of RCU)
 or indirectly via <tt>synchronize_rcu()</tt> and friends.
 RCU callbacks are represented by <tt>rcu_head</tt> structures,
 which are queued on <tt>rcu_data</tt> structures while they are
@@ -278,7 +251,7 @@ structures.
 The <tt>rcu_state</tt> Structure</a></h3>
 
 <p>The <tt>rcu_state</tt> structure is the base structure that
-represents a flavor of RCU.
+represents the state of RCU in the system.
 This structure forms the interconnection between the
 <tt>rcu_node</tt> and <tt>rcu_data</tt> structures,
 tracks grace periods, contains the lock used to
@@ -373,7 +346,7 @@ sequence number.
 The bottom two bits are the state of the current grace period,
 which can be zero for not yet started or one for in progress.
 In other words, if the bottom two bits of <tt>-&gt;gp_seq</tt> are
-zero, the corresponding flavor of RCU is idle.
+zero, then RCU is idle.
 Any other value in the bottom two bits indicates that something is broken.
 This field is protected by the root <tt>rcu_node</tt> structure's
 <tt>-&gt;lock</tt> field.
@@ -403,10 +376,10 @@ as follows:
 grace period in jiffies.
 It is protected by the root <tt>rcu_node</tt>'s <tt>-&gt;lock</tt>.
 
-<p>The <tt>-&gt;name</tt> field points to the name of the RCU flavor
-(for example, &ldquo;rcu_sched&rdquo;), and is constant.
-The <tt>-&gt;abbr</tt> field contains a one-character abbreviation,
-for example, &ldquo;s&rdquo; for RCU-sched.
+<p>The <tt>-&gt;name</tt> and <tt>-&gt;abbr</tt> fields distinguish
+between preemptible RCU (&ldquo;rcu_preempt&rdquo; and &ldquo;p&rdquo;)
+and non-preemptible RCU (&ldquo;rcu_sched&rdquo; and &ldquo;s&rdquo;).
+These fields are used for diagnostic and tracing purposes.
 
 <h3><a name="The rcu_node Structure">
 The <tt>rcu_node</tt> Structure</a></h3>
@@ -972,8 +945,7 @@ of <tt>rcu_barrier()</tt>.
 <h3><a name="The rcu_data Structure">
 The <tt>rcu_data</tt> Structure</a></h3>
 
-<p>The <tt>rcu_data</tt> maintains the per-CPU state for the
-corresponding flavor of RCU.
+<p>The <tt>rcu_data</tt> maintains the per-CPU state for the RCU subsystem.
 The fields in this structure may be accessed only from the corresponding
 CPU (and from tracing) unless otherwise stated.
 This structure is the
@@ -1030,7 +1002,6 @@ as follows:
   3   bool cpu_no_qs;
   4   bool core_needs_qs;
   5   bool gpwrap;
-  6   unsigned long rcu_qs_ctr_snap;
 </pre>
 
 <p>The <tt>-&gt;gp_seq</tt> and <tt>-&gt;gp_seq_needed</tt>
@@ -1076,10 +1047,6 @@ CPU has remained idle for so long that the
 <tt>gp_seq</tt> counter is in danger of overflow, which
 will cause the CPU to disregard the values of its counters on
 its next exit from idle.
-Finally, the <tt>rcu_qs_ctr_snap</tt> field is used to detect
-cases where a given operation has resulted in a quiescent state
-for all flavors of RCU, for example, <tt>cond_resched()</tt>
-when RCU has indicated a need for quiescent states.
 
 <h5>RCU Callback Handling</h5>
 
@@ -1387,7 +1354,7 @@ the last part of the array, thus traversing only the leaf
 <h3><a name="Summary">
 Summary</a></h3>
 
-So each flavor of RCU is represented by an <tt>rcu_state</tt> structure,
+So the state of RCU is represented by an <tt>rcu_state</tt> structure,
 which contains a combining tree of <tt>rcu_node</tt> and
 <tt>rcu_data</tt> structures.
 Finally, in <tt>CONFIG_NO_HZ_IDLE</tt> kernels, each CPU's dyntick-idle
