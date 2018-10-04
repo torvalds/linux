@@ -1626,7 +1626,7 @@ static int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb,
 		if (!ops->eswitch_mode_set)
 			return -EOPNOTSUPP;
 		mode = nla_get_u16(info->attrs[DEVLINK_ATTR_ESWITCH_MODE]);
-		err = ops->eswitch_mode_set(devlink, mode);
+		err = ops->eswitch_mode_set(devlink, mode, info->extack);
 		if (err)
 			return err;
 	}
@@ -1636,7 +1636,8 @@ static int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb,
 			return -EOPNOTSUPP;
 		inline_mode = nla_get_u8(
 				info->attrs[DEVLINK_ATTR_ESWITCH_INLINE_MODE]);
-		err = ops->eswitch_inline_mode_set(devlink, inline_mode);
+		err = ops->eswitch_inline_mode_set(devlink, inline_mode,
+						   info->extack);
 		if (err)
 			return err;
 	}
@@ -1645,7 +1646,8 @@ static int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb,
 		if (!ops->eswitch_encap_mode_set)
 			return -EOPNOTSUPP;
 		encap_mode = nla_get_u8(info->attrs[DEVLINK_ATTR_ESWITCH_ENCAP_MODE]);
-		err = ops->eswitch_encap_mode_set(devlink, encap_mode);
+		err = ops->eswitch_encap_mode_set(devlink, encap_mode,
+						  info->extack);
 		if (err)
 			return err;
 	}
