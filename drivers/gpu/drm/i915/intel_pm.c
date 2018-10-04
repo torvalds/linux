@@ -4871,7 +4871,7 @@ static void skl_compute_transition_wm(struct intel_crtc_state *cstate,
 	const struct drm_i915_private *dev_priv = to_i915(dev);
 	uint16_t trans_min, trans_y_tile_min;
 	const uint16_t trans_amount = 10; /* This is configurable amount */
-	uint16_t trans_offset_b, res_blocks;
+	uint16_t wm0_sel_res_b, trans_offset_b, res_blocks;
 
 	if (!cstate->base.active)
 		goto exit;
@@ -4890,13 +4890,25 @@ static void skl_compute_transition_wm(struct intel_crtc_state *cstate,
 
 	trans_offset_b = trans_min + trans_amount;
 
+	/*
+	 * The spec asks for Selected Result Blocks for wm0 (the real value),
+	 * not Result Blocks (the integer value). Pay attention to the capital
+	 * letters. The value wm_l0->plane_res_b is actually Result Blocks, but
+	 * since Result Blocks is the ceiling of Selected Result Blocks plus 1,
+	 * and since we later will have to get the ceiling of the sum in the
+	 * transition watermarks calculation, we can just pretend Selected
+	 * Result Blocks is Result Blocks minus 1 and it should work for the
+	 * current platforms.
+	 */
+	wm0_sel_res_b = wm_l0->plane_res_b - 1;
+
 	if (wp->y_tiled) {
 		trans_y_tile_min = (uint16_t) mul_round_up_u32_fixed16(2,
 							wp->y_tile_minimum);
-		res_blocks = max(wm_l0->plane_res_b, trans_y_tile_min) +
+		res_blocks = max(wm0_sel_res_b, trans_y_tile_min) +
 				trans_offset_b;
 	} else {
-		res_blocks = wm_l0->plane_res_b + trans_offset_b;
+		res_blocks = wm0_sel_res_b + trans_offset_b;
 
 		/* WA BUG:1938466 add one block for non y-tile planes */
 		if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_A0))
