@@ -1530,8 +1530,6 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test,
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      BIT(trans->cfg->csr->flag_init_done));
 
-	iwl_pcie_enable_rx_wake(trans, false);
-
 	if (reset) {
 		/*
 		 * reset TX queues -- some of their registers reset during S3
@@ -1557,8 +1555,6 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		*status = IWL_D3_STATUS_ALIVE;
 		return 0;
 	}
-
-	iwl_pcie_enable_rx_wake(trans, true);
 
 	iwl_set_bit(trans, CSR_GP_CNTRL,
 		    BIT(trans->cfg->csr->flag_mac_access_req));
