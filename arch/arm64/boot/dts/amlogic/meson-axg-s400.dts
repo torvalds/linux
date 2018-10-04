@@ -461,7 +461,7 @@
 
 /* emmc storage */
 &sd_emmc_c {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&emmc_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -474,6 +474,8 @@
 	disable-wp;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
+
+	mmc-pwrseq = <&emmc_pwrseq>;
 
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vddio_boot>;
