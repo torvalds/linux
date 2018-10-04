@@ -113,6 +113,8 @@ static int drm_syncobj_fence_get_or_add_callback(struct drm_syncobj *syncobj,
 {
 	int ret;
 
+	WARN_ON(*fence);
+
 	*fence = drm_syncobj_fence_get(syncobj);
 	if (*fence)
 		return 1;
@@ -717,6 +719,9 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 
 	if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT) {
 		for (i = 0; i < count; ++i) {
+			if (entries[i].fence)
+				continue;
+
 			drm_syncobj_fence_get_or_add_callback(syncobjs[i],
 							      &entries[i].fence,
 							      &entries[i].syncobj_cb,

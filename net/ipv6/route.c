@@ -364,11 +364,14 @@ EXPORT_SYMBOL(ip6_dst_alloc);
 
 static void ip6_dst_destroy(struct dst_entry *dst)
 {
+	struct dst_metrics *p = (struct dst_metrics *)DST_METRICS_PTR(dst);
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	struct fib6_info *from;
 	struct inet6_dev *idev;
 
-	dst_destroy_metrics_generic(dst);
+	if (p != &dst_default_metrics && refcount_dec_and_test(&p->refcnt))
+		kfree(p);
+
 	rt6_uncached_list_del(rt);
 
 	idev = rt->rt6i_idev;
@@ -976,6 +979,10 @@ static void rt6_set_from(struct rt6_info *rt, struct fib6_info *from)
 	rt->rt6i_flags &= ~RTF_EXPIRES;
 	rcu_assign_pointer(rt->from, from);
 	dst_init_metrics(&rt->dst, from->fib6_metrics->metrics, true);
+	if (from->fib6_metrics != &dst_default_metrics) {
+		rt->dst._metrics |= DST_METRICS_REFCOUNTED;
+		refcount_inc(&from->fib6_metrics->refcnt);
+	}
 }
 
 /* Caller must already hold reference to @ort */
