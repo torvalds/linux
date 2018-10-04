@@ -232,7 +232,7 @@ enum SCAN_STATE {
 
 struct mlme_handler {
 	unsigned int   num;
-	char *str;
+	const char *str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
