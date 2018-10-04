@@ -66,23 +66,6 @@ u32 sdio_pro_enable;   /* make sure gpt is enabled */
 u32 sdio_pro_time;     /* no more than 30s */
 struct sdio_profile sdio_perfomance = {0};
 
-#if 0 /* --- chhung */
-void msdc_init_gpt(void)
-{
-	GPT_CONFIG config;
-
-	config.num  = GPT6;
-	config.mode = GPT_FREE_RUN;
-	config.clkSrc = GPT_CLK_SRC_SYS;
-	config.clkDiv = GPT_CLK_DIV_1;   /* 13MHz GPT6 */
-
-	if (GPT_Config(config) == FALSE)
-		return;
-
-	GPT_Start(GPT6);
-}
-#endif /* end of --- */
-
 u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32)
 {
 	u32 ret = 0;
@@ -268,10 +251,8 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 		}
 	} else if (cmd == SD_TOOL_SDIO_PROFILE) {
 		if (p1 == 1) { /* enable profile */
-			if (gpt_enable == 0) {
-				// msdc_init_gpt(); /* --- by chhung */
+			if (gpt_enable == 0)
 				gpt_enable = 1;
-			}
 			sdio_pro_enable = 1;
 			if (p2 == 0)
 				p2 = 1;
