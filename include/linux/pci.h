@@ -281,6 +281,7 @@ struct pcie_link_state;
 struct pci_vpd;
 struct pci_sriov;
 struct pci_ats;
+struct pci_p2pdma;
 
 /* The pci_dev structure describes PCI devices */
 struct pci_dev {
@@ -438,6 +439,9 @@ struct pci_dev {
 #endif
 #ifdef CONFIG_PCI_PASID
 	u16		pasid_features;
+#endif
+#ifdef CONFIG_PCI_P2PDMA
+	struct pci_p2pdma *p2pdma;
 #endif
 	phys_addr_t	rom;		/* Physical address if not from BAR */
 	size_t		romlen;		/* Length if not from BAR */
