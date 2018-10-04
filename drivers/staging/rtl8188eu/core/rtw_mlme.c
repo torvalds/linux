@@ -20,7 +20,7 @@
 #include <rtw_ioctl_set.h>
 #include <linux/vmalloc.h>
 
-extern unsigned char	MCS_rate_1R[16];
+extern const u8 MCS_rate_1R[16];
 
 int rtw_init_mlme_priv(struct adapter *padapter)
 {
