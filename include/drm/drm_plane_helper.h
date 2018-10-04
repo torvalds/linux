@@ -62,18 +62,4 @@ int drm_primary_helper_disable(struct drm_plane *plane,
 void drm_primary_helper_destroy(struct drm_plane *plane);
 extern const struct drm_plane_funcs drm_primary_helper_funcs;
 
-int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
-			    struct drm_framebuffer *fb,
-			    int crtc_x, int crtc_y,
-			    unsigned int crtc_w, unsigned int crtc_h,
-			    uint32_t src_x, uint32_t src_y,
-			    uint32_t src_w, uint32_t src_h,
-			    struct drm_modeset_acquire_ctx *ctx);
-int drm_plane_helper_disable(struct drm_plane *plane,
-			     struct drm_modeset_acquire_ctx *ctx);
-
-/* For use by drm_crtc_helper.c */
-int drm_plane_helper_commit(struct drm_plane *plane,
-			    struct drm_plane_state *plane_state,
-			    struct drm_framebuffer *old_fb);
 #endif
