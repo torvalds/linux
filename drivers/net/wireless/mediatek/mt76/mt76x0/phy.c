@@ -111,12 +111,14 @@ out:
 static int
 rf_wr(struct mt76x02_dev *dev, u32 offset, u8 val)
 {
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state)) {
+	if (mt76_is_usb(dev)) {
 		struct mt76_reg_pair pair = {
 			.reg = offset,
 			.value = val,
 		};
 
+		WARN_ON_ONCE(!test_bit(MT76_STATE_MCU_RUNNING,
+			     &dev->mt76.state));
 		return mt76_wr_rp(dev, MT_MCU_MEMMAP_RF, &pair, 1);
 	} else {
 		return mt76x0_rf_csr_wr(dev, offset, val);
@@ -129,11 +131,13 @@ rf_rr(struct mt76x02_dev *dev, u32 offset)
 	int ret;
 	u32 val;
 
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state)) {
+	if (mt76_is_usb(dev)) {
 		struct mt76_reg_pair pair = {
 			.reg = offset,
 		};
 
+		WARN_ON_ONCE(!test_bit(MT76_STATE_MCU_RUNNING,
+			     &dev->mt76.state));
 		ret = mt76_rd_rp(dev, MT_MCU_MEMMAP_RF, &pair, 1);
 		val = pair.value;
 	} else {
