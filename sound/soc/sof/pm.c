@@ -23,6 +23,57 @@
 
 #define RUNTIME_PM 1
 
+static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_control *scontrol = NULL;
+	int ipc_cmd, ctrl_type, sof_abi;
+	int ret = 0;
+
+	/* restore kcontrol values */
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
+		/* reset readback offset for scontrol after resuming */
+		scontrol->readback_offset = 0;
+
+		/* notify DSP of kcontrol values */
+		switch (scontrol->cmd) {
+		case SOF_CTRL_CMD_VOLUME:
+			ipc_cmd = SOF_IPC_COMP_SET_VALUE;
+			ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
+			ret = snd_sof_ipc_set_comp_data(sdev->ipc, scontrol,
+							ipc_cmd, ctrl_type,
+							scontrol->cmd);
+			break;
+		case SOF_CTRL_CMD_BINARY:
+
+			/* Check if control data contains valid data.
+			 * SOF_ABI_MAGIC will not match if there is no data.
+			 */
+			ipc_cmd = SOF_IPC_COMP_SET_DATA;
+			ctrl_type = SOF_CTRL_TYPE_DATA_SET;
+			sof_abi = scontrol->control_data->data->magic;
+			if (sof_abi == SOF_ABI_MAGIC)
+				ret = snd_sof_ipc_set_comp_data(sdev->ipc,
+								scontrol,
+								ipc_cmd,
+								ctrl_type,
+								scontrol->cmd);
+			break;
+
+		default:
+			break;
+		}
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: failed kcontrol value set for widget: %d\n",
+				scontrol->comp_id);
+
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_widget *swidget = NULL;
@@ -30,8 +81,6 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 	struct snd_sof_dai *dai;
 	struct sof_ipc_comp_dai *comp_dai;
 	struct sof_ipc_hdr *hdr;
-	struct snd_sof_control *scontrol = NULL;
-	int ipc_cmd, ctrl_type, sof_abi;
 	int ret = 0;
 
 	/* restore pipeline components */
@@ -128,47 +177,9 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 		}
 	}
 
-	/* restore kcontrol values */
-	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
-		/* reset readback offset for scontrol after resuming */
-		scontrol->readback_offset = 0;
-
-		/* notify DSP of kcontrol values */
-		switch (scontrol->cmd) {
-		case SOF_CTRL_CMD_VOLUME:
-			ipc_cmd = SOF_IPC_COMP_SET_VALUE;
-			ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
-			ret = snd_sof_ipc_set_comp_data(sdev->ipc, scontrol,
-							ipc_cmd, ctrl_type,
-							scontrol->cmd);
-			break;
-		case SOF_CTRL_CMD_BINARY:
-
-			/* Check if control data contains valid data.
-			 * SOF_ABI_MAGIC will not match if there is no data.
-			 */
-			ipc_cmd = SOF_IPC_COMP_SET_DATA;
-			ctrl_type = SOF_CTRL_TYPE_DATA_SET;
-			sof_abi = scontrol->control_data->data->magic;
-			if (sof_abi == SOF_ABI_MAGIC)
-				ret = snd_sof_ipc_set_comp_data(sdev->ipc,
-								scontrol,
-								ipc_cmd,
-								ctrl_type,
-								scontrol->cmd);
-			break;
-
-		default:
-			break;
-		}
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: failed kcontrol value set for widget: %d\n",
-				scontrol->comp_id);
-
-			return ret;
-		}
-	}
+	/* restore pipeline kcontrols */
+	if (sdev->restore_kcontrols)
+		return sof_restore_kcontrols(sdev);
 
 	return 0;
 }
@@ -344,6 +355,9 @@ static int sof_suspend(struct device *dev, int runtime_suspend)
 			"error: failed to power down DSP during suspend %d\n",
 			ret);
 
+	/* set flag for restoring kcontrols upon resuming */
+	sdev->restore_kcontrols = true;
+
 	return ret;
 }
 
@@ -376,3 +390,19 @@ int snd_sof_suspend_late(struct device *dev)
 	return sof_suspend(dev, !RUNTIME_PM);
 }
 EXPORT_SYMBOL(snd_sof_suspend_late);
+
+int snd_sof_prepare(struct device *dev)
+{
+	struct sof_platform_priv *priv = dev_get_drvdata(dev);
+	struct snd_sof_dev *sdev = dev_get_drvdata(&priv->pdev_pcm->dev);
+
+	/*
+	 * PCI devices are brought back to full power before system suspend.
+	 * Setting this flag will prevent restoring kcontrols
+	 * when resuming before system suspend
+	 */
+	sdev->restore_kcontrols = false;
+
+	return 0;
+}
+EXPORT_SYMBOL(snd_sof_prepare);
