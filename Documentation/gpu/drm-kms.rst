@@ -575,6 +575,13 @@ Explicit Fencing Properties
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_uapi.c
    :doc: explicit fencing properties
 
+
+Variable Refresh Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: Variable refresh properties
+
 Existing KMS Properties
 -----------------------
 
