@@ -198,9 +198,7 @@ struct cec_adapter {
 	u16 phys_addrs[15];
 	u32 sequence;
 
-	char device_name[32];
 	char input_phys[32];
-	char input_drv[32];
 };
 
 static inline void *cec_get_drvdata(const struct cec_adapter *adap)
