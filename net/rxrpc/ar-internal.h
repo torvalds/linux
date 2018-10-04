@@ -966,7 +966,7 @@ void rxrpc_unpublish_service_conn(struct rxrpc_connection *);
 /*
  * input.c
  */
-void rxrpc_data_ready(struct sock *);
+int rxrpc_input_packet(struct sock *, struct sk_buff *);
 
 /*
  * insecure.c

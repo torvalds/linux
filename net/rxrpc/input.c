@@ -1121,7 +1121,7 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
  * shut down and the local endpoint from going away, thus sk_user_data will not
  * be cleared until this function returns.
  */
-void rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
+int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_channel *chan;
@@ -1134,6 +1134,13 @@ void rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	int skew = 0;
 
 	_enter("%p", udp_sk);
+
+	if (skb->tstamp == 0)
+		skb->tstamp = ktime_get_real();
+
+	rxrpc_new_skb(skb, rxrpc_skb_rx_received);
+
+	skb_pull(skb, sizeof(struct udphdr));
 
 	/* The UDP protocol already released all skb resources;
 	 * we are free to add our own data there.
@@ -1148,8 +1155,8 @@ void rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		static int lose;
 		if ((lose++ & 7) == 7) {
 			trace_rxrpc_rx_lose(sp);
-			rxrpc_lose_skb(skb, rxrpc_skb_rx_lost);
-			return;
+			rxrpc_free_skb(skb, rxrpc_skb_rx_lost);
+			return 0;
 		}
 	}
 
@@ -1332,7 +1339,7 @@ discard:
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 out:
 	trace_rxrpc_rx_done(0, 0);
-	return;
+	return 0;
 
 out_unlock:
 	rcu_read_unlock();
@@ -1371,38 +1378,5 @@ reject_packet:
 	trace_rxrpc_rx_done(skb->mark, skb->priority);
 	rxrpc_reject_packet(local, skb);
 	_leave(" [badmsg]");
-}
-
-void rxrpc_data_ready(struct sock *udp_sk)
-{
-	struct sk_buff *skb;
-	int ret;
-
-	for (;;) {
-		skb = skb_recv_udp(udp_sk, 0, 1, &ret);
-		if (!skb) {
-			if (ret == -EAGAIN)
-				return;
-
-			/* If there was a transmission failure, we get an error
-			 * here that we need to ignore.
-			 */
-			_debug("UDP socket error %d", ret);
-			continue;
-		}
-
-		rxrpc_new_skb(skb, rxrpc_skb_rx_received);
-
-		/* we'll probably need to checksum it (didn't call sock_recvmsg) */
-		if (skb_checksum_complete(skb)) {
-			rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
-			__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INERRORS, 0);
-			_debug("csum failed");
-			continue;
-		}
-
-		__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INDATAGRAMS, 0);
-
-		rxrpc_input_packet(udp_sk, skb);
-	}
+	return 0;
 }

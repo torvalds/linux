@@ -19,6 +19,7 @@
 #include <linux/ip.h>
 #include <linux/hashtable.h>
 #include <net/sock.h>
+#include <net/udp.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
@@ -108,7 +109,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
  */
 static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 {
-	struct sock *sock;
+	struct sock *usk;
 	int ret, opt;
 
 	_enter("%p{%d,%d}",
@@ -123,10 +124,26 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 	}
 
 	/* set the socket up */
-	sock = local->socket->sk;
-	sock->sk_user_data	= local;
-	sock->sk_data_ready	= rxrpc_data_ready;
-	sock->sk_error_report	= rxrpc_error_report;
+	usk = local->socket->sk;
+	inet_sk(usk)->mc_loop = 0;
+
+	/* Enable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
+	inet_inc_convert_csum(usk);
+
+	rcu_assign_sk_user_data(usk, local);
+
+	udp_sk(usk)->encap_type = UDP_ENCAP_RXRPC;
+	udp_sk(usk)->encap_rcv = rxrpc_input_packet;
+	udp_sk(usk)->encap_destroy = NULL;
+	udp_sk(usk)->gro_receive = NULL;
+	udp_sk(usk)->gro_complete = NULL;
+
+	udp_encap_enable();
+#if IS_ENABLED(CONFIG_IPV6)
+	if (local->srx.transport.family == AF_INET6)
+		udpv6_encap_enable();
+#endif
+	usk->sk_error_report = rxrpc_error_report;
 
 	/* if a local address was supplied then bind it */
 	if (local->srx.transport_len > sizeof(sa_family_t)) {
