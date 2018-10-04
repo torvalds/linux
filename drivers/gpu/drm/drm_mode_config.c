@@ -310,6 +310,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.prop_mode_id = prop;
 
+	prop = drm_property_create_bool(dev, 0,
+			"VRR_ENABLED");
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_vrr_enabled = prop;
+
 	prop = drm_property_create(dev,
 			DRM_MODE_PROP_BLOB,
 			"DEGAMMA_LUT", 0);
