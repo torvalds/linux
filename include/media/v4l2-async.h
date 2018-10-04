@@ -89,8 +89,8 @@ struct v4l2_async_subdev {
 			unsigned short address;
 		} i2c;
 		struct {
-			bool (*match)(struct device *,
-				      struct v4l2_async_subdev *);
+			bool (*match)(struct device *dev,
+				      struct v4l2_async_subdev *sd);
 			void *priv;
 		} custom;
 	} match;
@@ -222,7 +222,6 @@ v4l2_async_notifier_add_devname_subdev(struct v4l2_async_notifier *notifier,
 				       const char *device_name,
 				       unsigned int asd_struct_size);
 
-
 /**
  * v4l2_async_notifier_register - registers a subdevice asynchronous notifier
  *
@@ -243,7 +242,8 @@ int v4l2_async_subdev_notifier_register(struct v4l2_subdev *sd,
 					struct v4l2_async_notifier *notifier);
 
 /**
- * v4l2_async_notifier_unregister - unregisters a subdevice asynchronous notifier
+ * v4l2_async_notifier_unregister - unregisters a subdevice
+ *	asynchronous notifier
  *
  * @notifier: pointer to &struct v4l2_async_notifier
  */
@@ -294,8 +294,8 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd);
  * An error is returned if the module is no longer loaded on any attempts
  * to register it.
  */
-int __must_check v4l2_async_register_subdev_sensor_common(
-	struct v4l2_subdev *sd);
+int __must_check
+v4l2_async_register_subdev_sensor_common(struct v4l2_subdev *sd);
 
 /**
  * v4l2_async_unregister_subdev - unregisters a sub-device to the asynchronous

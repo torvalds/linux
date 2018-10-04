@@ -71,8 +71,8 @@ struct v4l2_fwnode_bus_parallel {
  * @clock_lane: the number of the clock lane
  */
 struct v4l2_fwnode_bus_mipi_csi1 {
-	bool clock_inv;
-	bool strobe;
+	unsigned char clock_inv:1;
+	unsigned char strobe:1;
 	bool lane_polarity[2];
 	unsigned char data_lane;
 	unsigned char clock_lane;
@@ -203,8 +203,8 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  *	   %-EINVAL on parsing failure
  *	   %-ENXIO on mismatching bus types
  */
-int v4l2_fwnode_endpoint_alloc_parse(
-	struct fwnode_handle *fwnode, struct v4l2_fwnode_endpoint *vep);
+int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
+				     struct v4l2_fwnode_endpoint *vep);
 
 /**
  * v4l2_fwnode_parse_link() - parse a link between two endpoints
@@ -236,7 +236,6 @@ int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
  */
 void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link);
 
-
 /**
  * typedef parse_endpoint_func - Driver's callback function to be called on
  *	each V4L2 fwnode endpoint.
@@ -254,7 +253,6 @@ void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link);
 typedef int (*parse_endpoint_func)(struct device *dev,
 				  struct v4l2_fwnode_endpoint *vep,
 				  struct v4l2_async_subdev *asd);
-
 
 /**
  * v4l2_async_notifier_parse_fwnode_endpoints - Parse V4L2 fwnode endpoints in a
@@ -294,10 +292,11 @@ typedef int (*parse_endpoint_func)(struct device *dev,
  *	   %-EINVAL if graph or endpoint parsing failed
  *	   Other error codes as returned by @parse_endpoint
  */
-int v4l2_async_notifier_parse_fwnode_endpoints(
-	struct device *dev, struct v4l2_async_notifier *notifier,
-	size_t asd_struct_size,
-	parse_endpoint_func parse_endpoint);
+int
+v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
+					   struct v4l2_async_notifier *notifier,
+					   size_t asd_struct_size,
+					   parse_endpoint_func parse_endpoint);
 
 /**
  * v4l2_async_notifier_parse_fwnode_endpoints_by_port - Parse V4L2 fwnode
@@ -345,10 +344,11 @@ int v4l2_async_notifier_parse_fwnode_endpoints(
  *	   %-EINVAL if graph or endpoint parsing failed
  *	   Other error codes as returned by @parse_endpoint
  */
-int v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-	struct device *dev, struct v4l2_async_notifier *notifier,
-	size_t asd_struct_size, unsigned int port,
-	parse_endpoint_func parse_endpoint);
+int
+v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
+				struct v4l2_async_notifier *notifier,
+				size_t asd_struct_size, unsigned int port,
+				parse_endpoint_func parse_endpoint);
 
 /**
  * v4l2_fwnode_reference_parse_sensor_common - parse common references on
@@ -368,8 +368,8 @@ int v4l2_async_notifier_parse_fwnode_endpoints_by_port(
  *	   -ENOMEM if memory allocation failed
  *	   -EINVAL if property parsing failed
  */
-int v4l2_async_notifier_parse_fwnode_sensor_common(
-	struct device *dev, struct v4l2_async_notifier *notifier);
+int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
+					struct v4l2_async_notifier *notifier);
 
 /**
  * v4l2_async_register_fwnode_subdev - registers a sub-device to the
@@ -401,11 +401,13 @@ int v4l2_async_notifier_parse_fwnode_sensor_common(
  * An error is returned if the module is no longer loaded on any attempts
  * to register it.
  */
-int v4l2_async_register_fwnode_subdev(
-	struct v4l2_subdev *sd, size_t asd_struct_size,
-	unsigned int *ports, unsigned int num_ports,
-	int (*parse_endpoint)(struct device *dev,
-			      struct v4l2_fwnode_endpoint *vep,
-			      struct v4l2_async_subdev *asd));
+int
+v4l2_async_register_fwnode_subdev(struct v4l2_subdev *sd,
+			size_t asd_struct_size,
+			unsigned int *ports,
+			unsigned int num_ports,
+			int (*parse_endpoint)(struct device *dev,
+					      struct v4l2_fwnode_endpoint *vep,
+					      struct v4l2_async_subdev *asd));
 
 #endif /* _V4L2_FWNODE_H */
