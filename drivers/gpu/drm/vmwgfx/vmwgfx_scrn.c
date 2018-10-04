@@ -247,28 +247,20 @@ static void vmw_sou_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		sou->buffer = vps->bo;
 		sou->buffer_size = vps->bo_size;
 
-		if (sou->base.is_implicit) {
-			x = crtc->x;
-			y = crtc->y;
-		} else {
-			conn_state = sou->base.connector.state;
-			vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
+		conn_state = sou->base.connector.state;
+		vmw_conn_state = vmw_connector_state_to_vcs(conn_state);
 
-			x = vmw_conn_state->gui_x;
-			y = vmw_conn_state->gui_y;
-		}
+		x = vmw_conn_state->gui_x;
+		y = vmw_conn_state->gui_y;
 
 		ret = vmw_sou_fifo_create(dev_priv, sou, x, y, &crtc->mode);
 		if (ret)
 			DRM_ERROR("Failed to define Screen Object %dx%d\n",
 				  crtc->x, crtc->y);
 
-		vmw_kms_add_active(dev_priv, &sou->base, vfb);
 	} else {
 		sou->buffer = NULL;
 		sou->buffer_size = 0;
-
-		vmw_kms_del_active(dev_priv, &sou->base);
 	}
 }
 
@@ -329,20 +321,13 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 				  uint32_t flags,
 				  struct drm_modeset_acquire_ctx *ctx)
 {
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	int ret;
-
-	if (!vmw_kms_crtc_flippable(dev_priv, crtc))
-		return -EINVAL;
 
 	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
 	if (ret) {
 		DRM_ERROR("Page flip error %d.\n", ret);
 		return ret;
 	}
-
-	if (vmw_crtc_to_du(crtc)->is_implicit)
-		vmw_kms_update_implicit_fb(dev_priv, crtc);
 
 	return ret;
 }
@@ -383,13 +368,10 @@ static const struct drm_connector_funcs vmw_sou_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
 	.fill_modes = vmw_du_connector_fill_modes,
-	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_sou_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
 	.atomic_destroy_state = vmw_du_connector_destroy_state,
-	.atomic_set_property = vmw_du_connector_atomic_set_property,
-	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };
 
 
@@ -883,7 +865,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	primary = &sou->base.primary;
 	cursor = &sou->base.cursor;
 
-	sou->base.active_implicit = false;
 	sou->base.pref_active = (unit == 0);
 	sou->base.pref_width = dev_priv->initial_width;
 	sou->base.pref_height = dev_priv->initial_height;
@@ -937,8 +918,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_connector_helper_add(connector, &vmw_sou_connector_helper_funcs);
 	connector->status = vmw_du_connector_detect(connector, true);
-	vmw_connector_state_to_vcs(connector->state)->is_implicit = false;
-
 
 	ret = drm_encoder_init(dev, encoder, &vmw_screen_object_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);
@@ -977,12 +956,6 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 				   dev->mode_config.suggested_x_property, 0);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_y_property, 0);
-	if (dev_priv->implicit_placement_property)
-		drm_object_attach_property
-			(&connector->base,
-			 dev_priv->implicit_placement_property,
-			 sou->base.is_implicit);
-
 	return 0;
 
 err_free_unregister:
@@ -1008,14 +981,10 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 	}
 
 	ret = -ENOMEM;
-	dev_priv->num_implicit = 0;
-	dev_priv->implicit_fb = NULL;
 
 	ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
 	if (unlikely(ret != 0))
 		return ret;
-
-	vmw_kms_create_implicit_placement_property(dev_priv, false);
 
 	for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
 		vmw_sou_init(dev_priv, i);

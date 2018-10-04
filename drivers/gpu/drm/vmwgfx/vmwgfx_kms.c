@@ -457,21 +457,8 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 		struct drm_crtc *crtc = state->crtc;
 		struct vmw_connector_state *vcs;
 		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-		struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-		struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
 
 		vcs = vmw_connector_state_to_vcs(du->connector.state);
-
-		/* Only one active implicit framebuffer at a time. */
-		mutex_lock(&dev_priv->global_kms_state_mutex);
-		if (vcs->is_implicit && dev_priv->implicit_fb &&
-		    !(dev_priv->num_implicit == 1 && du->active_implicit)
-		    && dev_priv->implicit_fb != vfb) {
-			DRM_ERROR("Multiple implicit framebuffers "
-				  "not supported.\n");
-			ret = -EINVAL;
-		}
-		mutex_unlock(&dev_priv->global_kms_state_mutex);
 	}
 
 
@@ -1520,6 +1507,88 @@ static int vmw_kms_check_display_memory(struct drm_device *dev,
 }
 
 /**
+ * vmw_crtc_state_and_lock - Return new or current crtc state with locked
+ * crtc mutex
+ * @state: The atomic state pointer containing the new atomic state
+ * @crtc: The crtc
+ *
+ * This function returns the new crtc state if it's part of the state update.
+ * Otherwise returns the current crtc state. It also makes sure that the
+ * crtc mutex is locked.
+ *
+ * Returns: A valid crtc state pointer or NULL. It may also return a
+ * pointer error, in particular -EDEADLK if locking needs to be rerun.
+ */
+static struct drm_crtc_state *
+vmw_crtc_state_and_lock(struct drm_atomic_state *state, struct drm_crtc *crtc)
+{
+	struct drm_crtc_state *crtc_state;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	if (crtc_state) {
+		lockdep_assert_held(&crtc->mutex.mutex.base);
+	} else {
+		int ret = drm_modeset_lock(&crtc->mutex, state->acquire_ctx);
+
+		if (ret != 0 && ret != -EALREADY)
+			return ERR_PTR(ret);
+
+		crtc_state = crtc->state;
+	}
+
+	return crtc_state;
+}
+
+/**
+ * vmw_kms_check_implicit - Verify that all implicit display units scan out
+ * from the same fb after the new state is committed.
+ * @dev: The drm_device.
+ * @state: The new state to be checked.
+ *
+ * Returns:
+ *   Zero on success,
+ *   -EINVAL on invalid state,
+ *   -EDEADLK if modeset locking needs to be rerun.
+ */
+static int vmw_kms_check_implicit(struct drm_device *dev,
+				  struct drm_atomic_state *state)
+{
+	struct drm_framebuffer *implicit_fb = NULL;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane_state *plane_state;
+
+	drm_for_each_crtc(crtc, dev) {
+		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+
+		if (!du->is_implicit)
+			continue;
+
+		crtc_state = vmw_crtc_state_and_lock(state, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (!crtc_state || !crtc_state->enable)
+			continue;
+
+		/*
+		 * Can't move primary planes across crtcs, so this is OK.
+		 * It also means we don't need to take the plane mutex.
+		 */
+		plane_state = du->primary.state;
+		if (plane_state->crtc != crtc)
+			continue;
+
+		if (!implicit_fb)
+			implicit_fb = plane_state->fb;
+		else if (implicit_fb != plane_state->fb)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
  * vmw_kms_check_topology - Validates topology in drm_atomic_state
  * @dev: DRM device
  * @state: the driver state object
@@ -1633,6 +1702,10 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 	int i, ret;
 
 	ret = drm_atomic_helper_check(dev, state);
+	if (ret)
+		return ret;
+
+	ret = vmw_kms_check_implicit(dev, state);
 	if (ret)
 		return ret;
 
@@ -2230,84 +2303,6 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 	return 1;
 }
 
-int vmw_du_connector_set_property(struct drm_connector *connector,
-				  struct drm_property *property,
-				  uint64_t val)
-{
-	struct vmw_display_unit *du = vmw_connector_to_du(connector);
-	struct vmw_private *dev_priv = vmw_priv(connector->dev);
-
-	if (property == dev_priv->implicit_placement_property)
-		du->is_implicit = val;
-
-	return 0;
-}
-
-
-
-/**
- * vmw_du_connector_atomic_set_property - Atomic version of get property
- *
- * @crtc - crtc the property is associated with
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-int
-vmw_du_connector_atomic_set_property(struct drm_connector *connector,
-				     struct drm_connector_state *state,
-				     struct drm_property *property,
-				     uint64_t val)
-{
-	struct vmw_private *dev_priv = vmw_priv(connector->dev);
-	struct vmw_connector_state *vcs = vmw_connector_state_to_vcs(state);
-	struct vmw_display_unit *du = vmw_connector_to_du(connector);
-
-
-	if (property == dev_priv->implicit_placement_property) {
-		vcs->is_implicit = val;
-
-		/*
-		 * We should really be doing a drm_atomic_commit() to
-		 * commit the new state, but since this doesn't cause
-		 * an immedate state change, this is probably ok
-		 */
-		du->is_implicit = vcs->is_implicit;
-	} else {
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-
-/**
- * vmw_du_connector_atomic_get_property - Atomic version of get property
- *
- * @connector - connector the property is associated with
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-int
-vmw_du_connector_atomic_get_property(struct drm_connector *connector,
-				     const struct drm_connector_state *state,
-				     struct drm_property *property,
-				     uint64_t *val)
-{
-	struct vmw_private *dev_priv = vmw_priv(connector->dev);
-	struct vmw_connector_state *vcs = vmw_connector_state_to_vcs(state);
-
-	if (property == dev_priv->implicit_placement_property)
-		*val = vcs->is_implicit;
-	else {
-		DRM_ERROR("Invalid Property %s\n", property->name);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /**
  * vmw_kms_update_layout_ioctl - Handler for DRM_VMW_UPDATE_LAYOUT ioctl
  * @dev: drm device for the ioctl
@@ -2697,119 +2692,23 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_kms_del_active - unregister a crtc binding to the implicit framebuffer
- *
- * @dev_priv: Pointer to a device private struct.
- * @du: The display unit of the crtc.
- */
-void vmw_kms_del_active(struct vmw_private *dev_priv,
-			struct vmw_display_unit *du)
-{
-	mutex_lock(&dev_priv->global_kms_state_mutex);
-	if (du->active_implicit) {
-		if (--(dev_priv->num_implicit) == 0)
-			dev_priv->implicit_fb = NULL;
-		du->active_implicit = false;
-	}
-	mutex_unlock(&dev_priv->global_kms_state_mutex);
-}
-
-/**
- * vmw_kms_add_active - register a crtc binding to an implicit framebuffer
- *
- * @vmw_priv: Pointer to a device private struct.
- * @du: The display unit of the crtc.
- * @vfb: The implicit framebuffer
- *
- * Registers a binding to an implicit framebuffer.
- */
-void vmw_kms_add_active(struct vmw_private *dev_priv,
-			struct vmw_display_unit *du,
-			struct vmw_framebuffer *vfb)
-{
-	mutex_lock(&dev_priv->global_kms_state_mutex);
-	WARN_ON_ONCE(!dev_priv->num_implicit && dev_priv->implicit_fb);
-
-	if (!du->active_implicit && du->is_implicit) {
-		dev_priv->implicit_fb = vfb;
-		du->active_implicit = true;
-		dev_priv->num_implicit++;
-	}
-	mutex_unlock(&dev_priv->global_kms_state_mutex);
-}
-
-/**
- * vmw_kms_screen_object_flippable - Check whether we can page-flip a crtc.
- *
- * @dev_priv: Pointer to device-private struct.
- * @crtc: The crtc we want to flip.
- *
- * Returns true or false depending whether it's OK to flip this crtc
- * based on the criterion that we must not have more than one implicit
- * frame-buffer at any one time.
- */
-bool vmw_kms_crtc_flippable(struct vmw_private *dev_priv,
-			    struct drm_crtc *crtc)
-{
-	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-	bool ret;
-
-	mutex_lock(&dev_priv->global_kms_state_mutex);
-	ret = !du->is_implicit || dev_priv->num_implicit == 1;
-	mutex_unlock(&dev_priv->global_kms_state_mutex);
-
-	return ret;
-}
-
-/**
- * vmw_kms_update_implicit_fb - Update the implicit fb.
- *
- * @dev_priv: Pointer to device-private struct.
- * @crtc: The crtc the new implicit frame-buffer is bound to.
- */
-void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
-				struct drm_crtc *crtc)
-{
-	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-	struct drm_plane *plane = crtc->primary;
-	struct vmw_framebuffer *vfb;
-
-	mutex_lock(&dev_priv->global_kms_state_mutex);
-
-	if (!du->is_implicit)
-		goto out_unlock;
-
-	vfb = vmw_framebuffer_to_vfb(plane->state->fb);
-	WARN_ON_ONCE(dev_priv->num_implicit != 1 &&
-		     dev_priv->implicit_fb != vfb);
-
-	dev_priv->implicit_fb = vfb;
-out_unlock:
-	mutex_unlock(&dev_priv->global_kms_state_mutex);
-}
-
-/**
  * vmw_kms_create_implicit_placement_proparty - Set up the implicit placement
  * property.
  *
  * @dev_priv: Pointer to a device private struct.
- * @immutable: Whether the property is immutable.
  *
  * Sets up the implicit placement property unless it's already set up.
  */
 void
-vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
-					   bool immutable)
+vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv)
 {
 	if (dev_priv->implicit_placement_property)
 		return;
 
 	dev_priv->implicit_placement_property =
 		drm_property_create_range(dev_priv->dev,
-					  immutable ?
-					  DRM_MODE_PROP_IMMUTABLE : 0,
+					  DRM_MODE_PROP_IMMUTABLE,
 					  "implicit_placement", 0, 1);
-
 }
 
 /**

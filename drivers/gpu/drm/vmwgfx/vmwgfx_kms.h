@@ -307,8 +307,6 @@ struct vmw_plane_state {
 struct vmw_connector_state {
 	struct drm_connector_state base;
 
-	bool is_implicit;
-
 	/**
 	 * @gui_x:
 	 *
@@ -370,7 +368,6 @@ struct vmw_display_unit {
 	int gui_x;
 	int gui_y;
 	bool is_implicit;
-	bool active_implicit;
 	int set_gui_x;
 	int set_gui_y;
 };
@@ -450,17 +447,8 @@ int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
 			    struct drm_crtc **p_crtc,
 			    struct drm_display_mode **p_mode);
 void vmw_guess_mode_timing(struct drm_display_mode *mode);
-void vmw_kms_del_active(struct vmw_private *dev_priv,
-			struct vmw_display_unit *du);
-void vmw_kms_add_active(struct vmw_private *dev_priv,
-			struct vmw_display_unit *du,
-			struct vmw_framebuffer *vfb);
-bool vmw_kms_crtc_flippable(struct vmw_private *dev_priv,
-			    struct drm_crtc *crtc);
-void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv,
-				struct drm_crtc *crtc);
-void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
-						bool immutable);
+void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv);
+void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv);
 
 /* Universal Plane Helpers */
 void vmw_du_primary_plane_destroy(struct drm_plane *plane);

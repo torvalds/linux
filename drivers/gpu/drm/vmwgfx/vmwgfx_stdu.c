@@ -400,13 +400,8 @@ static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	if (!crtc->state->enable)
 		return;
 
-	if (stdu->base.is_implicit) {
-		x = crtc->x;
-		y = crtc->y;
-	} else {
-		x = vmw_conn_state->gui_x;
-		y = vmw_conn_state->gui_y;
-	}
+	x = vmw_conn_state->gui_x;
+	y = vmw_conn_state->gui_y;
 
 	vmw_svga_enable(dev_priv);
 	ret = vmw_stdu_define_st(dev_priv, stdu, &crtc->mode, x, y);
@@ -421,27 +416,9 @@ static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
 {
 }
 
-
 static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
 {
-	struct drm_plane_state *plane_state = crtc->primary->state;
-	struct vmw_private *dev_priv;
-	struct vmw_screen_target_display_unit *stdu;
-	struct vmw_framebuffer *vfb;
-	struct drm_framebuffer *fb;
-
-
-	stdu     = vmw_crtc_to_stdu(crtc);
-	dev_priv = vmw_priv(crtc->dev);
-	fb       = plane_state->fb;
-
-	vfb = (fb) ? vmw_framebuffer_to_vfb(fb) : NULL;
-
-	if (vfb)
-		vmw_kms_add_active(dev_priv, &stdu->base, vfb);
-	else
-		vmw_kms_del_active(dev_priv, &stdu->base);
 }
 
 static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -501,11 +478,10 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 				   struct drm_modeset_acquire_ctx *ctx)
 
 {
-	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
 	int ret;
 
-	if (!stdu->defined || !vmw_kms_crtc_flippable(dev_priv, crtc))
+	if (!stdu->defined)
 		return -EINVAL;
 
 	ret = drm_atomic_helper_page_flip(crtc, new_fb, event, flags, ctx);
@@ -1046,13 +1022,10 @@ static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
 	.fill_modes = vmw_du_connector_fill_modes,
-	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_stdu_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
 	.atomic_destroy_state = vmw_du_connector_destroy_state,
-	.atomic_set_property = vmw_du_connector_atomic_set_property,
-	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };
 
 
@@ -1826,11 +1799,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	stdu->base.pref_active = (unit == 0);
 	stdu->base.pref_width  = dev_priv->initial_width;
 	stdu->base.pref_height = dev_priv->initial_height;
-
-	/*
-	 * Remove this after enabling atomic because property values can
-	 * only exist in a state object
-	 */
 	stdu->base.is_implicit = false;
 
 	/* Initialize primary plane */
@@ -1876,7 +1844,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_connector_helper_add(connector, &vmw_stdu_connector_helper_funcs);
 	connector->status = vmw_du_connector_detect(connector, false);
-	vmw_connector_state_to_vcs(connector->state)->is_implicit = false;
 
 	ret = drm_encoder_init(dev, encoder, &vmw_stdu_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);
@@ -1914,11 +1881,6 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 				   dev->mode_config.suggested_x_property, 0);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_y_property, 0);
-	if (dev_priv->implicit_placement_property)
-		drm_object_attach_property
-			(&connector->base,
-			 dev_priv->implicit_placement_property,
-			 stdu->base.is_implicit);
 	return 0;
 
 err_free_unregister:
@@ -1986,8 +1948,6 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 		return ret;
 
 	dev_priv->active_display_unit = vmw_du_screen_target;
-
-	vmw_kms_create_implicit_placement_property(dev_priv, false);
 
 	for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i) {
 		ret = vmw_stdu_init(dev_priv, i);
