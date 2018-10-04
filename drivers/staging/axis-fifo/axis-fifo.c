@@ -364,11 +364,11 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 		 * if nothing is currently available
 		 */
 		spin_lock_irq(&fifo->read_queue_lock);
-		ret = wait_event_interruptible_lock_irq_timeout(
-			fifo->read_queue,
-			ioread32(fifo->base_addr + XLLF_RDFO_OFFSET),
-			fifo->read_queue_lock,
-			(read_timeout >= 0) ? msecs_to_jiffies(read_timeout) :
+		ret = wait_event_interruptible_lock_irq_timeout
+			(fifo->read_queue,
+			 ioread32(fifo->base_addr + XLLF_RDFO_OFFSET),
+			 fifo->read_queue_lock,
+			 (read_timeout >= 0) ? msecs_to_jiffies(read_timeout) :
 				MAX_SCHEDULE_TIMEOUT);
 		spin_unlock_irq(&fifo->read_queue_lock);
 
@@ -482,12 +482,12 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		 * currently enough room in the fifo
 		 */
 		spin_lock_irq(&fifo->write_queue_lock);
-		ret = wait_event_interruptible_lock_irq_timeout(
-			fifo->write_queue,
-			ioread32(fifo->base_addr + XLLF_TDFV_OFFSET)
+		ret = wait_event_interruptible_lock_irq_timeout
+			(fifo->write_queue,
+			 ioread32(fifo->base_addr + XLLF_TDFV_OFFSET)
 				>= words_to_write,
-			fifo->write_queue_lock,
-			(write_timeout >= 0) ? msecs_to_jiffies(write_timeout) :
+			 fifo->write_queue_lock,
+			 (write_timeout >= 0) ? msecs_to_jiffies(write_timeout) :
 				MAX_SCHEDULE_TIMEOUT);
 		spin_unlock_irq(&fifo->write_queue_lock);
 
