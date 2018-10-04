@@ -78,6 +78,7 @@ int rxrpc_kernel_retry_call(struct socket *, struct rxrpc_call *,
 int rxrpc_kernel_check_call(struct socket *, struct rxrpc_call *,
 			    enum rxrpc_call_completion *, u32 *);
 u32 rxrpc_kernel_check_life(struct socket *, struct rxrpc_call *);
+u32 rxrpc_kernel_get_epoch(struct socket *, struct rxrpc_call *);
 bool rxrpc_kernel_get_reply_time(struct socket *, struct rxrpc_call *,
 				 ktime_t *);
 
