@@ -200,16 +200,13 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	}
 
 	if (size_bf > size_af) {
-		mc->agp_start = mc->fb_start > mc->gart_start ?
-			mc->gart_end + 1 : 0;
+		mc->agp_start = (mc->fb_start - size_bf) & sixteen_gb_mask;
 		mc->agp_size = size_bf;
 	} else {
-		mc->agp_start = (mc->fb_start > mc->gart_start ?
-			mc->fb_end : mc->gart_end) + 1,
+		mc->agp_start = ALIGN(mc->fb_end + 1, sixteen_gb);
 		mc->agp_size = size_af;
 	}
 
-	mc->agp_start = ALIGN(mc->agp_start, sixteen_gb);
 	mc->agp_end = mc->agp_start + mc->agp_size - 1;
 	dev_info(adev->dev, "AGP: %lluM 0x%016llX - 0x%016llX\n",
 			mc->agp_size >> 20, mc->agp_start, mc->agp_end);
