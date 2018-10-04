@@ -84,8 +84,11 @@ static void check_pinning_enforcement(struct super_block *mnt_sb)
 	 * device, allow sysctl to change modes for testing.
 	 */
 	if (mnt_sb->s_bdev) {
+		char bdev[BDEVNAME_SIZE];
+
 		ro = bdev_read_only(mnt_sb->s_bdev);
-		pr_info("dev(%u,%u): %s\n",
+		bdevname(mnt_sb->s_bdev, bdev);
+		pr_info("%s (%u:%u): %s\n", bdev,
 			MAJOR(mnt_sb->s_bdev->bd_dev),
 			MINOR(mnt_sb->s_bdev->bd_dev),
 			ro ? "read-only" : "writable");
