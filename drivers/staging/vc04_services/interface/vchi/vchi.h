@@ -77,7 +77,6 @@ typedef struct {
 typedef struct {
 	struct vchi_version version;
 	int32_t service_id;
-	VCHI_CONNECTION_T *connection;
 	uint32_t rx_fifo_size;
 	uint32_t tx_fifo_size;
 	VCHI_CALLBACK_T callback;
