@@ -346,9 +346,10 @@ v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
  */
 int
 v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
-				struct v4l2_async_notifier *notifier,
-				size_t asd_struct_size, unsigned int port,
-				parse_endpoint_func parse_endpoint);
+						   struct v4l2_async_notifier *notifier,
+						   size_t asd_struct_size,
+						   unsigned int port,
+						   parse_endpoint_func parse_endpoint);
 
 /**
  * v4l2_fwnode_reference_parse_sensor_common - parse common references on
@@ -369,7 +370,7 @@ v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
  *	   -EINVAL if property parsing failed
  */
 int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
-					struct v4l2_async_notifier *notifier);
+						   struct v4l2_async_notifier *notifier);
 
 /**
  * v4l2_async_register_fwnode_subdev - registers a sub-device to the
@@ -403,11 +404,9 @@ int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
  */
 int
 v4l2_async_register_fwnode_subdev(struct v4l2_subdev *sd,
-			size_t asd_struct_size,
-			unsigned int *ports,
-			unsigned int num_ports,
-			int (*parse_endpoint)(struct device *dev,
-					      struct v4l2_fwnode_endpoint *vep,
-					      struct v4l2_async_subdev *asd));
+				  size_t asd_struct_size,
+				  unsigned int *ports,
+				  unsigned int num_ports,
+				  parse_endpoint_func parse_endpoint);
 
 #endif /* _V4L2_FWNODE_H */

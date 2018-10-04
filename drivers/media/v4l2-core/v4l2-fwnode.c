@@ -596,12 +596,10 @@ EXPORT_SYMBOL_GPL(v4l2_fwnode_put_link);
 
 static int
 v4l2_async_notifier_fwnode_parse_endpoint(struct device *dev,
-		struct v4l2_async_notifier *notifier,
-		struct fwnode_handle *endpoint,
-		unsigned int asd_struct_size,
-		int (*parse_endpoint)(struct device *dev,
-				      struct v4l2_fwnode_endpoint *vep,
-				      struct v4l2_async_subdev *asd))
+					  struct v4l2_async_notifier *notifier,
+					  struct fwnode_handle *endpoint,
+					  unsigned int asd_struct_size,
+					  parse_endpoint_func parse_endpoint)
 {
 	struct v4l2_fwnode_endpoint vep = { .bus_type = 0 };
 	struct v4l2_async_subdev *asd;
@@ -657,13 +655,12 @@ out_err:
 }
 
 static int
-__v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
-			struct v4l2_async_notifier *notifier,
-			size_t asd_struct_size,
-			unsigned int port, bool has_port,
-			int (*parse_endpoint)(struct device *dev,
-					      struct v4l2_fwnode_endpoint *vep,
-					      struct v4l2_async_subdev *asd))
+__v4l2_async_notifier_parse_fwnode_ep(struct device *dev,
+				      struct v4l2_async_notifier *notifier,
+				      size_t asd_struct_size,
+				      unsigned int port,
+				      bool has_port,
+				      parse_endpoint_func parse_endpoint)
 {
 	struct fwnode_handle *fwnode;
 	int ret = 0;
@@ -708,31 +705,27 @@ __v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
 
 int
 v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
-		struct v4l2_async_notifier *notifier,
-		size_t asd_struct_size,
-		int (*parse_endpoint)(struct device *dev,
-				      struct v4l2_fwnode_endpoint *vep,
-				      struct v4l2_async_subdev *asd))
+					   struct v4l2_async_notifier *notifier,
+					   size_t asd_struct_size,
+					   parse_endpoint_func parse_endpoint)
 {
-	return __v4l2_async_notifier_parse_fwnode_endpoints(dev, notifier,
-							    asd_struct_size, 0,
-							    false,
-							    parse_endpoint);
+	return __v4l2_async_notifier_parse_fwnode_ep(dev, notifier,
+						     asd_struct_size, 0,
+						     false, parse_endpoint);
 }
 EXPORT_SYMBOL_GPL(v4l2_async_notifier_parse_fwnode_endpoints);
 
 int
 v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
-			struct v4l2_async_notifier *notifier,
-			size_t asd_struct_size, unsigned int port,
-			int (*parse_endpoint)(struct device *dev,
-					      struct v4l2_fwnode_endpoint *vep,
-					      struct v4l2_async_subdev *asd))
+						   struct v4l2_async_notifier *notifier,
+						   size_t asd_struct_size,
+						   unsigned int port,
+						   parse_endpoint_func parse_endpoint)
 {
-	return __v4l2_async_notifier_parse_fwnode_endpoints(dev, notifier,
-							    asd_struct_size,
-							    port, true,
-							    parse_endpoint);
+	return __v4l2_async_notifier_parse_fwnode_ep(dev, notifier,
+						     asd_struct_size,
+						     port, true,
+						     parse_endpoint);
 }
 EXPORT_SYMBOL_GPL(v4l2_async_notifier_parse_fwnode_endpoints_by_port);
 
@@ -1176,11 +1169,10 @@ out_cleanup:
 EXPORT_SYMBOL_GPL(v4l2_async_register_subdev_sensor_common);
 
 int v4l2_async_register_fwnode_subdev(struct v4l2_subdev *sd,
-			size_t asd_struct_size,
-			unsigned int *ports, unsigned int num_ports,
-			int (*parse_endpoint)(struct device *dev,
-					      struct v4l2_fwnode_endpoint *vep,
-					      struct v4l2_async_subdev *asd))
+				      size_t asd_struct_size,
+				      unsigned int *ports,
+				      unsigned int num_ports,
+				      parse_endpoint_func parse_endpoint)
 {
 	struct v4l2_async_notifier *notifier;
 	struct device *dev = sd->dev;
