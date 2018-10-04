@@ -116,8 +116,10 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 	/* Extract the addresses */
 	p = text;
 	do {
-		struct sockaddr_rxrpc *srx = &alist->addrs[alist->nr_addrs];
 		const char *q, *stop;
+		unsigned int xport = port;
+		__be32 x[4];
+		int family;
 
 		if (*p == delim) {
 			p++;
@@ -133,19 +135,12 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 					break;
 		}
 
-		if (in4_pton(p, q - p,
-			     (u8 *)&srx->transport.sin6.sin6_addr.s6_addr32[3],
-			     -1, &stop)) {
-			srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-		} else if (in6_pton(p, q - p,
-				    srx->transport.sin6.sin6_addr.s6_addr,
-				    -1, &stop)) {
-			/* Nothing to do */
-		} else {
+		if (in4_pton(p, q - p, (u8 *)&x[0], -1, &stop))
+			family = AF_INET;
+		else if (in6_pton(p, q - p, (u8 *)x, -1, &stop))
+			family = AF_INET6;
+		else
 			goto bad_address;
-		}
 
 		if (stop != q)
 			goto bad_address;
@@ -157,7 +152,7 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 		if (p < end) {
 			if (*p == '+') {
 				/* Port number specification "+1234" */
-				unsigned int xport = 0;
+				xport = 0;
 				p++;
 				if (p >= end || !isdigit(*p))
 					goto bad_address;
@@ -168,7 +163,6 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 						goto bad_address;
 					p++;
 				} while (p < end && isdigit(*p));
-				srx->transport.sin6.sin6_port = htons(xport);
 			} else if (*p == delim) {
 				p++;
 			} else {
@@ -176,8 +170,12 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 			}
 		}
 
-		alist->nr_addrs++;
-	} while (p < end && alist->nr_addrs < alist->max_addrs);
+		if (family == AF_INET)
+			afs_merge_fs_addr4(alist, x[0], xport);
+		else
+			afs_merge_fs_addr6(alist, x, xport);
+
+	} while (p < end);
 
 	_leave(" = [nr %u]", alist->nr_addrs);
 	return alist;
