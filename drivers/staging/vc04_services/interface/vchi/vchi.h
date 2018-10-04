@@ -117,10 +117,6 @@ extern int32_t vchi_connect(VCHI_CONNECTION_T **connections,
 //Bulk transfers can remain 'queued'
 extern int32_t vchi_disconnect(VCHI_INSTANCE_T instance_handle);
 
-// Global control over bulk CRC checking
-extern int32_t vchi_crc_control(VCHI_CONNECTION_T *connection,
-				VCHI_CRC_CONTROL_T control);
-
 // helper functions
 extern void *vchi_allocate_buffer(VCHI_SERVICE_HANDLE_T handle, uint32_t *length);
 extern void vchi_free_buffer(VCHI_SERVICE_HANDLE_T handle, void *address);
