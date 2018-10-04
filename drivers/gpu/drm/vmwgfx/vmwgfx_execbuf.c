@@ -1738,7 +1738,6 @@ static int vmw_cmd_check_define_gmrfb(struct vmw_private *dev_priv,
 				      void *buf)
 {
 	struct vmw_buffer_object *vmw_bo;
-	int ret;
 
 	struct {
 		uint32_t header;
@@ -1748,7 +1747,6 @@ static int vmw_cmd_check_define_gmrfb(struct vmw_private *dev_priv,
 	return vmw_translate_guest_ptr(dev_priv, sw_context,
 				       &cmd->body.ptr,
 				       &vmw_bo);
-	return ret;
 }
 
 
