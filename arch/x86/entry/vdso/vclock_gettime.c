@@ -45,7 +45,7 @@ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 	long ret;
 	asm ("syscall" : "=a" (ret), "=m" (*ts) :
 	     "0" (__NR_clock_gettime), "D" (clock), "S" (ts) :
-	     "memory", "rcx", "r11");
+	     "rcx", "r11");
 	return ret;
 }
 
@@ -62,7 +62,7 @@ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 		"mov %%edx, %%ebx \n"
 		: "=a" (ret), "=m" (*ts)
 		: "0" (__NR_clock_gettime), [clock] "g" (clock), "c" (ts)
-		: "memory", "edx");
+		: "edx");
 	return ret;
 }
 
