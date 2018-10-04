@@ -1089,12 +1089,41 @@ static int cobalt_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cc)
 		timings = cea1080p60;
 	else
 		err = v4l2_subdev_call(s->sd, video, g_dv_timings, &timings);
-	if (!err) {
-		cc->bounds.width = cc->defrect.width = timings.bt.width;
-		cc->bounds.height = cc->defrect.height = timings.bt.height;
+	if (!err)
 		cc->pixelaspect = v4l2_dv_timings_aspect_ratio(&timings);
-	}
 	return err;
+}
+
+static int cobalt_g_selection(struct file *file, void *fh,
+			      struct v4l2_selection *sel)
+{
+	struct cobalt_stream *s = video_drvdata(file);
+	struct v4l2_dv_timings timings;
+	int err = 0;
+
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (s->input == 1)
+		timings = cea1080p60;
+	else
+		err = v4l2_subdev_call(s->sd, video, g_dv_timings, &timings);
+
+	if (err)
+		return err;
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = timings.bt.width;
+		sel->r.height = timings.bt.height;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static const struct v4l2_ioctl_ops cobalt_ioctl_ops = {
@@ -1104,6 +1133,7 @@ static const struct v4l2_ioctl_ops cobalt_ioctl_ops = {
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 	.vidioc_cropcap			= cobalt_cropcap,
+	.vidioc_g_selection		= cobalt_g_selection,
 	.vidioc_enum_input		= cobalt_enum_input,
 	.vidioc_g_input			= cobalt_g_input,
 	.vidioc_s_input			= cobalt_s_input,
