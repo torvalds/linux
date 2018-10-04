@@ -1639,7 +1639,8 @@ static void rcu_torture_fwd_cb_hist(void)
 	for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
 		if (n_launders_hist[i] > 0)
 			break;
-	pr_alert("%s: Callback-invocation histogram:", __func__);
+	pr_alert("%s: Callback-invocation histogram (duration %lu jiffies):",
+		 __func__, jiffies - rcu_fwd_startat);
 	for (j = 0; j <= i; j++)
 		pr_cont(" %ds: %ld", j + 1, n_launders_hist[j]);
 	pr_cont("\n");
