@@ -439,7 +439,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 	args->size = omap_gem_mmap_size(obj);
 	args->offset = omap_gem_mmap_offset(obj);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return ret;
 }
@@ -614,7 +614,7 @@ err_gem_deinit:
 	omap_disconnect_pipelines(ddev);
 err_crtc_uninit:
 	omap_crtc_pre_uninit(priv);
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 	return ret;
 }
 
@@ -643,7 +643,7 @@ static void omapdrm_cleanup(struct omap_drm_private *priv)
 	omap_disconnect_pipelines(ddev);
 	omap_crtc_pre_uninit(priv);
 
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 }
 
 static int pdev_probe(struct platform_device *pdev)
