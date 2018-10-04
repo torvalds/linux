@@ -41,6 +41,7 @@ struct amdgpu_sdma_instance {
 	uint32_t		feature_version;
 
 	struct amdgpu_ring	ring;
+	struct amdgpu_ring	page;
 	bool			burst_nop;
 };
 

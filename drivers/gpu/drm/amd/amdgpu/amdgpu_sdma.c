@@ -34,11 +34,9 @@ struct amdgpu_sdma_instance * amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
-		if (&adev->sdma.instance[i].ring == ring)
-			break;
+		if (ring == &adev->sdma.instance[i].ring ||
+		    ring == &adev->sdma.instance[i].page)
+			return &adev->sdma.instance[i];
 
-	if (i < AMDGPU_MAX_SDMA_INSTANCES)
-		return &adev->sdma.instance[i];
-	else
-		return NULL;
+	return NULL;
 }
