@@ -13,6 +13,15 @@ typedef u64 gtod_long_t;
 typedef unsigned long gtod_long_t;
 #endif
 
+/*
+ * There is one of these objects in the vvar page for each
+ * vDSO-accelerated clockid.  For high-resolution clocks, this encodes
+ * the time corresponding to vsyscall_gtod_data.cycle_last.  For coarse
+ * clocks, this encodes the actual time.
+ *
+ * To confuse the reader, for high-resolution clocks, nsec is left-shifted
+ * by vsyscall_gtod_data.shift.
+ */
 struct vgtod_ts {
 	u64		sec;
 	u64		nsec;
