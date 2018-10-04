@@ -809,6 +809,13 @@ struct drm_mode_config {
 
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
+
+	/**
+	 * @quirk_addfb_prefer_xbgr_30bpp:
+	 *
+	 * Special hack for legacy ADDFB to keep nouveau userspace happy. Should
+	 * only ever be set by the nouveau kernel driver.
+	 */
 	bool quirk_addfb_prefer_xbgr_30bpp;
 
 	/**
