@@ -126,10 +126,9 @@ static void dice_free(struct snd_dice *dice)
 {
 	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
-	fw_unit_put(dice->unit);
 
 	mutex_destroy(&dice->mutex);
-	kfree(dice);
+	fw_unit_put(dice->unit);
 }
 
 /*
@@ -223,10 +222,9 @@ static int dice_probe(struct fw_unit *unit,
 	}
 
 	/* Allocate this independent of sound card instance. */
-	dice = kzalloc(sizeof(struct snd_dice), GFP_KERNEL);
-	if (dice == NULL)
+	dice = devm_kzalloc(&unit->device, sizeof(struct snd_dice), GFP_KERNEL);
+	if (!dice)
 		return -ENOMEM;
-
 	dice->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, dice);
 

@@ -129,12 +129,9 @@ end:
 static void bebob_free(struct snd_bebob *bebob)
 {
 	snd_bebob_stream_destroy_duplex(bebob);
-	fw_unit_put(bebob->unit);
-
-	kfree(bebob->maudio_special_quirk);
 
 	mutex_destroy(&bebob->mutex);
-	kfree(bebob);
+	fw_unit_put(bebob->unit);
 }
 
 /*
@@ -263,8 +260,6 @@ do_registration(struct work_struct *work)
 error:
 	mutex_unlock(&devices_mutex);
 	snd_bebob_stream_destroy_duplex(bebob);
-	kfree(bebob->maudio_special_quirk);
-	bebob->maudio_special_quirk = NULL;
 	snd_card_free(bebob->card);
 	dev_info(&bebob->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -295,15 +290,15 @@ bebob_probe(struct fw_unit *unit, const struct ieee1394_device_id *entry)
 	}
 
 	/* Allocate this independent of sound card instance. */
-	bebob = kzalloc(sizeof(struct snd_bebob), GFP_KERNEL);
-	if (bebob == NULL)
+	bebob = devm_kzalloc(&unit->device, sizeof(struct snd_bebob),
+			     GFP_KERNEL);
+	if (!bebob)
 		return -ENOMEM;
-
 	bebob->unit = fw_unit_get(unit);
-	bebob->entry = entry;
-	bebob->spec = spec;
 	dev_set_drvdata(&unit->device, bebob);
 
+	bebob->entry = entry;
+	bebob->spec = spec;
 	mutex_init(&bebob->mutex);
 	spin_lock_init(&bebob->lock);
 	init_waitqueue_head(&bebob->hwdep_wait);

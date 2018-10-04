@@ -90,10 +90,8 @@ static void tscm_free(struct snd_tscm *tscm)
 	snd_tscm_transaction_unregister(tscm);
 	snd_tscm_stream_destroy_duplex(tscm);
 
-	fw_unit_put(tscm->unit);
-
 	mutex_destroy(&tscm->mutex);
-	kfree(tscm);
+	fw_unit_put(tscm->unit);
 }
 
 static void tscm_card_free(struct snd_card *card)
@@ -164,11 +162,9 @@ static int snd_tscm_probe(struct fw_unit *unit,
 	struct snd_tscm *tscm;
 
 	/* Allocate this independent of sound card instance. */
-	tscm = kzalloc(sizeof(struct snd_tscm), GFP_KERNEL);
-	if (tscm == NULL)
+	tscm = devm_kzalloc(&unit->device, sizeof(struct snd_tscm), GFP_KERNEL);
+	if (!tscm)
 		return -ENOMEM;
-
-	/* initialize myself */
 	tscm->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, tscm);
 
