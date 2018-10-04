@@ -72,8 +72,6 @@ enum mt_bw {
  * @mutex:		ensures exclusive access from mac80211 callbacks.
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
  *			(accesses to RF and BBP).
- * @hw_atomic_mutex:	ensures exclusive access to HW during critical
- *			operations (power management, channel switch).
  */
 struct mt76x0_dev {
 	struct mt76_dev mt76; /* must be first */
@@ -84,7 +82,6 @@ struct mt76x0_dev {
 	struct mt76x0_caldata caldata;
 
 	struct mutex reg_atomic_mutex;
-	struct mutex hw_atomic_mutex;
 
 	atomic_t avg_ampdu_len;
 

@@ -614,9 +614,8 @@ void mt76x0_phy_set_txpower(struct mt76x0_dev *dev)
 	mt76x02_phy_set_txpower(&dev->mt76, info[0], info[1]);
 }
 
-static int
-__mt76x0_phy_set_channel(struct mt76x0_dev *dev,
-		       struct cfg80211_chan_def *chandef)
+int mt76x0_phy_set_channel(struct mt76x0_dev *dev,
+			   struct cfg80211_chan_def *chandef)
 {
 	u32 ext_cca_chan[4] = {
 		[0] = FIELD_PREP(MT_EXT_CCA_CFG_CCA0, 0) |
@@ -711,18 +710,6 @@ __mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 	mt76x0_phy_set_txpower(dev);
 
 	return 0;
-}
-
-int mt76x0_phy_set_channel(struct mt76x0_dev *dev,
-			   struct cfg80211_chan_def *chandef)
-{
-	int ret;
-
-	mutex_lock(&dev->hw_atomic_mutex);
-	ret = __mt76x0_phy_set_channel(dev, chandef);
-	mutex_unlock(&dev->hw_atomic_mutex);
-
-	return ret;
 }
 
 void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev)

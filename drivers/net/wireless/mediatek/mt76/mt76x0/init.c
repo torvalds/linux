@@ -73,8 +73,6 @@ void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
 {
 	u32 val;
 
-	mutex_lock(&dev->hw_atomic_mutex);
-
 	val = mt76_rr(dev, MT_WLAN_FUN_CTRL);
 
 	if (reset) {
@@ -96,8 +94,6 @@ void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
 	udelay(20);
 
 	mt76x0_set_wlan_state(dev, val, enable);
-
-	mutex_unlock(&dev->hw_atomic_mutex);
 }
 EXPORT_SYMBOL_GPL(mt76x0_chip_onoff);
 
@@ -346,7 +342,6 @@ mt76x0_alloc_device(struct device *pdev,
 
 	dev = container_of(mdev, struct mt76x0_dev, mt76);
 	mutex_init(&dev->reg_atomic_mutex);
-	mutex_init(&dev->hw_atomic_mutex);
 	atomic_set(&dev->avg_ampdu_len, 1);
 
 	return dev;
