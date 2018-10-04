@@ -25,7 +25,7 @@
 
 static int mt76x0e_start(struct ieee80211_hw *hw)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -41,7 +41,7 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void mt76x0e_stop_hw(struct mt76x0_dev *dev)
+static void mt76x0e_stop_hw(struct mt76x02_dev *dev)
 {
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
@@ -61,7 +61,7 @@ static void mt76x0e_stop_hw(struct mt76x0_dev *dev)
 
 static void mt76x0e_stop(struct ieee80211_hw *hw)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
@@ -79,7 +79,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.configure_filter = mt76x02_configure_filter,
 };
 
-static int mt76x0e_register_device(struct mt76x0_dev *dev)
+static int mt76x0e_register_device(struct mt76x02_dev *dev)
 {
 	int err;
 
@@ -126,8 +126,8 @@ static int mt76x0e_register_device(struct mt76x0_dev *dev)
 static int
 mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct mt76x0_dev *dev;
-	int ret = -ENODEV;
+	struct mt76x02_dev *dev;
+	int ret;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -163,7 +163,7 @@ error:
 	return ret;
 }
 
-static void mt76x0e_cleanup(struct mt76x0_dev *dev)
+static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 	mt76x0_chip_onoff(dev, false, false);
@@ -176,7 +176,7 @@ static void
 mt76x0e_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
-	struct mt76x0_dev *dev = container_of(mdev, struct mt76x0_dev, mt76);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 
 	mt76_unregister_device(mdev);
 	mt76x0e_cleanup(dev);

@@ -23,12 +23,22 @@
 #include "mt76x02_mac.h"
 #include "mt76x02_dfs.h"
 
+struct mt76x02_mac_stats {
+	u64 rx_stat[6];
+	u64 tx_stat[6];
+	u64 aggr_stat[2];
+	u64 aggr_n[32];
+	u64 zero_len_del[2];
+};
+
 #define MT_MAX_CHAINS		2
 struct mt76x02_rx_freq_cal {
 	s8 high_gain[MT_MAX_CHAINS];
 	s8 rssi_offset[MT_MAX_CHAINS];
 	s8 lna_gain;
 	u32 mcu_gain;
+	s16 temp_offset;
+	u8 freq_offset;
 };
 
 struct mt76x02_calibration {
@@ -56,6 +66,7 @@ struct mt76x02_dev {
 
 	struct mac_address macaddr_list[8];
 
+	struct mutex phy_mutex;
 	struct mutex mutex;
 
 	u8 txdone_seq;
@@ -68,6 +79,8 @@ struct mt76x02_dev {
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
 
+	struct mt76x02_mac_stats stats;
+	atomic_t avg_ampdu_len;
 	u32 aggr_stats[32];
 
 	struct sk_buff *beacons[8];
@@ -82,6 +95,10 @@ struct mt76x02_dev {
 	s8 target_power;
 	s8 target_power_delta[2];
 	bool enable_tpc;
+
+	bool no_2ghz;
+
+	u8 agc_save;
 
 	u8 coverage_class;
 	u8 slottime;

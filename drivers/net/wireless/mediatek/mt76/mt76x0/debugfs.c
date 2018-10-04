@@ -21,7 +21,7 @@
 static int
 mt76x0_ampdu_stat_read(struct seq_file *file, void *data)
 {
-	struct mt76x0_dev *dev = file->private;
+	struct mt76x02_dev *dev = file->private;
 	int i, j;
 
 #define stat_printf(grp, off, name)					\
@@ -75,7 +75,7 @@ static const struct file_operations fops_ampdu_stat = {
 	.release = single_release,
 };
 
-void mt76x0_init_debugfs(struct mt76x0_dev *dev)
+void mt76x0_init_debugfs(struct mt76x02_dev *dev)
 {
 	struct dentry *dir;
 

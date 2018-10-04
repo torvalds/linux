@@ -26,7 +26,7 @@
 #include <linux/etherdevice.h>
 
 static int
-mt76x0_rf_csr_wr(struct mt76x0_dev *dev, u32 offset, u8 value)
+mt76x0_rf_csr_wr(struct mt76x02_dev *dev, u32 offset, u8 value)
 {
 	int ret = 0;
 	u8 bank, reg;
@@ -40,7 +40,7 @@ mt76x0_rf_csr_wr(struct mt76x0_dev *dev, u32 offset, u8 value)
 	if (WARN_ON_ONCE(reg > 64) || WARN_ON_ONCE(bank) > 8)
 		return -EINVAL;
 
-	mutex_lock(&dev->reg_atomic_mutex);
+	mutex_lock(&dev->phy_mutex);
 
 	if (!mt76_poll(dev, MT_RF_CSR_CFG, MT_RF_CSR_CFG_KICK, 0, 100)) {
 		ret = -ETIMEDOUT;
@@ -55,7 +55,7 @@ mt76x0_rf_csr_wr(struct mt76x0_dev *dev, u32 offset, u8 value)
 		   MT_RF_CSR_CFG_KICK);
 	trace_mt76x0_rf_write(&dev->mt76, bank, offset, value);
 out:
-	mutex_unlock(&dev->reg_atomic_mutex);
+	mutex_unlock(&dev->phy_mutex);
 
 	if (ret < 0)
 		dev_err(dev->mt76.dev, "Error: RF write %d:%d failed:%d!!\n",
@@ -64,8 +64,7 @@ out:
 	return ret;
 }
 
-static int
-mt76x0_rf_csr_rr(struct mt76x0_dev *dev, u32 offset)
+static int mt76x0_rf_csr_rr(struct mt76x02_dev *dev, u32 offset)
 {
 	int ret = -ETIMEDOUT;
 	u32 val;
@@ -80,7 +79,7 @@ mt76x0_rf_csr_rr(struct mt76x0_dev *dev, u32 offset)
 	if (WARN_ON_ONCE(reg > 64) || WARN_ON_ONCE(bank) > 8)
 		return -EINVAL;
 
-	mutex_lock(&dev->reg_atomic_mutex);
+	mutex_lock(&dev->phy_mutex);
 
 	if (!mt76_poll(dev, MT_RF_CSR_CFG, MT_RF_CSR_CFG_KICK, 0, 100))
 		goto out;
@@ -100,7 +99,7 @@ mt76x0_rf_csr_rr(struct mt76x0_dev *dev, u32 offset)
 		trace_mt76x0_rf_read(&dev->mt76, bank, offset, ret);
 	}
 out:
-	mutex_unlock(&dev->reg_atomic_mutex);
+	mutex_unlock(&dev->phy_mutex);
 
 	if (ret < 0)
 		dev_err(dev->mt76.dev, "Error: RF read %d:%d failed:%d!!\n",
@@ -110,7 +109,7 @@ out:
 }
 
 static int
-rf_wr(struct mt76x0_dev *dev, u32 offset, u8 val)
+rf_wr(struct mt76x02_dev *dev, u32 offset, u8 val)
 {
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state)) {
 		struct mt76_reg_pair pair = {
@@ -126,7 +125,7 @@ rf_wr(struct mt76x0_dev *dev, u32 offset, u8 val)
 }
 
 static int
-rf_rr(struct mt76x0_dev *dev, u32 offset)
+rf_rr(struct mt76x02_dev *dev, u32 offset)
 {
 	int ret;
 	u32 val;
@@ -147,7 +146,7 @@ rf_rr(struct mt76x0_dev *dev, u32 offset)
 }
 
 static int
-rf_rmw(struct mt76x0_dev *dev, u32 offset, u8 mask, u8 val)
+rf_rmw(struct mt76x02_dev *dev, u32 offset, u8 mask, u8 val)
 {
 	int ret;
 
@@ -163,14 +162,14 @@ rf_rmw(struct mt76x0_dev *dev, u32 offset, u8 mask, u8 val)
 }
 
 static int
-rf_set(struct mt76x0_dev *dev, u32 offset, u8 val)
+rf_set(struct mt76x02_dev *dev, u32 offset, u8 val)
 {
 	return rf_rmw(dev, offset, 0, val);
 }
 
 #if 0
 static int
-rf_clear(struct mt76x0_dev *dev, u32 offset, u8 mask)
+rf_clear(struct mt76x02_dev *dev, u32 offset, u8 mask)
 {
 	return rf_rmw(dev, offset, mask, 0);
 }
@@ -180,7 +179,7 @@ rf_clear(struct mt76x0_dev *dev, u32 offset, u8 mask)
 	mt76_wr_rp(dev, MT_MCU_MEMMAP_RF,	\
 		   tab, ARRAY_SIZE(tab))
 
-int mt76x0_wait_bbp_ready(struct mt76x0_dev *dev)
+int mt76x0_wait_bbp_ready(struct mt76x02_dev *dev)
 {
 	int i = 20;
 	u32 val;
@@ -201,7 +200,7 @@ int mt76x0_wait_bbp_ready(struct mt76x0_dev *dev)
 }
 
 static void
-mt76x0_bbp_set_ctrlch(struct mt76x0_dev *dev, enum nl80211_chan_width width,
+mt76x0_bbp_set_ctrlch(struct mt76x02_dev *dev, enum nl80211_chan_width width,
 		      u8 ctrl)
 {
 	int core_val, agc_val;
@@ -227,14 +226,14 @@ mt76x0_bbp_set_ctrlch(struct mt76x0_dev *dev, enum nl80211_chan_width width,
 	mt76_rmw_field(dev, MT_BBP(TXBE, 0), MT_BBP_TXBE_R0_CTRL_CHAN, ctrl);
 }
 
-int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi)
+int mt76x0_phy_get_rssi(struct mt76x02_dev *dev, struct mt76x02_rxwi *rxwi)
 {
-	struct mt76x0_caldata *caldata = &dev->caldata;
+	struct mt76x02_rx_freq_cal *caldata = &dev->cal.rx;
 
 	return rxwi->rssi[0] + caldata->rssi_offset[0] - caldata->lna_gain;
 }
 
-static void mt76x0_vco_cal(struct mt76x0_dev *dev, u8 channel)
+static void mt76x0_vco_cal(struct mt76x02_dev *dev, u8 channel)
 {
 	u8 val;
 
@@ -291,14 +290,14 @@ static void mt76x0_vco_cal(struct mt76x0_dev *dev, u8 channel)
 }
 
 static void
-mt76x0_mac_set_ctrlch(struct mt76x0_dev *dev, bool primary_upper)
+mt76x0_mac_set_ctrlch(struct mt76x02_dev *dev, bool primary_upper)
 {
 	mt76_rmw_field(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_UPPER_40M,
 		       primary_upper);
 }
 
 static void
-mt76x0_phy_set_band(struct mt76x0_dev *dev, enum nl80211_band band)
+mt76x0_phy_set_band(struct mt76x02_dev *dev, enum nl80211_band band)
 {
 	switch (band) {
 	case NL80211_BAND_2GHZ:
@@ -331,7 +330,7 @@ mt76x0_phy_set_band(struct mt76x0_dev *dev, enum nl80211_band band)
 }
 
 static void
-mt76x0_phy_set_chan_rf_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_band)
+mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_band)
 {
 	u16 rf_band = rf_bw_band & 0xff00;
 	u16 rf_bw = rf_bw_band & 0x00ff;
@@ -522,7 +521,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_band
 }
 
 static void
-mt76x0_phy_set_chan_bbp_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_band)
+mt76x0_phy_set_chan_bbp_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_band)
 {
 	int i;
 
@@ -538,7 +537,7 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_ban
 			u8 gain;
 
 			gain = FIELD_GET(MT_BBP_AGC_GAIN, val);
-			gain -= dev->caldata.lna_gain * 2;
+			gain -= dev->cal.rx.lna_gain * 2;
 			val &= ~MT_BBP_AGC_GAIN;
 			val |= FIELD_PREP(MT_BBP_AGC_GAIN, gain);
 			mt76_wr(dev, pair->reg, val);
@@ -548,7 +547,7 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x0_dev *dev, u8 channel, u16 rf_bw_ban
 	}
 }
 
-static void mt76x0_ant_select(struct mt76x0_dev *dev)
+static void mt76x0_ant_select(struct mt76x02_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 
@@ -568,7 +567,7 @@ static void mt76x0_ant_select(struct mt76x0_dev *dev)
 }
 
 static void
-mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
+mt76x0_bbp_set_bw(struct mt76x02_dev *dev, enum nl80211_chan_width width)
 {
 	enum { BW_20 = 0, BW_40 = 1, BW_80 = 2, BW_10 = 4};
 	int bw;
@@ -598,7 +597,7 @@ mt76x0_bbp_set_bw(struct mt76x0_dev *dev, enum nl80211_chan_width width)
 	mt76x02_mcu_function_select(&dev->mt76, BW_SETTING, bw, false);
 }
 
-void mt76x0_phy_set_txpower(struct mt76x0_dev *dev)
+void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 {
 	struct mt76_rate_power *t = &dev->mt76.rate_power;
 	u8 info[2];
@@ -614,7 +613,7 @@ void mt76x0_phy_set_txpower(struct mt76x0_dev *dev)
 	mt76x02_phy_set_txpower(&dev->mt76, info[0], info[1]);
 }
 
-int mt76x0_phy_set_channel(struct mt76x0_dev *dev,
+int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 			   struct cfg80211_chan_def *chandef)
 {
 	u32 ext_cca_chan[4] = {
@@ -712,7 +711,7 @@ int mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 	return 0;
 }
 
-void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev)
+void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev)
 {
 	u32 tx_alc, reg_val;
 	u8 channel = dev->mt76.chandef.chan->hw_value;
@@ -748,18 +747,18 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev)
 	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 1, false);
 }
 
-void mt76x0_agc_save(struct mt76x0_dev *dev)
+void mt76x0_agc_save(struct mt76x02_dev *dev)
 {
 	/* Only one RX path */
 	dev->agc_save = FIELD_GET(MT_BBP_AGC_GAIN, mt76_rr(dev, MT_BBP(AGC, 8)));
 }
 
-void mt76x0_agc_restore(struct mt76x0_dev *dev)
+void mt76x0_agc_restore(struct mt76x02_dev *dev)
 {
 	mt76_rmw_field(dev, MT_BBP(AGC, 8), MT_BBP_AGC_GAIN, dev->agc_save);
 }
 
-static void mt76x0_temp_sensor(struct mt76x0_dev *dev)
+static void mt76x0_temp_sensor(struct mt76x02_dev *dev)
 {
 	u8 rf_b7_73, rf_b0_66, rf_b0_67;
 	int cycle, temp;
@@ -795,7 +794,7 @@ static void mt76x0_temp_sensor(struct mt76x0_dev *dev)
 	else
 		sval |= 0xffffff00; /* Negative */
 
-	temp = (35 * (sval - dev->caldata.temp_offset)) / 10 + 25;
+	temp = (35 * (sval - dev->cal.rx.temp_offset)) / 10 + 25;
 
 done:
 	rf_wr(dev, MT_RF(7, 73), rf_b7_73);
@@ -803,7 +802,7 @@ done:
 	rf_wr(dev, MT_RF(0, 73), rf_b0_67);
 }
 
-static void mt76x0_dynamic_vga_tuning(struct mt76x0_dev *dev)
+static void mt76x0_dynamic_vga_tuning(struct mt76x02_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 	u32 val, init_vga;
@@ -824,8 +823,8 @@ static void mt76x0_dynamic_vga_tuning(struct mt76x0_dev *dev)
 
 static void mt76x0_phy_calibrate(struct work_struct *work)
 {
-	struct mt76x0_dev *dev = container_of(work, struct mt76x0_dev,
-					    cal_work.work);
+	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
+					       cal_work.work);
 
 	mt76x0_dynamic_vga_tuning(dev);
 	mt76x0_temp_sensor(dev);
@@ -834,8 +833,7 @@ static void mt76x0_phy_calibrate(struct work_struct *work)
 				     MT_CALIBRATE_INTERVAL);
 }
 
-static void
-mt76x0_rf_init(struct mt76x0_dev *dev)
+static void mt76x0_rf_init(struct mt76x02_dev *dev)
 {
 	int i;
 	u8 val;
@@ -868,7 +866,7 @@ mt76x0_rf_init(struct mt76x0_dev *dev)
 	   E2: B0.R21<0>: xo_cxo<0>, B0.R22<7:0>: xo_cxo<8:1>
 	 */
 	rf_wr(dev, MT_RF(0, 22),
-	      min_t(u8, dev->caldata.freq_offset, 0xbf));
+	      min_t(u8, dev->cal.rx.freq_offset, 0xbf));
 	val = rf_rr(dev, MT_RF(0, 22));
 
 	/*
@@ -888,7 +886,7 @@ mt76x0_rf_init(struct mt76x0_dev *dev)
 	rf_set(dev, MT_RF(0, 4), 0x80);
 }
 
-void mt76x0_phy_init(struct mt76x0_dev *dev)
+void mt76x0_phy_init(struct mt76x02_dev *dev)
 {
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x0_phy_calibrate);
 

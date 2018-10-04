@@ -25,7 +25,7 @@
 #define MT7610U_FIRMWARE		"mediatek/mt7610u.bin"
 
 static int
-mt76x0u_upload_firmware(struct mt76x0_dev *dev,
+mt76x0u_upload_firmware(struct mt76x02_dev *dev,
 			const struct mt76x02_fw_header *hdr)
 {
 	u8 *fw_payload = (u8 *)(hdr + 1);
@@ -76,7 +76,7 @@ out:
 	return err;
 }
 
-static int mt76x0u_load_firmware(struct mt76x0_dev *dev)
+static int mt76x0u_load_firmware(struct mt76x02_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt76x02_fw_header *hdr;
@@ -160,7 +160,7 @@ err_inv_fw:
 	return -ENOENT;
 }
 
-int mt76x0u_mcu_init(struct mt76x0_dev *dev)
+int mt76x0u_mcu_init(struct mt76x02_dev *dev)
 {
 	int ret;
 

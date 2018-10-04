@@ -18,23 +18,15 @@
 
 #include "../mt76x02_eeprom.h"
 
-struct mt76x0_dev;
+struct mt76x02_dev;
 
 #define MT76X0U_EE_MAX_VER		0x0c
 #define MT76X0_EEPROM_SIZE		512
 
-struct mt76x0_caldata {
-	s8 rssi_offset[2];
-	s8 lna_gain;
-
-	s16 temp_offset;
-	u8 freq_offset;
-};
-
-int mt76x0_eeprom_init(struct mt76x0_dev *dev);
-void mt76x0_read_rx_gain(struct mt76x0_dev *dev);
-void mt76x0_get_tx_power_per_rate(struct mt76x0_dev *dev);
-void mt76x0_get_power_info(struct mt76x0_dev *dev, u8 *info);
+int mt76x0_eeprom_init(struct mt76x02_dev *dev);
+void mt76x0_read_rx_gain(struct mt76x02_dev *dev);
+void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev);
+void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info);
 
 static inline s8 s6_to_s8(u32 val)
 {

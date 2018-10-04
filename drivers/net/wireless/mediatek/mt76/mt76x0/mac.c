@@ -18,8 +18,8 @@
 #include "../mt76x02_util.h"
 #include <linux/etherdevice.h>
 
-void mt76x0_mac_set_protection(struct mt76x0_dev *dev, bool legacy_prot,
-				int ht_mode)
+void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
+			       int ht_mode)
 {
 	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
 	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
@@ -77,7 +77,7 @@ void mt76x0_mac_set_protection(struct mt76x0_dev *dev, bool legacy_prot,
 		mt76_wr(dev, MT_CCK_PROT_CFG + i * 4, prot[i]);
 }
 
-void mt76x0_mac_set_short_preamble(struct mt76x0_dev *dev, bool short_preamb)
+void mt76x0_mac_set_short_preamble(struct mt76x02_dev *dev, bool short_preamb)
 {
 	if (short_preamb)
 		mt76_set(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
@@ -85,7 +85,7 @@ void mt76x0_mac_set_short_preamble(struct mt76x0_dev *dev, bool short_preamb)
 		mt76_clear(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
 }
 
-void mt76x0_mac_config_tsf(struct mt76x0_dev *dev, bool enable, int interval)
+void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval)
 {
 	u32 val = mt76_rr(dev, MT_BEACON_TIME_CFG);
 
@@ -105,7 +105,7 @@ void mt76x0_mac_config_tsf(struct mt76x0_dev *dev, bool enable, int interval)
 		MT_BEACON_TIME_CFG_TBTT_EN;
 }
 
-static void mt76x0_check_mac_err(struct mt76x0_dev *dev)
+static void mt76x0_check_mac_err(struct mt76x02_dev *dev)
 {
 	u32 val = mt76_rr(dev, 0x10f4);
 
@@ -120,7 +120,7 @@ static void mt76x0_check_mac_err(struct mt76x0_dev *dev)
 }
 void mt76x0_mac_work(struct work_struct *work)
 {
-	struct mt76x0_dev *dev = container_of(work, struct mt76x0_dev,
+	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
 					       mac_work.work);
 	struct {
 		u32 addr_base;
@@ -171,7 +171,7 @@ void mt76x0_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work, 10 * HZ);
 }
 
-void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
+void mt76x0_mac_set_ampdu_factor(struct mt76x02_dev *dev)
 {
 	struct ieee80211_sta *sta;
 	struct mt76_wcid *wcid;
@@ -196,7 +196,7 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 		   FIELD_PREP(MT_MAX_LEN_CFG_AMPDU, min_factor));
 }
 
-u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
+u32 mt76x0_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 			  void *rxi)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;

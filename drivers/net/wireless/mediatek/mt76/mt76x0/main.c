@@ -20,7 +20,7 @@
 
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	int ret = 0;
 
 	mutex_lock(&dev->mt76.mutex);
@@ -54,7 +54,7 @@ int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 EXPORT_SYMBOL_GPL(mt76x0_config);
 
 static void
-mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
+mt76x0_addr_wr(struct mt76x02_dev *dev, const u32 offset, const u8 *addr)
 {
 	mt76_wr(dev, offset, get_unaligned_le32(addr));
 	mt76_wr(dev, offset + 4, addr[4] | addr[5] << 8);
@@ -64,7 +64,7 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *info, u32 changed)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(mt76x0_bss_info_changed);
 void mt76x0_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    const u8 *mac_addr)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	cancel_delayed_work_sync(&dev->cal_work);
 	mt76x0_agc_save(dev);
@@ -125,7 +125,7 @@ EXPORT_SYMBOL_GPL(mt76x0_sw_scan);
 void mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mt76x0_agc_restore(dev);
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(mt76x0_sw_scan_complete);
 
 int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mt76_rmw_field(dev, MT_TX_RTS_CFG, MT_TX_RTS_CFG_THRESH, value);
 
