@@ -165,7 +165,7 @@ static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 
 	for (i = 0; i < 500; i++) {
 		if (test_bit(MT76_REMOVED, &dev->state))
-			return -EIO;
+			return false;
 
 		switch (dev->bus->rr(dev, MAC_CSR0)) {
 		case 0:
@@ -202,4 +202,5 @@ void mt76x02_send_tx_status(struct mt76_dev *dev,
 			   struct mt76x02_tx_status *stat, u8 *update);
 int
 mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate);
+void mt76x02_mac_setaddr(struct mt76_dev *dev, u8 *addr);
 #endif

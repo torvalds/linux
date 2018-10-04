@@ -35,9 +35,6 @@
 #define MT7662U_FIRMWARE	"mediatek/mt7662u.bin"
 #define MT7662U_ROM_PATCH	"mediatek/mt7662u_rom_patch.bin"
 
-#define MT76x2_RX_RING_SIZE	256
-#define MT_RX_HEADROOM		32
-
 #define MT_MAX_CHAINS		2
 
 #define MT_CALIBRATE_INTERVAL	HZ
@@ -81,10 +78,6 @@ struct mt76x2_dev {
 
 	struct mutex mutex;
 
-	const u16 *beacon_offsets;
-	int txpower_conf;
-	int txpower_cur;
-
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 
@@ -97,9 +90,6 @@ struct mt76x2_dev {
 
 	u32 aggr_stats[32];
 
-	spinlock_t irq_lock;
-	u32 irqmask;
-
 	struct sk_buff *beacons[8];
 	u8 beacon_mask;
 	u8 beacon_data_mask;
@@ -107,13 +97,10 @@ struct mt76x2_dev {
 	u8 tbtt_count;
 	u16 beacon_int;
 
-	u16 chainmask;
-
 	struct mt76x2_calibration cal;
 
 	s8 target_power;
 	s8 target_power_delta[2];
-	struct mt76_rate_power rate_power;
 	bool enable_tpc;
 
 	u8 coverage_class;
@@ -127,39 +114,12 @@ static inline bool is_mt7612(struct mt76x2_dev *dev)
 	return mt76_chip(&dev->mt76) == 0x7612;
 }
 
-void mt76x2_set_irq_mask(struct mt76x2_dev *dev, u32 clear, u32 set);
-
 static inline bool mt76x2_channel_silent(struct mt76x2_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 
 	return ((chan->flags & IEEE80211_CHAN_RADAR) &&
 		chan->dfs_state != NL80211_DFS_AVAILABLE);
-}
-
-static inline void mt76x2_irq_enable(struct mt76x2_dev *dev, u32 mask)
-{
-	mt76x2_set_irq_mask(dev, 0, mask);
-}
-
-static inline void mt76x2_irq_disable(struct mt76x2_dev *dev, u32 mask)
-{
-	mt76x2_set_irq_mask(dev, mask, 0);
-}
-
-static inline bool mt76x2_wait_for_bbp(struct mt76x2_dev *dev)
-{
-	return mt76_poll_msec(dev, MT_MAC_STATUS,
-			      MT_MAC_STATUS_TX | MT_MAC_STATUS_RX,
-			      0, 100);
-}
-
-static inline bool wait_for_wpdma(struct mt76x2_dev *dev)
-{
-	return mt76_poll(dev, MT_WPDMA_GLO_CFG,
-			 MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-			 MT_WPDMA_GLO_CFG_RX_DMA_BUSY,
-			 0, 1000);
 }
 
 extern const struct ieee80211_ops mt76x2_ops;
@@ -191,7 +151,7 @@ int mt76x2_mcu_set_channel(struct mt76x2_dev *dev, u8 channel, u8 bw,
 int mt76x2_mcu_load_cr(struct mt76x2_dev *dev, u8 type, u8 temp_level,
 		       u8 channel);
 
-int mt76x2_dma_init(struct mt76x2_dev *dev);
+void mt76x2_tx_tasklet(unsigned long data);
 void mt76x2_dma_cleanup(struct mt76x2_dev *dev);
 
 void mt76x2_cleanup(struct mt76x2_dev *dev);

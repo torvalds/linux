@@ -51,4 +51,28 @@ void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb);
 void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e, bool flush);
 bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update);
+
+extern const u16 mt76x02_beacon_offsets[16];
+void mt76x02_set_beacon_offsets(struct mt76_dev *dev);
+void mt76x02_set_irq_mask(struct mt76_dev *dev, u32 clear, u32 set);
+void mt76x02_mac_start(struct mt76_dev *dev);
+
+static inline void mt76x02_irq_enable(struct mt76_dev *dev, u32 mask)
+{
+	mt76x02_set_irq_mask(dev, 0, mask);
+}
+
+static inline void mt76x02_irq_disable(struct mt76_dev *dev, u32 mask)
+{
+	mt76x02_set_irq_mask(dev, mask, 0);
+}
+
+static inline bool
+mt76x02_wait_for_txrx_idle(struct mt76_dev *dev)
+{
+	return __mt76_poll_msec(dev, MT_MAC_STATUS,
+				MT_MAC_STATUS_TX | MT_MAC_STATUS_RX,
+				0, 100);
+}
+
 #endif

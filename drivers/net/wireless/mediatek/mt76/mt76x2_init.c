@@ -19,6 +19,7 @@
 #include "mt76x2_eeprom.h"
 #include "mt76x2_mcu.h"
 #include "mt76x02_util.h"
+#include "mt76x02_dma.h"
 
 static void
 mt76x2_mac_pbf_init(struct mt76x2_dev *dev)
@@ -44,7 +45,7 @@ mt76x2_fixup_xtal(struct mt76x2_dev *dev)
 	u16 eep_val;
 	s8 offset = 0;
 
-	eep_val = mt76x2_eeprom_get(dev, MT_EE_XTAL_TRIM_2);
+	eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_XTAL_TRIM_2);
 
 	offset = eep_val & 0x7f;
 	if ((eep_val & 0xff) == 0xff)
@@ -54,7 +55,7 @@ mt76x2_fixup_xtal(struct mt76x2_dev *dev)
 
 	eep_val >>= 8;
 	if (eep_val == 0x00 || eep_val == 0xff) {
-		eep_val = mt76x2_eeprom_get(dev, MT_EE_XTAL_TRIM_1);
+		eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_XTAL_TRIM_1);
 		eep_val &= 0xff;
 
 		if (eep_val == 0x00 || eep_val == 0xff)
@@ -65,7 +66,7 @@ mt76x2_fixup_xtal(struct mt76x2_dev *dev)
 	mt76_rmw_field(dev, MT_XO_CTRL5, MT_XO_CTRL5_C2_VAL, eep_val + offset);
 	mt76_set(dev, MT_XO_CTRL6, MT_XO_CTRL6_C2_CTRL);
 
-	eep_val = mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_2);
+	eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_2);
 	switch (FIELD_GET(MT_EE_NIC_CONF_2_XTAL_OPTION, eep_val)) {
 	case 0:
 		mt76_wr(dev, MT_XO_CTRL7, 0x5c1fee80);
@@ -76,23 +77,6 @@ mt76x2_fixup_xtal(struct mt76x2_dev *dev)
 	default:
 		break;
 	}
-}
-
-static void
-mt76x2_init_beacon_offsets(struct mt76x2_dev *dev)
-{
-	u16 base = MT_BEACON_BASE;
-	u32 regs[4] = {};
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		u16 addr = dev->beacon_offsets[i];
-
-		regs[i / 4] |= ((addr - base) / 64) << (8 * (i % 4));
-	}
-
-	for (i = 0; i < 4; i++)
-		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
 }
 
 static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
@@ -186,7 +170,7 @@ static int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
-	mt76x2_init_beacon_offsets(dev);
+	mt76x02_set_beacon_offsets(&dev->mt76);
 
 	mt76x2_set_tx_ackto(dev);
 
@@ -204,25 +188,7 @@ int mt76x2_mac_start(struct mt76x2_dev *dev)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
 
 	memset(dev->aggr_stats, 0, sizeof(dev->aggr_stats));
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-	wait_for_wpdma(dev);
-	usleep_range(50, 100);
-
-	mt76_set(dev, MT_WPDMA_GLO_CFG,
-		 MT_WPDMA_GLO_CFG_TX_DMA_EN |
-		 MT_WPDMA_GLO_CFG_RX_DMA_EN);
-
-	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
-
-	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-
-	mt76x2_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
-			       MT_INT_TX_STAT);
+	mt76x02_mac_start(&dev->mt76);
 
 	return 0;
 }
@@ -332,41 +298,12 @@ void mt76x2_set_tx_ackto(struct mt76x2_dev *dev)
 
 int mt76x2_init_hardware(struct mt76x2_dev *dev)
 {
-	static const u16 beacon_offsets[16] = {
-		/* 1024 byte per beacon */
-		0xc000,
-		0xc400,
-		0xc800,
-		0xcc00,
-		0xd000,
-		0xd400,
-		0xd800,
-		0xdc00,
-
-		/* BSS idx 8-15 not used for beacons */
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-		0xc000,
-	};
-	u32 val;
 	int ret;
 
-	dev->beacon_offsets = beacon_offsets;
 	tasklet_init(&dev->pre_tbtt_tasklet, mt76x2_pre_tbtt_tasklet,
 		     (unsigned long) dev);
 
-	val = mt76_rr(dev, MT_WPDMA_GLO_CFG);
-	val &= MT_WPDMA_GLO_CFG_DMA_BURST_SIZE |
-	       MT_WPDMA_GLO_CFG_BIG_ENDIAN |
-	       MT_WPDMA_GLO_CFG_HDR_SEG_LEN;
-	val |= MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE;
-	mt76_wr(dev, MT_WPDMA_GLO_CFG, val);
-
+	mt76x02_dma_disable(&dev->mt76);
 	mt76x2_reset_wlan(dev, true);
 	mt76x2_power_on(dev);
 
@@ -380,7 +317,7 @@ int mt76x2_init_hardware(struct mt76x2_dev *dev)
 
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
-	ret = mt76x2_dma_init(dev);
+	ret = mt76x02_dma_init(&dev->mt76);
 	if (ret)
 		return ret;
 
@@ -437,7 +374,6 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 	dev = container_of(mdev, struct mt76x2_dev, mt76);
 	mdev->dev = pdev;
 	mdev->drv = &drv_ops;
-	spin_lock_init(&dev->irq_lock);
 
 	return dev;
 }
@@ -540,6 +476,7 @@ int mt76x2_register_device(struct mt76x2_dev *dev)
 	if (!status_fifo)
 		return -ENOMEM;
 
+	tasklet_init(&dev->tx_tasklet, mt76x2_tx_tasklet, (unsigned long)dev);
 	kfifo_init(&dev->txstatus_fifo, status_fifo, fifo_size);
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
 	INIT_DELAYED_WORK(&dev->mac_work, mt76x2_mac_work);

@@ -32,7 +32,7 @@ static void mt76x2u_mac_fixup_xtal(struct mt76x2_dev *dev)
 	s8 offset = 0;
 	u16 eep_val;
 
-	eep_val = mt76x2_eeprom_get(dev, MT_EE_XTAL_TRIM_2);
+	eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_XTAL_TRIM_2);
 
 	offset = eep_val & 0x7f;
 	if ((eep_val & 0xff) == 0xff)
@@ -42,7 +42,7 @@ static void mt76x2u_mac_fixup_xtal(struct mt76x2_dev *dev)
 
 	eep_val >>= 8;
 	if (eep_val == 0x00 || eep_val == 0xff) {
-		eep_val = mt76x2_eeprom_get(dev, MT_EE_XTAL_TRIM_1);
+		eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_XTAL_TRIM_1);
 		eep_val &= 0xff;
 
 		if (eep_val == 0x00 || eep_val == 0xff)
@@ -67,7 +67,7 @@ static void mt76x2u_mac_fixup_xtal(struct mt76x2_dev *dev)
 	/* init fce */
 	mt76_clear(dev, MT_FCE_L2_STUFF, MT_FCE_L2_STUFF_WR_MPDU_LEN_EN);
 
-	eep_val = mt76x2_eeprom_get(dev, MT_EE_NIC_CONF_2);
+	eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_2);
 	switch (FIELD_GET(MT_EE_NIC_CONF_2_XTAL_OPTION, eep_val)) {
 	case 0:
 		mt76_wr(dev, MT_XO_CTRL7, 0x5c1fee80);
@@ -119,7 +119,7 @@ int mt76x2u_mac_start(struct mt76x2_dev *dev)
 	mt76x2u_mac_reset_counters(dev);
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
-	wait_for_wpdma(dev);
+	mt76x02_wait_for_wpdma(&dev->mt76, 1000);
 	usleep_range(50, 100);
 
 	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
@@ -220,21 +220,3 @@ void mt76x2u_mac_resume(struct mt76x2_dev *dev)
 	mt76_set(dev, MT_TXOP_CTRL_CFG, BIT(20));
 	mt76_set(dev, MT_TXOP_HLDR_ET, BIT(1));
 }
-
-void mt76x2u_mac_setaddr(struct mt76x2_dev *dev, u8 *addr)
-{
-	ether_addr_copy(dev->mt76.macaddr, addr);
-
-	if (!is_valid_ether_addr(dev->mt76.macaddr)) {
-		eth_random_addr(dev->mt76.macaddr);
-		dev_info(dev->mt76.dev,
-			 "Invalid MAC address, using random address %pM\n",
-			 dev->mt76.macaddr);
-	}
-
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->mt76.macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1,
-		get_unaligned_le16(dev->mt76.macaddr + 4) |
-		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
-}
-

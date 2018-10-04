@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/module.h>
 #include "mt76.h"
 #include "usb_trace.h"
 #include "dma.h"
@@ -279,6 +280,7 @@ mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
 	struct urb *urb = buf->urb;
 	int i;
 
+	spin_lock_bh(&q->rx_page_lock);
 	for (i = 0; i < nsgs; i++) {
 		struct page *page;
 		void *data;
@@ -292,6 +294,7 @@ mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
 		offset = data - page_address(page);
 		sg_set_page(&urb->sg[i], page, sglen, offset);
 	}
+	spin_unlock_bh(&q->rx_page_lock);
 
 	if (i < nsgs) {
 		int j;
@@ -383,9 +386,9 @@ static int mt76u_get_rx_entry_len(u8 *data, u32 data_len)
 	min_len = MT_DMA_HDR_LEN + MT_RX_RXWI_LEN +
 		  MT_FCE_INFO_LEN;
 
-	if (data_len < min_len || WARN_ON(!dma_len) ||
-	    WARN_ON(dma_len + MT_DMA_HDR_LEN > data_len) ||
-	    WARN_ON(dma_len & 0x3))
+	if (data_len < min_len || !dma_len ||
+	    dma_len + MT_DMA_HDR_LEN > data_len ||
+	    (dma_len & 0x3))
 		return -EINVAL;
 	return dma_len;
 }
@@ -520,6 +523,7 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
 	int i, err, nsgs;
 
+	spin_lock_init(&q->rx_page_lock);
 	spin_lock_init(&q->lock);
 	q->entry = devm_kzalloc(dev->dev,
 				MT_NUM_RX_ENTRIES * sizeof(*q->entry),
@@ -557,12 +561,15 @@ static void mt76u_free_rx(struct mt76_dev *dev)
 	for (i = 0; i < q->ndesc; i++)
 		mt76u_buf_free(&q->entry[i].ubuf);
 
+	spin_lock_bh(&q->rx_page_lock);
 	if (!q->rx_page.va)
-		return;
+		goto out;
 
 	page = virt_to_page(q->rx_page.va);
 	__page_frag_cache_drain(page, q->rx_page.pagecnt_bias);
 	memset(&q->rx_page, 0, sizeof(q->rx_page));
+out:
+	spin_unlock_bh(&q->rx_page_lock);
 }
 
 static void mt76u_stop_rx(struct mt76_dev *dev)

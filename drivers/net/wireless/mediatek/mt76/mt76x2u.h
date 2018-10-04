@@ -36,7 +36,6 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev);
 void mt76x2u_cleanup(struct mt76x2_dev *dev);
 void mt76x2u_stop_hw(struct mt76x2_dev *dev);
 
-void mt76x2u_mac_setaddr(struct mt76x2_dev *dev, u8 *addr);
 int mt76x2u_mac_reset(struct mt76x2_dev *dev);
 void mt76x2u_mac_resume(struct mt76x2_dev *dev);
 int mt76x2u_mac_start(struct mt76x2_dev *dev);
@@ -46,8 +45,6 @@ int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
 			    struct cfg80211_chan_def *chandef);
 void mt76x2u_phy_calibrate(struct work_struct *work);
 void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev);
-void mt76x2u_phy_set_txdac(struct mt76x2_dev *dev);
-void mt76x2u_phy_set_rxpath(struct mt76x2_dev *dev);
 
 void mt76x2u_mcu_complete_urb(struct urb *urb);
 int mt76x2u_mcu_set_dynamic_vga(struct mt76x2_dev *dev, u8 channel, bool ap,

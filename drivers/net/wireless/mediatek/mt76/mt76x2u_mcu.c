@@ -261,6 +261,7 @@ static int mt76x2u_mcu_load_firmware(struct mt76x2_dev *dev)
 	/* enable FCE to send in-band cmd */
 	mt76_wr(dev, MT_FCE_PSE_CTRL, 0x1);
 	dev_dbg(dev->mt76.dev, "firmware running\n");
+	mt76x02_set_ethtool_fwver(&dev->mt76, hdr);
 
 out:
 	release_firmware(fw);

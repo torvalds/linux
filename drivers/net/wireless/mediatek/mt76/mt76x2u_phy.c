@@ -17,39 +17,6 @@
 #include "mt76x2u.h"
 #include "mt76x2_eeprom.h"
 
-void mt76x2u_phy_set_rxpath(struct mt76x2_dev *dev)
-{
-	u32 val;
-
-	val = mt76_rr(dev, MT_BBP(AGC, 0));
-	val &= ~BIT(4);
-
-	switch (dev->chainmask & 0xf) {
-	case 2:
-		val |= BIT(3);
-		break;
-	default:
-		val &= ~BIT(3);
-		break;
-	}
-	mt76_wr(dev, MT_BBP(AGC, 0), val);
-}
-
-void mt76x2u_phy_set_txdac(struct mt76x2_dev *dev)
-{
-	int txpath;
-
-	txpath = (dev->chainmask >> 8) & 0xf;
-	switch (txpath) {
-	case 2:
-		mt76_set(dev, MT_BBP(TXBE, 5), 0x3);
-		break;
-	default:
-		mt76_clear(dev, MT_BBP(TXBE, 5), 0x3);
-		break;
-	}
-}
-
 void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
@@ -209,7 +176,7 @@ int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
 		mt76_set(dev, MT_BBP(RXO, 13), BIT(10));
 
 	if (!dev->cal.init_cal_done) {
-		u8 val = mt76x2_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
+		u8 val = mt76x02_eeprom_get(&dev->mt76, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
 			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_R,
@@ -235,7 +202,7 @@ int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
 	if (scan)
 		return 0;
 
-	if (mt76x2_tssi_enabled(dev)) {
+	if (mt76x02_tssi_enabled(&dev->mt76)) {
 		/* init default values for temp compensation */
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
 			       0x38);
@@ -250,7 +217,7 @@ int mt76x2u_phy_set_channel(struct mt76x2_dev *dev,
 			chan = dev->mt76.chandef.chan;
 			if (chan->band == NL80211_BAND_5GHZ)
 				flag |= BIT(0);
-			if (mt76x2_ext_pa_enabled(dev, chan->band))
+			if (mt76x02_ext_pa_enabled(&dev->mt76, chan->band))
 				flag |= BIT(8);
 			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TSSI,
 					      flag, false);

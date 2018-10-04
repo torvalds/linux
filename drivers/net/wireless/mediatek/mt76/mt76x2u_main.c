@@ -51,7 +51,7 @@ static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 	struct mt76x2_dev *dev = hw->priv;
 
 	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))
-		mt76x2u_mac_setaddr(dev, vif->addr);
+		mt76x02_mac_setaddr(&dev->mt76, vif->addr);
 
 	mt76x02_vif_init(&dev->mt76, vif, 0);
 	return 0;
@@ -128,10 +128,10 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->txpower_conf = hw->conf.power_level * 2;
+		dev->mt76.txpower_conf = hw->conf.power_level * 2;
 
 		/* convert to per-chain power for 2x2 devices */
-		dev->txpower_conf -= 6;
+		dev->mt76.txpower_conf -= 6;
 
 		if (test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
 			mt76x2_phy_set_txpower(dev);

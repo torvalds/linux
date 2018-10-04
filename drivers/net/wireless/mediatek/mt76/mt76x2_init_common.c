@@ -17,6 +17,7 @@
 
 #include "mt76x2.h"
 #include "mt76x2_eeprom.h"
+#include "mt76x02_phy.h"
 
 static void
 mt76x2_set_wlan_state(struct mt76x2_dev *dev, bool enable)
@@ -38,6 +39,9 @@ void mt76x2_reset_wlan(struct mt76x2_dev *dev, bool enable)
 {
 	u32 val;
 
+	if (!enable)
+		goto out;
+
 	val = mt76_rr(dev, MT_WLAN_FUN_CTRL);
 
 	val &= ~MT_WLAN_FUN_CTRL_FRC_WL_ANT_SEL;
@@ -53,20 +57,10 @@ void mt76x2_reset_wlan(struct mt76x2_dev *dev, bool enable)
 	mt76_wr(dev, MT_WLAN_FUN_CTRL, val);
 	udelay(20);
 
+out:
 	mt76x2_set_wlan_state(dev, enable);
 }
 EXPORT_SYMBOL_GPL(mt76x2_reset_wlan);
-
-static void
-mt76x2_write_reg_pairs(struct mt76x2_dev *dev,
-		       const struct mt76_reg_pair *data, int len)
-{
-	while (len > 0) {
-		mt76_wr(dev, data->reg, data->value);
-		len--;
-		data++;
-	}
-}
 
 void mt76_write_mac_initvals(struct mt76x2_dev *dev)
 {
@@ -159,8 +153,8 @@ void mt76_write_mac_initvals(struct mt76x2_dev *dev)
 		{ MT_GF40_PROT_CFG,		DEFAULT_PROT_CFG_40 },
 	};
 
-	mt76x2_write_reg_pairs(dev, vals, ARRAY_SIZE(vals));
-	mt76x2_write_reg_pairs(dev, prot_vals, ARRAY_SIZE(prot_vals));
+	mt76_wr_rp(dev, 0, vals, ARRAY_SIZE(vals));
+	mt76_wr_rp(dev, 0, prot_vals, ARRAY_SIZE(prot_vals));
 }
 EXPORT_SYMBOL_GPL(mt76_write_mac_initvals);
 
@@ -183,7 +177,7 @@ void mt76x2_init_device(struct mt76x2_dev *dev)
 	dev->mt76.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 	dev->mt76.sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
-	dev->chainmask = 0x202;
+	dev->mt76.chainmask = 0x202;
 	dev->mt76.global_wcid.idx = 255;
 	dev->mt76.global_wcid.hw_key_idx = -1;
 	dev->slottime = 9;
@@ -214,7 +208,7 @@ void mt76x2_init_txpower(struct mt76x2_dev *dev,
 
 		mt76x2_get_rate_power(dev, &t, chan);
 
-		chan->max_power = mt76x2_get_max_rate_power(&t) +
+		chan->max_power = mt76x02_get_max_rate_power(&t) +
 				  target_power;
 		chan->max_power /= 2;
 

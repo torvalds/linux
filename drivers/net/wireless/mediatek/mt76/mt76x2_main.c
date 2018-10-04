@@ -106,14 +106,14 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->txpower_conf = hw->conf.power_level * 2;
+		dev->mt76.txpower_conf = hw->conf.power_level * 2;
 
 		/* convert to per-chain power for 2x2 devices */
-		dev->txpower_conf -= 6;
+		dev->mt76.txpower_conf -= 6;
 
 		if (test_bit(MT76_STATE_RUNNING, &dev->mt76.state)) {
 			mt76x2_phy_set_txpower(dev);
-			mt76x2_tx_set_txpwr_auto(dev, dev->txpower_conf);
+			mt76x2_tx_set_txpwr_auto(dev, dev->mt76.txpower_conf);
 		}
 	}
 
@@ -206,7 +206,7 @@ mt76x2_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif, int *dbm)
 {
 	struct mt76x2_dev *dev = hw->priv;
 
-	*dbm = dev->txpower_cur / 2;
+	*dbm = dev->mt76.txpower_cur / 2;
 
 	/* convert from per-chain power to combined output on 2x2 devices */
 	*dbm += 3;
@@ -241,7 +241,7 @@ static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	dev->chainmask = (tx_ant == 3) ? 0x202 : 0x101;
+	dev->mt76.chainmask = (tx_ant == 3) ? 0x202 : 0x101;
 	dev->mt76.antenna_mask = tx_ant;
 
 	mt76_set_stream_caps(&dev->mt76, true);

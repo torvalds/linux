@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
+ * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,26 +14,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "mt76x2.h"
-#include "mt76x02_dma.h"
-#include "mt76x02_util.h"
+#ifndef __MT76x02_PHY_H
+#define __MT76x02_PHY_H
 
-void mt76x2_tx_tasklet(unsigned long data)
-{
-	struct mt76x2_dev *dev = (struct mt76x2_dev *) data;
-	int i;
+#include "mt76x02_regs.h"
 
-	mt76x2_mac_process_tx_status_fifo(dev);
+void mt76x02_add_rate_power_offset(struct mt76_rate_power *r, int offset);
+void mt76x02_phy_set_txpower(struct mt76_dev *dev, int txp_0, int txp_2);
+void mt76x02_limit_rate_power(struct mt76_rate_power *r, int limit);
+int mt76x02_get_max_rate_power(struct mt76_rate_power *r);
+void mt76x02_phy_set_rxpath(struct mt76_dev *dev);
+void mt76x02_phy_set_txdac(struct mt76_dev *dev);
 
-	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
-
-	mt76x2_mac_poll_tx_status(dev, false);
-	mt76x02_irq_enable(&dev->mt76, MT_INT_TX_DONE_ALL);
-}
-
-void mt76x2_dma_cleanup(struct mt76x2_dev *dev)
-{
-	tasklet_kill(&dev->tx_tasklet);
-	mt76_dma_cleanup(&dev->mt76);
-}
+#endif /* __MT76x02_PHY_H */

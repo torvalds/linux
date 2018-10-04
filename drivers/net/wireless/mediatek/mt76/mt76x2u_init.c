@@ -18,6 +18,7 @@
 
 #include "mt76x2u.h"
 #include "mt76x02_util.h"
+#include "mt76x02_phy.h"
 #include "mt76x2_eeprom.h"
 
 static void mt76x2u_init_dma(struct mt76x2_dev *dev)
@@ -129,7 +130,7 @@ static int mt76x2u_init_eeprom(struct mt76x2_dev *dev)
 		put_unaligned_le32(val, dev->mt76.eeprom.data + i);
 	}
 
-	mt76x2_eeprom_parse_hw_cap(dev);
+	mt76x02_eeprom_parse_hw_cap(&dev->mt76);
 	return 0;
 }
 
@@ -165,20 +166,11 @@ static void mt76x2u_init_beacon_offsets(struct mt76x2_dev *dev)
 
 int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 {
-	static const u16 beacon_offsets[] = {
-		/* 512 byte per beacon */
-		0xc000, 0xc200, 0xc400, 0xc600,
-		0xc800, 0xca00, 0xcc00, 0xce00,
-		0xd000, 0xd200, 0xd400, 0xd600,
-		0xd800, 0xda00, 0xdc00, 0xde00
-	};
 	const struct mt76_wcid_addr addr = {
 		.macaddr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		.ba_mask = 0,
 	};
 	int i, err;
-
-	dev->beacon_offsets = beacon_offsets;
 
 	mt76x2_reset_wlan(dev, true);
 	mt76x2u_power_on(dev);
@@ -212,12 +204,13 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	if (err < 0)
 		return err;
 
-	mt76x2u_mac_setaddr(dev, dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
+	mt76x02_mac_setaddr(&dev->mt76,
+			    dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	mt76x2u_init_beacon_offsets(dev);
 
-	if (!mt76x2_wait_for_bbp(dev))
+	if (!mt76x02_wait_for_txrx_idle(&dev->mt76))
 		return -ETIMEDOUT;
 
 	/* reset wcid table */
@@ -244,8 +237,8 @@ int mt76x2u_init_hardware(struct mt76x2_dev *dev)
 	if (err < 0)
 		return err;
 
-	mt76x2u_phy_set_rxpath(dev);
-	mt76x2u_phy_set_txdac(dev);
+	mt76x02_phy_set_rxpath(&dev->mt76);
+	mt76x02_phy_set_txdac(&dev->mt76);
 
 	return mt76x2u_mac_stop(dev);
 }
@@ -263,13 +256,13 @@ int mt76x2u_register_device(struct mt76x2_dev *dev)
 	if (err < 0)
 		return err;
 
-	err = mt76u_mcu_init_rx(&dev->mt76);
-	if (err < 0)
-		return err;
-
 	err = mt76u_alloc_queues(&dev->mt76);
 	if (err < 0)
 		goto fail;
+
+	err = mt76u_mcu_init_rx(&dev->mt76);
+	if (err < 0)
+		return err;
 
 	err = mt76x2u_init_hardware(dev);
 	if (err < 0)

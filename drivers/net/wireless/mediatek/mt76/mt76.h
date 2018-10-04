@@ -122,6 +122,7 @@ struct mt76_queue {
 	dma_addr_t desc_dma;
 	struct sk_buff *rx_head;
 	struct page_frag_cache rx_page;
+	spinlock_t rx_page_lock;
 };
 
 struct mt76_mcu_ops {
@@ -275,6 +276,19 @@ struct mt76_sband {
 	struct mt76_channel_state *chan;
 };
 
+struct mt76_rate_power {
+	union {
+		struct {
+			s8 cck[4];
+			s8 ofdm[8];
+			s8 stbc[10];
+			s8 ht[16];
+			s8 vht[10];
+		};
+		s8 all[48];
+	};
+};
+
 /* addr req mask */
 #define MT_VEND_TYPE_EEPROM	BIT(31)
 #define MT_VEND_TYPE_CFG	BIT(30)
@@ -349,6 +363,8 @@ struct mt76_mmio {
 		u32 msg_seq;
 	} mcu;
 	void __iomem *regs;
+	spinlock_t irq_lock;
+	u32 irqmask;
 };
 
 struct mt76_dev {
@@ -388,12 +404,17 @@ struct mt76_dev {
 	unsigned long state;
 
 	u8 antenna_mask;
+	u16 chainmask;
 
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
 	struct debugfs_blob_wrapper eeprom;
 	struct debugfs_blob_wrapper otp;
 	struct mt76_hw_cap cap;
+
+	struct mt76_rate_power rate_power;
+	int txpower_conf;
+	int txpower_cur;
 
 	u32 debugfs_reg;
 
@@ -416,18 +437,6 @@ enum mt76_phy_type {
 	MT_PHY_TYPE_HT,
 	MT_PHY_TYPE_HT_GF,
 	MT_PHY_TYPE_VHT,
-};
-
-struct mt76_rate_power {
-	union {
-		struct {
-			s8 cck[4];
-			s8 ofdm[8];
-			s8 ht[16];
-			s8 vht[10];
-		};
-		s8 all[38];
-	};
 };
 
 struct mt76_rx_status {
@@ -510,8 +519,8 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 #define mt76xx_chip(dev) mt76_chip(&((dev)->mt76))
 #define mt76xx_rev(dev) mt76_rev(&((dev)->mt76))
 
-#define mt76_init_queues(dev)		(dev)->mt76.queue_ops->init(&((dev)->mt76))
-#define mt76_queue_alloc(dev, ...)	(dev)->mt76.queue_ops->alloc(&((dev)->mt76), __VA_ARGS__)
+#define __mt76_init_queues(dev)		(dev)->queue_ops->init((dev))
+#define __mt76_queue_alloc(dev, ...)	(dev)->queue_ops->alloc((dev), __VA_ARGS__)
 #define mt76_queue_add_buf(dev, ...)	(dev)->mt76.queue_ops->add_buf(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_rx_reset(dev, ...)	(dev)->mt76.queue_ops->rx_reset(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_tx_cleanup(dev, ...)	(dev)->mt76.queue_ops->tx_cleanup(&((dev)->mt76), __VA_ARGS__)
@@ -539,6 +548,8 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 void mt76_unregister_device(struct mt76_dev *dev);
 
 struct dentry *mt76_register_debugfs(struct mt76_dev *dev);
+void mt76_seq_puts_array(struct seq_file *file, const char *str,
+			 s8 *val, int len);
 
 int mt76_eeprom_init(struct mt76_dev *dev, int len);
 void mt76_eeprom_override(struct mt76_dev *dev);

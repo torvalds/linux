@@ -28,6 +28,7 @@
 #include "../mt76.h"
 #include "../mt76x02_regs.h"
 #include "../mt76x02_mac.h"
+#include "eeprom.h"
 
 #define MT_CALIBRATE_INTERVAL		(4 * HZ)
 
@@ -86,14 +87,10 @@ struct mt76x0_dev {
 
 	spinlock_t mac_lock;
 
-	const u16 *beacon_offsets;
-
-	struct mt76x0_eeprom_params *ee;
+	struct mt76x0_caldata caldata;
 
 	struct mutex reg_atomic_mutex;
 	struct mutex hw_atomic_mutex;
-
-	u32 debugfs_reg;
 
 	atomic_t avg_ampdu_len;
 
@@ -107,12 +104,11 @@ struct mt76x0_dev {
 	int avg_rssi; /* starts at 0 and converges */
 
 	u8 agc_save;
-	u16 chainmask;
+
+	bool no_2ghz;
 
 	struct mac_stats stats;
 };
-
-extern const struct ieee80211_ops mt76x0_ops;
 
 static inline bool is_mt7610e(struct mt76x0_dev *dev)
 {
@@ -128,14 +124,25 @@ void mt76x0_init_debugfs(struct mt76x0_dev *dev);
 
 /* Init */
 struct mt76x0_dev *
-mt76x0_alloc_device(struct device *pdev, const struct mt76_driver_ops *drv_ops);
+mt76x0_alloc_device(struct device *pdev,
+		    const struct mt76_driver_ops *drv_ops,
+		    const struct ieee80211_ops *ops);
 int mt76x0_init_hardware(struct mt76x0_dev *dev);
 int mt76x0_register_device(struct mt76x0_dev *dev);
-void mt76x0_cleanup(struct mt76x0_dev *dev);
 void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset);
 
 int mt76x0_mac_start(struct mt76x0_dev *dev);
 void mt76x0_mac_stop(struct mt76x0_dev *dev);
+
+int mt76x0_config(struct ieee80211_hw *hw, u32 changed);
+void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *info, u32 changed);
+void mt76x0_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    const u8 *mac_addr);
+void mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif);
+int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 
 /* PHY */
 void mt76x0_phy_init(struct mt76x0_dev *dev);
@@ -148,6 +155,7 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev);
 int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi);
 void mt76x0_phy_con_cal_onoff(struct mt76x0_dev *dev,
 			       struct ieee80211_bss_conf *info);
+void mt76x0_phy_set_txpower(struct mt76x0_dev *dev);
 
 /* MAC */
 void mt76x0_mac_work(struct work_struct *work);
@@ -160,12 +168,12 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev);
 /* TX */
 void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb);
+struct mt76x02_txwi *
+mt76x0_push_txwi(struct mt76x0_dev *dev, struct sk_buff *skb,
+		 struct ieee80211_sta *sta, struct mt76_wcid *wcid,
+		 int pkt_len);
 
 void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 
-int mt76x0_tx_prepare_skb(struct mt76_dev *mdev, void *data,
-			  struct sk_buff *skb, struct mt76_queue *q,
-			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			  u32 *tx_info);
 #endif

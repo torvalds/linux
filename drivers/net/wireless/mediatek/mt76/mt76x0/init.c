@@ -19,6 +19,7 @@
 #include "trace.h"
 #include "mcu.h"
 #include "../mt76x02_util.h"
+#include "../mt76x02_dma.h"
 
 #include "initvals.h"
 
@@ -43,7 +44,7 @@ static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)
 static void
 mt76x0_set_wlan_state(struct mt76x0_dev *dev, u32 val, bool enable)
 {
-	int i;
+	u32 mask = MT_CMB_CTRL_XTAL_RDY | MT_CMB_CTRL_PLL_LD;
 
 	/* Note: we don't turn off WLAN_CLK because that makes the device
 	 *	 not respond properly on the probe path.
@@ -60,24 +61,12 @@ mt76x0_set_wlan_state(struct mt76x0_dev *dev, u32 val, bool enable)
 	mt76_wr(dev, MT_WLAN_FUN_CTRL, val);
 	udelay(20);
 
-	if (!enable)
-		return;
-
-	for (i = 200; i; i--) {
-		val = mt76_rr(dev, MT_CMB_CTRL);
-
-		if (val & MT_CMB_CTRL_XTAL_RDY && val & MT_CMB_CTRL_PLL_LD)
-			break;
-
-		udelay(20);
-	}
-
 	/* Note: vendor driver tries to disable/enable wlan here and retry
 	 *       but the code which does it is so buggy it must have never
 	 *       triggered, so don't bother.
 	 */
-	if (!i)
-		dev_err(dev->mt76.dev, "Error: PLL and XTAL check failed!\n");
+	if (enable && !mt76_poll(dev, MT_CMB_CTRL, mask, mask, 2000))
+		dev_err(dev->mt76.dev, "PLL and XTAL check failed\n");
 }
 
 void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
@@ -114,43 +103,13 @@ EXPORT_SYMBOL_GPL(mt76x0_chip_onoff);
 
 static void mt76x0_reset_csr_bbp(struct mt76x0_dev *dev)
 {
-	u32 val;
-
-	val = mt76_rr(dev, MT_PBF_SYS_CTRL);
-	val &= ~0x2000;
-	mt76_wr(dev, MT_PBF_SYS_CTRL, val);
-
-	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR |
-					 MT_MAC_SYS_CTRL_RESET_BBP);
-
+	mt76_wr(dev, MT_MAC_SYS_CTRL,
+		MT_MAC_SYS_CTRL_RESET_CSR |
+		MT_MAC_SYS_CTRL_RESET_BBP);
 	msleep(200);
-}
-
-static void mt76x0_init_usb_dma(struct mt76x0_dev *dev)
-{
-	u32 val;
-
-	val = mt76_rr(dev, MT_USB_DMA_CFG);
-
-	val |= MT_USB_DMA_CFG_RX_BULK_EN |
-	       MT_USB_DMA_CFG_TX_BULK_EN;
-
-	/* disable AGGR_BULK_RX in order to receive one
-	 * frame in each rx urb and avoid copies
-	 */
-	val &= ~MT_USB_DMA_CFG_RX_BULK_AGG_EN;
-	mt76_wr(dev, MT_USB_DMA_CFG, val);
-
-	val = mt76_rr(dev, MT_COM_REG0);
-	if (val & 1)
-		dev_dbg(dev->mt76.dev, "MCU not ready\n");
-
-	val = mt76_rr(dev, MT_USB_DMA_CFG);
-
-	val |= MT_USB_DMA_CFG_RX_DROP_OR_PAD;
-	mt76_wr(dev, MT_USB_DMA_CFG, val);
-	val &= ~MT_USB_DMA_CFG_RX_DROP_OR_PAD;
-	mt76_wr(dev, MT_USB_DMA_CFG, val);
+	mt76_clear(dev, MT_MAC_SYS_CTRL,
+		   MT_MAC_SYS_CTRL_RESET_CSR |
+		   MT_MAC_SYS_CTRL_RESET_BBP);
 }
 
 #define RANDOM_WRITE(dev, tab)			\
@@ -180,30 +139,13 @@ static int mt76x0_init_bbp(struct mt76x0_dev *dev)
 	return 0;
 }
 
-static void
-mt76_init_beacon_offsets(struct mt76x0_dev *dev)
-{
-	u16 base = MT_BEACON_BASE;
-	u32 regs[4] = {};
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		u16 addr = dev->beacon_offsets[i];
-
-		regs[i / 4] |= ((addr - base) / 64) << (8 * (i % 4));
-	}
-
-	for (i = 0; i < 4; i++)
-		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
-}
-
 static void mt76x0_init_mac_registers(struct mt76x0_dev *dev)
 {
 	u32 reg;
 
 	RANDOM_WRITE(dev, common_mac_reg_table);
 
-	mt76_init_beacon_offsets(dev);
+	mt76x02_set_beacon_offsets(&dev->mt76);
 
 	/* Enable PBF and MAC clock SYS_CTRL[11:10] = 0x3 */
 	RANDOM_WRITE(dev, mt76x0_mac_reg_table);
@@ -212,13 +154,6 @@ static void mt76x0_init_mac_registers(struct mt76x0_dev *dev)
 	reg = mt76_rr(dev, MT_MAC_SYS_CTRL);
 	reg &= ~0x3;
 	mt76_wr(dev, MT_MAC_SYS_CTRL, reg);
-
-	if (is_mt7610e(dev)) {
-		/* Disable COEX_EN */
-		reg = mt76_rr(dev, MT_COEXCFG0);
-		reg &= 0xFFFFFFFE;
-		mt76_wr(dev, MT_COEXCFG0, reg);
-	}
 
 	/* Set 0x141C[15:12]=0xF */
 	reg = mt76_rr(dev, MT_EXT_CCA_CFG);
@@ -302,45 +237,22 @@ int mt76x0_mac_start(struct mt76x0_dev *dev)
 {
 	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
 
-	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 200000))
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 200000))
 		return -ETIMEDOUT;
 
-	dev->mt76.rxfilter = MT_RX_FILTR_CFG_CRC_ERR |
-		MT_RX_FILTR_CFG_PHY_ERR | MT_RX_FILTR_CFG_PROMISC |
-		MT_RX_FILTR_CFG_VER_ERR | MT_RX_FILTR_CFG_DUP |
-		MT_RX_FILTR_CFG_CFACK | MT_RX_FILTR_CFG_CFEND |
-		MT_RX_FILTR_CFG_ACK | MT_RX_FILTR_CFG_CTS |
-		MT_RX_FILTR_CFG_RTS | MT_RX_FILTR_CFG_PSPOLL |
-		MT_RX_FILTR_CFG_BA | MT_RX_FILTR_CFG_CTRL_RSV;
 	mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
-
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		   MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
+		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
 
-	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 50))
-		return -ETIMEDOUT;
-
-	return 0;
+	return !mt76x02_wait_for_wpdma(&dev->mt76, 50) ? -ETIMEDOUT : 0;
 }
+EXPORT_SYMBOL_GPL(mt76x0_mac_start);
 
-static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
+void mt76x0_mac_stop(struct mt76x0_dev *dev)
 {
-	int i, ok;
-
-	if (test_bit(MT76_REMOVED, &dev->mt76.state))
-		return;
-
-	mt76_clear(dev, MT_BEACON_TIME_CFG, MT_BEACON_TIME_CFG_TIMER_EN |
-		   MT_BEACON_TIME_CFG_SYNC_MODE | MT_BEACON_TIME_CFG_TBTT_EN |
-		   MT_BEACON_TIME_CFG_BEACON_TX);
-
-	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_BUSY, 0, 1000))
-		dev_warn(dev->mt76.dev, "Warning: TX DMA did not stop!\n");
+	int i = 200, ok = 0;
 
 	/* Page count on TxQ */
-	i = 200;
 	while (i-- && ((mt76_rr(dev, 0x0438) & 0xffffffff) ||
 		       (mt76_rr(dev, 0x0a30) & 0x000000ff) ||
 		       (mt76_rr(dev, 0x0a34) & 0x00ff00ff)))
@@ -353,9 +265,7 @@ static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
 					 MT_MAC_SYS_CTRL_ENABLE_TX);
 
 	/* Page count on RxQ */
-	ok = 0;
-	i = 200;
-	while (i--) {
+	for (i = 0; i < 200; i++) {
 		if (!(mt76_rr(dev, MT_RXQ_STA) & 0x00ff0000) &&
 		    !mt76_rr(dev, 0x0a30) &&
 		    !mt76_rr(dev, 0x0a34)) {
@@ -368,36 +278,14 @@ static void mt76x0_mac_stop_hw(struct mt76x0_dev *dev)
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_RX, 0, 1000))
 		dev_warn(dev->mt76.dev, "Warning: MAC RX did not stop!\n");
-
-	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
-		dev_warn(dev->mt76.dev, "Warning: RX DMA did not stop!\n");
-}
-
-void mt76x0_mac_stop(struct mt76x0_dev *dev)
-{
-	cancel_delayed_work_sync(&dev->cal_work);
-	cancel_delayed_work_sync(&dev->mac_work);
-	mt76u_stop_stat_wk(&dev->mt76);
-	mt76x0_mac_stop_hw(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 
 int mt76x0_init_hardware(struct mt76x0_dev *dev)
 {
-	static const u16 beacon_offsets[16] = {
-		/* 512 byte per beacon */
-		0xc000,	0xc200,	0xc400,	0xc600,
-		0xc800,	0xca00,	0xcc00,	0xce00,
-		0xd000,	0xd200,	0xd400,	0xd600,
-		0xd800,	0xda00,	0xdc00,	0xde00
-	};
 	int ret;
 
-	dev->beacon_offsets = beacon_offsets;
-
-	if (!mt76_poll_msec(dev, MT_WPDMA_GLO_CFG,
-			    MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-			    MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 100))
+	if (!mt76x02_wait_for_wpdma(&dev->mt76, 1000))
 		return -EIO;
 
 	/* Wait for ASIC ready after FW load. */
@@ -405,24 +293,20 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 		return -ETIMEDOUT;
 
 	mt76x0_reset_csr_bbp(dev);
-	mt76x0_init_usb_dma(dev);
-
-	mt76_wr(dev, MT_HEADER_TRANS_CTRL_REG, 0x0);
-	mt76_wr(dev, MT_TSO_CTRL, 0x0);
-
 	ret = mt76x02_mcu_function_select(&dev->mt76, Q_SELECT, 1, false);
 	if (ret)
 		return ret;
 
 	mt76x0_init_mac_registers(dev);
 
-	if (!mt76_poll_msec(dev, MT_MAC_STATUS,
-			    MT_MAC_STATUS_TX | MT_MAC_STATUS_RX, 0, 1000))
+	if (!mt76x02_wait_for_txrx_idle(&dev->mt76))
 		return -EIO;
 
 	ret = mt76x0_init_bbp(dev);
 	if (ret)
 		return ret;
+
+	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	ret = mt76x0_init_wcid_mem(dev);
 	if (ret)
@@ -441,12 +325,6 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 
 	mt76x0_reset_counters(dev);
 
-	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
-
-	mt76_wr(dev, MT_TXOP_CTRL_CFG,
-		   FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
-		   FIELD_PREP(MT_TXOP_EXT_CCA_DLY, 0x58));
-
 	ret = mt76x0_eeprom_init(dev);
 	if (ret)
 		return ret;
@@ -457,22 +335,15 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x0_init_hardware);
 
-void mt76x0_cleanup(struct mt76x0_dev *dev)
-{
-	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
-	mt76x0_chip_onoff(dev, false, false);
-	mt76u_queues_deinit(&dev->mt76);
-	mt76u_mcu_deinit(&dev->mt76);
-}
-EXPORT_SYMBOL_GPL(mt76x0_cleanup);
-
 struct mt76x0_dev *
-mt76x0_alloc_device(struct device *pdev, const struct mt76_driver_ops *drv_ops)
+mt76x0_alloc_device(struct device *pdev,
+		    const struct mt76_driver_ops *drv_ops,
+		    const struct ieee80211_ops *ops)
 {
 	struct mt76x0_dev *dev;
 	struct mt76_dev *mdev;
 
-	mdev = mt76_alloc_device(sizeof(*dev), &mt76x0_ops);
+	mdev = mt76_alloc_device(sizeof(*dev), ops);
 	if (!mdev)
 		return NULL;
 
@@ -496,10 +367,6 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	struct ieee80211_hw *hw = mdev->hw;
 	struct wiphy *wiphy = hw->wiphy;
 	int ret;
-
-	ret = mt76x0_init_hardware(dev);
-	if (ret)
-		return ret;
 
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
 	 * entry no. 1 like it does in the vendor driver.
@@ -534,12 +401,6 @@ int mt76x0_register_device(struct mt76x0_dev *dev)
 	/* overwrite unsupported features */
 	if (mdev->cap.has_5ghz)
 		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
-
-	/* check hw sg support in order to enable AMSDU */
-	if (mt76u_check_sg(mdev))
-		hw->max_tx_fragments = MT_SG_MAX_SIZE;
-	else
-		hw->max_tx_fragments = 1;
 
 	mt76x0_init_debugfs(dev);
 

@@ -27,6 +27,15 @@
 #define MT_INBAND_PACKET_MAX_LEN	192
 #define MT_MCU_MEMMAP_WLAN		0x410000
 
+#define MT_MCU_PCIE_REMAP_BASE4		0x074C
+
+#define MT_MCU_SEMAPHORE_00		0x07B0
+#define MT_MCU_SEMAPHORE_01		0x07B4
+#define MT_MCU_SEMAPHORE_02		0x07B8
+#define MT_MCU_SEMAPHORE_03		0x07BC
+
+#define MT_MCU_ILM_ADDR			0x80000
+
 enum mcu_cmd {
 	CMD_FUN_SET_OP = 1,
 	CMD_LOAD_CR = 2,
@@ -96,5 +105,7 @@ int mt76x02_mcu_function_select(struct mt76_dev *dev,
 				u32 val, bool wait_resp);
 int mt76x02_mcu_set_radio_state(struct mt76_dev *dev, bool on,
 				bool wait_resp);
+void mt76x02_set_ethtool_fwver(struct mt76_dev *dev,
+			       const struct mt76x02_fw_header *h);
 
 #endif /* __MT76x02_MCU_H */

@@ -18,42 +18,7 @@
 #include "../mt76x02_util.h"
 #include <linux/etherdevice.h>
 
-static int mt76x0_start(struct ieee80211_hw *hw)
-{
-	struct mt76x0_dev *dev = hw->priv;
-	int ret;
-
-	mutex_lock(&dev->mt76.mutex);
-
-	ret = mt76x0_mac_start(dev);
-	if (ret)
-		goto out;
-
-	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
-				     MT_CALIBRATE_INTERVAL);
-	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
-				     MT_CALIBRATE_INTERVAL);
-
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
-
-out:
-	mutex_unlock(&dev->mt76.mutex);
-	return ret;
-}
-
-static void mt76x0_stop(struct ieee80211_hw *hw)
-{
-	struct mt76x0_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
-	mt76x0_mac_stop(dev);
-
-	mutex_unlock(&dev->mt76.mutex);
-}
-
-static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
+int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt76x0_dev *dev = hw->priv;
 	int ret = 0;
@@ -66,10 +31,27 @@ static int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 		ieee80211_wake_queues(hw);
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		dev->mt76.txpower_conf = hw->conf.power_level * 2;
+
+		if (test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+			mt76x0_phy_set_txpower(dev);
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
+			dev->mt76.rxfilter |= MT_RX_FILTR_CFG_PROMISC;
+		else
+			dev->mt76.rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
+
+		mt76_wr(dev, MT_RX_FILTR_CFG, dev->mt76.rxfilter);
+	}
+
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt76x0_config);
 
 static void
 mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
@@ -78,9 +60,9 @@ mt76x0_addr_wr(struct mt76x0_dev *dev, const u32 offset, const u8 *addr)
 	mt76_wr(dev, offset + 4, addr[4] | addr[5] << 8);
 }
 
-static void
-mt76x0_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_bss_conf *info, u32 changed)
+void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *info, u32 changed)
 {
 	struct mt76x0_dev *dev = hw->priv;
 
@@ -130,11 +112,10 @@ mt76x0_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_unlock(&dev->mt76.mutex);
 }
+EXPORT_SYMBOL_GPL(mt76x0_bss_info_changed);
 
-static void
-mt76x0_sw_scan(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif,
-		const u8 *mac_addr)
+void mt76x0_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    const u8 *mac_addr)
 {
 	struct mt76x0_dev *dev = hw->priv;
 
@@ -142,10 +123,10 @@ mt76x0_sw_scan(struct ieee80211_hw *hw,
 	mt76x0_agc_save(dev);
 	set_bit(MT76_SCANNING, &dev->mt76.state);
 }
+EXPORT_SYMBOL_GPL(mt76x0_sw_scan);
 
-static void
-mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
-			 struct ieee80211_vif *vif)
+void mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 	struct mt76x0_dev *dev = hw->priv;
 
@@ -155,8 +136,9 @@ mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 }
+EXPORT_SYMBOL_GPL(mt76x0_sw_scan_complete);
 
-static int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
 	struct mt76x0_dev *dev = hw->priv;
 
@@ -164,24 +146,4 @@ static int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 	return 0;
 }
-
-const struct ieee80211_ops mt76x0_ops = {
-	.tx = mt76x0_tx,
-	.start = mt76x0_start,
-	.stop = mt76x0_stop,
-	.add_interface = mt76x02_add_interface,
-	.remove_interface = mt76x02_remove_interface,
-	.config = mt76x0_config,
-	.configure_filter = mt76x02_configure_filter,
-	.bss_info_changed = mt76x0_bss_info_changed,
-	.sta_add = mt76x02_sta_add,
-	.sta_remove = mt76x02_sta_remove,
-	.set_key = mt76x02_set_key,
-	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x0_sw_scan,
-	.sw_scan_complete = mt76x0_sw_scan_complete,
-	.ampdu_action = mt76x02_ampdu_action,
-	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
-	.set_rts_threshold = mt76x0_set_rts_threshold,
-	.wake_tx_queue = mt76_wake_tx_queue,
-};
+EXPORT_SYMBOL_GPL(mt76x0_set_rts_threshold);
