@@ -353,6 +353,7 @@ struct cgroup {
 	 * specific task are charged to the dom_cgrp.
 	 */
 	struct cgroup *dom_cgrp;
+	struct cgroup *old_dom_cgrp;		/* used while enabling threaded */
 
 	/*
 	 * list of pidlists, up to two for each namespace (one for procs, one
