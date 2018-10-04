@@ -1301,6 +1301,12 @@ static void __pte_list_remove(u64 *spte, struct kvm_rmap_head *rmap_head)
 	}
 }
 
+static void pte_list_remove(struct kvm_rmap_head *rmap_head, u64 *sptep)
+{
+	mmu_spte_clear_track_bits(sptep);
+	__pte_list_remove(sptep, rmap_head);
+}
+
 static struct kvm_rmap_head *__gfn_to_rmap(gfn_t gfn, int level,
 					   struct kvm_memory_slot *slot)
 {
@@ -1685,7 +1691,7 @@ static bool kvm_zap_rmapp(struct kvm *kvm, struct kvm_rmap_head *rmap_head)
 	while ((sptep = rmap_get_first(rmap_head, &iter))) {
 		rmap_printk("%s: spte %p %llx.\n", __func__, sptep, *sptep);
 
-		drop_spte(kvm, sptep);
+		pte_list_remove(rmap_head, sptep);
 		flush = true;
 	}
 
@@ -1721,7 +1727,7 @@ restart:
 		need_flush = 1;
 
 		if (pte_write(*ptep)) {
-			drop_spte(kvm, sptep);
+			pte_list_remove(rmap_head, sptep);
 			goto restart;
 		} else {
 			new_spte = *sptep & ~PT64_BASE_ADDR_MASK;
@@ -5682,7 +5688,7 @@ restart:
 		if (sp->role.direct &&
 			!kvm_is_reserved_pfn(pfn) &&
 			PageTransCompoundMap(pfn_to_page(pfn))) {
-			drop_spte(kvm, sptep);
+			pte_list_remove(rmap_head, sptep);
 			need_tlb_flush = 1;
 			goto restart;
 		}
