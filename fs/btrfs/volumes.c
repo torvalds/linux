@@ -4632,7 +4632,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	u64 max_stripe_size;
 	u64 max_chunk_size;
 	u64 stripe_size;
-	u64 num_bytes;
+	u64 chunk_size;
 	int ndevs;
 	int i;
 	int j;
@@ -4834,9 +4834,9 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	map->type = type;
 	map->sub_stripes = sub_stripes;
 
-	num_bytes = stripe_size * data_stripes;
+	chunk_size = stripe_size * data_stripes;
 
-	trace_btrfs_chunk_alloc(info, map, start, num_bytes);
+	trace_btrfs_chunk_alloc(info, map, start, chunk_size);
 
 	em = alloc_extent_map();
 	if (!em) {
@@ -4847,7 +4847,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	em->map_lookup = map;
 	em->start = start;
-	em->len = num_bytes;
+	em->len = chunk_size;
 	em->block_start = 0;
 	em->block_len = em->len;
 	em->orig_block_len = stripe_size;
@@ -4865,7 +4865,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	refcount_inc(&em->refs);
 	write_unlock(&em_tree->lock);
 
-	ret = btrfs_make_block_group(trans, 0, type, start, num_bytes);
+	ret = btrfs_make_block_group(trans, 0, type, start, chunk_size);
 	if (ret)
 		goto error_del_extent;
 
