@@ -141,8 +141,8 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 static int intel_framebuffer_init(struct intel_framebuffer *ifb,
 				  struct drm_i915_gem_object *obj,
 				  struct drm_mode_fb_cmd2 *mode_cmd);
-static void intel_set_pipe_timings(struct intel_crtc *intel_crtc);
-static void intel_set_pipe_src_size(struct intel_crtc *intel_crtc);
+static void intel_set_pipe_timings(const struct intel_crtc_state *crtc_state);
+static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
 static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 					 struct intel_link_m_n *m_n,
 					 struct intel_link_m_n *m2_n2);
@@ -5605,8 +5605,8 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
-	intel_set_pipe_timings(intel_crtc);
-	intel_set_pipe_src_size(intel_crtc);
+	intel_set_pipe_timings(pipe_config);
+	intel_set_pipe_src_size(pipe_config);
 
 	if (intel_crtc->config->has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
@@ -5730,9 +5730,9 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_set_pipe_timings(intel_crtc);
+		intel_set_pipe_timings(pipe_config);
 
-	intel_set_pipe_src_size(intel_crtc);
+	intel_set_pipe_src_size(pipe_config);
 
 	if (cpu_transcoder != TRANSCODER_EDP &&
 	    !transcoder_is_dsi(cpu_transcoder)) {
@@ -6071,12 +6071,10 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
-	intel_set_pipe_timings(intel_crtc);
-	intel_set_pipe_src_size(intel_crtc);
+	intel_set_pipe_timings(pipe_config);
+	intel_set_pipe_src_size(pipe_config);
 
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
-		struct drm_i915_private *dev_priv = to_i915(dev);
-
 		I915_WRITE(CHV_BLEND(pipe), CHV_BLEND_LEGACY);
 		I915_WRITE(CHV_CANVAS(pipe), 0);
 	}
@@ -6143,8 +6141,8 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
-	intel_set_pipe_timings(intel_crtc);
-	intel_set_pipe_src_size(intel_crtc);
+	intel_set_pipe_timings(pipe_config);
+	intel_set_pipe_src_size(pipe_config);
 
 	i9xx_set_pipeconf(pipe_config);
 
@@ -7340,12 +7338,13 @@ static void i8xx_compute_dpll(struct intel_crtc *crtc,
 	crtc_state->dpll_hw_state.dpll = dpll;
 }
 
-static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
+static void intel_set_pipe_timings(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
-	enum pipe pipe = intel_crtc->pipe;
-	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
-	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	const struct drm_display_mode *adjusted_mode = &crtc_state->base.adjusted_mode;
 	uint32_t crtc_vtotal, crtc_vblank_end;
 	int vsyncshift = 0;
 
@@ -7359,7 +7358,7 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 		crtc_vtotal -= 1;
 		crtc_vblank_end -= 1;
 
-		if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_SDVO))
+		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
 			vsyncshift = (adjusted_mode->crtc_htotal - 1) / 2;
 		else
 			vsyncshift = adjusted_mode->crtc_hsync_start -
@@ -7401,18 +7400,18 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 
 }
 
-static void intel_set_pipe_src_size(struct intel_crtc *intel_crtc)
+static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum pipe pipe = intel_crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 
 	/* pipesrc controls the size that is scaled from, which should
 	 * always be the user's requested size.
 	 */
 	I915_WRITE(PIPESRC(pipe),
-		   ((intel_crtc->config->pipe_src_w - 1) << 16) |
-		   (intel_crtc->config->pipe_src_h - 1));
+		   ((crtc_state->pipe_src_w - 1) << 16) |
+		   (crtc_state->pipe_src_h - 1));
 }
 
 static void intel_get_pipe_timings(struct intel_crtc *crtc,
