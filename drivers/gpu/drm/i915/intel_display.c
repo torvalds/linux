@@ -1666,16 +1666,16 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		     I915_READ(dpll_reg) & port_mask, expected_mask);
 }
 
-static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
-					   enum pipe pipe)
+static void ironlake_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *intel_crtc = intel_get_crtc_for_pipe(dev_priv,
-								pipe);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	uint32_t val, pipeconf_val;
 
 	/* Make sure PCH DPLL is enabled */
-	assert_shared_dpll_enabled(dev_priv, intel_crtc->config->shared_dpll);
+	assert_shared_dpll_enabled(dev_priv, crtc_state->shared_dpll);
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
@@ -1701,7 +1701,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		 * here for both 8bpc and 12bpc.
 		 */
 		val &= ~PIPECONF_BPC_MASK;
-		if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_HDMI))
+		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 			val |= PIPECONF_8BPC;
 		else
 			val |= pipeconf_val & PIPECONF_BPC_MASK;
@@ -1710,7 +1710,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val &= ~TRANS_INTERLACE_MASK;
 	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
 		if (HAS_PCH_IBX(dev_priv) &&
-		    intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_SDVO))
+		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
 			val |= TRANS_LEGACY_INTERLACED_ILK;
 		else
 			val |= TRANS_INTERLACED;
@@ -4793,7 +4793,7 @@ static void ironlake_pch_enable(const struct intel_atomic_state *state,
 		I915_WRITE(reg, temp);
 	}
 
-	ironlake_enable_pch_transcoder(dev_priv, pipe);
+	ironlake_enable_pch_transcoder(crtc_state);
 }
 
 static void lpt_pch_enable(const struct intel_atomic_state *state,
