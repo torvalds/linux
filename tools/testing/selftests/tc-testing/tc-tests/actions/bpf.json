@@ -55,7 +55,6 @@
             "bpf"
         ],
         "setup": [
-            "make -C bpf",
             [
                 "$TC action flush action bpf",
                 0,
@@ -69,8 +68,7 @@
         "matchPattern": "action order [0-9]*: bpf action.o:\\[action-ok\\] id [0-9]* tag [0-9a-f]{16}( jited)? default-action pipe.*index 667 ref",
         "matchCount": "1",
         "teardown": [
-            "$TC action flush action bpf",
-            "make -C bpf clean"
+            "$TC action flush action bpf"
         ]
     },
     {
@@ -81,7 +79,6 @@
             "bpf"
         ],
         "setup": [
-            "make -C bpf",
             [
                 "$TC action flush action bpf",
                 0,
@@ -100,8 +97,7 @@
                 0,
                 1,
                 255
-            ],
-            "make -C bpf clean"
+            ]
         ]
     },
     {
