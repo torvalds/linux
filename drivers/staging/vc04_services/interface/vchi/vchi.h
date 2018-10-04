@@ -87,15 +87,6 @@ typedef struct opaque_vchi_instance_handle_t *VCHI_INSTANCE_T;
 // Opaque handle for a server or client
 typedef struct opaque_vchi_service_handle_t *VCHI_SERVICE_HANDLE_T;
 
-// Service registration & startup
-typedef void (*VCHI_SERVICE_INIT)(VCHI_INSTANCE_T initialise_instance, VCHI_CONNECTION_T **connections, uint32_t num_connections);
-
-typedef struct service_info_tag {
-   const char * const vll_filename; /* VLL to load to start this service. This is an empty string if VLL is "static" */
-   VCHI_SERVICE_INIT init;          /* Service initialisation function */
-   void *vll_handle;                /* VLL handle; NULL when unloaded or a "static VLL" in build */
-} SERVICE_INFO_T;
-
 /******************************************************************************
  Global funcs - implementation is specific to which side you are on (local / remote)
  *****************************************************************************/
