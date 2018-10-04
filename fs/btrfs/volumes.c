@@ -4869,10 +4869,9 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto error_del_extent;
 
-	for (i = 0; i < map->num_stripes; i++) {
-		num_bytes = map->stripes[i].dev->bytes_used + stripe_size;
-		btrfs_device_set_bytes_used(map->stripes[i].dev, num_bytes);
-	}
+	for (i = 0; i < map->num_stripes; i++)
+		btrfs_device_set_bytes_used(map->stripes[i].dev,
+				map->stripes[i].dev->bytes_used + stripe_size);
 
 	atomic64_sub(stripe_size * map->num_stripes, &info->free_chunk_space);
 
