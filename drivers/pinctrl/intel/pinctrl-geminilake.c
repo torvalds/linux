@@ -15,8 +15,8 @@
 #include "pinctrl-intel.h"
 
 #define GLK_PAD_OWN	0x020
-#define GLK_HOSTSW_OWN	0x0b0
 #define GLK_PADCFGLOCK	0x080
+#define GLK_HOSTSW_OWN	0x0b0
 #define GLK_GPI_IE	0x110
 
 #define GLK_COMMUNITY(s, e)				\
