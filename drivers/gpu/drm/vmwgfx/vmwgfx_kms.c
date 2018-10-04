@@ -493,24 +493,24 @@ int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *new_state)
 {
 	int ret = 0;
+	struct drm_crtc_state *crtc_state = NULL;
 	struct vmw_surface *surface = NULL;
 	struct drm_framebuffer *fb = new_state->fb;
 
-	struct drm_rect src = drm_plane_state_src(new_state);
-	struct drm_rect dest = drm_plane_state_dest(new_state);
+	if (new_state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(new_state->state,
+							   new_state->crtc);
+
+	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
+	if (ret)
+		return ret;
 
 	/* Turning off */
 	if (!fb)
-		return ret;
-
-	ret = drm_plane_helper_check_update(plane, new_state->crtc, fb,
-					    &src, &dest,
-					    DRM_MODE_ROTATE_0,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    true, true, &new_state->visible);
-	if (!ret)
-		return ret;
+		return 0;
 
 	/* A lot of the code assumes this */
 	if (new_state->crtc_w != 64 || new_state->crtc_h != 64) {
