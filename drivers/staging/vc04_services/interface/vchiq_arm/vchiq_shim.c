@@ -490,9 +490,7 @@ EXPORT_SYMBOL(vchi_initialise);
 /***********************************************************
  * Name: vchi_connect
  *
- * Arguments: VCHI_CONNECTION_T **connections
- *            const uint32_t num_connections
- *            VCHI_INSTANCE_T instance_handle)
+ * Arguments: VCHI_INSTANCE_T instance_handle
  *
  * Description: Starts the command service on each connection,
  *              causing INIT messages to be pinged back and forth
@@ -500,14 +498,9 @@ EXPORT_SYMBOL(vchi_initialise);
  * Returns: 0 if successful, failure otherwise
  *
  ***********************************************************/
-int32_t vchi_connect(VCHI_CONNECTION_T **connections,
-	const uint32_t num_connections,
-	VCHI_INSTANCE_T instance_handle)
+int32_t vchi_connect(VCHI_INSTANCE_T instance_handle)
 {
 	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
-
-	(void)connections;
-	(void)num_connections;
 
 	return vchiq_connect(instance);
 }

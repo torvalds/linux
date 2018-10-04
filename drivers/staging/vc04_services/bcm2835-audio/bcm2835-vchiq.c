@@ -183,7 +183,7 @@ int bcm2835_new_vchi_ctx(struct device *dev, struct bcm2835_vchi_ctx *vchi_ctx)
 		return -EIO;
 	}
 
-	ret = vchi_connect(NULL, 0, vchi_ctx->vchi_instance);
+	ret = vchi_connect(vchi_ctx->vchi_instance);
 	if (ret) {
 		dev_dbg(dev, "failed to connect VCHI instance (ret=%d)\n",
 			ret);

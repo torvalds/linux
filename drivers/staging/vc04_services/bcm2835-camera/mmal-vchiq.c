@@ -1831,7 +1831,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		return -EIO;
 	}
 
-	status = vchi_connect(NULL, 0, vchi_instance);
+	status = vchi_connect(vchi_instance);
 	if (status) {
 		pr_err("Failed to connect VCHI instance (status=%d)\n", status);
 		return -EIO;
