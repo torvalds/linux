@@ -1060,10 +1060,10 @@ static uint32_t hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 }
 
 static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
-				       const struct intel_shared_dpll *pll)
+				       const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	int clock = crtc->config->port_clock;
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	int clock = crtc_state->port_clock;
 	const enum intel_dpll_id id = pll->info->id;
 
 	switch (id) {
@@ -2798,11 +2798,12 @@ void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 }
 
 static void intel_ddi_clk_select(struct intel_encoder *encoder,
-				 const struct intel_shared_dpll *pll)
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 	uint32_t val;
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 
 	if (WARN_ON(!pll))
 		return;
@@ -2812,7 +2813,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 	if (IS_ICELAKE(dev_priv)) {
 		if (port >= PORT_C)
 			I915_WRITE(DDI_CLK_SEL(port),
-				   icl_pll_to_ddi_pll_sel(encoder, pll));
+				   icl_pll_to_ddi_pll_sel(encoder, crtc_state));
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		/* Configure DPCLKA_CFGCR0 to map the DPLL to the DDI. */
 		val = I915_READ(DPCLKA_CFGCR0);
@@ -2886,7 +2887,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_edp_panel_on(intel_dp);
 
-	intel_ddi_clk_select(encoder, crtc_state->shared_dpll);
+	intel_ddi_clk_select(encoder, crtc_state);
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
@@ -2928,7 +2929,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
 
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
-	intel_ddi_clk_select(encoder, crtc_state->shared_dpll);
+	intel_ddi_clk_select(encoder, crtc_state);
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
