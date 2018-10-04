@@ -37,12 +37,6 @@ static const char * const keyring_name[INTEGRITY_KEYRING_MAX] = {
 	"_module",
 };
 
-#ifdef CONFIG_INTEGRITY_TRUSTED_KEYRING
-static bool init_keyring __initdata = true;
-#else
-static bool init_keyring __initdata;
-#endif
-
 #ifdef CONFIG_IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
 #define restrict_link_to_ima restrict_link_by_builtin_and_secondary_trusted
 #else
@@ -85,7 +79,7 @@ int __init integrity_init_keyring(const unsigned int id)
 	struct key_restriction *restriction;
 	int err = 0;
 
-	if (!init_keyring)
+	if (!IS_ENABLED(CONFIG_INTEGRITY_TRUSTED_KEYRING))
 		return 0;
 
 	restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
