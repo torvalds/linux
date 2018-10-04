@@ -378,11 +378,13 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		if ((lose++ & 7) == 7) {
 			ret = 0;
 			lost = true;
-			goto done;
 		}
 	}
 
-	_proto("Tx DATA %%%u { #%u }", serial, sp->hdr.seq);
+	trace_rxrpc_tx_data(call, sp->hdr.seq, serial, whdr.flags,
+			    retrans, lost);
+	if (lost)
+		goto done;
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
@@ -415,8 +417,6 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		goto send_fragmentable;
 
 done:
-	trace_rxrpc_tx_data(call, sp->hdr.seq, serial, whdr.flags,
-			    retrans, lost);
 	if (ret >= 0) {
 		if (whdr.flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = skb->tstamp;
