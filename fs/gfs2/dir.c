@@ -2042,6 +2042,8 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	bh = leaf_bh;
 
 	for (blk = leaf_no; blk; blk = nblk) {
+		struct gfs2_rgrpd *rgd;
+
 		if (blk != leaf_no) {
 			error = get_leaf(dip, blk, &bh);
 			if (error)
@@ -2052,7 +2054,8 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 		if (blk != leaf_no)
 			brelse(bh);
 
-		gfs2_free_meta(dip, blk, 1);
+		rgd = gfs2_blk2rgrpd(sdp, blk, true);
+		gfs2_free_meta(dip, rgd, blk, 1);
 		gfs2_add_inode_blocks(&dip->i_inode, -1);
 	}
 

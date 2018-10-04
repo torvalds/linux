@@ -2215,28 +2215,21 @@ static void gfs2_alloc_extent(const struct gfs2_rbm *rbm, bool dinode,
 /**
  * rgblk_free - Change alloc state of given block(s)
  * @sdp: the filesystem
+ * @rgd: the resource group the blocks are in
  * @bstart: the start of a run of blocks to free
  * @blen: the length of the block run (all must lie within ONE RG!)
  * @new_state: GFS2_BLKST_XXX the after-allocation block state
- *
- * Returns:  Resource group containing the block(s)
  */
 
-static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
-				     u32 blen, unsigned char new_state)
+static void rgblk_free(struct gfs2_sbd *sdp, struct gfs2_rgrpd *rgd,
+		       u64 bstart, u32 blen, unsigned char new_state)
 {
 	struct gfs2_rbm rbm;
 	struct gfs2_bitmap *bi, *bi_prev = NULL;
 
-	rbm.rgd = gfs2_blk2rgrpd(sdp, bstart, 1);
-	if (!rbm.rgd) {
-		if (gfs2_consist(sdp))
-			fs_err(sdp, "block = %llu\n", (unsigned long long)bstart);
-		return NULL;
-	}
-
+	rbm.rgd = rgd;
 	if (WARN_ON_ONCE(gfs2_rbm_from_block(&rbm, bstart)))
-		return NULL;
+		return;
 	while (blen--) {
 		bi = rbm_bi(&rbm);
 		if (bi != bi_prev) {
@@ -2253,8 +2246,6 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 		gfs2_setbit(&rbm, false, new_state);
 		gfs2_rbm_incr(&rbm);
 	}
-
-	return rbm.rgd;
 }
 
 /**
@@ -2470,20 +2461,19 @@ rgrp_error:
 /**
  * __gfs2_free_blocks - free a contiguous run of block(s)
  * @ip: the inode these blocks are being freed from
+ * @rgd: the resource group the blocks are in
  * @bstart: first block of a run of contiguous blocks
  * @blen: the length of the block run
  * @meta: 1 if the blocks represent metadata
  *
  */
 
-void __gfs2_free_blocks(struct gfs2_inode *ip, u64 bstart, u32 blen, int meta)
+void __gfs2_free_blocks(struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
+			u64 bstart, u32 blen, int meta)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_rgrpd *rgd;
 
-	rgd = rgblk_free(sdp, bstart, blen, GFS2_BLKST_FREE);
-	if (!rgd)
-		return;
+	rgblk_free(sdp, rgd, bstart, blen, GFS2_BLKST_FREE);
 	trace_gfs2_block_alloc(ip, rgd, bstart, blen, GFS2_BLKST_FREE);
 	rgd->rd_free += blen;
 	rgd->rd_flags &= ~GFS2_RGF_TRIMMED;
@@ -2498,16 +2488,18 @@ void __gfs2_free_blocks(struct gfs2_inode *ip, u64 bstart, u32 blen, int meta)
 /**
  * gfs2_free_meta - free a contiguous run of data block(s)
  * @ip: the inode these blocks are being freed from
+ * @rgd: the resource group the blocks are in
  * @bstart: first block of a run of contiguous blocks
  * @blen: the length of the block run
  *
  */
 
-void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen)
+void gfs2_free_meta(struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
+		    u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
-	__gfs2_free_blocks(ip, bstart, blen, 1);
+	__gfs2_free_blocks(ip, rgd, bstart, blen, 1);
 	gfs2_statfs_change(sdp, 0, +blen, 0);
 	gfs2_quota_change(ip, -(s64)blen, ip->i_inode.i_uid, ip->i_inode.i_gid);
 }
@@ -2519,9 +2511,10 @@ void gfs2_unlink_di(struct inode *inode)
 	struct gfs2_rgrpd *rgd;
 	u64 blkno = ip->i_no_addr;
 
-	rgd = rgblk_free(sdp, blkno, 1, GFS2_BLKST_UNLINKED);
+	rgd = gfs2_blk2rgrpd(sdp, blkno, true);
 	if (!rgd)
 		return;
+	rgblk_free(sdp, rgd, blkno, 1, GFS2_BLKST_UNLINKED);
 	trace_gfs2_block_alloc(ip, rgd, blkno, 1, GFS2_BLKST_UNLINKED);
 	gfs2_trans_add_meta(rgd->rd_gl, rgd->rd_bits[0].bi_bh);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
@@ -2531,13 +2524,8 @@ void gfs2_unlink_di(struct inode *inode)
 void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
-	struct gfs2_rgrpd *tmp_rgd;
 
-	tmp_rgd = rgblk_free(sdp, ip->i_no_addr, 1, GFS2_BLKST_FREE);
-	if (!tmp_rgd)
-		return;
-	gfs2_assert_withdraw(sdp, rgd == tmp_rgd);
-
+	rgblk_free(sdp, rgd, ip->i_no_addr, 1, GFS2_BLKST_FREE);
 	if (!rgd->rd_dinodes)
 		gfs2_consist_rgrpd(rgd);
 	rgd->rd_dinodes--;
