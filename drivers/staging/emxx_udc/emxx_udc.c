@@ -1369,25 +1369,6 @@ static void _nbu2ss_set_endpoint_stall(
 }
 
 /*-------------------------------------------------------------------------*/
-/* Device Descriptor */
-static struct usb_device_descriptor device_desc = {
-	.bLength              = sizeof(device_desc),
-	.bDescriptorType      = USB_DT_DEVICE,
-	.bcdUSB               = cpu_to_le16(0x0200),
-	.bDeviceClass         = USB_CLASS_VENDOR_SPEC,
-	.bDeviceSubClass      = 0x00,
-	.bDeviceProtocol      = 0x00,
-	.bMaxPacketSize0      = 64,
-	.idVendor             = cpu_to_le16(0x0409),
-	.idProduct            = cpu_to_le16(0xfff0),
-	.bcdDevice            = 0xffff,
-	.iManufacturer        = 0x00,
-	.iProduct             = 0x00,
-	.iSerialNumber        = 0x00,
-	.bNumConfigurations   = 0x01,
-};
-
-/*-------------------------------------------------------------------------*/
 static void _nbu2ss_set_test_mode(struct nbu2ss_udc *udc, u32 mode)
 {
 	u32		data;
