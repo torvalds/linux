@@ -399,13 +399,4 @@ config MTD_PISMO
 
 	  When built as a module, it will be called pismo.ko
 
-config MTD_LATCH_ADDR
-	tristate "Latch-assisted Flash Chip Support"
-	depends on MTD_COMPLEX_MAPPINGS
-	help
-	  Map driver which allows flashes to be partially physically addressed
-	  and have the upper address lines set by a board specific code.
-
-	  If compiled as a module, it will be called latch-addr-flash.
-
 endmenu
