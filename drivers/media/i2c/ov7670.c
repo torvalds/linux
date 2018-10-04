@@ -1808,17 +1808,24 @@ static int ov7670_probe(struct i2c_client *client,
 			info->pclk_hb_disable = true;
 	}
 
-	info->clk = devm_clk_get(&client->dev, "xclk");
-	if (IS_ERR(info->clk))
-		return PTR_ERR(info->clk);
-	ret = clk_prepare_enable(info->clk);
-	if (ret)
-		return ret;
+	info->clk = devm_clk_get(&client->dev, "xclk"); /* optional */
+	if (IS_ERR(info->clk)) {
+		ret = PTR_ERR(info->clk);
+		if (ret == -ENOENT)
+			info->clk = NULL;
+		else
+			return ret;
+	}
+	if (info->clk) {
+		ret = clk_prepare_enable(info->clk);
+		if (ret)
+			return ret;
 
-	info->clock_speed = clk_get_rate(info->clk) / 1000000;
-	if (info->clock_speed < 10 || info->clock_speed > 48) {
-		ret = -EINVAL;
-		goto clk_disable;
+		info->clock_speed = clk_get_rate(info->clk) / 1000000;
+		if (info->clock_speed < 10 || info->clock_speed > 48) {
+			ret = -EINVAL;
+			goto clk_disable;
+		}
 	}
 
 	ret = ov7670_init_gpio(client, info);
