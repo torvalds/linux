@@ -797,25 +797,27 @@ int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 /**
  * rdtgroup_cbm_overlaps_pseudo_locked - Test if CBM or portion is pseudo-locked
  * @d: RDT domain
- * @_cbm: CBM to test
+ * @cbm: CBM to test
  *
- * @d represents a cache instance and @_cbm a capacity bitmask that is
- * considered for it. Determine if @_cbm overlaps with any existing
+ * @d represents a cache instance and @cbm a capacity bitmask that is
+ * considered for it. Determine if @cbm overlaps with any existing
  * pseudo-locked region on @d.
  *
- * Return: true if @_cbm overlaps with pseudo-locked region on @d, false
+ * @cbm is unsigned long, even if only 32 bits are used, to make the
+ * bitmap functions work correctly.
+ *
+ * Return: true if @cbm overlaps with pseudo-locked region on @d, false
  * otherwise.
  */
-bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, u32 _cbm)
+bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, unsigned long cbm)
 {
-	unsigned long *cbm = (unsigned long *)&_cbm;
-	unsigned long *cbm_b;
 	unsigned int cbm_len;
+	unsigned long cbm_b;
 
 	if (d->plr) {
 		cbm_len = d->plr->r->cache.cbm_len;
-		cbm_b = (unsigned long *)&d->plr->cbm;
-		if (bitmap_intersects(cbm, cbm_b, cbm_len))
+		cbm_b = d->plr->cbm;
+		if (bitmap_intersects(&cbm, &cbm_b, cbm_len))
 			return true;
 	}
 	return false;
