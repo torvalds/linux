@@ -50,6 +50,8 @@ static int ion_system_contig_heap_allocate(struct ion_heap *heap,
 
 	buffer->sg_table = table;
 
+	ion_buffer_prep_noncached(buffer);
+
 	return 0;
 
 free_table:

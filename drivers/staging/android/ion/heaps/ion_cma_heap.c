@@ -70,6 +70,9 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	buffer->priv_virt = pages;
 	buffer->sg_table = table;
+
+	ion_buffer_prep_noncached(buffer);
+
 	return 0;
 
 free_mem:
