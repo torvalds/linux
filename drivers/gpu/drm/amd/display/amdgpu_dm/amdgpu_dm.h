@@ -255,7 +255,11 @@ struct dm_crtc_state {
 	int crc_skip_count;
 	bool crc_enabled;
 
-	bool freesync_enabled;
+	bool freesync_timing_changed;
+	bool freesync_vrr_info_changed;
+
+	bool vrr_supported;
+	struct mod_freesync_config freesync_config;
 	struct dc_crtc_timing_adjust adjust;
 	struct dc_info_packet vrr_infopacket;
 
@@ -280,7 +284,6 @@ struct dm_connector_state {
 	uint8_t underscan_hborder;
 	uint8_t max_bpc;
 	bool underscan_enable;
-	bool freesync_enable;
 	bool freesync_capable;
 	uint8_t abm_level;
 };
