@@ -4563,7 +4563,7 @@ static void update_permission_bitmask(struct kvm_vcpu *vcpu,
 			 * SMAP:kernel-mode data accesses from user-mode
 			 * mappings should fault. A fault is considered
 			 * as a SMAP violation if all of the following
-			 * conditions are ture:
+			 * conditions are true:
 			 *   - X86_CR4_SMAP is set in CR4
 			 *   - A user page is accessed
 			 *   - The access is not a fetch
@@ -5978,7 +5978,7 @@ out:
 }
 
 /*
- * Caculate mmu pages needed for kvm.
+ * Calculate mmu pages needed for kvm.
  */
 unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
 {
