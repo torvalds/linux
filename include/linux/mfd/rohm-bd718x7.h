@@ -321,7 +321,6 @@ enum {
 	BD718XX_PWRBTN_LONG_PRESS_15S
 };
 
-struct bd718xx_pmic;
 struct bd718xx_clk;
 
 struct bd718xx {
@@ -333,7 +332,6 @@ struct bd718xx {
 	int chip_irq;
 	struct regmap_irq_chip_data *irq_data;
 
-	struct bd718xx_pmic *pmic;
 	struct bd718xx_clk *clk;
 };
 
