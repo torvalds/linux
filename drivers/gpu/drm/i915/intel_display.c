@@ -3511,12 +3511,12 @@ static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
 /*
  * This function detaches (aka. unbinds) unused scalers in hardware
  */
-static void skl_detach_scalers(struct intel_crtc *intel_crtc)
+static void skl_detach_scalers(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc_scaler_state *scaler_state;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	const struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
 	int i;
-
-	scaler_state = &intel_crtc->config->scaler_state;
 
 	/* loop through and disable scalers that aren't in use */
 	for (i = 0; i < intel_crtc->num_scalers; i++) {
@@ -3925,7 +3925,7 @@ static void intel_update_pipe_config(const struct intel_crtc_state *old_crtc_sta
 
 	/* on skylake this is done by detaching scalers */
 	if (INTEL_GEN(dev_priv) >= 9) {
-		skl_detach_scalers(crtc);
+		skl_detach_scalers(new_crtc_state);
 
 		if (new_crtc_state->pch_pfit.enabled)
 			skylake_pfit_enable(new_crtc_state);
@@ -13344,7 +13344,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 	if (intel_cstate->update_pipe)
 		intel_update_pipe_config(old_intel_cstate, intel_cstate);
 	else if (INTEL_GEN(dev_priv) >= 9)
-		skl_detach_scalers(intel_crtc);
+		skl_detach_scalers(intel_cstate);
 
 out:
 	if (dev_priv->display.atomic_update_watermarks)
