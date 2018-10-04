@@ -196,31 +196,16 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 		   FIELD_PREP(MT_MAX_LEN_CFG_AMPDU, min_factor));
 }
 
-static void
-mt76x0_rx_monitor_beacon(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi,
-			  u16 rate, int rssi)
-{
-	dev->bcn_phy_mode = FIELD_GET(MT_RXWI_RATE_PHY, rate);
-	dev->avg_rssi = ((dev->avg_rssi * 15) / 16 + (rssi << 8)) / 256;
-}
-
-static int
-mt76x0_rx_is_our_beacon(struct mt76x0_dev *dev, u8 *data)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
-
-	return ieee80211_is_beacon(hdr->frame_control) &&
-		ether_addr_equal(hdr->addr2, dev->ap_bssid);
-}
-
 u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
-			void *rxi)
+			  void *rxi)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
 	struct mt76x02_rxwi *rxwi = rxi;
 	u32 len, ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);
+	struct mt76x02_sta *sta;
 	int rssi, pad_len = 0;
+	u8 wcid;
 
 	len = FIELD_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
 	if (WARN_ON(len < 10))
@@ -234,6 +219,9 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 	if (rxwi->rxinfo & MT_RXINFO_L2PAD)
 		pad_len += 2;
 
+	wcid = FIELD_GET(MT_RXWI_CTL_WCID, ctl);
+	sta = mt76x02_rx_get_sta(&dev->mt76, wcid);
+
 	mt76x02_remove_hdr_pad(skb, pad_len);
 
 	pskb_trim(skb, len);
@@ -243,19 +231,10 @@ u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
 	status->freq = dev->mt76.chandef.chan->center_freq;
 	status->band = dev->mt76.chandef.chan->band;
 
-	mt76x02_mac_process_rate(status, rate);
-
-	spin_lock_bh(&dev->con_mon_lock);
-	if (mt76x0_rx_is_our_beacon(dev, skb->data)) {
-		mt76x0_rx_monitor_beacon(dev, rxwi, rate, rssi);
-	} else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST)) {
-		if (dev->avg_rssi == 0)
-			dev->avg_rssi = rssi;
-		else
-			dev->avg_rssi = (dev->avg_rssi * 15) / 16 + rssi / 16;
-
+	if (sta) {
+		ewma_signal_add(&sta->rssi, status->signal);
+		sta->inactive_count = 0;
 	}
-	spin_unlock_bh(&dev->con_mon_lock);
 
-	return len;
+	return mt76x02_mac_process_rate(status, rate);
 }

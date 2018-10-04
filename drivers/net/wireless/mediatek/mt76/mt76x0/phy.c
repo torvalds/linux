@@ -818,12 +818,15 @@ done:
 
 static void mt76x0_dynamic_vga_tuning(struct mt76x0_dev *dev)
 {
+	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 	u32 val, init_vga;
+	int avg_rssi;
 
-	init_vga = (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ) ? 0x54 : 0x4E;
-	if (dev->avg_rssi > -60)
+	init_vga = chandef->chan->band == NL80211_BAND_5GHZ ? 0x54 : 0x4E;
+	avg_rssi = mt76x02_phy_get_min_avg_rssi(&dev->mt76);
+	if (avg_rssi > -60)
 		init_vga -= 0x20;
-	else if (dev->avg_rssi > -70)
+	else if (avg_rssi > -70)
 		init_vga -= 0x10;
 
 	val = mt76_rr(dev, MT_BBP(AGC, 8));
@@ -842,17 +845,6 @@ static void mt76x0_phy_calibrate(struct work_struct *work)
 
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
-}
-
-void mt76x0_phy_con_cal_onoff(struct mt76x0_dev *dev,
-			       struct ieee80211_bss_conf *info)
-{
-	/* Start/stop collecting beacon data */
-	spin_lock_bh(&dev->con_mon_lock);
-	ether_addr_copy(dev->ap_bssid, info->bssid);
-	dev->avg_rssi = 0;
-	dev->bcn_freq_off = MT_FREQ_OFFSET_INVALID;
-	spin_unlock_bh(&dev->con_mon_lock);
 }
 
 static void

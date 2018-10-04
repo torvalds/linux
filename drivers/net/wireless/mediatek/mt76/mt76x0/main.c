@@ -68,9 +68,6 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	if (changed & BSS_CHANGED_ASSOC)
-		mt76x0_phy_con_cal_onoff(dev, info);
-
 	if (changed & BSS_CHANGED_BSSID) {
 		mt76x0_addr_wr(dev, MT_MAC_BSSID_DW0, info->bssid);
 

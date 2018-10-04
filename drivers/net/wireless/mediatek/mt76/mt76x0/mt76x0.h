@@ -70,7 +70,6 @@ enum mt_bw {
  * struct mt76x0_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
  * @mac_lock:		locks out mac80211's tx status and rx paths.
- * @con_mon_lock:	protects @ap_bssid, @bcn_*, @avg_rssi.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
  *			(accesses to RF and BBP).
@@ -93,15 +92,6 @@ struct mt76x0_dev {
 	struct mutex hw_atomic_mutex;
 
 	atomic_t avg_ampdu_len;
-
-	/* Connection monitoring things */
-	spinlock_t con_mon_lock;
-	u8 ap_bssid[ETH_ALEN];
-
-	s8 bcn_freq_off;
-	u8 bcn_phy_mode;
-
-	int avg_rssi; /* starts at 0 and converges */
 
 	u8 agc_save;
 
@@ -153,8 +143,6 @@ int mt76x0_phy_set_channel(struct mt76x0_dev *dev,
 			    struct cfg80211_chan_def *chandef);
 void mt76x0_phy_recalibrate_after_assoc(struct mt76x0_dev *dev);
 int mt76x0_phy_get_rssi(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi);
-void mt76x0_phy_con_cal_onoff(struct mt76x0_dev *dev,
-			       struct ieee80211_bss_conf *info);
 void mt76x0_phy_set_txpower(struct mt76x0_dev *dev);
 
 /* MAC */
