@@ -232,22 +232,23 @@ struct afs_addr_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
  */
 void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 {
-	struct sockaddr_in6 *a;
-	__be16 xport = htons(port);
+	struct sockaddr_in6 *p;
+	u32 addr = ntohl(xdr);
 	int i;
 
 	if (alist->nr_addrs >= alist->max_addrs)
 		return;
 
 	for (i = 0; i < alist->nr_ipv4; i++) {
-		a = &alist->addrs[i].transport.sin6;
-		if (xdr == a->sin6_addr.s6_addr32[3] &&
-		    xport == a->sin6_port)
+		struct sockaddr_in6 *a = &alist->addrs[i].transport.sin6;
+		u32 a_addr = ntohl(a->sin6_addr.s6_addr32[3]);
+		u16 a_port = ntohs(a->sin6_port);
+
+		if (addr == a_addr && port == a_port)
 			return;
-		if (xdr == a->sin6_addr.s6_addr32[3] &&
-		    (u16 __force)xport < (u16 __force)a->sin6_port)
+		if (addr == a_addr && port < a_port)
 			break;
-		if ((u32 __force)xdr < (u32 __force)a->sin6_addr.s6_addr32[3])
+		if (addr < a_addr)
 			break;
 	}
 
@@ -256,12 +257,12 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	a = &alist->addrs[i].transport.sin6;
-	a->sin6_port		  = xport;
-	a->sin6_addr.s6_addr32[0] = 0;
-	a->sin6_addr.s6_addr32[1] = 0;
-	a->sin6_addr.s6_addr32[2] = htonl(0xffff);
-	a->sin6_addr.s6_addr32[3] = xdr;
+	p = &alist->addrs[i].transport.sin6;
+	p->sin6_port		  = htons(port);
+	p->sin6_addr.s6_addr32[0] = 0;
+	p->sin6_addr.s6_addr32[1] = 0;
+	p->sin6_addr.s6_addr32[2] = htonl(0xffff);
+	p->sin6_addr.s6_addr32[3] = xdr;
 	alist->nr_ipv4++;
 	alist->nr_addrs++;
 }
@@ -271,21 +272,20 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
  */
 void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 {
-	struct sockaddr_in6 *a;
-	__be16 xport = htons(port);
+	struct sockaddr_in6 *p;
 	int i, diff;
 
 	if (alist->nr_addrs >= alist->max_addrs)
 		return;
 
 	for (i = alist->nr_ipv4; i < alist->nr_addrs; i++) {
-		a = &alist->addrs[i].transport.sin6;
+		struct sockaddr_in6 *a = &alist->addrs[i].transport.sin6;
+		u16 a_port = ntohs(a->sin6_port);
+
 		diff = memcmp(xdr, &a->sin6_addr, 16);
-		if (diff == 0 &&
-		    xport == a->sin6_port)
+		if (diff == 0 && port == a_port)
 			return;
-		if (diff == 0 &&
-		    (u16 __force)xport < (u16 __force)a->sin6_port)
+		if (diff == 0 && port < a_port)
 			break;
 		if (diff < 0)
 			break;
@@ -296,12 +296,9 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	a = &alist->addrs[i].transport.sin6;
-	a->sin6_port		  = xport;
-	a->sin6_addr.s6_addr32[0] = xdr[0];
-	a->sin6_addr.s6_addr32[1] = xdr[1];
-	a->sin6_addr.s6_addr32[2] = xdr[2];
-	a->sin6_addr.s6_addr32[3] = xdr[3];
+	p = &alist->addrs[i].transport.sin6;
+	p->sin6_port = htons(port);
+	memcpy(&p->sin6_addr, xdr, 16);
 	alist->nr_addrs++;
 }
 
