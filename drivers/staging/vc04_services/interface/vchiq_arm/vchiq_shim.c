@@ -50,33 +50,6 @@ struct shim_service {
 	void *callback_param;
 };
 
-/* ----------------------------------------------------------------------
- * return pointer to the mphi message driver function table
- * -------------------------------------------------------------------- */
-const VCHI_MESSAGE_DRIVER_T *
-vchi_mphi_message_driver_func_table(void)
-{
-	return NULL;
-}
-
-/* ----------------------------------------------------------------------
- * return a pointer to the 'single' connection driver fops
- * -------------------------------------------------------------------- */
-const VCHI_CONNECTION_API_T *
-single_get_func_table(void)
-{
-	return NULL;
-}
-
-VCHI_CONNECTION_T *vchi_create_connection(
-	const VCHI_CONNECTION_API_T *function_table,
-	const VCHI_MESSAGE_DRIVER_T *low_level)
-{
-	(void)function_table;
-	(void)low_level;
-	return NULL;
-}
-
 /***********************************************************
  * Name: vchi_msg_peek
  *

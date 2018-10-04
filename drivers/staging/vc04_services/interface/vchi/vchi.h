@@ -116,9 +116,6 @@ typedef struct service_info_tag {
 extern "C" {
 #endif
 
-extern /*@observer@*/ VCHI_CONNECTION_T *vchi_create_connection(const VCHI_CONNECTION_API_T *function_table,
-								 const VCHI_MESSAGE_DRIVER_T *low_level);
-
 // Routine used to initialise the vchi on both local + remote connections
 extern int32_t vchi_initialise(VCHI_INSTANCE_T *instance_handle);
 
@@ -291,14 +288,6 @@ extern int32_t vchi_bulk_queue_transmit(VCHI_SERVICE_HANDLE_T handle,
 /******************************************************************************
  Configuration plumbing
  *****************************************************************************/
-
-// function prototypes for the different mid layers (the state info gives the different physical connections)
-extern const VCHI_CONNECTION_API_T *single_get_func_table(void);
-//extern const VCHI_CONNECTION_API_T *local_server_get_func_table(void);
-//extern const VCHI_CONNECTION_API_T *local_client_get_func_table(void);
-
-// declare all message drivers here
-const VCHI_MESSAGE_DRIVER_T *vchi_mphi_message_driver_func_table(void);
 
 #ifdef __cplusplus
 }
