@@ -61,8 +61,10 @@ static bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu)
 		A6XX_GMU_SPTPRAC_PWR_CLK_STATUS_GX_HM_CLK_OFF));
 }
 
-static int a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
+static void __a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 {
+	int ret;
+
 	gmu_write(gmu, REG_A6XX_GMU_DCVS_ACK_OPTION, 0);
 
 	gmu_write(gmu, REG_A6XX_GMU_DCVS_PERF_SETTING,
@@ -78,7 +80,37 @@ static int a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 	a6xx_gmu_set_oob(gmu, GMU_OOB_DCVS_SET);
 	a6xx_gmu_clear_oob(gmu, GMU_OOB_DCVS_SET);
 
-	return gmu_read(gmu, REG_A6XX_GMU_DCVS_RETURN);
+	ret = gmu_read(gmu, REG_A6XX_GMU_DCVS_RETURN);
+	if (ret)
+		dev_err(gmu->dev, "GMU set GPU frequency error: %d\n", ret);
+
+	gmu->freq = gmu->gpu_freqs[index];
+}
+
+void a6xx_gmu_set_freq(struct msm_gpu *gpu, unsigned long freq)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
+	u32 perf_index = 0;
+
+	if (freq == gmu->freq)
+		return;
+
+	for (perf_index = 0; perf_index < gmu->nr_gpu_freqs - 1; perf_index++)
+		if (freq == gmu->gpu_freqs[perf_index])
+			break;
+
+	__a6xx_gmu_set_freq(gmu, perf_index);
+}
+
+unsigned long a6xx_gmu_get_freq(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
+
+	return  gmu->freq;
 }
 
 static bool a6xx_gmu_check_idle_level(struct a6xx_gmu *gmu)
@@ -637,7 +669,7 @@ int a6xx_gmu_reset(struct a6xx_gpu *a6xx_gpu)
 		ret = a6xx_hfi_start(gmu, GMU_COLD_BOOT);
 
 	/* Set the GPU back to the highest power frequency */
-	a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
+	__a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
 
 out:
 	if (ret)
@@ -676,7 +708,7 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 	ret = a6xx_hfi_start(gmu, status);
 
 	/* Set the GPU to the highest power frequency */
-	a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
+	__a6xx_gmu_set_freq(gmu, gmu->nr_gpu_freqs - 1);
 
 out:
 	/* Make sure to turn off the boot OOB request on error */

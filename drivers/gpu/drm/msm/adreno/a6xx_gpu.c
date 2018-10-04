@@ -7,6 +7,8 @@
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
 
+#include <linux/devfreq.h>
+
 static inline bool _a6xx_check_idle(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -682,6 +684,8 @@ static int a6xx_pm_resume(struct msm_gpu *gpu)
 
 	gpu->needs_hw_init = true;
 
+	msm_gpu_resume_devfreq(gpu);
+
 	return ret;
 }
 
@@ -689,6 +693,8 @@ static int a6xx_pm_suspend(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+
+	devfreq_suspend_device(gpu->devfreq.devfreq);
 
 	/*
 	 * Make sure the GMU is idle before continuing (because some transitions
@@ -753,6 +759,24 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 	kfree(a6xx_gpu);
 }
 
+static unsigned long a6xx_gpu_busy(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	u64 busy_cycles;
+	unsigned long busy_time;
+
+	busy_cycles = gmu_read64(&a6xx_gpu->gmu,
+			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_L,
+			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_H);
+
+	busy_time = ((busy_cycles - gpu->devfreq.busy_cycles) * 10) / 192;
+
+	gpu->devfreq.busy_cycles = busy_cycles;
+
+	return busy_time;
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
@@ -768,6 +792,9 @@ static const struct adreno_gpu_funcs funcs = {
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = a6xx_show,
 #endif
+		.gpu_busy = a6xx_gpu_busy,
+		.gpu_get_freq = a6xx_gmu_get_freq,
+		.gpu_set_freq = a6xx_gmu_set_freq,
 	},
 	.get_timestamp = a6xx_get_timestamp,
 };

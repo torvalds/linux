@@ -74,6 +74,8 @@ struct a6xx_gmu {
 	unsigned long gmu_freqs[4];
 	u32 cx_arc_votes[4];
 
+	unsigned long freq;
+
 	struct a6xx_hfi_queue queues[2];
 
 	struct tasklet_struct hfi_tasklet;
