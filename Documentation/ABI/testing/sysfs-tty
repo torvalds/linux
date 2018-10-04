@@ -154,12 +154,3 @@ Description:
 		 device specification. For example, when user sets 7bytes on
 		 16550A, which has 1/4/8/14 bytes trigger, the RX trigger is
 		 automatically changed to 4 bytes.
-
-What:		/sys/class/tty/ttyS0/pps_4wire
-Date:		September 2018
-Contact:	Steve Sakoman <steve@sakoman.com>
-Description:
-		 Shows/sets "4 wire" mode for the PPS input to the serial driver.
-		 For fully implemented serial ports PPS is normally provided
-		 on the DCD line. For partial "4 wire" implementations CTS is
-		 used instead of DCD.

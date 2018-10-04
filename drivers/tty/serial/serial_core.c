@@ -2724,57 +2724,6 @@ static ssize_t uart_get_attr_iomem_reg_shift(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", tmp.iomem_reg_shift);
 }
 
-static ssize_t pps_4wire_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct tty_port *port = dev_get_drvdata(dev);
-	struct uart_state *state = container_of(port, struct uart_state, port);
-	struct uart_port *uport;
-	int mode = 0;
-
-	mutex_lock(&port->mutex);
-	uport = uart_port_check(state);
-	if (!uport)
-		goto out;
-
-	mode = uport->pps_4wire;
-
-out:
-	mutex_unlock(&port->mutex);
-	return sprintf(buf, mode ? "yes\n" : "no\n");
-}
-
-static ssize_t pps_4wire_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct tty_port *port = dev_get_drvdata(dev);
-	struct uart_state *state = container_of(port, struct uart_state, port);
-	struct uart_port *uport;
-	bool mode;
-	int ret;
-
-	if (!count)
-		return -EINVAL;
-
-	ret = kstrtobool(buf, &mode);
-	if (ret < 0)
-		return ret;
-
-	mutex_lock(&port->mutex);
-	uport = uart_port_check(state);
-	if (!uport)
-		goto out;
-
-	spin_lock_irq(&uport->lock);
-	uport->pps_4wire = mode;
-	spin_unlock_irq(&uport->lock);
-
-out:
-	mutex_unlock(&port->mutex);
-	return count;
-}
-static DEVICE_ATTR_RW(pps_4wire);
-
 static DEVICE_ATTR(type, S_IRUSR | S_IRGRP, uart_get_attr_type, NULL);
 static DEVICE_ATTR(line, S_IRUSR | S_IRGRP, uart_get_attr_line, NULL);
 static DEVICE_ATTR(port, S_IRUSR | S_IRGRP, uart_get_attr_port, NULL);
@@ -2803,7 +2752,6 @@ static struct attribute *tty_dev_attrs[] = {
 	&dev_attr_io_type.attr,
 	&dev_attr_iomem_base.attr,
 	&dev_attr_iomem_reg_shift.attr,
-	&dev_attr_pps_4wire.attr,
 	NULL,
 	};
 
@@ -2859,9 +2807,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	/* assert that pps handling is done via DCD as default */
-	uport->pps_4wire = 0;
 
 	/*
 	 * If this port is a console, then the spinlock is already
@@ -3038,7 +2983,7 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 
 	lockdep_assert_held_once(&uport->lock);
 
-	if (tty && !uport->pps_4wire) {
+	if (tty) {
 		ld = tty_ldisc_ref(tty);
 		if (ld) {
 			if (ld->ops->dcd_change)
@@ -3067,20 +3012,7 @@ EXPORT_SYMBOL_GPL(uart_handle_dcd_change);
  */
 void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 {
-	struct tty_port *port = &uport->state->port;
-	struct tty_struct *tty = port->tty;
-	struct tty_ldisc *ld;
-
 	lockdep_assert_held_once(&uport->lock);
-
-	if (tty && uport->pps_4wire) {
-		ld = tty_ldisc_ref(tty);
-		if (ld) {
-			if (ld->ops->dcd_change)
-				ld->ops->dcd_change(tty, status);
-			tty_ldisc_deref(ld);
-		}
-	}
 
 	uport->icount.cts++;
 
