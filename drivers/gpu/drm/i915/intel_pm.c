@@ -4672,15 +4672,24 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	} else {
 		if ((wp->cpp * cstate->base.adjusted_mode.crtc_htotal /
 		     wp->dbuf_block_size < 1) &&
-		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1))
+		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1)) {
 			selected_result = method2;
-		else if (ddb_allocation >=
-			 fixed16_to_u32_round_up(wp->plane_blocks_per_line))
-			selected_result = min_fixed16(method1, method2);
-		else if (latency >= wp->linetime_us)
-			selected_result = min_fixed16(method1, method2);
-		else
+		} else if (ddb_allocation >=
+			 fixed16_to_u32_round_up(wp->plane_blocks_per_line)) {
+			if (INTEL_GEN(dev_priv) == 9 &&
+			    !IS_GEMINILAKE(dev_priv))
+				selected_result = min_fixed16(method1, method2);
+			else
+				selected_result = method2;
+		} else if (latency >= wp->linetime_us) {
+			if (INTEL_GEN(dev_priv) == 9 &&
+			    !IS_GEMINILAKE(dev_priv))
+				selected_result = min_fixed16(method1, method2);
+			else
+				selected_result = method2;
+		} else {
 			selected_result = method1;
+		}
 	}
 
 	res_blocks = fixed16_to_u32_round_up(selected_result) + 1;
