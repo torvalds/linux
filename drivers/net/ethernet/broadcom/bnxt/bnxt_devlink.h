@@ -33,6 +33,7 @@ static inline void bnxt_link_bp_to_dl(struct bnxt *bp, struct devlink *dl)
 	}
 }
 
+#define NVM_OFF_IGNORE_ARI		164
 #define NVM_OFF_ENABLE_SRIOV		401
 
 enum bnxt_nvm_dir_type {
