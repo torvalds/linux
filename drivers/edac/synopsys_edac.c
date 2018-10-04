@@ -350,10 +350,8 @@ static enum mem_type get_mtype(const void __iomem *base)
  *
  * Initialize the chip select rows associated with the EDAC memory
  * controller instance.
- *
- * Return: Unconditionally 0.
  */
-static int init_csrows(struct mem_ctl_info *mci)
+static void init_csrows(struct mem_ctl_info *mci)
 {
 	struct synps_edac_priv *priv = mci->pvt_info;
 	struct csrow_info *csi;
@@ -374,8 +372,6 @@ static int init_csrows(struct mem_ctl_info *mci)
 			dimm->dtype	= get_dtype(priv->baseaddr);
 		}
 	}
-
-	return 0;
 }
 
 /**
@@ -386,12 +382,9 @@ static int init_csrows(struct mem_ctl_info *mci)
  * Perform initialization of the EDAC memory controller instance and
  * related driver-private data associated with the memory controller the
  * instance is bound to.
- *
- * Return: Always zero.
  */
-static int mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
+static void mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
 {
-	int status;
 	struct synps_edac_priv *priv;
 
 	mci->pdev = &pdev->dev;
@@ -413,9 +406,7 @@ static int mc_init(struct mem_ctl_info *mci, struct platform_device *pdev)
 	mci->edac_check = check_errors;
 	mci->ctl_page_to_phys = NULL;
 
-	status = init_csrows(mci);
-
-	return status;
+	init_csrows(mci);
 }
 
 /**
@@ -463,12 +454,7 @@ static int mc_probe(struct platform_device *pdev)
 
 	priv = mci->pvt_info;
 	priv->baseaddr = baseaddr;
-	rc = mc_init(mci, pdev);
-	if (rc) {
-		edac_printk(KERN_ERR, EDAC_MC,
-			    "Failed to initialize instance\n");
-		goto free_edac_mc;
-	}
+	mc_init(mci, pdev);
 
 	rc = edac_mc_add_mc(mci);
 	if (rc) {
