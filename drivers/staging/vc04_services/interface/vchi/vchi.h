@@ -77,19 +77,8 @@ typedef struct {
 typedef struct {
 	struct vchi_version version;
 	int32_t service_id;
-	uint32_t rx_fifo_size;
-	uint32_t tx_fifo_size;
 	VCHI_CALLBACK_T callback;
 	void *callback_param;
-	/* client intends to receive bulk transfers of
-		odd lengths or into unaligned buffers */
-	int32_t want_unaligned_bulk_rx;
-	/* client intends to transmit bulk transfers of
-		odd lengths or out of unaligned buffers */
-	int32_t want_unaligned_bulk_tx;
-	/* client wants to check CRCs on (bulk) xfers.
-		Only needs to be set at 1 end - will do both directions. */
-	int32_t want_crc;
 } SERVICE_CREATION_T;
 
 // Opaque handle for a VCHI instance

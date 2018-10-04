@@ -130,13 +130,8 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 	SERVICE_CREATION_T params = {
 		.version		= VCHI_VERSION_EX(VC_AUDIOSERV_VER, VC_AUDIOSERV_MIN_VER),
 		.service_id		= VC_AUDIO_SERVER_NAME,
-		.rx_fifo_size		= 0,
-		.tx_fifo_size		= 0,
 		.callback		= audio_vchi_callback,
 		.callback_param		= instance,
-		.want_unaligned_bulk_rx = 1, //TODO: remove VCOS_FALSE
-		.want_unaligned_bulk_tx = 1, //TODO: remove VCOS_FALSE
-		.want_crc		= 0
 	};
 	int status;
 

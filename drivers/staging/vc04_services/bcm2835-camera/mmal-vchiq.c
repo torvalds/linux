@@ -1806,13 +1806,8 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	SERVICE_CREATION_T params = {
 		.version		= VCHI_VERSION_EX(VC_MMAL_VER, VC_MMAL_MIN_VER),
 		.service_id		= VC_MMAL_SERVER_NAME,
-		.rx_fifo_size		= 0,
-		.tx_fifo_size		= 0,
 		.callback		= service_callback,
 		.callback_param		= NULL,
-		.want_unaligned_bulk_rx = 1,
-		.want_unaligned_bulk_tx = 1,
-		.want_crc		= 0
 	};
 
 	/* compile time checks to ensure structure size as they are
