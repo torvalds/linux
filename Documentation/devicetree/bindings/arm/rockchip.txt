@@ -5,6 +5,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "vamrs,ficus", "rockchip,rk3399";
 
+- 96boards RK3399 Rock960 (ROCK960 Consumer Edition)
+    Required root node properties:
+      - compatible = "vamrs,rock960", "rockchip,rk3399";
+
 - Amarula Vyasa RK3288 board
     Required root node properties:
       - compatible = "amarula,vyasa-rk3288", "rockchip,rk3288";
@@ -163,6 +167,10 @@ Rockchip platforms device tree bindings
 - Pine64 Rock64 board:
     Required root node properties:
     - compatible = "pine64,rock64", "rockchip,rk3328";
+
+- Pine64 RockPro64 board:
+    Required root node properties:
+    - compatible = "pine64,rockpro64", "rockchip,rk3399";
 
 - Rockchip PX3 Evaluation board:
     Required root node properties:
