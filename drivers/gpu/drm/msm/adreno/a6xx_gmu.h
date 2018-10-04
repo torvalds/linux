@@ -98,6 +98,16 @@ static inline void gmu_rmw(struct a6xx_gmu *gmu, u32 reg, u32 mask, u32 or)
 	gmu_write(gmu, reg, val | or);
 }
 
+static inline u64 gmu_read64(struct a6xx_gmu *gmu, u32 lo, u32 hi)
+{
+	u64 val;
+
+	val = (u64) msm_readl(gmu->mmio + (lo << 2));
+	val |= ((u64) msm_readl(gmu->mmio + (hi << 2)) << 32);
+
+	return val;
+}
+
 #define gmu_poll_timeout(gmu, addr, val, cond, interval, timeout) \
 	readl_poll_timeout((gmu)->mmio + ((addr) << 2), val, cond, \
 		interval, timeout)
