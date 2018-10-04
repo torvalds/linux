@@ -5603,15 +5603,15 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (pipe_config->has_pch_encoder)
 		intel_prepare_shared_dpll(pipe_config);
 
-	if (intel_crtc_has_dp_encoder(intel_crtc->config))
+	if (intel_crtc_has_dp_encoder(pipe_config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
 	intel_set_pipe_timings(pipe_config);
 	intel_set_pipe_src_size(pipe_config);
 
-	if (intel_crtc->config->has_pch_encoder) {
+	if (pipe_config->has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
-				     &intel_crtc->config->fdi_m_n, NULL);
+				     &pipe_config->fdi_m_n, NULL);
 	}
 
 	ironlake_set_pipeconf(pipe_config);
@@ -5620,7 +5620,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
-	if (intel_crtc->config->has_pch_encoder) {
+	if (pipe_config->has_pch_encoder) {
 		/* Note: FDI PLL enabling _must_ be done before we enable the
 		 * cpu pipes, hence this is separate from all the other fdi/pch
 		 * enabling. */
@@ -5639,10 +5639,10 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_color_load_luts(&pipe_config->base);
 
 	if (dev_priv->display.initial_watermarks != NULL)
-		dev_priv->display.initial_watermarks(old_intel_state, intel_crtc->config);
+		dev_priv->display.initial_watermarks(old_intel_state, pipe_config);
 	intel_enable_pipe(pipe_config);
 
-	if (intel_crtc->config->has_pch_encoder)
+	if (pipe_config->has_pch_encoder)
 		ironlake_pch_enable(old_intel_state, pipe_config);
 
 	assert_vblank_disabled(crtc);
@@ -5659,7 +5659,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	 * some interlaced HDMI modes. Let's do the double wait always
 	 * in case there are more corner cases we don't know about.
 	 */
-	if (intel_crtc->config->has_pch_encoder) {
+	if (pipe_config->has_pch_encoder) {
 		intel_wait_for_vblank(dev_priv, pipe);
 		intel_wait_for_vblank(dev_priv, pipe);
 	}
@@ -5708,7 +5708,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe, hsw_workaround_pipe;
-	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
+	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	struct intel_atomic_state *old_intel_state =
 		to_intel_atomic_state(old_state);
 	bool psl_clkgate_wa;
@@ -5727,7 +5727,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
-	if (intel_crtc_has_dp_encoder(intel_crtc->config))
+	if (intel_crtc_has_dp_encoder(pipe_config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
@@ -5738,12 +5738,12 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (cpu_transcoder != TRANSCODER_EDP &&
 	    !transcoder_is_dsi(cpu_transcoder)) {
 		I915_WRITE(PIPE_MULT(cpu_transcoder),
-			   intel_crtc->config->pixel_multiplier - 1);
+			   pipe_config->pixel_multiplier - 1);
 	}
 
-	if (intel_crtc->config->has_pch_encoder) {
+	if (pipe_config->has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
-				     &intel_crtc->config->fdi_m_n, NULL);
+				     &pipe_config->fdi_m_n, NULL);
 	}
 
 	if (!transcoder_is_dsi(cpu_transcoder))
@@ -5757,7 +5757,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	/* Display WA #1180: WaDisableScalarClockGating: glk, cnl */
 	psl_clkgate_wa = (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) &&
-			 intel_crtc->config->pch_pfit.enabled;
+			 pipe_config->pch_pfit.enabled;
 	if (psl_clkgate_wa)
 		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, true);
 
@@ -5797,10 +5797,10 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_enable_pipe(pipe_config);
 
-	if (intel_crtc->config->has_pch_encoder)
+	if (pipe_config->has_pch_encoder)
 		lpt_pch_enable(old_intel_state, pipe_config);
 
-	if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DP_MST))
+	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST))
 		intel_ddi_set_vc_payload_alloc(pipe_config, true);
 
 	assert_vblank_disabled(crtc);
@@ -5863,12 +5863,12 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	ironlake_pfit_disable(old_crtc_state);
 
-	if (intel_crtc->config->has_pch_encoder)
+	if (old_crtc_state->has_pch_encoder)
 		ironlake_fdi_disable(crtc);
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
-	if (intel_crtc->config->has_pch_encoder) {
+	if (old_crtc_state->has_pch_encoder) {
 		ironlake_disable_pch_transcoder(dev_priv, pipe);
 
 		if (HAS_PCH_CPT(dev_priv)) {
@@ -6069,7 +6069,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (WARN_ON(intel_crtc->active))
 		return;
 
-	if (intel_crtc_has_dp_encoder(intel_crtc->config))
+	if (intel_crtc_has_dp_encoder(pipe_config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
 	intel_set_pipe_timings(pipe_config);
@@ -6139,7 +6139,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	i9xx_set_pll_dividers(pipe_config);
 
-	if (intel_crtc_has_dp_encoder(intel_crtc->config))
+	if (intel_crtc_has_dp_encoder(pipe_config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
 	intel_set_pipe_timings(pipe_config);
@@ -6162,7 +6162,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(old_intel_state,
-						     intel_crtc->config);
+						     pipe_config);
 	else
 		intel_update_watermarks(intel_crtc);
 	intel_enable_pipe(pipe_config);
@@ -6215,7 +6215,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
-	if (!intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DSI)) {
+	if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DSI)) {
 		if (IS_CHERRYVIEW(dev_priv))
 			chv_disable_pll(dev_priv, pipe);
 		else if (IS_VALLEYVIEW(dev_priv))
