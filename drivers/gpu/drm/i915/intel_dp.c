@@ -4420,7 +4420,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 
 	/* Suppress underruns caused by re-training */
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
-	if (crtc->config->has_pch_encoder)
+	if (crtc_state->has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv,
 						      intel_crtc_pch_transcoder(crtc), false);
 
@@ -4431,7 +4431,7 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 	intel_wait_for_vblank(dev_priv, crtc->pipe);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
-	if (crtc->config->has_pch_encoder)
+	if (crtc_state->has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv,
 						      intel_crtc_pch_transcoder(crtc), true);
 
