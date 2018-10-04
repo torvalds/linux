@@ -561,7 +561,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 			continue;
 		}
 
-		if (rxrpc_extract_addr_from_skb(local, &srx, skb) == 0) {
+		if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
 			msg.msg_namelen = srx.transport_len;
 
 			whdr.epoch	= htonl(sp->hdr.epoch);

@@ -17,9 +17,7 @@
 /*
  * Fill out a peer address from a socket buffer containing a packet.
  */
-int rxrpc_extract_addr_from_skb(struct rxrpc_local *local,
-				struct sockaddr_rxrpc *srx,
-				struct sk_buff *skb)
+int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *srx, struct sk_buff *skb)
 {
 	memset(srx, 0, sizeof(*srx));
 
