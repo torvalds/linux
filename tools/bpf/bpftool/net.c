@@ -69,7 +69,9 @@ static int dump_link_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 	snprintf(netinfo->devices[netinfo->used_len].devname,
 		 sizeof(netinfo->devices[netinfo->used_len].devname),
 		 "%s",
-		 tb[IFLA_IFNAME] ? nla_getattr_str(tb[IFLA_IFNAME]) : "");
+		 tb[IFLA_IFNAME]
+			 ? libbpf_nla_getattr_str(tb[IFLA_IFNAME])
+			 : "");
 	netinfo->used_len++;
 
 	return do_xdp_dump(ifinfo, tb);
@@ -83,7 +85,7 @@ static int dump_class_qdisc_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 	if (tcinfo->is_qdisc) {
 		/* skip clsact qdisc */
 		if (tb[TCA_KIND] &&
-		    strcmp(nla_data(tb[TCA_KIND]), "clsact") == 0)
+		    strcmp(libbpf_nla_data(tb[TCA_KIND]), "clsact") == 0)
 			return 0;
 		if (info->tcm_handle == 0)
 			return 0;
@@ -101,7 +103,9 @@ static int dump_class_qdisc_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 	snprintf(tcinfo->handle_array[tcinfo->used_len].kind,
 		 sizeof(tcinfo->handle_array[tcinfo->used_len].kind),
 		 "%s",
-		 tb[TCA_KIND] ? nla_getattr_str(tb[TCA_KIND]) : "unknown");
+		 tb[TCA_KIND]
+			 ? libbpf_nla_getattr_str(tb[TCA_KIND])
+			 : "unknown");
 	tcinfo->used_len++;
 
 	return 0;
@@ -127,14 +131,14 @@ static int show_dev_tc_bpf(int sock, unsigned int nl_pid,
 	tcinfo.array_len = 0;
 
 	tcinfo.is_qdisc = false;
-	ret = nl_get_class(sock, nl_pid, dev->ifindex, dump_class_qdisc_nlmsg,
-			   &tcinfo);
+	ret = libbpf_nl_get_class(sock, nl_pid, dev->ifindex,
+				  dump_class_qdisc_nlmsg, &tcinfo);
 	if (ret)
 		goto out;
 
 	tcinfo.is_qdisc = true;
-	ret = nl_get_qdisc(sock, nl_pid, dev->ifindex, dump_class_qdisc_nlmsg,
-			   &tcinfo);
+	ret = libbpf_nl_get_qdisc(sock, nl_pid, dev->ifindex,
+				  dump_class_qdisc_nlmsg, &tcinfo);
 	if (ret)
 		goto out;
 
@@ -142,10 +146,9 @@ static int show_dev_tc_bpf(int sock, unsigned int nl_pid,
 	filter_info.ifindex = dev->ifindex;
 	for (i = 0; i < tcinfo.used_len; i++) {
 		filter_info.kind = tcinfo.handle_array[i].kind;
-		ret = nl_get_filter(sock, nl_pid, dev->ifindex,
-				    tcinfo.handle_array[i].handle,
-				    dump_filter_nlmsg,
-				    &filter_info);
+		ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex,
+					   tcinfo.handle_array[i].handle,
+					   dump_filter_nlmsg, &filter_info);
 		if (ret)
 			goto out;
 	}
@@ -153,22 +156,22 @@ static int show_dev_tc_bpf(int sock, unsigned int nl_pid,
 	/* root, ingress and egress handle */
 	handle = TC_H_ROOT;
 	filter_info.kind = "root";
-	ret = nl_get_filter(sock, nl_pid, dev->ifindex, handle,
-			    dump_filter_nlmsg, &filter_info);
+	ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex, handle,
+				   dump_filter_nlmsg, &filter_info);
 	if (ret)
 		goto out;
 
 	handle = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_INGRESS);
 	filter_info.kind = "clsact/ingress";
-	ret = nl_get_filter(sock, nl_pid, dev->ifindex, handle,
-			    dump_filter_nlmsg, &filter_info);
+	ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex, handle,
+				   dump_filter_nlmsg, &filter_info);
 	if (ret)
 		goto out;
 
 	handle = TC_H_MAKE(TC_H_CLSACT, TC_H_MIN_EGRESS);
 	filter_info.kind = "clsact/egress";
-	ret = nl_get_filter(sock, nl_pid, dev->ifindex, handle,
-			    dump_filter_nlmsg, &filter_info);
+	ret = libbpf_nl_get_filter(sock, nl_pid, dev->ifindex, handle,
+				   dump_filter_nlmsg, &filter_info);
 	if (ret)
 		goto out;
 
@@ -196,7 +199,7 @@ static int do_show(int argc, char **argv)
 		usage();
 	}
 
-	sock = bpf_netlink_open(&nl_pid);
+	sock = libbpf_netlink_open(&nl_pid);
 	if (sock < 0) {
 		fprintf(stderr, "failed to open netlink sock\n");
 		return -1;
@@ -211,7 +214,7 @@ static int do_show(int argc, char **argv)
 		jsonw_start_array(json_wtr);
 	NET_START_OBJECT;
 	NET_START_ARRAY("xdp", "%s:\n");
-	ret = nl_get_link(sock, nl_pid, dump_link_nlmsg, &dev_array);
+	ret = libbpf_nl_get_link(sock, nl_pid, dump_link_nlmsg, &dev_array);
 	NET_END_ARRAY("\n");
 
 	if (!ret) {

@@ -20,8 +20,8 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this program; if not,  see <http://www.gnu.org/licenses>
  */
-#ifndef __BPF_LIBBPF_H
-#define __BPF_LIBBPF_H
+#ifndef __LIBBPF_LIBBPF_H
+#define __LIBBPF_LIBBPF_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -129,7 +129,7 @@ void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex);
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
 int bpf_program__load(struct bpf_program *prog, char *license,
-		      u32 kern_version);
+		      __u32 kern_version);
 int bpf_program__fd(struct bpf_program *prog);
 int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
 			      int instance);
@@ -304,18 +304,15 @@ int bpf_perf_event_read_simple(void *mem, unsigned long size,
 			       void **buf, size_t *buf_len,
 			       bpf_perf_event_print_t fn, void *priv);
 
-struct nlmsghdr;
 struct nlattr;
-typedef int (*dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
-typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, dump_nlmsg_t,
-			      void *cookie);
-int bpf_netlink_open(unsigned int *nl_pid);
-int nl_get_link(int sock, unsigned int nl_pid, dump_nlmsg_t dump_link_nlmsg,
-		void *cookie);
-int nl_get_class(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_class_nlmsg, void *cookie);
-int nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
-int nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
-		  dump_nlmsg_t dump_filter_nlmsg, void *cookie);
-#endif
+typedef int (*libbpf_dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
+int libbpf_netlink_open(unsigned int *nl_pid);
+int libbpf_nl_get_link(int sock, unsigned int nl_pid,
+		       libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie);
+int libbpf_nl_get_class(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_class_nlmsg, void *cookie);
+int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
+int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
+			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
+#endif /* __LIBBPF_LIBBPF_H */

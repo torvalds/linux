@@ -18,7 +18,10 @@
 #define SOL_NETLINK 270
 #endif
 
-int bpf_netlink_open(__u32 *nl_pid)
+typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, libbpf_dump_nlmsg_t,
+			      void *cookie);
+
+int libbpf_netlink_open(__u32 *nl_pid)
 {
 	struct sockaddr_nl sa;
 	socklen_t addrlen;
@@ -62,7 +65,7 @@ cleanup:
 }
 
 static int bpf_netlink_recv(int sock, __u32 nl_pid, int seq,
-			    __dump_nlmsg_t _fn, dump_nlmsg_t fn,
+			    __dump_nlmsg_t _fn, libbpf_dump_nlmsg_t fn,
 			    void *cookie)
 {
 	bool multipart = true;
@@ -100,7 +103,7 @@ static int bpf_netlink_recv(int sock, __u32 nl_pid, int seq,
 				if (!err->error)
 					continue;
 				ret = err->error;
-				nla_dump_errormsg(nh);
+				libbpf_nla_dump_errormsg(nh);
 				goto done;
 			case NLMSG_DONE:
 				return 0;
@@ -130,7 +133,7 @@ int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
 	} req;
 	__u32 nl_pid;
 
-	sock = bpf_netlink_open(&nl_pid);
+	sock = libbpf_netlink_open(&nl_pid);
 	if (sock < 0)
 		return sock;
 
@@ -178,8 +181,8 @@ cleanup:
 	return ret;
 }
 
-static int __dump_link_nlmsg(struct nlmsghdr *nlh, dump_nlmsg_t dump_link_nlmsg,
-			     void *cookie)
+static int __dump_link_nlmsg(struct nlmsghdr *nlh,
+			     libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie)
 {
 	struct nlattr *tb[IFLA_MAX + 1], *attr;
 	struct ifinfomsg *ifi = NLMSG_DATA(nlh);
@@ -187,14 +190,14 @@ static int __dump_link_nlmsg(struct nlmsghdr *nlh, dump_nlmsg_t dump_link_nlmsg,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifi));
 	attr = (struct nlattr *) ((void *) ifi + NLMSG_ALIGN(sizeof(*ifi)));
-	if (nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, IFLA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_link_nlmsg(cookie, ifi, tb);
 }
 
-int nl_get_link(int sock, unsigned int nl_pid, dump_nlmsg_t dump_link_nlmsg,
-		void *cookie)
+int libbpf_nl_get_link(int sock, unsigned int nl_pid,
+		       libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie)
 {
 	struct {
 		struct nlmsghdr nlh;
@@ -216,7 +219,8 @@ int nl_get_link(int sock, unsigned int nl_pid, dump_nlmsg_t dump_link_nlmsg,
 }
 
 static int __dump_class_nlmsg(struct nlmsghdr *nlh,
-			      dump_nlmsg_t dump_class_nlmsg, void *cookie)
+			      libbpf_dump_nlmsg_t dump_class_nlmsg,
+			      void *cookie)
 {
 	struct nlattr *tb[TCA_MAX + 1], *attr;
 	struct tcmsg *t = NLMSG_DATA(nlh);
@@ -224,14 +228,14 @@ static int __dump_class_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_class_nlmsg(cookie, t, tb);
 }
 
-int nl_get_class(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_class_nlmsg, void *cookie)
+int libbpf_nl_get_class(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_class_nlmsg, void *cookie)
 {
 	struct {
 		struct nlmsghdr nlh;
@@ -254,7 +258,8 @@ int nl_get_class(int sock, unsigned int nl_pid, int ifindex,
 }
 
 static int __dump_qdisc_nlmsg(struct nlmsghdr *nlh,
-			      dump_nlmsg_t dump_qdisc_nlmsg, void *cookie)
+			      libbpf_dump_nlmsg_t dump_qdisc_nlmsg,
+			      void *cookie)
 {
 	struct nlattr *tb[TCA_MAX + 1], *attr;
 	struct tcmsg *t = NLMSG_DATA(nlh);
@@ -262,14 +267,14 @@ static int __dump_qdisc_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_qdisc_nlmsg(cookie, t, tb);
 }
 
-int nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_qdisc_nlmsg, void *cookie)
+int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie)
 {
 	struct {
 		struct nlmsghdr nlh;
@@ -292,7 +297,8 @@ int nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 }
 
 static int __dump_filter_nlmsg(struct nlmsghdr *nlh,
-			       dump_nlmsg_t dump_filter_nlmsg, void *cookie)
+			       libbpf_dump_nlmsg_t dump_filter_nlmsg,
+			       void *cookie)
 {
 	struct nlattr *tb[TCA_MAX + 1], *attr;
 	struct tcmsg *t = NLMSG_DATA(nlh);
@@ -300,14 +306,14 @@ static int __dump_filter_nlmsg(struct nlmsghdr *nlh,
 
 	len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*t));
 	attr = (struct nlattr *) ((void *) t + NLMSG_ALIGN(sizeof(*t)));
-	if (nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
+	if (libbpf_nla_parse(tb, TCA_MAX, attr, len, NULL) != 0)
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_filter_nlmsg(cookie, t, tb);
 }
 
-int nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
-		  dump_nlmsg_t dump_filter_nlmsg, void *cookie)
+int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
+			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie)
 {
 	struct {
 		struct nlmsghdr nlh;
