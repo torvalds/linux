@@ -5230,11 +5230,11 @@ skl_print_wm_changes(const struct drm_atomic_state *state)
 			if (skl_ddb_entry_equal(old, new))
 				continue;
 
-			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] ddb (%d - %d) -> (%d - %d)\n",
-					 intel_plane->base.base.id,
-					 intel_plane->base.name,
-					 old->start, old->end,
-					 new->start, new->end);
+			DRM_DEBUG_KMS("[PLANE:%d:%s] ddb (%d - %d) -> (%d - %d)\n",
+				      intel_plane->base.base.id,
+				      intel_plane->base.name,
+				      old->start, old->end,
+				      new->start, new->end);
 		}
 	}
 }
