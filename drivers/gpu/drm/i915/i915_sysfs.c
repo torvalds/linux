@@ -483,7 +483,7 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static const struct attribute *gen6_attrs[] = {
+static const struct attribute * const gen6_attrs[] = {
 	&dev_attr_gt_act_freq_mhz.attr,
 	&dev_attr_gt_cur_freq_mhz.attr,
 	&dev_attr_gt_boost_freq_mhz.attr,
@@ -495,7 +495,7 @@ static const struct attribute *gen6_attrs[] = {
 	NULL,
 };
 
-static const struct attribute *vlv_attrs[] = {
+static const struct attribute * const vlv_attrs[] = {
 	&dev_attr_gt_act_freq_mhz.attr,
 	&dev_attr_gt_cur_freq_mhz.attr,
 	&dev_attr_gt_boost_freq_mhz.attr,
