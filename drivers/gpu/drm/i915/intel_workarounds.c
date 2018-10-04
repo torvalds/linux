@@ -910,7 +910,8 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_B0))
 		I915_WRITE(GEN7_SARCHKMD,
 			   I915_READ(GEN7_SARCHKMD) |
-			   GEN7_DISABLE_DEMAND_PREFETCH);
+			   GEN7_DISABLE_DEMAND_PREFETCH |
+			   GEN7_DISABLE_SAMPLER_PREFETCH);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
