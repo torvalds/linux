@@ -25,5 +25,6 @@ void mt76x02_limit_rate_power(struct mt76_rate_power *r, int limit);
 int mt76x02_get_max_rate_power(struct mt76_rate_power *r);
 void mt76x02_phy_set_rxpath(struct mt76_dev *dev);
 void mt76x02_phy_set_txdac(struct mt76_dev *dev);
+int mt76x02_phy_get_min_avg_rssi(struct mt76_dev *dev);
 
 #endif /* __MT76x02_PHY_H */

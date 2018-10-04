@@ -19,6 +19,7 @@
 
 #include "mt76.h"
 #include "mt76x02_phy.h"
+#include "mt76x02_mac.h"
 
 void mt76x02_phy_set_rxpath(struct mt76_dev *dev)
 {
@@ -133,3 +134,50 @@ void mt76x02_phy_set_txpower(struct mt76_dev *dev, int txp_0, int txp_1)
 		  mt76x02_tx_power_mask(t->ht[7], 0, t->stbc[8], t->stbc[9]));
 }
 EXPORT_SYMBOL_GPL(mt76x02_phy_set_txpower);
+
+int mt76x02_phy_get_min_avg_rssi(struct mt76_dev *dev)
+{
+	struct mt76x02_sta *sta;
+	struct mt76_wcid *wcid;
+	int i, j, min_rssi = 0;
+	s8 cur_rssi;
+
+	local_bh_disable();
+	rcu_read_lock();
+
+	for (i = 0; i < ARRAY_SIZE(dev->wcid_mask); i++) {
+		unsigned long mask = dev->wcid_mask[i];
+
+		if (!mask)
+			continue;
+
+		for (j = i * BITS_PER_LONG; mask; j++, mask >>= 1) {
+			if (!(mask & 1))
+				continue;
+
+			wcid = rcu_dereference(dev->wcid[j]);
+			if (!wcid)
+				continue;
+
+			sta = container_of(wcid, struct mt76x02_sta, wcid);
+			spin_lock(&dev->rx_lock);
+			if (sta->inactive_count++ < 5)
+				cur_rssi = ewma_signal_read(&sta->rssi);
+			else
+				cur_rssi = 0;
+			spin_unlock(&dev->rx_lock);
+
+			if (cur_rssi < min_rssi)
+				min_rssi = cur_rssi;
+		}
+	}
+
+	rcu_read_unlock();
+	local_bh_enable();
+
+	if (!min_rssi)
+		return -75;
+
+	return min_rssi;
+}
+EXPORT_SYMBOL_GPL(mt76x02_phy_get_min_avg_rssi);

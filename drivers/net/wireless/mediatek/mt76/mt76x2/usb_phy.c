@@ -16,6 +16,7 @@
 
 #include "mt76x2u.h"
 #include "eeprom.h"
+#include "../mt76x02_phy.h"
 
 void mt76x2u_phy_channel_calibrate(struct mt76x2_dev *dev)
 {
@@ -68,7 +69,7 @@ mt76x2u_phy_update_channel_gain(struct mt76x2_dev *dev)
 		break;
 	}
 
-	dev->cal.avg_rssi_all = mt76x2_phy_get_min_avg_rssi(dev);
+	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(&dev->mt76);
 	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS,
 			      mt76_rr(dev, MT_RX_STAT_1));
 
