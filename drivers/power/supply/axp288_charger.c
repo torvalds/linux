@@ -771,7 +771,7 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 	}
 
 	/* Determine charge current limit */
-	cc = (ret & CHRG_CCCV_CC_MASK) >> CHRG_CCCV_CC_BIT_POS;
+	cc = (val & CHRG_CCCV_CC_MASK) >> CHRG_CCCV_CC_BIT_POS;
 	cc = (cc * CHRG_CCCV_CC_LSB_RES) + CHRG_CCCV_CC_OFFSET;
 	info->cc = cc;
 

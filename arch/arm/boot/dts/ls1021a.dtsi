@@ -84,6 +84,7 @@
 			device_type = "cpu";
 			reg = <0xf01>;
 			clocks = <&clockgen 1 0>;
+			#cooling-cells = <2>;
 		};
 	};
 
