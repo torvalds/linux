@@ -203,6 +203,7 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		 */
 		dmab->dev.type = SNDRV_DMA_TYPE_DEV;
 #endif /* CONFIG_GENERIC_ALLOCATOR */
+		/* fall through */
 	case SNDRV_DMA_TYPE_DEV:
 	case SNDRV_DMA_TYPE_DEV_UC:
 		snd_malloc_dev_pages(dmab, size);
