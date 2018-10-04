@@ -105,6 +105,8 @@ static void msm_devfreq_init(struct msm_gpu *gpu)
 		dev_err(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		gpu->devfreq.devfreq = NULL;
 	}
+
+	devfreq_suspend_device(gpu->devfreq.devfreq);
 }
 
 static int enable_pwrrail(struct msm_gpu *gpu)
