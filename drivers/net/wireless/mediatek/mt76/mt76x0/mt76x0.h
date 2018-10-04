@@ -69,7 +69,6 @@ enum mt_bw {
 /**
  * struct mt76x0_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
- * @mac_lock:		locks out mac80211's tx status and rx paths.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
  *			(accesses to RF and BBP).
@@ -79,12 +78,8 @@ enum mt_bw {
 struct mt76x0_dev {
 	struct mt76_dev mt76; /* must be first */
 
-	u8 data[32];
-
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
-
-	spinlock_t mac_lock;
 
 	struct mt76x0_caldata caldata;
 
