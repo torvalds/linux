@@ -635,9 +635,9 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMESIZES, vidioc_enum_framesizes);
 		SET_VALID_IOCTL(ops, VIDIOC_ENUM_FRAMEINTERVALS, vidioc_enum_frameintervals);
-		if (ops->vidioc_g_crop || ops->vidioc_g_selection)
+		if (ops->vidioc_g_selection)
 			set_bit(_IOC_NR(VIDIOC_G_CROP), valid_ioctls);
-		if (ops->vidioc_s_crop || ops->vidioc_s_selection)
+		if (ops->vidioc_s_selection)
 			set_bit(_IOC_NR(VIDIOC_S_CROP), valid_ioctls);
 		SET_VALID_IOCTL(ops, VIDIOC_G_SELECTION, vidioc_g_selection);
 		SET_VALID_IOCTL(ops, VIDIOC_S_SELECTION, vidioc_s_selection);
