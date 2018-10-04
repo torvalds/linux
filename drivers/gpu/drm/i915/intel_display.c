@@ -158,9 +158,9 @@ static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void intel_crtc_init_scalers(struct intel_crtc *crtc,
 				    struct intel_crtc_state *crtc_state);
-static void skylake_pfit_enable(struct intel_crtc *crtc);
-static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
-static void ironlake_pfit_enable(struct intel_crtc *crtc);
+static void skylake_pfit_enable(const struct intel_crtc_state *crtc_state);
+static void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state);
+static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state);
 static void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 struct drm_modeset_acquire_ctx *ctx);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
@@ -3928,12 +3928,12 @@ static void intel_update_pipe_config(const struct intel_crtc_state *old_crtc_sta
 		skl_detach_scalers(crtc);
 
 		if (new_crtc_state->pch_pfit.enabled)
-			skylake_pfit_enable(crtc);
+			skylake_pfit_enable(new_crtc_state);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		if (new_crtc_state->pch_pfit.enabled)
-			ironlake_pfit_enable(crtc);
+			ironlake_pfit_enable(new_crtc_state);
 		else if (old_crtc_state->pch_pfit.enabled)
-			ironlake_pfit_disable(crtc, true);
+			ironlake_pfit_disable(old_crtc_state);
 	}
 }
 
@@ -5050,19 +5050,19 @@ static void skylake_scaler_disable(struct intel_crtc *crtc)
 		skl_detach_scaler(crtc, i);
 }
 
-static void skylake_pfit_enable(struct intel_crtc *crtc)
+static void skylake_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int pipe = crtc->pipe;
-	struct intel_crtc_scaler_state *scaler_state =
-		&crtc->config->scaler_state;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+	const struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
 
-	if (crtc->config->pch_pfit.enabled) {
+	if (crtc_state->pch_pfit.enabled) {
 		u16 uv_rgb_hphase, uv_rgb_vphase;
 		int id;
 
-		if (WARN_ON(crtc->config->scaler_state.scaler_id < 0))
+		if (WARN_ON(crtc_state->scaler_state.scaler_id < 0))
 			return;
 
 		uv_rgb_hphase = skl_scaler_calc_phase(1, false);
@@ -5075,18 +5075,18 @@ static void skylake_pfit_enable(struct intel_crtc *crtc)
 			      PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_vphase));
 		I915_WRITE_FW(SKL_PS_HPHASE(pipe, id),
 			      PS_Y_PHASE(0) | PS_UV_RGB_PHASE(uv_rgb_hphase));
-		I915_WRITE(SKL_PS_WIN_POS(pipe, id), crtc->config->pch_pfit.pos);
-		I915_WRITE(SKL_PS_WIN_SZ(pipe, id), crtc->config->pch_pfit.size);
+		I915_WRITE(SKL_PS_WIN_POS(pipe, id), crtc_state->pch_pfit.pos);
+		I915_WRITE(SKL_PS_WIN_SZ(pipe, id), crtc_state->pch_pfit.size);
 	}
 }
 
-static void ironlake_pfit_enable(struct intel_crtc *crtc)
+static void ironlake_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int pipe = crtc->pipe;
 
-	if (crtc->config->pch_pfit.enabled) {
+	if (crtc_state->pch_pfit.enabled) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
@@ -5096,8 +5096,8 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc)
 						 PF_PIPE_SEL_IVB(pipe));
 		else
 			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
-		I915_WRITE(PF_WIN_POS(pipe), crtc->config->pch_pfit.pos);
-		I915_WRITE(PF_WIN_SZ(pipe), crtc->config->pch_pfit.size);
+		I915_WRITE(PF_WIN_POS(pipe), crtc_state->pch_pfit.pos);
+		I915_WRITE(PF_WIN_SZ(pipe), crtc_state->pch_pfit.size);
 	}
 }
 
@@ -5629,7 +5629,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 		assert_fdi_rx_disabled(dev_priv, pipe);
 	}
 
-	ironlake_pfit_enable(intel_crtc);
+	ironlake_pfit_enable(pipe_config);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -5761,9 +5761,9 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 		glk_pipe_scaler_clock_gating_wa(dev_priv, pipe, true);
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		skylake_pfit_enable(intel_crtc);
+		skylake_pfit_enable(pipe_config);
 	else
-		ironlake_pfit_enable(intel_crtc);
+		ironlake_pfit_enable(pipe_config);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -5821,15 +5821,15 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	}
 }
 
-static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force)
+static void ironlake_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int pipe = crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 
 	/* To avoid upsetting the power well on haswell only disable the pfit if
 	 * it's in use. The hw state code will make sure we get this right. */
-	if (force || crtc->config->pch_pfit.enabled) {
+	if (old_crtc_state->pch_pfit.enabled) {
 		I915_WRITE(PF_CTL(pipe), 0);
 		I915_WRITE(PF_WIN_POS(pipe), 0);
 		I915_WRITE(PF_WIN_SZ(pipe), 0);
@@ -5860,7 +5860,7 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	intel_disable_pipe(old_crtc_state);
 
-	ironlake_pfit_disable(intel_crtc, false);
+	ironlake_pfit_disable(old_crtc_state);
 
 	if (intel_crtc->config->has_pch_encoder)
 		ironlake_fdi_disable(crtc);
@@ -5921,7 +5921,7 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	if (INTEL_GEN(dev_priv) >= 9)
 		skylake_scaler_disable(intel_crtc);
 	else
-		ironlake_pfit_disable(intel_crtc, false);
+		ironlake_pfit_disable(old_crtc_state);
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
@@ -5929,13 +5929,12 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		icl_unmap_plls_to_ports(crtc, old_crtc_state, old_state);
 }
 
-static void i9xx_pfit_enable(struct intel_crtc *crtc)
+static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc_state *pipe_config = crtc->config;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	if (!pipe_config->gmch_pfit.control)
+	if (!crtc_state->gmch_pfit.control)
 		return;
 
 	/*
@@ -5945,8 +5944,8 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	WARN_ON(I915_READ(PFIT_CONTROL) & PFIT_ENABLE);
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
-	I915_WRITE(PFIT_PGM_RATIOS, pipe_config->gmch_pfit.pgm_ratios);
-	I915_WRITE(PFIT_CONTROL, pipe_config->gmch_pfit.control);
+	I915_WRITE(PFIT_PGM_RATIOS, crtc_state->gmch_pfit.pgm_ratios);
+	I915_WRITE(PFIT_CONTROL, crtc_state->gmch_pfit.control);
 
 	/* Border color in case we don't scale up to the full screen. Black by
 	 * default, change to something else for debugging. */
@@ -6102,7 +6101,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
-	i9xx_pfit_enable(intel_crtc);
+	i9xx_pfit_enable(pipe_config);
 
 	intel_color_load_luts(&pipe_config->base);
 
@@ -6158,7 +6157,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	i9xx_enable_pll(intel_crtc, pipe_config);
 
-	i9xx_pfit_enable(intel_crtc);
+	i9xx_pfit_enable(pipe_config);
 
 	intel_color_load_luts(&pipe_config->base);
 
@@ -6175,12 +6174,12 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_enable(crtc, pipe_config, old_state);
 }
 
-static void i9xx_pfit_disable(struct intel_crtc *crtc)
+static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	if (!crtc->config->gmch_pfit.control)
+	if (!old_crtc_state->gmch_pfit.control)
 		return;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
@@ -6213,7 +6212,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	intel_disable_pipe(old_crtc_state);
 
-	i9xx_pfit_disable(intel_crtc);
+	i9xx_pfit_disable(old_crtc_state);
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
 
