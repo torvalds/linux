@@ -1565,14 +1565,15 @@ static void i9xx_enable_pll(struct intel_crtc *crtc,
 	}
 }
 
-static void i9xx_disable_pll(struct intel_crtc *crtc)
+static void i9xx_disable_pll(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	/* Disable DVO 2x clock on both PLLs if necessary */
 	if (IS_I830(dev_priv) &&
-	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DVO) &&
+	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO) &&
 	    !intel_num_dvo_pipes(dev_priv)) {
 		I915_WRITE(DPLL(PIPE_B),
 			   I915_READ(DPLL(PIPE_B)) & ~DPLL_DVO_2X_MODE);
@@ -4332,10 +4333,10 @@ train_done:
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
-static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
+static void ironlake_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	int pipe = intel_crtc->pipe;
 	i915_reg_t reg;
 	u32 temp;
@@ -4344,7 +4345,7 @@ static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
 	temp &= ~(FDI_DP_PORT_WIDTH_MASK | (0x7 << 16));
-	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config->fdi_lanes);
+	temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
 	temp |= (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) << 11;
 	I915_WRITE(reg, temp | FDI_RX_PLL_ENABLE);
 
@@ -5623,7 +5624,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 		/* Note: FDI PLL enabling _must_ be done before we enable the
 		 * cpu pipes, hence this is separate from all the other fdi/pch
 		 * enabling. */
-		ironlake_fdi_pll_enable(intel_crtc);
+		ironlake_fdi_pll_enable(pipe_config);
 	} else {
 		assert_fdi_tx_disabled(dev_priv, pipe);
 		assert_fdi_rx_disabled(dev_priv, pipe);
@@ -6090,11 +6091,11 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_pre_pll_enable(crtc, pipe_config, old_state);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
-		chv_prepare_pll(intel_crtc, intel_crtc->config);
-		chv_enable_pll(intel_crtc, intel_crtc->config);
+		chv_prepare_pll(intel_crtc, pipe_config);
+		chv_enable_pll(intel_crtc, pipe_config);
 	} else {
-		vlv_prepare_pll(intel_crtc, intel_crtc->config);
-		vlv_enable_pll(intel_crtc, intel_crtc->config);
+		vlv_prepare_pll(intel_crtc, pipe_config);
+		vlv_enable_pll(intel_crtc, pipe_config);
 	}
 
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
@@ -6113,13 +6114,13 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_enable(crtc, pipe_config, old_state);
 }
 
-static void i9xx_set_pll_dividers(struct intel_crtc *crtc)
+static void i9xx_set_pll_dividers(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	I915_WRITE(FP0(crtc->pipe), crtc->config->dpll_hw_state.fp0);
-	I915_WRITE(FP1(crtc->pipe), crtc->config->dpll_hw_state.fp1);
+	I915_WRITE(FP0(crtc->pipe), crtc_state->dpll_hw_state.fp0);
+	I915_WRITE(FP1(crtc->pipe), crtc_state->dpll_hw_state.fp1);
 }
 
 static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
@@ -6136,7 +6137,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (WARN_ON(intel_crtc->active))
 		return;
 
-	i9xx_set_pll_dividers(intel_crtc);
+	i9xx_set_pll_dividers(pipe_config);
 
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
@@ -6220,7 +6221,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		else if (IS_VALLEYVIEW(dev_priv))
 			vlv_disable_pll(dev_priv, pipe);
 		else
-			i9xx_disable_pll(intel_crtc);
+			i9xx_disable_pll(old_crtc_state);
 	}
 
 	intel_encoders_post_pll_disable(crtc, old_crtc_state, old_state);
