@@ -73,12 +73,14 @@ struct afs_addr_list {
 	struct rcu_head		rcu;		/* Must be first */
 	refcount_t		usage;
 	u32			version;	/* Version */
-	unsigned short		nr_addrs;
-	unsigned short		index;		/* Address currently in use */
-	unsigned short		nr_ipv4;	/* Number of IPv4 addresses */
+	unsigned char		max_addrs;
+	unsigned char		nr_addrs;
+	unsigned char		index;		/* Address currently in use */
+	unsigned char		nr_ipv4;	/* Number of IPv4 addresses */
 	unsigned long		probed;		/* Mask of servers that have been probed */
 	unsigned long		yfs;		/* Mask of servers that are YFS */
 	struct sockaddr_rxrpc	addrs[];
+#define AFS_MAX_ADDRESSES ((unsigned int)(sizeof(unsigned long) * 8))
 };
 
 /*
