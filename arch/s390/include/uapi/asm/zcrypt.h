@@ -2,7 +2,7 @@
 /*
  *  include/asm-s390/zcrypt.h
  *
- *  zcrypt 2.2.0 (user-visible header)
+ *  zcrypt 2.2.1 (user-visible header)
  *
  *  Copyright IBM Corp. 2001, 2018
  *  Author(s): Robert Burroughs
@@ -16,7 +16,7 @@
 
 #define ZCRYPT_VERSION 2
 #define ZCRYPT_RELEASE 2
-#define ZCRYPT_VARIANT 0
+#define ZCRYPT_VARIANT 1
 
 #include <linux/ioctl.h>
 #include <linux/compiler.h>
