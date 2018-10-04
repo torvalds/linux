@@ -91,23 +91,8 @@ enum msdc_dbg {
 
 extern unsigned int sd_debug_zone[4];
 #define TAG "msdc"
-#if 0 /* +++ chhung */
-#define BUG_ON(x) \
-do { \
-	if (x) { \
-		printk("[BUG] %s LINE:%d FILE:%s\n", #x, __LINE__, __FILE__); \
-		while (1)						\
-			;						\
-	} \
-} while (0)
-#endif /* end of +++ */
-
 void msdc_debug_proc_init(void);
 
-#if 0 /* --- chhung */
-void msdc_init_gpt(void);
-extern void GPT_GetCounter64(UINT32 *cntL32, UINT32 *cntH32);
-#endif /* end of --- */
 u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32);
 void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks);
 
