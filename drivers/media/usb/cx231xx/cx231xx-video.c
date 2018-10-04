@@ -1482,18 +1482,18 @@ int cx231xx_s_register(struct file *file, void *priv,
 }
 #endif
 
-static int vidioc_cropcap(struct file *file, void *priv,
-			  struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
 	bool is_50hz = dev->norm & V4L2_STD_625_50;
 
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	cc->pixelaspect.numerator = is_50hz ? 54 : 11;
-	cc->pixelaspect.denominator = is_50hz ? 59 : 10;
+	f->numerator = is_50hz ? 54 : 11;
+	f->denominator = is_50hz ? 59 : 10;
 
 	return 0;
 }
@@ -2111,7 +2111,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vbi_cap          = vidioc_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap        = vidioc_try_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap          = vidioc_s_fmt_vbi_cap,
-	.vidioc_cropcap                = vidioc_cropcap,
+	.vidioc_g_pixelaspect          = vidioc_g_pixelaspect,
 	.vidioc_g_selection            = vidioc_g_selection,
 	.vidioc_reqbufs                = vidioc_reqbufs,
 	.vidioc_querybuf               = vidioc_querybuf,

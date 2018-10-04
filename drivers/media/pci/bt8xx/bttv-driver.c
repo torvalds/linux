@@ -2792,19 +2792,17 @@ static int bttv_g_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int bttv_cropcap(struct file *file, void *priv,
-				struct v4l2_cropcap *cap)
+static int bttv_g_pixelaspect(struct file *file, void *priv,
+			      int type, struct v4l2_fract *f)
 {
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
 
-	if (cap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    cap->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	/* defrect and bounds are set via g_selection */
-	cap->pixelaspect = bttv_tvnorms[btv->tvnorm].cropcap.pixelaspect;
-
+	*f = bttv_tvnorms[btv->tvnorm].cropcap.pixelaspect;
 	return 0;
 }
 
@@ -3162,7 +3160,7 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_g_fmt_vbi_cap           = bttv_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap         = bttv_try_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap           = bttv_s_fmt_vbi_cap,
-	.vidioc_cropcap                 = bttv_cropcap,
+	.vidioc_g_pixelaspect           = bttv_g_pixelaspect,
 	.vidioc_reqbufs                 = bttv_reqbufs,
 	.vidioc_querybuf                = bttv_querybuf,
 	.vidioc_qbuf                    = bttv_qbuf,

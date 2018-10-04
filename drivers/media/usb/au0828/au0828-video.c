@@ -1616,19 +1616,19 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_cropcap(struct file *file, void *priv,
-			  struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct au0828_dev *dev = video_drvdata(file);
 
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	dprintk(1, "%s called std_set %d dev_state %ld\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
 
-	cc->pixelaspect.numerator = 54;
-	cc->pixelaspect.denominator = 59;
+	f->numerator = 54;
+	f->denominator = 59;
 
 	return 0;
 }
@@ -1777,7 +1777,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enumaudio           = vidioc_enumaudio,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
-	.vidioc_cropcap             = vidioc_cropcap,
+	.vidioc_g_pixelaspect       = vidioc_g_pixelaspect,
 	.vidioc_g_selection         = vidioc_g_selection,
 
 	.vidioc_reqbufs             = vb2_ioctl_reqbufs,

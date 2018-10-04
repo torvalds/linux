@@ -1500,18 +1500,18 @@ static const struct videobuf_queue_ops cx231xx_qops = {
 
 /* ------------------------------------------------------------------ */
 
-static int vidioc_cropcap(struct file *file, void *priv,
-			  struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
 	bool is_50hz = dev->encodernorm.id & V4L2_STD_625_50;
 
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	cc->pixelaspect.numerator = is_50hz ? 54 : 11;
-	cc->pixelaspect.denominator = is_50hz ? 59 : 10;
+	f->numerator = is_50hz ? 54 : 11;
+	f->denominator = is_50hz ? 59 : 10;
 
 	return 0;
 }
@@ -1883,7 +1883,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_input		 = cx231xx_g_input,
 	.vidioc_s_input		 = cx231xx_s_input,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
-	.vidioc_cropcap		 = vidioc_cropcap,
+	.vidioc_g_pixelaspect	 = vidioc_g_pixelaspect,
 	.vidioc_g_selection	 = vidioc_g_selection,
 	.vidioc_querycap	 = cx231xx_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,

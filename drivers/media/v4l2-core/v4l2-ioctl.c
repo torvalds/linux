@@ -2266,18 +2266,21 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	p->pixelaspect.numerator = 1;
 	p->pixelaspect.denominator = 1;
 
+	if (s.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		s.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	else if (s.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		s.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+
 	/*
 	 * The determine_valid_ioctls() call already should ensure
 	 * that this can never happen, but just in case...
 	 */
-	if (WARN_ON(!ops->vidioc_cropcap && !ops->vidioc_g_selection))
+	if (WARN_ON(!ops->vidioc_g_selection))
 		return -ENOTTY;
 
-	if (ops->vidioc_cropcap)
-		ret = ops->vidioc_cropcap(file, fh, p);
-
-	if (!ops->vidioc_g_selection)
-		return ret;
+	if (ops->vidioc_g_pixelaspect)
+		ret = ops->vidioc_g_pixelaspect(file, fh, s.type,
+						&p->pixelaspect);
 
 	/*
 	 * Ignore ENOTTY or ENOIOCTLCMD error returns, just use the

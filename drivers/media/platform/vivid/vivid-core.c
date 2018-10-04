@@ -324,13 +324,14 @@ static int vidioc_s_dv_timings(struct file *file, void *fh, struct v4l2_dv_timin
 	return vivid_vid_out_s_dv_timings(file, fh, timings);
 }
 
-static int vidioc_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *fh,
+				int type, struct v4l2_fract *f)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_cropcap(file, fh, cc);
-	return vivid_vid_out_cropcap(file, fh, cc);
+		return vivid_vid_cap_g_pixelaspect(file, fh, type, f);
+	return vivid_vid_out_g_pixelaspect(file, fh, type, f);
 }
 
 static int vidioc_g_selection(struct file *file, void *fh,
@@ -519,7 +520,7 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 
 	.vidioc_g_selection		= vidioc_g_selection,
 	.vidioc_s_selection		= vidioc_s_selection,
-	.vidioc_cropcap			= vidioc_cropcap,
+	.vidioc_g_pixelaspect		= vidioc_g_pixelaspect,
 
 	.vidioc_g_fmt_vbi_cap		= vidioc_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap		= vidioc_g_fmt_vbi_cap,
