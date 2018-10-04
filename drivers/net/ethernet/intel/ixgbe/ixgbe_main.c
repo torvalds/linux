@@ -10517,7 +10517,8 @@ void ixgbe_txrx_ring_enable(struct ixgbe_adapter *adapter, int ring)
 	ixgbe_configure_rx_ring(adapter, rx_ring);
 
 	clear_bit(__IXGBE_TX_DISABLED, &tx_ring->state);
-	clear_bit(__IXGBE_TX_DISABLED, &xdp_ring->state);
+	if (xdp_ring)
+		clear_bit(__IXGBE_TX_DISABLED, &xdp_ring->state);
 }
 
 /**
