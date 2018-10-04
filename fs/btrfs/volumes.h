@@ -331,6 +331,8 @@ struct btrfs_raid_attr {
 	int tolerated_failures; /* max tolerated fail devs */
 	int devs_increment;	/* ndevs has to be a multiple of this */
 	int ncopies;		/* how many copies to data has */
+	int nparity;		/* number of stripes worth of bytes to store
+				 * parity information */
 	int mindev_error;	/* error code if min devs requisite is unmet */
 	const char raid_name[8]; /* name of the raid */
 	u64 bg_flag;		/* block group flag of the raid */

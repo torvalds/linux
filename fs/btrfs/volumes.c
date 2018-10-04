@@ -37,6 +37,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.tolerated_failures = 1,
 		.devs_increment	= 2,
 		.ncopies	= 2,
+		.nparity        = 0,
 		.raid_name	= "raid10",
 		.bg_flag	= BTRFS_BLOCK_GROUP_RAID10,
 		.mindev_error	= BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET,
@@ -49,6 +50,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.tolerated_failures = 1,
 		.devs_increment	= 2,
 		.ncopies	= 2,
+		.nparity        = 0,
 		.raid_name	= "raid1",
 		.bg_flag	= BTRFS_BLOCK_GROUP_RAID1,
 		.mindev_error	= BTRFS_ERROR_DEV_RAID1_MIN_NOT_MET,
@@ -61,6 +63,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.tolerated_failures = 0,
 		.devs_increment	= 1,
 		.ncopies	= 2,
+		.nparity        = 0,
 		.raid_name	= "dup",
 		.bg_flag	= BTRFS_BLOCK_GROUP_DUP,
 		.mindev_error	= 0,
@@ -73,6 +76,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.tolerated_failures = 0,
 		.devs_increment	= 1,
 		.ncopies	= 1,
+		.nparity        = 0,
 		.raid_name	= "raid0",
 		.bg_flag	= BTRFS_BLOCK_GROUP_RAID0,
 		.mindev_error	= 0,
@@ -85,6 +89,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.tolerated_failures = 0,
 		.devs_increment	= 1,
 		.ncopies	= 1,
+		.nparity        = 0,
 		.raid_name	= "single",
 		.bg_flag	= 0,
 		.mindev_error	= 0,
@@ -97,6 +102,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.tolerated_failures = 1,
 		.devs_increment	= 1,
 		.ncopies	= 1,
+		.nparity        = 1,
 		.raid_name	= "raid5",
 		.bg_flag	= BTRFS_BLOCK_GROUP_RAID5,
 		.mindev_error	= BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET,
@@ -109,6 +115,7 @@ const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 		.tolerated_failures = 2,
 		.devs_increment	= 1,
 		.ncopies	= 1,
+		.nparity        = 2,
 		.raid_name	= "raid6",
 		.bg_flag	= BTRFS_BLOCK_GROUP_RAID6,
 		.mindev_error	= BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET,
@@ -4628,6 +4635,8 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int devs_min;		/* min devs needed */
 	int devs_increment;	/* ndevs has to be a multiple of this */
 	int ncopies;		/* how many copies to data has */
+	int nparity;		/* number of stripes worth of bytes to
+				   store parity information */
 	int ret;
 	u64 max_stripe_size;
 	u64 max_chunk_size;
@@ -4654,6 +4663,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	devs_min = btrfs_raid_array[index].devs_min;
 	devs_increment = btrfs_raid_array[index].devs_increment;
 	ncopies = btrfs_raid_array[index].ncopies;
+	nparity = btrfs_raid_array[index].nparity;
 
 	if (type & BTRFS_BLOCK_GROUP_DATA) {
 		max_stripe_size = SZ_1G;
@@ -4783,13 +4793,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	 * this will have to be fixed for RAID1 and RAID10 over
 	 * more drives
 	 */
-	data_stripes = num_stripes / ncopies;
-
-	if (type & BTRFS_BLOCK_GROUP_RAID5)
-		data_stripes = num_stripes - 1;
-
-	if (type & BTRFS_BLOCK_GROUP_RAID6)
-		data_stripes = num_stripes - 2;
+	data_stripes = (num_stripes - nparity) / ncopies;
 
 	/*
 	 * Use the number of data stripes to figure out how big this chunk
