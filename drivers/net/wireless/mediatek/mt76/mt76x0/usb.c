@@ -218,7 +218,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
 		.tx_complete_skb = mt76x02_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
-		.rx_skb = mt76x0_queue_rx_skb,
+		.rx_skb = mt76x02_queue_rx_skb,
 	};
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
 	struct mt76x02_dev *dev;

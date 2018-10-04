@@ -101,8 +101,6 @@ void mt76x2_mac_set_tx_protection(struct mt76x02_dev *dev, u32 val);
 void mt76x2_pre_tbtt_tasklet(unsigned long arg);
 
 void mt76x2_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
-void mt76x2_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb);
 
 void mt76x2_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 

@@ -45,19 +45,3 @@ void mt76x0_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	mt76_tx(&dev->mt76, control->sta, wcid, skb);
 }
 EXPORT_SYMBOL_GPL(mt76x0_tx);
-
-void mt76x0_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb)
-{
-	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	void *rxwi = skb->data;
-
-	skb_pull(skb, sizeof(struct mt76x02_rxwi));
-	if (mt76x0_mac_process_rx(dev, skb, rxwi)) {
-		dev_kfree_skb(skb);
-		return;
-	}
-
-	mt76_rx(&dev->mt76, q, skb);
-}
-EXPORT_SYMBOL_GPL(mt76x0_queue_rx_skb);

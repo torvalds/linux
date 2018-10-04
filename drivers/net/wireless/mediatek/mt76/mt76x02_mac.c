@@ -686,4 +686,3 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 
 	return mt76x02_mac_process_rate(status, rate);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_process_rx);

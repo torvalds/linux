@@ -226,13 +226,6 @@ mt76x0_bbp_set_ctrlch(struct mt76x02_dev *dev, enum nl80211_chan_width width,
 	mt76_rmw_field(dev, MT_BBP(TXBE, 0), MT_BBP_TXBE_R0_CTRL_CHAN, ctrl);
 }
 
-int mt76x0_phy_get_rssi(struct mt76x02_dev *dev, struct mt76x02_rxwi *rxwi)
-{
-	struct mt76x02_rx_freq_cal *caldata = &dev->cal.rx;
-
-	return rxwi->rssi[0] + caldata->rssi_offset[0] - caldata->lna_gain;
-}
-
 static void mt76x0_vco_cal(struct mt76x02_dev *dev, u8 channel)
 {
 	u8 val;

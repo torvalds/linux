@@ -17,7 +17,6 @@
 
 #include <linux/tracepoint.h>
 #include "mt76x0.h"
-#include "mac.h"
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mt76x0

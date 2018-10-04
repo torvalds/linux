@@ -20,6 +20,7 @@
 #include "mt76x02_dma.h"
 #include "mt76x02_regs.h"
 #include "mt76x02_mac.h"
+#include "mt76x02_util.h"
 
 #define CCK_RATE(_idx, _rate) {					\
 	.bitrate = _rate,					\
@@ -530,5 +531,28 @@ void mt76x02_set_beacon_offsets(struct mt76_dev *dev)
 		__mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
 }
 EXPORT_SYMBOL_GPL(mt76x02_set_beacon_offsets);
+
+void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
+			  struct sk_buff *skb)
+{
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+	void *rxwi = skb->data;
+
+	if (q == MT_RXQ_MCU) {
+		/* this is used just by mmio code */
+		skb_queue_tail(&mdev->mmio.mcu.res_q, skb);
+		wake_up(&mdev->mmio.mcu.wait);
+		return;
+	}
+
+	skb_pull(skb, sizeof(struct mt76x02_rxwi));
+	if (mt76x02_mac_process_rx(dev, skb, rxwi)) {
+		dev_kfree_skb(skb);
+		return;
+	}
+
+	mt76_rx(mdev, q, skb);
+}
+EXPORT_SYMBOL_GPL(mt76x02_queue_rx_skb);
 
 MODULE_LICENSE("Dual BSD/GPL");

@@ -14,7 +14,6 @@
  */
 
 #include "mt76x0.h"
-#include "mac.h"
 #include "../mt76x02_util.h"
 #include <linux/etherdevice.h>
 
