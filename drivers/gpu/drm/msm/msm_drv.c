@@ -312,6 +312,7 @@ static int msm_drm_uninit(struct device *dev)
 	if (fbdev && priv->fbdev)
 		msm_fbdev_free(ddev);
 #endif
+	drm_atomic_helper_shutdown(ddev);
 	drm_mode_config_cleanup(ddev);
 
 	pm_runtime_get_sync(dev);
