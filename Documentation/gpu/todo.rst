@@ -339,6 +339,16 @@ Some of these date from the very introduction of KMS in 2008 ...
   leftovers from older (never merged into upstream) KMS designs where modes
   where set using their ID, including support to add/remove modes.
 
+- Make ->funcs and ->helper_private vtables optional. There's a bunch of empty
+  function tables in drivers, but before we can remove them we need to make sure
+  that all the users in helpers and drivers do correctly check for a NULL
+  vtable.
+
+- Cleanup up the various ->destroy callbacks. A lot of them just wrapt the
+  drm_*_cleanup implementations and can be removed. Some tack a kfree() at the
+  end, for which we could add drm_*_cleanup_kfree(). And then there's the (for
+  historical reasons) misnamed drm_primary_helper_destroy() function.
+
 Better Testing
 ==============
 
