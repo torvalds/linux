@@ -1203,9 +1203,7 @@ static void dpu_plane_destroy_state(struct drm_plane *plane,
 
 	pstate = to_dpu_plane_state(state);
 
-	/* remove ref count for frame buffers */
-	if (state->fb)
-		drm_framebuffer_put(state->fb);
+	__drm_atomic_helper_plane_destroy_state(state);
 
 	kfree(pstate);
 }
