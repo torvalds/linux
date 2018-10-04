@@ -1006,6 +1006,12 @@ v4l2_fwnode_reference_get_int_prop(struct fwnode_handle *fwnode,
 	return fwnode;
 }
 
+struct v4l2_fwnode_int_props {
+	const char *name;
+	const char * const *props;
+	unsigned int nprops;
+};
+
 /*
  * v4l2_fwnode_reference_parse_int_props - parse references for async
  *					   sub-devices
@@ -1032,13 +1038,14 @@ v4l2_fwnode_reference_get_int_prop(struct fwnode_handle *fwnode,
 static int
 v4l2_fwnode_reference_parse_int_props(struct device *dev,
 				      struct v4l2_async_notifier *notifier,
-				      const char *prop,
-				      const char * const *props,
-				      unsigned int nprops)
+				      const struct v4l2_fwnode_int_props *p)
 {
 	struct fwnode_handle *fwnode;
 	unsigned int index;
 	int ret;
+	const char *prop = p->name;
+	const char * const *props = p->props;
+	unsigned int nprops = p->nprops;
 
 	index = 0;
 	do {
@@ -1093,11 +1100,7 @@ int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
 						   struct v4l2_async_notifier *notifier)
 {
 	static const char * const led_props[] = { "led" };
-	static const struct {
-		const char *name;
-		const char * const *props;
-		unsigned int nprops;
-	} props[] = {
+	static const struct v4l2_fwnode_int_props props[] = {
 		{ "flash-leds", led_props, ARRAY_SIZE(led_props) },
 		{ "lens-focus", NULL, 0 },
 	};
@@ -1109,9 +1112,7 @@ int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
 		if (props[i].props && is_acpi_node(dev_fwnode(dev)))
 			ret = v4l2_fwnode_reference_parse_int_props(dev,
 								    notifier,
-								    props[i].name,
-								    props[i].props,
-								    props[i].nprops);
+								    &props[i]);
 		else
 			ret = v4l2_fwnode_reference_parse(dev, notifier,
 							  props[i].name);
