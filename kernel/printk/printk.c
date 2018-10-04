@@ -351,7 +351,6 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
  */
 
 enum log_flags {
-	LOG_NOCONS	= 1,	/* suppress print, do not print to console */
 	LOG_NEWLINE	= 2,	/* text ended with a newline */
 	LOG_PREFIX	= 4,	/* text started with a prefix */
 	LOG_CONT	= 8,	/* text is a fragment of a continuation line */
@@ -1881,9 +1880,6 @@ int vprintk_store(int facility, int level,
 	if (dict)
 		lflags |= LOG_PREFIX|LOG_NEWLINE;
 
-	if (suppress_message_printing(level))
-		lflags |= LOG_NOCONS;
-
 	return log_output(facility, level, lflags,
 			  dict, dictlen, text, text_len);
 }
@@ -2032,6 +2028,7 @@ static void call_console_drivers(const char *ext_text, size_t ext_len,
 				 const char *text, size_t len) {}
 static size_t msg_print_text(const struct printk_log *msg,
 			     bool syslog, char *buf, size_t size) { return 0; }
+static bool suppress_message_printing(int level) { return false; }
 
 #endif /* CONFIG_PRINTK */
 
@@ -2368,10 +2365,11 @@ skip:
 			break;
 
 		msg = log_from_idx(console_idx);
-		if (msg->flags & LOG_NOCONS) {
+		if (suppress_message_printing(msg->level)) {
 			/*
-			 * Skip record if !ignore_loglevel, and
-			 * record has level above the console loglevel.
+			 * Skip record we have buffered and already printed
+			 * directly to the console when we received it, and
+			 * record that has level above the console loglevel.
 			 */
 			console_idx = log_next(console_idx);
 			console_seq++;

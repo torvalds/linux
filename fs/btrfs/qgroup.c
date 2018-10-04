@@ -1019,10 +1019,9 @@ out_add_root:
 	spin_unlock(&fs_info->qgroup_lock);
 
 	ret = btrfs_commit_transaction(trans);
-	if (ret) {
-		trans = NULL;
+	trans = NULL;
+	if (ret)
 		goto out_free_path;
-	}
 
 	ret = qgroup_rescan_init(fs_info, 0, 1);
 	if (!ret) {

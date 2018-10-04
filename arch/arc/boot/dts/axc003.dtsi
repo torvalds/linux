@@ -94,6 +94,32 @@
 	};
 
 	/*
+	 * Mark DMA peripherals connected via IOC port as dma-coherent. We do
+	 * it via overlay because peripherals defined in axs10x_mb.dtsi are
+	 * used for both AXS101 and AXS103 boards and only AXS103 has IOC (so
+	 * only AXS103 board has HW-coherent DMA peripherals)
+	 * We don't need to mark pgu@17000 as dma-coherent because it uses
+	 * external DMA buffer located outside of IOC aperture.
+	 */
+	axs10x_mb {
+		ethernet@0x18000 {
+			dma-coherent;
+		};
+
+		ehci@0x40000 {
+			dma-coherent;
+		};
+
+		ohci@0x60000 {
+			dma-coherent;
+		};
+
+		mmc@0x15000 {
+			dma-coherent;
+		};
+	};
+
+	/*
 	 * The DW APB ICTL intc on MB is connected to CPU intc via a
 	 * DT "invisible" DW APB GPIO block, configured to simply pass thru
 	 * interrupts - setup accordinly in platform init (plat-axs10x/ax10x.c)

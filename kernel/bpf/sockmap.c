@@ -132,6 +132,7 @@ struct smap_psock {
 	struct work_struct gc_work;
 
 	struct proto *sk_proto;
+	void (*save_unhash)(struct sock *sk);
 	void (*save_close)(struct sock *sk, long timeout);
 	void (*save_data_ready)(struct sock *sk);
 	void (*save_write_space)(struct sock *sk);
@@ -143,6 +144,7 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 static int bpf_tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 static int bpf_tcp_sendpage(struct sock *sk, struct page *page,
 			    int offset, size_t size, int flags);
+static void bpf_tcp_unhash(struct sock *sk);
 static void bpf_tcp_close(struct sock *sk, long timeout);
 
 static inline struct smap_psock *smap_psock_sk(const struct sock *sk)
@@ -184,6 +186,7 @@ static void build_protos(struct proto prot[SOCKMAP_NUM_CONFIGS],
 			 struct proto *base)
 {
 	prot[SOCKMAP_BASE]			= *base;
+	prot[SOCKMAP_BASE].unhash		= bpf_tcp_unhash;
 	prot[SOCKMAP_BASE].close		= bpf_tcp_close;
 	prot[SOCKMAP_BASE].recvmsg		= bpf_tcp_recvmsg;
 	prot[SOCKMAP_BASE].stream_memory_read	= bpf_tcp_stream_read;
@@ -217,6 +220,7 @@ static int bpf_tcp_init(struct sock *sk)
 		return -EBUSY;
 	}
 
+	psock->save_unhash = sk->sk_prot->unhash;
 	psock->save_close = sk->sk_prot->close;
 	psock->sk_proto = sk->sk_prot;
 
@@ -236,7 +240,7 @@ static int bpf_tcp_init(struct sock *sk)
 }
 
 static void smap_release_sock(struct smap_psock *psock, struct sock *sock);
-static int free_start_sg(struct sock *sk, struct sk_msg_buff *md);
+static int free_start_sg(struct sock *sk, struct sk_msg_buff *md, bool charge);
 
 static void bpf_tcp_release(struct sock *sk)
 {
@@ -248,7 +252,7 @@ static void bpf_tcp_release(struct sock *sk)
 		goto out;
 
 	if (psock->cork) {
-		free_start_sg(psock->sock, psock->cork);
+		free_start_sg(psock->sock, psock->cork, true);
 		kfree(psock->cork);
 		psock->cork = NULL;
 	}
@@ -305,39 +309,21 @@ static struct smap_psock_map_entry *psock_map_pop(struct sock *sk,
 	return e;
 }
 
-static void bpf_tcp_close(struct sock *sk, long timeout)
+static void bpf_tcp_remove(struct sock *sk, struct smap_psock *psock)
 {
-	void (*close_fun)(struct sock *sk, long timeout);
 	struct smap_psock_map_entry *e;
 	struct sk_msg_buff *md, *mtmp;
-	struct smap_psock *psock;
 	struct sock *osk;
 
-	lock_sock(sk);
-	rcu_read_lock();
-	psock = smap_psock_sk(sk);
-	if (unlikely(!psock)) {
-		rcu_read_unlock();
-		release_sock(sk);
-		return sk->sk_prot->close(sk, timeout);
-	}
-
-	/* The psock may be destroyed anytime after exiting the RCU critial
-	 * section so by the time we use close_fun the psock may no longer
-	 * be valid. However, bpf_tcp_close is called with the sock lock
-	 * held so the close hook and sk are still valid.
-	 */
-	close_fun = psock->save_close;
-
 	if (psock->cork) {
-		free_start_sg(psock->sock, psock->cork);
+		free_start_sg(psock->sock, psock->cork, true);
 		kfree(psock->cork);
 		psock->cork = NULL;
 	}
 
 	list_for_each_entry_safe(md, mtmp, &psock->ingress, list) {
 		list_del(&md->list);
-		free_start_sg(psock->sock, md);
+		free_start_sg(psock->sock, md, true);
 		kfree(md);
 	}
 
@@ -369,7 +355,7 @@ static void bpf_tcp_close(struct sock *sk, long timeout)
 			/* If another thread deleted this object skip deletion.
 			 * The refcnt on psock may or may not be zero.
 			 */
-			if (l) {
+			if (l && l == link) {
 				hlist_del_rcu(&link->hash_node);
 				smap_release_sock(psock, link->sk);
 				free_htab_elem(htab, link);
@@ -379,6 +365,42 @@ static void bpf_tcp_close(struct sock *sk, long timeout)
 		kfree(e);
 		e = psock_map_pop(sk, psock);
 	}
+}
+
+static void bpf_tcp_unhash(struct sock *sk)
+{
+	void (*unhash_fun)(struct sock *sk);
+	struct smap_psock *psock;
+
+	rcu_read_lock();
+	psock = smap_psock_sk(sk);
+	if (unlikely(!psock)) {
+		rcu_read_unlock();
+		if (sk->sk_prot->unhash)
+			sk->sk_prot->unhash(sk);
+		return;
+	}
+	unhash_fun = psock->save_unhash;
+	bpf_tcp_remove(sk, psock);
+	rcu_read_unlock();
+	unhash_fun(sk);
+}
+
+static void bpf_tcp_close(struct sock *sk, long timeout)
+{
+	void (*close_fun)(struct sock *sk, long timeout);
+	struct smap_psock *psock;
+
+	lock_sock(sk);
+	rcu_read_lock();
+	psock = smap_psock_sk(sk);
+	if (unlikely(!psock)) {
+		rcu_read_unlock();
+		release_sock(sk);
+		return sk->sk_prot->close(sk, timeout);
+	}
+	close_fun = psock->save_close;
+	bpf_tcp_remove(sk, psock);
 	rcu_read_unlock();
 	release_sock(sk);
 	close_fun(sk, timeout);
@@ -570,14 +592,16 @@ static void free_bytes_sg(struct sock *sk, int bytes,
 	md->sg_start = i;
 }
 
-static int free_sg(struct sock *sk, int start, struct sk_msg_buff *md)
+static int free_sg(struct sock *sk, int start,
+		   struct sk_msg_buff *md, bool charge)
 {
 	struct scatterlist *sg = md->sg_data;
 	int i = start, free = 0;
 
 	while (sg[i].length) {
 		free += sg[i].length;
-		sk_mem_uncharge(sk, sg[i].length);
+		if (charge)
+			sk_mem_uncharge(sk, sg[i].length);
 		if (!md->skb)
 			put_page(sg_page(&sg[i]));
 		sg[i].length = 0;
@@ -594,9 +618,9 @@ static int free_sg(struct sock *sk, int start, struct sk_msg_buff *md)
 	return free;
 }
 
-static int free_start_sg(struct sock *sk, struct sk_msg_buff *md)
+static int free_start_sg(struct sock *sk, struct sk_msg_buff *md, bool charge)
 {
-	int free = free_sg(sk, md->sg_start, md);
+	int free = free_sg(sk, md->sg_start, md, charge);
 
 	md->sg_start = md->sg_end;
 	return free;
@@ -604,7 +628,7 @@ static int free_start_sg(struct sock *sk, struct sk_msg_buff *md)
 
 static int free_curr_sg(struct sock *sk, struct sk_msg_buff *md)
 {
-	return free_sg(sk, md->sg_curr, md);
+	return free_sg(sk, md->sg_curr, md, true);
 }
 
 static int bpf_map_msg_verdict(int _rc, struct sk_msg_buff *md)
@@ -718,7 +742,7 @@ static int bpf_tcp_ingress(struct sock *sk, int apply_bytes,
 		list_add_tail(&r->list, &psock->ingress);
 		sk->sk_data_ready(sk);
 	} else {
-		free_start_sg(sk, r);
+		free_start_sg(sk, r, true);
 		kfree(r);
 	}
 
@@ -752,14 +776,10 @@ static int bpf_tcp_sendmsg_do_redirect(struct sock *sk, int send,
 		release_sock(sk);
 	}
 	smap_release_sock(psock, sk);
-	if (unlikely(err))
-		goto out;
-	return 0;
+	return err;
 out_rcu:
 	rcu_read_unlock();
-out:
-	free_bytes_sg(NULL, send, md, false);
-	return err;
+	return 0;
 }
 
 static inline void bpf_md_init(struct smap_psock *psock)
@@ -822,7 +842,7 @@ more_data:
 	case __SK_PASS:
 		err = bpf_tcp_push(sk, send, m, flags, true);
 		if (unlikely(err)) {
-			*copied -= free_start_sg(sk, m);
+			*copied -= free_start_sg(sk, m, true);
 			break;
 		}
 
@@ -845,16 +865,17 @@ more_data:
 		lock_sock(sk);
 
 		if (unlikely(err < 0)) {
-			free_start_sg(sk, m);
+			int free = free_start_sg(sk, m, false);
+
 			psock->sg_size = 0;
 			if (!cork)
-				*copied -= send;
+				*copied -= free;
 		} else {
 			psock->sg_size -= send;
 		}
 
 		if (cork) {
-			free_start_sg(sk, m);
+			free_start_sg(sk, m, true);
 			psock->sg_size = 0;
 			kfree(m);
 			m = NULL;
@@ -912,6 +933,8 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return inet_recv_error(sk, msg, len, addr_len);
+	if (!skb_queue_empty(&sk->sk_receive_queue))
+		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
 
 	rcu_read_lock();
 	psock = smap_psock_sk(sk);
@@ -921,9 +944,6 @@ static int bpf_tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	if (unlikely(!refcount_inc_not_zero(&psock->refcnt)))
 		goto out;
 	rcu_read_unlock();
-
-	if (!skb_queue_empty(&sk->sk_receive_queue))
-		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
 
 	lock_sock(sk);
 bytes_ready:
@@ -1122,7 +1142,7 @@ wait_for_memory:
 		err = sk_stream_wait_memory(sk, &timeo);
 		if (err) {
 			if (m && m != psock->cork)
-				free_start_sg(sk, m);
+				free_start_sg(sk, m, true);
 			goto out_err;
 		}
 	}
@@ -1464,10 +1484,16 @@ static void smap_destroy_psock(struct rcu_head *rcu)
 	schedule_work(&psock->gc_work);
 }
 
+static bool psock_is_smap_sk(struct sock *sk)
+{
+	return inet_csk(sk)->icsk_ulp_ops == &bpf_tcp_ulp_ops;
+}
+
 static void smap_release_sock(struct smap_psock *psock, struct sock *sock)
 {
 	if (refcount_dec_and_test(&psock->refcnt)) {
-		tcp_cleanup_ulp(sock);
+		if (psock_is_smap_sk(sock))
+			tcp_cleanup_ulp(sock);
 		write_lock_bh(&sock->sk_callback_lock);
 		smap_stop_sock(psock, sock);
 		write_unlock_bh(&sock->sk_callback_lock);
@@ -1581,13 +1607,13 @@ static void smap_gc_work(struct work_struct *w)
 		bpf_prog_put(psock->bpf_tx_msg);
 
 	if (psock->cork) {
-		free_start_sg(psock->sock, psock->cork);
+		free_start_sg(psock->sock, psock->cork, true);
 		kfree(psock->cork);
 	}
 
 	list_for_each_entry_safe(md, mtmp, &psock->ingress, list) {
 		list_del(&md->list);
-		free_start_sg(psock->sock, md);
+		free_start_sg(psock->sock, md, true);
 		kfree(md);
 	}
 
@@ -1894,6 +1920,10 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 	 * doesn't update user data.
 	 */
 	if (psock) {
+		if (!psock_is_smap_sk(sock)) {
+			err = -EBUSY;
+			goto out_progs;
+		}
 		if (READ_ONCE(psock->bpf_parse) && parse) {
 			err = -EBUSY;
 			goto out_progs;
@@ -2089,8 +2119,12 @@ static int sock_map_update_elem(struct bpf_map *map,
 		return -EINVAL;
 	}
 
+	/* ULPs are currently supported only for TCP sockets in ESTABLISHED
+	 * state.
+	 */
 	if (skops.sk->sk_type != SOCK_STREAM ||
-	    skops.sk->sk_protocol != IPPROTO_TCP) {
+	    skops.sk->sk_protocol != IPPROTO_TCP ||
+	    skops.sk->sk_state != TCP_ESTABLISHED) {
 		fput(socket->file);
 		return -EOPNOTSUPP;
 	}
@@ -2445,6 +2479,16 @@ static int sock_hash_update_elem(struct bpf_map *map,
 		return -EINVAL;
 	}
 
+	/* ULPs are currently supported only for TCP sockets in ESTABLISHED
+	 * state.
+	 */
+	if (skops.sk->sk_type != SOCK_STREAM ||
+	    skops.sk->sk_protocol != IPPROTO_TCP ||
+	    skops.sk->sk_state != TCP_ESTABLISHED) {
+		fput(socket->file);
+		return -EOPNOTSUPP;
+	}
+
 	lock_sock(skops.sk);
 	preempt_disable();
 	rcu_read_lock();
@@ -2535,10 +2579,22 @@ const struct bpf_map_ops sock_hash_ops = {
 	.map_check_btf = map_check_no_btf,
 };
 
+static bool bpf_is_valid_sock_op(struct bpf_sock_ops_kern *ops)
+{
+	return ops->op == BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB ||
+	       ops->op == BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB;
+}
 BPF_CALL_4(bpf_sock_map_update, struct bpf_sock_ops_kern *, bpf_sock,
 	   struct bpf_map *, map, void *, key, u64, flags)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	/* ULPs are currently supported only for TCP sockets in ESTABLISHED
+	 * state. This checks that the sock ops triggering the update is
+	 * one indicating we are (or will be soon) in an ESTABLISHED state.
+	 */
+	if (!bpf_is_valid_sock_op(bpf_sock))
+		return -EOPNOTSUPP;
 	return sock_map_ctx_update_elem(bpf_sock, map, key, flags);
 }
 
@@ -2557,6 +2613,9 @@ BPF_CALL_4(bpf_sock_hash_update, struct bpf_sock_ops_kern *, bpf_sock,
 	   struct bpf_map *, map, void *, key, u64, flags)
 {
 	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	if (!bpf_is_valid_sock_op(bpf_sock))
+		return -EOPNOTSUPP;
 	return sock_hash_ctx_update_elem(bpf_sock, map, key, flags);
 }
 

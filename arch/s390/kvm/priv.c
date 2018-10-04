@@ -280,9 +280,11 @@ retry:
 			goto retry;
 		}
 	}
-	if (rc)
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	up_read(&current->mm->mmap_sem);
+	if (rc == -EFAULT)
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	if (rc < 0)
+		return rc;
 	vcpu->run->s.regs.gprs[reg1] &= ~0xff;
 	vcpu->run->s.regs.gprs[reg1] |= key;
 	return 0;
@@ -324,9 +326,11 @@ retry:
 			goto retry;
 		}
 	}
-	if (rc < 0)
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 	up_read(&current->mm->mmap_sem);
+	if (rc == -EFAULT)
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	if (rc < 0)
+		return rc;
 	kvm_s390_set_psw_cc(vcpu, rc);
 	return 0;
 }
@@ -390,12 +394,12 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 					      FAULT_FLAG_WRITE, &unlocked);
 			rc = !rc ? -EAGAIN : rc;
 		}
+		up_read(&current->mm->mmap_sem);
 		if (rc == -EFAULT)
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-
-		up_read(&current->mm->mmap_sem);
-		if (rc >= 0)
-			start += PAGE_SIZE;
+		if (rc < 0)
+			return rc;
+		start += PAGE_SIZE;
 	}
 
 	if (m3 & (SSKE_MC | SSKE_MR)) {
@@ -1002,13 +1006,15 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 						      FAULT_FLAG_WRITE, &unlocked);
 				rc = !rc ? -EAGAIN : rc;
 			}
+			up_read(&current->mm->mmap_sem);
 			if (rc == -EFAULT)
 				return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-
-			up_read(&current->mm->mmap_sem);
-			if (rc >= 0)
-				start += PAGE_SIZE;
+			if (rc == -EAGAIN)
+				continue;
+			if (rc < 0)
+				return rc;
 		}
+		start += PAGE_SIZE;
 	}
 	if (vcpu->run->s.regs.gprs[reg1] & PFMF_FSC) {
 		if (psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_BITS_AMODE_64BIT) {
