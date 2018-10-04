@@ -2916,10 +2916,10 @@ unsigned long nr_iowait(void)
 }
 
 /*
- * Consumers of these two interfaces, like for example the cpufreq menu
- * governor are using nonsensical data. Boosting frequency for a CPU that has
- * IO-wait which might not even end up running the task when it does become
- * runnable.
+ * Consumers of these two interfaces, like for example the cpuidle menu
+ * governor, are using nonsensical data. Preferring shallow idle state selection
+ * for a CPU that has IO-wait which might not even end up running the task when
+ * it does become runnable.
  */
 
 unsigned long nr_iowait_cpu(int cpu)
