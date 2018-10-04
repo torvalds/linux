@@ -97,14 +97,14 @@ EXPORT_SYMBOL(drm_mode_legacy_fb_format);
 
 /**
  * drm_driver_legacy_fb_format - compute drm fourcc code from legacy description
+ * @dev: DRM device
  * @bpp: bits per pixels
  * @depth: bit depth per pixel
- * @native: use host native byte order
  *
  * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
  * Unlike drm_mode_legacy_fb_format() this looks at the drivers mode_config,
- * and depending on the quirk_addfb_prefer_host_byte_order flag it returns
- * little endian byte order or host byte order framebuffer formats.
+ * and depending on the &drm_mode_config.quirk_addfb_prefer_host_byte_order flag
+ * it returns little endian byte order or host byte order framebuffer formats.
  */
 uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
 				     uint32_t bpp, uint32_t depth)
