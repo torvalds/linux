@@ -16,8 +16,10 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/irq.h>
 
 #include "mt76x02.h"
+#include "mt76x02_trace.h"
 
 static int
 mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
@@ -135,6 +137,66 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	return mt76_init_queues(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_init);
+
+void mt76x02_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
+{
+	struct mt76x02_dev *dev;
+
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
+	mt76x02_irq_enable(dev, MT_INT_RX_DONE(q));
+}
+EXPORT_SYMBOL_GPL(mt76x02_rx_poll_complete);
+
+irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
+{
+	struct mt76x02_dev *dev = dev_instance;
+	u32 intr;
+
+	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
+
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state))
+		return IRQ_NONE;
+
+	trace_dev_irq(dev, intr, dev->mt76.mmio.irqmask);
+
+	intr &= dev->mt76.mmio.irqmask;
+
+	if (intr & MT_INT_TX_DONE_ALL) {
+		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
+		tasklet_schedule(&dev->tx_tasklet);
+	}
+
+	if (intr & MT_INT_RX_DONE(0)) {
+		mt76x02_irq_disable(dev, MT_INT_RX_DONE(0));
+		napi_schedule(&dev->mt76.napi[0]);
+	}
+
+	if (intr & MT_INT_RX_DONE(1)) {
+		mt76x02_irq_disable(dev, MT_INT_RX_DONE(1));
+		napi_schedule(&dev->mt76.napi[1]);
+	}
+
+	if (intr & MT_INT_PRE_TBTT)
+		tasklet_schedule(&dev->pre_tbtt_tasklet);
+
+	/* send buffered multicast frames now */
+	if (intr & MT_INT_TBTT)
+		mt76_queue_kick(dev, &dev->mt76.q_tx[MT_TXQ_PSD]);
+
+	if (intr & MT_INT_TX_STAT) {
+		mt76x02_mac_poll_tx_status(dev, true);
+		tasklet_schedule(&dev->tx_tasklet);
+	}
+
+	if (intr & MT_INT_GPTIMER) {
+		mt76x02_irq_disable(dev, MT_INT_GPTIMER);
+		tasklet_schedule(&dev->dfs_pd.dfs_tasklet);
+	}
+
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(mt76x02_irq_handler);
 
 void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set)
 {

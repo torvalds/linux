@@ -146,6 +146,8 @@ void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb);
 bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update);
 void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			  struct sk_buff *skb);
+void mt76x02_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
+irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance);
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb);
 int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,

@@ -19,7 +19,6 @@
 #include <linux/pci.h>
 
 #include "mt76x2.h"
-#include "trace.h"
 
 static const struct pci_device_id mt76pci_device_table[] = {
 	{ PCI_DEVICE(0x14c3, 0x7662) },
@@ -58,7 +57,7 @@ mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->mt76.rev = mt76_rr(dev, MT_ASIC_VERSION);
 	dev_info(dev->mt76.dev, "ASIC revision: %08x\n", dev->mt76.rev);
 
-	ret = devm_request_irq(dev->mt76.dev, pdev->irq, mt76x2_irq_handler,
+	ret = devm_request_irq(dev->mt76.dev, pdev->irq, mt76x02_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
 		goto error;

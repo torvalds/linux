@@ -60,7 +60,6 @@ int mt76x2_register_device(struct mt76x02_dev *dev);
 void mt76x2_init_debugfs(struct mt76x02_dev *dev);
 void mt76x2_init_device(struct mt76x02_dev *dev);
 
-irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance);
 void mt76x2_phy_power_on(struct mt76x02_dev *dev);
 int mt76x2_init_hardware(struct mt76x02_dev *dev);
 void mt76x2_stop_hardware(struct mt76x02_dev *dev);
@@ -86,8 +85,6 @@ void mt76x2_cleanup(struct mt76x02_dev *dev);
 void mt76x2_mac_set_tx_protection(struct mt76x02_dev *dev, u32 val);
 
 void mt76x2_pre_tbtt_tasklet(unsigned long arg);
-
-void mt76x2_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
 
 void mt76x2_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 
