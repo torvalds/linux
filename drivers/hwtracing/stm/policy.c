@@ -461,13 +461,9 @@ void stp_policy_node_put(struct stp_policy_node *policy_node)
 
 int __init stp_configfs_init(void)
 {
-	int err;
-
 	config_group_init(&stp_policy_subsys.su_group);
 	mutex_init(&stp_policy_subsys.su_mutex);
-	err = configfs_register_subsystem(&stp_policy_subsys);
-
-	return err;
+	return configfs_register_subsystem(&stp_policy_subsys);
 }
 
 void __exit stp_configfs_exit(void)
