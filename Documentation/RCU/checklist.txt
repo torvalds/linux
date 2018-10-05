@@ -285,11 +285,7 @@ over a rather long period of time, but improvements are always welcome!
 		here is that superuser already has lots of ways to crash
 		the machine.
 
-	d.	Use call_rcu_bh() rather than call_rcu(), in order to take
-		advantage of call_rcu_bh()'s faster grace periods.  (This
-		is only a partial solution, though.)
-
-	e.	Periodically invoke synchronize_rcu(), permitting a limited
+	d.	Periodically invoke synchronize_rcu(), permitting a limited
 		number of updates per grace period.
 
 	The same cautions apply to call_rcu_bh(), call_rcu_sched(),
