@@ -1767,7 +1767,7 @@ out:
 		}
 	}
 
-	rets = buf->size;
+	rets = len;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);

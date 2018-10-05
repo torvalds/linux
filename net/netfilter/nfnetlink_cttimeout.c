@@ -489,8 +489,8 @@ err:
 	return err;
 }
 
-static struct ctnl_timeout *
-ctnl_timeout_find_get(struct net *net, const char *name)
+static struct nf_ct_timeout *ctnl_timeout_find_get(struct net *net,
+						   const char *name)
 {
 	struct ctnl_timeout *timeout, *matching = NULL;
 
@@ -509,7 +509,7 @@ ctnl_timeout_find_get(struct net *net, const char *name)
 		break;
 	}
 err:
-	return matching;
+	return matching ? &matching->timeout : NULL;
 }
 
 static void ctnl_timeout_put(struct nf_ct_timeout *t)

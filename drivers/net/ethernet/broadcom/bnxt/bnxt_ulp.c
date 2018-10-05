@@ -169,7 +169,6 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 		edev->ulp_tbl[ulp_id].msix_requested = avail_msix;
 	}
 	bnxt_fill_msix_vecs(bp, ent);
-	bnxt_set_max_func_cp_rings(bp, max_cp_rings - avail_msix);
 	edev->flags |= BNXT_EN_FLAG_MSIX_REQUESTED;
 	return avail_msix;
 }
@@ -178,7 +177,6 @@ static int bnxt_free_msix_vecs(struct bnxt_en_dev *edev, int ulp_id)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
-	int max_cp_rings, msix_requested;
 
 	ASSERT_RTNL();
 	if (ulp_id != BNXT_ROCE_ULP)
@@ -187,9 +185,6 @@ static int bnxt_free_msix_vecs(struct bnxt_en_dev *edev, int ulp_id)
 	if (!(edev->flags & BNXT_EN_FLAG_MSIX_REQUESTED))
 		return 0;
 
-	max_cp_rings = bnxt_get_max_func_cp_rings(bp);
-	msix_requested = edev->ulp_tbl[ulp_id].msix_requested;
-	bnxt_set_max_func_cp_rings(bp, max_cp_rings + msix_requested);
 	edev->ulp_tbl[ulp_id].msix_requested = 0;
 	edev->flags &= ~BNXT_EN_FLAG_MSIX_REQUESTED;
 	if (netif_running(dev)) {
@@ -218,21 +213,6 @@ int bnxt_get_ulp_msix_base(struct bnxt *bp)
 			return edev->ulp_tbl[BNXT_ROCE_ULP].msix_base;
 	}
 	return 0;
-}
-
-void bnxt_subtract_ulp_resources(struct bnxt *bp, int ulp_id)
-{
-	ASSERT_RTNL();
-	if (bnxt_ulp_registered(bp->edev, ulp_id)) {
-		struct bnxt_en_dev *edev = bp->edev;
-		unsigned int msix_req, max;
-
-		msix_req = edev->ulp_tbl[ulp_id].msix_requested;
-		max = bnxt_get_max_func_cp_rings(bp);
-		bnxt_set_max_func_cp_rings(bp, max - msix_req);
-		max = bnxt_get_max_func_stat_ctxs(bp);
-		bnxt_set_max_func_stat_ctxs(bp, max - 1);
-	}
 }
 
 static int bnxt_send_msg(struct bnxt_en_dev *edev, int ulp_id,

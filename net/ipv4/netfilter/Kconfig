@@ -106,6 +106,10 @@ config NF_NAT_IPV4
 
 if NF_NAT_IPV4
 
+config NF_NAT_MASQUERADE_IPV4
+	bool
+
+if NF_TABLES
 config NFT_CHAIN_NAT_IPV4
 	depends on NF_TABLES_IPV4
 	tristate "IPv4 nf_tables nat chain support"
@@ -114,9 +118,6 @@ config NFT_CHAIN_NAT_IPV4
 	  chain type is used to perform Network Address Translation (NAT)
 	  packet transformations such as the source, destination address and
 	  source and destination ports.
-
-config NF_NAT_MASQUERADE_IPV4
-	bool
 
 config NFT_MASQ_IPV4
 	tristate "IPv4 masquerading support for nf_tables"
@@ -135,6 +136,7 @@ config NFT_REDIR_IPV4
 	help
 	  This is the expression that provides IPv4 redirect support for
 	  nf_tables.
+endif # NF_TABLES
 
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"

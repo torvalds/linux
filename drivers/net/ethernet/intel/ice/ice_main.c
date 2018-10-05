@@ -4806,30 +4806,6 @@ void ice_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	stats->rx_length_errors = vsi_stats->rx_length_errors;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/**
- * ice_netpoll - polling "interrupt" handler
- * @netdev: network interface device structure
- *
- * Used by netconsole to send skbs without having to re-enable interrupts.
- * This is not called in the normal interrupt path.
- */
-static void ice_netpoll(struct net_device *netdev)
-{
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_vsi *vsi = np->vsi;
-	struct ice_pf *pf = vsi->back;
-	int i;
-
-	if (test_bit(__ICE_DOWN, vsi->state) ||
-	    !test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		return;
-
-	for (i = 0; i < vsi->num_q_vectors; i++)
-		ice_msix_clean_rings(0, vsi->q_vectors[i]);
-}
-#endif /* CONFIG_NET_POLL_CONTROLLER */
-
 /**
  * ice_napi_disable_all - Disable NAPI for all q_vectors in the VSI
  * @vsi: VSI having NAPI disabled
@@ -5497,9 +5473,6 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = ice_change_mtu,
 	.ndo_get_stats64 = ice_get_stats64,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = ice_netpoll,
-#endif /* CONFIG_NET_POLL_CONTROLLER */
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_set_features = ice_set_features,

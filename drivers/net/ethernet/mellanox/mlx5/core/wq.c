@@ -39,9 +39,9 @@ u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq)
 	return (u32)wq->fbc.sz_m1 + 1;
 }
 
-u32 mlx5_wq_cyc_get_frag_size(struct mlx5_wq_cyc *wq)
+u16 mlx5_wq_cyc_get_frag_size(struct mlx5_wq_cyc *wq)
 {
-	return (u32)wq->fbc.frag_sz_m1 + 1;
+	return wq->fbc.frag_sz_m1 + 1;
 }
 
 u32 mlx5_cqwq_get_size(struct mlx5_cqwq *wq)
@@ -138,15 +138,16 @@ int mlx5_wq_qp_create(struct mlx5_core_dev *mdev, struct mlx5_wq_param *param,
 		      void *qpc, struct mlx5_wq_qp *wq,
 		      struct mlx5_wq_ctrl *wq_ctrl)
 {
-	u32 sq_strides_offset;
+	u16 sq_strides_offset;
+	u32 rq_pg_remainder;
 	int err;
 
 	mlx5_fill_fbc(MLX5_GET(qpc, qpc, log_rq_stride) + 4,
 		      MLX5_GET(qpc, qpc, log_rq_size),
 		      &wq->rq.fbc);
 
-	sq_strides_offset =
-		((wq->rq.fbc.frag_sz_m1 + 1) % PAGE_SIZE) / MLX5_SEND_WQE_BB;
+	rq_pg_remainder   = mlx5_wq_cyc_get_byte_size(&wq->rq) % PAGE_SIZE;
+	sq_strides_offset = rq_pg_remainder / MLX5_SEND_WQE_BB;
 
 	mlx5_fill_fbc_offset(ilog2(MLX5_SEND_WQE_BB),
 			     MLX5_GET(qpc, qpc, log_sq_size),

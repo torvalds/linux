@@ -51,6 +51,11 @@ static inline struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	if (desc_phase != expected_phase)
 		return NULL;
 
+	/* Make sure we read the rest of the descriptor after the phase bit
+	 * has been read
+	 */
+	dma_rmb();
+
 	return cdesc;
 }
 
@@ -493,6 +498,7 @@ int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
 	if (cdesc_phase != expected_phase)
 		return -EAGAIN;
 
+	dma_rmb();
 	if (unlikely(cdesc->req_id >= io_cq->q_depth)) {
 		pr_err("Invalid req id %d\n", cdesc->req_id);
 		return -EINVAL;

@@ -323,6 +323,11 @@ static int vbox_crtc_page_flip(struct drm_crtc *crtc,
 	if (rc)
 		return rc;
 
+	mutex_lock(&vbox->hw_mutex);
+	vbox_set_view(crtc);
+	vbox_do_modeset(crtc, &crtc->mode);
+	mutex_unlock(&vbox->hw_mutex);
+
 	spin_lock_irqsave(&drm->event_lock, flags);
 
 	if (event)

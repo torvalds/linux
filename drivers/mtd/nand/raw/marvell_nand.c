@@ -1547,7 +1547,7 @@ static void marvell_nfc_parse_instructions(struct nand_chip *chip,
 	for (op_id = 0; op_id < subop->ninstrs; op_id++) {
 		unsigned int offset, naddrs;
 		const u8 *addrs;
-		int len = nand_subop_get_data_len(subop, op_id);
+		int len;
 
 		instr = &subop->instrs[op_id];
 
@@ -1593,6 +1593,7 @@ static void marvell_nfc_parse_instructions(struct nand_chip *chip,
 				nfc_op->ndcb[0] |=
 					NDCB0_CMD_XTYPE(XTYPE_MONOLITHIC_RW) |
 					NDCB0_LEN_OVRD;
+				len = nand_subop_get_data_len(subop, op_id);
 				nfc_op->ndcb[3] |= round_up(len, FIFO_DEPTH);
 			}
 			nfc_op->data_delay_ns = instr->delay_ns;
@@ -1606,6 +1607,7 @@ static void marvell_nfc_parse_instructions(struct nand_chip *chip,
 				nfc_op->ndcb[0] |=
 					NDCB0_CMD_XTYPE(XTYPE_MONOLITHIC_RW) |
 					NDCB0_LEN_OVRD;
+				len = nand_subop_get_data_len(subop, op_id);
 				nfc_op->ndcb[3] |= round_up(len, FIFO_DEPTH);
 			}
 			nfc_op->data_delay_ns = instr->delay_ns;

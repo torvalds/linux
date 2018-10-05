@@ -848,7 +848,7 @@ struct file_operations
 ----------------------
 
 This describes how the VFS can manipulate an open file. As of kernel
-4.1, the following members are defined:
+4.18, the following members are defined:
 
 struct file_operations {
 	struct module *owner;
@@ -858,11 +858,11 @@ struct file_operations {
 	ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
 	ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
 	int (*iterate) (struct file *, struct dir_context *);
+	int (*iterate_shared) (struct file *, struct dir_context *);
 	__poll_t (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
-	int (*mremap)(struct file *, struct vm_area_struct *);
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
@@ -882,6 +882,10 @@ struct file_operations {
 #ifndef CONFIG_MMU
 	unsigned (*mmap_capabilities)(struct file *);
 #endif
+	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
+	int (*clone_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
+	int (*dedupe_file_range)(struct file *, loff_t, struct file *, loff_t, u64);
+	int (*fadvise)(struct file *, loff_t, loff_t, int);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -898,6 +902,9 @@ otherwise noted.
   write_iter: possibly asynchronous write with iov_iter as source
 
   iterate: called when the VFS needs to read the directory contents
+
+  iterate_shared: called when the VFS needs to read the directory contents
+	when filesystem supports concurrent dir iterators
 
   poll: called by the VFS when a process wants to check if there is
 	activity on this file and (optionally) go to sleep until there
@@ -950,6 +957,16 @@ otherwise noted.
 	    the lease in the inode after setting it.
 
   fallocate: called by the VFS to preallocate blocks or punch a hole.
+
+  copy_file_range: called by the copy_file_range(2) system call.
+
+  clone_file_range: called by the ioctl(2) system call for FICLONERANGE and
+	FICLONE commands.
+
+  dedupe_file_range: called by the ioctl(2) system call for FIDEDUPERANGE
+	command.
+
+  fadvise: possibly called by the fadvise64() system call.
 
 Note that the file operations are implemented by the specific
 filesystem in which the inode resides. When opening a device node
