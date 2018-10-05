@@ -1121,7 +1121,7 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
  * shut down and the local endpoint from going away, thus sk_user_data will not
  * be cleared until this function returns.
  */
-void rxrpc_data_ready(struct sock *udp_sk)
+void rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_channel *chan;
@@ -1130,38 +1130,10 @@ void rxrpc_data_ready(struct sock *udp_sk)
 	struct rxrpc_local *local = udp_sk->sk_user_data;
 	struct rxrpc_peer *peer = NULL;
 	struct rxrpc_sock *rx = NULL;
-	struct sk_buff *skb;
 	unsigned int channel;
-	int ret, skew = 0;
+	int skew = 0;
 
 	_enter("%p", udp_sk);
-
-	ASSERT(!irqs_disabled());
-
-	skb = skb_recv_udp(udp_sk, 0, 1, &ret);
-	if (!skb) {
-		if (ret == -EAGAIN)
-			return;
-		_debug("UDP socket error %d", ret);
-		return;
-	}
-
-	if (skb->tstamp == 0)
-		skb->tstamp = ktime_get_real();
-
-	rxrpc_new_skb(skb, rxrpc_skb_rx_received);
-
-	_net("recv skb %p", skb);
-
-	/* we'll probably need to checksum it (didn't call sock_recvmsg) */
-	if (skb_checksum_complete(skb)) {
-		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
-		__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INERRORS, 0);
-		_leave(" [CSUM failed]");
-		return;
-	}
-
-	__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INDATAGRAMS, 0);
 
 	/* The UDP protocol already released all skb resources;
 	 * we are free to add our own data there.
@@ -1181,6 +1153,8 @@ void rxrpc_data_ready(struct sock *udp_sk)
 		}
 	}
 
+	if (skb->tstamp == 0)
+		skb->tstamp = ktime_get_real();
 	trace_rxrpc_rx_packet(sp);
 
 	switch (sp->hdr.type) {
@@ -1397,4 +1371,38 @@ reject_packet:
 	trace_rxrpc_rx_done(skb->mark, skb->priority);
 	rxrpc_reject_packet(local, skb);
 	_leave(" [badmsg]");
+}
+
+void rxrpc_data_ready(struct sock *udp_sk)
+{
+	struct sk_buff *skb;
+	int ret;
+
+	for (;;) {
+		skb = skb_recv_udp(udp_sk, 0, 1, &ret);
+		if (!skb) {
+			if (ret == -EAGAIN)
+				return;
+
+			/* If there was a transmission failure, we get an error
+			 * here that we need to ignore.
+			 */
+			_debug("UDP socket error %d", ret);
+			continue;
+		}
+
+		rxrpc_new_skb(skb, rxrpc_skb_rx_received);
+
+		/* we'll probably need to checksum it (didn't call sock_recvmsg) */
+		if (skb_checksum_complete(skb)) {
+			rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+			__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INERRORS, 0);
+			_debug("csum failed");
+			continue;
+		}
+
+		__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INDATAGRAMS, 0);
+
+		rxrpc_input_packet(udp_sk, skb);
+	}
 }
