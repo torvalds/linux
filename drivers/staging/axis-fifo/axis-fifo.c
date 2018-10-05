@@ -27,8 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/param.h>
 #include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/cdev.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
