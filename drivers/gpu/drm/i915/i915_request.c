@@ -655,17 +655,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		if (rq)
 			cond_synchronize_rcu(rq->rcustate);
 
-		/*
-		 * We've forced the client to stall and catch up with whatever
-		 * backlog there might have been. As we are assuming that we
-		 * caused the mempressure, now is an opportune time to
-		 * recover as much memory from the request pool as is possible.
-		 * Having already penalized the client to stall, we spend
-		 * a little extra time to re-optimise page allocation.
-		 */
-		kmem_cache_shrink(i915->requests);
-		rcu_barrier(); /* Recover the TYPESAFE_BY_RCU pages */
-
 		rq = kmem_cache_alloc(i915->requests, GFP_KERNEL);
 		if (!rq) {
 			ret = -ENOMEM;
