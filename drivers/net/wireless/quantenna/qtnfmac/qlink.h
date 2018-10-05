@@ -80,6 +80,7 @@ enum qlink_hw_capab {
 	QLINK_HW_CAPAB_SCAN_RANDOM_MAC_ADDR	= BIT(3),
 	QLINK_HW_CAPAB_PWR_MGMT			= BIT(4),
 	QLINK_HW_CAPAB_OBSS_SCAN		= BIT(5),
+	QLINK_HW_CAPAB_SCAN_DWELL		= BIT(6),
 };
 
 enum qlink_iface_type {
@@ -1152,6 +1153,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_WOWLAN_CAPAB		= 0x0410,
 	QTN_TLV_ID_WOWLAN_PATTERN	= 0x0411,
 	QTN_TLV_ID_SCAN_FLUSH		= 0x0412,
+	QTN_TLV_ID_SCAN_DWELL		= 0x0413,
 };
 
 struct qlink_tlv_hdr {

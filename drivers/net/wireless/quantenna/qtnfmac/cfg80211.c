@@ -1101,6 +1101,10 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
 		wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD);
 
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_SCAN_DWELL)
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_SET_SCAN_DWELL);
+
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2;
 

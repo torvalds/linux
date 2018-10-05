@@ -2203,6 +2203,15 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 		qtnf_cmd_skb_put_tlv_tag(cmd_skb, QTN_TLV_ID_SCAN_FLUSH);
 	}
 
+	if (scan_req->duration) {
+		pr_debug("MAC%u: %s scan duration %u\n", mac->macid,
+			 scan_req->duration_mandatory ? "mandatory" : "max",
+			 scan_req->duration);
+
+		qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_SCAN_DWELL,
+					 scan_req->duration);
+	}
+
 	ret = qtnf_cmd_send(mac->bus, cmd_skb);
 	if (ret)
 		goto out;
