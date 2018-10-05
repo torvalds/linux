@@ -131,11 +131,11 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
  * This calls the PLL's prepare hook if it has one and if the PLL is not
  * already enabled. The prepare hook is platform specific.
  */
-void intel_prepare_shared_dpll(struct intel_crtc *crtc)
+void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 
 	if (WARN_ON(pll == NULL))
 		return;
@@ -158,11 +158,11 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
  *
  * Enable the shared DPLL used by @crtc.
  */
-void intel_enable_shared_dpll(struct intel_crtc *crtc)
+void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
 	unsigned int old_mask;
 
@@ -203,10 +203,11 @@ out:
  *
  * Disable the shared DPLL used by @crtc.
  */
-void intel_disable_shared_dpll(struct intel_crtc *crtc)
+void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
+	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
 
 	/* PCH only available on ILK+ */
@@ -409,14 +410,6 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll)
 {
 	const enum intel_dpll_id id = pll->info->id;
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc;
-
-	/* Make sure no transcoder isn't still depending on us. */
-	for_each_intel_crtc(dev, crtc) {
-		if (crtc->config->shared_dpll == pll)
-			assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
-	}
 
 	I915_WRITE(PCH_DPLL(id), 0);
 	POSTING_READ(PCH_DPLL(id));

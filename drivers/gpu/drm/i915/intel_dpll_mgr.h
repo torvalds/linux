@@ -334,9 +334,9 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
 			       struct intel_crtc *crtc,
 			       struct drm_atomic_state *state);
-void intel_prepare_shared_dpll(struct intel_crtc *crtc);
-void intel_enable_shared_dpll(struct intel_crtc *crtc);
-void intel_disable_shared_dpll(struct intel_crtc *crtc);
+void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state);
+void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
+void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct drm_atomic_state *state);
 void intel_shared_dpll_init(struct drm_device *dev);
 

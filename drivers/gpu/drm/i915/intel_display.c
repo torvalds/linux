@@ -4758,7 +4758,7 @@ static void ironlake_pch_enable(const struct intel_atomic_state *state,
 	 * Note that enable_shared_dpll tries to do the right thing, but
 	 * get_shared_dpll unconditionally resets the pll - we need that to have
 	 * the right LVDS enable sequence. */
-	intel_enable_shared_dpll(crtc);
+	intel_enable_shared_dpll(crtc_state);
 
 	/* set transcoder timing, panel must allow it */
 	assert_panel_unlocked(dev_priv, pipe);
@@ -5600,8 +5600,8 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	if (intel_crtc->config->has_pch_encoder)
-		intel_prepare_shared_dpll(intel_crtc);
+	if (pipe_config->has_pch_encoder)
+		intel_prepare_shared_dpll(pipe_config);
 
 	if (intel_crtc_has_dp_encoder(intel_crtc->config))
 		intel_dp_set_m_n(intel_crtc, M1_N1);
@@ -5719,8 +5719,8 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	intel_encoders_pre_pll_enable(crtc, pipe_config, old_state);
 
-	if (intel_crtc->config->shared_dpll)
-		intel_enable_shared_dpll(intel_crtc);
+	if (pipe_config->shared_dpll)
+		intel_enable_shared_dpll(pipe_config);
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		icl_map_plls_to_ports(crtc, pipe_config, old_state);
@@ -6295,7 +6295,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 
 	intel_fbc_disable(intel_crtc);
 	intel_update_watermarks(intel_crtc);
-	intel_disable_shared_dpll(intel_crtc);
+	intel_disable_shared_dpll(to_intel_crtc_state(crtc->state));
 
 	domains = intel_crtc->enabled_power_domains;
 	for_each_power_domain(domain, domains)
@@ -12744,7 +12744,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 			dev_priv->display.crtc_disable(old_intel_crtc_state, state);
 			intel_crtc->active = false;
 			intel_fbc_disable(intel_crtc);
-			intel_disable_shared_dpll(intel_crtc);
+			intel_disable_shared_dpll(old_intel_crtc_state);
 
 			/*
 			 * Underruns don't always raise
