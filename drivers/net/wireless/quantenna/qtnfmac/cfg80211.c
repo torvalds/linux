@@ -666,8 +666,6 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
-	qtnf_scan_done(mac, true);
-
 	ret = qtnf_cmd_send_disconnect(vif, reason_code);
 	if (ret)
 		pr_err("VIF%u.%u: failed to disconnect\n",
