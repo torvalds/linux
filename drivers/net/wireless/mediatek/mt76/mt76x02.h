@@ -150,6 +150,10 @@ void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			  struct sk_buff *skb);
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb);
+int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
+			   struct sk_buff *skb, struct mt76_queue *q,
+			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+			   u32 *tx_info);
 
 extern const u16 mt76x02_beacon_offsets[16];
 void mt76x02_set_beacon_offsets(struct mt76_dev *dev);

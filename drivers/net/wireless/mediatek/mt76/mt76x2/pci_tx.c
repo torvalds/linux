@@ -22,37 +22,6 @@ struct beacon_bc_data {
 	struct sk_buff *tail[8];
 };
 
-int mt76x2_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
-			  struct sk_buff *skb, struct mt76_queue *q,
-			  struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			  u32 *tx_info)
-{
-	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int qsel = MT_QSEL_EDCA;
-	int ret;
-
-	if (q == &dev->mt76.q_tx[MT_TXQ_PSD] && wcid && wcid->idx < 128)
-		mt76x02_mac_wcid_set_drop(&dev->mt76, wcid->idx, false);
-
-	mt76x02_mac_write_txwi(mdev, txwi, skb, wcid, sta, skb->len);
-
-	ret = mt76x02_insert_hdr_pad(skb);
-	if (ret < 0)
-		return ret;
-
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
-		qsel = MT_QSEL_MGMT;
-
-	*tx_info = FIELD_PREP(MT_TXD_INFO_QSEL, qsel) |
-		   MT_TXD_INFO_80211;
-
-	if (!wcid || wcid->hw_key_idx == 0xff || wcid->sw_iv)
-		*tx_info |= MT_TXD_INFO_WIV;
-
-	return 0;
-}
-
 static void
 mt76x2_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
