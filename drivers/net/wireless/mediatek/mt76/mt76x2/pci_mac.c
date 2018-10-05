@@ -19,7 +19,6 @@
 #include "mcu.h"
 #include "eeprom.h"
 #include "trace.h"
-#include "../mt76x02_util.h"
 
 void mt76x2_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 {

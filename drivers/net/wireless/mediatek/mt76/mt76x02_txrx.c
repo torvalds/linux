@@ -17,10 +17,7 @@
 
 #include <linux/kernel.h>
 
-#include "mt76.h"
-#include "mt76x02_regs.h"
-#include "mt76x02_dma.h"
-#include "mt76x02_util.h"
+#include "mt76x02.h"
 
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb)

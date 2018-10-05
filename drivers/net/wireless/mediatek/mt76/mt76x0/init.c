@@ -18,9 +18,6 @@
 #include "eeprom.h"
 #include "trace.h"
 #include "mcu.h"
-#include "../mt76x02_util.h"
-#include "../mt76x02_dma.h"
-
 #include "initvals.h"
 
 static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)

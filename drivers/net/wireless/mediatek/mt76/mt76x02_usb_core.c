@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "mt76.h"
-#include "mt76x02_dma.h"
-#include "mt76x02_mac.h"
-#include "mt76x02_util.h"
+#include "mt76x02.h"
 
 static int mt76x02u_check_skb_rooms(struct sk_buff *skb)
 {

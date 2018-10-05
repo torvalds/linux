@@ -21,7 +21,6 @@
 
 #include "mt76x2.h"
 #include "mcu.h"
-#include "../mt76x02_dma.h"
 
 #define MT7612U_EEPROM_SIZE		512
 

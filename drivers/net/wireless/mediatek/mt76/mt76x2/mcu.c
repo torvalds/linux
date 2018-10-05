@@ -22,7 +22,6 @@
 #include "mt76x2.h"
 #include "mcu.h"
 #include "eeprom.h"
-#include "../mt76x02_dma.h"
 
 int mt76x2_mcu_set_channel(struct mt76x02_dev *dev, u8 channel, u8 bw,
 			   u8 bw_index, bool scan)

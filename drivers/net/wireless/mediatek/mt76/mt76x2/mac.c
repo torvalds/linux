@@ -16,7 +16,6 @@
  */
 
 #include "mt76x2.h"
-#include "../mt76x02_util.h"
 
 void mt76x2_mac_stop(struct mt76x02_dev *dev, bool force)
 {

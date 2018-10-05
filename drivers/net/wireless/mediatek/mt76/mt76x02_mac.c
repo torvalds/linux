@@ -15,10 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "mt76.h"
-#include "mt76x02_regs.h"
-#include "mt76x02_mac.h"
-#include "mt76x02_util.h"
+#include "mt76x02.h"
 
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)

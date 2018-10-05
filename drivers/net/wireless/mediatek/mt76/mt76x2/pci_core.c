@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include "mt76x2.h"
 #include "trace.h"
-#include "../mt76x02_util.h"
 
 void mt76x2_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {

@@ -17,10 +17,7 @@
 
 #include <linux/kernel.h>
 
-#include "mt76.h"
-#include "mt76x02_dma.h"
-#include "mt76x02_util.h"
-#include "mt76x02_mac.h"
+#include "mt76x02.h"
 
 static int
 mt76x02_init_tx_queue(struct mt76_dev *dev, struct mt76_queue *q,

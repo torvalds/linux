@@ -15,8 +15,6 @@
  */
 
 #include "mt76x2.h"
-#include "../mt76x02_dma.h"
-#include "../mt76x02_util.h"
 
 void mt76x2_tx_tasklet(unsigned long data)
 {

@@ -20,8 +20,11 @@
 
 #include <linux/kfifo.h>
 
+#include "mt76.h"
+#include "mt76x02_regs.h"
 #include "mt76x02_mac.h"
 #include "mt76x02_dfs.h"
+#include "mt76x02_dma.h"
 
 struct mt76x02_mac_stats {
 	u64 rx_stat[6];

@@ -13,10 +13,10 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/etherdevice.h>
+
 #include "mt76x0.h"
 #include "trace.h"
-#include "../mt76x02_util.h"
-#include <linux/etherdevice.h>
 
 void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
 			       int ht_mode)

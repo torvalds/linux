@@ -16,10 +16,7 @@
  */
 
 #include <linux/module.h>
-#include "mt76.h"
-#include "mt76x02_regs.h"
-#include "mt76x02_mac.h"
-#include "mt76x02_util.h"
+#include "mt76x02.h"
 
 #define CCK_RATE(_idx, _rate) {					\
 	.bitrate = _rate,					\

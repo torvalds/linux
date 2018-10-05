@@ -21,7 +21,6 @@
 #include "mt76x2.h"
 #include "mcu.h"
 #include "eeprom.h"
-#include "../mt76x02_dma.h"
 
 static int
 mt76pci_load_rom_patch(struct mt76x02_dev *dev)

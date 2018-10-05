@@ -25,10 +25,7 @@
 #include <net/mac80211.h>
 #include <linux/debugfs.h>
 
-#include "../mt76.h"
-#include "../mt76x02_regs.h"
-#include "../mt76x02_mac.h"
-#include "../mt76x02_util.h"
+#include "../mt76x02.h"
 #include "eeprom.h"
 
 #define MT_CALIBRATE_INTERVAL		(4 * HZ)

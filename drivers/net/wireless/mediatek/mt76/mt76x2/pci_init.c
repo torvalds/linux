@@ -18,8 +18,6 @@
 #include "mt76x2.h"
 #include "eeprom.h"
 #include "mcu.h"
-#include "../mt76x02_util.h"
-#include "../mt76x02_dma.h"
 
 static void
 mt76x2_mac_pbf_init(struct mt76x02_dev *dev)

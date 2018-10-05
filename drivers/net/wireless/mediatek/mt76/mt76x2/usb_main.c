@@ -15,7 +15,6 @@
  */
 
 #include "mt76x2u.h"
-#include "../mt76x02_util.h"
 
 static int mt76x2u_start(struct ieee80211_hw *hw)
 {

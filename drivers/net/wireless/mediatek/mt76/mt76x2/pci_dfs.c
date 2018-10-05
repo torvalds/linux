@@ -15,7 +15,6 @@
  */
 
 #include "mt76x2.h"
-#include "../mt76x02_util.h"
 
 #define RADAR_SPEC(m, len, el, eh, wl, wh,		\
 		   w_tolerance, tl, th, t_tolerance,	\

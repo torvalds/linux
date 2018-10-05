@@ -13,9 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#include "mt76x0.h"
-#include "../mt76x02_util.h"
 #include <linux/etherdevice.h>
+#include "mt76x0.h"
 
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {

@@ -17,9 +17,8 @@
 #include <linux/delay.h>
 
 #include "mt76x2u.h"
-#include "../mt76x02_util.h"
-#include "../mt76x02_phy.h"
 #include "eeprom.h"
+#include "../mt76x02_phy.h"
 #include "../mt76x02_usb.h"
 
 static void mt76x2u_init_dma(struct mt76x02_dev *dev)

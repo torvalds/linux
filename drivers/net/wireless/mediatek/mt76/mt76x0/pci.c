@@ -20,8 +20,6 @@
 
 #include "mt76x0.h"
 #include "mcu.h"
-#include "../mt76x02_dma.h"
-#include "../mt76x02_util.h"
 
 static int mt76x0e_start(struct ieee80211_hw *hw)
 {
