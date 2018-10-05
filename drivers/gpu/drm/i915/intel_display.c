@@ -13530,7 +13530,7 @@ static bool intel_cursor_format_mod_supported(struct drm_plane *_plane,
 		format == DRM_FORMAT_ARGB8888;
 }
 
-static struct drm_plane_funcs skl_plane_funcs = {
+static const struct drm_plane_funcs skl_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
@@ -13541,7 +13541,7 @@ static struct drm_plane_funcs skl_plane_funcs = {
 	.format_mod_supported = skl_plane_format_mod_supported,
 };
 
-static struct drm_plane_funcs i965_plane_funcs = {
+static const struct drm_plane_funcs i965_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
@@ -13552,7 +13552,7 @@ static struct drm_plane_funcs i965_plane_funcs = {
 	.format_mod_supported = i965_plane_format_mod_supported,
 };
 
-static struct drm_plane_funcs i8xx_plane_funcs = {
+static const struct drm_plane_funcs i8xx_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
