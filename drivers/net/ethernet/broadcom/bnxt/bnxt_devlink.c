@@ -148,7 +148,7 @@ static int bnxt_dl_msix_validate(struct devlink *dl, u32 id,
 				 union devlink_param_value val,
 				 struct netlink_ext_ack *extack)
 {
-	int max_val;
+	int max_val = -1;
 
 	if (id == DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX)
 		max_val = BNXT_MSIX_VEC_MAX;
@@ -156,7 +156,7 @@ static int bnxt_dl_msix_validate(struct devlink *dl, u32 id,
 	if (id == DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN)
 		max_val = BNXT_MSIX_VEC_MIN_MAX;
 
-	if (val.vu32 < 0 || val.vu32 > max_val) {
+	if (val.vu32 > max_val) {
 		NL_SET_ERR_MSG_MOD(extack, "MSIX value is exceeding the range");
 		return -EINVAL;
 	}
