@@ -17,8 +17,8 @@
 #ifndef __MT76x02_DMA_H
 #define __MT76x02_DMA_H
 
+#include "mt76x02.h"
 #include "dma.h"
-#include "mt76x02_regs.h"
 
 #define MT_TXD_INFO_LEN			GENMASK(15, 0)
 #define MT_TXD_INFO_NEXT_VLD		BIT(16)
@@ -70,8 +70,7 @@ mt76x02_wait_for_wpdma(struct mt76_dev *dev, int timeout)
 			   0, timeout);
 }
 
-int mt76x02_dma_init(struct mt76_dev *dev);
-void mt76x02_dma_enable(struct mt76_dev *dev);
-void mt76x02_dma_disable(struct mt76_dev *dev);
+int mt76x02_dma_init(struct mt76x02_dev *dev);
+void mt76x02_dma_disable(struct mt76x02_dev *dev);
 
 #endif /* __MT76x02_DMA_H */

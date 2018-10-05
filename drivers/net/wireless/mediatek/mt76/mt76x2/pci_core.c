@@ -20,7 +20,10 @@
 
 void mt76x2_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
-	mt76x02_irq_enable(mdev, MT_INT_RX_DONE(q));
+	struct mt76x02_dev *dev;
+
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
+	mt76x02_irq_enable(dev, MT_INT_RX_DONE(q));
 }
 
 irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
@@ -39,17 +42,17 @@ irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
 	intr &= dev->mt76.mmio.irqmask;
 
 	if (intr & MT_INT_TX_DONE_ALL) {
-		mt76x02_irq_disable(&dev->mt76, MT_INT_TX_DONE_ALL);
+		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
 		tasklet_schedule(&dev->tx_tasklet);
 	}
 
 	if (intr & MT_INT_RX_DONE(0)) {
-		mt76x02_irq_disable(&dev->mt76, MT_INT_RX_DONE(0));
+		mt76x02_irq_disable(dev, MT_INT_RX_DONE(0));
 		napi_schedule(&dev->mt76.napi[0]);
 	}
 
 	if (intr & MT_INT_RX_DONE(1)) {
-		mt76x02_irq_disable(&dev->mt76, MT_INT_RX_DONE(1));
+		mt76x02_irq_disable(dev, MT_INT_RX_DONE(1));
 		napi_schedule(&dev->mt76.napi[1]);
 	}
 
@@ -66,7 +69,7 @@ irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
 	}
 
 	if (intr & MT_INT_GPTIMER) {
-		mt76x02_irq_disable(&dev->mt76, MT_INT_GPTIMER);
+		mt76x02_irq_disable(dev, MT_INT_GPTIMER);
 		tasklet_schedule(&dev->dfs_pd.dfs_tasklet);
 	}
 

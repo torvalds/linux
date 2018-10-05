@@ -27,7 +27,7 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mt76x02_mac_start(&dev->mt76);
+	mt76x02_mac_start(dev);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
@@ -85,12 +85,12 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
-	mt76x02_dma_disable(&dev->mt76);
+	mt76x02_dma_disable(dev);
 	err = mt76x0e_mcu_init(dev);
 	if (err < 0)
 		return err;
 
-	err = mt76x02_dma_init(&dev->mt76);
+	err = mt76x02_dma_init(dev);
 	if (err < 0)
 		return err;
 

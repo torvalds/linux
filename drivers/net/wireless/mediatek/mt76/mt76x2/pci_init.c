@@ -186,7 +186,7 @@ int mt76x2_mac_start(struct mt76x02_dev *dev)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
 
 	memset(dev->aggr_stats, 0, sizeof(dev->aggr_stats));
-	mt76x02_mac_start(&dev->mt76);
+	mt76x02_mac_start(dev);
 
 	return 0;
 }
@@ -301,7 +301,7 @@ int mt76x2_init_hardware(struct mt76x02_dev *dev)
 	tasklet_init(&dev->pre_tbtt_tasklet, mt76x2_pre_tbtt_tasklet,
 		     (unsigned long) dev);
 
-	mt76x02_dma_disable(&dev->mt76);
+	mt76x02_dma_disable(dev);
 	mt76x2_reset_wlan(dev, true);
 	mt76x2_power_on(dev);
 
@@ -315,7 +315,7 @@ int mt76x2_init_hardware(struct mt76x02_dev *dev)
 
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
-	ret = mt76x02_dma_init(&dev->mt76);
+	ret = mt76x02_dma_init(dev);
 	if (ret)
 		return ret;
 
