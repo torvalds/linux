@@ -660,10 +660,14 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	qtnf_scan_done(mac, true);
 
 	ret = qtnf_cmd_send_disconnect(vif, reason_code);
-	if (ret) {
+	if (ret)
 		pr_err("VIF%u.%u: failed to disconnect\n", mac->macid,
 		       vif->vifid);
-		goto out;
+
+	if (vif->wdev.current_bss) {
+		netif_carrier_off(vif->netdev);
+		cfg80211_disconnected(vif->netdev, reason_code,
+				      NULL, 0, true, GFP_KERNEL);
 	}
 
 out:
@@ -1140,12 +1144,9 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev)
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 	struct qtnf_wmac *mac = wiphy_priv(vif->wdev.wiphy);
 
-	if (vif->wdev.iftype == NL80211_IFTYPE_STATION) {
-		cfg80211_disconnected(vif->netdev, WLAN_REASON_DEAUTH_LEAVING,
-				      NULL, 0, 1, GFP_KERNEL);
+	if (vif->wdev.iftype == NL80211_IFTYPE_STATION)
 		qtnf_disconnect(vif->wdev.wiphy, ndev,
 				WLAN_REASON_DEAUTH_LEAVING);
-	}
 
 	qtnf_scan_done(mac, true);
 }
