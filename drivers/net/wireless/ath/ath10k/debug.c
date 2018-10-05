@@ -2421,7 +2421,7 @@ static ssize_t ath10k_write_ps_state_enable(struct file *file,
 	if (kstrtou8_from_user(user_buf, count, 0, &ps_state_enable))
 		return -EINVAL;
 
-	if (ps_state_enable > 1 || ps_state_enable < 0)
+	if (ps_state_enable > 1)
 		return -EINVAL;
 
 	mutex_lock(&ar->conf_mutex);
