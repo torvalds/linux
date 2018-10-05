@@ -177,7 +177,6 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_VLAN_INSERT	    = 0x1003,
 	HCLGE_OPC_MAC_ETHTYPE_ADD	    = 0x1010,
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
-	HCLGE_OPC_MAC_VLAN_MASK_SET	= 0x1012,
 
 	/* Multicast linear table commands */
 	HCLGE_OPC_MTA_MAC_MODE_CFG	    = 0x1020,
@@ -589,15 +588,6 @@ struct hclge_mac_vlan_tbl_entry_cmd {
 	__le16  egress_port;
 	__le16  egress_queue;
 	u8      rsv2[6];
-};
-
-#define HCLGE_VLAN_MASK_EN_B		0
-struct hclge_mac_vlan_mask_entry_cmd {
-	u8 rsv0[2];
-	u8 vlan_mask;
-	u8 rsv1;
-	u8 mac_mask[6];
-	u8 rsv2[14];
 };
 
 #define HCLGE_MAC_MGR_MASK_VLAN_B		BIT(0)

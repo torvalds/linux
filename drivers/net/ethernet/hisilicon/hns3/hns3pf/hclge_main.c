@@ -1939,36 +1939,11 @@ static int hclge_get_autoneg(struct hnae3_handle *handle)
 	return hdev->hw.mac.autoneg;
 }
 
-static int hclge_set_default_mac_vlan_mask(struct hclge_dev *hdev,
-					   bool mask_vlan,
-					   u8 *mac_mask)
-{
-	struct hclge_mac_vlan_mask_entry_cmd *req;
-	struct hclge_desc desc;
-	int status;
-
-	req = (struct hclge_mac_vlan_mask_entry_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_MASK_SET, false);
-
-	hnae3_set_bit(req->vlan_mask, HCLGE_VLAN_MASK_EN_B,
-		      mask_vlan ? 1 : 0);
-	ether_addr_copy(req->mac_mask, mac_mask);
-
-	status = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (status)
-		dev_err(&hdev->pdev->dev,
-			"Config mac_vlan_mask failed for cmd_send, ret =%d\n",
-			status);
-
-	return status;
-}
-
 static int hclge_mac_init(struct hclge_dev *hdev)
 {
 	struct hnae3_handle *handle = &hdev->vport[0].nic;
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hclge_mac *mac = &hdev->hw.mac;
-	u8 mac_mask[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	struct hclge_vport *vport;
 	int mtu;
 	int ret;
@@ -2009,13 +1984,6 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 				"set mta filter mode fail ret=%d\n", ret);
 			return ret;
 		}
-	}
-
-	ret = hclge_set_default_mac_vlan_mask(hdev, true, mac_mask);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"set default mac_vlan_mask fail ret=%d\n", ret);
-		return ret;
 	}
 
 	if (netdev)
