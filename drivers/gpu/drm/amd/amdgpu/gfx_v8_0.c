@@ -54,7 +54,7 @@
 #include "ivsrcid/ivsrcid_vislands30.h"
 
 #define GFX8_NUM_GFX_RINGS     1
-#define GFX8_MEC_HPD_SIZE 2048
+#define GFX8_MEC_HPD_SIZE 4096
 
 #define TOPAZ_GB_ADDR_CONFIG_GOLDEN 0x22010001
 #define CARRIZO_GB_ADDR_CONFIG_GOLDEN 0x22010001
