@@ -480,19 +480,31 @@ qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
 	const struct qtnf_sta_node *sta_node;
 	int ret;
 
-	sta_node = qtnf_sta_list_lookup_index(&vif->sta_list, idx);
+	switch (vif->wdev.iftype) {
+	case NL80211_IFTYPE_STATION:
+		if (idx != 0 || !vif->wdev.current_bss)
+			return -ENOENT;
 
-	if (unlikely(!sta_node))
-		return -ENOENT;
+		ether_addr_copy(mac, vif->bssid);
+		break;
+	case NL80211_IFTYPE_AP:
+		sta_node = qtnf_sta_list_lookup_index(&vif->sta_list, idx);
+		if (unlikely(!sta_node))
+			return -ENOENT;
 
-	ether_addr_copy(mac, sta_node->mac_addr);
+		ether_addr_copy(mac, sta_node->mac_addr);
+		break;
+	default:
+		return -ENOTSUPP;
+	}
 
-	ret = qtnf_cmd_get_sta_info(vif, sta_node->mac_addr, sinfo);
+	ret = qtnf_cmd_get_sta_info(vif, mac, sinfo);
 
-	if (unlikely(ret == -ENOENT)) {
-		qtnf_sta_list_del(vif, mac);
-		cfg80211_del_sta(vif->netdev, mac, GFP_KERNEL);
-		sinfo->filled = 0;
+	if (vif->wdev.iftype == NL80211_IFTYPE_AP) {
+		if (ret == -ENOENT) {
+			cfg80211_del_sta(vif->netdev, mac, GFP_KERNEL);
+			sinfo->filled = 0;
+		}
 	}
 
 	sinfo->generation = vif->generation;
