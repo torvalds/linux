@@ -311,7 +311,7 @@ static const struct config_item_type stp_policy_type = {
 };
 
 static struct config_group *
-stp_policies_make(struct config_group *group, const char *name)
+stp_policy_make(struct config_group *group, const char *name)
 {
 	struct config_group *ret;
 	struct stm_device *stm;
@@ -368,12 +368,12 @@ unlock_policy:
 	return ret;
 }
 
-static struct configfs_group_operations stp_policies_group_ops = {
-	.make_group	= stp_policies_make,
+static struct configfs_group_operations stp_policy_root_group_ops = {
+	.make_group	= stp_policy_make,
 };
 
-static const struct config_item_type stp_policies_type = {
-	.ct_group_ops	= &stp_policies_group_ops,
+static const struct config_item_type stp_policy_root_type = {
+	.ct_group_ops	= &stp_policy_root_group_ops,
 	.ct_owner	= THIS_MODULE,
 };
 
@@ -381,7 +381,7 @@ static struct configfs_subsystem stp_policy_subsys = {
 	.su_group = {
 		.cg_item = {
 			.ci_namebuf	= "stp-policy",
-			.ci_type	= &stp_policies_type,
+			.ci_type	= &stp_policy_root_type,
 		},
 	},
 };
