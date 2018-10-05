@@ -422,6 +422,12 @@ static inline unsigned int ip_skb_dst_mtu(struct sock *sk,
 
 struct dst_metrics *ip_fib_metrics_init(struct net *net, struct nlattr *fc_mx,
 					int fc_mx_len);
+static inline void ip_fib_metrics_put(struct dst_metrics *fib_metrics)
+{
+	if (fib_metrics != &dst_default_metrics &&
+	    refcount_dec_and_test(&fib_metrics->refcnt))
+		kfree(fib_metrics);
+}
 
 u32 ip_idents_reserve(u32 hash, int segs);
 void __ip_select_ident(struct net *net, struct iphdr *iph, int segs);

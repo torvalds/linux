@@ -208,7 +208,6 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 static void free_fib_info_rcu(struct rcu_head *head)
 {
 	struct fib_info *fi = container_of(head, struct fib_info, rcu);
-	struct dst_metrics *m;
 
 	change_nexthops(fi) {
 		if (nexthop_nh->nh_dev)
@@ -219,9 +218,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
-	m = fi->fib_metrics;
-	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
-		kfree(m);
+	ip_fib_metrics_put(fi->fib_metrics);
+
 	kfree(fi);
 }
 

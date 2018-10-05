@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
+#include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ndisc.h>
 #include <net/addrconf.h>
@@ -169,7 +170,6 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 {
 	struct fib6_info *f6i = container_of(head, struct fib6_info, rcu);
 	struct rt6_exception_bucket *bucket;
-	struct dst_metrics *m;
 
 	WARN_ON(f6i->fib6_node);
 
@@ -201,9 +201,7 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 	if (f6i->fib6_nh.nh_dev)
 		dev_put(f6i->fib6_nh.nh_dev);
 
-	m = f6i->fib6_metrics;
-	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
-		kfree(m);
+	ip_fib_metrics_put(f6i->fib6_metrics);
 
 	kfree(f6i);
 }
