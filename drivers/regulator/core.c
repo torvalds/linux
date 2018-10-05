@@ -3191,6 +3191,36 @@ out:
 	return ret;
 }
 
+static int regulator_limit_voltage_step(struct regulator_dev *rdev,
+					int *current_uV, int *min_uV)
+{
+	struct regulation_constraints *constraints = rdev->constraints;
+
+	/* Limit voltage change only if necessary */
+	if (!constraints->max_uV_step || !_regulator_is_enabled(rdev))
+		return 1;
+
+	if (*current_uV < 0) {
+		*current_uV = _regulator_get_voltage(rdev);
+
+		if (*current_uV < 0)
+			return *current_uV;
+	}
+
+	if (abs(*current_uV - *min_uV) <= constraints->max_uV_step)
+		return 1;
+
+	/* Clamp target voltage within the given step */
+	if (*current_uV < *min_uV)
+		*min_uV = min(*current_uV + constraints->max_uV_step,
+			      *min_uV);
+	else
+		*min_uV = max(*current_uV - constraints->max_uV_step,
+			      *min_uV);
+
+	return 0;
+}
+
 static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
 					 int *current_uV,
 					 int *min_uV, int *max_uV,
@@ -3302,6 +3332,17 @@ static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
 	desired_min_uV = possible_uV;
 
 finish:
+	/* Apply max_uV_step constraint if necessary */
+	if (state == PM_SUSPEND_ON) {
+		ret = regulator_limit_voltage_step(rdev, current_uV,
+						   &desired_min_uV);
+		if (ret < 0)
+			return ret;
+
+		if (ret == 0)
+			done = false;
+	}
+
 	/* Set current_uV if wasn't done earlier in the code and if necessary */
 	if (n_coupled > 1 && *current_uV == -1) {
 
