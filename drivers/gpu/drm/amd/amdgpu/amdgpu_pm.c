@@ -1179,11 +1179,6 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int err;
 	u32 speed = 0;
-	u32 pwm_mode;
-
-	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
-	if (pwm_mode != AMD_FAN_CTRL_MANUAL)
-		return -ENODATA;
 
 	/* Can't adjust fan when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
@@ -1246,11 +1241,6 @@ static ssize_t amdgpu_hwmon_get_fan1_target(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int err;
 	u32 rpm = 0;
-	u32 pwm_mode;
-
-	pwm_mode = amdgpu_dpm_get_fan_control_mode(adev);
-	if (pwm_mode != AMD_FAN_CTRL_MANUAL)
-		return -ENODATA;
 
 	/* Can't adjust fan when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
