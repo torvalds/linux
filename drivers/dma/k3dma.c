@@ -501,14 +501,8 @@ static struct dma_async_tx_descriptor *k3_dma_prep_memcpy(
 		copy = min_t(size_t, len, DMA_MAX_SIZE);
 		k3_dma_fill_desc(ds, dst, src, copy, num++, c->ccfg);
 
-		if (c->dir == DMA_MEM_TO_DEV) {
-			src += copy;
-		} else if (c->dir == DMA_DEV_TO_MEM) {
-			dst += copy;
-		} else {
-			src += copy;
-			dst += copy;
-		}
+		src += copy;
+		dst += copy;
 		len -= copy;
 	} while (len);
 
