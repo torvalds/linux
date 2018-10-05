@@ -293,15 +293,15 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 	if (width > stm->data->sw_nchannels)
 		return -EINVAL;
 
-	if (policy_node) {
-		stp_policy_node_get_ranges(policy_node,
-					   &midx, &mend, &cidx, &cend);
-	} else {
-		midx = stm->data->sw_start;
-		cidx = 0;
-		mend = stm->data->sw_end;
-		cend = stm->data->sw_nchannels - 1;
-	}
+	/* We no longer accept policy_node==NULL here */
+	if (WARN_ON_ONCE(!policy_node))
+		return -EINVAL;
+
+	/*
+	 * Also, the caller holds reference to policy_node, so it won't
+	 * disappear on us.
+	 */
+	stp_policy_node_get_ranges(policy_node, &midx, &mend, &cidx, &cend);
 
 	spin_lock(&stm->mc_lock);
 	spin_lock(&output->lock);
@@ -405,19 +405,30 @@ static int stm_char_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int stm_file_assign(struct stm_file *stmf, char *id, unsigned int width)
+static int
+stm_assign_first_policy(struct stm_device *stm, struct stm_output *output,
+			char **ids, unsigned int width)
 {
-	struct stm_device *stm = stmf->stm;
-	int ret;
+	struct stp_policy_node *pn;
+	int err, n;
 
-	stmf->policy_node = stp_policy_node_lookup(stm, id);
+	/*
+	 * On success, stp_policy_node_lookup() will return holding the
+	 * configfs subsystem mutex, which is then released in
+	 * stp_policy_node_put(). This allows the pdrv->output_open() in
+	 * stm_output_assign() to serialize against the attribute accessors.
+	 */
+	for (n = 0, pn = NULL; ids[n] && !pn; n++)
+		pn = stp_policy_node_lookup(stm, ids[n]);
 
-	ret = stm_output_assign(stm, width, stmf->policy_node, &stmf->output);
+	if (!pn)
+		return -EINVAL;
 
-	if (stmf->policy_node)
-		stp_policy_node_put(stmf->policy_node);
+	err = stm_output_assign(stm, width, pn, output);
 
-	return ret;
+	stp_policy_node_put(pn);
+
+	return err;
 }
 
 static ssize_t notrace stm_write(struct stm_data *data, unsigned int master,
@@ -455,16 +466,21 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 		count = PAGE_SIZE - 1;
 
 	/*
-	 * if no m/c have been assigned to this writer up to this
-	 * point, use "default" policy entry
+	 * If no m/c have been assigned to this writer up to this
+	 * point, try to use the task name and "default" policy entries.
 	 */
 	if (!stmf->output.nr_chans) {
-		err = stm_file_assign(stmf, "default", 1);
+		char comm[sizeof(current->comm)];
+		char *ids[] = { comm, "default", NULL };
+
+		get_task_comm(comm, current);
+
+		err = stm_assign_first_policy(stmf->stm, &stmf->output, ids, 1);
 		/*
 		 * EBUSY means that somebody else just assigned this
 		 * output, which is just fine for write()
 		 */
-		if (err && err != -EBUSY)
+		if (err)
 			return err;
 	}
 
@@ -550,6 +566,7 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 {
 	struct stm_device *stm = stmf->stm;
 	struct stp_policy_id *id;
+	char *ids[] = { NULL, NULL };
 	int ret = -EINVAL;
 	u32 size;
 
@@ -582,7 +599,9 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 	    id->width > PAGE_SIZE / stm->data->sw_mmiosz)
 		goto err_free;
 
-	ret = stm_file_assign(stmf, id->id, id->width);
+	ids[0] = id->id;
+	ret = stm_assign_first_policy(stmf->stm, &stmf->output, ids,
+				      id->width);
 	if (ret)
 		goto err_free;
 
@@ -818,8 +837,8 @@ EXPORT_SYMBOL_GPL(stm_unregister_device);
 static int stm_source_link_add(struct stm_source_device *src,
 			       struct stm_device *stm)
 {
-	char *id;
-	int err;
+	char *ids[] = { NULL, "default", NULL };
+	int err = -ENOMEM;
 
 	mutex_lock(&stm->link_mutex);
 	spin_lock(&stm->link_lock);
@@ -833,19 +852,13 @@ static int stm_source_link_add(struct stm_source_device *src,
 	spin_unlock(&stm->link_lock);
 	mutex_unlock(&stm->link_mutex);
 
-	id = kstrdup(src->data->name, GFP_KERNEL);
-	if (id) {
-		src->policy_node =
-			stp_policy_node_lookup(stm, id);
+	ids[0] = kstrdup(src->data->name, GFP_KERNEL);
+	if (!ids[0])
+		goto fail_detach;
 
-		kfree(id);
-	}
-
-	err = stm_output_assign(stm, src->data->nr_chans,
-				src->policy_node, &src->output);
-
-	if (src->policy_node)
-		stp_policy_node_put(src->policy_node);
+	err = stm_assign_first_policy(stm, &src->output, ids,
+				      src->data->nr_chans);
+	kfree(ids[0]);
 
 	if (err)
 		goto fail_detach;

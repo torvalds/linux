@@ -392,17 +392,13 @@ static struct configfs_subsystem stp_policy_subsys = {
 static struct stp_policy_node *
 __stp_policy_node_lookup(struct stp_policy *policy, char *s)
 {
-	struct stp_policy_node *policy_node, *ret;
+	struct stp_policy_node *policy_node, *ret = NULL;
 	struct list_head *head = &policy->group.cg_children;
 	struct config_item *item;
 	char *start, *end = s;
 
 	if (list_empty(head))
 		return NULL;
-
-	/* return the first entry if everything else fails */
-	item = list_entry(head->next, struct config_item, ci_entry);
-	ret = to_stp_policy_node(item);
 
 next:
 	for (;;) {
@@ -449,13 +445,17 @@ stp_policy_node_lookup(struct stm_device *stm, char *s)
 
 	if (policy_node)
 		config_item_get(&policy_node->group.cg_item);
-	mutex_unlock(&stp_policy_subsys.su_mutex);
+	else
+		mutex_unlock(&stp_policy_subsys.su_mutex);
 
 	return policy_node;
 }
 
 void stp_policy_node_put(struct stp_policy_node *policy_node)
 {
+	lockdep_assert_held(&stp_policy_subsys.su_mutex);
+
+	mutex_unlock(&stp_policy_subsys.su_mutex);
 	config_item_put(&policy_node->group.cg_item);
 }
 
