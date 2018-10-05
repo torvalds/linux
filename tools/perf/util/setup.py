@@ -5,7 +5,7 @@ from subprocess import Popen, PIPE
 from re import sub
 
 def clang_has_option(option):
-    return [o for o in Popen(['clang', option], stderr=PIPE).stderr.readlines() if "unknown argument" in o] == [ ]
+    return [o for o in Popen(['clang', option], stderr=PIPE).stderr.readlines() if b"unknown argument" in o] == [ ]
 
 cc = getenv("CC")
 if cc == "clang":
