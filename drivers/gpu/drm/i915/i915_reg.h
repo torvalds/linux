@@ -4593,12 +4593,12 @@ enum {
 
 #define  DRM_DIP_ENABLE			(1 << 28)
 #define  PSR_VSC_BIT_7_SET		(1 << 27)
-#define  VSC_SELECT_MASK		(0x3 << 26)
-#define  VSC_SELECT_SHIFT		26
-#define  VSC_DIP_HW_HEA_DATA		(0 << 26)
-#define  VSC_DIP_HW_HEA_SW_DATA		(1 << 26)
-#define  VSC_DIP_HW_DATA_SW_HEA		(2 << 26)
-#define  VSC_DIP_SW_HEA_DATA		(3 << 26)
+#define  VSC_SELECT_MASK		(0x3 << 25)
+#define  VSC_SELECT_SHIFT		25
+#define  VSC_DIP_HW_HEA_DATA		(0 << 25)
+#define  VSC_DIP_HW_HEA_SW_DATA		(1 << 25)
+#define  VSC_DIP_HW_DATA_SW_HEA		(2 << 25)
+#define  VSC_DIP_SW_HEA_DATA		(3 << 25)
 #define  VDIP_ENABLE_PPS		(1 << 24)
 
 /* Panel power sequencing */
