@@ -21,6 +21,7 @@
 
 static void hns3_clear_all_ring(struct hnae3_handle *h);
 static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h);
+static void hns3_remove_hw_addr(struct net_device *netdev);
 
 static const char hns3_driver_name[] = "hns3";
 const char hns3_driver_version[] = VERMAGIC_STRING;
@@ -3155,15 +3156,6 @@ static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 
 }
 
-static void hns3_uninit_mac_addr(struct net_device *netdev)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (h->ae_algo->ops->rm_uc_addr)
-		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
-}
-
 static int hns3_restore_fd_rules(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -3296,6 +3288,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
+	hns3_remove_hw_addr(netdev);
+
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
 
@@ -3318,8 +3312,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
-
-	hns3_uninit_mac_addr(netdev);
 
 	free_netdev(netdev);
 }
@@ -3390,6 +3382,25 @@ static void hns3_recover_hw_addr(struct net_device *ndev)
 	list = &ndev->mc;
 	list_for_each_entry_safe(ha, tmp, &list->list, list)
 		hns3_nic_mc_sync(ndev, ha->addr);
+}
+
+static void hns3_remove_hw_addr(struct net_device *netdev)
+{
+	struct netdev_hw_addr_list *list;
+	struct netdev_hw_addr *ha, *tmp;
+
+	hns3_nic_uc_unsync(netdev, netdev->dev_addr);
+
+	/* go through and unsync uc_addr entries to the device */
+	list = &netdev->uc;
+	list_for_each_entry_safe(ha, tmp, &list->list, list)
+		hns3_nic_uc_unsync(netdev, ha->addr);
+
+	/* go through and unsync mc_addr entries to the device */
+	list = &netdev->mc;
+	list_for_each_entry_safe(ha, tmp, &list->list, list)
+		if (ha->refcount > 1)
+			hns3_nic_mc_unsync(netdev, ha->addr);
 }
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
@@ -3637,14 +3648,14 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
 
-	hns3_uninit_mac_addr(netdev);
-
-	/* it is cumbersome for hardware to pick-and-choose rules for deletion
-	 * from TCAM. Hence, for function reset software intervention is
-	 * required to delete the rules
+	/* it is cumbersome for hardware to pick-and-choose entries for deletion
+	 * from table space. Hence, for function reset software intervention is
+	 * required to delete the entries
 	 */
-	if (hns3_dev_ongoing_func_reset(ae_dev))
+	if (hns3_dev_ongoing_func_reset(ae_dev)) {
+		hns3_remove_hw_addr(netdev);
 		hns3_del_all_fd_rules(netdev, false);
+	}
 
 	return ret;
 }
