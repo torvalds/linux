@@ -55,10 +55,10 @@ struct pp_smu {
 
 struct pp_smu_wm_set_range {
 	unsigned int wm_inst;
-	uint32_t min_fill_clk_khz;
-	uint32_t max_fill_clk_khz;
-	uint32_t min_drain_clk_khz;
-	uint32_t max_drain_clk_khz;
+	uint32_t min_fill_clk_mhz;
+	uint32_t max_fill_clk_mhz;
+	uint32_t min_drain_clk_mhz;
+	uint32_t max_drain_clk_mhz;
 };
 
 #define MAX_WATERMARK_SETS 4
@@ -77,15 +77,15 @@ struct pp_smu_display_requirement_rv {
 	 */
 	unsigned int display_count;
 
-	/* PPSMC_MSG_SetHardMinFclkByFreq: khz
+	/* PPSMC_MSG_SetHardMinFclkByFreq: mhz
 	 *  FCLK will vary with DPM, but never below requested hard min
 	 */
-	unsigned int hard_min_fclk_khz;
+	unsigned int hard_min_fclk_mhz;
 
-	/* PPSMC_MSG_SetHardMinDcefclkByFreq: khz
+	/* PPSMC_MSG_SetHardMinDcefclkByFreq: mhz
 	 *  fixed clock at requested freq, either from FCH bypass or DFS
 	 */
-	unsigned int hard_min_dcefclk_khz;
+	unsigned int hard_min_dcefclk_mhz;
 
 	/* PPSMC_MSG_SetMinDeepSleepDcefclk: mhz
 	 *  when DF is in cstate, dcf clock is further divided down

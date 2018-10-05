@@ -266,7 +266,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 		clk_mgr->clks.fclk_khz = new_clocks->fclk_khz;
 		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_FCLK;
 		clock_voltage_req.clocks_in_khz = new_clocks->fclk_khz;
-		smu_req.hard_min_fclk_khz = new_clocks->fclk_khz;
+		smu_req.hard_min_fclk_mhz = new_clocks->fclk_khz / 1000;
 
 		notify_hard_min_fclk_to_smu(pp_smu, new_clocks->fclk_khz);
 
@@ -276,7 +276,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	//DCF Clock
 	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr->clks.dcfclk_khz)) {
 		clk_mgr->clks.dcfclk_khz = new_clocks->dcfclk_khz;
-		smu_req.hard_min_dcefclk_khz = new_clocks->dcfclk_khz;
+		smu_req.hard_min_dcefclk_mhz = new_clocks->dcfclk_khz / 1000;
 
 		send_request_to_lower = true;
 	}
@@ -284,7 +284,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	if (should_set_clock(safe_to_lower,
 			new_clocks->dcfclk_deep_sleep_khz, clk_mgr->clks.dcfclk_deep_sleep_khz)) {
 		clk_mgr->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
-		smu_req.min_deep_sleep_dcefclk_mhz = new_clocks->dcfclk_deep_sleep_khz;
+		smu_req.min_deep_sleep_dcefclk_mhz = new_clocks->dcfclk_deep_sleep_khz / 1000;
 
 		send_request_to_lower = true;
 	}
