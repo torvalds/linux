@@ -1895,7 +1895,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	intel_plane->id = PLANE_SPRITE0 + plane;
 	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, intel_plane->id);
 
-	possible_crtcs = (1 << pipe);
+	possible_crtcs = BIT(pipe);
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
