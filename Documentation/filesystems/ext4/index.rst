@@ -13,5 +13,4 @@ the ext4 community.
    :maxdepth: 5
    :numbered:
 
-   ext4
    ondisk/index

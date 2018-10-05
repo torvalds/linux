@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ========================
-General Information
+ext4 General Information
 ========================
 
 Ext4 is an advanced level of the ext3 filesystem which incorporates

@@ -383,6 +383,8 @@ latex_documents = [
      'The kernel development community', 'manual'),
     ('filesystems/index', 'filesystems.tex', 'Linux Filesystems API',
      'The kernel development community', 'manual'),
+    ('admin-guide/ext4', 'ext4-admin-guide.tex', 'ext4 Administration Guide',
+     'ext4 Community', 'manual'),
     ('filesystems/ext4/index', 'ext4.tex', 'ext4 Filesystem',
      'ext4 Filesystem Developers', 'manual'),
     ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
