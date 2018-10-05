@@ -1109,16 +1109,16 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu)
 	if (ret)
 		return ret;
 
-	cpu_pmu->handle_irq		= armv8pmu_handle_irq,
-	cpu_pmu->enable			= armv8pmu_enable_event,
-	cpu_pmu->disable		= armv8pmu_disable_event,
-	cpu_pmu->read_counter		= armv8pmu_read_counter,
-	cpu_pmu->write_counter		= armv8pmu_write_counter,
-	cpu_pmu->get_event_idx		= armv8pmu_get_event_idx,
-	cpu_pmu->clear_event_idx	= armv8pmu_clear_event_idx,
-	cpu_pmu->start			= armv8pmu_start,
-	cpu_pmu->stop			= armv8pmu_stop,
-	cpu_pmu->reset			= armv8pmu_reset,
+	cpu_pmu->handle_irq		= armv8pmu_handle_irq;
+	cpu_pmu->enable			= armv8pmu_enable_event;
+	cpu_pmu->disable		= armv8pmu_disable_event;
+	cpu_pmu->read_counter		= armv8pmu_read_counter;
+	cpu_pmu->write_counter		= armv8pmu_write_counter;
+	cpu_pmu->get_event_idx		= armv8pmu_get_event_idx;
+	cpu_pmu->clear_event_idx	= armv8pmu_clear_event_idx;
+	cpu_pmu->start			= armv8pmu_start;
+	cpu_pmu->stop			= armv8pmu_stop;
+	cpu_pmu->reset			= armv8pmu_reset;
 	cpu_pmu->set_event_filter	= armv8pmu_set_event_filter;
 	cpu_pmu->filter_match		= armv8pmu_filter_match;
 
