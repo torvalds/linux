@@ -3473,6 +3473,8 @@ static inline int i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	tx_desc->cmd_type_offset_bsz =
 			build_ctob(td_cmd, td_offset, size, td_tag);
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.
 	 *
@@ -3651,8 +3653,6 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 
 	if (tsyn)
 		tx_flags |= I40E_TX_FLAGS_TSYN;
-
-	skb_tx_timestamp(skb);
 
 	/* always enable CRC insertion offload */
 	td_cmd |= I40E_TX_DESC_CMD_ICRC;

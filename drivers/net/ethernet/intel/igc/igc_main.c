@@ -865,6 +865,8 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 	/* set the timestamp */
 	first->time_stamp = jiffies;
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
@@ -958,8 +960,6 @@ static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 	first->skb = skb;
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
-
-	skb_tx_timestamp(skb);
 
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
