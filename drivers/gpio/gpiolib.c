@@ -1524,6 +1524,7 @@ static int devm_gpio_chip_match(struct device *dev, void *res, void *data)
 	return *r == data;
 }
 
+
 /**
  * devm_gpiochip_add_data() - Resource manager gpiochip_add_data()
  * @dev: pointer to the device that gpio_chip belongs to.
@@ -1562,23 +1563,6 @@ int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *chip,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_gpiochip_add_data);
-
-/**
- * devm_gpiochip_remove() - Resource manager of gpiochip_remove()
- * @dev: device for which which resource was allocated
- * @chip: the chip to remove
- *
- * A gpio_chip with any GPIOs still requested may not be removed.
- */
-void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip)
-{
-	int ret;
-
-	ret = devres_release(dev, devm_gpio_chip_release,
-			     devm_gpio_chip_match, chip);
-	WARN_ON(ret);
-}
-EXPORT_SYMBOL_GPL(devm_gpiochip_remove);
 
 /**
  * gpiochip_find() - iterator for locating a specific gpio_chip

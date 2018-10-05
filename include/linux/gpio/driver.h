@@ -422,7 +422,6 @@ static inline int gpiochip_add(struct gpio_chip *chip)
 extern void gpiochip_remove(struct gpio_chip *chip);
 extern int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *chip,
 				  void *data);
-extern void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip);
 
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
