@@ -112,7 +112,7 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (test_bit(MT76_STATE_RUNNING, &dev->mt76.state)) {
 			mt76x2_phy_set_txpower(dev);
-			mt76x2_tx_set_txpwr_auto(dev, dev->mt76.txpower_conf);
+			mt76x02_tx_set_txpwr_auto(dev, dev->mt76.txpower_conf);
 		}
 	}
 

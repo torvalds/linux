@@ -384,11 +384,9 @@ void mt76x02_mac_write_txwi(struct mt76_dev *dev, struct mt76x02_txwi *txwi,
 	}
 	spin_unlock_bh(&dev->lock);
 
-	if (dev->drv->get_tx_txpwr_adj) {
-		txpwr_adj = dev->drv->get_tx_txpwr_adj(dev, dev->txpower_conf,
-						       max_txpwr_adj);
-		txwi->ctl2 = FIELD_PREP(MT_TX_PWR_ADJ, txpwr_adj);
-	}
+	txpwr_adj = mt76x02_tx_get_txpwr_adj(dev, dev->txpower_conf,
+					     max_txpwr_adj);
+	txwi->ctl2 = FIELD_PREP(MT_TX_PWR_ADJ, txpwr_adj);
 
 	if (nstreams > 1 && mt76_rev(dev) >= MT76XX_REV_E4)
 		txwi->txstream = 0x13;
