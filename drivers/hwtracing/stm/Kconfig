@@ -11,6 +11,21 @@ config STM
 
 if STM
 
+config STM_PROTO_BASIC
+	tristate "Basic STM framing protocol driver"
+	default CONFIG_STM
+	help
+	  This is a simple framing protocol for sending data over STM
+	  devices. This was the protocol that the STM framework used
+	  exclusively until the MIPI SyS-T support was added. Use this
+	  driver for compatibility with your existing STM setup.
+
+	  The receiving side only needs to be able to decode the MIPI
+	  STP protocol in order to extract the data.
+
+	  If you want to be able to use the basic protocol or want the
+	  backwards compatibility for your existing setup, say Y.
+
 config STM_DUMMY
 	tristate "Dummy STM driver"
 	help
