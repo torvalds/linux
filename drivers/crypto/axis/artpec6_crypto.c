@@ -3173,7 +3173,6 @@ static struct platform_driver artpec6_crypto_driver = {
 	.remove  = artpec6_crypto_remove,
 	.driver  = {
 		.name  = "artpec6-crypto",
-		.owner = THIS_MODULE,
 		.of_match_table = artpec6_crypto_of_match,
 	},
 };
