@@ -116,7 +116,7 @@ static void nfs_dns_ent_put(struct kref *ref)
 	struct nfs_dns_ent *item;
 
 	item = container_of(ref, struct nfs_dns_ent, h.ref);
-	call_rcu(item, nfs_dns_ent_free_rcu);
+	call_rcu(&item->rcu_head, nfs_dns_ent_free_rcu);
 }
 
 static struct cache_head *nfs_dns_ent_alloc(void)
