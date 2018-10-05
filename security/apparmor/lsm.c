@@ -1022,6 +1022,7 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
 	return aa_sock_perm(OP_SHUTDOWN, AA_MAY_SHUTDOWN, sock);
 }
 
+#ifdef CONFIG_NETWORK_SECMARK
 /**
  * apparmor_socket_sock_recv_skb - check perms before associating skb to sk
  *
@@ -1040,6 +1041,7 @@ static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	return apparmor_secmark_check(ctx->label, OP_RECVMSG, AA_MAY_RECEIVE,
 				      skb->secmark, sk);
 }
+#endif
 
 
 static struct aa_label *sk_peer_label(struct sock *sk)
@@ -1134,6 +1136,7 @@ static void apparmor_sock_graft(struct sock *sk, struct socket *parent)
 		ctx->label = aa_get_current_label();
 }
 
+#ifdef CONFIG_NETWORK_SECMARK
 static int apparmor_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req)
 {
@@ -1145,6 +1148,7 @@ static int apparmor_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	return apparmor_secmark_check(ctx->label, OP_CONNECT, AA_MAY_CONNECT,
 				      skb->secmark, sk);
 }
+#endif
 
 static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, apparmor_ptrace_access_check),
@@ -1197,13 +1201,17 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(socket_getsockopt, apparmor_socket_getsockopt),
 	LSM_HOOK_INIT(socket_setsockopt, apparmor_socket_setsockopt),
 	LSM_HOOK_INIT(socket_shutdown, apparmor_socket_shutdown),
+#ifdef CONFIG_NETWORK_SECMARK
 	LSM_HOOK_INIT(socket_sock_rcv_skb, apparmor_socket_sock_rcv_skb),
+#endif
 	LSM_HOOK_INIT(socket_getpeersec_stream,
 		      apparmor_socket_getpeersec_stream),
 	LSM_HOOK_INIT(socket_getpeersec_dgram,
 		      apparmor_socket_getpeersec_dgram),
 	LSM_HOOK_INIT(sock_graft, apparmor_sock_graft),
+#ifdef CONFIG_NETWORK_SECMARK
 	LSM_HOOK_INIT(inet_conn_request, apparmor_inet_conn_request),
+#endif
 
 	LSM_HOOK_INIT(cred_alloc_blank, apparmor_cred_alloc_blank),
 	LSM_HOOK_INIT(cred_free, apparmor_cred_free),
@@ -1559,6 +1567,7 @@ static inline int apparmor_init_sysctl(void)
 }
 #endif /* CONFIG_SYSCTL */
 
+#if defined(CONFIG_NETFILTER) && defined(CONFIG_NETWORK_SECMARK)
 static unsigned int apparmor_ip_postroute(void *priv,
 					  struct sk_buff *skb,
 					  const struct nf_hook_state *state)
@@ -1647,6 +1656,7 @@ static int __init apparmor_nf_ip_init(void)
 	return 0;
 }
 __initcall(apparmor_nf_ip_init);
+#endif
 
 static int __init apparmor_init(void)
 {

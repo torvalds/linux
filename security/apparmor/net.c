@@ -190,6 +190,7 @@ int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
 	return aa_label_sk_perm(label, op, request, sock->sk);
 }
 
+#ifdef CONFIG_NETWORK_SECMARK
 static int apparmor_secmark_init(struct aa_secmark *secmark)
 {
 	struct aa_label *label;
@@ -254,3 +255,4 @@ int apparmor_secmark_check(struct aa_label *label, char *op, u32 request,
 				    aa_secmark_perm(profile, request, secid,
 						    &sa, sk));
 }
+#endif
