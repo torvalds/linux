@@ -316,11 +316,26 @@ static int stm_output_assign(struct stm_device *stm, unsigned int width,
 	output->master = midx;
 	output->channel = cidx;
 	output->nr_chans = width;
+	if (stm->pdrv->output_open) {
+		void *priv = stp_policy_node_priv(policy_node);
+
+		if (WARN_ON_ONCE(!priv))
+			goto unlock;
+
+		/* configfs subsys mutex is held by the caller */
+		ret = stm->pdrv->output_open(priv, output);
+		if (ret)
+			goto unlock;
+	}
+
 	stm_output_claim(stm, output);
 	dev_dbg(&stm->dev, "assigned %u:%u (+%u)\n", midx, cidx, width);
 
 	ret = 0;
 unlock:
+	if (ret)
+		output->nr_chans = 0;
+
 	spin_unlock(&output->lock);
 	spin_unlock(&stm->mc_lock);
 
@@ -333,6 +348,8 @@ static void stm_output_free(struct stm_device *stm, struct stm_output *output)
 	spin_lock(&output->lock);
 	if (output->nr_chans)
 		stm_output_disclaim(stm, output);
+	if (stm->pdrv && stm->pdrv->output_close)
+		stm->pdrv->output_close(output);
 	spin_unlock(&output->lock);
 	spin_unlock(&stm->mc_lock);
 }
@@ -347,6 +364,127 @@ static int major_match(struct device *dev, const void *data)
 	unsigned int major = *(unsigned int *)data;
 
 	return MAJOR(dev->devt) == major;
+}
+
+/*
+ * Framing protocol management
+ * Modules can implement STM protocol drivers and (un-)register them
+ * with the STM class framework.
+ */
+static struct list_head stm_pdrv_head;
+static struct mutex stm_pdrv_mutex;
+
+struct stm_pdrv_entry {
+	struct list_head			entry;
+	const struct stm_protocol_driver	*pdrv;
+	const struct config_item_type		*node_type;
+};
+
+static const struct stm_pdrv_entry *
+__stm_lookup_protocol(const char *name)
+{
+	struct stm_pdrv_entry *pe;
+
+	/*
+	 * If no name is given (NULL or ""), fall back to "p_basic".
+	 */
+	if (!name || !*name)
+		name = "p_basic";
+
+	list_for_each_entry(pe, &stm_pdrv_head, entry) {
+		if (!strcmp(name, pe->pdrv->name))
+			return pe;
+	}
+
+	return NULL;
+}
+
+int stm_register_protocol(const struct stm_protocol_driver *pdrv)
+{
+	struct stm_pdrv_entry *pe = NULL;
+	int ret = -ENOMEM;
+
+	mutex_lock(&stm_pdrv_mutex);
+
+	if (__stm_lookup_protocol(pdrv->name)) {
+		ret = -EEXIST;
+		goto unlock;
+	}
+
+	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+	if (!pe)
+		goto unlock;
+
+	if (pdrv->policy_attr) {
+		pe->node_type = get_policy_node_type(pdrv->policy_attr);
+		if (!pe->node_type)
+			goto unlock;
+	}
+
+	list_add_tail(&pe->entry, &stm_pdrv_head);
+	pe->pdrv = pdrv;
+
+	ret = 0;
+unlock:
+	mutex_unlock(&stm_pdrv_mutex);
+
+	if (ret)
+		kfree(pe);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(stm_register_protocol);
+
+void stm_unregister_protocol(const struct stm_protocol_driver *pdrv)
+{
+	struct stm_pdrv_entry *pe, *iter;
+
+	mutex_lock(&stm_pdrv_mutex);
+
+	list_for_each_entry_safe(pe, iter, &stm_pdrv_head, entry) {
+		if (pe->pdrv == pdrv) {
+			list_del(&pe->entry);
+
+			if (pe->node_type) {
+				kfree(pe->node_type->ct_attrs);
+				kfree(pe->node_type);
+			}
+			kfree(pe);
+			break;
+		}
+	}
+
+	mutex_unlock(&stm_pdrv_mutex);
+}
+EXPORT_SYMBOL_GPL(stm_unregister_protocol);
+
+static bool stm_get_protocol(const struct stm_protocol_driver *pdrv)
+{
+	return try_module_get(pdrv->owner);
+}
+
+void stm_put_protocol(const struct stm_protocol_driver *pdrv)
+{
+	module_put(pdrv->owner);
+}
+
+int stm_lookup_protocol(const char *name,
+			const struct stm_protocol_driver **pdrv,
+			const struct config_item_type **node_type)
+{
+	const struct stm_pdrv_entry *pe;
+
+	mutex_lock(&stm_pdrv_mutex);
+
+	pe = __stm_lookup_protocol(name);
+	if (pe && pe->pdrv && stm_get_protocol(pe->pdrv)) {
+		*pdrv = pe->pdrv;
+		*node_type = pe->node_type;
+	}
+
+	mutex_unlock(&stm_pdrv_mutex);
+
+	return pe ? 0 : -ENOENT;
 }
 
 static int stm_char_open(struct inode *inode, struct file *file)
@@ -1176,6 +1314,8 @@ static int __init stm_core_init(void)
 		goto err_src;
 
 	init_srcu_struct(&stm_source_srcu);
+	INIT_LIST_HEAD(&stm_pdrv_head);
+	mutex_init(&stm_pdrv_mutex);
 
 	stm_core_up++;
 
