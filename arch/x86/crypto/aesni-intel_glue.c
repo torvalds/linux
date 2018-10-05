@@ -102,9 +102,6 @@ asmlinkage void aesni_cbc_enc(struct crypto_aes_ctx *ctx, u8 *out,
 asmlinkage void aesni_cbc_dec(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
 
-int crypto_fpu_init(void);
-void crypto_fpu_exit(void);
-
 #define AVX_GEN2_OPTSIZE 640
 #define AVX_GEN4_OPTSIZE 4096
 
@@ -1449,13 +1446,9 @@ static int __init aesni_init(void)
 #endif
 #endif
 
-	err = crypto_fpu_init();
-	if (err)
-		return err;
-
 	err = crypto_register_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
 	if (err)
-		goto fpu_exit;
+		return err;
 
 	err = crypto_register_skciphers(aesni_skciphers,
 					ARRAY_SIZE(aesni_skciphers));
@@ -1489,8 +1482,6 @@ unregister_skciphers:
 				    ARRAY_SIZE(aesni_skciphers));
 unregister_algs:
 	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
-fpu_exit:
-	crypto_fpu_exit();
 	return err;
 }
 
@@ -1501,8 +1492,6 @@ static void __exit aesni_exit(void)
 	crypto_unregister_skciphers(aesni_skciphers,
 				    ARRAY_SIZE(aesni_skciphers));
 	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
-
-	crypto_fpu_exit();
 }
 
 late_initcall(aesni_init);
