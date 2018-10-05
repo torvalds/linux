@@ -419,13 +419,6 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	}
 
 	qid = sxdp->sxdp_queue_id;
-
-	if ((xs->rx && qid >= dev->real_num_rx_queues) ||
-	    (xs->tx && qid >= dev->real_num_tx_queues)) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
-
 	flags = sxdp->sxdp_flags;
 
 	if (flags & XDP_SHARED_UMEM) {
