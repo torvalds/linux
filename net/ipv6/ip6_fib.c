@@ -160,8 +160,6 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 	}
 
 	INIT_LIST_HEAD(&f6i->fib6_siblings);
-	f6i->fib6_metrics = (struct dst_metrics *)&dst_default_metrics;
-
 	atomic_inc(&f6i->fib6_ref);
 
 	return f6i;

@@ -2705,24 +2705,6 @@ out:
 	return entries > rt_max_size;
 }
 
-static int ip6_convert_metrics(struct net *net, struct fib6_info *rt,
-			       struct fib6_config *cfg)
-{
-	struct dst_metrics *p;
-
-	if (!cfg->fc_mx)
-		return 0;
-
-	p = kzalloc(sizeof(*rt->fib6_metrics), GFP_KERNEL);
-	if (unlikely(!p))
-		return -ENOMEM;
-
-	refcount_set(&p->refcnt, 1);
-	rt->fib6_metrics = p;
-
-	return ip_metrics_convert(net, cfg->fc_mx, cfg->fc_mx_len, p->metrics);
-}
-
 static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 					    struct fib6_config *cfg,
 					    const struct in6_addr *gw_addr,
@@ -2998,12 +2980,14 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (!rt)
 		goto out;
 
+	rt->fib6_metrics = ip_fib_metrics_init(net, cfg->fc_mx, cfg->fc_mx_len);
+	if (IS_ERR(rt->fib6_metrics)) {
+		err = PTR_ERR(rt->fib6_metrics);
+		goto out;
+	}
+
 	if (cfg->fc_flags & RTF_ADDRCONF)
 		rt->dst_nocount = true;
-
-	err = ip6_convert_metrics(net, rt, cfg);
-	if (err < 0)
-		goto out;
 
 	if (cfg->fc_flags & RTF_EXPIRES)
 		fib6_set_expires(rt, jiffies +
@@ -3727,6 +3711,7 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	if (!f6i)
 		return ERR_PTR(-ENOMEM);
 
+	f6i->fib6_metrics = ip_fib_metrics_init(net, NULL, 0);
 	f6i->dst_nocount = true;
 	f6i->dst_host = true;
 	f6i->fib6_protocol = RTPROT_KERNEL;
