@@ -360,7 +360,7 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *chip)
 	return p;
 }
 
-static int gpiochip_init_valid_mask(struct gpio_chip *gpiochip)
+static int gpiochip_alloc_valid_mask(struct gpio_chip *gpiochip)
 {
 #ifdef CONFIG_OF_GPIO
 	int size;
@@ -377,6 +377,14 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gpiochip)
 	gpiochip->valid_mask = gpiochip_allocate_mask(gpiochip);
 	if (!gpiochip->valid_mask)
 		return -ENOMEM;
+
+	return 0;
+}
+
+static int gpiochip_init_valid_mask(struct gpio_chip *gpiochip)
+{
+	if (gpiochip->init_valid_mask)
+		return gpiochip->init_valid_mask(gpiochip);
 
 	return 0;
 }
@@ -1369,7 +1377,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	if (status)
 		goto err_remove_from_list;
 
-	status = gpiochip_init_valid_mask(chip);
+	status = gpiochip_alloc_valid_mask(chip);
 	if (status)
 		goto err_remove_irqchip_mask;
 
@@ -1378,6 +1386,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 		goto err_remove_chip;
 
 	status = of_gpiochip_add(chip);
+	if (status)
+		goto err_remove_chip;
+
+	status = gpiochip_init_valid_mask(chip);
 	if (status)
 		goto err_remove_chip;
 
