@@ -1603,13 +1603,9 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 {
 	struct vfsmount *mnt_root;
 	struct dentry *root;
-	fmode_t mode = FMODE_READ;
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
 	int error = 0;
-
-	if (!(flags & SB_RDONLY))
-		mode |= FMODE_WRITE;
 
 	error = btrfs_parse_subvol_options(data, &subvol_name,
 					&subvol_objectid);
