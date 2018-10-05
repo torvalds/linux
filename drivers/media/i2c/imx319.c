@@ -1836,7 +1836,7 @@ static int imx319_write_reg(struct imx319 *imx319, u16 reg, u32 len, u32 val)
 
 /* Write a list of registers */
 static int imx319_write_regs(struct imx319 *imx319,
-			      const struct imx319_reg *regs, u32 len)
+			     const struct imx319_reg *regs, u32 len)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
 	int ret;
@@ -1947,8 +1947,8 @@ static const struct v4l2_ctrl_ops imx319_ctrl_ops = {
 };
 
 static int imx319_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
-				  struct v4l2_subdev_mbus_code_enum *code)
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 
@@ -1963,8 +1963,8 @@ static int imx319_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx319_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
-				   struct v4l2_subdev_frame_size_enum *fse)
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 
@@ -1997,8 +1997,8 @@ static void imx319_update_pad_format(struct imx319 *imx319,
 }
 
 static int imx319_do_get_pad_format(struct imx319 *imx319,
-				     struct v4l2_subdev_pad_config *cfg,
-				     struct v4l2_subdev_format *fmt)
+				    struct v4l2_subdev_pad_config *cfg,
+				    struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
 	struct v4l2_subdev *sd = &imx319->sd;
@@ -2014,8 +2014,8 @@ static int imx319_do_get_pad_format(struct imx319 *imx319,
 }
 
 static int imx319_get_pad_format(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
-				  struct v4l2_subdev_format *fmt)
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_format *fmt)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 	int ret;
@@ -2029,8 +2029,8 @@ static int imx319_get_pad_format(struct v4l2_subdev *sd,
 
 static int
 imx319_set_pad_format(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_pad_config *cfg,
-		       struct v4l2_subdev_format *fmt)
+		      struct v4l2_subdev_pad_config *cfg,
+		      struct v4l2_subdev_format *fmt)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 	const struct imx319_mode *mode;
@@ -2380,7 +2380,7 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 		goto out_err;
 
 	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-					&cfg->ext_clk);
+				       &cfg->ext_clk);
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
 		goto out_err;
@@ -2389,7 +2389,7 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 	dev_dbg(dev, "ext clk: %d", cfg->ext_clk);
 	if (cfg->ext_clk != IMX319_EXT_CLK) {
 		dev_err(dev, "external clock %d is not supported",
-			 cfg->ext_clk);
+			cfg->ext_clk);
 		goto out_err;
 	}
 
@@ -2400,9 +2400,9 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 	}
 
 	cfg->nr_of_link_freqs = bus_cfg.nr_of_link_frequencies;
-	cfg->link_freqs = devm_kcalloc(
-		dev, bus_cfg.nr_of_link_frequencies + 1,
-		sizeof(*cfg->link_freqs), GFP_KERNEL);
+	cfg->link_freqs = devm_kcalloc(dev,
+				       bus_cfg.nr_of_link_frequencies + 1,
+				       sizeof(*cfg->link_freqs), GFP_KERNEL);
 	if (!cfg->link_freqs)
 		goto out_err;
 
