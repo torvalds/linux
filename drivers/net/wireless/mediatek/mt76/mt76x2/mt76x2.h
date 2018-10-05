@@ -111,16 +111,6 @@ void mt76x2_init_txpower(struct mt76x02_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt76_write_mac_initvals(struct mt76x02_dev *dev);
 
-int mt76x2_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   struct ieee80211_sta *sta);
-int mt76x2_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      struct ieee80211_sta *sta);
-void mt76x2_remove_interface(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif);
-int mt76x2_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params);
-void mt76x2_txq_init(struct mt76x02_dev *dev, struct ieee80211_txq *txq);
-
 void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait);
 void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 				 enum nl80211_band band);
