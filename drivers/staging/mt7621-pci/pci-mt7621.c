@@ -122,7 +122,7 @@
 #define RALINK_PCIE_CLK_EN		BIT(21)
 
 #define MEMORY_BASE 0x0
-static int pcie_link_status = 0;
+static int pcie_link_status;
 
 /**
  * struct mt7621_pcie_port - PCIe port information
