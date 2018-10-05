@@ -56,6 +56,7 @@ intel_create_plane_state(struct drm_plane *plane)
 
 	state->base.plane = plane;
 	state->base.rotation = DRM_MODE_ROTATE_0;
+	state->scaler_id = -1;
 
 	return state;
 }

@@ -1821,8 +1821,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	intel_plane->base.state = &state->base;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		state->scaler_id = -1;
-
 		intel_plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
 							 PLANE_SPRITE0 + plane);
 
