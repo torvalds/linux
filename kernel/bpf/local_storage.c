@@ -129,7 +129,7 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
 	struct bpf_cgroup_storage *storage;
 	struct bpf_storage_buffer *new;
 
-	if (flags & BPF_NOEXIST)
+	if (flags != BPF_ANY && flags != BPF_EXIST)
 		return -EINVAL;
 
 	storage = cgroup_storage_lookup((struct bpf_cgroup_storage_map *)map,
@@ -193,6 +193,9 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 	struct bpf_cgroup_storage_map *map;
 
 	if (attr->key_size != sizeof(struct bpf_cgroup_storage_key))
+		return ERR_PTR(-EINVAL);
+
+	if (attr->value_size == 0)
 		return ERR_PTR(-EINVAL);
 
 	if (attr->value_size > PAGE_SIZE)
