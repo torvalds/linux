@@ -110,5 +110,8 @@ int stm_lookup_protocol(const char *name,
 			const struct stm_protocol_driver **pdrv,
 			const struct config_item_type **type);
 void stm_put_protocol(const struct stm_protocol_driver *pdrv);
+ssize_t stm_data_write(struct stm_data *data, unsigned int m,
+		       unsigned int c, bool ts_first, const void *buf,
+		       size_t count);
 
 #endif /* _STM_STM_H_ */

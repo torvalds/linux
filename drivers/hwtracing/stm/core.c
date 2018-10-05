@@ -569,27 +569,52 @@ stm_assign_first_policy(struct stm_device *stm, struct stm_output *output,
 	return err;
 }
 
+/**
+ * stm_data_write() - send the given payload as data packets
+ * @data:	stm driver's data
+ * @m:		STP master
+ * @c:		STP channel
+ * @ts_first:	timestamp the first packet
+ * @buf:	data payload buffer
+ * @count:	data payload size
+ */
+ssize_t notrace stm_data_write(struct stm_data *data, unsigned int m,
+			       unsigned int c, bool ts_first, const void *buf,
+			       size_t count)
+{
+	unsigned int flags = ts_first ? STP_PACKET_TIMESTAMPED : 0;
+	ssize_t sz;
+	size_t pos;
+
+	for (pos = 0, sz = 0; pos < count; pos += sz) {
+		sz = min_t(unsigned int, count - pos, 8);
+		sz = data->packet(data, m, c, STP_PACKET_DATA, flags, sz,
+				  &((u8 *)buf)[pos]);
+		if (sz <= 0)
+			break;
+
+		if (ts_first) {
+			flags = 0;
+			ts_first = false;
+		}
+	}
+
+	return sz < 0 ? sz : pos;
+}
+EXPORT_SYMBOL_GPL(stm_data_write);
+
 static ssize_t notrace stm_write(struct stm_data *data, unsigned int master,
 			  unsigned int channel, const char *buf, size_t count)
 {
-	unsigned int flags = STP_PACKET_TIMESTAMPED;
-	const unsigned char *p = buf, nil = 0;
-	size_t pos;
+	const unsigned char nil = 0;
 	ssize_t sz;
 
-	for (pos = 0, p = buf; count > pos; pos += sz, p += sz) {
-		sz = min_t(unsigned int, count - pos, 8);
-		sz = data->packet(data, master, channel, STP_PACKET_DATA, flags,
-				  sz, p);
-		flags = 0;
+	sz = stm_data_write(data, master, channel, true, buf, count);
+	if (sz > 0)
+		data->packet(data, master, channel, STP_PACKET_FLAG, 0, 0,
+			     &nil);
 
-		if (sz < 0)
-			break;
-	}
-
-	data->packet(data, master, channel, STP_PACKET_FLAG, 0, 0, &nil);
-
-	return pos;
+	return sz;
 }
 
 static ssize_t stm_char_write(struct file *file, const char __user *buf,
