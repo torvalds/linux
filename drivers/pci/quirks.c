@@ -5083,8 +5083,8 @@ static void quirk_switchtec_ntb_dma_alias(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 #define SWITCHTEC_QUIRK(vid) \
-	DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MICROSEMI, vid, \
-				quirk_switchtec_ntb_dma_alias)
+	DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_MICROSEMI, vid, \
+		PCI_CLASS_BRIDGE_OTHER, 8, quirk_switchtec_ntb_dma_alias)
 
 SWITCHTEC_QUIRK(0x8531);  /* PFX 24xG3 */
 SWITCHTEC_QUIRK(0x8532);  /* PFX 32xG3 */
