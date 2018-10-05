@@ -476,9 +476,6 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 	if (netdev->flags & IFF_MULTICAST) {
 		if (__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync))
 			netdev_err(netdev, "sync mc address fail\n");
-
-		if (h->ae_algo->ops->update_mta_status)
-			h->ae_algo->ops->update_mta_status(h);
 	}
 }
 

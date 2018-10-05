@@ -179,12 +179,6 @@ enum hclge_opcode_type {
 	HCLGE_OPC_MAC_ETHTYPE_ADD	    = 0x1010,
 	HCLGE_OPC_MAC_ETHTYPE_REMOVE	= 0x1011,
 
-	/* Multicast linear table commands */
-	HCLGE_OPC_MTA_MAC_MODE_CFG	    = 0x1020,
-	HCLGE_OPC_MTA_MAC_FUNC_CFG	    = 0x1021,
-	HCLGE_OPC_MTA_TBL_ITEM_CFG	    = 0x1022,
-	HCLGE_OPC_MTA_TBL_ITEM_QUERY	= 0x1023,
-
 	/* VLAN commands */
 	HCLGE_OPC_VLAN_FILTER_CTRL	    = 0x1100,
 	HCLGE_OPC_VLAN_FILTER_PF_CFG	= 0x1101,
@@ -621,30 +615,6 @@ struct hclge_mac_mgr_tbl_entry_cmd {
 	u8      i_port_bitmap;
 	u8      i_port_direction;
 	u8      rsv3[2];
-};
-
-#define HCLGE_CFG_MTA_MAC_SEL_S		0
-#define HCLGE_CFG_MTA_MAC_SEL_M		GENMASK(1, 0)
-#define HCLGE_CFG_MTA_MAC_EN_B		7
-struct hclge_mta_filter_mode_cmd {
-	u8	dmac_sel_en; /* Use lowest 2 bit as sel_mode, bit 7 as enable */
-	u8      rsv[23];
-};
-
-#define HCLGE_CFG_FUNC_MTA_ACCEPT_B	0
-struct hclge_cfg_func_mta_filter_cmd {
-	u8	accept; /* Only used lowest 1 bit */
-	u8      function_id;
-	u8      rsv[22];
-};
-
-#define HCLGE_CFG_MTA_ITEM_ACCEPT_B	0
-#define HCLGE_CFG_MTA_ITEM_IDX_S	0
-#define HCLGE_CFG_MTA_ITEM_IDX_M	GENMASK(11, 0)
-struct hclge_cfg_func_mta_item_cmd {
-	__le16	item_idx; /* Only used lowest 12 bit */
-	u8      accept;   /* Only used lowest 1 bit */
-	u8      rsv[21];
 };
 
 struct hclge_mac_vlan_add_cmd {

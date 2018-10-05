@@ -59,8 +59,6 @@
 #define HCLGE_DEFAULT_UMV_SPACE_PER_PF \
 	(HCLGE_UMV_TBL_SIZE / HCLGE_MAX_PF_NUM)
 
-#define HCLGE_MTA_TBL_SIZE		4096
-
 #define HCLGE_TQP_RESET_TRY_TIMES	10
 
 #define HCLGE_PHY_PAGE_MDIX		0
@@ -166,13 +164,6 @@ enum HCLGE_MAC_SPEED {
 enum HCLGE_MAC_DUPLEX {
 	HCLGE_MAC_HALF,
 	HCLGE_MAC_FULL
-};
-
-enum hclge_mta_dmac_sel_type {
-	HCLGE_MAC_ADDR_47_36,
-	HCLGE_MAC_ADDR_46_35,
-	HCLGE_MAC_ADDR_45_34,
-	HCLGE_MAC_ADDR_44_33,
 };
 
 struct hclge_mac {
@@ -677,9 +668,6 @@ struct hclge_dev {
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
 	u32 mps; /* Max packet size */
 
-	enum hclge_mta_dmac_sel_type mta_mac_sel_type;
-	bool enable_mta; /* Multicast filter enable */
-
 	struct hclge_vlan_type_cfg vlan_type_cfg;
 
 	unsigned long vlan_table[VLAN_N_VID][BITS_TO_LONGS(HCLGE_VPORT_NUM)];
@@ -754,9 +742,6 @@ struct hclge_vport {
 	struct hclge_dev *back;  /* Back reference to associated dev */
 	struct hnae3_handle nic;
 	struct hnae3_handle roce;
-
-	bool accept_mta_mc; /* whether to accept mta filter multicast */
-	unsigned long mta_shadow[BITS_TO_LONGS(HCLGE_MTA_TBL_SIZE)];
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -770,15 +755,6 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 			     const unsigned char *addr);
 int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 			    const unsigned char *addr);
-
-int hclge_cfg_func_mta_filter(struct hclge_dev *hdev,
-			      u8 func_id,
-			      bool enable);
-int hclge_update_mta_status_common(struct hclge_vport *vport,
-				   unsigned long *status,
-				   u16 idx,
-				   u16 count,
-				   bool update_filter);
 
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle);
 int hclge_bind_ring_with_vector(struct hclge_vport *vport,

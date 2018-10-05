@@ -25,9 +25,6 @@
 #define HCLGE_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
 
-static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
-				     enum hclge_mta_dmac_sel_type mta_mac_sel,
-				     bool enable);
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
@@ -1952,10 +1949,8 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	struct hnae3_handle *handle = &hdev->vport[0].nic;
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hclge_mac *mac = &hdev->hw.mac;
-	struct hclge_vport *vport;
 	int mtu;
 	int ret;
-	int i;
 
 	hdev->hw.mac.duplex = HCLGE_MAC_FULL;
 	ret = hclge_cfg_mac_speed_dup_hw(hdev, hdev->hw.mac.speed,
@@ -1967,32 +1962,6 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	}
 
 	mac->link = 0;
-
-	/* Initialize the MTA table work mode */
-	hdev->enable_mta	= true;
-	hdev->mta_mac_sel_type	= HCLGE_MAC_ADDR_47_36;
-
-	ret = hclge_set_mta_filter_mode(hdev,
-					hdev->mta_mac_sel_type,
-					hdev->enable_mta);
-	if (ret) {
-		dev_err(&hdev->pdev->dev, "set mta filter mode failed %d\n",
-			ret);
-		return ret;
-	}
-
-	for (i = 0; i < hdev->num_alloc_vport; i++) {
-		vport = &hdev->vport[i];
-		vport->accept_mta_mc = false;
-
-		memset(vport->mta_shadow, 0, sizeof(vport->mta_shadow));
-		ret = hclge_cfg_func_mta_filter(hdev, vport->vport_id, false);
-		if (ret) {
-			dev_err(&hdev->pdev->dev,
-				"set mta filter mode fail ret=%d\n", ret);
-			return ret;
-		}
-	}
 
 	if (netdev)
 		mtu = netdev->mtu;
@@ -4954,174 +4923,6 @@ static void hclge_prepare_mac_addr(struct hclge_mac_vlan_tbl_entry_cmd *new_req,
 	new_req->mac_addr_lo16 = cpu_to_le16(low_val & 0xffff);
 }
 
-static u16 hclge_get_mac_addr_to_mta_index(struct hclge_vport *vport,
-					   const u8 *addr)
-{
-	u16 high_val = addr[1] | (addr[0] << 8);
-	struct hclge_dev *hdev = vport->back;
-	u32 rsh = 4 - hdev->mta_mac_sel_type;
-	u16 ret_val = (high_val >> rsh) & 0xfff;
-
-	return ret_val;
-}
-
-static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
-				     enum hclge_mta_dmac_sel_type mta_mac_sel,
-				     bool enable)
-{
-	struct hclge_mta_filter_mode_cmd *req;
-	struct hclge_desc desc;
-	int ret;
-
-	req = (struct hclge_mta_filter_mode_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MTA_MAC_MODE_CFG, false);
-
-	hnae3_set_bit(req->dmac_sel_en, HCLGE_CFG_MTA_MAC_EN_B,
-		      enable);
-	hnae3_set_field(req->dmac_sel_en, HCLGE_CFG_MTA_MAC_SEL_M,
-			HCLGE_CFG_MTA_MAC_SEL_S, mta_mac_sel);
-
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		dev_err(&hdev->pdev->dev,
-			"Config mat filter mode failed for cmd_send, ret =%d.\n",
-			ret);
-
-	return ret;
-}
-
-int hclge_cfg_func_mta_filter(struct hclge_dev *hdev,
-			      u8 func_id,
-			      bool enable)
-{
-	struct hclge_cfg_func_mta_filter_cmd *req;
-	struct hclge_desc desc;
-	int ret;
-
-	req = (struct hclge_cfg_func_mta_filter_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MTA_MAC_FUNC_CFG, false);
-
-	hnae3_set_bit(req->accept, HCLGE_CFG_FUNC_MTA_ACCEPT_B,
-		      enable);
-	req->function_id = func_id;
-
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
-		dev_err(&hdev->pdev->dev,
-			"Config func_id enable failed for cmd_send, ret =%d.\n",
-			ret);
-
-	return ret;
-}
-
-static int hclge_set_mta_table_item(struct hclge_vport *vport,
-				    u16 idx,
-				    bool enable)
-{
-	struct hclge_dev *hdev = vport->back;
-	struct hclge_cfg_func_mta_item_cmd *req;
-	struct hclge_desc desc;
-	u16 item_idx = 0;
-	int ret;
-
-	req = (struct hclge_cfg_func_mta_item_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MTA_TBL_ITEM_CFG, false);
-	hnae3_set_bit(req->accept, HCLGE_CFG_MTA_ITEM_ACCEPT_B, enable);
-
-	hnae3_set_field(item_idx, HCLGE_CFG_MTA_ITEM_IDX_M,
-			HCLGE_CFG_MTA_ITEM_IDX_S, idx);
-	req->item_idx = cpu_to_le16(item_idx);
-
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Config mta table item failed for cmd_send, ret =%d.\n",
-			ret);
-		return ret;
-	}
-
-	if (enable)
-		set_bit(idx, vport->mta_shadow);
-	else
-		clear_bit(idx, vport->mta_shadow);
-
-	return 0;
-}
-
-static int hclge_update_mta_status(struct hnae3_handle *handle)
-{
-	unsigned long mta_status[BITS_TO_LONGS(HCLGE_MTA_TBL_SIZE)];
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct net_device *netdev = handle->kinfo.netdev;
-	struct netdev_hw_addr *ha;
-	u16 tbl_idx;
-
-	memset(mta_status, 0, sizeof(mta_status));
-
-	/* update mta_status from mc addr list */
-	netdev_for_each_mc_addr(ha, netdev) {
-		tbl_idx = hclge_get_mac_addr_to_mta_index(vport, ha->addr);
-		set_bit(tbl_idx, mta_status);
-	}
-
-	return hclge_update_mta_status_common(vport, mta_status,
-					0, HCLGE_MTA_TBL_SIZE, true);
-}
-
-int hclge_update_mta_status_common(struct hclge_vport *vport,
-				   unsigned long *status,
-				   u16 idx,
-				   u16 count,
-				   bool update_filter)
-{
-	struct hclge_dev *hdev = vport->back;
-	u16 update_max = idx + count;
-	u16 check_max;
-	int ret = 0;
-	bool used;
-	u16 i;
-
-	/* setup mta check range */
-	if (update_filter) {
-		i = 0;
-		check_max = HCLGE_MTA_TBL_SIZE;
-	} else {
-		i = idx;
-		check_max = update_max;
-	}
-
-	used = false;
-	/* check and update all mta item */
-	for (; i < check_max; i++) {
-		/* ignore unused item */
-		if (!test_bit(i, vport->mta_shadow))
-			continue;
-
-		/* if i in update range then update it */
-		if (i >= idx && i < update_max)
-			if (!test_bit(i - idx, status))
-				hclge_set_mta_table_item(vport, i, false);
-
-		if (!used && test_bit(i, vport->mta_shadow))
-			used = true;
-	}
-
-	/* no longer use mta, disable it */
-	if (vport->accept_mta_mc && update_filter && !used) {
-		ret = hclge_cfg_func_mta_filter(hdev,
-						vport->vport_id,
-						false);
-		if (ret)
-			dev_err(&hdev->pdev->dev,
-				"disable func mta filter fail ret=%d\n",
-				ret);
-		else
-			vport->accept_mta_mc = false;
-	}
-
-	return ret;
-}
-
 static int hclge_remove_mac_vlan_tbl(struct hclge_vport *vport,
 				     struct hclge_mac_vlan_tbl_entry_cmd *req)
 {
@@ -5477,7 +5278,6 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_mac_vlan_tbl_entry_cmd req;
 	struct hclge_desc desc[3];
-	u16 tbl_idx;
 	int status;
 
 	/* mac addr check */
@@ -5507,25 +5307,8 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 		status = hclge_add_mac_vlan_tbl(vport, &req, desc);
 	}
 
-	/* If mc mac vlan table is full, use MTA table */
-	if (status == -ENOSPC) {
-		if (!vport->accept_mta_mc) {
-			status = hclge_cfg_func_mta_filter(hdev,
-							   vport->vport_id,
-							   true);
-			if (status) {
-				dev_err(&hdev->pdev->dev,
-					"set mta filter mode fail ret=%d\n",
-					status);
-				return status;
-			}
-			vport->accept_mta_mc = true;
-		}
-
-		/* Set MTA table for this MAC address */
-		tbl_idx = hclge_get_mac_addr_to_mta_index(vport, addr);
-		status = hclge_set_mta_table_item(vport, tbl_idx, true);
-	}
+	if (status == -ENOSPC)
+		dev_err(&hdev->pdev->dev, "mc mac vlan table is full\n");
 
 	return status;
 }
@@ -7428,7 +7211,6 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.rm_uc_addr = hclge_rm_uc_addr,
 	.add_mc_addr = hclge_add_mc_addr,
 	.rm_mc_addr = hclge_rm_mc_addr,
-	.update_mta_status = hclge_update_mta_status,
 	.set_autoneg = hclge_set_autoneg,
 	.get_autoneg = hclge_get_autoneg,
 	.get_pauseparam = hclge_get_pauseparam,
