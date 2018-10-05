@@ -1126,6 +1126,15 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
 
+	if (mac->macinfo.extended_capabilities_len) {
+		wiphy->extended_capabilities =
+			mac->macinfo.extended_capabilities;
+		wiphy->extended_capabilities_mask =
+			mac->macinfo.extended_capabilities_mask;
+		wiphy->extended_capabilities_len =
+			mac->macinfo.extended_capabilities_len;
+	}
+
 	strlcpy(wiphy->fw_version, hw_info->fw_version,
 		sizeof(wiphy->fw_version));
 	wiphy->hw_version = hw_info->hw_version;
