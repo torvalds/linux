@@ -442,8 +442,8 @@ over a rather long period of time, but improvements are always welcome!
 	You instead need to use one of the barrier functions:
 
 	o	call_rcu() -> rcu_barrier()
-	o	call_rcu_bh() -> rcu_barrier_bh()
-	o	call_rcu_sched() -> rcu_barrier_sched()
+	o	call_rcu_bh() -> rcu_barrier()
+	o	call_rcu_sched() -> rcu_barrier()
 	o	call_srcu() -> srcu_barrier()
 
 	However, these barrier functions are absolutely -not- guaranteed
