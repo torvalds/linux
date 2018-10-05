@@ -14,24 +14,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "mt76x2.h"
+#include <linux/module.h>
 
-void mt76x2_tx_tasklet(unsigned long data)
-{
-	struct mt76x02_dev *dev = (struct mt76x02_dev *) data;
-	int i;
+#ifndef __CHECKER__
+#define CREATE_TRACE_POINTS
+#include "mt76x02_trace.h"
 
-	mt76x2_mac_process_tx_status_fifo(dev);
-
-	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
-
-	mt76x02_mac_poll_tx_status(dev, false);
-	mt76x02_irq_enable(&dev->mt76, MT_INT_TX_DONE_ALL);
-}
-
-void mt76x2_dma_cleanup(struct mt76x02_dev *dev)
-{
-	tasklet_kill(&dev->tx_tasklet);
-	mt76_dma_cleanup(&dev->mt76);
-}
+#endif

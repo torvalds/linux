@@ -61,7 +61,7 @@ irqreturn_t mt76x2_irq_handler(int irq, void *dev_instance)
 		mt76_queue_kick(dev, &dev->mt76.q_tx[MT_TXQ_PSD]);
 
 	if (intr & MT_INT_TX_STAT) {
-		mt76x2_mac_poll_tx_status(dev, true);
+		mt76x02_mac_poll_tx_status(dev, true);
 		tasklet_schedule(&dev->tx_tasklet);
 	}
 

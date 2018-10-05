@@ -16,6 +16,7 @@
  */
 
 #include "mt76x02.h"
+#include "mt76x02_trace.h"
 
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
@@ -681,3 +682,35 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 
 	return mt76x02_mac_process_rate(status, rate);
 }
+
+void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
+{
+	struct mt76x02_tx_status stat = {};
+	unsigned long flags;
+	u8 update = 1;
+	bool ret;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		return;
+
+	trace_mac_txstat_poll(dev);
+
+	while (!irq || !kfifo_is_full(&dev->txstatus_fifo)) {
+		spin_lock_irqsave(&dev->mt76.mmio.irq_lock, flags);
+		ret = mt76x02_mac_load_tx_status(&dev->mt76, &stat);
+		spin_unlock_irqrestore(&dev->mt76.mmio.irq_lock, flags);
+
+		if (!ret)
+			break;
+
+		trace_mac_txstat_fetch(dev, &stat);
+
+		if (!irq) {
+			mt76x02_send_tx_status(&dev->mt76, &stat, &update);
+			continue;
+		}
+
+		kfifo_put(&dev->txstatus_fifo, stat);
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_poll_tx_status);

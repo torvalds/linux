@@ -28,37 +28,6 @@ void mt76x2_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 		       get_unaligned_le16(addr + 4));
 }
 
-void mt76x2_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
-{
-	struct mt76x02_tx_status stat = {};
-	unsigned long flags;
-	u8 update = 1;
-	bool ret;
-
-	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
-		return;
-
-	trace_mac_txstat_poll(dev);
-
-	while (!irq || !kfifo_is_full(&dev->txstatus_fifo)) {
-		spin_lock_irqsave(&dev->mt76.mmio.irq_lock, flags);
-		ret = mt76x02_mac_load_tx_status(&dev->mt76, &stat);
-		spin_unlock_irqrestore(&dev->mt76.mmio.irq_lock, flags);
-
-		if (!ret)
-			break;
-
-		trace_mac_txstat_fetch(dev, &stat);
-
-		if (!irq) {
-			mt76x02_send_tx_status(&dev->mt76, &stat, &update);
-			continue;
-		}
-
-		kfifo_put(&dev->txstatus_fifo, stat);
-	}
-}
-
 static void
 mt76x2_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,
 			void *txwi_ptr)
@@ -66,7 +35,7 @@ mt76x2_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,
 	struct mt76x2_tx_info *txi = mt76x2_skb_tx_info(skb);
 	struct mt76x02_txwi *txwi = txwi_ptr;
 
-	mt76x2_mac_poll_tx_status(dev, false);
+	mt76x02_mac_poll_tx_status(dev, false);
 
 	txi->tries = 0;
 	txi->jiffies = jiffies;
