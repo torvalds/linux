@@ -102,18 +102,19 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
+	int channel = chan->channel;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = i2c_smbus_read_word_data(chip->client,
-					ad7150_addresses[chan->channel][0]);
+					       ad7150_addresses[channel][0]);
 		if (ret < 0)
 			return ret;
 		*val = swab16(ret);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_AVERAGE_RAW:
 		ret = i2c_smbus_read_word_data(chip->client,
-					ad7150_addresses[chan->channel][1]);
+					       ad7150_addresses[channel][1]);
 		if (ret < 0)
 			return ret;
 		*val = swab16(ret);
