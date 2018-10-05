@@ -595,6 +595,18 @@ config VIDEO_APTINA_PLL
 config VIDEO_SMIAPP_PLL
 	tristate
 
+config VIDEO_IMX214
+	tristate "Sony IMX214 sensor support"
+	depends on GPIOLIB && I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	depends on V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX214 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx214.
+
 config VIDEO_IMX258
 	tristate "Sony IMX258 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
