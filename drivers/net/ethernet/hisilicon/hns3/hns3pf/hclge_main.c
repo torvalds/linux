@@ -31,6 +31,8 @@ static int hclge_set_mta_filter_mode(struct hclge_dev *hdev,
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
+static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
+			       u16 *allocated_size, bool is_alloc);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -778,6 +780,11 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 	cfg->speed_ability = hnae3_get_field(__le32_to_cpu(req->param[1]),
 					     HCLGE_CFG_SPEED_ABILITY_M,
 					     HCLGE_CFG_SPEED_ABILITY_S);
+	cfg->umv_space = hnae3_get_field(__le32_to_cpu(req->param[1]),
+					 HCLGE_CFG_UMV_TBL_SPACE_M,
+					 HCLGE_CFG_UMV_TBL_SPACE_S);
+	if (!cfg->umv_space)
+		cfg->umv_space = HCLGE_DEFAULT_UMV_SPACE_PER_PF;
 }
 
 /* hclge_get_cfg: query the static parameter from flash
@@ -856,6 +863,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->tm_info.num_pg = 1;
 	hdev->tc_max = cfg.tc_num;
 	hdev->tm_info.hw_pfc_map = 0;
+	hdev->wanted_umv_size = cfg.umv_space;
 
 	ret = hclge_parse_speed(cfg.default_speed, &hdev->hw.mac.speed);
 	if (ret) {
@@ -5237,6 +5245,118 @@ static int hclge_add_mac_vlan_tbl(struct hclge_vport *vport,
 	return cfg_status;
 }
 
+static int hclge_init_umv_space(struct hclge_dev *hdev)
+{
+	u16 allocated_size = 0;
+	int ret;
+
+	ret = hclge_set_umv_space(hdev, hdev->wanted_umv_size, &allocated_size,
+				  true);
+	if (ret)
+		return ret;
+
+	if (allocated_size < hdev->wanted_umv_size)
+		dev_warn(&hdev->pdev->dev,
+			 "Alloc umv space failed, want %d, get %d\n",
+			 hdev->wanted_umv_size, allocated_size);
+
+	mutex_init(&hdev->umv_mutex);
+	hdev->max_umv_size = allocated_size;
+	hdev->priv_umv_size = hdev->max_umv_size / (hdev->num_req_vfs + 2);
+	hdev->share_umv_size = hdev->priv_umv_size +
+			hdev->max_umv_size % (hdev->num_req_vfs + 2);
+
+	return 0;
+}
+
+static int hclge_uninit_umv_space(struct hclge_dev *hdev)
+{
+	int ret;
+
+	if (hdev->max_umv_size > 0) {
+		ret = hclge_set_umv_space(hdev, hdev->max_umv_size, NULL,
+					  false);
+		if (ret)
+			return ret;
+		hdev->max_umv_size = 0;
+	}
+	mutex_destroy(&hdev->umv_mutex);
+
+	return 0;
+}
+
+static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
+			       u16 *allocated_size, bool is_alloc)
+{
+	struct hclge_umv_spc_alc_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	req = (struct hclge_umv_spc_alc_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_ALLOCATE, false);
+	hnae3_set_bit(req->allocate, HCLGE_UMV_SPC_ALC_B, !is_alloc);
+	req->space_size = cpu_to_le32(space_size);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"%s umv space failed for cmd_send, ret =%d\n",
+			is_alloc ? "allocate" : "free", ret);
+		return ret;
+	}
+
+	if (is_alloc && allocated_size)
+		*allocated_size = le32_to_cpu(desc.data[1]);
+
+	return 0;
+}
+
+static void hclge_reset_umv_space(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport;
+	int i;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		vport = &hdev->vport[i];
+		vport->used_umv_num = 0;
+	}
+
+	mutex_lock(&hdev->umv_mutex);
+	hdev->share_umv_size = hdev->priv_umv_size +
+			hdev->max_umv_size % (hdev->num_req_vfs + 2);
+	mutex_unlock(&hdev->umv_mutex);
+}
+
+static bool hclge_is_umv_space_full(struct hclge_vport *vport)
+{
+	struct hclge_dev *hdev = vport->back;
+	bool is_full;
+
+	mutex_lock(&hdev->umv_mutex);
+	is_full = (vport->used_umv_num >= hdev->priv_umv_size &&
+		   hdev->share_umv_size == 0);
+	mutex_unlock(&hdev->umv_mutex);
+
+	return is_full;
+}
+
+static void hclge_update_umv_space(struct hclge_vport *vport, bool is_free)
+{
+	struct hclge_dev *hdev = vport->back;
+
+	mutex_lock(&hdev->umv_mutex);
+	if (is_free) {
+		if (vport->used_umv_num > hdev->priv_umv_size)
+			hdev->share_umv_size++;
+		vport->used_umv_num--;
+	} else {
+		if (vport->used_umv_num >= hdev->priv_umv_size)
+			hdev->share_umv_size--;
+		vport->used_umv_num++;
+	}
+	mutex_unlock(&hdev->umv_mutex);
+}
+
 static int hclge_add_uc_addr(struct hnae3_handle *handle,
 			     const unsigned char *addr)
 {
@@ -5282,8 +5402,19 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	 * is not allowed in the mac vlan table.
 	 */
 	ret = hclge_lookup_mac_vlan_tbl(vport, &req, &desc, false);
-	if (ret == -ENOENT)
-		return hclge_add_mac_vlan_tbl(vport, &req, NULL);
+	if (ret == -ENOENT) {
+		if (!hclge_is_umv_space_full(vport)) {
+			ret = hclge_add_mac_vlan_tbl(vport, &req, NULL);
+			if (!ret)
+				hclge_update_umv_space(vport, false);
+			return ret;
+		}
+
+		dev_err(&hdev->pdev->dev, "UC MAC table full(%u)\n",
+			hdev->priv_umv_size);
+
+		return -ENOSPC;
+	}
 
 	/* check if we just hit the duplicate */
 	if (!ret)
@@ -5326,6 +5457,8 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hclge_prepare_mac_addr(&req, addr);
 	ret = hclge_remove_mac_vlan_tbl(vport, &req);
+	if (!ret)
+		hclge_update_umv_space(vport, true);
 
 	return ret;
 }
@@ -6714,6 +6847,12 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		}
 	}
 
+	ret = hclge_init_umv_space(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "umv space init error, ret=%d.\n", ret);
+		goto err_msi_irq_uninit;
+	}
+
 	ret = hclge_mac_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
@@ -6834,6 +6973,8 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
+	hclge_reset_umv_space(hdev);
+
 	ret = hclge_mac_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
@@ -6886,6 +7027,8 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	if (mac->phydev)
 		mdiobus_unregister(mac->mdio_bus);
+
+	hclge_uninit_umv_space(hdev);
 
 	/* Disable MISC vector(vector0) */
 	hclge_enable_vector(&hdev->misc_vector, false);
