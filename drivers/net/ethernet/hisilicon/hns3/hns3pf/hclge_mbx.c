@@ -233,43 +233,6 @@ static int hclge_set_vf_uc_mac_addr(struct hclge_vport *vport,
 	return 0;
 }
 
-static int hclge_set_vf_mc_mta_status(struct hclge_vport *vport,
-				      u8 *msg, u8 idx, bool is_end)
-{
-#define HCLGE_MTA_STATUS_MSG_SIZE 13
-#define HCLGE_MTA_STATUS_MSG_BITS \
-				(HCLGE_MTA_STATUS_MSG_SIZE * BITS_PER_BYTE)
-#define HCLGE_MTA_STATUS_MSG_END_BITS \
-				(HCLGE_MTA_TBL_SIZE % HCLGE_MTA_STATUS_MSG_BITS)
-	unsigned long status[BITS_TO_LONGS(HCLGE_MTA_STATUS_MSG_BITS)];
-	u16 tbl_cnt;
-	u16 tbl_idx;
-	u8 msg_ofs;
-	u8 msg_bit;
-
-	tbl_cnt = is_end ? HCLGE_MTA_STATUS_MSG_END_BITS :
-			HCLGE_MTA_STATUS_MSG_BITS;
-
-	/* set msg field */
-	msg_ofs = 0;
-	msg_bit = 0;
-	memset(status, 0, sizeof(status));
-	for (tbl_idx = 0; tbl_idx < tbl_cnt; tbl_idx++) {
-		if (msg[msg_ofs] & BIT(msg_bit))
-			set_bit(tbl_idx, status);
-
-		msg_bit++;
-		if (msg_bit == BITS_PER_BYTE) {
-			msg_bit = 0;
-			msg_ofs++;
-		}
-	}
-
-	return hclge_update_mta_status_common(vport,
-					status, idx * HCLGE_MTA_STATUS_MSG_BITS,
-					tbl_cnt, is_end);
-}
-
 static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 				    bool gen_resp)
@@ -284,27 +247,6 @@ static int hclge_set_vf_mc_mac_addr(struct hclge_vport *vport,
 		status = hclge_add_mc_addr_common(vport, mac_addr);
 	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MC_REMOVE) {
 		status = hclge_rm_mc_addr_common(vport, mac_addr);
-	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MC_FUNC_MTA_ENABLE) {
-		u8 func_id = vport->vport_id;
-		bool enable = mbx_req->msg[2];
-
-		status = hclge_cfg_func_mta_filter(hdev, func_id, enable);
-	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MTA_TYPE_READ) {
-		resp_data = hdev->mta_mac_sel_type;
-		resp_len = sizeof(u8);
-		gen_resp = true;
-		status = 0;
-	} else if (mbx_req->msg[1] == HCLGE_MBX_MAC_VLAN_MTA_STATUS_UPDATE) {
-		/* mta status update msg format
-		 * msg[2.6 : 2.0]  msg index
-		 * msg[2.7]        msg is end
-		 * msg[15 : 3]     mta status bits[103 : 0]
-		 */
-		bool is_end = (mbx_req->msg[2] & 0x80) ? true : false;
-
-		status = hclge_set_vf_mc_mta_status(vport, &mbx_req->msg[3],
-						    mbx_req->msg[2] & 0x7F,
-						    is_end);
 	} else {
 		dev_err(&hdev->pdev->dev,
 			"failed to set mcast mac addr, unknown subcode %d\n",
