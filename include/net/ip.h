@@ -441,6 +441,15 @@ void ip_dst_init_metrics(struct dst_entry *dst, struct dst_metrics *fib_metrics)
 	}
 }
 
+static inline
+void ip_dst_metrics_put(struct dst_entry *dst)
+{
+	struct dst_metrics *p = (struct dst_metrics *)DST_METRICS_PTR(dst);
+
+	if (p != &dst_default_metrics && refcount_dec_and_test(&p->refcnt))
+		kfree(p);
+}
+
 u32 ip_idents_reserve(u32 hash, int segs);
 void __ip_select_ident(struct net *net, struct iphdr *iph, int segs);
 

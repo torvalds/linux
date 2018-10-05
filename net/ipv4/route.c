@@ -1476,12 +1476,9 @@ void rt_del_uncached_list(struct rtable *rt)
 
 static void ipv4_dst_destroy(struct dst_entry *dst)
 {
-	struct dst_metrics *p = (struct dst_metrics *)DST_METRICS_PTR(dst);
 	struct rtable *rt = (struct rtable *)dst;
 
-	if (p != &dst_default_metrics && refcount_dec_and_test(&p->refcnt))
-		kfree(p);
-
+	ip_dst_metrics_put(dst);
 	rt_del_uncached_list(rt);
 }
 
