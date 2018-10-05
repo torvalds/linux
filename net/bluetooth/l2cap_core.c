@@ -3816,9 +3816,17 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 
 	result = L2CAP_CR_NO_MEM;
 
-	/* Check if we already have channel with that dcid */
-	if (__l2cap_get_chan_by_dcid(conn, scid))
+	/* Check for valid dynamic CID range (as per Erratum 3253) */
+	if (scid < L2CAP_CID_DYN_START || scid > L2CAP_CID_DYN_END) {
+		result = L2CAP_CR_INVALID_SCID;
 		goto response;
+	}
+
+	/* Check if we already have channel with that dcid */
+	if (__l2cap_get_chan_by_dcid(conn, scid)) {
+		result = L2CAP_CR_SCID_IN_USE;
+		goto response;
+	}
 
 	chan = pchan->ops->new_connection(pchan);
 	if (!chan)

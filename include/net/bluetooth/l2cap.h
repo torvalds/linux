@@ -277,6 +277,8 @@ struct l2cap_conn_rsp {
 #define L2CAP_CR_SEC_BLOCK	0x0003
 #define L2CAP_CR_NO_MEM		0x0004
 #define L2CAP_CR_BAD_AMP	0x0005
+#define L2CAP_CR_INVALID_SCID	0x0006
+#define L2CAP_CR_SCID_IN_USE	0x0007
 
 /* credit based connect results */
 #define L2CAP_CR_LE_SUCCESS		0x0000
