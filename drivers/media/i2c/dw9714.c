@@ -171,7 +171,7 @@ static int dw9714_probe(struct i2c_client *client)
 err_cleanup:
 	v4l2_ctrl_handler_free(&dw9714_dev->ctrls_vcm);
 	media_entity_cleanup(&dw9714_dev->sd.entity);
-	dev_err(&client->dev, "Probe failed: %d\n", rval);
+
 	return rval;
 }
 
