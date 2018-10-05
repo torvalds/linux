@@ -2214,9 +2214,9 @@ static int v4l_g_crop(const struct v4l2_ioctl_ops *ops,
 
 	/* crop means compose for output devices */
 	if (V4L2_TYPE_IS_OUTPUT(p->type))
-		s.target = V4L2_SEL_TGT_COMPOSE_ACTIVE;
+		s.target = V4L2_SEL_TGT_COMPOSE;
 	else
-		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
+		s.target = V4L2_SEL_TGT_CROP;
 
 	ret = v4l_g_selection(ops, file, fh, &s);
 
@@ -2241,9 +2241,9 @@ static int v4l_s_crop(const struct v4l2_ioctl_ops *ops,
 
 	/* crop means compose for output devices */
 	if (V4L2_TYPE_IS_OUTPUT(p->type))
-		s.target = V4L2_SEL_TGT_COMPOSE_ACTIVE;
+		s.target = V4L2_SEL_TGT_COMPOSE;
 	else
-		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
+		s.target = V4L2_SEL_TGT_CROP;
 
 	return v4l_s_selection(ops, file, fh, &s);
 }
