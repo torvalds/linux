@@ -535,6 +535,12 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 					(1ULL << IB_USER_VERBS_CMD_DEALLOC_MW);
 	}
 
+	/* FRMR */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR) {
+		ib_dev->alloc_mr		= hns_roce_alloc_mr;
+		ib_dev->map_mr_sg		= hns_roce_map_mr_sg;
+	}
+
 	/* OTHERS */
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
 	ib_dev->disassociate_ucontext	= hns_roce_disassociate_ucontext;

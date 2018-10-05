@@ -886,6 +886,8 @@ struct hns_roce_v2_mpt_entry {
 #define V2_MPT_BYTE_8_MW_CNT_S 8
 #define V2_MPT_BYTE_8_MW_CNT_M GENMASK(31, 8)
 
+#define V2_MPT_BYTE_12_FRE_S 0
+
 #define V2_MPT_BYTE_12_PA_S 1
 
 #define V2_MPT_BYTE_12_MR_MW_S 4
@@ -1058,6 +1060,16 @@ struct hns_roce_v2_rc_send_wqe {
 
 #define V2_RC_SEND_WQE_BYTE_4_INLINE_S 12
 
+#define V2_RC_FRMR_WQE_BYTE_4_BIND_EN_S 19
+
+#define V2_RC_FRMR_WQE_BYTE_4_ATOMIC_S 20
+
+#define V2_RC_FRMR_WQE_BYTE_4_RR_S 21
+
+#define V2_RC_FRMR_WQE_BYTE_4_RW_S 22
+
+#define V2_RC_FRMR_WQE_BYTE_4_LW_S 23
+
 #define	V2_RC_SEND_WQE_BYTE_16_XRC_SRQN_S 0
 #define V2_RC_SEND_WQE_BYTE_16_XRC_SRQN_M GENMASK(23, 0)
 
@@ -1066,6 +1078,16 @@ struct hns_roce_v2_rc_send_wqe {
 
 #define V2_RC_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_S 0
 #define V2_RC_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_M GENMASK(23, 0)
+
+struct hns_roce_wqe_frmr_seg {
+	__le32	pbl_size;
+	__le32	mode_buf_pg_sz;
+};
+
+#define V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_S	4
+#define V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_M	GENMASK(7, 4)
+
+#define V2_RC_FRMR_WQE_BYTE_40_BLK_MODE_S 8
 
 struct hns_roce_v2_wqe_data_seg {
 	__le32    len;

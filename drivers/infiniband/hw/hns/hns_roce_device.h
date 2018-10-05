@@ -88,7 +88,10 @@
 #define BITMAP_RR				1
 
 #define MR_TYPE_MR				0x00
+#define MR_TYPE_FRMR				0x01
 #define MR_TYPE_DMA				0x03
+
+#define HNS_ROCE_FRMR_MAX_PA			512
 
 #define PKEY_ID					0xffff
 #define GUID_LEN				8
@@ -194,6 +197,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_RECORD_DB		= BIT(3),
 	HNS_ROCE_CAP_FLAG_SQ_RECORD_DB		= BIT(4),
 	HNS_ROCE_CAP_FLAG_MW			= BIT(7),
+	HNS_ROCE_CAP_FLAG_FRMR                  = BIT(8),
 	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
 };
 
@@ -308,6 +312,7 @@ struct hns_roce_mr {
 	u32			key; /* Key of MR */
 	u32			pd;   /* PD num of MR */
 	u32			access;/* Access permission of MR */
+	u32			npages;
 	int			enabled; /* MR's active status */
 	int			type;	/* MR's register type */
 	u64			*pbl_buf;/* MR's PBL space */
@@ -773,6 +778,7 @@ struct hns_roce_hw {
 				struct hns_roce_mr *mr, int flags, u32 pdn,
 				int mr_access_flags, u64 iova, u64 size,
 				void *mb_buf);
+	int (*frmr_write_mtpt)(void *mb_buf, struct hns_roce_mr *mr);
 	int (*mw_write_mtpt)(void *mb_buf, struct hns_roce_mw *mw);
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
@@ -983,6 +989,10 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 int hns_roce_rereg_user_mr(struct ib_mr *mr, int flags, u64 start, u64 length,
 			   u64 virt_addr, int mr_access_flags, struct ib_pd *pd,
 			   struct ib_udata *udata);
+struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+				u32 max_num_sg);
+int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		       unsigned int *sg_offset);
 int hns_roce_dereg_mr(struct ib_mr *ibmr);
 int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_cmd_mailbox *mailbox,
