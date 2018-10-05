@@ -1151,6 +1151,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_MAX_SCAN_SSIDS	= 0x0409,
 	QTN_TLV_ID_WOWLAN_CAPAB		= 0x0410,
 	QTN_TLV_ID_WOWLAN_PATTERN	= 0x0411,
+	QTN_TLV_ID_SCAN_FLUSH		= 0x0412,
 };
 
 struct qlink_tlv_hdr {

@@ -2197,6 +2197,12 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 					 scan_req->mac_addr_mask);
 	}
 
+	if (scan_req->flags & NL80211_SCAN_FLAG_FLUSH) {
+		pr_debug("MAC%u: flush cache before scan\n", mac->macid);
+
+		qtnf_cmd_skb_put_tlv_tag(cmd_skb, QTN_TLV_ID_SCAN_FLUSH);
+	}
+
 	ret = qtnf_cmd_send(mac->bus, cmd_skb);
 	if (ret)
 		goto out;
