@@ -6,6 +6,7 @@ Required properties:
 	- "renesas,r8a7795-usb3-peri"
 	- "renesas,r8a7796-usb3-peri"
 	- "renesas,r8a77965-usb3-peri"
+	- "renesas,r8a77990-usb3-peri"
 	- "renesas,rcar-gen3-usb3-peri" for a generic R-Car Gen3 or RZ/G2
 	  compatible device
 
