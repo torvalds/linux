@@ -105,7 +105,7 @@ static void
 amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector);
 
 static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
-				struct amdgpu_plane *aplane,
+				struct drm_plane *plane,
 				unsigned long possible_crtcs);
 static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			       struct drm_plane *plane,
@@ -1641,18 +1641,18 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 			     struct amdgpu_mode_info *mode_info,
 			     int plane_id)
 {
-	struct amdgpu_plane *plane;
+	struct drm_plane *plane;
 	unsigned long possible_crtcs;
 	int ret = 0;
 
-	plane = kzalloc(sizeof(struct amdgpu_plane), GFP_KERNEL);
+	plane = kzalloc(sizeof(struct drm_plane), GFP_KERNEL);
 	mode_info->planes[plane_id] = plane;
 
 	if (!plane) {
 		DRM_ERROR("KMS: Failed to allocate plane\n");
 		return -ENOMEM;
 	}
-	plane->base.type = mode_info->plane_type[plane_id];
+	plane->type = mode_info->plane_type[plane_id];
 
 	/*
 	 * HACK: IGT tests expect that each plane can only have
@@ -1743,7 +1743,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	}
 
 	for (i = 0; i < dm->dc->caps.max_streams; i++)
-		if (amdgpu_dm_crtc_init(dm, &mode_info->planes[i]->base, i)) {
+		if (amdgpu_dm_crtc_init(dm, mode_info->planes[i], i)) {
 			DRM_ERROR("KMS: Failed to initialize crtc\n");
 			goto fail;
 		}
@@ -3526,49 +3526,49 @@ static const u32 cursor_formats[] = {
 };
 
 static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
-				struct amdgpu_plane *aplane,
+				struct drm_plane *plane,
 				unsigned long possible_crtcs)
 {
 	int res = -EPERM;
 
-	switch (aplane->base.type) {
+	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
 		res = drm_universal_plane_init(
 				dm->adev->ddev,
-				&aplane->base,
+				plane,
 				possible_crtcs,
 				&dm_plane_funcs,
 				rgb_formats,
 				ARRAY_SIZE(rgb_formats),
-				NULL, aplane->base.type, NULL);
+				NULL, plane->type, NULL);
 		break;
 	case DRM_PLANE_TYPE_OVERLAY:
 		res = drm_universal_plane_init(
 				dm->adev->ddev,
-				&aplane->base,
+				plane,
 				possible_crtcs,
 				&dm_plane_funcs,
 				yuv_formats,
 				ARRAY_SIZE(yuv_formats),
-				NULL, aplane->base.type, NULL);
+				NULL, plane->type, NULL);
 		break;
 	case DRM_PLANE_TYPE_CURSOR:
 		res = drm_universal_plane_init(
 				dm->adev->ddev,
-				&aplane->base,
+				plane,
 				possible_crtcs,
 				&dm_plane_funcs,
 				cursor_formats,
 				ARRAY_SIZE(cursor_formats),
-				NULL, aplane->base.type, NULL);
+				NULL, plane->type, NULL);
 		break;
 	}
 
-	drm_plane_helper_add(&aplane->base, &dm_plane_helper_funcs);
+	drm_plane_helper_add(plane, &dm_plane_helper_funcs);
 
 	/* Create (reset) the plane state */
-	if (aplane->base.funcs->reset)
-		aplane->base.funcs->reset(&aplane->base);
+	if (plane->funcs->reset)
+		plane->funcs->reset(plane);
 
 
 	return res;
@@ -3579,7 +3579,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			       uint32_t crtc_index)
 {
 	struct amdgpu_crtc *acrtc = NULL;
-	struct amdgpu_plane *cursor_plane;
+	struct drm_plane *cursor_plane;
 
 	int res = -ENOMEM;
 
@@ -3587,7 +3587,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	if (!cursor_plane)
 		goto fail;
 
-	cursor_plane->base.type = DRM_PLANE_TYPE_CURSOR;
+	cursor_plane->type = DRM_PLANE_TYPE_CURSOR;
 	res = amdgpu_dm_plane_init(dm, cursor_plane, 0);
 
 	acrtc = kzalloc(sizeof(struct amdgpu_crtc), GFP_KERNEL);
@@ -3598,7 +3598,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			dm->ddev,
 			&acrtc->base,
 			plane,
-			&cursor_plane->base,
+			cursor_plane,
 			&amdgpu_dm_crtc_funcs, NULL);
 
 	if (res)
