@@ -1284,7 +1284,7 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 		ret = rza1_parse_gpiochip(rza1_pctl, child, &gpio_chips[i],
 					  &gpio_ranges[i]);
 		if (ret)
-			goto gpiochip_remove;
+			return ret;
 
 		++i;
 	}
@@ -1292,12 +1292,6 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 	dev_info(rza1_pctl->dev, "Registered %u gpio controllers\n", i);
 
 	return 0;
-
-gpiochip_remove:
-	for (; i > 0; i--)
-		devm_gpiochip_remove(rza1_pctl->dev, &gpio_chips[i - 1]);
-
-	return ret;
 }
 
 /**
