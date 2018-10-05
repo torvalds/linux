@@ -1711,11 +1711,6 @@ static int gfx_v9_0_sw_init(void *handle)
 	adev->gfx.mec.num_pipe_per_mec = 4;
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
-	/* KIQ event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, GFX_9_0__SRCID__CP_IB2_INTERRUPT_PKT, &adev->gfx.kiq.irq);
-	if (r)
-		return r;
-
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, GFX_9_0__SRCID__CP_EOP_INTERRUPT, &adev->gfx.eop_irq);
 	if (r)
@@ -4708,68 +4703,6 @@ static int gfx_v9_0_priv_inst_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v9_0_kiq_set_interrupt_state(struct amdgpu_device *adev,
-					    struct amdgpu_irq_src *src,
-					    unsigned int type,
-					    enum amdgpu_interrupt_state state)
-{
-	uint32_t tmp, target;
-	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
-
-	if (ring->me == 1)
-		target = SOC15_REG_OFFSET(GC, 0, mmCP_ME1_PIPE0_INT_CNTL);
-	else
-		target = SOC15_REG_OFFSET(GC, 0, mmCP_ME2_PIPE0_INT_CNTL);
-	target += ring->pipe;
-
-	switch (type) {
-	case AMDGPU_CP_KIQ_IRQ_DRIVER0:
-		if (state == AMDGPU_IRQ_STATE_DISABLE) {
-			tmp = RREG32_SOC15(GC, 0, mmCPC_INT_CNTL);
-			tmp = REG_SET_FIELD(tmp, CPC_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 0);
-			WREG32_SOC15(GC, 0, mmCPC_INT_CNTL, tmp);
-
-			tmp = RREG32(target);
-			tmp = REG_SET_FIELD(tmp, CP_ME2_PIPE0_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 0);
-			WREG32(target, tmp);
-		} else {
-			tmp = RREG32_SOC15(GC, 0, mmCPC_INT_CNTL);
-			tmp = REG_SET_FIELD(tmp, CPC_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 1);
-			WREG32_SOC15(GC, 0, mmCPC_INT_CNTL, tmp);
-
-			tmp = RREG32(target);
-			tmp = REG_SET_FIELD(tmp, CP_ME2_PIPE0_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 1);
-			WREG32(target, tmp);
-		}
-		break;
-	default:
-		BUG(); /* kiq only support GENERIC2_INT now */
-		break;
-	}
-	return 0;
-}
-
-static int gfx_v9_0_kiq_irq(struct amdgpu_device *adev,
-			    struct amdgpu_irq_src *source,
-			    struct amdgpu_iv_entry *entry)
-{
-	u8 me_id, pipe_id, queue_id;
-	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
-
-	me_id = (entry->ring_id & 0x0c) >> 2;
-	pipe_id = (entry->ring_id & 0x03) >> 0;
-	queue_id = (entry->ring_id & 0x70) >> 4;
-	DRM_DEBUG("IH: CPC GENERIC2_INT, me:%d, pipe:%d, queue:%d\n",
-		   me_id, pipe_id, queue_id);
-
-	amdgpu_fence_process(ring);
-	return 0;
-}
-
 static const struct amd_ip_funcs gfx_v9_0_ip_funcs = {
 	.name = "gfx_v9_0",
 	.early_init = gfx_v9_0_early_init,
@@ -4918,11 +4851,6 @@ static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev)
 		adev->gfx.compute_ring[i].funcs = &gfx_v9_0_ring_funcs_compute;
 }
 
-static const struct amdgpu_irq_src_funcs gfx_v9_0_kiq_irq_funcs = {
-	.set = gfx_v9_0_kiq_set_interrupt_state,
-	.process = gfx_v9_0_kiq_irq,
-};
-
 static const struct amdgpu_irq_src_funcs gfx_v9_0_eop_irq_funcs = {
 	.set = gfx_v9_0_set_eop_interrupt_state,
 	.process = gfx_v9_0_eop_irq,
@@ -4948,9 +4876,6 @@ static void gfx_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->gfx.priv_inst_irq.num_types = 1;
 	adev->gfx.priv_inst_irq.funcs = &gfx_v9_0_priv_inst_irq_funcs;
-
-	adev->gfx.kiq.irq.num_types = AMDGPU_CP_KIQ_IRQ_LAST;
-	adev->gfx.kiq.irq.funcs = &gfx_v9_0_kiq_irq_funcs;
 }
 
 static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev)
