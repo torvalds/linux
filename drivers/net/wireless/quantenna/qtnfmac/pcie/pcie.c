@@ -242,7 +242,8 @@ static int qtnf_pcie_init_memory(struct qtnf_pcie_bus_priv *priv)
 	return 0;
 }
 
-static void qtnf_pcie_control_rx_callback(void *arg, const u8 *buf, size_t len)
+static void qtnf_pcie_control_rx_callback(void *arg, const u8 __iomem *buf,
+					  size_t len)
 {
 	struct qtnf_pcie_bus_priv *priv = arg;
 	struct qtnf_bus *bus = pci_get_drvdata(priv->pdev);
@@ -260,7 +261,7 @@ static void qtnf_pcie_control_rx_callback(void *arg, const u8 *buf, size_t len)
 		return;
 	}
 
-	skb_put_data(skb, buf, len);
+	memcpy_fromio(skb_put(skb, len), buf, len);
 
 	qtnf_trans_handle_rx_ctl_packet(bus, skb);
 }
