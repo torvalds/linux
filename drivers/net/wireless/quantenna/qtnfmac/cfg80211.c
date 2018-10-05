@@ -141,8 +141,8 @@ qtnf_change_virtual_intf(struct wiphy *wiphy,
 
 	ret = qtnf_cmd_send_change_intf_type(vif, type, mac_addr);
 	if (ret) {
-		pr_err("VIF%u.%u: failed to change VIF type: %d\n",
-		       vif->mac->macid, vif->vifid, ret);
+		pr_err("VIF%u.%u: failed to change type to %d\n",
+		       vif->mac->macid, vif->vifid, type);
 		return ret;
 	}
 
@@ -228,18 +228,22 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 	if (params)
 		mac_addr = params->macaddr;
 
-	if (qtnf_cmd_send_add_intf(vif, type, mac_addr)) {
-		pr_err("VIF%u.%u: failed to add VIF\n", mac->macid, vif->vifid);
+	ret = qtnf_cmd_send_add_intf(vif, type, mac_addr);
+	if (ret) {
+		pr_err("VIF%u.%u: failed to add VIF %pM\n",
+		       mac->macid, vif->vifid, mac_addr);
 		goto err_cmd;
 	}
 
 	if (!is_valid_ether_addr(vif->mac_addr)) {
 		pr_err("VIF%u.%u: FW reported bad MAC: %pM\n",
 		       mac->macid, vif->vifid, vif->mac_addr);
+		ret = -EINVAL;
 		goto err_mac;
 	}
 
-	if (qtnf_core_net_attach(mac, vif, name, name_assign_t)) {
+	ret = qtnf_core_net_attach(mac, vif, name, name_assign_t);
+	if (ret) {
 		pr_err("VIF%u.%u: failed to attach netdev\n", mac->macid,
 		       vif->vifid);
 		goto err_net;
@@ -255,7 +259,7 @@ err_mac:
 err_cmd:
 	vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 
-	return ERR_PTR(-EFAULT);
+	return ERR_PTR(ret);
 }
 
 static int qtnf_mgmt_set_appie(struct qtnf_vif *vif,
@@ -334,12 +338,11 @@ static int qtnf_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	qtnf_scan_done(vif->mac, true);
 
 	ret = qtnf_cmd_send_stop_ap(vif);
-	if (ret) {
+	if (ret)
 		pr_err("VIF%u.%u: failed to stop AP operation in FW\n",
 		       vif->mac->macid, vif->vifid);
 
-		netif_carrier_off(vif->netdev);
-	}
+	netif_carrier_off(vif->netdev);
 
 	return ret;
 }
@@ -589,6 +592,7 @@ qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
 	if (ret)
 		pr_err("VIF%u.%u: failed to delete STA %pM\n",
 		       vif->mac->macid, vif->vifid, params->mac);
+
 	return ret;
 }
 
@@ -596,21 +600,25 @@ static int
 qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	int ret;
 
 	cancel_delayed_work_sync(&mac->scan_timeout);
 
 	mac->scan_req = request;
 
-	if (qtnf_cmd_send_scan(mac)) {
+	ret = qtnf_cmd_send_scan(mac);
+	if (ret) {
 		pr_err("MAC%u: failed to start scan\n", mac->macid);
 		mac->scan_req = NULL;
-		return -EFAULT;
+		goto out;
 	}
 
+	pr_debug("MAC%u: scan started\n", mac->macid);
 	queue_delayed_work(mac->bus->workqueue, &mac->scan_timeout,
 			   QTNF_SCAN_TIMEOUT_SEC * HZ);
 
-	return 0;
+out:
+	return ret;
 }
 
 static int
@@ -630,12 +638,13 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	ret = qtnf_cmd_send_connect(vif, sme);
 	if (ret) {
-		pr_err("VIF%u.%u: failed to connect\n", vif->mac->macid,
-		       vif->vifid);
-		return ret;
+		pr_err("VIF%u.%u: failed to connect\n",
+		       vif->mac->macid, vif->vifid);
+		goto out;
 	}
 
-	return 0;
+out:
+	return ret;
 }
 
 static int
@@ -661,8 +670,8 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 
 	ret = qtnf_cmd_send_disconnect(vif, reason_code);
 	if (ret)
-		pr_err("VIF%u.%u: failed to disconnect\n", mac->macid,
-		       vif->vifid);
+		pr_err("VIF%u.%u: failed to disconnect\n",
+		       mac->macid, vif->vifid);
 
 	if (vif->wdev.current_bss) {
 		netif_carrier_off(vif->netdev);
@@ -740,7 +749,6 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	default:
 		pr_debug("failed to get chan(%d) stats from card\n",
 			 chan->hw_value);
-		ret = -EINVAL;
 		break;
 	}
 
@@ -763,6 +771,7 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 	ret = qtnf_cmd_get_channel(vif, chandef);
 	if (ret) {
 		pr_err("%s: failed to get channel: %d\n", ndev->name, ret);
+		ret = -ENODATA;
 		goto out;
 	}
 
@@ -772,6 +781,7 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		       chandef->center_freq1, chandef->center_freq2,
 		       chandef->width);
 		ret = -ENODATA;
+		goto out;
 	}
 
 out:
@@ -841,10 +851,8 @@ static int qtnf_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	ret = qtnf_cmd_send_pm_set(vif, enabled ? QLINK_PM_AUTO_STANDBY :
 				   QLINK_PM_OFF, timeout);
-	if (ret) {
+	if (ret)
 		pr_err("%s: failed to set PM mode ret=%d\n", dev->name, ret);
-		return ret;
-	}
 
 	return ret;
 }
@@ -964,9 +972,16 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 
 	ret = qtnf_cmd_reg_notify(bus, req);
 	if (ret) {
-		if (ret != -EOPNOTSUPP && ret != -EALREADY)
+		if (ret == -EOPNOTSUPP) {
+			pr_warn("reg update not supported\n");
+		} else if (ret == -EALREADY) {
+			pr_info("regulatory domain is already set to %c%c",
+				req->alpha2[0], req->alpha2[1]);
+		} else {
 			pr_err("failed to update reg domain to %c%c\n",
 			       req->alpha2[0], req->alpha2[1]);
+		}
+
 		return;
 	}
 
@@ -1139,7 +1154,8 @@ void qtnf_netdev_updown(struct net_device *ndev, bool up)
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 
 	if (qtnf_cmd_send_updown_intf(vif, up))
-		pr_err("failed to send up/down command to FW\n");
+		pr_err("failed to send %s command to VIF%u.%u\n",
+		       up ? "UP" : "DOWN", vif->mac->macid, vif->vifid);
 }
 
 void qtnf_virtual_intf_cleanup(struct net_device *ndev)
