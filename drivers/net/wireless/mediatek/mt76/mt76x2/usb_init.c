@@ -138,7 +138,7 @@ struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
-		.tx_complete_skb = mt76x02_tx_complete_skb,
+		.tx_complete_skb = mt76x02u_tx_complete_skb,
 		.tx_status_data = mt76x02_tx_status_data,
 		.rx_skb = mt76x02_queue_rx_skb,
 	};

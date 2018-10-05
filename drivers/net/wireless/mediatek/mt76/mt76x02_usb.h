@@ -29,4 +29,6 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *dev, void *data,
 			    struct sk_buff *skb, struct mt76_queue *q,
 			    struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			    u32 *tx_info);
+void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
+			      struct mt76_queue_entry *e, bool flush);
 #endif /* __MT76x02_USB_H */
