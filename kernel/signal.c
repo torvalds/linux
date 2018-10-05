@@ -2925,11 +2925,10 @@ int copy_siginfo_to_user(siginfo_t __user *to, const kernel_siginfo_t *from)
 	return 0;
 }
 
-int copy_siginfo_from_user(kernel_siginfo_t *to, const siginfo_t __user *from)
+static int post_copy_siginfo_from_user(kernel_siginfo_t *info,
+				       const siginfo_t __user *from)
 {
-	if (copy_from_user(to, from, sizeof(struct kernel_siginfo)))
-		return -EFAULT;
-	if (unlikely(!known_siginfo_layout(to->si_signo, to->si_code))) {
+	if (unlikely(!known_siginfo_layout(info->si_signo, info->si_code))) {
 		char __user *expansion = si_expansion(from);
 		char buf[SI_EXPANSION_SIZE];
 		int i;
@@ -2947,6 +2946,22 @@ int copy_siginfo_from_user(kernel_siginfo_t *to, const siginfo_t __user *from)
 		}
 	}
 	return 0;
+}
+
+static int __copy_siginfo_from_user(int signo, kernel_siginfo_t *to,
+				    const siginfo_t __user *from)
+{
+	if (copy_from_user(to, from, sizeof(struct kernel_siginfo)))
+		return -EFAULT;
+	to->si_signo = signo;
+	return post_copy_siginfo_from_user(to, from);
+}
+
+int copy_siginfo_from_user(kernel_siginfo_t *to, const siginfo_t __user *from)
+{
+	if (copy_from_user(to, from, sizeof(struct kernel_siginfo)))
+		return -EFAULT;
+	return post_copy_siginfo_from_user(to, from);
 }
 
 #ifdef CONFIG_COMPAT
@@ -3041,6 +3056,96 @@ int __copy_siginfo_to_user32(struct compat_siginfo __user *to,
 	return 0;
 }
 
+static int post_copy_siginfo_from_user32(kernel_siginfo_t *to,
+					 const struct compat_siginfo *from)
+{
+	clear_siginfo(to);
+	to->si_signo = from->si_signo;
+	to->si_errno = from->si_errno;
+	to->si_code  = from->si_code;
+	switch(siginfo_layout(from->si_signo, from->si_code)) {
+	case SIL_KILL:
+		to->si_pid = from->si_pid;
+		to->si_uid = from->si_uid;
+		break;
+	case SIL_TIMER:
+		to->si_tid     = from->si_tid;
+		to->si_overrun = from->si_overrun;
+		to->si_int     = from->si_int;
+		break;
+	case SIL_POLL:
+		to->si_band = from->si_band;
+		to->si_fd   = from->si_fd;
+		break;
+	case SIL_FAULT:
+		to->si_addr = compat_ptr(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from->si_trapno;
+#endif
+		break;
+	case SIL_FAULT_MCEERR:
+		to->si_addr = compat_ptr(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from->si_trapno;
+#endif
+		to->si_addr_lsb = from->si_addr_lsb;
+		break;
+	case SIL_FAULT_BNDERR:
+		to->si_addr = compat_ptr(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from->si_trapno;
+#endif
+		to->si_lower = compat_ptr(from->si_lower);
+		to->si_upper = compat_ptr(from->si_upper);
+		break;
+	case SIL_FAULT_PKUERR:
+		to->si_addr = compat_ptr(from->si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from->si_trapno;
+#endif
+		to->si_pkey = from->si_pkey;
+		break;
+	case SIL_CHLD:
+		to->si_pid    = from->si_pid;
+		to->si_uid    = from->si_uid;
+		to->si_status = from->si_status;
+#ifdef CONFIG_X86_X32_ABI
+		if (in_x32_syscall()) {
+			to->si_utime = from->_sifields._sigchld_x32._utime;
+			to->si_stime = from->_sifields._sigchld_x32._stime;
+		} else
+#endif
+		{
+			to->si_utime = from->si_utime;
+			to->si_stime = from->si_stime;
+		}
+		break;
+	case SIL_RT:
+		to->si_pid = from->si_pid;
+		to->si_uid = from->si_uid;
+		to->si_int = from->si_int;
+		break;
+	case SIL_SYS:
+		to->si_call_addr = compat_ptr(from->si_call_addr);
+		to->si_syscall   = from->si_syscall;
+		to->si_arch      = from->si_arch;
+		break;
+	}
+	return 0;
+}
+
+static int __copy_siginfo_from_user32(int signo, struct kernel_siginfo *to,
+				      const struct compat_siginfo __user *ufrom)
+{
+	struct compat_siginfo from;
+
+	if (copy_from_user(&from, ufrom, sizeof(struct compat_siginfo)))
+		return -EFAULT;
+
+	from.si_signo = signo;
+	return post_copy_siginfo_from_user32(to, &from);
+}
+
 int copy_siginfo_from_user32(struct kernel_siginfo *to,
 			     const struct compat_siginfo __user *ufrom)
 {
@@ -3049,79 +3154,7 @@ int copy_siginfo_from_user32(struct kernel_siginfo *to,
 	if (copy_from_user(&from, ufrom, sizeof(struct compat_siginfo)))
 		return -EFAULT;
 
-	clear_siginfo(to);
-	to->si_signo = from.si_signo;
-	to->si_errno = from.si_errno;
-	to->si_code  = from.si_code;
-	switch(siginfo_layout(from.si_signo, from.si_code)) {
-	case SIL_KILL:
-		to->si_pid = from.si_pid;
-		to->si_uid = from.si_uid;
-		break;
-	case SIL_TIMER:
-		to->si_tid     = from.si_tid;
-		to->si_overrun = from.si_overrun;
-		to->si_int     = from.si_int;
-		break;
-	case SIL_POLL:
-		to->si_band = from.si_band;
-		to->si_fd   = from.si_fd;
-		break;
-	case SIL_FAULT:
-		to->si_addr = compat_ptr(from.si_addr);
-#ifdef __ARCH_SI_TRAPNO
-		to->si_trapno = from.si_trapno;
-#endif
-		break;
-	case SIL_FAULT_MCEERR:
-		to->si_addr = compat_ptr(from.si_addr);
-#ifdef __ARCH_SI_TRAPNO
-		to->si_trapno = from.si_trapno;
-#endif
-		to->si_addr_lsb = from.si_addr_lsb;
-		break;
-	case SIL_FAULT_BNDERR:
-		to->si_addr = compat_ptr(from.si_addr);
-#ifdef __ARCH_SI_TRAPNO
-		to->si_trapno = from.si_trapno;
-#endif
-		to->si_lower = compat_ptr(from.si_lower);
-		to->si_upper = compat_ptr(from.si_upper);
-		break;
-	case SIL_FAULT_PKUERR:
-		to->si_addr = compat_ptr(from.si_addr);
-#ifdef __ARCH_SI_TRAPNO
-		to->si_trapno = from.si_trapno;
-#endif
-		to->si_pkey = from.si_pkey;
-		break;
-	case SIL_CHLD:
-		to->si_pid    = from.si_pid;
-		to->si_uid    = from.si_uid;
-		to->si_status = from.si_status;
-#ifdef CONFIG_X86_X32_ABI
-		if (in_x32_syscall()) {
-			to->si_utime = from._sifields._sigchld_x32._utime;
-			to->si_stime = from._sifields._sigchld_x32._stime;
-		} else
-#endif
-		{
-			to->si_utime = from.si_utime;
-			to->si_stime = from.si_stime;
-		}
-		break;
-	case SIL_RT:
-		to->si_pid = from.si_pid;
-		to->si_uid = from.si_uid;
-		to->si_int = from.si_int;
-		break;
-	case SIL_SYS:
-		to->si_call_addr = compat_ptr(from.si_call_addr);
-		to->si_syscall   = from.si_syscall;
-		to->si_arch      = from.si_arch;
-		break;
-	}
-	return 0;
+	return post_copy_siginfo_from_user32(to, &from);
 }
 #endif /* CONFIG_COMPAT */
 
@@ -3359,9 +3392,6 @@ static int do_rt_sigqueueinfo(pid_t pid, int sig, kernel_siginfo_t *info)
 	    (task_pid_vnr(current) != pid))
 		return -EPERM;
 
-	if (info->si_signo != sig)
-		return -EINVAL;
-
 	/* POSIX.1b doesn't mention process groups.  */
 	return kill_proc_info(sig, info, pid);
 }
@@ -3376,7 +3406,7 @@ SYSCALL_DEFINE3(rt_sigqueueinfo, pid_t, pid, int, sig,
 		siginfo_t __user *, uinfo)
 {
 	kernel_siginfo_t info;
-	int ret = copy_siginfo_from_user(&info, uinfo);
+	int ret = __copy_siginfo_from_user(sig, &info, uinfo);
 	if (unlikely(ret))
 		return ret;
 	return do_rt_sigqueueinfo(pid, sig, &info);
@@ -3389,7 +3419,7 @@ COMPAT_SYSCALL_DEFINE3(rt_sigqueueinfo,
 			struct compat_siginfo __user *, uinfo)
 {
 	kernel_siginfo_t info;
-	int ret = copy_siginfo_from_user32(&info, uinfo);
+	int ret = __copy_siginfo_from_user32(sig, &info, uinfo);
 	if (unlikely(ret))
 		return ret;
 	return do_rt_sigqueueinfo(pid, sig, &info);
@@ -3409,9 +3439,6 @@ static int do_rt_tgsigqueueinfo(pid_t tgid, pid_t pid, int sig, kernel_siginfo_t
 	    (task_pid_vnr(current) != pid))
 		return -EPERM;
 
-	if (info->si_signo != sig)
-		return -EINVAL;
-
 	return do_send_specific(tgid, pid, sig, info);
 }
 
@@ -3419,7 +3446,7 @@ SYSCALL_DEFINE4(rt_tgsigqueueinfo, pid_t, tgid, pid_t, pid, int, sig,
 		siginfo_t __user *, uinfo)
 {
 	kernel_siginfo_t info;
-	int ret = copy_siginfo_from_user(&info, uinfo);
+	int ret = __copy_siginfo_from_user(sig, &info, uinfo);
 	if (unlikely(ret))
 		return ret;
 	return do_rt_tgsigqueueinfo(tgid, pid, sig, &info);
@@ -3433,7 +3460,7 @@ COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
 			struct compat_siginfo __user *, uinfo)
 {
 	kernel_siginfo_t info;
-	int ret = copy_siginfo_from_user32(&info, uinfo);
+	int ret = __copy_siginfo_from_user32(sig, &info, uinfo);
 	if (unlikely(ret))
 		return ret;
 	return do_rt_tgsigqueueinfo(tgid, pid, sig, &info);
