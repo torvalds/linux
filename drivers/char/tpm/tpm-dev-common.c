@@ -17,10 +17,35 @@
  * License.
  *
  */
+#include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/workqueue.h>
 #include "tpm.h"
 #include "tpm-dev.h"
+
+static struct workqueue_struct *tpm_dev_wq;
+static DEFINE_MUTEX(tpm_dev_wq_lock);
+
+static void tpm_async_work(struct work_struct *work)
+{
+	struct file_priv *priv =
+			container_of(work, struct file_priv, async_work);
+	ssize_t ret;
+
+	mutex_lock(&priv->buffer_mutex);
+	priv->command_enqueued = false;
+	ret = tpm_transmit(priv->chip, priv->space, priv->data_buffer,
+			   sizeof(priv->data_buffer), 0);
+
+	tpm_put_ops(priv->chip);
+	if (ret > 0) {
+		priv->data_pending = ret;
+		mod_timer(&priv->user_read_timer, jiffies + (120 * HZ));
+	}
+	mutex_unlock(&priv->buffer_mutex);
+	wake_up_interruptible(&priv->async_wait);
+}
 
 static void user_reader_timeout(struct timer_list *t)
 {
@@ -29,27 +54,32 @@ static void user_reader_timeout(struct timer_list *t)
 	pr_warn("TPM user space timeout is deprecated (pid=%d)\n",
 		task_tgid_nr(current));
 
-	schedule_work(&priv->work);
+	schedule_work(&priv->timeout_work);
 }
 
-static void timeout_work(struct work_struct *work)
+static void tpm_timeout_work(struct work_struct *work)
 {
-	struct file_priv *priv = container_of(work, struct file_priv, work);
+	struct file_priv *priv = container_of(work, struct file_priv,
+					      timeout_work);
 
 	mutex_lock(&priv->buffer_mutex);
 	priv->data_pending = 0;
 	memset(priv->data_buffer, 0, sizeof(priv->data_buffer));
 	mutex_unlock(&priv->buffer_mutex);
+	wake_up_interruptible(&priv->async_wait);
 }
 
 void tpm_common_open(struct file *file, struct tpm_chip *chip,
-		     struct file_priv *priv)
+		     struct file_priv *priv, struct tpm_space *space)
 {
 	priv->chip = chip;
+	priv->space = space;
+
 	mutex_init(&priv->buffer_mutex);
 	timer_setup(&priv->user_read_timer, user_reader_timeout, 0);
-	INIT_WORK(&priv->work, timeout_work);
-
+	INIT_WORK(&priv->timeout_work, tpm_timeout_work);
+	INIT_WORK(&priv->async_work, tpm_async_work);
+	init_waitqueue_head(&priv->async_wait);
 	file->private_data = priv;
 }
 
@@ -61,15 +91,17 @@ ssize_t tpm_common_read(struct file *file, char __user *buf,
 	int rc;
 
 	del_singleshot_timer_sync(&priv->user_read_timer);
-	flush_work(&priv->work);
+	flush_work(&priv->timeout_work);
 	mutex_lock(&priv->buffer_mutex);
 
 	if (priv->data_pending) {
 		ret_size = min_t(ssize_t, size, priv->data_pending);
-		rc = copy_to_user(buf, priv->data_buffer, ret_size);
-		memset(priv->data_buffer, 0, priv->data_pending);
-		if (rc)
-			ret_size = -EFAULT;
+		if (ret_size > 0) {
+			rc = copy_to_user(buf, priv->data_buffer, ret_size);
+			memset(priv->data_buffer, 0, priv->data_pending);
+			if (rc)
+				ret_size = -EFAULT;
+		}
 
 		priv->data_pending = 0;
 	}
@@ -79,13 +111,12 @@ ssize_t tpm_common_read(struct file *file, char __user *buf,
 }
 
 ssize_t tpm_common_write(struct file *file, const char __user *buf,
-			 size_t size, loff_t *off, struct tpm_space *space)
+			 size_t size, loff_t *off)
 {
 	struct file_priv *priv = file->private_data;
-	size_t in_size = size;
-	ssize_t out_size;
+	int ret = 0;
 
-	if (in_size > TPM_BUFSIZE)
+	if (size > TPM_BUFSIZE)
 		return -E2BIG;
 
 	mutex_lock(&priv->buffer_mutex);
@@ -94,21 +125,20 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 	 * tpm_read or a user_read_timer timeout. This also prevents split
 	 * buffered writes from blocking here.
 	 */
-	if (priv->data_pending != 0) {
-		mutex_unlock(&priv->buffer_mutex);
-		return -EBUSY;
+	if (priv->data_pending != 0 || priv->command_enqueued) {
+		ret = -EBUSY;
+		goto out;
 	}
 
-	if (copy_from_user
-	    (priv->data_buffer, (void __user *) buf, in_size)) {
-		mutex_unlock(&priv->buffer_mutex);
-		return -EFAULT;
+	if (copy_from_user(priv->data_buffer, buf, size)) {
+		ret = -EFAULT;
+		goto out;
 	}
 
-	if (in_size < 6 ||
-	    in_size < be32_to_cpu(*((__be32 *) (priv->data_buffer + 2)))) {
-		mutex_unlock(&priv->buffer_mutex);
-		return -EINVAL;
+	if (size < 6 ||
+	    size < be32_to_cpu(*((__be32 *)(priv->data_buffer + 2)))) {
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* atomic tpm command send and result receive. We only hold the ops
@@ -116,25 +146,50 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
 	 * the char dev is held open.
 	 */
 	if (tpm_try_get_ops(priv->chip)) {
-		mutex_unlock(&priv->buffer_mutex);
-		return -EPIPE;
+		ret = -EPIPE;
+		goto out;
 	}
-	out_size = tpm_transmit(priv->chip, space, priv->data_buffer,
-				sizeof(priv->data_buffer), 0);
 
+	/*
+	 * If in nonblocking mode schedule an async job to send
+	 * the command return the size.
+	 * In case of error the err code will be returned in
+	 * the subsequent read call.
+	 */
+	if (file->f_flags & O_NONBLOCK) {
+		priv->command_enqueued = true;
+		queue_work(tpm_dev_wq, &priv->async_work);
+		mutex_unlock(&priv->buffer_mutex);
+		return size;
+	}
+
+	ret = tpm_transmit(priv->chip, priv->space, priv->data_buffer,
+			   sizeof(priv->data_buffer), 0);
 	tpm_put_ops(priv->chip);
-	if (out_size < 0) {
-		mutex_unlock(&priv->buffer_mutex);
-		return out_size;
+
+	if (ret > 0) {
+		priv->data_pending = ret;
+		mod_timer(&priv->user_read_timer, jiffies + (120 * HZ));
+		ret = size;
 	}
-
-	priv->data_pending = out_size;
+out:
 	mutex_unlock(&priv->buffer_mutex);
+	return ret;
+}
 
-	/* Set a timeout by which the reader must come claim the result */
-	mod_timer(&priv->user_read_timer, jiffies + (120 * HZ));
+__poll_t tpm_common_poll(struct file *file, poll_table *wait)
+{
+	struct file_priv *priv = file->private_data;
+	__poll_t mask = 0;
 
-	return in_size;
+	poll_wait(file, &priv->async_wait, wait);
+
+	if (priv->data_pending)
+		mask = EPOLLIN | EPOLLRDNORM;
+	else
+		mask = EPOLLOUT | EPOLLWRNORM;
+
+	return mask;
 }
 
 /*
@@ -142,8 +197,24 @@ ssize_t tpm_common_write(struct file *file, const char __user *buf,
  */
 void tpm_common_release(struct file *file, struct file_priv *priv)
 {
+	flush_work(&priv->async_work);
 	del_singleshot_timer_sync(&priv->user_read_timer);
-	flush_work(&priv->work);
+	flush_work(&priv->timeout_work);
 	file->private_data = NULL;
 	priv->data_pending = 0;
+}
+
+int __init tpm_dev_common_init(void)
+{
+	tpm_dev_wq = alloc_workqueue("tpm_dev_wq", WQ_MEM_RECLAIM, 0);
+
+	return !tpm_dev_wq ? -ENOMEM : 0;
+}
+
+void __exit tpm_dev_common_exit(void)
+{
+	if (tpm_dev_wq) {
+		destroy_workqueue(tpm_dev_wq);
+		tpm_dev_wq = NULL;
+	}
 }
