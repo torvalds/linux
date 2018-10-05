@@ -1070,6 +1070,19 @@ g4x_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static bool intel_fb_scalable(const struct drm_framebuffer *fb)
+{
+	if (!fb)
+		return false;
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_C8:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static int
 g4x_sprite_check_scaling(struct intel_crtc_state *crtc_state,
 			 struct intel_plane_state *plane_state)
@@ -1137,18 +1150,18 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	int max_scale, min_scale;
+	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
+	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int ret;
 
-	if (INTEL_GEN(dev_priv) < 7) {
-		min_scale = 1;
-		max_scale = 16 << 16;
-	} else if (IS_IVYBRIDGE(dev_priv)) {
-		min_scale = 1;
-		max_scale = 2 << 16;
-	} else {
-		min_scale = DRM_PLANE_HELPER_NO_SCALING;
-		max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	if (intel_fb_scalable(plane_state->base.fb)) {
+		if (INTEL_GEN(dev_priv) < 7) {
+			min_scale = 1;
+			max_scale = 16 << 16;
+		} else if (IS_IVYBRIDGE(dev_priv)) {
+			min_scale = 1;
+			max_scale = 2 << 16;
+		}
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
@@ -1334,7 +1347,9 @@ int skl_plane_check(struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	int max_scale, min_scale;
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
+	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int ret;
 
 	ret = skl_plane_check_fb(crtc_state, plane_state);
@@ -1342,15 +1357,9 @@ int skl_plane_check(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	/* use scaler when colorkey is not required */
-	if (!plane_state->ckey.flags) {
-		const struct drm_framebuffer *fb = plane_state->base.fb;
-
+	if (!plane_state->ckey.flags && intel_fb_scalable(fb)) {
 		min_scale = 1;
-		max_scale = skl_max_scale(crtc_state,
-					  fb ? fb->format->format : 0);
-	} else {
-		min_scale = DRM_PLANE_HELPER_NO_SCALING;
-		max_scale = DRM_PLANE_HELPER_NO_SCALING;
+		max_scale = skl_max_scale(crtc_state, fb->format->format);
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
