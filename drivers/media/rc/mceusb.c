@@ -432,6 +432,15 @@ static const struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
 	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb139),
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	/* Hauppauge WinTV-HVR-935C - based on cx231xx */
+	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb151),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	/* Hauppauge WinTV-HVR-955Q - based on cx231xx */
+	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb123),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
+	/* Hauppauge WinTV-HVR-975 - based on cx231xx */
+	{ USB_DEVICE(VENDOR_HAUPPAUGE, 0xb150),
+	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
 	{ USB_DEVICE(VENDOR_PCTV, 0x0259),
 	  .driver_info = HAUPPAUGE_CX_HYBRID_TV },
 	{ USB_DEVICE(VENDOR_PCTV, 0x025e),
