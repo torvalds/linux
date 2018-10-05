@@ -42,11 +42,8 @@
  * primary plane support on top of the normal CRTC configuration interface.
  * Since the legacy &drm_mode_config_funcs.set_config interface ties the primary
  * plane together with the CRTC state this does not allow userspace to disable
- * the primary plane itself.  To avoid too much duplicated code use
- * drm_plane_helper_check_update() which can be used to enforce the same
- * restrictions as primary planes had thus. The default primary plane only
- * expose XRBG8888 and ARGB8888 as valid pixel formats for the attached
- * framebuffer.
+ * the primary plane itself. The default primary plane only expose XRBG8888 and
+ * ARGB8888 as valid pixel formats for the attached framebuffer.
  *
  * Drivers are highly recommended to implement proper support for primary
  * planes, and newly merged drivers must not rely upon these transitional
@@ -175,50 +172,13 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_plane_helper_check_update);
 
-/**
- * drm_primary_helper_update() - Helper for primary plane update
- * @plane: plane object to update
- * @crtc: owning CRTC of owning plane
- * @fb: framebuffer to flip onto plane
- * @crtc_x: x offset of primary plane on crtc
- * @crtc_y: y offset of primary plane on crtc
- * @crtc_w: width of primary plane rectangle on crtc
- * @crtc_h: height of primary plane rectangle on crtc
- * @src_x: x offset of @fb for panning
- * @src_y: y offset of @fb for panning
- * @src_w: width of source rectangle in @fb
- * @src_h: height of source rectangle in @fb
- * @ctx: lock acquire context, not used here
- *
- * Provides a default plane update handler for primary planes.  This is handler
- * is called in response to a userspace SetPlane operation on the plane with a
- * non-NULL framebuffer.  We call the driver's modeset handler to update the
- * framebuffer.
- *
- * SetPlane() on a primary plane of a disabled CRTC is not supported, and will
- * return an error.
- *
- * Note that we make some assumptions about hardware limitations that may not be
- * true for all hardware --
- *
- * 1. Primary plane cannot be repositioned.
- * 2. Primary plane cannot be scaled.
- * 3. Primary plane must cover the entire CRTC.
- * 4. Subpixel positioning is not supported.
- *
- * Drivers for hardware that don't have these restrictions can provide their
- * own implementation rather than using this helper.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
-			      struct drm_framebuffer *fb,
-			      int crtc_x, int crtc_y,
-			      unsigned int crtc_w, unsigned int crtc_h,
-			      uint32_t src_x, uint32_t src_y,
-			      uint32_t src_w, uint32_t src_h,
-			      struct drm_modeset_acquire_ctx *ctx)
+static int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
+				     struct drm_framebuffer *fb,
+				     int crtc_x, int crtc_y,
+				     unsigned int crtc_w, unsigned int crtc_h,
+				     uint32_t src_x, uint32_t src_y,
+				     uint32_t src_w, uint32_t src_h,
+				     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_mode_set set = {
 		.crtc = crtc,
@@ -285,35 +245,12 @@ int drm_primary_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	kfree(connector_list);
 	return ret;
 }
-EXPORT_SYMBOL(drm_primary_helper_update);
 
-/**
- * drm_primary_helper_disable() - Helper for primary plane disable
- * @plane: plane to disable
- * @ctx: lock acquire context, not used here
- *
- * Provides a default plane disable handler for primary planes.  This is handler
- * is called in response to a userspace SetPlane operation on the plane with a
- * NULL framebuffer parameter.  It unconditionally fails the disable call with
- * -EINVAL the only way to disable the primary plane without driver support is
- * to disable the entire CRTC. Which does not match the plane
- * &drm_plane_funcs.disable_plane hook.
- *
- * Note that some hardware may be able to disable the primary plane without
- * disabling the whole CRTC.  Drivers for such hardware should provide their
- * own disable handler that disables just the primary plane (and they'll likely
- * need to provide their own update handler as well to properly re-enable a
- * disabled primary plane).
- *
- * RETURNS:
- * Unconditionally returns -EINVAL.
- */
-int drm_primary_helper_disable(struct drm_plane *plane,
-			       struct drm_modeset_acquire_ctx *ctx)
+static int drm_primary_helper_disable(struct drm_plane *plane,
+				      struct drm_modeset_acquire_ctx *ctx)
 {
 	return -EINVAL;
 }
-EXPORT_SYMBOL(drm_primary_helper_disable);
 
 /**
  * drm_primary_helper_destroy() - Helper for primary plane destruction
