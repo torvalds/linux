@@ -445,10 +445,12 @@ static inline bool in_swapper_pgdir(void *addr)
 
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
-	if (__is_defined(__PAGETABLE_PMD_FOLDED) && in_swapper_pgdir(pmdp)) {
+#ifdef __PAGETABLE_PMD_FOLDED
+	if (in_swapper_pgdir(pmdp)) {
 		set_swapper_pgd((pgd_t *)pmdp, __pgd(pmd_val(pmd)));
 		return;
 	}
+#endif /* __PAGETABLE_PMD_FOLDED */
 
 	WRITE_ONCE(*pmdp, pmd);
 
@@ -503,10 +505,12 @@ static inline phys_addr_t pmd_page_paddr(pmd_t pmd)
 
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {
-	if (__is_defined(__PAGETABLE_PUD_FOLDED) && in_swapper_pgdir(pudp)) {
+#ifdef __PAGETABLE_PUD_FOLDED
+	if (in_swapper_pgdir(pudp)) {
 		set_swapper_pgd((pgd_t *)pudp, __pgd(pud_val(pud)));
 		return;
 	}
+#endif /* __PAGETABLE_PUD_FOLDED */
 
 	WRITE_ONCE(*pudp, pud);
 
