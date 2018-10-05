@@ -4650,7 +4650,7 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct hwrm_func_cfg_input *req,
 				      FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
 		enables |= ring_grps ?
 			   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
-		enables |= vnics ? FUNC_VF_CFG_REQ_ENABLES_NUM_VNICS : 0;
+		enables |= vnics ? FUNC_CFG_REQ_ENABLES_NUM_VNICS : 0;
 
 		req->num_rx_rings = cpu_to_le16(rx_rings);
 		req->num_hw_ring_grps = cpu_to_le16(ring_grps);
