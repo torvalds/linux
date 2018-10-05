@@ -112,7 +112,7 @@ static void vfio_ap_matrix_dev_destroy(void)
 	root_device_unregister(matrix_dev->device.parent);
 }
 
-int __init vfio_ap_init(void)
+static int __init vfio_ap_init(void)
 {
 	int ret;
 
@@ -146,7 +146,7 @@ int __init vfio_ap_init(void)
 	return 0;
 }
 
-void __exit vfio_ap_exit(void)
+static void __exit vfio_ap_exit(void)
 {
 	vfio_ap_mdev_unregister();
 	ap_driver_unregister(&vfio_ap_drv);
