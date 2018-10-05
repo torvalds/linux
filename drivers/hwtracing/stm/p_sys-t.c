@@ -72,15 +72,20 @@ enum sys_t_message_string_subtype {
 			 MIPI_SYST_SEVERITY(INFO)		| \
 			 MIPI_SYST_OPT_GUID)
 
+#define CLOCK_SYNC_HEADER	(MIPI_SYST_TYPES(CLOCK, TRANSPORT_SYNC)	| \
+				 MIPI_SYST_SEVERITY(MAX))
+
 struct sys_t_policy_node {
 	uuid_t		uuid;
 	bool		do_len;
 	unsigned long	ts_interval;
+	unsigned long	clocksync_interval;
 };
 
 struct sys_t_output {
 	struct sys_t_policy_node	node;
 	unsigned long	ts_jiffies;
+	unsigned long	clocksync_jiffies;
 };
 
 static void sys_t_policy_node_init(void *priv)
@@ -191,10 +196,42 @@ sys_t_policy_ts_interval_store(struct config_item *item, const char *page,
 
 CONFIGFS_ATTR(sys_t_policy_, ts_interval);
 
+static ssize_t sys_t_policy_clocksync_interval_show(struct config_item *item,
+						    char *page)
+{
+	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+
+	return sprintf(page, "%u\n", jiffies_to_msecs(pn->clocksync_interval));
+}
+
+static ssize_t
+sys_t_policy_clocksync_interval_store(struct config_item *item,
+				      const char *page, size_t count)
+{
+	struct mutex *mutexp = &item->ci_group->cg_subsys->su_mutex;
+	struct sys_t_policy_node *pn = to_pdrv_policy_node(item);
+	unsigned int ms;
+	int ret;
+
+	mutex_lock(mutexp);
+	ret = kstrtouint(page, 10, &ms);
+	mutex_unlock(mutexp);
+
+	if (!ret) {
+		pn->clocksync_interval = msecs_to_jiffies(ms);
+		return count;
+	}
+
+	return ret;
+}
+
+CONFIGFS_ATTR(sys_t_policy_, clocksync_interval);
+
 static struct configfs_attribute *sys_t_policy_attrs[] = {
 	&sys_t_policy_attr_uuid,
 	&sys_t_policy_attr_do_len,
 	&sys_t_policy_attr_ts_interval,
+	&sys_t_policy_attr_clocksync_interval,
 	NULL,
 };
 
@@ -210,6 +247,43 @@ static inline bool sys_t_need_ts(struct sys_t_output *op)
 	return false;
 }
 
+static bool sys_t_need_clock_sync(struct sys_t_output *op)
+{
+	if (op->node.clocksync_interval &&
+	    time_after(op->clocksync_jiffies + op->node.clocksync_interval,
+		       jiffies)) {
+		op->clocksync_jiffies = jiffies;
+
+		return true;
+	}
+
+	return false;
+}
+
+static ssize_t
+sys_t_clock_sync(struct stm_data *data, unsigned int m, unsigned int c)
+{
+	u32 header = CLOCK_SYNC_HEADER;
+	const unsigned char nil = 0;
+	u64 payload[2]; /* Clock value and frequency */
+	ssize_t sz;
+
+	sz = data->packet(data, m, c, STP_PACKET_DATA, STP_PACKET_TIMESTAMPED,
+			  4, (u8 *)&header);
+	if (sz <= 0)
+		return sz;
+
+	payload[0] = ktime_get_real_ns();
+	payload[1] = NSEC_PER_SEC;
+	sz = stm_data_write(data, m, c, false, &payload, sizeof(payload));
+	if (sz <= 0)
+		return sz;
+
+	data->packet(data, m, c, STP_PACKET_FLAG, 0, 0, &nil);
+
+	return sizeof(header) + sizeof(payload);
+}
+
 static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 			   unsigned int chan, const char *buf, size_t count)
 {
@@ -223,6 +297,12 @@ static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
 	/* We require an existing policy node to proceed */
 	if (!op)
 		return -EINVAL;
+
+	if (sys_t_need_clock_sync(op)) {
+		sz = sys_t_clock_sync(data, m, c);
+		if (sz <= 0)
+			return sz;
+	}
 
 	if (op->node.do_len)
 		header |= MIPI_SYST_OPT_LEN;
