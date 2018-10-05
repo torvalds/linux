@@ -81,9 +81,6 @@ int mt76x2_mcu_set_channel(struct mt76x02_dev *dev, u8 channel, u8 bw,
 int mt76x2_mcu_load_cr(struct mt76x02_dev *dev, u8 type, u8 temp_level,
 		       u8 channel);
 
-void mt76x2_tx_tasklet(unsigned long data);
-void mt76x2_dma_cleanup(struct mt76x02_dev *dev);
-
 void mt76x2_cleanup(struct mt76x02_dev *dev);
 
 void mt76x2_mac_set_tx_protection(struct mt76x02_dev *dev, u32 val);

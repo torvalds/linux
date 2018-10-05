@@ -28,15 +28,6 @@ void mt76x2_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 		       get_unaligned_le16(addr + 4));
 }
 
-void mt76x2_mac_process_tx_status_fifo(struct mt76x02_dev *dev)
-{
-	struct mt76x02_tx_status stat;
-	u8 update = 1;
-
-	while (kfifo_get(&dev->txstatus_fifo, &stat))
-		mt76x02_send_tx_status(&dev->mt76, &stat, &update);
-}
-
 static int
 mt76_write_beacon(struct mt76x02_dev *dev, int offset, struct sk_buff *skb)
 {

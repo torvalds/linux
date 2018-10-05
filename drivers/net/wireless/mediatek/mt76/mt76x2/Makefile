@@ -6,7 +6,7 @@ mt76x2-common-y := \
 	eeprom.o mac.o init.o phy.o debugfs.o mcu.o
 
 mt76x2e-y := \
-	pci.o pci_dma.o pci_main.o pci_init.o pci_tx.o \
+	pci.o pci_main.o pci_init.o pci_tx.o \
 	pci_core.o pci_mac.o pci_mcu.o pci_phy.o \
 	pci_dfs.o pci_trace.o
 

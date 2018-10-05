@@ -57,16 +57,49 @@ mt76x02_init_rx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
 	return 0;
 }
 
+static void mt76x02_process_tx_status_fifo(struct mt76x02_dev *dev)
+{
+	struct mt76x02_tx_status stat;
+	u8 update = 1;
+
+	while (kfifo_get(&dev->txstatus_fifo, &stat))
+		mt76x02_send_tx_status(&dev->mt76, &stat, &update);
+}
+
+static void mt76x02_tx_tasklet(unsigned long data)
+{
+	struct mt76x02_dev *dev = (struct mt76x02_dev *)data;
+	int i;
+
+	mt76x02_process_tx_status_fifo(dev);
+
+	for (i = MT_TXQ_MCU; i >= 0; i--)
+		mt76_queue_tx_cleanup(dev, i, false);
+
+	mt76x02_mac_poll_tx_status(dev, false);
+	mt76x02_irq_enable(dev, MT_INT_TX_DONE_ALL);
+}
+
 int mt76x02_dma_init(struct mt76x02_dev *dev)
 {
 	struct mt76_txwi_cache __maybe_unused *t;
+	int i, ret, fifo_size;
 	struct mt76_queue *q;
-	int i, ret;
+	void *status_fifo;
 
 	BUILD_BUG_ON(sizeof(t->txwi) < sizeof(struct mt76x02_txwi));
 	BUILD_BUG_ON(sizeof(struct mt76x02_rxwi) > MT_RX_HEADROOM);
 
+	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x02_tx_status));
+	status_fifo = devm_kzalloc(dev->mt76.dev, fifo_size, GFP_KERNEL);
+	if (!status_fifo)
+		return -ENOMEM;
+
+	tasklet_init(&dev->tx_tasklet, mt76x02_tx_tasklet, (unsigned long) dev);
+	kfifo_init(&dev->txstatus_fifo, status_fifo, fifo_size);
+
 	mt76_dma_attach(&dev->mt76);
+
 	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
@@ -131,6 +164,13 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_enable);
+
+void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
+{
+	tasklet_kill(&dev->tx_tasklet);
+	mt76_dma_cleanup(&dev->mt76);
+}
+EXPORT_SYMBOL_GPL(mt76x02_dma_cleanup);
 
 void mt76x02_dma_disable(struct mt76x02_dev *dev)
 {

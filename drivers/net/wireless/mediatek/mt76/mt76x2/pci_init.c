@@ -346,7 +346,7 @@ void mt76x2_cleanup(struct mt76x02_dev *dev)
 	tasklet_disable(&dev->dfs_pd.dfs_tasklet);
 	tasklet_disable(&dev->pre_tbtt_tasklet);
 	mt76x2_stop_hardware(dev);
-	mt76x2_dma_cleanup(dev);
+	mt76x02_dma_cleanup(dev);
 	mt76x02_mcu_cleanup(&dev->mt76);
 }
 
@@ -464,17 +464,8 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct wiphy *wiphy = hw->wiphy;
-	void *status_fifo;
-	int fifo_size;
 	int i, ret;
 
-	fifo_size = roundup_pow_of_two(32 * sizeof(struct mt76x02_tx_status));
-	status_fifo = devm_kzalloc(dev->mt76.dev, fifo_size, GFP_KERNEL);
-	if (!status_fifo)
-		return -ENOMEM;
-
-	tasklet_init(&dev->tx_tasklet, mt76x2_tx_tasklet, (unsigned long)dev);
-	kfifo_init(&dev->txstatus_fifo, status_fifo, fifo_size);
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
 	INIT_DELAYED_WORK(&dev->mac_work, mt76x2_mac_work);
 

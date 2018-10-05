@@ -166,7 +166,7 @@ static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76x0e_stop_hw(dev);
-	mt76_dma_cleanup(&dev->mt76);
+	mt76x02_dma_cleanup(dev);
 	mt76x02_mcu_cleanup(&dev->mt76);
 }
 
