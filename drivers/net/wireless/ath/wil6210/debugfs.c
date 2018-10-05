@@ -416,8 +416,8 @@ static int wil_debugfs_iomem_x32_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_iomem_x32, wil_debugfs_iomem_x32_get,
-			wil_debugfs_iomem_x32_set, "0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_iomem_x32, wil_debugfs_iomem_x32_get,
+			 wil_debugfs_iomem_x32_set, "0x%08llx\n");
 
 static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
 						   umode_t mode,
@@ -432,7 +432,8 @@ static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
 	data->wil = wil;
 	data->offset = value;
 
-	file = debugfs_create_file(name, mode, parent, data, &fops_iomem_x32);
+	file = debugfs_create_file_unsafe(name, mode, parent, data,
+					  &fops_iomem_x32);
 	if (!IS_ERR_OR_NULL(file))
 		wil->dbg_data.iomem_data_count++;
 
@@ -451,14 +452,15 @@ static int wil_debugfs_ulong_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(wil_fops_ulong, wil_debugfs_ulong_get,
-			wil_debugfs_ulong_set, "0x%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(wil_fops_ulong, wil_debugfs_ulong_get,
+			 wil_debugfs_ulong_set, "0x%llx\n");
 
 static struct dentry *wil_debugfs_create_ulong(const char *name, umode_t mode,
 					       struct dentry *parent,
 					       ulong *value)
 {
-	return debugfs_create_file(name, mode, parent, value, &wil_fops_ulong);
+	return debugfs_create_file_unsafe(name, mode, parent, value,
+					  &wil_fops_ulong);
 }
 
 /**
