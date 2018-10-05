@@ -142,23 +142,27 @@ notrace static inline u64 vgetcyc(int mode)
 notrace static int do_hres(clockid_t clk, struct timespec *ts)
 {
 	struct vgtod_ts *base = &gtod->basetime[clk];
-	u64 cycles, last, ns;
+	u64 cycles, last, sec, ns;
 	unsigned int seq;
 
 	do {
 		seq = gtod_read_begin(gtod);
-		ts->tv_sec = base->sec;
+		cycles = vgetcyc(gtod->vclock_mode);
 		ns = base->nsec;
 		last = gtod->cycle_last;
-		cycles = vgetcyc(gtod->vclock_mode);
 		if (unlikely((s64)cycles < 0))
 			return vdso_fallback_gettime(clk, ts);
 		if (cycles > last)
 			ns += (cycles - last) * gtod->mult;
 		ns >>= gtod->shift;
+		sec = base->sec;
 	} while (unlikely(gtod_read_retry(gtod, seq)));
 
-	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	/*
+	 * Do this outside the loop: a race inside the loop could result
+	 * in __iter_div_u64_rem() being extremely slow.
+	 */
+	ts->tv_sec = sec + __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
 	ts->tv_nsec = ns;
 
 	return 0;
