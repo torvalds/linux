@@ -63,7 +63,6 @@ struct cec_data {
 	struct delayed_work work;
 	struct completion c;
 	u8 attempts;
-	bool new_initiator;
 	bool blocking;
 	bool completed;
 };
@@ -174,6 +173,7 @@ struct cec_adapter {
 	bool is_configuring;
 	bool is_configured;
 	bool cec_pin_is_high;
+	u8 last_initiator;
 	u32 monitor_all_cnt;
 	u32 monitor_pin_cnt;
 	u32 follower_cnt;
