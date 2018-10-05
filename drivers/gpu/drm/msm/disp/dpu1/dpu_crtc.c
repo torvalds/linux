@@ -844,43 +844,6 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &cstate->base;
 }
 
-/**
- * dpu_crtc_reset - reset hook for CRTCs
- * Resets the atomic state for @crtc by freeing the state pointer (which might
- * be NULL, e.g. at driver load time) and allocating a new empty state object.
- * @crtc: Pointer to drm crtc structure
- */
-static void dpu_crtc_reset(struct drm_crtc *crtc)
-{
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_state *cstate;
-
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-
-	/* revert suspend actions, if necessary */
-	if (dpu_kms_is_suspend_state(crtc->dev))
-		_dpu_crtc_set_suspend(crtc, false);
-
-	/* remove previous state, if present */
-	if (crtc->state) {
-		dpu_crtc_destroy_state(crtc, crtc->state);
-		crtc->state = 0;
-	}
-
-	dpu_crtc = to_dpu_crtc(crtc);
-	cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
-	if (!cstate) {
-		DPU_ERROR("failed to allocate state\n");
-		return;
-	}
-
-	cstate->base.crtc = crtc;
-	crtc->state = &cstate->base;
-}
-
 static void dpu_crtc_handle_power_event(u32 event_type, void *arg)
 {
 	struct drm_crtc *crtc = arg;
@@ -1499,7 +1462,7 @@ static const struct drm_crtc_funcs dpu_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = dpu_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
-	.reset = dpu_crtc_reset,
+	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = dpu_crtc_duplicate_state,
 	.atomic_destroy_state = dpu_crtc_destroy_state,
 	.late_register = dpu_crtc_late_register,
