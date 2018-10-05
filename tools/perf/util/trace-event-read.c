@@ -241,7 +241,7 @@ static int read_header_files(struct tep_handle *pevent)
 		 * The commit field in the page is of type long,
 		 * use that instead, since it represents the kernel.
 		 */
-		tep_set_long_size(pevent, pevent->header_page_size_size);
+		tep_set_long_size(pevent, tep_get_header_page_size(pevent));
 	}
 	free(header_page);
 

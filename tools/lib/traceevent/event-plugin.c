@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include "event-parse.h"
+#include "event-parse-local.h"
 #include "event-utils.h"
 #include "trace-seq.h"
 
