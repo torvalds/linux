@@ -18,7 +18,6 @@
 #include <errno.h>
 #include <stdint.h>
 #include <limits.h>
-#include <linux/string.h>
 #include <linux/time64.h>
 
 #include <netinet/in.h>
@@ -6199,35 +6198,6 @@ enum tep_errno tep_parse_event(struct tep_handle *pevent, const char *buf,
 {
 	struct tep_event_format *event = NULL;
 	return __parse_event(pevent, &event, buf, size, sys);
-}
-
-#undef _PE
-#define _PE(code, str) str
-static const char * const tep_error_str[] = {
-	TEP_ERRORS
-};
-#undef _PE
-
-int tep_strerror(struct tep_handle *pevent __maybe_unused,
-		 enum tep_errno errnum, char *buf, size_t buflen)
-{
-	int idx;
-	const char *msg;
-
-	if (errnum >= 0) {
-		str_error_r(errnum, buf, buflen);
-		return 0;
-	}
-
-	if (errnum <= __TEP_ERRNO__START ||
-	    errnum >= __TEP_ERRNO__END)
-		return -1;
-
-	idx = errnum - __TEP_ERRNO__START - 1;
-	msg = tep_error_str[idx];
-	snprintf(buf, buflen, "%s", msg);
-
-	return 0;
 }
 
 int get_field_val(struct trace_seq *s, struct tep_format_field *field,
