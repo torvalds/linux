@@ -4564,22 +4564,21 @@ enum {
 #define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
 #define   VIDEO_DIP_FREQ_MASK		(3 << 16)
 /* HSW and later: */
+#define   DRM_DIP_ENABLE		(1 << 28)
+#define   PSR_VSC_BIT_7_SET		(1 << 27)
+#define   VSC_SELECT_MASK		(0x3 << 25)
+#define   VSC_SELECT_SHIFT		25
+#define   VSC_DIP_HW_HEA_DATA		(0 << 25)
+#define   VSC_DIP_HW_HEA_SW_DATA	(1 << 25)
+#define   VSC_DIP_HW_DATA_SW_HEA	(2 << 25)
+#define   VSC_DIP_SW_HEA_DATA		(3 << 25)
+#define   VDIP_ENABLE_PPS		(1 << 24)
 #define   VIDEO_DIP_ENABLE_VSC_HSW	(1 << 20)
 #define   VIDEO_DIP_ENABLE_GCP_HSW	(1 << 16)
 #define   VIDEO_DIP_ENABLE_AVI_HSW	(1 << 12)
 #define   VIDEO_DIP_ENABLE_VS_HSW	(1 << 8)
 #define   VIDEO_DIP_ENABLE_GMP_HSW	(1 << 4)
 #define   VIDEO_DIP_ENABLE_SPD_HSW	(1 << 0)
-
-#define  DRM_DIP_ENABLE			(1 << 28)
-#define  PSR_VSC_BIT_7_SET		(1 << 27)
-#define  VSC_SELECT_MASK		(0x3 << 25)
-#define  VSC_SELECT_SHIFT		25
-#define  VSC_DIP_HW_HEA_DATA		(0 << 25)
-#define  VSC_DIP_HW_HEA_SW_DATA		(1 << 25)
-#define  VSC_DIP_HW_DATA_SW_HEA		(2 << 25)
-#define  VSC_DIP_SW_HEA_DATA		(3 << 25)
-#define  VDIP_ENABLE_PPS		(1 << 24)
 
 /* Panel power sequencing */
 #define PPS_BASE			0x61200
