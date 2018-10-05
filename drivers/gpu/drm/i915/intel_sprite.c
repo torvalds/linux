@@ -1954,65 +1954,65 @@ fail:
 
 struct intel_plane *
 intel_sprite_plane_create(struct drm_i915_private *dev_priv,
-			  enum pipe pipe, int plane)
+			  enum pipe pipe, int sprite)
 {
-	struct intel_plane *intel_plane;
+	struct intel_plane *plane;
 	const struct drm_plane_funcs *plane_funcs;
 	unsigned long possible_crtcs;
-	const uint32_t *plane_formats;
-	const uint64_t *modifiers;
 	unsigned int supported_rotations;
-	int num_plane_formats;
+	const u64 *modifiers;
+	const u32 *formats;
+	int num_formats;
 	int ret;
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		return skl_universal_plane_create(dev_priv, pipe,
-						  PLANE_SPRITE0 + plane);
+						  PLANE_SPRITE0 + sprite);
 
-	intel_plane = intel_plane_alloc();
-	if (IS_ERR(intel_plane))
-		return intel_plane;
+	plane = intel_plane_alloc();
+	if (IS_ERR(plane))
+		return plane;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		intel_plane->max_stride = i9xx_plane_max_stride;
-		intel_plane->update_plane = vlv_update_plane;
-		intel_plane->disable_plane = vlv_disable_plane;
-		intel_plane->get_hw_state = vlv_plane_get_hw_state;
-		intel_plane->check_plane = vlv_sprite_check;
+		plane->max_stride = i9xx_plane_max_stride;
+		plane->update_plane = vlv_update_plane;
+		plane->disable_plane = vlv_disable_plane;
+		plane->get_hw_state = vlv_plane_get_hw_state;
+		plane->check_plane = vlv_sprite_check;
 
-		plane_formats = vlv_plane_formats;
-		num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
+		formats = vlv_plane_formats;
+		num_formats = ARRAY_SIZE(vlv_plane_formats);
 		modifiers = i9xx_plane_format_modifiers;
 
 		plane_funcs = &vlv_sprite_funcs;
 	} else if (INTEL_GEN(dev_priv) >= 7) {
-		intel_plane->max_stride = g4x_sprite_max_stride;
-		intel_plane->update_plane = ivb_update_plane;
-		intel_plane->disable_plane = ivb_disable_plane;
-		intel_plane->get_hw_state = ivb_plane_get_hw_state;
-		intel_plane->check_plane = g4x_sprite_check;
+		plane->max_stride = g4x_sprite_max_stride;
+		plane->update_plane = ivb_update_plane;
+		plane->disable_plane = ivb_disable_plane;
+		plane->get_hw_state = ivb_plane_get_hw_state;
+		plane->check_plane = g4x_sprite_check;
 
-		plane_formats = snb_plane_formats;
-		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+		formats = snb_plane_formats;
+		num_formats = ARRAY_SIZE(snb_plane_formats);
 		modifiers = i9xx_plane_format_modifiers;
 
 		plane_funcs = &snb_sprite_funcs;
 	} else {
-		intel_plane->max_stride = g4x_sprite_max_stride;
-		intel_plane->update_plane = g4x_update_plane;
-		intel_plane->disable_plane = g4x_disable_plane;
-		intel_plane->get_hw_state = g4x_plane_get_hw_state;
-		intel_plane->check_plane = g4x_sprite_check;
+		plane->max_stride = g4x_sprite_max_stride;
+		plane->update_plane = g4x_update_plane;
+		plane->disable_plane = g4x_disable_plane;
+		plane->get_hw_state = g4x_plane_get_hw_state;
+		plane->check_plane = g4x_sprite_check;
 
 		modifiers = i9xx_plane_format_modifiers;
 		if (IS_GEN6(dev_priv)) {
-			plane_formats = snb_plane_formats;
-			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+			formats = snb_plane_formats;
+			num_formats = ARRAY_SIZE(snb_plane_formats);
 
 			plane_funcs = &snb_sprite_funcs;
 		} else {
-			plane_formats = g4x_plane_formats;
-			num_plane_formats = ARRAY_SIZE(g4x_plane_formats);
+			formats = g4x_plane_formats;
+			num_formats = ARRAY_SIZE(g4x_plane_formats);
 
 			plane_funcs = &g4x_sprite_funcs;
 		}
@@ -2027,26 +2027,25 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180;
 	}
 
-	intel_plane->pipe = pipe;
-	intel_plane->id = PLANE_SPRITE0 + plane;
-	intel_plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, intel_plane->id);
+	plane->pipe = pipe;
+	plane->id = PLANE_SPRITE0 + sprite;
+	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane->id);
 
 	possible_crtcs = BIT(pipe);
 
-	ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
+	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 				       possible_crtcs, plane_funcs,
-				       plane_formats, num_plane_formats,
-				       modifiers,
+				       formats, num_formats, modifiers,
 				       DRM_PLANE_TYPE_OVERLAY,
-				       "sprite %c", sprite_name(pipe, plane));
+				       "sprite %c", sprite_name(pipe, sprite));
 	if (ret)
 		goto fail;
 
-	drm_plane_create_rotation_property(&intel_plane->base,
+	drm_plane_create_rotation_property(&plane->base,
 					   DRM_MODE_ROTATE_0,
 					   supported_rotations);
 
-	drm_plane_create_color_properties(&intel_plane->base,
+	drm_plane_create_color_properties(&plane->base,
 					  BIT(DRM_COLOR_YCBCR_BT601) |
 					  BIT(DRM_COLOR_YCBCR_BT709),
 					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
@@ -2054,12 +2053,12 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 					  DRM_COLOR_YCBCR_BT709,
 					  DRM_COLOR_YCBCR_LIMITED_RANGE);
 
-	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
+	drm_plane_helper_add(&plane->base, &intel_plane_helper_funcs);
 
-	return intel_plane;
+	return plane;
 
 fail:
-	intel_plane_free(intel_plane);
+	intel_plane_free(plane);
 
 	return ERR_PTR(ret);
 }
