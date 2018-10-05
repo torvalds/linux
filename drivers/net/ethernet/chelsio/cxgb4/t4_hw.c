@@ -4204,6 +4204,7 @@ int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
  */
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 {
+	unsigned int fw_caps = adap->params.fw_caps_support;
 	struct fw_port_cmd c;
 
 	memset(&c, 0, sizeof(c));
@@ -4211,9 +4212,14 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 				     FW_CMD_REQUEST_F | FW_CMD_EXEC_F |
 				     FW_PORT_CMD_PORTID_V(port));
 	c.action_to_len16 =
-		cpu_to_be32(FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_L1_CFG) |
+		cpu_to_be32(FW_PORT_CMD_ACTION_V(fw_caps == FW_CAPS16
+						 ? FW_PORT_ACTION_L1_CFG
+						 : FW_PORT_ACTION_L1_CFG32) |
 			    FW_LEN16(c));
-	c.u.l1cfg.rcap = cpu_to_be32(FW_PORT_CAP32_ANEG);
+	if (fw_caps == FW_CAPS16)
+		c.u.l1cfg.rcap = cpu_to_be32(FW_PORT_CAP_ANEG);
+	else
+		c.u.l1cfg32.rcap32 = cpu_to_be32(FW_PORT_CAP32_ANEG);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
