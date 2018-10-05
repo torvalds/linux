@@ -709,127 +709,6 @@ static void dpu_kms_destroy(struct msm_kms *kms)
 	_dpu_kms_hw_destroy(dpu_kms);
 }
 
-static int dpu_kms_pm_suspend(struct device *dev)
-{
-	struct drm_device *ddev;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
-	struct dpu_kms *dpu_kms;
-	int ret = 0, num_crtcs = 0;
-
-	if (!dev)
-		return -EINVAL;
-
-	ddev = dev_get_drvdata(dev);
-	if (!ddev || !ddev_to_msm_kms(ddev))
-		return -EINVAL;
-
-	dpu_kms = to_dpu_kms(ddev_to_msm_kms(ddev));
-
-	/* disable hot-plug polling */
-	drm_kms_helper_poll_disable(ddev);
-
-	/* acquire modeset lock(s) */
-	drm_modeset_acquire_init(&ctx, 0);
-
-retry:
-	DPU_ATRACE_BEGIN("kms_pm_suspend");
-
-	ret = drm_modeset_lock_all_ctx(ddev, &ctx);
-	if (ret)
-		goto unlock;
-
-	/* save current state for resume */
-	if (dpu_kms->suspend_state)
-		drm_atomic_state_put(dpu_kms->suspend_state);
-	dpu_kms->suspend_state = drm_atomic_helper_duplicate_state(ddev, &ctx);
-	if (IS_ERR_OR_NULL(dpu_kms->suspend_state)) {
-		DRM_ERROR("failed to back up suspend state\n");
-		dpu_kms->suspend_state = NULL;
-		goto unlock;
-	}
-
-	/* create atomic state to disable all CRTCs */
-	state = drm_atomic_state_alloc(ddev);
-	if (IS_ERR_OR_NULL(state)) {
-		DRM_ERROR("failed to allocate crtc disable state\n");
-		goto unlock;
-	}
-
-	state->acquire_ctx = &ctx;
-
-	/* check for nothing to do */
-	if (num_crtcs == 0) {
-		DRM_DEBUG("all crtcs are already in the off state\n");
-		drm_atomic_state_put(state);
-		goto suspended;
-	}
-
-	/* commit the "disable all" state */
-	ret = drm_atomic_commit(state);
-	if (ret < 0) {
-		DRM_ERROR("failed to disable crtcs, %d\n", ret);
-		drm_atomic_state_put(state);
-		goto unlock;
-	}
-
-suspended:
-	dpu_kms->suspend_block = true;
-
-unlock:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
-	DPU_ATRACE_END("kms_pm_suspend");
-	return 0;
-}
-
-static int dpu_kms_pm_resume(struct device *dev)
-{
-	struct drm_device *ddev;
-	struct dpu_kms *dpu_kms;
-	int ret;
-
-	if (!dev)
-		return -EINVAL;
-
-	ddev = dev_get_drvdata(dev);
-	if (!ddev || !ddev_to_msm_kms(ddev))
-		return -EINVAL;
-
-	dpu_kms = to_dpu_kms(ddev_to_msm_kms(ddev));
-
-	DPU_ATRACE_BEGIN("kms_pm_resume");
-
-	drm_mode_config_reset(ddev);
-
-	drm_modeset_lock_all(ddev);
-
-	dpu_kms->suspend_block = false;
-
-	if (dpu_kms->suspend_state) {
-		dpu_kms->suspend_state->acquire_ctx =
-			ddev->mode_config.acquire_ctx;
-		ret = drm_atomic_commit(dpu_kms->suspend_state);
-		if (ret < 0) {
-			DRM_ERROR("failed to restore state, %d\n", ret);
-			drm_atomic_state_put(dpu_kms->suspend_state);
-		}
-		dpu_kms->suspend_state = NULL;
-	}
-	drm_modeset_unlock_all(ddev);
-
-	/* enable hot-plug polling */
-	drm_kms_helper_poll_enable(ddev);
-
-	DPU_ATRACE_END("kms_pm_resume");
-	return 0;
-}
-
 static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
 				 struct drm_encoder *encoder,
 				 bool cmd_mode)
@@ -873,8 +752,6 @@ static const struct msm_kms_funcs kms_funcs = {
 	.check_modified_format = dpu_format_check_modified_format,
 	.get_format      = dpu_get_msm_format,
 	.round_pixclk    = dpu_kms_round_pixclk,
-	.pm_suspend      = dpu_kms_pm_suspend,
-	.pm_resume       = dpu_kms_pm_resume,
 	.destroy         = dpu_kms_destroy,
 	.set_encoder_mode = _dpu_kms_set_encoder_mode,
 #ifdef CONFIG_DEBUG_FS
