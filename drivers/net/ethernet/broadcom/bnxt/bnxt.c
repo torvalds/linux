@@ -3017,10 +3017,11 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
 
-	dma_free_coherent(&pdev->dev, PAGE_SIZE, bp->hwrm_cmd_resp_addr,
-			  bp->hwrm_cmd_resp_dma_addr);
-
-	bp->hwrm_cmd_resp_addr = NULL;
+	if (bp->hwrm_cmd_resp_addr) {
+		dma_free_coherent(&pdev->dev, PAGE_SIZE, bp->hwrm_cmd_resp_addr,
+				  bp->hwrm_cmd_resp_dma_addr);
+		bp->hwrm_cmd_resp_addr = NULL;
+	}
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -9057,6 +9058,7 @@ init_err_cleanup_tc:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
+	bnxt_free_hwrm_resources(bp);
 	bnxt_cleanup_pci(bp);
 
 init_err_free:
