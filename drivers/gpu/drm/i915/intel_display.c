@@ -74,55 +74,6 @@ static const uint64_t i9xx_format_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static const uint32_t skl_primary_formats[] = {
-	DRM_FORMAT_C8,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_XBGR2101010,
-	DRM_FORMAT_YUYV,
-	DRM_FORMAT_YVYU,
-	DRM_FORMAT_UYVY,
-	DRM_FORMAT_VYUY,
-};
-
-static const uint32_t skl_pri_planar_formats[] = {
-	DRM_FORMAT_C8,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_XBGR2101010,
-	DRM_FORMAT_YUYV,
-	DRM_FORMAT_YVYU,
-	DRM_FORMAT_UYVY,
-	DRM_FORMAT_VYUY,
-	DRM_FORMAT_NV12,
-};
-
-static const uint64_t skl_format_modifiers_noccs[] = {
-	I915_FORMAT_MOD_Yf_TILED,
-	I915_FORMAT_MOD_Y_TILED,
-	I915_FORMAT_MOD_X_TILED,
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
-static const uint64_t skl_format_modifiers_ccs[] = {
-	I915_FORMAT_MOD_Yf_TILED_CCS,
-	I915_FORMAT_MOD_Y_TILED_CCS,
-	I915_FORMAT_MOD_Yf_TILED,
-	I915_FORMAT_MOD_Y_TILED,
-	I915_FORMAT_MOD_X_TILED,
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
 /* Cursor formats */
 static const uint32_t intel_cursor_formats[] = {
 	DRM_FORMAT_ARGB8888,
@@ -13473,73 +13424,12 @@ static bool i965_plane_format_mod_supported(struct drm_plane *_plane,
 	}
 }
 
-static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
-					   u32 format, u64 modifier)
-{
-	struct intel_plane *plane = to_intel_plane(_plane);
-
-	switch (modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_Yf_TILED:
-		break;
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-	case I915_FORMAT_MOD_Yf_TILED_CCS:
-		if (!plane->has_ccs)
-			return false;
-		break;
-	default:
-		return false;
-	}
-
-	switch (format) {
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ABGR8888:
-		if (is_ccs_modifier(modifier))
-			return true;
-		/* fall through */
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-	case DRM_FORMAT_NV12:
-		if (modifier == I915_FORMAT_MOD_Yf_TILED)
-			return true;
-		/* fall through */
-	case DRM_FORMAT_C8:
-		if (modifier == DRM_FORMAT_MOD_LINEAR ||
-		    modifier == I915_FORMAT_MOD_X_TILED ||
-		    modifier == I915_FORMAT_MOD_Y_TILED)
-			return true;
-		/* fall through */
-	default:
-		return false;
-	}
-}
-
 static bool intel_cursor_format_mod_supported(struct drm_plane *_plane,
 					      u32 format, u64 modifier)
 {
 	return modifier == DRM_FORMAT_MOD_LINEAR &&
 		format == DRM_FORMAT_ARGB8888;
 }
-
-static const struct drm_plane_funcs skl_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = intel_plane_destroy,
-	.atomic_get_property = intel_plane_atomic_get_property,
-	.atomic_set_property = intel_plane_atomic_set_property,
-	.atomic_duplicate_state = intel_plane_duplicate_state,
-	.atomic_destroy_state = intel_plane_destroy_state,
-	.format_mod_supported = skl_plane_format_mod_supported,
-};
 
 static const struct drm_plane_funcs i965_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
@@ -13725,37 +13615,6 @@ static bool i9xx_plane_has_fbc(struct drm_i915_private *dev_priv,
 		return i9xx_plane == PLANE_A;
 }
 
-static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
-			      enum pipe pipe, enum plane_id plane_id)
-{
-	if (!HAS_FBC(dev_priv))
-		return false;
-
-	return pipe == PIPE_A && plane_id == PLANE_PRIMARY;
-}
-
-bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
-			  enum pipe pipe, enum plane_id plane_id)
-{
-	/*
-	 * FIXME: ICL requires two hardware planes for scanning out NV12
-	 * framebuffers. Do not advertize support until this is implemented.
-	 */
-	if (INTEL_GEN(dev_priv) >= 11)
-		return false;
-
-	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
-		return false;
-
-	if (INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv) && pipe == PIPE_C)
-		return false;
-
-	if (plane_id != PLANE_PRIMARY && plane_id != PLANE_SPRITE0)
-		return false;
-
-	return true;
-}
-
 static struct intel_plane *
 intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
@@ -13767,6 +13626,10 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	unsigned int num_formats;
 	const uint64_t *modifiers;
 	int ret;
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		return skl_universal_plane_create(dev_priv, pipe,
+						  PLANE_PRIMARY);
 
 	primary = intel_plane_alloc();
 	if (IS_ERR(primary))
@@ -13784,45 +13647,14 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	primary->id = PLANE_PRIMARY;
 	primary->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, primary->id);
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		primary->has_fbc = skl_plane_has_fbc(dev_priv,
-						     primary->pipe,
-						     primary->id);
-	else
-		primary->has_fbc = i9xx_plane_has_fbc(dev_priv,
-						      primary->i9xx_plane);
-
+	primary->has_fbc = i9xx_plane_has_fbc(dev_priv, primary->i9xx_plane);
 	if (primary->has_fbc) {
 		struct intel_fbc *fbc = &dev_priv->fbc;
 
 		fbc->possible_framebuffer_bits |= primary->frontbuffer_bit;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 9) {
-		primary->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
-						     PLANE_PRIMARY);
-
-		if (skl_plane_has_planar(dev_priv, pipe, PLANE_PRIMARY)) {
-			intel_primary_formats = skl_pri_planar_formats;
-			num_formats = ARRAY_SIZE(skl_pri_planar_formats);
-		} else {
-			intel_primary_formats = skl_primary_formats;
-			num_formats = ARRAY_SIZE(skl_primary_formats);
-		}
-
-		if (primary->has_ccs)
-			modifiers = skl_format_modifiers_ccs;
-		else
-			modifiers = skl_format_modifiers_noccs;
-
-		primary->max_stride = skl_plane_max_stride;
-		primary->update_plane = skl_update_plane;
-		primary->disable_plane = skl_disable_plane;
-		primary->get_hw_state = skl_plane_get_hw_state;
-		primary->check_plane = skl_plane_check;
-
-		plane_funcs = &skl_plane_funcs;
-	} else if (INTEL_GEN(dev_priv) >= 4) {
+	if (INTEL_GEN(dev_priv) >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
 		modifiers = i9xx_format_modifiers;
@@ -13850,14 +13682,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 	possible_crtcs = BIT(pipe);
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
-					       possible_crtcs, plane_funcs,
-					       intel_primary_formats, num_formats,
-					       modifiers,
-					       DRM_PLANE_TYPE_PRIMARY,
-					       "plane 1%c", pipe_name(pipe));
-	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
 					       possible_crtcs, plane_funcs,
 					       intel_primary_formats, num_formats,
@@ -13875,16 +13700,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (ret)
 		goto fail;
 
-	if (INTEL_GEN(dev_priv) >= 10) {
-		supported_rotations =
-			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
-			DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270 |
-			DRM_MODE_REFLECT_X;
-	} else if (INTEL_GEN(dev_priv) >= 9) {
-		supported_rotations =
-			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
-			DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
-	} else if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 		supported_rotations =
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 			DRM_MODE_REFLECT_X;
@@ -13899,22 +13715,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		drm_plane_create_rotation_property(&primary->base,
 						   DRM_MODE_ROTATE_0,
 						   supported_rotations);
-
-	if (INTEL_GEN(dev_priv) >= 9) {
-		drm_plane_create_color_properties(&primary->base,
-						  BIT(DRM_COLOR_YCBCR_BT601) |
-						  BIT(DRM_COLOR_YCBCR_BT709),
-						  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
-						  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
-						  DRM_COLOR_YCBCR_BT709,
-						  DRM_COLOR_YCBCR_LIMITED_RANGE);
-
-		drm_plane_create_alpha_property(&primary->base);
-		drm_plane_create_blend_mode_property(&primary->base,
-						     BIT(DRM_MODE_BLEND_PIXEL_NONE) |
-						     BIT(DRM_MODE_BLEND_PREMULTI) |
-						     BIT(DRM_MODE_BLEND_COVERAGE));
-	}
 
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 

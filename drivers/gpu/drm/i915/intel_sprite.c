@@ -292,7 +292,7 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	return 0;
 }
 
-unsigned int
+static unsigned int
 skl_plane_max_stride(struct intel_plane *plane,
 		     u32 pixel_format, u64 modifier,
 		     unsigned int rotation)
@@ -360,7 +360,7 @@ skl_program_scaler(struct drm_i915_private *dev_priv,
 		      ((crtc_w + 1) << 16)|(crtc_h + 1));
 }
 
-void
+static void
 skl_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
@@ -433,7 +433,7 @@ skl_update_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void
+static void
 skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -451,7 +451,7 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-bool
+static bool
 skl_plane_get_hw_state(struct intel_plane *plane,
 		       enum pipe *pipe)
 {
@@ -1342,8 +1342,8 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 	return 0;
 }
 
-int skl_plane_check(struct intel_crtc_state *crtc_state,
-		    struct intel_plane_state *plane_state)
+static int skl_plane_check(struct intel_crtc_state *crtc_state,
+			   struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -1776,8 +1776,39 @@ static const struct drm_plane_funcs skl_plane_funcs = {
 	.format_mod_supported = skl_plane_format_mod_supported,
 };
 
-bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
-		       enum pipe pipe, enum plane_id plane_id)
+static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
+			      enum pipe pipe, enum plane_id plane_id)
+{
+	if (!HAS_FBC(dev_priv))
+		return false;
+
+	return pipe == PIPE_A && plane_id == PLANE_PRIMARY;
+}
+
+static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
+				 enum pipe pipe, enum plane_id plane_id)
+{
+	/*
+	 * FIXME: ICL requires two hardware planes for scanning out NV12
+	 * framebuffers. Do not advertize support until this is implemented.
+	 */
+	if (INTEL_GEN(dev_priv) >= 11)
+		return false;
+
+	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
+		return false;
+
+	if (INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv) && pipe == PIPE_C)
+		return false;
+
+	if (plane_id != PLANE_PRIMARY && plane_id != PLANE_SPRITE0)
+		return false;
+
+	return true;
+}
+
+static bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
+			      enum pipe pipe, enum plane_id plane_id)
 {
 	if (plane_id == PLANE_CURSOR)
 		return false;
@@ -1823,6 +1854,105 @@ void intel_plane_free(struct intel_plane *plane)
 }
 
 struct intel_plane *
+skl_universal_plane_create(struct drm_i915_private *dev_priv,
+			   enum pipe pipe, enum plane_id plane_id)
+{
+	struct intel_plane *plane;
+	enum drm_plane_type plane_type;
+	unsigned int supported_rotations;
+	unsigned int possible_crtcs;
+	const u64 *modifiers;
+	const u32 *formats;
+	int num_formats;
+	int ret;
+
+	plane = intel_plane_alloc();
+	if (IS_ERR(plane))
+		return plane;
+
+	plane->pipe = pipe;
+	plane->id = plane_id;
+	plane->frontbuffer_bit = INTEL_FRONTBUFFER(pipe, plane_id);
+
+	plane->has_fbc = skl_plane_has_fbc(dev_priv, pipe, plane_id);
+	if (plane->has_fbc) {
+		struct intel_fbc *fbc = &dev_priv->fbc;
+
+		fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
+	}
+
+	plane->max_stride = skl_plane_max_stride;
+	plane->update_plane = skl_update_plane;
+	plane->disable_plane = skl_disable_plane;
+	plane->get_hw_state = skl_plane_get_hw_state;
+	plane->check_plane = skl_plane_check;
+
+	if (skl_plane_has_planar(dev_priv, pipe, plane_id)) {
+		formats = skl_planar_formats;
+		num_formats = ARRAY_SIZE(skl_planar_formats);
+	} else {
+		formats = skl_plane_formats;
+		num_formats = ARRAY_SIZE(skl_plane_formats);
+	}
+
+	plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
+	if (plane->has_ccs)
+		modifiers = skl_plane_format_modifiers_ccs;
+	else
+		modifiers = skl_plane_format_modifiers_noccs;
+
+	if (plane_id == PLANE_PRIMARY)
+		plane_type = DRM_PLANE_TYPE_PRIMARY;
+	else
+		plane_type = DRM_PLANE_TYPE_OVERLAY;
+
+	possible_crtcs = BIT(pipe);
+
+	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
+				       possible_crtcs, &skl_plane_funcs,
+				       formats, num_formats, modifiers,
+				       plane_type,
+				       "plane %d%c", plane_id + 1,
+				       pipe_name(pipe));
+	if (ret)
+		goto fail;
+
+	supported_rotations =
+		DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
+		DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
+
+	if (INTEL_GEN(dev_priv) >= 10)
+		supported_rotations |= DRM_MODE_REFLECT_X;
+
+	drm_plane_create_rotation_property(&plane->base,
+					   DRM_MODE_ROTATE_0,
+					   supported_rotations);
+
+	drm_plane_create_color_properties(&plane->base,
+					  BIT(DRM_COLOR_YCBCR_BT601) |
+					  BIT(DRM_COLOR_YCBCR_BT709),
+					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+					  DRM_COLOR_YCBCR_BT709,
+					  DRM_COLOR_YCBCR_LIMITED_RANGE);
+
+	drm_plane_create_alpha_property(&plane->base);
+	drm_plane_create_blend_mode_property(&plane->base,
+					     BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+					     BIT(DRM_MODE_BLEND_PREMULTI) |
+					     BIT(DRM_MODE_BLEND_COVERAGE));
+
+	drm_plane_helper_add(&plane->base, &intel_plane_helper_funcs);
+
+	return plane;
+
+fail:
+	intel_plane_free(plane);
+
+	return ERR_PTR(ret);
+}
+
+struct intel_plane *
 intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, int plane)
 {
@@ -1835,36 +1965,15 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	int num_plane_formats;
 	int ret;
 
+	if (INTEL_GEN(dev_priv) >= 9)
+		return skl_universal_plane_create(dev_priv, pipe,
+						  PLANE_SPRITE0 + plane);
+
 	intel_plane = intel_plane_alloc();
 	if (IS_ERR(intel_plane))
 		return intel_plane;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
-		intel_plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
-							 PLANE_SPRITE0 + plane);
-
-		intel_plane->max_stride = skl_plane_max_stride;
-		intel_plane->update_plane = skl_update_plane;
-		intel_plane->disable_plane = skl_disable_plane;
-		intel_plane->get_hw_state = skl_plane_get_hw_state;
-		intel_plane->check_plane = skl_plane_check;
-
-		if (skl_plane_has_planar(dev_priv, pipe,
-					 PLANE_SPRITE0 + plane)) {
-			plane_formats = skl_planar_formats;
-			num_plane_formats = ARRAY_SIZE(skl_planar_formats);
-		} else {
-			plane_formats = skl_plane_formats;
-			num_plane_formats = ARRAY_SIZE(skl_plane_formats);
-		}
-
-		if (intel_plane->has_ccs)
-			modifiers = skl_plane_format_modifiers_ccs;
-		else
-			modifiers = skl_plane_format_modifiers_noccs;
-
-		plane_funcs = &skl_plane_funcs;
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_plane->max_stride = i9xx_plane_max_stride;
 		intel_plane->update_plane = vlv_update_plane;
 		intel_plane->disable_plane = vlv_disable_plane;
@@ -1909,16 +2018,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	if (INTEL_GEN(dev_priv) >= 10) {
-		supported_rotations =
-			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
-			DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270 |
-			DRM_MODE_REFLECT_X;
-	} else if (INTEL_GEN(dev_priv) >= 9) {
-		supported_rotations =
-			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
-			DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
-	} else if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
 		supported_rotations =
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 			DRM_MODE_REFLECT_X;
@@ -1933,20 +2033,12 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 	possible_crtcs = BIT(pipe);
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
-					       possible_crtcs, plane_funcs,
-					       plane_formats, num_plane_formats,
-					       modifiers,
-					       DRM_PLANE_TYPE_OVERLAY,
-					       "plane %d%c", plane + 2, pipe_name(pipe));
-	else
-		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
-					       possible_crtcs, plane_funcs,
-					       plane_formats, num_plane_formats,
-					       modifiers,
-					       DRM_PLANE_TYPE_OVERLAY,
-					       "sprite %c", sprite_name(pipe, plane));
+	ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
+				       possible_crtcs, plane_funcs,
+				       plane_formats, num_plane_formats,
+				       modifiers,
+				       DRM_PLANE_TYPE_OVERLAY,
+				       "sprite %c", sprite_name(pipe, plane));
 	if (ret)
 		goto fail;
 
@@ -1961,15 +2053,6 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
 					  DRM_COLOR_YCBCR_BT709,
 					  DRM_COLOR_YCBCR_LIMITED_RANGE);
-
-	if (INTEL_GEN(dev_priv) >= 9) {
-		drm_plane_create_alpha_property(&intel_plane->base);
-
-		drm_plane_create_blend_mode_property(&intel_plane->base,
-						     BIT(DRM_MODE_BLEND_PIXEL_NONE) |
-						     BIT(DRM_MODE_BLEND_PREMULTI) |
-						     BIT(DRM_MODE_BLEND_COVERAGE));
-	}
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 
