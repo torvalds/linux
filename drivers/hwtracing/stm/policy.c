@@ -202,33 +202,6 @@ static struct configfs_attribute *stp_policy_node_attrs[] = {
 static const struct config_item_type stp_policy_type;
 static const struct config_item_type stp_policy_node_type;
 
-/* lifted from arch/x86/events/core.c */
-static struct configfs_attribute **merge_attr(struct configfs_attribute **a, struct configfs_attribute **b)
-{
-	struct configfs_attribute **new;
-	int j, i;
-
-	for (j = 0; a[j]; j++)
-		;
-	for (i = 0; b[i]; i++)
-		j++;
-	j++;
-
-	new = kmalloc_array(j, sizeof(struct configfs_attribute *),
-			    GFP_KERNEL);
-	if (!new)
-		return NULL;
-
-	j = 0;
-	for (i = 0; a[i]; i++)
-		new[j++] = a[i];
-	for (i = 0; b[i]; i++)
-		new[j++] = b[i];
-	new[j] = NULL;
-
-	return new;
-}
-
 const struct config_item_type *
 get_policy_node_type(struct configfs_attribute **attrs)
 {
@@ -240,7 +213,7 @@ get_policy_node_type(struct configfs_attribute **attrs)
 	if (!type)
 		return NULL;
 
-	merged = merge_attr(stp_policy_node_attrs, attrs);
+	merged = memcat_p(stp_policy_node_attrs, attrs);
 	if (!merged) {
 		kfree(type);
 		return NULL;
