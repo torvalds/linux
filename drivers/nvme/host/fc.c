@@ -122,6 +122,7 @@ struct nvme_fc_rport {
 	struct list_head		endp_list; /* for lport->endp_list */
 	struct list_head		ctrl_list;
 	struct list_head		ls_req_list;
+	struct list_head		disc_list;
 	struct device			*dev;	/* physical device for dma */
 	struct nvme_fc_lport		*lport;
 	spinlock_t			lock;
@@ -210,7 +211,6 @@ static DEFINE_IDA(nvme_fc_ctrl_cnt);
  * These items are short-term. They will eventually be moved into
  * a generic FC class. See comments in module init.
  */
-static struct class *fc_class;
 static struct device *fc_udev_device;
 
 
@@ -507,6 +507,7 @@ nvme_fc_free_rport(struct kref *ref)
 	list_del(&rport->endp_list);
 	spin_unlock_irqrestore(&nvme_fc_lock, flags);
 
+	WARN_ON(!list_empty(&rport->disc_list));
 	ida_simple_remove(&lport->endp_cnt, rport->remoteport.port_num);
 
 	kfree(rport);
@@ -694,6 +695,7 @@ nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
 	INIT_LIST_HEAD(&newrec->endp_list);
 	INIT_LIST_HEAD(&newrec->ctrl_list);
 	INIT_LIST_HEAD(&newrec->ls_req_list);
+	INIT_LIST_HEAD(&newrec->disc_list);
 	kref_init(&newrec->ref);
 	atomic_set(&newrec->act_ctrl_cnt, 0);
 	spin_lock_init(&newrec->lock);
@@ -1385,7 +1387,7 @@ nvme_fc_disconnect_assoc_done(struct nvmefc_ls_req *lsreq, int status)
 
 	__nvme_fc_finish_ls_req(lsop);
 
-	/* fc-nvme iniator doesn't care about success or failure of cmd */
+	/* fc-nvme initiator doesn't care about success or failure of cmd */
 
 	kfree(lsop);
 }
@@ -3159,7 +3161,7 @@ nvme_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf, size_t blen)
 	substring_t wwn = { name, &name[sizeof(name)-1] };
 	int nnoffset, pnoffset;
 
-	/* validate it string one of the 2 allowed formats */
+	/* validate if string is one of the 2 allowed formats */
 	if (strnlen(buf, blen) == NVME_FC_TRADDR_MAXLENGTH &&
 			!strncmp(buf, "nn-0x", NVME_FC_TRADDR_OXNNLEN) &&
 			!strncmp(&buf[NVME_FC_TRADDR_MAX_PN_OFFSET],
@@ -3254,6 +3256,90 @@ static struct nvmf_transport_ops nvme_fc_transport = {
 	.create_ctrl	= nvme_fc_create_ctrl,
 };
 
+/* Arbitrary successive failures max. With lots of subsystems could be high */
+#define DISCOVERY_MAX_FAIL	20
+
+static ssize_t nvme_fc_nvme_discovery_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long flags;
+	LIST_HEAD(local_disc_list);
+	struct nvme_fc_lport *lport;
+	struct nvme_fc_rport *rport;
+	int failcnt = 0;
+
+	spin_lock_irqsave(&nvme_fc_lock, flags);
+restart:
+	list_for_each_entry(lport, &nvme_fc_lport_list, port_list) {
+		list_for_each_entry(rport, &lport->endp_list, endp_list) {
+			if (!nvme_fc_lport_get(lport))
+				continue;
+			if (!nvme_fc_rport_get(rport)) {
+				/*
+				 * This is a temporary condition. Upon restart
+				 * this rport will be gone from the list.
+				 *
+				 * Revert the lport put and retry.  Anything
+				 * added to the list already will be skipped (as
+				 * they are no longer list_empty).  Loops should
+				 * resume at rports that were not yet seen.
+				 */
+				nvme_fc_lport_put(lport);
+
+				if (failcnt++ < DISCOVERY_MAX_FAIL)
+					goto restart;
+
+				pr_err("nvme_discovery: too many reference "
+				       "failures\n");
+				goto process_local_list;
+			}
+			if (list_empty(&rport->disc_list))
+				list_add_tail(&rport->disc_list,
+					      &local_disc_list);
+		}
+	}
+
+process_local_list:
+	while (!list_empty(&local_disc_list)) {
+		rport = list_first_entry(&local_disc_list,
+					 struct nvme_fc_rport, disc_list);
+		list_del_init(&rport->disc_list);
+		spin_unlock_irqrestore(&nvme_fc_lock, flags);
+
+		lport = rport->lport;
+		/* signal discovery. Won't hurt if it repeats */
+		nvme_fc_signal_discovery_scan(lport, rport);
+		nvme_fc_rport_put(rport);
+		nvme_fc_lport_put(lport);
+
+		spin_lock_irqsave(&nvme_fc_lock, flags);
+	}
+	spin_unlock_irqrestore(&nvme_fc_lock, flags);
+
+	return count;
+}
+static DEVICE_ATTR(nvme_discovery, 0200, NULL, nvme_fc_nvme_discovery_store);
+
+static struct attribute *nvme_fc_attrs[] = {
+	&dev_attr_nvme_discovery.attr,
+	NULL
+};
+
+static struct attribute_group nvme_fc_attr_group = {
+	.attrs = nvme_fc_attrs,
+};
+
+static const struct attribute_group *nvme_fc_attr_groups[] = {
+	&nvme_fc_attr_group,
+	NULL
+};
+
+static struct class fc_class = {
+	.name = "fc",
+	.dev_groups = nvme_fc_attr_groups,
+	.owner = THIS_MODULE,
+};
+
 static int __init nvme_fc_init_module(void)
 {
 	int ret;
@@ -3272,16 +3358,16 @@ static int __init nvme_fc_init_module(void)
 	 * put in place, this code will move to a more generic
 	 * location for the class.
 	 */
-	fc_class = class_create(THIS_MODULE, "fc");
-	if (IS_ERR(fc_class)) {
+	ret = class_register(&fc_class);
+	if (ret) {
 		pr_err("couldn't register class fc\n");
-		return PTR_ERR(fc_class);
+		return ret;
 	}
 
 	/*
 	 * Create a device for the FC-centric udev events
 	 */
-	fc_udev_device = device_create(fc_class, NULL, MKDEV(0, 0), NULL,
+	fc_udev_device = device_create(&fc_class, NULL, MKDEV(0, 0), NULL,
 				"fc_udev_device");
 	if (IS_ERR(fc_udev_device)) {
 		pr_err("couldn't create fc_udev device!\n");
@@ -3296,9 +3382,9 @@ static int __init nvme_fc_init_module(void)
 	return 0;
 
 out_destroy_device:
-	device_destroy(fc_class, MKDEV(0, 0));
+	device_destroy(&fc_class, MKDEV(0, 0));
 out_destroy_class:
-	class_destroy(fc_class);
+	class_unregister(&fc_class);
 	return ret;
 }
 
@@ -3313,8 +3399,8 @@ static void __exit nvme_fc_exit_module(void)
 	ida_destroy(&nvme_fc_local_port_cnt);
 	ida_destroy(&nvme_fc_ctrl_cnt);
 
-	device_destroy(fc_class, MKDEV(0, 0));
-	class_destroy(fc_class);
+	device_destroy(&fc_class, MKDEV(0, 0));
+	class_unregister(&fc_class);
 }
 
 module_init(nvme_fc_init_module);
