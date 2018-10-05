@@ -216,7 +216,6 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		eth_zero_addr(vif->mac_addr);
 		eth_zero_addr(vif->bssid);
 		vif->bss_priority = QTNF_DEF_BSS_PRIORITY;
-		vif->sta_state = QTNF_STA_DISCONNECTED;
 		memset(&vif->wdev, 0, sizeof(vif->wdev));
 		vif->wdev.wiphy = wiphy;
 		vif->wdev.iftype = type;
@@ -624,9 +623,6 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	if (vif->sta_state != QTNF_STA_DISCONNECTED)
-		return -EBUSY;
-
 	if (sme->bssid)
 		ether_addr_copy(vif->bssid, sme->bssid);
 	else
@@ -639,7 +635,6 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 		return ret;
 	}
 
-	vif->sta_state = QTNF_STA_CONNECTING;
 	return 0;
 }
 
@@ -664,9 +659,6 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 
 	qtnf_scan_done(mac, true);
 
-	if (vif->sta_state == QTNF_STA_DISCONNECTED)
-		goto out;
-
 	ret = qtnf_cmd_send_disconnect(vif, reason_code);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to disconnect\n", mac->macid,
@@ -675,9 +667,6 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 out:
-	if (vif->sta_state == QTNF_STA_CONNECTING)
-		vif->sta_state = QTNF_STA_DISCONNECTED;
-
 	return ret;
 }
 
@@ -1152,28 +1141,10 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev)
 	struct qtnf_wmac *mac = wiphy_priv(vif->wdev.wiphy);
 
 	if (vif->wdev.iftype == NL80211_IFTYPE_STATION) {
-		switch (vif->sta_state) {
-		case QTNF_STA_DISCONNECTED:
-			break;
-		case QTNF_STA_CONNECTING:
-			cfg80211_connect_result(vif->netdev,
-						vif->bssid, NULL, 0,
-						NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
-			qtnf_disconnect(vif->wdev.wiphy, ndev,
-					WLAN_REASON_DEAUTH_LEAVING);
-			break;
-		case QTNF_STA_CONNECTED:
-			cfg80211_disconnected(vif->netdev,
-					      WLAN_REASON_DEAUTH_LEAVING,
-					      NULL, 0, 1, GFP_KERNEL);
-			qtnf_disconnect(vif->wdev.wiphy, ndev,
-					WLAN_REASON_DEAUTH_LEAVING);
-			break;
-		}
-
-		vif->sta_state = QTNF_STA_DISCONNECTED;
+		cfg80211_disconnected(vif->netdev, WLAN_REASON_DEAUTH_LEAVING,
+				      NULL, 0, 1, GFP_KERNEL);
+		qtnf_disconnect(vif->wdev.wiphy, ndev,
+				WLAN_REASON_DEAUTH_LEAVING);
 	}
 
 	qtnf_scan_done(mac, true);
@@ -1181,27 +1152,11 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev)
 
 void qtnf_cfg80211_vif_reset(struct qtnf_vif *vif)
 {
-	if (vif->wdev.iftype == NL80211_IFTYPE_STATION) {
-		switch (vif->sta_state) {
-		case QTNF_STA_CONNECTING:
-			cfg80211_connect_result(vif->netdev,
-						vif->bssid, NULL, 0,
-						NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
-			break;
-		case QTNF_STA_CONNECTED:
-			cfg80211_disconnected(vif->netdev,
-					      WLAN_REASON_DEAUTH_LEAVING,
-					      NULL, 0, 1, GFP_KERNEL);
-			break;
-		case QTNF_STA_DISCONNECTED:
-			break;
-		}
-	}
+	if (vif->wdev.iftype == NL80211_IFTYPE_STATION)
+		cfg80211_disconnected(vif->netdev, WLAN_REASON_DEAUTH_LEAVING,
+				      NULL, 0, 1, GFP_KERNEL);
 
 	cfg80211_shutdown_all_interfaces(vif->wdev.wiphy);
-	vif->sta_state = QTNF_STA_DISCONNECTED;
 }
 
 void qtnf_band_init_rates(struct ieee80211_supported_band *band)

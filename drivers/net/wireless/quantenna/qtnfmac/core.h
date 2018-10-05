@@ -64,12 +64,6 @@ struct qtnf_sta_list {
 	atomic_t size;
 };
 
-enum qtnf_sta_state {
-	QTNF_STA_DISCONNECTED,
-	QTNF_STA_CONNECTING,
-	QTNF_STA_CONNECTED
-};
-
 struct qtnf_vif {
 	struct wireless_dev wdev;
 	u8 bssid[ETH_ALEN];
@@ -77,7 +71,6 @@ struct qtnf_vif {
 	u8 vifid;
 	u8 bss_priority;
 	u8 bss_status;
-	enum qtnf_sta_state sta_state;
 	u16 mgmt_frames_bitmask;
 	struct net_device *netdev;
 	struct qtnf_wmac *mac;
