@@ -13759,8 +13759,7 @@ bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 static struct intel_plane *
 intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	struct intel_plane *primary = NULL;
-	struct intel_plane_state *state = NULL;
+	struct intel_plane *primary;
 	const struct drm_plane_funcs *plane_funcs;
 	const uint32_t *intel_primary_formats;
 	unsigned int supported_rotations;
@@ -13769,19 +13768,9 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	const uint64_t *modifiers;
 	int ret;
 
-	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
-	if (!primary) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	state = intel_create_plane_state(&primary->base);
-	if (!state) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	primary->base.state = &state->base;
+	primary = intel_plane_alloc();
+	if (IS_ERR(primary))
+		return primary;
 
 	primary->pipe = pipe;
 	/*
@@ -13932,8 +13921,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	return primary;
 
 fail:
-	kfree(state);
-	kfree(primary);
+	intel_plane_free(primary);
 
 	return ERR_PTR(ret);
 }
@@ -13942,24 +13930,13 @@ static struct intel_plane *
 intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe)
 {
-	struct intel_plane *cursor = NULL;
-	struct intel_plane_state *state = NULL;
 	unsigned int possible_crtcs;
+	struct intel_plane *cursor;
 	int ret;
 
-	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
-	if (!cursor) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	state = intel_create_plane_state(&cursor->base);
-	if (!state) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	cursor->base.state = &state->base;
+	cursor = intel_plane_alloc();
+	if (IS_ERR(cursor))
+		return cursor;
 
 	cursor->pipe = pipe;
 	cursor->i9xx_plane = (enum i9xx_plane_id) pipe;
@@ -14009,8 +13986,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 	return cursor;
 
 fail:
-	kfree(state);
-	kfree(cursor);
+	intel_plane_free(cursor);
 
 	return ERR_PTR(ret);
 }

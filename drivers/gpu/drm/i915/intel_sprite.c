@@ -1793,12 +1793,40 @@ bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
 		 plane_id == PLANE_SPRITE0);
 }
 
+struct intel_plane *intel_plane_alloc(void)
+{
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+
+	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	if (!plane)
+		return ERR_PTR(-ENOMEM);
+
+	plane_state = intel_create_plane_state(&plane->base);
+	if (!plane_state) {
+		kfree(plane);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	plane->base.state = &plane_state->base;
+
+	return plane;
+}
+
+void intel_plane_free(struct intel_plane *plane)
+{
+	struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
+
+	kfree(plane_state);
+	kfree(plane);
+}
+
 struct intel_plane *
 intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, int plane)
 {
-	struct intel_plane *intel_plane = NULL;
-	struct intel_plane_state *state = NULL;
+	struct intel_plane *intel_plane;
 	const struct drm_plane_funcs *plane_funcs;
 	unsigned long possible_crtcs;
 	const uint32_t *plane_formats;
@@ -1807,18 +1835,9 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	int num_plane_formats;
 	int ret;
 
-	intel_plane = kzalloc(sizeof(*intel_plane), GFP_KERNEL);
-	if (!intel_plane) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	state = intel_create_plane_state(&intel_plane->base);
-	if (!state) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-	intel_plane->base.state = &state->base;
+	intel_plane = intel_plane_alloc();
+	if (IS_ERR(intel_plane))
+		return intel_plane;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		intel_plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
@@ -1957,8 +1976,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 	return intel_plane;
 
 fail:
-	kfree(state);
-	kfree(intel_plane);
+	intel_plane_free(intel_plane);
 
 	return ERR_PTR(ret);
 }
