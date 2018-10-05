@@ -655,9 +655,9 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 	f2fs_put_page(page, 1);
 
 	clear_inode_flag(inode, FI_NEW_INODE);
+	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 fail:
 	up_write(&F2FS_I(inode)->i_sem);
-	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return err;
 }
 

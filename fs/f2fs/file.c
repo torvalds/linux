@@ -109,6 +109,7 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 		SetPageUptodate(page);
 
 	f2fs_update_iostat(sbi, APP_MAPPED_IO, F2FS_BLKSIZE);
+	f2fs_update_time(sbi, REQ_TIME);
 
 	trace_f2fs_vm_page_mkwrite(page, DATA);
 out_sem:
@@ -117,7 +118,6 @@ out_sem:
 	f2fs_balance_fs(sbi, dn.node_changed);
 
 	sb_end_pagefault(inode->i_sb);
-	f2fs_update_time(sbi, REQ_TIME);
 err:
 	return block_page_mkwrite_return(err);
 }
