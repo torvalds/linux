@@ -603,18 +603,21 @@ ssize_t notrace stm_data_write(struct stm_data *data, unsigned int m,
 }
 EXPORT_SYMBOL_GPL(stm_data_write);
 
-static ssize_t notrace stm_write(struct stm_data *data, unsigned int master,
-			  unsigned int channel, const char *buf, size_t count)
+static ssize_t notrace
+stm_write(struct stm_device *stm, struct stm_output *output,
+	  unsigned int chan, const char *buf, size_t count)
 {
-	const unsigned char nil = 0;
-	ssize_t sz;
+	int err;
 
-	sz = stm_data_write(data, master, channel, true, buf, count);
-	if (sz > 0)
-		data->packet(data, master, channel, STP_PACKET_FLAG, 0, 0,
-			     &nil);
+	/* stm->pdrv is serialized against policy_mutex */
+	if (!stm->pdrv)
+		return -ENODEV;
 
-	return sz;
+	err = stm->pdrv->write(stm->data, output, chan, buf, count);
+	if (err < 0)
+		return err;
+
+	return err;
 }
 
 static ssize_t stm_char_write(struct file *file, const char __user *buf,
@@ -659,8 +662,7 @@ static ssize_t stm_char_write(struct file *file, const char __user *buf,
 
 	pm_runtime_get_sync(&stm->dev);
 
-	count = stm_write(stm->data, stmf->output.master, stmf->output.channel,
-			  kbuf, count);
+	count = stm_write(stm, &stmf->output, 0, kbuf, count);
 
 	pm_runtime_mark_last_busy(&stm->dev);
 	pm_runtime_put_autosuspend(&stm->dev);
@@ -1310,9 +1312,7 @@ int notrace stm_source_write(struct stm_source_data *data,
 
 	stm = srcu_dereference(src->link, &stm_source_srcu);
 	if (stm)
-		count = stm_write(stm->data, src->output.master,
-				  src->output.channel + chan,
-				  buf, count);
+		count = stm_write(stm, &src->output, chan, buf, count);
 	else
 		count = -ENODEV;
 
@@ -1342,6 +1342,12 @@ static int __init stm_core_init(void)
 	INIT_LIST_HEAD(&stm_pdrv_head);
 	mutex_init(&stm_pdrv_mutex);
 
+	/*
+	 * So as to not confuse existing users with a requirement
+	 * to load yet another module, do it here.
+	 */
+	if (IS_ENABLED(CONFIG_STM_PROTO_BASIC))
+		(void)request_module_nowait("stm_p_basic");
 	stm_core_up++;
 
 	return 0;

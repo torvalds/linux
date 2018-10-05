@@ -454,8 +454,7 @@ stp_policy_make(struct config_group *group, const char *name)
 	err = stm_lookup_protocol(proto, &pdrv, &pdrv_node_type);
 	kfree(devname);
 
-	/* We don't have any protocol drivers yet */
-	if (err != -ENOENT) {
+	if (err) {
 		stm_put_device(stm);
 		return ERR_PTR(-ENODEV);
 	}
