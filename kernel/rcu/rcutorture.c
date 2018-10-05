@@ -1649,13 +1649,14 @@ static void rcu_torture_fwd_cb_hist(void)
 /* Callback function for continuous-flood RCU callbacks. */
 static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 {
+	unsigned long flags;
 	int i;
 	struct rcu_fwd_cb *rfcp = container_of(rhp, struct rcu_fwd_cb, rh);
 	struct rcu_fwd_cb **rfcpp;
 
 	rfcp->rfc_next = NULL;
 	rfcp->rfc_gps++;
-	spin_lock(&rcu_fwd_lock);
+	spin_lock_irqsave(&rcu_fwd_lock, flags);
 	rfcpp = rcu_fwd_cb_tail;
 	rcu_fwd_cb_tail = &rfcp->rfc_next;
 	WRITE_ONCE(*rfcpp, rfcp);
@@ -1664,7 +1665,33 @@ static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 	if (i >= ARRAY_SIZE(n_launders_hist))
 		i = ARRAY_SIZE(n_launders_hist) - 1;
 	n_launders_hist[i]++;
-	spin_unlock(&rcu_fwd_lock);
+	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+}
+
+/*
+ * Free all callbacks on the rcu_fwd_cb_head list, either because the
+ * test is over or because we hit an OOM event.
+ */
+static unsigned long rcu_torture_fwd_prog_cbfree(void)
+{
+	unsigned long flags;
+	unsigned long freed = 0;
+	struct rcu_fwd_cb *rfcp;
+
+	for (;;) {
+		spin_lock_irqsave(&rcu_fwd_lock, flags);
+		rfcp = rcu_fwd_cb_head;
+		if (!rfcp)
+			break;
+		rcu_fwd_cb_head = rfcp->rfc_next;
+		if (!rcu_fwd_cb_head)
+			rcu_fwd_cb_tail = &rcu_fwd_cb_head;
+		spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+		kfree(rfcp);
+		freed++;
+	}
+	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
+	return freed;
 }
 
 /* Carry out need_resched()/cond_resched() forward-progress testing. */
@@ -1743,6 +1770,9 @@ static void rcu_torture_fwd_prog_cr(void)
 	unsigned long stopat;
 	unsigned long stoppedat;
 
+	if (READ_ONCE(rcu_fwd_emergency_stop))
+		return; /* Get out of the way quickly, no GP wait! */
+
 	/* Loop continuously posting RCU callbacks. */
 	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
 	cur_ops->sync(); /* Later readers see above write. */
@@ -1788,16 +1818,10 @@ static void rcu_torture_fwd_prog_cr(void)
 	cver = READ_ONCE(rcu_torture_current_version) - cver;
 	gps = rcutorture_seq_diff(cur_ops->get_gp_seq(), gps);
 	cur_ops->cb_barrier(); /* Wait for callbacks to be invoked. */
-	for (;;) {
-		rfcp = rcu_fwd_cb_head;
-		if (!rfcp)
-			break;
-		rcu_fwd_cb_head = rfcp->rfc_next;
-		kfree(rfcp);
-	}
-	rcu_fwd_cb_tail = &rcu_fwd_cb_head;
+	(void)rcu_torture_fwd_prog_cbfree();
+
 	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
-	if (!torture_must_stop()) {
+	if (!torture_must_stop() && !READ_ONCE(rcu_fwd_emergency_stop)) {
 		WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
 		pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld\n",
 			 __func__,
@@ -1817,9 +1841,23 @@ static void rcu_torture_fwd_prog_cr(void)
 static int rcutorture_oom_notify(struct notifier_block *self,
 				 unsigned long notused, void *nfreed)
 {
+	WARN(1, "%s invoked upon OOM during forward-progress testing.\n",
+	     __func__);
 	rcu_torture_fwd_cb_hist();
 	rcu_fwd_progress_check(1 + (jiffies - READ_ONCE(rcu_fwd_startat) / 2));
 	WRITE_ONCE(rcu_fwd_emergency_stop, true);
+	smp_mb(); /* Emergency stop before free and wait to avoid hangs. */
+	pr_info("%s: Freed %lu RCU callbacks.\n",
+		__func__, rcu_torture_fwd_prog_cbfree());
+	rcu_barrier();
+	pr_info("%s: Freed %lu RCU callbacks.\n",
+		__func__, rcu_torture_fwd_prog_cbfree());
+	rcu_barrier();
+	pr_info("%s: Freed %lu RCU callbacks.\n",
+		__func__, rcu_torture_fwd_prog_cbfree());
+	smp_mb(); /* Frees before return to avoid redoing OOM. */
+	(*(unsigned long *)nfreed)++; /* Forward progress CBs freed! */
+	pr_info("%s returning after OOM processing.\n", __func__);
 	return NOTIFY_OK;
 }
 
