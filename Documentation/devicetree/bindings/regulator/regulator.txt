@@ -79,6 +79,8 @@ Optional properties:
 - regulator-coupled-max-spread: Array of maximum spread between voltages of
   coupled regulators in microvolts, each value in the array relates to the
   corresponding couple specified by the regulator-coupled-with property.
+- regulator-max-step-microvolt: Maximum difference between current and target
+  voltages that can be changed safely in a single step.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple
