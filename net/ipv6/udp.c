@@ -548,7 +548,7 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
 
-static DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
+DEFINE_STATIC_KEY_FALSE(udpv6_encap_needed_key);
 void udpv6_encap_enable(void)
 {
 	static_branch_enable(&udpv6_encap_needed_key);
