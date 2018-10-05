@@ -714,3 +714,32 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_poll_tx_status);
+
+static void
+mt76x02_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,
+			 void *txwi_ptr)
+{
+	struct mt76x02_tx_info *txi = mt76x02_skb_tx_info(skb);
+	struct mt76x02_txwi *txwi = txwi_ptr;
+
+	mt76x02_mac_poll_tx_status(dev, false);
+
+	txi->tries = 0;
+	txi->jiffies = jiffies;
+	txi->wcid = txwi->wcid;
+	txi->pktid = txwi->pktid;
+	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
+	mt76x02_tx_complete(&dev->mt76, skb);
+}
+
+void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
+			     struct mt76_queue_entry *e, bool flush)
+{
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+
+	if (e->txwi)
+		mt76x02_mac_queue_txdone(dev, e->skb, &e->txwi->txwi);
+	else
+		dev_kfree_skb_any(e->skb);
+}
+EXPORT_SYMBOL_GPL(mt76x02_tx_complete_skb);

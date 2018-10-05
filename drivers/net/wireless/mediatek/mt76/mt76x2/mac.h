@@ -23,23 +23,6 @@ struct mt76x02_dev;
 struct mt76x2_sta;
 struct mt76x02_vif;
 
-struct mt76x2_tx_info {
-	unsigned long jiffies;
-	u8 tries;
-
-	u8 wcid;
-	u8 pktid;
-	u8 retry;
-};
-
-static inline struct mt76x2_tx_info *
-mt76x2_skb_tx_info(struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	return (void *) info->status.status_driver_data;
-}
-
 int mt76x2_mac_start(struct mt76x02_dev *dev);
 void mt76x2_mac_stop(struct mt76x02_dev *dev, bool force);
 void mt76x2_mac_resume(struct mt76x02_dev *dev);

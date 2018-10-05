@@ -46,6 +46,28 @@ DECLARE_EVENT_CLASS(dev_evt,
 	TP_printk(DEV_PR_FMT, DEV_PR_ARG)
 );
 
+DECLARE_EVENT_CLASS(dev_txid_evt,
+	TP_PROTO(struct mt76x02_dev *dev, u8 wcid, u8 pktid),
+	TP_ARGS(dev, wcid, pktid),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		TXID_ENTRY
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		TXID_ASSIGN;
+	),
+	TP_printk(
+		DEV_PR_FMT TXID_PR_FMT,
+		DEV_PR_ARG, TXID_PR_ARG
+	)
+);
+
+DEFINE_EVENT(dev_txid_evt, mac_txdone_add,
+	TP_PROTO(struct mt76x02_dev *dev, u8 wcid, u8 pktid),
+	TP_ARGS(dev, wcid, pktid)
+);
+
 DEFINE_EVENT(dev_evt, mac_txstat_poll,
 	TP_PROTO(struct mt76x02_dev *dev),
 	TP_ARGS(dev)

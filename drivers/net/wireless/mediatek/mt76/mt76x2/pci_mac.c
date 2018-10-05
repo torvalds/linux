@@ -28,23 +28,6 @@ void mt76x2_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 		       get_unaligned_le16(addr + 4));
 }
 
-static void
-mt76x2_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,
-			void *txwi_ptr)
-{
-	struct mt76x2_tx_info *txi = mt76x2_skb_tx_info(skb);
-	struct mt76x02_txwi *txwi = txwi_ptr;
-
-	mt76x02_mac_poll_tx_status(dev, false);
-
-	txi->tries = 0;
-	txi->jiffies = jiffies;
-	txi->wcid = txwi->wcid;
-	txi->pktid = txwi->pktid;
-	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
-	mt76x02_tx_complete(&dev->mt76, skb);
-}
-
 void mt76x2_mac_process_tx_status_fifo(struct mt76x02_dev *dev)
 {
 	struct mt76x02_tx_status stat;
@@ -52,17 +35,6 @@ void mt76x2_mac_process_tx_status_fifo(struct mt76x02_dev *dev)
 
 	while (kfifo_get(&dev->txstatus_fifo, &stat))
 		mt76x02_send_tx_status(&dev->mt76, &stat, &update);
-}
-
-void mt76x2_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
-			    struct mt76_queue_entry *e, bool flush)
-{
-	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-
-	if (e->txwi)
-		mt76x2_mac_queue_txdone(dev, e->skb, &e->txwi->txwi);
-	else
-		dev_kfree_skb_any(e->skb);
 }
 
 static int
