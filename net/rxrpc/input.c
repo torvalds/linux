@@ -1156,12 +1156,12 @@ void rxrpc_data_ready(struct sock *udp_sk)
 	/* we'll probably need to checksum it (didn't call sock_recvmsg) */
 	if (skb_checksum_complete(skb)) {
 		rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
-		__UDP_INC_STATS(&init_net, UDP_MIB_INERRORS, 0);
+		__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INERRORS, 0);
 		_leave(" [CSUM failed]");
 		return;
 	}
 
-	__UDP_INC_STATS(&init_net, UDP_MIB_INDATAGRAMS, 0);
+	__UDP_INC_STATS(sock_net(udp_sk), UDP_MIB_INDATAGRAMS, 0);
 
 	/* The UDP protocol already released all skb resources;
 	 * we are free to add our own data there.

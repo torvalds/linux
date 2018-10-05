@@ -153,8 +153,10 @@ struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *local,
  * assess the MTU size for the network interface through which this peer is
  * reached
  */
-static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
+static void rxrpc_assess_MTU_size(struct rxrpc_sock *rx,
+				  struct rxrpc_peer *peer)
 {
+	struct net *net = sock_net(&rx->sk);
 	struct dst_entry *dst;
 	struct rtable *rt;
 	struct flowi fl;
@@ -169,7 +171,7 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 	switch (peer->srx.transport.family) {
 	case AF_INET:
 		rt = ip_route_output_ports(
-			&init_net, fl4, NULL,
+			net, fl4, NULL,
 			peer->srx.transport.sin.sin_addr.s_addr, 0,
 			htons(7000), htons(7001), IPPROTO_UDP, 0, 0);
 		if (IS_ERR(rt)) {
@@ -188,7 +190,7 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 		       sizeof(struct in6_addr));
 		fl6->fl6_dport = htons(7001);
 		fl6->fl6_sport = htons(7000);
-		dst = ip6_route_output(&init_net, NULL, fl6);
+		dst = ip6_route_output(net, NULL, fl6);
 		if (dst->error) {
 			_leave(" [route err %d]", dst->error);
 			return;
@@ -240,10 +242,11 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 /*
  * Initialise peer record.
  */
-static void rxrpc_init_peer(struct rxrpc_peer *peer, unsigned long hash_key)
+static void rxrpc_init_peer(struct rxrpc_sock *rx, struct rxrpc_peer *peer,
+			    unsigned long hash_key)
 {
 	peer->hash_key = hash_key;
-	rxrpc_assess_MTU_size(peer);
+	rxrpc_assess_MTU_size(rx, peer);
 	peer->mtu = peer->if_mtu;
 	peer->rtt_last_req = ktime_get_real();
 
@@ -275,7 +278,8 @@ static void rxrpc_init_peer(struct rxrpc_peer *peer, unsigned long hash_key)
 /*
  * Set up a new peer.
  */
-static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_local *local,
+static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_sock *rx,
+					    struct rxrpc_local *local,
 					    struct sockaddr_rxrpc *srx,
 					    unsigned long hash_key,
 					    gfp_t gfp)
@@ -287,7 +291,7 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_local *local,
 	peer = rxrpc_alloc_peer(local, gfp);
 	if (peer) {
 		memcpy(&peer->srx, srx, sizeof(*srx));
-		rxrpc_init_peer(peer, hash_key);
+		rxrpc_init_peer(rx, peer, hash_key);
 	}
 
 	_leave(" = %p", peer);
@@ -299,14 +303,15 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_local *local,
  * since we've already done a search in the list from the non-reentrant context
  * (the data_ready handler) that is the only place we can add new peers.
  */
-void rxrpc_new_incoming_peer(struct rxrpc_local *local, struct rxrpc_peer *peer)
+void rxrpc_new_incoming_peer(struct rxrpc_sock *rx, struct rxrpc_local *local,
+			     struct rxrpc_peer *peer)
 {
 	struct rxrpc_net *rxnet = local->rxnet;
 	unsigned long hash_key;
 
 	hash_key = rxrpc_peer_hash_key(local, &peer->srx);
 	peer->local = local;
-	rxrpc_init_peer(peer, hash_key);
+	rxrpc_init_peer(rx, peer, hash_key);
 
 	spin_lock(&rxnet->peer_hash_lock);
 	hash_add_rcu(rxnet->peer_hash, &peer->hash_link, hash_key);
@@ -317,7 +322,8 @@ void rxrpc_new_incoming_peer(struct rxrpc_local *local, struct rxrpc_peer *peer)
 /*
  * obtain a remote transport endpoint for the specified address
  */
-struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
+struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
+				     struct rxrpc_local *local,
 				     struct sockaddr_rxrpc *srx, gfp_t gfp)
 {
 	struct rxrpc_peer *peer, *candidate;
@@ -337,7 +343,7 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 		/* The peer is not yet present in hash - create a candidate
 		 * for a new record and then redo the search.
 		 */
-		candidate = rxrpc_create_peer(local, srx, hash_key, gfp);
+		candidate = rxrpc_create_peer(rx, local, srx, hash_key, gfp);
 		if (!candidate) {
 			_leave(" = NULL [nomem]");
 			return NULL;
