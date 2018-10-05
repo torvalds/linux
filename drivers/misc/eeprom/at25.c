@@ -379,15 +379,6 @@ static int at25_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int at25_remove(struct spi_device *spi)
-{
-	struct at25_data	*at25;
-
-	at25 = spi_get_drvdata(spi);
-
-	return 0;
-}
-
 /*-------------------------------------------------------------------------*/
 
 static const struct of_device_id at25_of_match[] = {
@@ -402,7 +393,6 @@ static struct spi_driver at25_driver = {
 		.of_match_table = at25_of_match,
 	},
 	.probe		= at25_probe,
-	.remove		= at25_remove,
 };
 
 module_spi_driver(at25_driver);
