@@ -644,7 +644,7 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	switch (pcie_link_status) {
 	case 7:
 		val = read_config(pcie, 2, 0x4);
-		write_config(pcie, 2, 0x4, val|0x4);
+		write_config(pcie, 2, 0x4, val | 0x4);
 		val = read_config(pcie, 2, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
@@ -653,14 +653,14 @@ pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
 	case 5:
 	case 6:
 		val = read_config(pcie, 1, 0x4);
-		write_config(pcie, 1, 0x4, val|0x4);
+		write_config(pcie, 1, 0x4, val | 0x4);
 		val = read_config(pcie, 1, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
 		write_config(pcie, 1, 0x70c, val);
 	default:
 		val = read_config(pcie, 0, 0x4);
-		write_config(pcie, 0, 0x4, val|0x4); //bus master enable
+		write_config(pcie, 0, 0x4, val | 0x4); //bus master enable
 		val = read_config(pcie, 0, 0x70c);
 		val &= ~(0xff)<<8;
 		val |= 0x50<<8;
