@@ -109,11 +109,6 @@ struct minstrel_sta_info {
 
 	/* sampling table */
 	u8 *sample_table;
-
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *dbg_stats;
-	struct dentry *dbg_stats_csv;
-#endif
 };
 
 struct minstrel_priv {
@@ -137,7 +132,6 @@ struct minstrel_priv {
 	 *   - setting will be applied on next update
 	 */
 	u32 fixed_rate_idx;
-	struct dentry *dbg_fixed_rate;
 #endif
 };
 
@@ -156,7 +150,6 @@ minstrel_get_ewmsd10(struct minstrel_rate_stats *mrs)
 
 extern const struct rate_control_ops mac80211_minstrel;
 void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
-void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 
 /* Recalculate success probabilities and counters for a given rate using EWMA */
 void minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs);

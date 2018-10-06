@@ -1391,7 +1391,6 @@ static const struct rate_control_ops mac80211_minstrel_ht = {
 	.free = minstrel_ht_free,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = minstrel_ht_add_sta_debugfs,
-	.remove_sta_debugfs = minstrel_ht_remove_sta_debugfs,
 #endif
 	.get_expected_throughput = minstrel_ht_get_expected_throughput,
 };

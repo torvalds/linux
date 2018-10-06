@@ -303,17 +303,8 @@ minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir)
 {
 	struct minstrel_ht_sta_priv *msp = priv_sta;
 
-	msp->dbg_stats = debugfs_create_file("rc_stats", 0444, dir, msp,
-					     &minstrel_ht_stat_fops);
-	msp->dbg_stats_csv = debugfs_create_file("rc_stats_csv", 0444, dir, msp,
-						 &minstrel_ht_stat_csv_fops);
-}
-
-void
-minstrel_ht_remove_sta_debugfs(void *priv, void *priv_sta)
-{
-	struct minstrel_ht_sta_priv *msp = priv_sta;
-
-	debugfs_remove(msp->dbg_stats);
-	debugfs_remove(msp->dbg_stats_csv);
+	debugfs_create_file("rc_stats", 0444, dir, msp,
+			    &minstrel_ht_stat_fops);
+	debugfs_create_file("rc_stats_csv", 0444, dir, msp,
+			    &minstrel_ht_stat_csv_fops);
 }

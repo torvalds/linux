@@ -110,17 +110,12 @@ struct minstrel_ht_sta_priv {
 		struct minstrel_ht_sta ht;
 		struct minstrel_sta_info legacy;
 	};
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *dbg_stats;
-	struct dentry *dbg_stats_csv;
-#endif
 	void *ratelist;
 	void *sample_table;
 	bool is_ht;
 };
 
 void minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
-void minstrel_ht_remove_sta_debugfs(void *priv, void *priv_sta);
 int minstrel_ht_get_tp_avg(struct minstrel_ht_sta *mi, int group, int rate,
 			   int prob_ewma);
 

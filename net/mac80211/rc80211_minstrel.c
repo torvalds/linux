@@ -689,8 +689,8 @@ minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	mp->fixed_rate_idx = (u32) -1;
-	mp->dbg_fixed_rate = debugfs_create_u32("fixed_rate_idx",
-			0666, debugfsdir, &mp->fixed_rate_idx);
+	debugfs_create_u32("fixed_rate_idx", 0666, debugfsdir,
+			   &mp->fixed_rate_idx);
 #endif
 
 	minstrel_init_cck_rates(mp);
@@ -701,9 +701,6 @@ minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 static void
 minstrel_free(void *priv)
 {
-#ifdef CONFIG_MAC80211_DEBUGFS
-	debugfs_remove(((struct minstrel_priv *)priv)->dbg_fixed_rate);
-#endif
 	kfree(priv);
 }
 
@@ -735,7 +732,6 @@ const struct rate_control_ops mac80211_minstrel = {
 	.free_sta = minstrel_free_sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = minstrel_add_sta_debugfs,
-	.remove_sta_debugfs = minstrel_remove_sta_debugfs,
 #endif
 	.get_expected_throughput = minstrel_get_expected_throughput,
 };
