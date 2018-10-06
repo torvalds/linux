@@ -23,7 +23,7 @@ static void dm_rx_hw_antena_div_init(struct odm_dm_struct *dm_odm)
 	/* MAC Setting */
 	value32 = phy_query_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
 	phy_set_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord,
-		       value32|(BIT(23) | BIT(25)));
+		       value32 | (BIT(23) | BIT(25)));
 	/* Pin Settings */
 	phy_set_bb_reg(adapter, ODM_REG_PIN_CTRL_11N, BIT(9) | BIT(8), 0);
 	phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT(10), 0);
@@ -55,7 +55,7 @@ static void dm_trx_hw_antenna_div_init(struct odm_dm_struct *dm_odm)
 	/* MAC Setting */
 	value32 = phy_query_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord);
 	phy_set_bb_reg(adapter, ODM_REG_ANTSEL_PIN_11N, bMaskDWord,
-		       value32|(BIT(23) | BIT(25)));
+		       value32 | (BIT(23) | BIT(25)));
 	/* Pin Settings */
 	phy_set_bb_reg(adapter, ODM_REG_PIN_CTRL_11N, BIT(9) | BIT(8), 0);
 	phy_set_bb_reg(adapter, ODM_REG_RX_ANT_CTRL_11N, BIT(10), 0);
@@ -103,9 +103,11 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 
 	/* MAC Setting */
 	value32 = phy_query_bb_reg(adapter, 0x4c, bMaskDWord);
-	phy_set_bb_reg(adapter, 0x4c, bMaskDWord, value32|(BIT(23) | BIT(25)));
+	phy_set_bb_reg(adapter, 0x4c, bMaskDWord,
+		       value32 | (BIT(23) | BIT(25)));
 	value32 = phy_query_bb_reg(adapter,  0x7B4, bMaskDWord);
-	phy_set_bb_reg(adapter, 0x7b4, bMaskDWord, value32|(BIT(16) | BIT(17)));
+	phy_set_bb_reg(adapter, 0x7b4, bMaskDWord,
+		       value32 | (BIT(16) | BIT(17)));
 
 	/* Match MAC ADDR */
 	phy_set_bb_reg(adapter, 0x7b4, 0xFFFF, 0);
@@ -194,8 +196,8 @@ static void update_tx_ant_88eu(struct odm_dm_struct *dm_odm, u8 ant, u32 mac_id)
 	else
 		target_ant = AUX_ANT_CG_TRX;
 	dm_fat_tbl->antsel_a[mac_id] = target_ant & BIT(0);
-	dm_fat_tbl->antsel_b[mac_id] = (target_ant & BIT(1))>>1;
-	dm_fat_tbl->antsel_c[mac_id] = (target_ant & BIT(2))>>2;
+	dm_fat_tbl->antsel_b[mac_id] = (target_ant & BIT(1)) >> 1;
+	dm_fat_tbl->antsel_c[mac_id] = (target_ant & BIT(2)) >> 2;
 }
 
 void rtl88eu_dm_set_tx_ant_by_tx_info(struct odm_dm_struct *dm_odm,
@@ -250,9 +252,11 @@ static void rtl88eu_dm_hw_ant_div(struct odm_dm_struct *dm_odm)
 		if (IS_STA_VALID(entry)) {
 			/* 2 Calculate RSSI per Antenna */
 			main_rssi = (dm_fat_tbl->MainAnt_Cnt[i] != 0) ?
-				     (dm_fat_tbl->MainAnt_Sum[i]/dm_fat_tbl->MainAnt_Cnt[i]) : 0;
+				     (dm_fat_tbl->MainAnt_Sum[i] /
+				      dm_fat_tbl->MainAnt_Cnt[i]) : 0;
 			aux_rssi = (dm_fat_tbl->AuxAnt_Cnt[i] != 0) ?
-				    (dm_fat_tbl->AuxAnt_Sum[i]/dm_fat_tbl->AuxAnt_Cnt[i]) : 0;
+				    (dm_fat_tbl->AuxAnt_Sum[i] /
+				     dm_fat_tbl->AuxAnt_Cnt[i]) : 0;
 			target_ant = (main_rssi >= aux_rssi) ? MAIN_ANT : AUX_ANT;
 			/* 2 Select max_rssi for DIG */
 			local_max_rssi = max(main_rssi, aux_rssi);
