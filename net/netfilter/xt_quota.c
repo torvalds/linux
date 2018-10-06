@@ -44,7 +44,7 @@ static int quota_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_quota_info *q = par->matchinfo;
 
-	BUILD_BUG_ON(sizeof(atomic64_t) != sizeof(__aligned_u64));
+	BUILD_BUG_ON(sizeof(atomic64_t) != sizeof(__u64));
 
 	if (q->flags & ~XT_QUOTA_MASK)
 		return -EINVAL;
