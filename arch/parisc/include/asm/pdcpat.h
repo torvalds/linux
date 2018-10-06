@@ -186,6 +186,14 @@
 #define PAT_MEMUSE_GI			128
 #define PAT_MEMUSE_GNI			129
 
+/* PDC PAT REGISTER TOC */
+#define PDC_PAT_REGISTER_TOC	75L
+#define PDC_PAT_TOC_REGISTER_VECTOR	0L /* Register TOC Vector */
+#define PDC_PAT_TOC_READ_VECTOR		1L /* Read TOC Vector     */
+
+/* PDC PAT SYSTEM_INFO */
+#define PDC_PAT_SYSTEM_INFO	76L
+/* PDC_PAT_SYSTEM_INFO uses the same options as PDC_SYSTEM_INFO function. */
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
