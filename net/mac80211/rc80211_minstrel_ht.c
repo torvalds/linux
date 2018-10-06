@@ -137,12 +137,10 @@
 		}					\
 	}
 
-#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
 static bool minstrel_vht_only = true;
 module_param(minstrel_vht_only, bool, 0644);
 MODULE_PARM_DESC(minstrel_vht_only,
 		 "Use only VHT rates when VHT is supported by sta.");
-#endif
 
 /*
  * To enable sufficiently targeted rate sampling, MCS rates are divided into
@@ -171,7 +169,6 @@ const struct mcs_group minstrel_mcs_groups[] = {
 
 	CCK_GROUP,
 
-#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
 	VHT_GROUP(1, 0, BW_20),
 	VHT_GROUP(2, 0, BW_20),
 	VHT_GROUP(3, 0, BW_20),
@@ -195,7 +192,6 @@ const struct mcs_group minstrel_mcs_groups[] = {
 	VHT_GROUP(1, 1, BW_80),
 	VHT_GROUP(2, 1, BW_80),
 	VHT_GROUP(3, 1, BW_80),
-#endif
 };
 
 static u8 sample_table[SAMPLE_COLUMNS][MCS_GROUP_RATES] __read_mostly;
@@ -1146,12 +1142,10 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 
 	BUILD_BUG_ON(ARRAY_SIZE(minstrel_mcs_groups) != MINSTREL_GROUPS_NB);
 
-#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
 	if (vht_cap->vht_supported)
 		use_vht = vht_cap->vht_mcs.tx_mcs_map != cpu_to_le16(~0);
 	else
-#endif
-	use_vht = 0;
+		use_vht = 0;
 
 	msp->is_ht = true;
 	memset(mi, 0, sizeof(*mi));
@@ -1224,10 +1218,9 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 
 		/* HT rate */
 		if (gflags & IEEE80211_TX_RC_MCS) {
-#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
 			if (use_vht && minstrel_vht_only)
 				continue;
-#endif
+
 			mi->supported[i] = mcs->rx_mask[nss - 1];
 			if (mi->supported[i])
 				n_supported++;
@@ -1347,16 +1340,88 @@ minstrel_ht_free_sta(void *priv, struct ieee80211_sta *sta, void *priv_sta)
 	kfree(msp);
 }
 
+static void
+minstrel_ht_init_cck_rates(struct minstrel_priv *mp)
+{
+	static const int bitrates[4] = { 10, 20, 55, 110 };
+	struct ieee80211_supported_band *sband;
+	u32 rate_flags = ieee80211_chandef_rate_flags(&mp->hw->conf.chandef);
+	int i, j;
+
+	sband = mp->hw->wiphy->bands[NL80211_BAND_2GHZ];
+	if (!sband)
+		return;
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		struct ieee80211_rate *rate = &sband->bitrates[i];
+
+		if (rate->flags & IEEE80211_RATE_ERP_G)
+			continue;
+
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(bitrates); j++) {
+			if (rate->bitrate != bitrates[j])
+				continue;
+
+			mp->cck_rates[j] = i;
+			break;
+		}
+	}
+}
+
 static void *
 minstrel_ht_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
-	return mac80211_minstrel.alloc(hw, debugfsdir);
+	struct minstrel_priv *mp;
+
+	mp = kzalloc(sizeof(struct minstrel_priv), GFP_ATOMIC);
+	if (!mp)
+		return NULL;
+
+	/* contention window settings
+	 * Just an approximation. Using the per-queue values would complicate
+	 * the calculations and is probably unnecessary */
+	mp->cw_min = 15;
+	mp->cw_max = 1023;
+
+	/* number of packets (in %) to use for sampling other rates
+	 * sample less often for non-mrr packets, because the overhead
+	 * is much higher than with mrr */
+	mp->lookaround_rate = 5;
+	mp->lookaround_rate_mrr = 10;
+
+	/* maximum time that the hw is allowed to stay in one MRR segment */
+	mp->segment_size = 6000;
+
+	if (hw->max_rate_tries > 0)
+		mp->max_retry = hw->max_rate_tries;
+	else
+		/* safe default, does not necessarily have to match hw properties */
+		mp->max_retry = 7;
+
+	if (hw->max_rates >= 4)
+		mp->has_mrr = true;
+
+	mp->hw = hw;
+	mp->update_interval = 100;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	mp->fixed_rate_idx = (u32) -1;
+	debugfs_create_u32("fixed_rate_idx", S_IRUGO | S_IWUGO, debugfsdir,
+			   &mp->fixed_rate_idx);
+#endif
+
+	minstrel_ht_init_cck_rates(mp);
+
+	return mp;
 }
 
 static void
 minstrel_ht_free(void *priv)
 {
-	mac80211_minstrel.free(priv);
+	kfree(priv);
 }
 
 static u32 minstrel_ht_get_expected_throughput(void *priv_sta)
@@ -1415,14 +1480,14 @@ static void __init init_sample_table(void)
 }
 
 int __init
-rc80211_minstrel_ht_init(void)
+rc80211_minstrel_init(void)
 {
 	init_sample_table();
 	return ieee80211_rate_control_register(&mac80211_minstrel_ht);
 }
 
 void
-rc80211_minstrel_ht_exit(void)
+rc80211_minstrel_exit(void)
 {
 	ieee80211_rate_control_unregister(&mac80211_minstrel_ht);
 }

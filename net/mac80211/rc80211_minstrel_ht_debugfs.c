@@ -15,6 +15,22 @@
 #include "rc80211_minstrel.h"
 #include "rc80211_minstrel_ht.h"
 
+static ssize_t
+minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
+{
+	struct minstrel_debugfs_info *ms;
+
+	ms = file->private_data;
+	return simple_read_from_buffer(buf, len, ppos, ms->buf, ms->len);
+}
+
+static int
+minstrel_stats_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
 static char *
 minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 {

@@ -158,7 +158,5 @@ int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_ewma);
 /* debugfs */
 int minstrel_stats_open(struct inode *inode, struct file *file);
 int minstrel_stats_csv_open(struct inode *inode, struct file *file);
-ssize_t minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos);
-int minstrel_stats_release(struct inode *inode, struct file *file);
 
 #endif

@@ -1375,18 +1375,12 @@ static int __init ieee80211_init(void)
 	if (ret)
 		return ret;
 
-	ret = rc80211_minstrel_ht_init();
-	if (ret)
-		goto err_minstrel;
-
 	ret = ieee80211_iface_init();
 	if (ret)
 		goto err_netdev;
 
 	return 0;
  err_netdev:
-	rc80211_minstrel_ht_exit();
- err_minstrel:
 	rc80211_minstrel_exit();
 
 	return ret;
@@ -1394,7 +1388,6 @@ static int __init ieee80211_init(void)
 
 static void __exit ieee80211_exit(void)
 {
-	rc80211_minstrel_ht_exit();
 	rc80211_minstrel_exit();
 
 	ieee80211s_stop();

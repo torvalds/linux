@@ -54,22 +54,6 @@
 #include <net/mac80211.h>
 #include "rc80211_minstrel.h"
 
-ssize_t
-minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
-{
-	struct minstrel_debugfs_info *ms;
-
-	ms = file->private_data;
-	return simple_read_from_buffer(buf, len, ppos, ms->buf, ms->len);
-}
-
-int
-minstrel_stats_release(struct inode *inode, struct file *file)
-{
-	kfree(file->private_data);
-	return 0;
-}
-
 int
 minstrel_stats_open(struct inode *inode, struct file *file)
 {
@@ -135,14 +119,6 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static const struct file_operations minstrel_stat_fops = {
-	.owner = THIS_MODULE,
-	.open = minstrel_stats_open,
-	.read = minstrel_stats_read,
-	.release = minstrel_stats_release,
-	.llseek = default_llseek,
-};
-
 int
 minstrel_stats_csv_open(struct inode *inode, struct file *file)
 {
@@ -199,22 +175,4 @@ minstrel_stats_csv_open(struct inode *inode, struct file *file)
 	WARN_ON(ms->len + sizeof(*ms) > 2048);
 
 	return 0;
-}
-
-static const struct file_operations minstrel_stat_csv_fops = {
-	.owner = THIS_MODULE,
-	.open = minstrel_stats_csv_open,
-	.read = minstrel_stats_read,
-	.release = minstrel_stats_release,
-	.llseek = default_llseek,
-};
-
-void
-minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir)
-{
-	struct minstrel_sta_info *mi = priv_sta;
-
-	debugfs_create_file("rc_stats", 0444, dir, mi, &minstrel_stat_fops);
-	debugfs_create_file("rc_stats_csv", 0444, dir, mi,
-			    &minstrel_stat_csv_fops);
 }
