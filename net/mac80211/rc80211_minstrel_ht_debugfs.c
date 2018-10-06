@@ -57,7 +57,6 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		struct minstrel_rate_stats *mrs = &mi->groups[i].rates[j];
 		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
-		unsigned int prob_ewmsd;
 		unsigned int duration;
 
 		if (!(mi->supported[i] & BIT(j)))
@@ -104,15 +103,13 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
 		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_ewma);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
-		prob_ewmsd = minstrel_get_ewmsd10(mrs);
 
-		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u    %3u.%1u"
+		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u"
 				"     %3u   %3u %-3u   "
 				"%9llu   %-9llu\n",
 				tp_max / 10, tp_max % 10,
 				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
-				prob_ewmsd / 10, prob_ewmsd % 10,
 				mrs->retry_count,
 				mrs->last_success,
 				mrs->last_attempts,
@@ -149,9 +146,9 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 
 	p += sprintf(p, "\n");
 	p += sprintf(p,
-		     "              best   ____________rate__________    ________statistics________    _____last____    ______sum-of________\n");
+		     "              best   ____________rate__________    ____statistics___    _____last____    ______sum-of________\n");
 	p += sprintf(p,
-		     "mode guard #  rate  [name   idx airtime  max_tp]  [avg(tp) avg(prob) sd(prob)]  [retry|suc|att]  [#success | #attempts]\n");
+		     "mode guard #  rate  [name   idx airtime  max_tp]  [avg(tp) avg(prob)]  [retry|suc|att]  [#success | #attempts]\n");
 
 	p = minstrel_ht_stats_dump(mi, MINSTREL_CCK_GROUP, p);
 	for (i = 0; i < MINSTREL_CCK_GROUP; i++)
@@ -206,7 +203,6 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		struct minstrel_rate_stats *mrs = &mi->groups[i].rates[j];
 		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
-		unsigned int prob_ewmsd;
 		unsigned int duration;
 
 		if (!(mi->supported[i] & BIT(j)))
@@ -251,14 +247,12 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
 		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_ewma);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
-		prob_ewmsd = minstrel_get_ewmsd10(mrs);
 
-		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u.%u,%u,%u,"
+		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,"
 				"%u,%llu,%llu,",
 				tp_max / 10, tp_max % 10,
 				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
-				prob_ewmsd / 10, prob_ewmsd % 10,
 				mrs->retry_count,
 				mrs->last_success,
 				mrs->last_attempts,

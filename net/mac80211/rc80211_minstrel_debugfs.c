@@ -70,14 +70,13 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 	p = ms->buf;
 	p += sprintf(p, "\n");
 	p += sprintf(p,
-		     "best   __________rate_________    ________statistics________    ____last_____    ______sum-of________\n");
+		     "best   __________rate_________    ____statistics___    ____last_____    ______sum-of________\n");
 	p += sprintf(p,
-		     "rate  [name idx airtime max_tp]  [avg(tp) avg(prob) sd(prob)]  [retry|suc|att]  [#success | #attempts]\n");
+		     "rate  [name idx airtime max_tp]  [avg(tp) avg(prob)]  [retry|suc|att]  [#success | #attempts]\n");
 
 	for (i = 0; i < mi->n_rates; i++) {
 		struct minstrel_rate *mr = &mi->r[i];
 		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
-		unsigned int prob_ewmsd;
 
 		*(p++) = (i == mi->max_tp_rate[0]) ? 'A' : ' ';
 		*(p++) = (i == mi->max_tp_rate[1]) ? 'B' : ' ';
@@ -93,15 +92,13 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		tp_max = minstrel_get_tp_avg(mr, MINSTREL_FRAC(100,100));
 		tp_avg = minstrel_get_tp_avg(mr, mrs->prob_ewma);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
-		prob_ewmsd = minstrel_get_ewmsd10(mrs);
 
-		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u    %3u.%1u"
+		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u"
 				"     %3u   %3u %-3u   "
 				"%9llu   %-9llu\n",
 				tp_max / 10, tp_max % 10,
 				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
-				prob_ewmsd / 10, prob_ewmsd % 10,
 				mrs->retry_count,
 				mrs->last_success,
 				mrs->last_attempts,
@@ -137,7 +134,6 @@ minstrel_stats_csv_open(struct inode *inode, struct file *file)
 	for (i = 0; i < mi->n_rates; i++) {
 		struct minstrel_rate *mr = &mi->r[i];
 		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
-		unsigned int prob_ewmsd;
 
 		p += sprintf(p, "%s" ,((i == mi->max_tp_rate[0]) ? "A" : ""));
 		p += sprintf(p, "%s" ,((i == mi->max_tp_rate[1]) ? "B" : ""));
@@ -153,14 +149,12 @@ minstrel_stats_csv_open(struct inode *inode, struct file *file)
 		tp_max = minstrel_get_tp_avg(mr, MINSTREL_FRAC(100,100));
 		tp_avg = minstrel_get_tp_avg(mr, mrs->prob_ewma);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
-		prob_ewmsd = minstrel_get_ewmsd10(mrs);
 
-		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u.%u,%u,%u,%u,"
+		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,%u,"
 				"%llu,%llu,%d,%d\n",
 				tp_max / 10, tp_max % 10,
 				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
-				prob_ewmsd / 10, prob_ewmsd % 10,
 				mrs->retry_count,
 				mrs->last_success,
 				mrs->last_attempts,
