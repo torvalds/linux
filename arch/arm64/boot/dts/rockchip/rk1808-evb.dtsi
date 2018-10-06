@@ -95,8 +95,6 @@
 		rockchip,irq-mode-enable = <0>;
 		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
 		interrupts = <GIC_SPI 242 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart2m0_xfer>;
 		status = "okay";
 	};
 
@@ -580,7 +578,7 @@
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc3v3_sd>;
 	vqmmc-supply = <&vccio_sd>;
-	status = "disabled"; /* disable sdmmc for uartdbg */
+	status = "okay";
 };
 
 &uart4 {
