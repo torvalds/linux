@@ -59,13 +59,16 @@
 #endif
 
 /*
- * Kernel image size is limited to 1GiB due to the fixmap living in the
- * next 1GiB (see level2_kernel_pgt in arch/x86/kernel/head_64.S). Use
- * 512MiB by default, leaving 1.5GiB for modules once the page tables
- * are fully set up. If kernel ASLR is configured, it can extend the
- * kernel page table mapping, reducing the size of the modules area.
+ * Maximum kernel image size is limited to 1 GiB, due to the fixmap living
+ * in the next 1 GiB (see level2_kernel_pgt in arch/x86/kernel/head_64.S).
+ *
+ * On KASLR use 1 GiB by default, leaving 1 GiB for modules once the
+ * page tables are fully set up.
+ *
+ * If KASLR is disabled we can shrink it to 0.5 GiB and increase the size
+ * of the modules area to 1.5 GiB.
  */
-#if defined(CONFIG_RANDOMIZE_BASE)
+#ifdef CONFIG_RANDOMIZE_BASE
 #define KERNEL_IMAGE_SIZE	(1024 * 1024 * 1024)
 #else
 #define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
