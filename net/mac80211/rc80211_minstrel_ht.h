@@ -33,9 +33,10 @@
 #define MCS_GROUP_RATES		10
 
 struct mcs_group {
-	u32 flags;
-	unsigned int streams;
-	unsigned int duration[MCS_GROUP_RATES];
+	u16 flags;
+	u8 streams;
+	u8 shift;
+	u16 duration[MCS_GROUP_RATES];
 };
 
 extern const struct mcs_group minstrel_mcs_groups[];

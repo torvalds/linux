@@ -58,6 +58,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
 		unsigned int prob_ewmsd;
+		unsigned int duration;
 
 		if (!(mi->supported[i] & BIT(j)))
 			continue;
@@ -95,7 +96,9 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		p += sprintf(p, "  %3u  ", idx);
 
 		/* tx_time[rate(i)] in usec */
-		tx_time = DIV_ROUND_CLOSEST(mg->duration[j], 1000);
+		duration = mg->duration[j];
+		duration <<= mg->shift;
+		tx_time = DIV_ROUND_CLOSEST(duration, 1000);
 		p += sprintf(p, "%6u  ", tx_time);
 
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
@@ -204,6 +207,7 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
 		unsigned int prob_ewmsd;
+		unsigned int duration;
 
 		if (!(mi->supported[i] & BIT(j)))
 			continue;
@@ -238,7 +242,10 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		}
 
 		p += sprintf(p, "%u,", idx);
-		tx_time = DIV_ROUND_CLOSEST(mg->duration[j], 1000);
+
+		duration = mg->duration[j];
+		duration <<= mg->shift;
+		tx_time = DIV_ROUND_CLOSEST(duration, 1000);
 		p += sprintf(p, "%u,", tx_time);
 
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
