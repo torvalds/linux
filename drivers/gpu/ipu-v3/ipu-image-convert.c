@@ -655,12 +655,12 @@ static void init_idmac_channel(struct ipu_image_convert_ctx *ctx,
 	tile_image.pix.pixelformat =  image->fmt->fourcc;
 	tile_image.phys0 = addr0;
 	tile_image.phys1 = addr1;
-	ipu_cpmem_set_image(channel, &tile_image);
+	if (image->fmt->planar && !rot_swap_width_height) {
+		tile_image.u_offset = image->tile[tile_idx[0]].u_off;
+		tile_image.v_offset = image->tile[tile_idx[0]].v_off;
+	}
 
-	if (image->fmt->planar && !rot_swap_width_height)
-		ipu_cpmem_set_uv_offset(channel,
-					image->tile[tile_idx[0]].u_off,
-					image->tile[tile_idx[0]].v_off);
+	ipu_cpmem_set_image(channel, &tile_image);
 
 	if (rot_mode)
 		ipu_cpmem_set_rotation(channel, rot_mode);

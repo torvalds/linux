@@ -246,6 +246,9 @@ struct ipu_image {
 	struct v4l2_rect rect;
 	dma_addr_t phys0;
 	dma_addr_t phys1;
+	/* chroma plane offset overrides */
+	u32 u_offset;
+	u32 v_offset;
 };
 
 void ipu_cpmem_zero(struct ipuv3_channel *ch);

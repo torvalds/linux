@@ -745,48 +745,56 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 	switch (pix->pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
 		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
-		u_offset = U_OFFSET(pix, image->rect.left,
-				    image->rect.top) - offset;
-		v_offset = V_OFFSET(pix, image->rect.left,
-				    image->rect.top) - offset;
+		u_offset = image->u_offset ?
+			image->u_offset : U_OFFSET(pix, image->rect.left,
+						   image->rect.top) - offset;
+		v_offset = image->v_offset ?
+			image->v_offset : V_OFFSET(pix, image->rect.left,
+						   image->rect.top) - offset;
 
 		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline / 2,
 					      u_offset, v_offset);
 		break;
 	case V4L2_PIX_FMT_YVU420:
 		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
-		u_offset = U_OFFSET(pix, image->rect.left,
-				    image->rect.top) - offset;
-		v_offset = V_OFFSET(pix, image->rect.left,
-				    image->rect.top) - offset;
+		u_offset = image->u_offset ?
+			image->u_offset : V_OFFSET(pix, image->rect.left,
+						   image->rect.top) - offset;
+		v_offset = image->v_offset ?
+			image->v_offset : U_OFFSET(pix, image->rect.left,
+						   image->rect.top) - offset;
 
 		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline / 2,
-					      v_offset, u_offset);
+					      u_offset, v_offset);
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
-		u_offset = U2_OFFSET(pix, image->rect.left,
-				     image->rect.top) - offset;
-		v_offset = V2_OFFSET(pix, image->rect.left,
-				     image->rect.top) - offset;
+		u_offset = image->u_offset ?
+			image->u_offset : U2_OFFSET(pix, image->rect.left,
+						    image->rect.top) - offset;
+		v_offset = image->v_offset ?
+			image->v_offset : V2_OFFSET(pix, image->rect.left,
+						    image->rect.top) - offset;
 
 		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline / 2,
 					      u_offset, v_offset);
 		break;
 	case V4L2_PIX_FMT_NV12:
 		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
-		u_offset = UV_OFFSET(pix, image->rect.left,
-				     image->rect.top) - offset;
-		v_offset = 0;
+		u_offset = image->u_offset ?
+			image->u_offset : UV_OFFSET(pix, image->rect.left,
+						    image->rect.top) - offset;
+		v_offset = image->v_offset ? image->v_offset : 0;
 
 		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline,
 					      u_offset, v_offset);
 		break;
 	case V4L2_PIX_FMT_NV16:
 		offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
-		u_offset = UV2_OFFSET(pix, image->rect.left,
-				      image->rect.top) - offset;
-		v_offset = 0;
+		u_offset = image->u_offset ?
+			image->u_offset : UV2_OFFSET(pix, image->rect.left,
+						     image->rect.top) - offset;
+		v_offset = image->v_offset ? image->v_offset : 0;
 
 		ipu_cpmem_set_yuv_planar_full(ch, pix->bytesperline,
 					      u_offset, v_offset);
