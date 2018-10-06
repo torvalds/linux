@@ -585,8 +585,10 @@ struct rdists {
 		void __iomem	*rd_base;
 		struct page	*pend_page;
 		phys_addr_t	phys_base;
+		bool		lpi_enabled;
 	} __percpu		*rdist;
-	struct page		*prop_page;
+	phys_addr_t		prop_table_pa;
+	void			*prop_table_va;
 	u64			flags;
 	u32			gicd_typer;
 	bool			has_vlpis;
