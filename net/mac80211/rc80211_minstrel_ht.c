@@ -1004,10 +1004,13 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		return -1;
 
 	/*
-	 * Do not sample if the probability is already higher than 95%
-	 * to avoid wasting airtime.
+	 * Do not sample if the probability is already higher than 95%,
+	 * or if the rate is 3 times slower than the current max probability
+	 * rate, to avoid wasting airtime.
 	 */
-	if (mrs->prob_ewma > MINSTREL_FRAC(95, 100))
+	sample_dur = minstrel_get_duration(sample_idx);
+	if (mrs->prob_ewma > MINSTREL_FRAC(95, 100) ||
+	    minstrel_get_duration(mi->max_prob_rate) * 3 < sample_dur)
 		return -1;
 
 	/*
@@ -1017,7 +1020,6 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 	cur_max_tp_streams = minstrel_mcs_groups[tp_rate1 /
 		MCS_GROUP_RATES].streams;
-	sample_dur = minstrel_get_duration(sample_idx);
 	if (sample_dur >= minstrel_get_duration(tp_rate2) &&
 	    (cur_max_tp_streams - 1 <
 	     minstrel_mcs_groups[sample_group].streams ||
