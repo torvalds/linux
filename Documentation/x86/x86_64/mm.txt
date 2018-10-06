@@ -1,55 +1,55 @@
 
 Virtual memory map with 4 level page tables:
 
-0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
-hole caused by [47:63] sign extension
-ffff800000000000 - ffff87ffffffffff (=43 bits) guard hole, reserved for hypervisor
-ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
-ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
-ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
-ffffe90000000000 - ffffe9ffffffffff (=40 bits) hole
-ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
-... unused hole ...
-ffffec0000000000 - fffffbffffffffff (=44 bits) kasan shadow memory (16TB)
-... unused hole ...
+0000000000000000 - 00007fffffffffff (=47 bits,   128 TB) user space, different per mm
+				    hole caused by [47:63] sign extension
+ffff800000000000 - ffff87ffffffffff (=43 bits,     8 TB) guard hole, reserved for hypervisor
+ffff880000000000 - ffffc7ffffffffff (=46 bits,    64 TB) direct mapping of all phys. memory (page_offset_base)
+ffffc80000000000 - ffffc8ffffffffff (=40 bits,     1 TB) unused hole
+ffffc90000000000 - ffffe8ffffffffff (=45 bits,    32 TB) vmalloc/ioremap space (vmalloc_base)
+ffffe90000000000 - ffffe9ffffffffff (=40 bits,     1 TB) unused hole
+ffffea0000000000 - ffffeaffffffffff (=40 bits,     1 TB) virtual memory map (vmemmap_base)
+ffffeb0000000000 - ffffebffffffffff (=40 bits,     1 TB) unused hole
+ffffec0000000000 - fffffbffffffffff (=44 bits,    16 TB) kasan shadow memory
+fffffc0000000000 - fffffdffffffffff (=41 bits,     2 TB) unused hole
 				    vaddr_end for KASLR
-fffffe0000000000 - fffffe7fffffffff (=39 bits) cpu_entry_area mapping
-fffffe8000000000 - fffffeffffffffff (=39 bits) LDT remap for PTI
-ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
-... unused hole ...
-ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
-... unused hole ...
-ffffffff80000000 - ffffffff9fffffff (=512 MB)  kernel text mapping, from phys 0
-ffffffffa0000000 - fffffffffeffffff (1520 MB) module mapping space
+fffffe0000000000 - fffffe7fffffffff (=39 bits,   512 GB) cpu_entry_area mapping
+fffffe8000000000 - fffffeffffffffff (=39 bits,   512 GB) LDT remap for PTI
+ffffff0000000000 - ffffff7fffffffff (=39 bits,   512 GB) %esp fixup stacks
+ffffff8000000000 - fffffffeefffffff (~39 bits,  ~507 GB) unused hole
+ffffffef00000000 - fffffffeffffffff (=36 bits,    64 GB) EFI region mapping space
+ffffffff00000000 - ffffffff7fffffff (=31 bits,     2 GB) unused hole
+ffffffff80000000 - ffffffff9fffffff (=29 bits,   512 MB) kernel text mapping, from phys 0
+ffffffffa0000000 - fffffffffeffffff (~31 bits,  1520 MB) module mapping space
 [fixmap start]   - ffffffffff5fffff kernel-internal fixmap range
-ffffffffff600000 - ffffffffff600fff (=4 kB) legacy vsyscall ABI
-ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
+ffffffffff600000 - ffffffffff600fff (             =4 kB) legacy vsyscall ABI
+ffffffffffe00000 - ffffffffffffffff (             =2 MB) unused hole
 
 Virtual memory map with 5 level page tables:
 
-0000000000000000 - 00ffffffffffffff (=56 bits) user space, different per mm
-hole caused by [56:63] sign extension
-ff00000000000000 - ff0fffffffffffff (=52 bits) guard hole, reserved for hypervisor
-ff10000000000000 - ff8fffffffffffff (=55 bits) direct mapping of all phys. memory
-ff90000000000000 - ff9fffffffffffff (=52 bits) LDT remap for PTI
-ffa0000000000000 - ffd1ffffffffffff (=54 bits) vmalloc/ioremap space (12800 TB)
-ffd2000000000000 - ffd3ffffffffffff (=49 bits) hole
-ffd4000000000000 - ffd5ffffffffffff (=49 bits) virtual memory map (512TB)
-... unused hole ...
-ffdf000000000000 - fffffc0000000000 (=53 bits) kasan shadow memory (8PB)
-... unused hole ...
+0000000000000000 - 00ffffffffffffff (=56 bits,    64 PB) user space, different per mm
+				    hole caused by [56:63] sign extension
+ff00000000000000 - ff0fffffffffffff (=52 bits,     4 PB) guard hole, reserved for hypervisor
+ff10000000000000 - ff8fffffffffffff (=55 bits,    32 PB) direct mapping of all phys. memory (page_offset_base)
+ff90000000000000 - ff9fffffffffffff (=52 bits,     4 PB) LDT remap for PTI
+ffa0000000000000 - ffd1ffffffffffff (=53 bits, 12800 TB) vmalloc/ioremap space (vmalloc_base)
+ffd2000000000000 - ffd3ffffffffffff (=49 bits,   512 TB) unused hole
+ffd4000000000000 - ffd5ffffffffffff (=49 bits,   512 TB) virtual memory map (vmemmap_base)
+ffd6000000000000 - ffdeffffffffffff (~51 bits,  2304 TB) unused hole
+ffdf000000000000 - fffffdffffffffff (~53 bits,    ~8 PB) kasan shadow memory
+fffffc0000000000 - fffffdffffffffff (=41 bits,     2 TB) unused hole
 				    vaddr_end for KASLR
-fffffe0000000000 - fffffe7fffffffff (=39 bits) cpu_entry_area mapping
-... unused hole ...
-ffffff0000000000 - ffffff7fffffffff (=39 bits) %esp fixup stacks
-... unused hole ...
-ffffffef00000000 - fffffffeffffffff (=64 GB) EFI region mapping space
-... unused hole ...
-ffffffff80000000 - ffffffff9fffffff (=512 MB)  kernel text mapping, from phys 0
-ffffffffa0000000 - fffffffffeffffff (1520 MB) module mapping space
+fffffe0000000000 - fffffe7fffffffff (=39 bits,   512 GB) cpu_entry_area mapping
+fffffe8000000000 - fffffeffffffffff (=39 bits,   512 GB) unused hole
+ffffff0000000000 - ffffff7fffffffff (=39 bits,   512 GB) %esp fixup stacks
+ffffff8000000000 - ffffffeeffffffff (~39 bits,   444 GB) unused hole
+ffffffef00000000 - fffffffeffffffff (=36 bits,    64 GB) EFI region mapping space
+ffffffff00000000 - ffffffff7fffffff (31 bits,      2 GB) unused hole
+ffffffff80000000 - ffffffff9fffffff (=29 bits,   512 MB) kernel text mapping, from phys 0
+ffffffffa0000000 - fffffffffeffffff (~31 bits,  1520 MB) module mapping space
 [fixmap start]   - ffffffffff5fffff kernel-internal fixmap range
-ffffffffff600000 - ffffffffff600fff (=4 kB) legacy vsyscall ABI
-ffffffffffe00000 - ffffffffffffffff (=2 MB) unused hole
+ffffffffff600000 - ffffffffff600fff (             =4 kB) legacy vsyscall ABI
+ffffffffffe00000 - ffffffffffffffff (             =2 MB) unused hole
 
 Architecture defines a 64-bit virtual address. Implementations can support
 less. Currently supported are 48- and 57-bit virtual addresses. Bits 63
