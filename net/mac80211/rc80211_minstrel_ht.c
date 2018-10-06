@@ -131,7 +131,7 @@
 
 #define CCK_GROUP(_s)					\
 	[MINSTREL_CCK_GROUP] = {			\
-		.streams = 0,				\
+		.streams = 1,				\
 		.flags = 0,				\
 		.shift = _s,				\
 		.duration = {				\
