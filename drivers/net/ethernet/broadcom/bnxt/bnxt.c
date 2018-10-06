@@ -3017,10 +3017,11 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
 
-	dma_free_coherent(&pdev->dev, PAGE_SIZE, bp->hwrm_cmd_resp_addr,
-			  bp->hwrm_cmd_resp_dma_addr);
-
-	bp->hwrm_cmd_resp_addr = NULL;
+	if (bp->hwrm_cmd_resp_addr) {
+		dma_free_coherent(&pdev->dev, PAGE_SIZE, bp->hwrm_cmd_resp_addr,
+				  bp->hwrm_cmd_resp_dma_addr);
+		bp->hwrm_cmd_resp_addr = NULL;
+	}
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -4650,7 +4651,7 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct hwrm_func_cfg_input *req,
 				      FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
 		enables |= ring_grps ?
 			   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
-		enables |= vnics ? FUNC_VF_CFG_REQ_ENABLES_NUM_VNICS : 0;
+		enables |= vnics ? FUNC_CFG_REQ_ENABLES_NUM_VNICS : 0;
 
 		req->num_rx_rings = cpu_to_le16(rx_rings);
 		req->num_hw_ring_grps = cpu_to_le16(ring_grps);
@@ -8621,7 +8622,7 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	*max_tx = hw_resc->max_tx_rings;
 	*max_rx = hw_resc->max_rx_rings;
 	*max_cp = min_t(int, bnxt_get_max_func_cp_rings_for_en(bp),
-			hw_resc->max_irqs);
+			hw_resc->max_irqs - bnxt_get_ulp_msix_num(bp));
 	*max_cp = min_t(int, *max_cp, hw_resc->max_stat_ctxs);
 	max_ring_grps = hw_resc->max_hw_ring_grps;
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && BNXT_PF(bp)) {
@@ -9057,6 +9058,7 @@ init_err_cleanup_tc:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
+	bnxt_free_hwrm_resources(bp);
 	bnxt_cleanup_pci(bp);
 
 init_err_free:

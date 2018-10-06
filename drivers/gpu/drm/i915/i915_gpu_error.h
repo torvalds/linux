@@ -135,6 +135,7 @@ struct i915_gpu_state {
 		struct drm_i915_error_object {
 			u64 gtt_offset;
 			u64 gtt_size;
+			int num_pages;
 			int page_count;
 			int unused;
 			u32 *pages[0];
