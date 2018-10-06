@@ -83,7 +83,8 @@ static const struct mt76_reg_pair mt76x0_mac_reg_table[] = {
 	{ MT_LDO_CTRL_1,		0x6B006464 },
 	{ MT_HT_BASIC_RATE,		0x00004003 },
 	{ MT_HT_CTRL_CFG,		0x000001FF },
-	{ MT_TXOP_HLDR_ET,		0x00000000 }
+	{ MT_TXOP_HLDR_ET,		0x00000000 },
+	{ MT_PN_PAD_MODE,		0x00000003 },
 };
 
 static const struct mt76_reg_pair mt76x0_bbp_init_tab[] = {

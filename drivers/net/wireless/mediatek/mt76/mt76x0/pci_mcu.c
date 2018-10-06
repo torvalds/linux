@@ -24,7 +24,7 @@
 
 #define MT_MCU_IVB_ADDR		(MT_MCU_ILM_ADDR + 0x54000 - MT_MCU_IVB_SIZE)
 
-static int mt76x0e_load_firmware(struct mt76x0_dev *dev)
+static int mt76x0e_load_firmware(struct mt76x02_dev *dev)
 {
 	bool is_combo_chip = mt76_chip(&dev->mt76) != 0x7610;
 	u32 val, ilm_len, dlm_len, offset = 0;
@@ -126,7 +126,7 @@ out:
 	return err;
 }
 
-int mt76x0e_mcu_init(struct mt76x0_dev *dev)
+int mt76x0e_mcu_init(struct mt76x02_dev *dev)
 {
 	static const struct mt76_mcu_ops mt76x0e_mcu_ops = {
 		.mcu_msg_alloc = mt76x02_mcu_msg_alloc,

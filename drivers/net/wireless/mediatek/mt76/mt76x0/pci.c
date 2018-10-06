@@ -20,16 +20,14 @@
 
 #include "mt76x0.h"
 #include "mcu.h"
-#include "../mt76x02_dma.h"
-#include "../mt76x02_util.h"
 
 static int mt76x0e_start(struct ieee80211_hw *hw)
 {
-	struct mt76x0_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
-	mt76x02_mac_start(&dev->mt76);
+	mt76x02_mac_start(dev);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
@@ -41,13 +39,8 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void mt76x0e_stop(struct ieee80211_hw *hw)
+static void mt76x0e_stop_hw(struct mt76x02_dev *dev)
 {
-	struct mt76x0_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mac_work);
 
@@ -62,12 +55,20 @@ static void mt76x0e_stop(struct ieee80211_hw *hw)
 		       0, 1000))
 		dev_warn(dev->mt76.dev, "TX DMA did not stop\n");
 	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_RX_DMA_EN);
+}
 
+static void mt76x0e_stop(struct ieee80211_hw *hw)
+{
+	struct mt76x02_dev *dev = hw->priv;
+
+	mutex_lock(&dev->mt76.mutex);
+	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	mt76x0e_stop_hw(dev);
 	mutex_unlock(&dev->mt76.mutex);
 }
 
 static const struct ieee80211_ops mt76x0e_ops = {
-	.tx = mt76x0_tx,
+	.tx = mt76x02_tx,
 	.start = mt76x0e_start,
 	.stop = mt76x0e_stop,
 	.config = mt76x0_config,
@@ -76,7 +77,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.configure_filter = mt76x02_configure_filter,
 };
 
-static int mt76x0e_register_device(struct mt76x0_dev *dev)
+static int mt76x0e_register_device(struct mt76x02_dev *dev)
 {
 	int err;
 
@@ -84,12 +85,12 @@ static int mt76x0e_register_device(struct mt76x0_dev *dev)
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
-	mt76x02_dma_disable(&dev->mt76);
+	mt76x02_dma_disable(dev);
 	err = mt76x0e_mcu_init(dev);
 	if (err < 0)
 		return err;
 
-	err = mt76x02_dma_init(&dev->mt76);
+	err = mt76x02_dma_init(dev);
 	if (err < 0)
 		return err;
 
@@ -123,8 +124,8 @@ static int mt76x0e_register_device(struct mt76x0_dev *dev)
 static int
 mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct mt76x0_dev *dev;
-	int ret = -ENODEV;
+	struct mt76x02_dev *dev;
+	int ret;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -160,12 +161,23 @@ error:
 	return ret;
 }
 
+static void mt76x0e_cleanup(struct mt76x02_dev *dev)
+{
+	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	mt76x0_chip_onoff(dev, false, false);
+	mt76x0e_stop_hw(dev);
+	mt76x02_dma_cleanup(dev);
+	mt76x02_mcu_cleanup(&dev->mt76);
+}
+
 static void
 mt76x0e_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 
 	mt76_unregister_device(mdev);
+	mt76x0e_cleanup(dev);
 	ieee80211_free_hw(mdev->hw);
 }
 

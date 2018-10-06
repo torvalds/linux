@@ -25,7 +25,7 @@
 
 #define MT_MAP_READS	DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16)
 static int
-mt76x0_efuse_physical_size_check(struct mt76x0_dev *dev)
+mt76x0_efuse_physical_size_check(struct mt76x02_dev *dev)
 {
 	u8 data[MT_MAP_READS * 16];
 	int ret, i;
@@ -53,7 +53,7 @@ mt76x0_efuse_physical_size_check(struct mt76x0_dev *dev)
 	return 0;
 }
 
-static void mt76x0_set_chip_cap(struct mt76x0_dev *dev)
+static void mt76x0_set_chip_cap(struct mt76x02_dev *dev)
 {
 	u16 nic_conf0 = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
 	u16 nic_conf1 = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_1);
@@ -82,20 +82,20 @@ static void mt76x0_set_chip_cap(struct mt76x0_dev *dev)
 		dev_err(dev->mt76.dev, "invalid tx-rx stream\n");
 }
 
-static void mt76x0_set_temp_offset(struct mt76x0_dev *dev)
+static void mt76x0_set_temp_offset(struct mt76x02_dev *dev)
 {
 	u8 val;
 
 	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_2G_TARGET_POWER) >> 8;
 	if (mt76x02_field_valid(val))
-		dev->caldata.temp_offset = mt76x02_sign_extend(val, 8);
+		dev->cal.rx.temp_offset = mt76x02_sign_extend(val, 8);
 	else
-		dev->caldata.temp_offset = -10;
+		dev->cal.rx.temp_offset = -10;
 }
 
-static void mt76x0_set_freq_offset(struct mt76x0_dev *dev)
+static void mt76x0_set_freq_offset(struct mt76x02_dev *dev)
 {
-	struct mt76x0_caldata *caldata = &dev->caldata;
+	struct mt76x02_rx_freq_cal *caldata = &dev->cal.rx;
 	u8 val;
 
 	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_FREQ_OFFSET);
@@ -110,10 +110,10 @@ static void mt76x0_set_freq_offset(struct mt76x0_dev *dev)
 	caldata->freq_offset -= mt76x02_sign_extend(val, 8);
 }
 
-void mt76x0_read_rx_gain(struct mt76x0_dev *dev)
+void mt76x0_read_rx_gain(struct mt76x02_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
-	struct mt76x0_caldata *caldata = &dev->caldata;
+	struct mt76x02_rx_freq_cal *caldata = &dev->cal.rx;
 	s8 val, lna_5g[3], lna_2g;
 	u16 rssi_offset;
 	int i;
@@ -157,7 +157,7 @@ static s8 mt76x0_get_delta(struct mt76_dev *dev)
 	return mt76x02_rate_power_val(val);
 }
 
-void mt76x0_get_tx_power_per_rate(struct mt76x0_dev *dev)
+void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	bool is_2ghz = chan->band == NL80211_BAND_2GHZ;
@@ -216,7 +216,7 @@ void mt76x0_get_tx_power_per_rate(struct mt76x0_dev *dev)
 	mt76x02_add_rate_power_offset(t, delta);
 }
 
-void mt76x0_get_power_info(struct mt76x0_dev *dev, u8 *info)
+void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info)
 {
 	struct mt76x0_chan_map {
 		u8 chan;
@@ -277,7 +277,7 @@ void mt76x0_get_power_info(struct mt76x0_dev *dev, u8 *info)
 		info[1] = 5;
 }
 
-static int mt76x0_check_eeprom(struct mt76x0_dev *dev)
+static int mt76x0_check_eeprom(struct mt76x02_dev *dev)
 {
 	u16 val;
 
@@ -297,7 +297,7 @@ static int mt76x0_check_eeprom(struct mt76x0_dev *dev)
 	}
 }
 
-static int mt76x0_load_eeprom(struct mt76x0_dev *dev)
+static int mt76x0_load_eeprom(struct mt76x02_dev *dev)
 {
 	int found;
 
@@ -316,7 +316,7 @@ static int mt76x0_load_eeprom(struct mt76x0_dev *dev)
 				      MT76X0_EEPROM_SIZE, MT_EE_READ);
 }
 
-int mt76x0_eeprom_init(struct mt76x0_dev *dev)
+int mt76x0_eeprom_init(struct mt76x02_dev *dev)
 {
 	u8 version, fae;
 	u16 data;

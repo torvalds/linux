@@ -18,9 +18,6 @@
 #include "eeprom.h"
 #include "trace.h"
 #include "mcu.h"
-#include "../mt76x02_util.h"
-#include "../mt76x02_dma.h"
-
 #include "initvals.h"
 
 static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)
@@ -42,7 +39,7 @@ static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)
 }
 
 static void
-mt76x0_set_wlan_state(struct mt76x0_dev *dev, u32 val, bool enable)
+mt76x0_set_wlan_state(struct mt76x02_dev *dev, u32 val, bool enable)
 {
 	u32 mask = MT_CMB_CTRL_XTAL_RDY | MT_CMB_CTRL_PLL_LD;
 
@@ -69,11 +66,9 @@ mt76x0_set_wlan_state(struct mt76x0_dev *dev, u32 val, bool enable)
 		dev_err(dev->mt76.dev, "PLL and XTAL check failed\n");
 }
 
-void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
+void mt76x0_chip_onoff(struct mt76x02_dev *dev, bool enable, bool reset)
 {
 	u32 val;
-
-	mutex_lock(&dev->hw_atomic_mutex);
 
 	val = mt76_rr(dev, MT_WLAN_FUN_CTRL);
 
@@ -96,12 +91,10 @@ void mt76x0_chip_onoff(struct mt76x0_dev *dev, bool enable, bool reset)
 	udelay(20);
 
 	mt76x0_set_wlan_state(dev, val, enable);
-
-	mutex_unlock(&dev->hw_atomic_mutex);
 }
 EXPORT_SYMBOL_GPL(mt76x0_chip_onoff);
 
-static void mt76x0_reset_csr_bbp(struct mt76x0_dev *dev)
+static void mt76x0_reset_csr_bbp(struct mt76x02_dev *dev)
 {
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_RESET_CSR |
@@ -116,7 +109,7 @@ static void mt76x0_reset_csr_bbp(struct mt76x0_dev *dev)
 	mt76_wr_rp(dev, MT_MCU_MEMMAP_WLAN,	\
 		   tab, ARRAY_SIZE(tab))
 
-static int mt76x0_init_bbp(struct mt76x0_dev *dev)
+static int mt76x0_init_bbp(struct mt76x02_dev *dev)
 {
 	int ret, i;
 
@@ -139,7 +132,7 @@ static int mt76x0_init_bbp(struct mt76x0_dev *dev)
 	return 0;
 }
 
-static void mt76x0_init_mac_registers(struct mt76x0_dev *dev)
+static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 {
 	u32 reg;
 
@@ -172,15 +165,9 @@ static void mt76x0_init_mac_registers(struct mt76x0_dev *dev)
 	reg &= ~0x000003FF;
 	reg |= 0x00000201;
 	mt76_wr(dev, MT_WMM_CTRL, reg);
-
-	/* TODO: Probably not needed */
-	mt76_wr(dev, 0x7028, 0);
-	mt76_wr(dev, 0x7010, 0);
-	mt76_wr(dev, 0x7024, 0);
-	msleep(10);
 }
 
-static int mt76x0_init_wcid_mem(struct mt76x0_dev *dev)
+static int mt76x0_init_wcid_mem(struct mt76x02_dev *dev)
 {
 	u32 *vals;
 	int i;
@@ -199,14 +186,14 @@ static int mt76x0_init_wcid_mem(struct mt76x0_dev *dev)
 	return 0;
 }
 
-static void mt76x0_init_key_mem(struct mt76x0_dev *dev)
+static void mt76x0_init_key_mem(struct mt76x02_dev *dev)
 {
 	u32 vals[4] = {};
 
 	mt76_wr_copy(dev, MT_SKEY_MODE_BASE_0, vals, ARRAY_SIZE(vals));
 }
 
-static int mt76x0_init_wcid_attr_mem(struct mt76x0_dev *dev)
+static int mt76x0_init_wcid_attr_mem(struct mt76x02_dev *dev)
 {
 	u32 *vals;
 	int i;
@@ -223,7 +210,7 @@ static int mt76x0_init_wcid_attr_mem(struct mt76x0_dev *dev)
 	return 0;
 }
 
-static void mt76x0_reset_counters(struct mt76x0_dev *dev)
+static void mt76x0_reset_counters(struct mt76x02_dev *dev)
 {
 	mt76_rr(dev, MT_RX_STAT_0);
 	mt76_rr(dev, MT_RX_STAT_1);
@@ -233,7 +220,7 @@ static void mt76x0_reset_counters(struct mt76x0_dev *dev)
 	mt76_rr(dev, MT_TX_STA_2);
 }
 
-int mt76x0_mac_start(struct mt76x0_dev *dev)
+int mt76x0_mac_start(struct mt76x02_dev *dev)
 {
 	mt76_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
 
@@ -248,7 +235,7 @@ int mt76x0_mac_start(struct mt76x0_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x0_mac_start);
 
-void mt76x0_mac_stop(struct mt76x0_dev *dev)
+void mt76x0_mac_stop(struct mt76x02_dev *dev)
 {
 	int i = 200, ok = 0;
 
@@ -281,7 +268,7 @@ void mt76x0_mac_stop(struct mt76x0_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 
-int mt76x0_init_hardware(struct mt76x0_dev *dev)
+int mt76x0_init_hardware(struct mt76x02_dev *dev)
 {
 	int ret;
 
@@ -335,12 +322,12 @@ int mt76x0_init_hardware(struct mt76x0_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x0_init_hardware);
 
-struct mt76x0_dev *
+struct mt76x02_dev *
 mt76x0_alloc_device(struct device *pdev,
 		    const struct mt76_driver_ops *drv_ops,
 		    const struct ieee80211_ops *ops)
 {
-	struct mt76x0_dev *dev;
+	struct mt76x02_dev *dev;
 	struct mt76_dev *mdev;
 
 	mdev = mt76_alloc_device(sizeof(*dev), ops);
@@ -350,18 +337,15 @@ mt76x0_alloc_device(struct device *pdev,
 	mdev->dev = pdev;
 	mdev->drv = drv_ops;
 
-	dev = container_of(mdev, struct mt76x0_dev, mt76);
-	mutex_init(&dev->reg_atomic_mutex);
-	mutex_init(&dev->hw_atomic_mutex);
-	spin_lock_init(&dev->mac_lock);
-	spin_lock_init(&dev->con_mon_lock);
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
+	mutex_init(&dev->phy_mutex);
 	atomic_set(&dev->avg_ampdu_len, 1);
 
 	return dev;
 }
 EXPORT_SYMBOL_GPL(mt76x0_alloc_device);
 
-int mt76x0_register_device(struct mt76x0_dev *dev)
+int mt76x0_register_device(struct mt76x02_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	struct ieee80211_hw *hw = mdev->hw;

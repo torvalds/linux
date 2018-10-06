@@ -17,7 +17,7 @@
 
 #include "../mt76x02_mcu.h"
 
-struct mt76x0_dev;
+struct mt76x02_dev;
 
 #define MT_MCU_IVB_SIZE			0x40
 #define MT_MCU_DLM_OFFSET		0x80000
@@ -41,9 +41,9 @@ enum mcu_calibrate {
 	MCU_CAL_TX_GROUP_DELAY,
 };
 
-int mt76x0e_mcu_init(struct mt76x0_dev *dev);
-int mt76x0u_mcu_init(struct mt76x0_dev *dev);
-static inline int mt76x0_firmware_running(struct mt76x0_dev *dev)
+int mt76x0e_mcu_init(struct mt76x02_dev *dev);
+int mt76x0u_mcu_init(struct mt76x02_dev *dev);
+static inline int mt76x0_firmware_running(struct mt76x02_dev *dev)
 {
 	return mt76_rr(dev, MT_MCU_COM_REG0) == 1;
 }

@@ -13,13 +13,13 @@
  * GNU General Public License for more details.
  */
 
-#include "mt76x0.h"
-#include "trace.h"
-#include "../mt76x02_util.h"
 #include <linux/etherdevice.h>
 
-void mt76x0_mac_set_protection(struct mt76x0_dev *dev, bool legacy_prot,
-				int ht_mode)
+#include "mt76x0.h"
+#include "trace.h"
+
+void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
+			       int ht_mode)
 {
 	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
 	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
@@ -77,7 +77,7 @@ void mt76x0_mac_set_protection(struct mt76x0_dev *dev, bool legacy_prot,
 		mt76_wr(dev, MT_CCK_PROT_CFG + i * 4, prot[i]);
 }
 
-void mt76x0_mac_set_short_preamble(struct mt76x0_dev *dev, bool short_preamb)
+void mt76x0_mac_set_short_preamble(struct mt76x02_dev *dev, bool short_preamb)
 {
 	if (short_preamb)
 		mt76_set(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
@@ -85,7 +85,7 @@ void mt76x0_mac_set_short_preamble(struct mt76x0_dev *dev, bool short_preamb)
 		mt76_clear(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
 }
 
-void mt76x0_mac_config_tsf(struct mt76x0_dev *dev, bool enable, int interval)
+void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval)
 {
 	u32 val = mt76_rr(dev, MT_BEACON_TIME_CFG);
 
@@ -105,7 +105,7 @@ void mt76x0_mac_config_tsf(struct mt76x0_dev *dev, bool enable, int interval)
 		MT_BEACON_TIME_CFG_TBTT_EN;
 }
 
-static void mt76x0_check_mac_err(struct mt76x0_dev *dev)
+static void mt76x0_check_mac_err(struct mt76x02_dev *dev)
 {
 	u32 val = mt76_rr(dev, 0x10f4);
 
@@ -120,7 +120,7 @@ static void mt76x0_check_mac_err(struct mt76x0_dev *dev)
 }
 void mt76x0_mac_work(struct work_struct *work)
 {
-	struct mt76x0_dev *dev = container_of(work, struct mt76x0_dev,
+	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
 					       mac_work.work);
 	struct {
 		u32 addr_base;
@@ -171,7 +171,7 @@ void mt76x0_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work, 10 * HZ);
 }
 
-void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
+void mt76x0_mac_set_ampdu_factor(struct mt76x02_dev *dev)
 {
 	struct ieee80211_sta *sta;
 	struct mt76_wcid *wcid;
@@ -194,68 +194,4 @@ void mt76x0_mac_set_ampdu_factor(struct mt76x0_dev *dev)
 
 	mt76_wr(dev, MT_MAX_LEN_CFG, 0xa0fff |
 		   FIELD_PREP(MT_MAX_LEN_CFG_AMPDU, min_factor));
-}
-
-static void
-mt76x0_rx_monitor_beacon(struct mt76x0_dev *dev, struct mt76x02_rxwi *rxwi,
-			  u16 rate, int rssi)
-{
-	dev->bcn_phy_mode = FIELD_GET(MT_RXWI_RATE_PHY, rate);
-	dev->avg_rssi = ((dev->avg_rssi * 15) / 16 + (rssi << 8)) / 256;
-}
-
-static int
-mt76x0_rx_is_our_beacon(struct mt76x0_dev *dev, u8 *data)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
-
-	return ieee80211_is_beacon(hdr->frame_control) &&
-		ether_addr_equal(hdr->addr2, dev->ap_bssid);
-}
-
-u32 mt76x0_mac_process_rx(struct mt76x0_dev *dev, struct sk_buff *skb,
-			void *rxi)
-{
-	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
-	struct mt76x02_rxwi *rxwi = rxi;
-	u32 len, ctl = le32_to_cpu(rxwi->ctl);
-	u16 rate = le16_to_cpu(rxwi->rate);
-	int rssi, pad_len = 0;
-
-	len = FIELD_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
-	if (WARN_ON(len < 10))
-		return 0;
-
-	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
-		status->flag |= RX_FLAG_DECRYPTED;
-		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
-	}
-
-	if (rxwi->rxinfo & MT_RXINFO_L2PAD)
-		pad_len += 2;
-
-	mt76x02_remove_hdr_pad(skb, pad_len);
-
-	pskb_trim(skb, len);
-	status->chains = BIT(0);
-	rssi = mt76x0_phy_get_rssi(dev, rxwi);
-	status->chain_signal[0] = status->signal = rssi;
-	status->freq = dev->mt76.chandef.chan->center_freq;
-	status->band = dev->mt76.chandef.chan->band;
-
-	mt76x02_mac_process_rate(status, rate);
-
-	spin_lock_bh(&dev->con_mon_lock);
-	if (mt76x0_rx_is_our_beacon(dev, skb->data)) {
-		mt76x0_rx_monitor_beacon(dev, rxwi, rate, rssi);
-	} else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST)) {
-		if (dev->avg_rssi == 0)
-			dev->avg_rssi = rssi;
-		else
-			dev->avg_rssi = (dev->avg_rssi * 15) / 16 + rssi / 16;
-
-	}
-	spin_unlock_bh(&dev->con_mon_lock);
-
-	return len;
 }

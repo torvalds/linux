@@ -16,10 +16,7 @@
  */
 
 #include <linux/module.h>
-#include "mt76.h"
-#include "mt76x02_dma.h"
-#include "mt76x02_regs.h"
-#include "mt76x02_mac.h"
+#include "mt76x02.h"
 
 #define CCK_RATE(_idx, _rate) {					\
 	.bitrate = _rate,					\
@@ -373,9 +370,7 @@ void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 	rate.idx = rates->rate[0].idx;
 	rate.flags = rates->rate[0].flags;
 	mt76x02_mac_wcid_set_rate(dev, &msta->wcid, &rate);
-
-	if (dev->drv && dev->drv->get_max_txpwr_adj)
-		msta->wcid.max_txpwr_adj = dev->drv->get_max_txpwr_adj(dev, &rate);
+	msta->wcid.max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(dev, &rate);
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_rate_tbl_update);
 
@@ -407,52 +402,6 @@ void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len)
 	skb_pull(skb, len);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_hdr_pad);
-
-static void mt76x02_remove_dma_hdr(struct sk_buff *skb)
-{
-	int hdr_len;
-
-	skb_pull(skb, sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN);
-	hdr_len = ieee80211_get_hdrlen_from_skb(skb);
-	if (hdr_len % 4)
-		mt76x02_remove_hdr_pad(skb, 2);
-}
-
-void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-		ieee80211_free_txskb(dev->hw, skb);
-	} else {
-		ieee80211_tx_info_clear_status(info);
-		info->status.rates[0].idx = -1;
-		info->flags |= IEEE80211_TX_STAT_ACK;
-		ieee80211_tx_status(dev->hw, skb);
-	}
-}
-EXPORT_SYMBOL_GPL(mt76x02_tx_complete);
-
-void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
-			    struct mt76_queue_entry *e, bool flush)
-{
-	mt76x02_remove_dma_hdr(e->skb);
-	mt76x02_tx_complete(mdev, e->skb);
-}
-EXPORT_SYMBOL_GPL(mt76x02_tx_complete_skb);
-
-bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update)
-{
-	struct mt76x02_tx_status stat;
-
-	if (!mt76x02_mac_load_tx_status(dev, &stat))
-		return false;
-
-	mt76x02_send_tx_status(dev, &stat, update);
-
-	return true;
-}
-EXPORT_SYMBOL_GPL(mt76x02_tx_status_data);
 
 const u16 mt76x02_beacon_offsets[16] = {
 	/* 1024 byte per beacon */
