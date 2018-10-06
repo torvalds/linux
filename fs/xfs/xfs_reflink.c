@@ -1262,22 +1262,32 @@ xfs_reflink_zero_posteof(
 
 /*
  * Prepare two files for range cloning.  Upon a successful return both inodes
- * will have the iolock and mmaplock held, the page cache of the out file
- * will be truncated, and any leases on the out file will have been broken.
- * This function borrows heavily from xfs_file_aio_write_checks.
+ * will have the iolock and mmaplock held, the page cache of the out file will
+ * be truncated, and any leases on the out file will have been broken.  This
+ * function borrows heavily from xfs_file_aio_write_checks.
  *
  * The VFS allows partial EOF blocks to "match" for dedupe even though it hasn't
  * checked that the bytes beyond EOF physically match. Hence we cannot use the
  * EOF block in the source dedupe range because it's not a complete block match,
- * hence can introduce a corruption into the file that has it's
- * block replaced.
+ * hence can introduce a corruption into the file that has it's block replaced.
  *
- * Despite this issue, we still need to report that range as successfully
- * deduped to avoid confusing userspace with EINVAL errors on completely
- * matching file data. The only time that an unaligned length will be passed to
- * us is when it spans the EOF block of the source file, so if we simply mask it
- * down to be block aligned here the we will dedupe everything but that partial
- * EOF block.
+ * In similar fashion, the VFS file cloning also allows partial EOF blocks to be
+ * "block aligned" for the purposes of cloning entire files.  However, if the
+ * source file range includes the EOF block and it lands within the existing EOF
+ * of the destination file, then we can expose stale data from beyond the source
+ * file EOF in the destination file.
+ *
+ * XFS doesn't support partial block sharing, so in both cases we have check
+ * these cases ourselves. For dedupe, we can simply round the length to dedupe
+ * down to the previous whole block and ignore the partial EOF block. While this
+ * means we can't dedupe the last block of a file, this is an acceptible
+ * tradeoff for simplicity on implementation.
+ *
+ * For cloning, we want to share the partial EOF block if it is also the new EOF
+ * block of the destination file. If the partial EOF block lies inside the
+ * existing destination EOF, then we have to abort the clone to avoid exposing
+ * stale data in the destination file. Hence we reject these clone attempts with
+ * -EINVAL in this case.
  */
 STATIC int
 xfs_reflink_remap_prep(
@@ -1293,6 +1303,7 @@ xfs_reflink_remap_prep(
 	struct inode		*inode_out = file_inode(file_out);
 	struct xfs_inode	*dest = XFS_I(inode_out);
 	bool			same_inode = (inode_in == inode_out);
+	u64			blkmask = i_blocksize(inode_in) - 1;
 	ssize_t			ret;
 
 	/* Lock both files against IO */
@@ -1325,8 +1336,18 @@ xfs_reflink_remap_prep(
 	 * from the source file so we don't try to dedupe the partial
 	 * EOF block.
 	 */
-	if (is_dedupe)
-		*len &= ~((u64)i_blocksize(inode_in) - 1);
+	if (is_dedupe) {
+		*len &= ~blkmask;
+	} else if (*len & blkmask) {
+		/*
+		 * The user is attempting to share a partial EOF block,
+		 * if it's inside the destination EOF then reject it.
+		 */
+		if (pos_out + *len < i_size_read(inode_out)) {
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+	}
 
 	/* Attach dquots to dest inode before changing block map */
 	ret = xfs_qm_dqattach(dest);
