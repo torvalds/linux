@@ -717,17 +717,14 @@ static void xdbc_handle_port_status(struct xdbc_trb *evt_trb)
 
 static void xdbc_handle_tx_event(struct xdbc_trb *evt_trb)
 {
-	size_t remain_length;
 	u32 comp_code;
 	int ep_id;
 
 	comp_code	= GET_COMP_CODE(le32_to_cpu(evt_trb->field[2]));
-	remain_length	= EVENT_TRB_LEN(le32_to_cpu(evt_trb->field[2]));
 	ep_id		= TRB_TO_EP_ID(le32_to_cpu(evt_trb->field[3]));
 
 	switch (comp_code) {
 	case COMP_SUCCESS:
-		remain_length = 0;
 	case COMP_SHORT_PACKET:
 		break;
 	case COMP_TRB_ERROR:
