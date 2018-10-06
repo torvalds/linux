@@ -58,6 +58,13 @@ struct open_bucket {
 	struct bch_extent_ptr	ptr;
 };
 
+#define OPEN_BUCKET_LIST_MAX	15
+
+struct open_buckets {
+	u8			nr;
+	u8			v[OPEN_BUCKET_LIST_MAX];
+};
+
 struct write_point {
 	struct hlist_node	node;
 	struct mutex		lock;
@@ -65,13 +72,10 @@ struct write_point {
 	unsigned long		write_point;
 	enum bch_data_type	type;
 
-	u8			nr_ptrs;
-	u8			first_ptr;
-
 	/* calculated based on how many pointers we're actually going to use: */
 	unsigned		sectors_free;
 
-	struct open_bucket	*ptrs[BCH_REPLICAS_MAX * 2];
+	struct open_buckets	ptrs;
 	u64			next_alloc[BCH_SB_MEMBERS_MAX];
 };
 

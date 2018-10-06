@@ -1101,7 +1101,7 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 		struct btree_alloc *a =
 			&c->btree_reserve_cache[--c->btree_reserve_cache_nr];
 
-		bch2_open_bucket_put_refs(c, &a->ob.nr, a->ob.refs);
+		bch2_open_buckets_put(c, &a->ob);
 	}
 	mutex_unlock(&c->btree_reserve_cache_lock);
 

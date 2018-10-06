@@ -75,7 +75,7 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->nr_replicas		= 0;
 	op->nr_replicas_required = c->opts.data_replicas_required;
 	op->alloc_reserve	= RESERVE_NONE;
-	op->open_buckets_nr	= 0;
+	op->open_buckets.nr	= 0;
 	op->devs_have.nr	= 0;
 	op->target		= 0;
 	op->opts		= opts;

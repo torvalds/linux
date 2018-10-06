@@ -132,7 +132,6 @@ struct btree_update {
 void bch2_btree_node_free_inmem(struct bch_fs *, struct btree *,
 				struct btree_iter *);
 void bch2_btree_node_free_never_inserted(struct bch_fs *, struct btree *);
-void bch2_btree_open_bucket_put(struct bch_fs *, struct btree *);
 
 struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 						  struct btree *,

@@ -247,7 +247,7 @@ static void __btree_node_free(struct bch_fs *c, struct btree *b)
 
 void bch2_btree_node_free_never_inserted(struct bch_fs *c, struct btree *b)
 {
-	struct btree_ob_ref ob = b->ob;
+	struct open_buckets ob = b->ob;
 
 	btree_update_drop_new_node(c, b);
 
@@ -259,7 +259,7 @@ void bch2_btree_node_free_never_inserted(struct bch_fs *c, struct btree *b)
 	__btree_node_free(c, b);
 	six_unlock_write(&b->lock);
 
-	bch2_open_bucket_put_refs(c, &ob.nr, ob.refs);
+	bch2_open_buckets_put(c, &ob);
 }
 
 void bch2_btree_node_free_inmem(struct bch_fs *c, struct btree *b,
@@ -300,11 +300,6 @@ static void bch2_btree_node_free_ondisk(struct bch_fs *c,
 	 */
 }
 
-void bch2_btree_open_bucket_put(struct bch_fs *c, struct btree *b)
-{
-	bch2_open_bucket_put_refs(c, &b->ob.nr, b->ob.refs);
-}
-
 static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 					     struct disk_reservation *res,
 					     struct closure *cl,
@@ -314,7 +309,7 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 	struct btree *b;
 	BKEY_PADDED(k) tmp;
 	struct bkey_i_extent *e;
-	struct btree_ob_ref ob;
+	struct open_buckets ob = { .nr = 0 };
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	unsigned nr_reserve;
 	enum alloc_reserve alloc_reserve;
@@ -356,7 +351,7 @@ retry:
 		struct open_bucket *ob;
 		unsigned i;
 
-		writepoint_for_each_ptr(wp, ob, i)
+		open_bucket_for_each(c, &wp->ptrs, ob, i)
 			if (ob->sectors_free < c->opts.btree_node_size)
 				ob->sectors_free = 0;
 
@@ -367,8 +362,7 @@ retry:
 	e = bkey_extent_init(&tmp.k);
 	bch2_alloc_sectors_append_ptrs(c, wp, e, c->opts.btree_node_size);
 
-	ob.nr = 0;
-	bch2_open_bucket_get(c, wp, &ob.nr, ob.refs);
+	bch2_open_bucket_get(c, wp, &ob);
 	bch2_alloc_sectors_done(c, wp);
 mem_alloc:
 	b = bch2_btree_node_mem_alloc(c);
@@ -489,7 +483,7 @@ static void bch2_btree_reserve_put(struct bch_fs *c, struct btree_reserve *reser
 			b->ob.nr = 0;
 			bkey_copy(&a->k, &b->key);
 		} else {
-			bch2_btree_open_bucket_put(c, b);
+			bch2_open_buckets_put(c, &b->ob);
 		}
 
 		btree_node_lock_type(c, b, SIX_LOCK_write);
@@ -1432,11 +1426,11 @@ static void btree_split(struct btree_update *as, struct btree *b,
 		bch2_btree_set_root(as, n1, iter);
 	}
 
-	bch2_btree_open_bucket_put(c, n1);
+	bch2_open_buckets_put(c, &n1->ob);
 	if (n2)
-		bch2_btree_open_bucket_put(c, n2);
+		bch2_open_buckets_put(c, &n2->ob);
 	if (n3)
-		bch2_btree_open_bucket_put(c, n3);
+		bch2_open_buckets_put(c, &n3->ob);
 
 	/*
 	 * Note - at this point other linked iterators could still have @b read
@@ -1751,7 +1745,7 @@ retry:
 
 	bch2_btree_insert_node(as, parent, iter, &as->parent_keys, flags);
 
-	bch2_btree_open_bucket_put(c, n);
+	bch2_open_buckets_put(c, &n->ob);
 	bch2_btree_node_free_inmem(c, b, iter);
 	bch2_btree_node_free_inmem(c, m, iter);
 	bch2_btree_iter_node_replace(iter, n);
@@ -1843,7 +1837,7 @@ static int __btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 		bch2_btree_set_root(as, n, iter);
 	}
 
-	bch2_btree_open_bucket_put(c, n);
+	bch2_open_buckets_put(c, &n->ob);
 
 	bch2_btree_node_free_inmem(c, b, iter);
 

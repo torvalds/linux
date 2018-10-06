@@ -717,13 +717,13 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				goto err;
 			}
 		} else {
-			int ob_idx = bch2_bucket_alloc(c, ca, RESERVE_ALLOC, false, cl);
-			if (ob_idx < 0) {
+			ob = bch2_bucket_alloc(c, ca, RESERVE_ALLOC,
+					       false, cl);
+			if (IS_ERR(ob)) {
 				ret = cl ? -EAGAIN : -ENOSPC;
 				goto err;
 			}
 
-			ob = c->open_buckets + ob_idx;
 			bucket = sector_to_bucket(ca, ob->ptr.offset);
 		}
 

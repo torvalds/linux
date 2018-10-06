@@ -6,6 +6,7 @@
 
 #include "bcachefs.h"
 #include "alloc_background.h"
+#include "alloc_foreground.h"
 #include "bkey_methods.h"
 #include "btree_locking.h"
 #include "btree_update_interior.h"
@@ -803,7 +804,7 @@ next:
 	bch2_btree_iter_node_replace(iter, new_nodes[0]);
 
 	for (i = 0; i < nr_new_nodes; i++)
-		bch2_btree_open_bucket_put(c, new_nodes[i]);
+		bch2_open_buckets_put(c, &new_nodes[i]->ob);
 
 	/* Free the old nodes and update our sliding window */
 	for (i = 0; i < nr_old_nodes; i++) {
