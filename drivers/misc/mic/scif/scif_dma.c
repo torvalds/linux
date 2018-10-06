@@ -1035,8 +1035,6 @@ scif_rma_list_dma_copy_unaligned(struct scif_copy_work *work,
 			}
 			dma_async_issue_pending(chan);
 		}
-		if (ret < 0)
-			goto err;
 		offset += loop_len;
 		temp += loop_len;
 		temp_phys += loop_len;
