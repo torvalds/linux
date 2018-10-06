@@ -431,6 +431,8 @@
 			};
 
 			vccio_sd: LDO_REG8 {
+				regulator-always-on;
+				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 
@@ -455,12 +457,12 @@
 			vcc_buck5: DCDC_REG5 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2500000>;
+				regulator-min-microvolt = <2200000>;
+				regulator-max-microvolt = <2200000>;
 				regulator-name = "vcc_buck5";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <2500000>;
+					regulator-suspend-microvolt = <2200000>;
 				};
 			};
 
