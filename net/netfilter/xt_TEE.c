@@ -104,6 +104,8 @@ static int tee_tg_check(const struct xt_tgchk_param *par)
 		return -EINVAL;
 
 	if (info->oif[0]) {
+		struct net_device *dev;
+
 		if (info->oif[sizeof(info->oif)-1] != '\0')
 			return -EINVAL;
 
@@ -115,6 +117,11 @@ static int tee_tg_check(const struct xt_tgchk_param *par)
 		priv->oif     = -1;
 		info->priv    = priv;
 
+		dev = dev_get_by_name(par->net, info->oif);
+		if (dev) {
+			priv->oif = dev->ifindex;
+			dev_put(dev);
+		}
 		mutex_lock(&tn->lock);
 		list_add(&priv->list, &tn->priv_list);
 		mutex_unlock(&tn->lock);
