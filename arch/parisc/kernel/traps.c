@@ -802,7 +802,8 @@ void __init initialize_ivt(const void *iva)
 	 *    the Length/4 words starting at Address is zero.
 	 */
 
-	/* Compute Checksum for HPMC handler */
+	/* Setup IVA and compute checksum for HPMC handler */
+	ivap[6] = (u32)__pa(os_hpmc);
 	length = os_hpmc_size;
 	ivap[7] = length;
 
