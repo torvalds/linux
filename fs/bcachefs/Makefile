@@ -3,7 +3,8 @@ obj-$(CONFIG_BCACHEFS_FS)	+= bcachefs.o
 
 bcachefs-y		:=	\
 	acl.o			\
-	alloc.o			\
+	alloc_background.o	\
+	alloc_foreground.o	\
 	bkey.o			\
 	bkey_methods.o		\
 	bset.o			\

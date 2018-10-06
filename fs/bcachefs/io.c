@@ -7,7 +7,7 @@
  */
 
 #include "bcachefs.h"
-#include "alloc.h"
+#include "alloc_foreground.h"
 #include "bset.h"
 #include "btree_update.h"
 #include "buckets.h"

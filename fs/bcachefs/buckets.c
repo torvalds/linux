@@ -64,7 +64,7 @@
  */
 
 #include "bcachefs.h"
-#include "alloc.h"
+#include "alloc_background.h"
 #include "btree_gc.h"
 #include "buckets.h"
 #include "error.h"

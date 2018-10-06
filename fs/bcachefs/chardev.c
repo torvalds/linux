@@ -2,7 +2,6 @@
 #ifndef NO_BCACHEFS_CHARDEV
 
 #include "bcachefs.h"
-#include "alloc.h"
 #include "bcachefs_ioctl.h"
 #include "buckets.h"
 #include "chardev.h"

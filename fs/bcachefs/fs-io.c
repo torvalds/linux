@@ -2,6 +2,7 @@
 #ifndef NO_BCACHEFS_FS
 
 #include "bcachefs.h"
+#include "alloc_foreground.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "clock.h"

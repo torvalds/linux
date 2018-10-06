@@ -8,7 +8,8 @@
  */
 
 #include "bcachefs.h"
-#include "alloc.h"
+#include "alloc_background.h"
+#include "alloc_foreground.h"
 #include "btree_cache.h"
 #include "btree_gc.h"
 #include "btree_update_interior.h"

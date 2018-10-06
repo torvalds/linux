@@ -2,7 +2,6 @@
 #ifndef _BCACHEFS_IO_H
 #define _BCACHEFS_IO_H
 
-#include "alloc.h"
 #include "checksum.h"
 #include "io_types.h"
 

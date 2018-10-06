@@ -1,5 +1,6 @@
-#ifndef _BCACHEFS_ALLOC_H
-#define _BCACHEFS_ALLOC_H
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _BCACHEFS_ALLOC_FOREGROUND_H
+#define _BCACHEFS_ALLOC_FOREGROUND_H
 
 #include "bcachefs.h"
 #include "alloc_types.h"
@@ -8,16 +9,6 @@ struct bkey;
 struct bch_dev;
 struct bch_fs;
 struct bch_devs_List;
-
-#define ALLOC_SCAN_BATCH(ca)		((ca)->mi.nbuckets >> 9)
-
-const char *bch2_alloc_invalid(const struct bch_fs *, struct bkey_s_c);
-int bch2_alloc_to_text(struct bch_fs *, char *, size_t, struct bkey_s_c);
-
-#define bch2_bkey_alloc_ops (struct bkey_ops) {		\
-	.key_invalid	= bch2_alloc_invalid,		\
-	.val_to_text	= bch2_alloc_to_text,		\
-}
 
 struct dev_alloc_list {
 	unsigned	nr;
@@ -29,16 +20,6 @@ struct dev_alloc_list bch2_wp_alloc_list(struct bch_fs *,
 					 struct bch_devs_mask *);
 void bch2_wp_rescale(struct bch_fs *, struct bch_dev *,
 		     struct write_point *);
-
-int bch2_alloc_read(struct bch_fs *, struct list_head *);
-int bch2_alloc_replay_key(struct bch_fs *, struct bpos);
-
-enum bucket_alloc_ret {
-	ALLOC_SUCCESS		= 0,
-	OPEN_BUCKETS_EMPTY	= -1,
-	FREELIST_EMPTY		= -2,	/* Allocator thread not keeping up */
-	NO_DEVICES		= -3,	/* -EROFS */
-};
 
 long bch2_bucket_alloc_new_fs(struct bch_dev *);
 
@@ -100,15 +81,19 @@ void bch2_alloc_sectors_append_ptrs(struct bch_fs *, struct write_point *,
 				    struct bkey_i_extent *, unsigned);
 void bch2_alloc_sectors_done(struct bch_fs *, struct write_point *);
 
-static inline void bch2_wake_allocator(struct bch_dev *ca)
-{
-	struct task_struct *p;
+void bch2_writepoint_stop(struct bch_fs *, struct bch_dev *,
+			  struct write_point *);
 
-	rcu_read_lock();
-	p = rcu_dereference(ca->alloc_thread);
-	if (p)
-		wake_up_process(p);
-	rcu_read_unlock();
+void bch2_writepoint_drop_ptrs(struct bch_fs *, struct write_point *,
+			       u16, bool);
+
+static inline struct hlist_head *writepoint_hash(struct bch_fs *c,
+						 unsigned long write_point)
+{
+	unsigned hash =
+		hash_long(write_point, ilog2(ARRAY_SIZE(c->write_points_hash)));
+
+	return &c->write_points_hash[hash];
 }
 
 static inline struct write_point_specifier writepoint_hashed(unsigned long v)
@@ -121,14 +106,6 @@ static inline struct write_point_specifier writepoint_ptr(struct write_point *wp
 	return (struct write_point_specifier) { .v = (unsigned long) wp };
 }
 
-void bch2_recalc_capacity(struct bch_fs *);
-
-void bch2_dev_allocator_remove(struct bch_fs *, struct bch_dev *);
-void bch2_dev_allocator_add(struct bch_fs *, struct bch_dev *);
-
-void bch2_dev_allocator_stop(struct bch_dev *);
-int bch2_dev_allocator_start(struct bch_dev *);
-
 static inline void writepoint_init(struct write_point *wp,
 				   enum bch_data_type type)
 {
@@ -136,8 +113,4 @@ static inline void writepoint_init(struct write_point *wp,
 	wp->type = type;
 }
 
-int bch2_alloc_write(struct bch_fs *);
-int bch2_fs_allocator_start(struct bch_fs *);
-void bch2_fs_allocator_init(struct bch_fs *);
-
-#endif /* _BCACHEFS_ALLOC_H */
+#endif /* _BCACHEFS_ALLOC_FOREGROUND_H */

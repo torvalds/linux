@@ -9,7 +9,7 @@
 #ifndef NO_BCACHEFS_SYSFS
 
 #include "bcachefs.h"
-#include "alloc.h"
+#include "alloc_background.h"
 #include "compress.h"
 #include "sysfs.h"
 #include "btree_cache.h"

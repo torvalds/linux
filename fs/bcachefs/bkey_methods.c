@@ -3,7 +3,7 @@
 #include "bcachefs.h"
 #include "bkey_methods.h"
 #include "btree_types.h"
-#include "alloc.h"
+#include "alloc_background.h"
 #include "dirent.h"
 #include "error.h"
 #include "extents.h"
