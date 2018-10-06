@@ -1265,6 +1265,19 @@ xfs_reflink_zero_posteof(
  * will have the iolock and mmaplock held, the page cache of the out file
  * will be truncated, and any leases on the out file will have been broken.
  * This function borrows heavily from xfs_file_aio_write_checks.
+ *
+ * The VFS allows partial EOF blocks to "match" for dedupe even though it hasn't
+ * checked that the bytes beyond EOF physically match. Hence we cannot use the
+ * EOF block in the source dedupe range because it's not a complete block match,
+ * hence can introduce a corruption into the file that has it's
+ * block replaced.
+ *
+ * Despite this issue, we still need to report that range as successfully
+ * deduped to avoid confusing userspace with EINVAL errors on completely
+ * matching file data. The only time that an unaligned length will be passed to
+ * us is when it spans the EOF block of the source file, so if we simply mask it
+ * down to be block aligned here the we will dedupe everything but that partial
+ * EOF block.
  */
 STATIC int
 xfs_reflink_remap_prep(
@@ -1306,6 +1319,14 @@ xfs_reflink_remap_prep(
 			len, is_dedupe);
 	if (ret <= 0)
 		goto out_unlock;
+
+	/*
+	 * If the dedupe data matches, chop off the partial EOF block
+	 * from the source file so we don't try to dedupe the partial
+	 * EOF block.
+	 */
+	if (is_dedupe)
+		*len &= ~((u64)i_blocksize(inode_in) - 1);
 
 	/* Attach dquots to dest inode before changing block map */
 	ret = xfs_qm_dqattach(dest);
