@@ -88,7 +88,6 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	struct adapter *adapter = dm_odm->Adapter;
 	u32 value32, i;
 	struct fast_ant_train *dm_fat_tbl = &dm_odm->DM_FatTable;
-	u32 AntCombination = 2;
 
 	if (*dm_odm->mp_mode == 1)
 		return;
@@ -119,35 +118,12 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	phy_set_bb_reg(adapter, 0xca4, bMaskDWord, 0x000000a0);
 
 	/* antenna mapping table */
-	if (AntCombination == 2) {
-		if (!dm_odm->bIsMPChip) { /* testchip */
-			phy_set_bb_reg(adapter, 0x858, BIT(10) | BIT(9) | BIT(8), 1);
-			phy_set_bb_reg(adapter, 0x858, BIT(13) | BIT(12) | BIT(11), 2);
-		} else { /* MPchip */
-			phy_set_bb_reg(adapter, 0x914, bMaskByte0, 1);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte1, 2);
-		}
-	} else if (AntCombination == 7) {
-		if (!dm_odm->bIsMPChip) { /* testchip */
-			phy_set_bb_reg(adapter, 0x858, BIT(10) | BIT(9) | BIT(8), 0);
-			phy_set_bb_reg(adapter, 0x858, BIT(13) | BIT(12) | BIT(11), 1);
-			phy_set_bb_reg(adapter, 0x878, BIT(16), 0);
-			phy_set_bb_reg(adapter, 0x858, BIT(15) | BIT(14), 2);
-			phy_set_bb_reg(adapter, 0x878, BIT(19) | BIT(18) | BIT(17), 3);
-			phy_set_bb_reg(adapter, 0x878, BIT(22) | BIT(21) | BIT(20), 4);
-			phy_set_bb_reg(adapter, 0x878, BIT(25) | BIT(24) | BIT(23), 5);
-			phy_set_bb_reg(adapter, 0x878, BIT(28) | BIT(27) | BIT(26), 6);
-			phy_set_bb_reg(adapter, 0x878, BIT(31) | BIT(30) | BIT(29), 7);
-		} else { /* MPchip */
-			phy_set_bb_reg(adapter, 0x914, bMaskByte0, 0);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte1, 1);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte2, 2);
-			phy_set_bb_reg(adapter, 0x914, bMaskByte3, 3);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte0, 4);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte1, 5);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte2, 6);
-			phy_set_bb_reg(adapter, 0x918, bMaskByte3, 7);
-		}
+	if (!dm_odm->bIsMPChip) { /* testchip */
+		phy_set_bb_reg(adapter, 0x858, BIT(10) | BIT(9) | BIT(8), 1);
+		phy_set_bb_reg(adapter, 0x858, BIT(13) | BIT(12) | BIT(11), 2);
+	} else { /* MPchip */
+		phy_set_bb_reg(adapter, 0x914, bMaskByte0, 1);
+		phy_set_bb_reg(adapter, 0x914, bMaskByte1, 2);
 	}
 
 	/* Default Ant Setting when no fast training */
@@ -156,7 +132,7 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 	phy_set_bb_reg(adapter, 0x864, BIT(8) | BIT(7) | BIT(6), 1);
 
 	/* Enter Traing state */
-	phy_set_bb_reg(adapter, 0x864, BIT(2) | BIT(1) | BIT(0), (AntCombination-1));
+	phy_set_bb_reg(adapter, 0x864, BIT(2) | BIT(1) | BIT(0), 1);
 	phy_set_bb_reg(adapter, 0xc50, BIT(7), 1);
 }
 
