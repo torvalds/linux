@@ -112,7 +112,7 @@
 			compatible = "snps,dwc3";
 			reg = <0x0 0xfd000000 0x0 0x200000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-			dr_mode = "otg";
+			dr_mode = "peripheral";
 			phys = <&u2phy_otg>;
 			phy-names = "usb2-phy";
 			phy_type = "utmi_wide";
