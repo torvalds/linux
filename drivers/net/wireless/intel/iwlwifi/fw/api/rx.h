@@ -368,10 +368,10 @@ enum iwl_rx_he_phy {
 	/* trigger encoded */
 	IWL_RX_HE_PHY_RU_ALLOC_MASK		= 0xfe0000000000ULL,
 	IWL_RX_HE_PHY_INFO_TYPE_MASK		= 0xf000000000000000ULL,
-	IWL_RX_HE_PHY_INFO_TYPE_SU		= 0x0,
-	IWL_RX_HE_PHY_INFO_TYPE_MU		= 0x1,
-	IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO	= 0x2,
-	IWL_RX_HE_PHY_INFO_TYPE_TB_EXT_INFO	= 0x3,
+	IWL_RX_HE_PHY_INFO_TYPE_SU		= 0x0, /* TSF low valid (first DW) */
+	IWL_RX_HE_PHY_INFO_TYPE_MU		= 0x1, /* TSF low/high valid (both DWs) */
+	IWL_RX_HE_PHY_INFO_TYPE_MU_EXT_INFO	= 0x2, /* same + SIGB-common0/1/2 valid */
+	IWL_RX_HE_PHY_INFO_TYPE_TB		= 0x3, /* TSF low/high valid (both DWs) */
 
 	/* second dword - MU data */
 	IWL_RX_HE_PHY_MU_SIGB_COMPRESSION		= BIT_ULL(32 + 0),

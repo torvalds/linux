@@ -565,10 +565,23 @@ static bool iwl_mvm_fwrt_fw_running(void *ctx)
 	return iwl_mvm_firmware_running(ctx);
 }
 
+static int iwl_mvm_fwrt_send_hcmd(void *ctx, struct iwl_host_cmd *host_cmd)
+{
+	struct iwl_mvm *mvm = (struct iwl_mvm *)ctx;
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_send_cmd(mvm, host_cmd);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
 static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
 	.dump_start = iwl_mvm_fwrt_dump_start,
 	.dump_end = iwl_mvm_fwrt_dump_end,
 	.fw_running = iwl_mvm_fwrt_fw_running,
+	.send_hcmd = iwl_mvm_fwrt_send_hcmd,
 };
 
 static struct iwl_op_mode *
@@ -604,9 +617,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	if (cfg->max_rx_agg_size)
 		hw->max_rx_aggregation_subframes = cfg->max_rx_agg_size;
+	else
+		hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 
 	if (cfg->max_tx_agg_size)
 		hw->max_tx_aggregation_subframes = cfg->max_tx_agg_size;
+	else
+		hw->max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 
 	op_mode = hw->priv;
 
@@ -748,12 +765,12 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_trans_configure(mvm->trans, &trans_cfg);
 
 	trans->rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->dbg_dest_tlv = mvm->fw->dbg_dest_tlv;
-	trans->dbg_dest_reg_num = mvm->fw->dbg_dest_reg_num;
-	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg_conf_tlv,
+	trans->dbg_dest_tlv = mvm->fw->dbg.dest_tlv;
+	trans->dbg_n_dest_reg = mvm->fw->dbg.n_dest_reg;
+	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg.conf_tlv,
 	       sizeof(trans->dbg_conf_tlv));
-	trans->dbg_trigger_tlv = mvm->fw->dbg_trigger_tlv;
-	trans->dbg_dump_mask = mvm->fw->dbg_dump_mask;
+	trans->dbg_trigger_tlv = mvm->fw->dbg.trigger_tlv;
+	trans->dbg_dump_mask = mvm->fw->dbg.dump_mask;
 
 	trans->iml = mvm->fw->iml;
 	trans->iml_len = mvm->fw->iml_len;
@@ -784,6 +801,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
 	err = iwl_run_init_mvm_ucode(mvm, true);
+	if (test_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &mvm->fwrt.status))
+		iwl_fw_alive_error_dump(&mvm->fwrt);
 	if (!iwlmvm_mod_params.init_dbg || !err)
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
@@ -953,14 +972,12 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 	struct iwl_fw_dbg_trigger_cmd *cmds_trig;
 	int i;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_FW_NOTIF))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt, NULL,
+				     FW_DBG_TRIGGER_FW_NOTIF);
+	if (!trig)
 		return;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_FW_NOTIF);
 	cmds_trig = (void *)trig->data;
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
-		return;
 
 	for (i = 0; i < ARRAY_SIZE(cmds_trig->cmds); i++) {
 		/* don't collect on CMD 0 */
@@ -1223,7 +1240,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 */
 	if (!mvm->fw_restart && fw_error) {
 		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
-					NULL);
+					NULL, 0);
 	} else if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		struct iwl_mvm_reprobe *reprobe;
 

@@ -438,6 +438,8 @@ static int iwl_pcie_gen2_tx_add_frags(struct iwl_trans *trans,
 			return -ENOMEM;
 		tb_idx = iwl_pcie_gen2_set_tb(trans, tfd, tb_phys,
 					      skb_frag_size(frag));
+		if (tb_idx < 0)
+			return tb_idx;
 
 		out_meta->tbs |= BIT(tb_idx);
 	}

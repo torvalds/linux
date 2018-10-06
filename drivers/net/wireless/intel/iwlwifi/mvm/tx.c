@@ -79,14 +79,11 @@ iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,
 	struct iwl_fw_dbg_trigger_tlv *trig;
 	struct iwl_fw_dbg_trigger_ba *ba_trig;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt, NULL, FW_DBG_TRIGGER_BA);
+	if (!trig)
 		return;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
 	ba_trig = (void *)trig->data;
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
-		return;
 
 	if (!(le16_to_cpu(ba_trig->tx_bar) & BIT(tid)))
 		return;
@@ -1414,14 +1411,12 @@ static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
 	struct iwl_fw_dbg_trigger_tx_status *status_trig;
 	int i;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TX_STATUS))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt, NULL,
+				     FW_DBG_TRIGGER_TX_STATUS);
+	if (!trig)
 		return;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TX_STATUS);
 	status_trig = (void *)trig->data;
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
-		return;
 
 	for (i = 0; i < ARRAY_SIZE(status_trig->statuses); i++) {
 		/* don't collect on status 0 */

@@ -337,7 +337,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	antenna the beacon should be transmitted
  * @IWL_UCODE_TLV_CAPA_BEACON_STORING: firmware will store the latest beacon
  *	from AP and will send it upon d0i3 exit.
- * @IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V2: support LAR API V2
+ * @IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V3: support LAR API V3
  * @IWL_UCODE_TLV_CAPA_CT_KILL_BY_FW: firmware responsible for CT-kill
  * @IWL_UCODE_TLV_CAPA_TEMP_THS_REPORT_SUPPORT: supports temperature
  *	thresholds reporting
@@ -352,6 +352,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	power reduction.
  * @IWL_UCODE_TLV_CAPA_MLME_OFFLOAD: supports MLME offload
  * @IWL_UCODE_TLV_CAPA_D3_DEBUG: supports debug recording during D3
+ * @IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT: MCC response support 11ax
+ *	capability.
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -392,7 +394,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD		= (__force iwl_ucode_tlv_capa_t)70,
 	IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION		= (__force iwl_ucode_tlv_capa_t)71,
 	IWL_UCODE_TLV_CAPA_BEACON_STORING		= (__force iwl_ucode_tlv_capa_t)72,
-	IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V2		= (__force iwl_ucode_tlv_capa_t)73,
+	IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V3		= (__force iwl_ucode_tlv_capa_t)73,
 	IWL_UCODE_TLV_CAPA_CT_KILL_BY_FW		= (__force iwl_ucode_tlv_capa_t)74,
 	IWL_UCODE_TLV_CAPA_TEMP_THS_REPORT_SUPPORT	= (__force iwl_ucode_tlv_capa_t)75,
 	IWL_UCODE_TLV_CAPA_CTDP_SUPPORT			= (__force iwl_ucode_tlv_capa_t)76,
@@ -402,6 +404,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_TX_POWER_ACK			= (__force iwl_ucode_tlv_capa_t)84,
 	IWL_UCODE_TLV_CAPA_D3_DEBUG			= (__force iwl_ucode_tlv_capa_t)87,
 	IWL_UCODE_TLV_CAPA_LED_CMD_SUPPORT		= (__force iwl_ucode_tlv_capa_t)88,
+	IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT	= (__force iwl_ucode_tlv_capa_t)89,
 	IWL_UCODE_TLV_CAPA_MLME_OFFLOAD			= (__force iwl_ucode_tlv_capa_t)96,
 
 	NUM_IWL_UCODE_TLV_CAPA

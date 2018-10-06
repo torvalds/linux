@@ -1487,23 +1487,17 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 	     IWL_MVM_MISSED_BEACONS_THRESHOLD)
 		ieee80211_beacon_loss(vif);
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw,
-					FW_DBG_TRIGGER_MISSED_BEACONS))
+	trigger = iwl_fw_dbg_trigger_on(&mvm->fwrt, ieee80211_vif_to_wdev(vif),
+					FW_DBG_TRIGGER_MISSED_BEACONS);
+	if (!trigger)
 		return;
 
-	trigger = iwl_fw_dbg_get_trigger(mvm->fw,
-					 FW_DBG_TRIGGER_MISSED_BEACONS);
 	bcon_trig = (void *)trigger->data;
 	stop_trig_missed_bcon = le32_to_cpu(bcon_trig->stop_consec_missed_bcon);
 	stop_trig_missed_bcon_since_rx =
 		le32_to_cpu(bcon_trig->stop_consec_missed_bcon_since_rx);
 
 	/* TODO: implement start trigger */
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-					   ieee80211_vif_to_wdev(vif),
-					   trigger))
-		return;
 
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)

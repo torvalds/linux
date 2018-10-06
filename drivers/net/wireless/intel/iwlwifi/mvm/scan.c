@@ -1448,6 +1448,9 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		if (gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED)
 			cmd->v8.num_of_fragments[SCAN_HB_LMAC_IDX] =
 							IWL_SCAN_NUM_OF_FRAGS;
+
+		cmd->v8.general_flags2 =
+			IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER;
 	}
 
 	cmd->scan_start_mac_id = scan_vif->id;

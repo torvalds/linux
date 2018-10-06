@@ -1238,14 +1238,12 @@ void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_fw_dbg_trigger_tlv *trig;
 	struct iwl_fw_dbg_trigger_mlme *trig_mlme;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_MLME))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt, ieee80211_vif_to_wdev(vif),
+				     FW_DBG_TRIGGER_MLME);
+	if (!trig)
 		goto out;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_MLME);
 	trig_mlme = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-					   ieee80211_vif_to_wdev(vif), trig))
-		goto out;
 
 	if (trig_mlme->stop_connection_loss &&
 	    --trig_mlme->stop_connection_loss)
@@ -1430,14 +1428,12 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 	struct iwl_fw_dbg_trigger_tlv *trig;
 	struct iwl_fw_dbg_trigger_ba *ba_trig;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
+	trig = iwl_fw_dbg_trigger_on(&mvm->fwrt, ieee80211_vif_to_wdev(vif),
+				     FW_DBG_TRIGGER_BA);
+	if (!trig)
 		return;
 
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
 	ba_trig = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-					   ieee80211_vif_to_wdev(vif), trig))
-		return;
 
 	if (!(le16_to_cpu(ba_trig->frame_timeout) & BIT(tid)))
 		return;

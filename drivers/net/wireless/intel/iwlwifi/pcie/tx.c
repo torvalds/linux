@@ -2013,6 +2013,8 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 			return -EINVAL;
 		tb_idx = iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
 						skb_frag_size(frag), false);
+		if (tb_idx < 0)
+			return tb_idx;
 
 		out_meta->tbs |= BIT(tb_idx);
 	}
