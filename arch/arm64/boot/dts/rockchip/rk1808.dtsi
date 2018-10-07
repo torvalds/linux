@@ -242,12 +242,12 @@
 		reg = <0x0 0xfe8a0100 0x0 0x20>;
 	};
 
-	qos_vip: qos@fe8a0180 {
+	qos_cif: qos@fe8a0180 {
 		compatible = "syscon";
 		reg = <0x0 0xfe8a0180 0x0 0x20>;
 	};
 
-	qos_vop_dma: qos@fe8b0000 {
+	qos_vop_raw: qos@fe8b0000 {
 		compatible = "syscon";
 		reg = <0x0 0xfe8b0000 0x0 0x20>;
 	};
@@ -257,9 +257,9 @@
 		reg = <0x0 0xfe8b0080 0x0 0x20>;
 	};
 
-	qos_vpu: qos@fe8cc000 {
+	qos_vpu: qos@fe8c0000 {
 		compatible = "syscon";
-		reg = <0x0 0xfe8c000 0x0 0x20>;
+		reg = <0x0 0xfe8c0000 0x0 0x20>;
 	};
 
 	sram: sram@fec00000 {
@@ -496,8 +496,8 @@
 					 <&cru DCLK_VOPRAW>,
 					 <&cru DCLK_VOPLITE>;
 				pm_qos = <&qos_rga_rd>, <&qos_rga_wr>,
-					 <&qos_isp>, <&qos_vip>,
-					 <&qos_vop_dma>, <&qos_vop_lite>;
+					 <&qos_isp>, <&qos_cif>,
+					 <&qos_vop_raw>, <&qos_vop_lite>;
 			};
 		};
 	};
