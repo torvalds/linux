@@ -84,6 +84,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 	struct ufs_hba *hba = shost_priv(dev_to_shost(job->dev->parent));
 	unsigned int req_len = job->request_len;
 	unsigned int reply_len = job->reply_len;
+	struct uic_command uc = {};
 	int msgcode;
 	uint8_t *desc_buff = NULL;
 	int desc_len = 0;
@@ -115,6 +116,16 @@ static int ufs_bsg_request(struct bsg_job *job)
 		if (ret)
 			dev_err(hba->dev,
 				"exe raw upiu: error code %d\n", ret);
+
+		break;
+	case UPIU_TRANSACTION_UIC_CMD:
+		memcpy(&uc, &bsg_request->upiu_req.uc, UIC_CMD_SIZE);
+		ret = ufshcd_send_uic_cmd(hba, &uc);
+		if (ret)
+			dev_dbg(hba->dev,
+				"send uic cmd: error code %d\n", ret);
+
+		memcpy(&bsg_reply->upiu_rsp.uc, &uc, UIC_CMD_SIZE);
 
 		break;
 	default:

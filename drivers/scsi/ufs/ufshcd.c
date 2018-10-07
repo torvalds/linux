@@ -2059,8 +2059,7 @@ __ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd,
  *
  * Returns 0 only if success.
  */
-static int
-ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
+int ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
 {
 	int ret;
 	unsigned long flags;
