@@ -137,7 +137,7 @@ static int mt76x2u_mcu_load_rom_patch(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_VEND_ADDR(CFG, MT_USB_U3DMA_CFG), val);
 
 	/* vendor reset */
-	mt76x02u_mcu_fw_reset(&dev->mt76);
+	mt76x02u_mcu_fw_reset(dev);
 	usleep_range(5000, 10000);
 
 	/* enable FCE to send in-band cmd */
@@ -151,7 +151,7 @@ static int mt76x2u_mcu_load_rom_patch(struct mt76x02_dev *dev)
 	/* FCE skip_fs_en */
 	mt76_wr(dev, MT_FCE_SKIP_FS, 0x3);
 
-	err = mt76x02u_mcu_fw_send_data(&dev->mt76, fw->data + sizeof(*hdr),
+	err = mt76x02u_mcu_fw_send_data(dev, fw->data + sizeof(*hdr),
 					fw->size - sizeof(*hdr),
 					MCU_ROM_PATCH_MAX_PAYLOAD,
 					MT76U_MCU_ROM_PATCH_OFFSET);
@@ -210,7 +210,7 @@ static int mt76x2u_mcu_load_firmware(struct mt76x02_dev *dev)
 	dev_info(dev->mt76.dev, "Build Time: %.16s\n", hdr->build_time);
 
 	/* vendor reset */
-	mt76x02u_mcu_fw_reset(&dev->mt76);
+	mt76x02u_mcu_fw_reset(dev);
 	usleep_range(5000, 10000);
 
 	/* enable USB_DMA_CFG */
@@ -230,7 +230,7 @@ static int mt76x2u_mcu_load_firmware(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_FCE_SKIP_FS, 0x3);
 
 	/* load ILM */
-	err = mt76x02u_mcu_fw_send_data(&dev->mt76, fw->data + sizeof(*hdr),
+	err = mt76x02u_mcu_fw_send_data(dev, fw->data + sizeof(*hdr),
 					ilm_len, MCU_FW_URB_MAX_PAYLOAD,
 					MT76U_MCU_ILM_OFFSET);
 	if (err < 0) {
@@ -241,8 +241,7 @@ static int mt76x2u_mcu_load_firmware(struct mt76x02_dev *dev)
 	/* load DLM */
 	if (mt76xx_rev(dev) >= MT76XX_REV_E3)
 		dlm_offset += 0x800;
-	err = mt76x02u_mcu_fw_send_data(&dev->mt76,
-					fw->data + sizeof(*hdr) + ilm_len,
+	err = mt76x02u_mcu_fw_send_data(dev, fw->data + sizeof(*hdr) + ilm_len,
 					dlm_len, MCU_FW_URB_MAX_PAYLOAD,
 					dlm_offset);
 	if (err < 0) {
