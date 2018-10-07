@@ -32,7 +32,7 @@ static void mt76x2u_mac_fixup_xtal(struct mt76x02_dev *dev)
 	s8 offset = 0;
 	u16 eep_val;
 
-	eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_XTAL_TRIM_2);
+	eep_val = mt76x02_eeprom_get(dev, MT_EE_XTAL_TRIM_2);
 
 	offset = eep_val & 0x7f;
 	if ((eep_val & 0xff) == 0xff)
@@ -42,7 +42,7 @@ static void mt76x2u_mac_fixup_xtal(struct mt76x02_dev *dev)
 
 	eep_val >>= 8;
 	if (eep_val == 0x00 || eep_val == 0xff) {
-		eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_XTAL_TRIM_1);
+		eep_val = mt76x02_eeprom_get(dev, MT_EE_XTAL_TRIM_1);
 		eep_val &= 0xff;
 
 		if (eep_val == 0x00 || eep_val == 0xff)
@@ -67,7 +67,7 @@ static void mt76x2u_mac_fixup_xtal(struct mt76x02_dev *dev)
 	/* init fce */
 	mt76_clear(dev, MT_FCE_L2_STUFF, MT_FCE_L2_STUFF_WR_MPDU_LEN_EN);
 
-	eep_val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_2);
+	eep_val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_2);
 	switch (FIELD_GET(MT_EE_NIC_CONF_2_XTAL_OPTION, eep_val)) {
 	case 0:
 		mt76_wr(dev, MT_XO_CTRL7, 0x5c1fee80);

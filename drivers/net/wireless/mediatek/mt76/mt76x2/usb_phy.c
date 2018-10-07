@@ -177,7 +177,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 		mt76_set(dev, MT_BBP(RXO, 13), BIT(10));
 
 	if (!dev->cal.init_cal_done) {
-		u8 val = mt76x02_eeprom_get(&dev->mt76, MT_EE_BT_RCAL_RESULT);
+		u8 val = mt76x02_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
 			mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
@@ -202,7 +202,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 	if (scan)
 		return 0;
 
-	if (mt76x02_tssi_enabled(&dev->mt76)) {
+	if (mt76x02_tssi_enabled(dev)) {
 		/* init default values for temp compensation */
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
 			       0x38);
@@ -217,7 +217,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			chan = dev->mt76.chandef.chan;
 			if (chan->band == NL80211_BAND_5GHZ)
 				flag |= BIT(0);
-			if (mt76x02_ext_pa_enabled(&dev->mt76, chan->band))
+			if (mt76x02_ext_pa_enabled(dev, chan->band))
 				flag |= BIT(8);
 			mt76x02_mcu_calibrate(dev, MCU_CAL_TSSI, flag, false);
 			dev->cal.tssi_cal_done = true;

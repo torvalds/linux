@@ -18,6 +18,8 @@
 #ifndef __MT76x02_EEPROM_H
 #define __MT76x02_EEPROM_H
 
+#include "mt76x02.h"
+
 enum mt76x02_eeprom_field {
 	MT_EE_CHIP_ID =				0x000,
 	MT_EE_VERSION =				0x002,
@@ -168,17 +170,17 @@ static inline s8 mt76x02_rate_power_val(u8 val)
 }
 
 static inline int
-mt76x02_eeprom_get(struct mt76_dev *dev,
+mt76x02_eeprom_get(struct mt76x02_dev *dev,
 		   enum mt76x02_eeprom_field field)
 {
 	if ((field & 1) || field >= __MT_EE_MAX)
 		return -1;
 
-	return get_unaligned_le16(dev->eeprom.data + field);
+	return get_unaligned_le16(dev->mt76.eeprom.data + field);
 }
 
 static inline bool
-mt76x02_temp_tx_alc_enabled(struct mt76_dev *dev)
+mt76x02_temp_tx_alc_enabled(struct mt76x02_dev *dev)
 {
 	u16 val;
 
@@ -191,21 +193,21 @@ mt76x02_temp_tx_alc_enabled(struct mt76_dev *dev)
 }
 
 static inline bool
-mt76x02_tssi_enabled(struct mt76_dev *dev)
+mt76x02_tssi_enabled(struct mt76x02_dev *dev)
 {
 	return !mt76x02_temp_tx_alc_enabled(dev) &&
 	       (mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1) &
 		MT_EE_NIC_CONF_1_TX_ALC_EN);
 }
 
-bool mt76x02_ext_pa_enabled(struct mt76_dev *dev, enum nl80211_band band);
-int mt76x02_get_efuse_data(struct mt76_dev *dev, u16 base, void *buf,
+bool mt76x02_ext_pa_enabled(struct mt76x02_dev *dev, enum nl80211_band band);
+int mt76x02_get_efuse_data(struct mt76x02_dev *dev, u16 base, void *buf,
 			   int len, enum mt76x02_eeprom_modes mode);
-void mt76x02_get_rx_gain(struct mt76_dev *dev, enum nl80211_band band,
+void mt76x02_get_rx_gain(struct mt76x02_dev *dev, enum nl80211_band band,
 			 u16 *rssi_offset, s8 *lna_2g, s8 *lna_5g);
-u8 mt76x02_get_lna_gain(struct mt76_dev *dev,
+u8 mt76x02_get_lna_gain(struct mt76x02_dev *dev,
 			s8 *lna_2g, s8 *lna_5g,
 			struct ieee80211_channel *chan);
-void mt76x02_eeprom_parse_hw_cap(struct mt76_dev *dev);
+void mt76x02_eeprom_parse_hw_cap(struct mt76x02_dev *dev);
 
 #endif /* __MT76x02_EEPROM_H */

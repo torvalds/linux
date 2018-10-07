@@ -490,7 +490,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 	mt76_wr(dev, MT_RF_MISC, mac_reg);
 
 	band = (rf_band & RF_G_BAND) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
-	if (mt76x02_ext_pa_enabled(&dev->mt76, band)) {
+	if (mt76x02_ext_pa_enabled(dev, band)) {
 		/*
 			MT_RF_MISC (offset: 0x0518)
 			[2]1'b1: enable external A band PA, 1'b0: disable external A band PA

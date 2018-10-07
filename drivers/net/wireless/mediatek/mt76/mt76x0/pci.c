@@ -102,7 +102,7 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 		u16 val;
 
 		mt76_clear(dev, MT_COEXCFG0, BIT(0));
-		val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
+		val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_0);
 		if (val & MT_EE_NIC_CONF_0_PA_IO_CURRENT) {
 			u32 data;
 
