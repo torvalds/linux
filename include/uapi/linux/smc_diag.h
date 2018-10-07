@@ -20,7 +20,10 @@ struct smc_diag_req {
 struct smc_diag_msg {
 	__u8		diag_family;
 	__u8		diag_state;
-	__u8		diag_mode;
+	union {
+		__u8	diag_mode;
+		__u8	diag_fallback; /* the old name of the field */
+	};
 	__u8		diag_shutdown;
 	struct inet_diag_sockid id;
 
