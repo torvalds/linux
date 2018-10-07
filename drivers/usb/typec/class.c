@@ -1322,7 +1322,7 @@ void typec_set_pwr_role(struct typec_port *port, enum typec_role role)
 EXPORT_SYMBOL_GPL(typec_set_pwr_role);
 
 /**
- * typec_set_pwr_role - Report VCONN source change
+ * typec_set_vconn_role - Report VCONN source change
  * @port: The USB Type-C Port which VCONN role changed
  * @role: Source when @port is sourcing VCONN, or Sink when it's not
  *
