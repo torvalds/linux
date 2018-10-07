@@ -931,7 +931,7 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 	else
 		IWL_WARN(trans, "PCI should have external buffer debug\n");
 
-	for (i = 0; i < trans->dbg_dest_reg_num; i++) {
+	for (i = 0; i < trans->dbg_n_dest_reg; i++) {
 		u32 addr = le32_to_cpu(dest->reg_ops[i].addr);
 		u32 val = le32_to_cpu(dest->reg_ops[i].val);
 

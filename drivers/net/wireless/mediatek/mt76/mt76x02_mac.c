@@ -15,9 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "mt76.h"
-#include "mt76x02_regs.h"
-#include "mt76x02_mac.h"
+#include "mt76x02.h"
+#include "mt76x02_trace.h"
 
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
@@ -156,8 +155,9 @@ void mt76x02_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq)
 }
 EXPORT_SYMBOL_GPL(mt76x02_txq_init);
 
-void mt76x02_mac_fill_txwi(struct mt76x02_txwi *txwi, struct sk_buff *skb,
-			  struct ieee80211_sta *sta, int len, u8 nss)
+static void
+mt76x02_mac_fill_txwi(struct mt76x02_txwi *txwi, struct sk_buff *skb,
+		      struct ieee80211_sta *sta, int len, u8 nss)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -196,9 +196,8 @@ void mt76x02_mac_fill_txwi(struct mt76x02_txwi *txwi, struct sk_buff *skb,
 	txwi->flags |= cpu_to_le16(txwi_flags);
 	txwi->len_ctl = cpu_to_le16(len);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_fill_txwi);
 
-__le16
+static __le16
 mt76x02_mac_tx_rate_val(struct mt76_dev *dev,
 		       const struct ieee80211_tx_rate *rate, u8 *nss_val)
 {
@@ -248,7 +247,6 @@ mt76x02_mac_tx_rate_val(struct mt76_dev *dev,
 	*nss_val = nss;
 	return cpu_to_le16(rateval);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_tx_rate_val);
 
 void mt76x02_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			      const struct ieee80211_tx_rate *rate)
@@ -340,6 +338,66 @@ mt76x02_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 
 	return 0;
 }
+
+void mt76x02_mac_write_txwi(struct mt76_dev *dev, struct mt76x02_txwi *txwi,
+			    struct sk_buff *skb, struct mt76_wcid *wcid,
+			    struct ieee80211_sta *sta, int len)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_rate *rate = &info->control.rates[0];
+	struct ieee80211_key_conf *key = info->control.hw_key;
+	u16 rate_ht_mask = FIELD_PREP(MT_RXWI_RATE_PHY, BIT(1) | BIT(2));
+	u8 nss;
+	s8 txpwr_adj, max_txpwr_adj;
+	u8 ccmp_pn[8], nstreams = dev->chainmask & 0xf;
+
+	memset(txwi, 0, sizeof(*txwi));
+
+	if (wcid)
+		txwi->wcid = wcid->idx;
+	else
+		txwi->wcid = 0xff;
+
+	txwi->pktid = 1;
+
+	if (wcid && wcid->sw_iv && key) {
+		u64 pn = atomic64_inc_return(&key->tx_pn);
+		ccmp_pn[0] = pn;
+		ccmp_pn[1] = pn >> 8;
+		ccmp_pn[2] = 0;
+		ccmp_pn[3] = 0x20 | (key->keyidx << 6);
+		ccmp_pn[4] = pn >> 16;
+		ccmp_pn[5] = pn >> 24;
+		ccmp_pn[6] = pn >> 32;
+		ccmp_pn[7] = pn >> 40;
+		txwi->iv = *((__le32 *)&ccmp_pn[0]);
+		txwi->eiv = *((__le32 *)&ccmp_pn[1]);
+	}
+
+	spin_lock_bh(&dev->lock);
+	if (wcid && (rate->idx < 0 || !rate->count)) {
+		txwi->rate = wcid->tx_rate;
+		max_txpwr_adj = wcid->max_txpwr_adj;
+		nss = wcid->tx_rate_nss;
+	} else {
+		txwi->rate = mt76x02_mac_tx_rate_val(dev, rate, &nss);
+		max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(dev, rate);
+	}
+	spin_unlock_bh(&dev->lock);
+
+	txpwr_adj = mt76x02_tx_get_txpwr_adj(dev, dev->txpower_conf,
+					     max_txpwr_adj);
+	txwi->ctl2 = FIELD_PREP(MT_TX_PWR_ADJ, txpwr_adj);
+
+	if (nstreams > 1 && mt76_rev(dev) >= MT76XX_REV_E4)
+		txwi->txstream = 0x13;
+	else if (nstreams > 1 && mt76_rev(dev) >= MT76XX_REV_E3 &&
+		 !(txwi->rate & cpu_to_le16(rate_ht_mask)))
+		txwi->txstream = 0x93;
+
+	mt76x02_mac_fill_txwi(txwi, skb, sta, len, nss);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_write_txwi);
 
 static void
 mt76x02_mac_fill_tx_status(struct mt76_dev *dev,
@@ -502,3 +560,186 @@ mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_process_rate);
+
+void mt76x02_mac_setaddr(struct mt76_dev *dev, u8 *addr)
+{
+	ether_addr_copy(dev->macaddr, addr);
+
+	if (!is_valid_ether_addr(dev->macaddr)) {
+		eth_random_addr(dev->macaddr);
+		dev_info(dev->dev,
+			 "Invalid MAC address, using random address %pM\n",
+			 dev->macaddr);
+	}
+
+	__mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
+	__mt76_wr(dev, MT_MAC_ADDR_DW1,
+		  get_unaligned_le16(dev->macaddr + 4) |
+		  FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_setaddr);
+
+static int
+mt76x02_mac_get_rssi(struct mt76x02_dev *dev, s8 rssi, int chain)
+{
+	struct mt76x02_rx_freq_cal *cal = &dev->cal.rx;
+
+	rssi += cal->rssi_offset[chain];
+	rssi -= cal->lna_gain;
+
+	return rssi;
+}
+
+int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
+			   void *rxi)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
+	struct mt76x02_rxwi *rxwi = rxi;
+	struct mt76x02_sta *sta;
+	u32 rxinfo = le32_to_cpu(rxwi->rxinfo);
+	u32 ctl = le32_to_cpu(rxwi->ctl);
+	u16 rate = le16_to_cpu(rxwi->rate);
+	u16 tid_sn = le16_to_cpu(rxwi->tid_sn);
+	bool unicast = rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST);
+	int i, pad_len = 0, nstreams = dev->mt76.chainmask & 0xf;
+	s8 signal;
+	u8 pn_len;
+	u8 wcid;
+	int len;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		return -EINVAL;
+
+	if (rxinfo & MT_RXINFO_L2PAD)
+		pad_len += 2;
+
+	if (rxinfo & MT_RXINFO_DECRYPT) {
+		status->flag |= RX_FLAG_DECRYPTED;
+		status->flag |= RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MIC_STRIPPED;
+		status->flag |= RX_FLAG_IV_STRIPPED;
+	}
+
+	wcid = FIELD_GET(MT_RXWI_CTL_WCID, ctl);
+	sta = mt76x02_rx_get_sta(&dev->mt76, wcid);
+	status->wcid = mt76x02_rx_get_sta_wcid(sta, unicast);
+
+	len = FIELD_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
+	pn_len = FIELD_GET(MT_RXINFO_PN_LEN, rxinfo);
+	if (pn_len) {
+		int offset = ieee80211_get_hdrlen_from_skb(skb) + pad_len;
+		u8 *data = skb->data + offset;
+
+		status->iv[0] = data[7];
+		status->iv[1] = data[6];
+		status->iv[2] = data[5];
+		status->iv[3] = data[4];
+		status->iv[4] = data[1];
+		status->iv[5] = data[0];
+
+		/*
+		 * Driver CCMP validation can't deal with fragments.
+		 * Let mac80211 take care of it.
+		 */
+		if (rxinfo & MT_RXINFO_FRAG) {
+			status->flag &= ~RX_FLAG_IV_STRIPPED;
+		} else {
+			pad_len += pn_len << 2;
+			len -= pn_len << 2;
+		}
+	}
+
+	mt76x02_remove_hdr_pad(skb, pad_len);
+
+	if ((rxinfo & MT_RXINFO_BA) && !(rxinfo & MT_RXINFO_NULL))
+		status->aggr = true;
+
+	if (WARN_ON_ONCE(len > skb->len))
+		return -EINVAL;
+
+	pskb_trim(skb, len);
+
+	status->chains = BIT(0);
+	signal = mt76x02_mac_get_rssi(dev, rxwi->rssi[0], 0);
+	for (i = 1; i < nstreams; i++) {
+		status->chains |= BIT(i);
+		status->chain_signal[i] = mt76x02_mac_get_rssi(dev,
+							       rxwi->rssi[i],
+							       i);
+		signal = max_t(s8, signal, status->chain_signal[i]);
+	}
+	status->signal = signal;
+	status->freq = dev->mt76.chandef.chan->center_freq;
+	status->band = dev->mt76.chandef.chan->band;
+
+	status->tid = FIELD_GET(MT_RXWI_TID, tid_sn);
+	status->seqno = FIELD_GET(MT_RXWI_SN, tid_sn);
+
+	if (sta) {
+		ewma_signal_add(&sta->rssi, status->signal);
+		sta->inactive_count = 0;
+	}
+
+	return mt76x02_mac_process_rate(status, rate);
+}
+
+void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
+{
+	struct mt76x02_tx_status stat = {};
+	unsigned long flags;
+	u8 update = 1;
+	bool ret;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		return;
+
+	trace_mac_txstat_poll(dev);
+
+	while (!irq || !kfifo_is_full(&dev->txstatus_fifo)) {
+		spin_lock_irqsave(&dev->mt76.mmio.irq_lock, flags);
+		ret = mt76x02_mac_load_tx_status(&dev->mt76, &stat);
+		spin_unlock_irqrestore(&dev->mt76.mmio.irq_lock, flags);
+
+		if (!ret)
+			break;
+
+		trace_mac_txstat_fetch(dev, &stat);
+
+		if (!irq) {
+			mt76x02_send_tx_status(&dev->mt76, &stat, &update);
+			continue;
+		}
+
+		kfifo_put(&dev->txstatus_fifo, stat);
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_poll_tx_status);
+
+static void
+mt76x02_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,
+			 void *txwi_ptr)
+{
+	struct mt76x02_tx_info *txi = mt76x02_skb_tx_info(skb);
+	struct mt76x02_txwi *txwi = txwi_ptr;
+
+	mt76x02_mac_poll_tx_status(dev, false);
+
+	txi->tries = 0;
+	txi->jiffies = jiffies;
+	txi->wcid = txwi->wcid;
+	txi->pktid = txwi->pktid;
+	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
+	mt76x02_tx_complete(&dev->mt76, skb);
+}
+
+void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
+			     struct mt76_queue_entry *e, bool flush)
+{
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+
+	if (e->txwi)
+		mt76x02_mac_queue_txdone(dev, e->skb, &e->txwi->txwi);
+	else
+		dev_kfree_skb_any(e->skb);
+}
+EXPORT_SYMBOL_GPL(mt76x02_tx_complete_skb);

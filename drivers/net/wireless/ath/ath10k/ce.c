@@ -1280,10 +1280,17 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state)
 
 int ath10k_ce_disable_interrupts(struct ath10k *ar)
 {
+	struct ath10k_ce *ce = ath10k_ce_priv(ar);
+	struct ath10k_ce_pipe *ce_state;
+	u32 ctrl_addr;
 	int ce_id;
 
 	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
-		u32 ctrl_addr = ath10k_ce_base_address(ar, ce_id);
+		ce_state  = &ce->ce_states[ce_id];
+		if (ce_state->attr_flags & CE_ATTR_POLL)
+			continue;
+
+		ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
 		ath10k_ce_error_intr_disable(ar, ctrl_addr);
@@ -1300,11 +1307,14 @@ void ath10k_ce_enable_interrupts(struct ath10k *ar)
 	int ce_id;
 	struct ath10k_ce_pipe *ce_state;
 
-	/* Skip the last copy engine, CE7 the diagnostic window, as that
-	 * uses polling and isn't initialized for interrupts.
+	/* Enable interrupts for copy engine that
+	 * are not using polling mode.
 	 */
-	for (ce_id = 0; ce_id < CE_COUNT - 1; ce_id++) {
+	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
 		ce_state  = &ce->ce_states[ce_id];
+		if (ce_state->attr_flags & CE_ATTR_POLL)
+			continue;
+
 		ath10k_ce_per_engine_handler_adjust(ce_state);
 	}
 }

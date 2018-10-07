@@ -990,19 +990,6 @@ static int read_file_dump_nfcal(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int open_file_dump_nfcal(struct inode *inode, struct file *f)
-{
-	return single_open(f, read_file_dump_nfcal, inode->i_private);
-}
-
-static const struct file_operations fops_dump_nfcal = {
-	.read = seq_read,
-	.open = open_file_dump_nfcal,
-	.owner = THIS_MODULE,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 static ssize_t read_file_btcoex(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)

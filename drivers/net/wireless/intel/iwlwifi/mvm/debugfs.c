@@ -666,16 +666,11 @@ iwl_dbgfs_bt_force_ant_write(struct iwl_mvm *mvm, char *buf,
 	};
 	int ret, bt_force_ant_mode;
 
-	for (bt_force_ant_mode = 0;
-	     bt_force_ant_mode < ARRAY_SIZE(modes_str);
-	     bt_force_ant_mode++) {
-		if (!strcmp(buf, modes_str[bt_force_ant_mode]))
-			break;
-	}
+	ret = match_string(modes_str, ARRAY_SIZE(modes_str), buf);
+	if (ret < 0)
+		return ret;
 
-	if (bt_force_ant_mode >= ARRAY_SIZE(modes_str))
-		return -EINVAL;
-
+	bt_force_ant_mode = ret;
 	ret = 0;
 	mutex_lock(&mvm->mutex);
 	if (mvm->bt_force_ant_mode == bt_force_ant_mode)

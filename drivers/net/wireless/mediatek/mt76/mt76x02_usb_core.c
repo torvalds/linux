@@ -14,8 +14,36 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "mt76.h"
-#include "mt76x02_dma.h"
+#include "mt76x02.h"
+
+static void mt76x02u_remove_dma_hdr(struct sk_buff *skb)
+{
+	int hdr_len;
+
+	skb_pull(skb, sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN);
+	hdr_len = ieee80211_get_hdrlen_from_skb(skb);
+	if (hdr_len % 4)
+		mt76x02_remove_hdr_pad(skb, 2);
+}
+
+void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
+			      struct mt76_queue_entry *e, bool flush)
+{
+	mt76x02u_remove_dma_hdr(e->skb);
+	mt76x02_tx_complete(mdev, e->skb);
+}
+EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
+
+static int mt76x02u_check_skb_rooms(struct sk_buff *skb)
+{
+	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
+	u32 need_head;
+
+	need_head = sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN;
+	if (hdr_len % 4)
+		need_head += 2;
+	return skb_cow(skb, need_head);
+}
 
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
@@ -43,14 +71,15 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 	}
 
 	if (unlikely(pad)) {
-		if (__skb_pad(last, pad, true))
+		if (skb_pad(last, pad))
 			return -ENOMEM;
 		__skb_put(last, pad);
 	}
 	return 0;
 }
 
-int mt76x02u_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep)
+static int
+mt76x02u_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	enum mt76_qsel qsel;
@@ -69,4 +98,24 @@ int mt76x02u_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep)
 
 	return mt76x02u_skb_dma_info(skb, WLAN_PORT, flags);
 }
-EXPORT_SYMBOL_GPL(mt76x02u_set_txinfo);
+
+int mt76x02u_tx_prepare_skb(struct mt76_dev *dev, void *data,
+			    struct sk_buff *skb, struct mt76_queue *q,
+			    struct mt76_wcid *wcid, struct ieee80211_sta *sta,
+			    u32 *tx_info)
+{
+	struct mt76x02_txwi *txwi;
+	int err, len = skb->len;
+
+	err = mt76x02u_check_skb_rooms(skb);
+	if (err < 0)
+		return -ENOMEM;
+
+	mt76x02_insert_hdr_pad(skb);
+
+	txwi = skb_push(skb, sizeof(struct mt76x02_txwi));
+	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, len);
+
+	return mt76x02u_set_txinfo(skb, wcid, q2ep(q->hw_idx));
+}
+EXPORT_SYMBOL_GPL(mt76x02u_tx_prepare_skb);

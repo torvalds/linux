@@ -725,7 +725,7 @@ struct iwl_dram_data {
  * @dbg_dest_tlv: points to the destination TLV for debug
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
  * @dbg_trigger_tlv: array of pointers to triggers TLVs for debug
- * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
+ * @dbg_n_dest_reg: num of reg_ops in %dbg_dest_tlv
  * @num_blocks: number of blocks in fw_mon
  * @fw_mon: address of the buffers for firmware monitor
  * @system_pm_mode: the system-wide power management mode in use.
@@ -778,7 +778,7 @@ struct iwl_trans {
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
 	u32 dbg_dump_mask;
-	u8 dbg_dest_reg_num;
+	u8 dbg_n_dest_reg;
 	int num_blocks;
 	struct iwl_dram_data fw_mon[IWL_MAX_DEBUG_ALLOCATIONS];
 

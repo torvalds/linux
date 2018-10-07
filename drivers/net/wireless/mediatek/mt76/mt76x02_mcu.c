@@ -211,3 +211,16 @@ int mt76x02_mcu_cleanup(struct mt76_dev *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_cleanup);
+
+void mt76x02_set_ethtool_fwver(struct mt76_dev *dev,
+			       const struct mt76x02_fw_header *h)
+{
+	u16 bld = le16_to_cpu(h->build_ver);
+	u16 ver = le16_to_cpu(h->fw_ver);
+
+	snprintf(dev->hw->wiphy->fw_version,
+		 sizeof(dev->hw->wiphy->fw_version),
+		 "%d.%d.%02d-b%x",
+		 (ver >> 12) & 0xf, (ver >> 8) & 0xf, ver & 0xf, bld);
+}
+EXPORT_SYMBOL_GPL(mt76x02_set_ethtool_fwver);

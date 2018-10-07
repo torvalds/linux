@@ -203,6 +203,8 @@ enum wmi_service {
 	WMI_SERVICE_TPC_STATS_FINAL,
 	WMI_SERVICE_RESET_CHIP,
 	WMI_SERVICE_SPOOF_MAC_SUPPORT,
+	WMI_SERVICE_TX_DATA_ACK_RSSI,
+	WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -350,6 +352,13 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
 	WMI_10_4_SERVICE_HOST_DFS_CHECK_SUPPORT,
 	WMI_10_4_SERVICE_TPC_STATS_FINAL,
+	WMI_10_4_SERVICE_CFR_CAPTURE_SUPPORT,
+	WMI_10_4_SERVICE_TX_DATA_ACK_RSSI,
+	WMI_10_4_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LEGACY,
+	WMI_10_4_SERVICE_PER_PACKET_SW_ENCRYPT,
+	WMI_10_4_SERVICE_PEER_TID_CONFIGS_SUPPORT,
+	WMI_10_4_SERVICE_VDEV_BCN_RATE_CONTROL,
+	WMI_10_4_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -463,6 +472,8 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_HOST_DFS_CHECK_SUPPORT);
 	SVCSTR(WMI_SERVICE_TPC_STATS_FINAL);
 	SVCSTR(WMI_SERVICE_RESET_CHIP);
+	SVCSTR(WMI_SERVICE_TX_DATA_ACK_RSSI);
+	SVCSTR(WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT);
 	default:
 		return NULL;
 	}
@@ -771,6 +782,10 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_HOST_DFS_CHECK_SUPPORT, len);
 	SVCMAP(WMI_10_4_SERVICE_TPC_STATS_FINAL,
 	       WMI_SERVICE_TPC_STATS_FINAL, len);
+	SVCMAP(WMI_10_4_SERVICE_TX_DATA_ACK_RSSI,
+	       WMI_SERVICE_TX_DATA_ACK_RSSI, len);
+	SVCMAP(WMI_10_4_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT,
+	       WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT, len);
 }
 
 #undef SVCMAP
@@ -2924,6 +2939,7 @@ enum wmi_coex_version {
  * @WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE: TDLS connection tracker in host
  *	enable/disable
  * @WMI_10_4_TDLS_EXPLICIT_MODE_ONLY:Explicit TDLS mode enable/disable
+ * @WMI_10_4_TX_DATA_ACK_RSSI: Enable DATA ACK RSSI if firmware is capable
  */
 enum wmi_10_4_feature_mask {
 	WMI_10_4_LTEU_SUPPORT			= BIT(0),
@@ -2939,6 +2955,7 @@ enum wmi_10_4_feature_mask {
 	WMI_10_4_TDLS_UAPSD_SLEEP_STA		= BIT(10),
 	WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE = BIT(11),
 	WMI_10_4_TDLS_EXPLICIT_MODE_ONLY	= BIT(12),
+	WMI_10_4_TX_DATA_ACK_RSSI               = BIT(16),
 
 };
 
@@ -4153,6 +4170,13 @@ enum wmi_tpc_pream_5ghz {
 	WMI_TPC_PREAM_5GHZ_HTCUP,
 };
 
+#define	WMI_PEER_PS_STATE_DISABLED	2
+
+struct wmi_peer_sta_ps_state_chg_event {
+	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_ps_state;
+} __packed;
+
 struct wmi_pdev_chanlist_update_event {
 	/* number of channels */
 	__le32 num_chan;
@@ -4958,10 +4982,15 @@ enum wmi_rate_preamble {
 #define ATH10K_HW_GI(flags)		(((flags) >> 5) & 0x1)
 #define ATH10K_HW_RATECODE(rate, nss, preamble) \
 	(((preamble) << 6) | ((nss) << 4) | (rate))
+#define ATH10K_HW_AMPDU(flags)		((flags) & 0x1)
+#define ATH10K_HW_BA_FAIL(flags)	(((flags) >> 1) & 0x3)
 
-#define VHT_MCS_NUM     10
-#define VHT_BW_NUM      4
-#define VHT_NSS_NUM     4
+#define ATH10K_VHT_MCS_NUM	10
+#define ATH10K_BW_NUM		4
+#define ATH10K_NSS_NUM		4
+#define ATH10K_LEGACY_NUM	12
+#define ATH10K_GI_NUM		2
+#define ATH10K_HT_MCS_NUM	32
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
@@ -6642,11 +6671,17 @@ struct wmi_ch_info_ev_arg {
 	__le32 rx_frame_count;
 };
 
+/* From 10.4 firmware, not sure all have the same values. */
+enum wmi_vdev_start_status {
+	WMI_VDEV_START_OK = 0,
+	WMI_VDEV_START_CHAN_INVALID,
+};
+
 struct wmi_vdev_start_ev_arg {
 	__le32 vdev_id;
 	__le32 req_id;
 	__le32 resp_type; /* %WMI_VDEV_RESP_ */
-	__le32 status;
+	__le32 status; /* See wmi_vdev_start_status enum above */
 };
 
 struct wmi_peer_kick_ev_arg {

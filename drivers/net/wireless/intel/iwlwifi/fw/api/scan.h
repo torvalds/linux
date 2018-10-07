@@ -596,9 +596,12 @@ enum iwl_umac_scan_general_flags {
  * enum iwl_umac_scan_general_flags2 - UMAC scan general flags #2
  * @IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL: Whether to send a complete
  *	notification per channel or not.
+ * @IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER: Whether to allow channel
+ *	reorder optimization or not.
  */
 enum iwl_umac_scan_general_flags2 {
-	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL	= BIT(0),
+	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL		= BIT(0),
+	IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER	= BIT(1),
 };
 
 /**

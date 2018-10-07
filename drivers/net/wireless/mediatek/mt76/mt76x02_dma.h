@@ -17,6 +17,7 @@
 #ifndef __MT76x02_DMA_H
 #define __MT76x02_DMA_H
 
+#include "mt76x02.h"
 #include "dma.h"
 
 #define MT_TXD_INFO_LEN			GENMASK(15, 0)
@@ -47,6 +48,9 @@
 #define MT_MCU_MSG_TYPE			GENMASK(31, 30)
 #define MT_MCU_MSG_TYPE_CMD		BIT(30)
 
+#define MT_RX_HEADROOM			32
+#define MT76X02_RX_RING_SIZE		256
+
 enum dma_msg_port {
 	WLAN_PORT,
 	CPU_RX_PORT,
@@ -56,5 +60,18 @@ enum dma_msg_port {
 	VIRTUAL_CPU_TX_PORT,
 	DISCARD,
 };
+
+static inline bool
+mt76x02_wait_for_wpdma(struct mt76_dev *dev, int timeout)
+{
+	return __mt76_poll(dev, MT_WPDMA_GLO_CFG,
+			   MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
+			   MT_WPDMA_GLO_CFG_RX_DMA_BUSY,
+			   0, timeout);
+}
+
+int mt76x02_dma_init(struct mt76x02_dev *dev);
+void mt76x02_dma_disable(struct mt76x02_dev *dev);
+void mt76x02_dma_cleanup(struct mt76x02_dev *dev);
 
 #endif /* __MT76x02_DMA_H */

@@ -455,7 +455,7 @@ static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
  */
 static inline bool wil_cid_valid(u8 cid)
 {
-	return (cid >= 0 && cid < WIL6210_MAX_CID);
+	return cid < WIL6210_MAX_CID;
 }
 
 struct wil6210_mbox_ring {
