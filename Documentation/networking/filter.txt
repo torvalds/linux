@@ -203,11 +203,11 @@ opcodes as defined in linux/filter.h stand for:
 
   Instruction      Addressing mode      Description
 
-  ld               1, 2, 3, 4, 10       Load word into A
+  ld               1, 2, 3, 4, 12       Load word into A
   ldi              4                    Load word into A
   ldh              1, 2                 Load half-word into A
   ldb              1, 2                 Load byte into A
-  ldx              3, 4, 5, 10          Load word into X
+  ldx              3, 4, 5, 12          Load word into X
   ldxi             4                    Load word into X
   ldxb             5                    Load byte into X
 
@@ -216,14 +216,14 @@ opcodes as defined in linux/filter.h stand for:
 
   jmp              6                    Jump to label
   ja               6                    Jump to label
-  jeq              7, 8                 Jump on A == k
-  jneq             8                    Jump on A != k
-  jne              8                    Jump on A != k
-  jlt              8                    Jump on A <  k
-  jle              8                    Jump on A <= k
-  jgt              7, 8                 Jump on A >  k
-  jge              7, 8                 Jump on A >= k
-  jset             7, 8                 Jump on A &  k
+  jeq              7, 8, 9, 10          Jump on A == <x>
+  jneq             9, 10                Jump on A != <x>
+  jne              9, 10                Jump on A != <x>
+  jlt              9, 10                Jump on A <  <x>
+  jle              9, 10                Jump on A <= <x>
+  jgt              7, 8, 9, 10          Jump on A >  <x>
+  jge              7, 8, 9, 10          Jump on A >= <x>
+  jset             7, 8, 9, 10          Jump on A &  <x>
 
   add              0, 4                 A + <x>
   sub              0, 4                 A - <x>
@@ -240,7 +240,7 @@ opcodes as defined in linux/filter.h stand for:
   tax                                   Copy A into X
   txa                                   Copy X into A
 
-  ret              4, 9                 Return
+  ret              4, 11                Return
 
 The next table shows addressing formats from the 2nd column:
 
@@ -254,9 +254,11 @@ The next table shows addressing formats from the 2nd column:
    5               4*([k]&0xf)          Lower nibble * 4 at byte offset k in the packet
    6               L                    Jump label L
    7               #k,Lt,Lf             Jump to Lt if true, otherwise jump to Lf
-   8               #k,Lt                Jump to Lt if predicate is true
-   9               a/%a                 Accumulator A
-  10               extension            BPF extension
+   8               x/%x,Lt,Lf           Jump to Lt if true, otherwise jump to Lf
+   9               #k,Lt                Jump to Lt if predicate is true
+  10               x/%x,Lt              Jump to Lt if predicate is true
+  11               a/%a                 Accumulator A
+  12               extension            BPF extension
 
 The Linux kernel also has a couple of BPF extensions that are used along
 with the class of load instructions by "overloading" the k argument with
