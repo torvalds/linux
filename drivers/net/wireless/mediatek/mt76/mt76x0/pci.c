@@ -127,12 +127,25 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 	mt76_clear(dev, 0x110, BIT(9));
 	mt76_set(dev, MT_MAX_LEN_CFG, BIT(13));
 
+	err = mt76x0_register_device(dev);
+	if (err < 0)
+		return err;
+
+	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+
 	return 0;
 }
 
 static int
 mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	static const struct mt76_driver_ops drv_ops = {
+		.txwi_size = sizeof(struct mt76x02_txwi),
+		.tx_prepare_skb = mt76x02_tx_prepare_skb,
+		.tx_complete_skb = mt76x02_tx_complete_skb,
+		.rx_skb = mt76x02_queue_rx_skb,
+		.rx_poll_complete = mt76x02_rx_poll_complete,
+	};
 	struct mt76x02_dev *dev;
 	int ret;
 
@@ -150,7 +163,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	dev = mt76x0_alloc_device(&pdev->dev, NULL, &mt76x0e_ops);
+	dev = mt76x0_alloc_device(&pdev->dev, &drv_ops, &mt76x0e_ops);
 	if (!dev)
 		return -ENOMEM;
 
@@ -158,6 +171,11 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev->mt76.rev = mt76_rr(dev, MT_ASIC_VERSION);
 	dev_info(dev->mt76.dev, "ASIC revision: %08x\n", dev->mt76.rev);
+
+	ret = devm_request_irq(dev->mt76.dev, pdev->irq, mt76x02_irq_handler,
+			       IRQF_SHARED, KBUILD_MODNAME, dev);
+	if (ret)
+		goto error;
 
 	ret = mt76x0e_register_device(dev);
 	if (ret < 0)
