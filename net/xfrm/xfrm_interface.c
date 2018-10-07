@@ -561,9 +561,6 @@ static void xfrmi_get_stats64(struct net_device *dev,
 {
 	int cpu;
 
-	if (!dev->tstats)
-		return;
-
 	for_each_possible_cpu(cpu) {
 		struct pcpu_sw_netstats *stats;
 		struct pcpu_sw_netstats tmp;
