@@ -447,7 +447,7 @@
 			#power-domain-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
+			status = "okay";
 
 			/* These power domains are grouped by VD_NPU */
 			pd_npu@RK1808_VD_NPU {
@@ -467,7 +467,13 @@
 					 <&cru ACLK_PCIE_MST>,
 					 <&cru ACLK_PCIE_SLV>,
 					 <&cru PCLK_PCIE>,
-					 <&cru SCLK_PCIE_AUX>;
+					 <&cru SCLK_PCIE_AUX>,
+					 <&cru SCLK_PCIE_AUX>,
+					 <&cru ACLK_USB3OTG>,
+					 <&cru HCLK_HOST>,
+					 <&cru HCLK_HOST_ARB>,
+					 <&cru SCLK_USB3_OTG0_REF>,
+					 <&cru SCLK_USB3_OTG0_SUSPEND>;
 				pm_qos = <&qos_pcie>;
 			};
 			pd_vpu@RK1808_PD_VPU {
@@ -1094,6 +1100,7 @@
 		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
+		power-domains = <&power RK1808_PD_PCIE>;
 	};
 
 	usb_host0_ohci: usb@ffd90000 {
@@ -1106,6 +1113,7 @@
 		phys = <&u2phy_host>;
 		phy-names = "usb";
 		status = "disabled";
+		power-domains = <&power RK1808_PD_PCIE>;
 	};
 
 	gmac: ethernet@ffdd0000 {
