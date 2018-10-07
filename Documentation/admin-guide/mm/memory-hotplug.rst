@@ -13,27 +13,6 @@ be changed often.
 
 .. contents:: :local:
 
-.. CONTENTS
-
-  1. Introduction
-    1.1 Purpose of memory hotplug
-    1.2. Phases of memory hotplug
-    1.3. Unit of Memory online/offline operation
-  2. Kernel Configuration
-  3. sysfs files for memory hotplug
-  4. Physical memory hot-add phase
-    4.1 Hardware(Firmware) Support
-    4.2 Notify memory hot-add event by hand
-  5. Logical Memory hot-add phase
-    5.1. State of memory
-    5.2. How to online memory
-  6. Logical memory remove
-    6.1 Memory offline and ZONE_MOVABLE
-    6.2. How to offline memory
-  7. Physical memory remove
-  9. Future Work List
-
-
 .. note::
 
     (1) x86_64's has special implementation for memory hotplug.
