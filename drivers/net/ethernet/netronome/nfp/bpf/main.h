@@ -423,6 +423,14 @@ static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
 	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_DIV;
 }
 
+static inline bool is_mbpf_helper_call(const struct nfp_insn_meta *meta)
+{
+	struct bpf_insn insn = meta->insn;
+
+	return insn.code == (BPF_JMP | BPF_CALL) &&
+		insn.src_reg != BPF_PSEUDO_CALL;
+}
+
 /**
  * struct nfp_bpf_subprog_info - nfp BPF sub-program (a.k.a. function) info
  * @stack_depth:	maximum stack depth used by this sub-program

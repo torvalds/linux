@@ -155,8 +155,9 @@ nfp_bpf_map_call_ok(const char *fname, struct bpf_verifier_env *env,
 }
 
 static int
-nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
-		   struct nfp_insn_meta *meta)
+nfp_bpf_check_helper_call(struct nfp_prog *nfp_prog,
+			  struct bpf_verifier_env *env,
+			  struct nfp_insn_meta *meta)
 {
 	const struct bpf_reg_state *reg1 = cur_regs(env) + BPF_REG_1;
 	const struct bpf_reg_state *reg2 = cur_regs(env) + BPF_REG_2;
@@ -620,8 +621,8 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 		return -EINVAL;
 	}
 
-	if (meta->insn.code == (BPF_JMP | BPF_CALL))
-		return nfp_bpf_check_call(nfp_prog, env, meta);
+	if (is_mbpf_helper_call(meta))
+		return nfp_bpf_check_helper_call(nfp_prog, env, meta);
 	if (meta->insn.code == (BPF_JMP | BPF_EXIT))
 		return nfp_bpf_check_exit(nfp_prog, env);
 
