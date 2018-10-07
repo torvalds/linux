@@ -641,6 +641,27 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	return 0;
 }
 
+static int
+nfp_assign_subprog_idx(struct bpf_verifier_env *env, struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta;
+	int index = 0;
+
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		if (nfp_is_subprog_start(meta))
+			index++;
+		meta->subprog_idx = index;
+	}
+
+	if (index + 1 != nfp_prog->subprog_cnt) {
+		pr_vlog(env, "BUG: number of processed BPF functions is not consistent (processed %d, expected %d)\n",
+			index + 1, nfp_prog->subprog_cnt);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 {
 	struct bpf_subprog_info *info;
@@ -654,9 +675,20 @@ static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 	if (!nfp_prog->subprog)
 		return -ENOMEM;
 
+	nfp_assign_subprog_idx(env, nfp_prog);
+
 	info = env->subprog_info;
-	for (i = 0; i < nfp_prog->subprog_cnt; i++)
+	for (i = 0; i < nfp_prog->subprog_cnt; i++) {
 		nfp_prog->subprog[i].stack_depth = info[i].stack_depth;
+
+		if (i == 0)
+			continue;
+
+		/* Account for size of return address. */
+		nfp_prog->subprog[i].stack_depth += REG_WIDTH;
+		/* Account for size of saved registers. */
+		nfp_prog->subprog[i].stack_depth += BPF_REG_SIZE * 4;
+	}
 
 	return 0;
 }

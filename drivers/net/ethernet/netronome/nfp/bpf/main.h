@@ -61,6 +61,8 @@ enum nfp_relo_type {
 	/* internal jumps to parts of the outro */
 	RELO_BR_GO_OUT,
 	RELO_BR_GO_ABORT,
+	RELO_BR_GO_CALL_PUSH_REGS,
+	RELO_BR_GO_CALL_POP_REGS,
 	/* external jumps to fixed addresses */
 	RELO_BR_NEXT_PKT,
 	RELO_BR_HELPER,
@@ -104,6 +106,7 @@ enum pkt_vec {
 #define imma_a(np)	reg_a(STATIC_REG_IMMA)
 #define imma_b(np)	reg_b(STATIC_REG_IMMA)
 #define imm_both(np)	reg_both(STATIC_REG_IMM)
+#define ret_reg(np)	imm_a(np)
 
 #define NFP_BPF_ABI_FLAGS	reg_imm(0)
 #define   NFP_BPF_ABI_FLAG_MARK	1
@@ -290,6 +293,7 @@ struct nfp_bpf_reg_state {
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
+ * @subprog_idx: index of subprogram to which the instruction belongs
  * @skip: skip this instruction (optimized out)
  * @double_cb: callback for second part of the instruction
  * @l: link on nfp_prog->insns list
@@ -336,6 +340,7 @@ struct nfp_insn_meta {
 	unsigned int off;
 	unsigned short n;
 	unsigned short flags;
+	unsigned short subprog_idx;
 	bool skip;
 	instr_cb_t double_cb;
 
@@ -432,6 +437,16 @@ static inline bool is_mbpf_helper_call(const struct nfp_insn_meta *meta)
 		insn.src_reg != BPF_PSEUDO_CALL;
 }
 
+static inline bool is_mbpf_pseudo_call(const struct nfp_insn_meta *meta)
+{
+	struct bpf_insn insn = meta->insn;
+
+	return insn.code == (BPF_JMP | BPF_CALL) &&
+		insn.src_reg == BPF_PSEUDO_CALL;
+}
+
+#define STACK_FRAME_ALIGN 64
+
 /**
  * struct nfp_bpf_subprog_info - nfp BPF sub-program (a.k.a. function) info
  * @stack_depth:	maximum stack depth used by this sub-program
@@ -451,6 +466,8 @@ struct nfp_bpf_subprog_info {
  * @last_bpf_off: address of the last instruction translated from BPF
  * @tgt_out: jump target for normal exit
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
+ * @tgt_call_push_regs: jump target for subroutine for saving R6~R9 to stack
+ * @tgt_call_pop_regs: jump target for subroutine used for restoring R6~R9
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
  * @stack_frame_depth: max stack depth for current frame
@@ -475,6 +492,8 @@ struct nfp_prog {
 	unsigned int last_bpf_off;
 	unsigned int tgt_out;
 	unsigned int tgt_abort;
+	unsigned int tgt_call_push_regs;
+	unsigned int tgt_call_pop_regs;
 
 	unsigned int n_translated;
 	int error;
@@ -502,6 +521,7 @@ struct nfp_bpf_vnic {
 	unsigned int tgt_done;
 };
 
+bool nfp_is_subprog_start(struct nfp_insn_meta *meta);
 void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt);
 int nfp_bpf_jit(struct nfp_prog *prog);
 bool nfp_bpf_supported_opcode(u8 code);

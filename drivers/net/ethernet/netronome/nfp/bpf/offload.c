@@ -262,7 +262,6 @@ static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
 			prog->aux->stack_depth, stack_size);
 		return -EOPNOTSUPP;
 	}
-	nfp_prog->stack_frame_depth = round_up(prog->aux->stack_depth, 4);
 
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
