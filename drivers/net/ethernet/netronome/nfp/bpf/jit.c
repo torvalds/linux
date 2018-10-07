@@ -1178,7 +1178,8 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	bool lm3 = true;
 	int ret;
 
-	if (meta->ptr_not_const) {
+	if (meta->ptr_not_const ||
+	    meta->flags & FLAG_INSN_PTR_CALLER_STACK_FRAME) {
 		/* Use of the last encountered ptr_off is OK, they all have
 		 * the same alignment.  Depend on low bits of value being
 		 * discarded when written to LMaddr register.

@@ -336,6 +336,9 @@ nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 {
 	s32 old_off, new_off;
 
+	if (reg->frameno != env->cur_state->curframe)
+		meta->flags |= FLAG_INSN_PTR_CALLER_STACK_FRAME;
+
 	if (!tnum_is_const(reg->var_off)) {
 		pr_vlog(env, "variable ptr stack access\n");
 		return -EINVAL;

@@ -267,6 +267,7 @@ struct nfp_bpf_reg_state {
 
 #define FLAG_INSN_IS_JUMP_DST			BIT(0)
 #define FLAG_INSN_IS_SUBPROG_START		BIT(1)
+#define FLAG_INSN_PTR_CALLER_STACK_FRAME	BIT(2)
 
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
