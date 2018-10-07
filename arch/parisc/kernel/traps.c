@@ -430,8 +430,8 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	}
 
 	printk("\n");
-	pr_crit("%s: Code=%d (%s) regs=%p (Addr=" RFMT ")\n",
-		msg, code, trap_name(code), regs, offset);
+	pr_crit("%s: Code=%d (%s) at addr " RFMT "\n",
+		msg, code, trap_name(code), offset);
 	show_regs(regs);
 
 	spin_unlock(&terminate_lock);
