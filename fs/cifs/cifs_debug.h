@@ -47,6 +47,18 @@ extern int cifsFYI;
  */
 #ifdef CONFIG_CIFS_DEBUG
 
+
+/*
+ * When adding tracepoints and debug messages we have various choices.
+ * Some considerations:
+ *
+ * Use cifs_dbg(VFS, ...) for things we always want logged, and the user to see
+ *     cifs_info(...) slightly less important, admin can filter via loglevel > 6
+ *     cifs_dbg(FYI, ...) minor debugging messages, off by default
+ *     trace_smb3_*  ftrace functions are preferred for complex debug messages
+ *                 intended for developers or experienced admins, off by default
+ */
+
 /* Information level messages, minor events */
 #define cifs_info_func(ratefunc, fmt, ...)			\
 do {								\
