@@ -602,7 +602,7 @@ mt76x0_bbp_set_bw(struct mt76x02_dev *dev, enum nl80211_chan_width width)
 		return ;
 	}
 
-	mt76x02_mcu_function_select(&dev->mt76, BW_SETTING, bw, false);
+	mt76x02_mcu_function_select(dev, BW_SETTING, bw, false);
 }
 
 void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
@@ -712,7 +712,7 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	mt76x0_vco_cal(dev, channel);
 	if (scan)
-		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 1, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1, false);
 
 	mt76x0_phy_set_txpower(dev);
 
@@ -725,7 +725,7 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev)
 	u8 channel = dev->mt76.chandef.chan->hw_value;
 	int is_5ghz = (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ) ? 1 : 0;
 
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_R, 0, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
 
 	mt76x0_vco_cal(dev, channel);
 
@@ -737,22 +737,20 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev)
 	reg_val &= 0xffffff7e;
 	mt76_wr(dev, 0x2124, reg_val);
 
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 0, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 0, false);
 
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_LC, is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_LOFT, is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TXIQ, is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TX_GROUP_DELAY,
-			      is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXIQ, is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RX_GROUP_DELAY,
-			      is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_LOFT, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_GROUP_DELAY, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQ, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RX_GROUP_DELAY, is_5ghz, false);
 
 	mt76_wr(dev, 0x2124, reg_val);
 	mt76_wr(dev, MT_TX_ALC_CFG_0, tx_alc);
 	msleep(100);
 
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, 1, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1, false);
 }
 
 void mt76x0_agc_save(struct mt76x02_dev *dev)

@@ -260,8 +260,8 @@ static int mt76x2u_mcu_load_firmware(struct mt76x02_dev *dev)
 	mt76_set(dev, MT_MCU_COM_REG0, BIT(1));
 	/* enable FCE to send in-band cmd */
 	mt76_wr(dev, MT_FCE_PSE_CTRL, 0x1);
+	mt76x02_set_ethtool_fwver(dev, hdr);
 	dev_dbg(dev->mt76.dev, "firmware running\n");
-	mt76x02_set_ethtool_fwver(&dev->mt76, hdr);
 
 out:
 	release_firmware(fw);
@@ -283,10 +283,9 @@ int mt76x2u_mcu_init(struct mt76x02_dev *dev)
 {
 	int err;
 
-	err = mt76x02_mcu_function_select(&dev->mt76, Q_SELECT,
-					   1, false);
+	err = mt76x02_mcu_function_select(dev, Q_SELECT, 1, false);
 	if (err < 0)
 		return err;
 
-	return mt76x02_mcu_set_radio_state(&dev->mt76, true, false);
+	return mt76x02_mcu_set_radio_state(dev, true, false);
 }

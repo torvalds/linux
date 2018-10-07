@@ -289,8 +289,7 @@ void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
 			return;
 
 		usleep_range(10000, 20000);
-		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_DPD,
-				      chan->hw_value, wait);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_DPD, chan->hw_value, wait);
 		dev->cal.dpd_cal_done = true;
 	}
 }

@@ -303,7 +303,7 @@ void mt76x2u_stop_hw(struct mt76x02_dev *dev)
 
 void mt76x2u_cleanup(struct mt76x02_dev *dev)
 {
-	mt76x02_mcu_set_radio_state(&dev->mt76, false, false);
+	mt76x02_mcu_set_radio_state(dev, false, false);
 	mt76x2u_stop_hw(dev);
 	mt76u_queues_deinit(&dev->mt76);
 	mt76u_mcu_deinit(&dev->mt76);

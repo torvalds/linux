@@ -280,7 +280,7 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return -ETIMEDOUT;
 
 	mt76x0_reset_csr_bbp(dev);
-	ret = mt76x02_mcu_function_select(&dev->mt76, Q_SELECT, 1, false);
+	ret = mt76x02_mcu_function_select(dev, Q_SELECT, 1, false);
 	if (ret)
 		return ret;
 

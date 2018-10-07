@@ -152,8 +152,8 @@ mt76pci_load_firmware(struct mt76x02_dev *dev)
 		return -ETIMEDOUT;
 	}
 
+	mt76x02_set_ethtool_fwver(dev, hdr);
 	dev_info(dev->mt76.dev, "Firmware running!\n");
-	mt76x02_set_ethtool_fwver(&dev->mt76, hdr);
 
 	release_firmware(fw);
 
@@ -183,6 +183,6 @@ int mt76x2_mcu_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76x02_mcu_function_select(&dev->mt76, Q_SELECT, 1, true);
+	mt76x02_mcu_function_select(dev, Q_SELECT, 1, true);
 	return 0;
 }
