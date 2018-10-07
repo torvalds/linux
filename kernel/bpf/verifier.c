@@ -6309,6 +6309,9 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 		env->cur_state = NULL;
 	}
 
+	if (ret == 0 && bpf_prog_is_dev_bound(env->prog->aux))
+		ret = bpf_prog_offload_finalize(env);
+
 skip_full_check:
 	while (!pop_stack(env, NULL, NULL));
 	free_states(env);
