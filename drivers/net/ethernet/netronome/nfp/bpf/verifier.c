@@ -642,6 +642,21 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 
 static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 {
+	struct bpf_subprog_info *info;
+	struct nfp_prog *nfp_prog;
+	int i;
+
+	nfp_prog = env->prog->aux->offload->dev_priv;
+	nfp_prog->subprog_cnt = env->subprog_cnt;
+	nfp_prog->subprog = kcalloc(nfp_prog->subprog_cnt,
+				    sizeof(nfp_prog->subprog[0]), GFP_KERNEL);
+	if (!nfp_prog->subprog)
+		return -ENOMEM;
+
+	info = env->subprog_info;
+	for (i = 0; i < nfp_prog->subprog_cnt; i++)
+		nfp_prog->subprog[i].stack_depth = info[i].stack_depth;
+
 	return 0;
 }
 

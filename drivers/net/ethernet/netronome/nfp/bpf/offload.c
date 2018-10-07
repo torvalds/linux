@@ -208,6 +208,8 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta, *tmp;
 
+	kfree(nfp_prog->subprog);
+
 	list_for_each_entry_safe(meta, tmp, &nfp_prog->insns, l) {
 		list_del(&meta->l);
 		kfree(meta);

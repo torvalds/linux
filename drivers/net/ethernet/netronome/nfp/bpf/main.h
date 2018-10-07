@@ -424,6 +424,14 @@ static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
 }
 
 /**
+ * struct nfp_bpf_subprog_info - nfp BPF sub-program (a.k.a. function) info
+ * @stack_depth:	maximum stack depth used by this sub-program
+ */
+struct nfp_bpf_subprog_info {
+	u16 stack_depth;
+};
+
+/**
  * struct nfp_prog - nfp BPF program
  * @bpf: backpointer to the bpf app priv structure
  * @prog: machine code
@@ -439,7 +447,9 @@ static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
  * @stack_frame_depth: max stack depth for current frame
  * @adjust_head_location: if program has single adjust head call - the insn no.
  * @map_records_cnt: the number of map pointers recorded for this prog
+ * @subprog_cnt: number of sub-programs, including main function
  * @map_records: the map record pointers from bpf->maps_neutral
+ * @subprog: pointer to an array of objects holding info about sub-programs
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
@@ -464,7 +474,9 @@ struct nfp_prog {
 	unsigned int adjust_head_location;
 
 	unsigned int map_records_cnt;
+	unsigned int subprog_cnt;
 	struct nfp_bpf_neutral_map **map_records;
+	struct nfp_bpf_subprog_info *subprog;
 
 	struct list_head insns;
 };
