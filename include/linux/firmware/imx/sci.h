@@ -13,4 +13,5 @@
 #include <linux/firmware/imx/ipc.h>
 #include <linux/firmware/imx/types.h>
 
+#include <linux/firmware/imx/svc/misc.h>
 #endif /* _SC_SCI_H */
