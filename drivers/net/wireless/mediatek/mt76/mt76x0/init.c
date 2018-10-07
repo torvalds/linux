@@ -138,7 +138,7 @@ static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 
 	RANDOM_WRITE(dev, common_mac_reg_table);
 
-	mt76x02_set_beacon_offsets(&dev->mt76);
+	mt76x02_set_beacon_offsets(dev);
 
 	/* Enable PBF and MAC clock SYS_CTRL[11:10] = 0x3 */
 	RANDOM_WRITE(dev, mt76x0_mac_reg_table);

@@ -119,8 +119,8 @@ int mt76x02_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 int mt76x02_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 
-void mt76x02_vif_init(struct mt76_dev *dev, struct ieee80211_vif *vif,
-		     unsigned int idx);
+void mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
+		      unsigned int idx);
 int mt76x02_add_interface(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif);
 void mt76x02_remove_interface(struct ieee80211_hw *hw,
@@ -156,7 +156,7 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 			   u32 *tx_info);
 
 extern const u16 mt76x02_beacon_offsets[16];
-void mt76x02_set_beacon_offsets(struct mt76_dev *dev);
+void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev);
 void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 

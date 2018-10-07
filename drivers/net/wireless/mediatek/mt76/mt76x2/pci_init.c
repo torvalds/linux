@@ -168,7 +168,7 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
-	mt76x02_set_beacon_offsets(&dev->mt76);
+	mt76x02_set_beacon_offsets(dev);
 
 	mt76x2_set_tx_ackto(dev);
 
