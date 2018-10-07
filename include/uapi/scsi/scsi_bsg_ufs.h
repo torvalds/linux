@@ -3,6 +3,7 @@
  * UFS Transport SGIO v4 BSG Message Support
  *
  * Copyright (C) 2011-2013 Samsung India Software Operations
+ * Copyright (C) 2018 Western Digital Corporation
  */
 #ifndef SCSI_BSG_UFS_H
 #define SCSI_BSG_UFS_H
@@ -69,6 +70,33 @@ struct utp_upiu_req {
 	union {
 		struct utp_upiu_cmd		sc;
 		struct utp_upiu_query		qr;
+		struct utp_upiu_query		tr;
+		/* use utp_upiu_query to host the 4 dwords of uic command */
+		struct utp_upiu_query		uc;
 	};
+};
+
+/* request (CDB) structure of the sg_io_v4 */
+struct ufs_bsg_request {
+	uint32_t msgcode;
+	struct utp_upiu_req upiu_req;
+};
+
+/* response (request sense data) structure of the sg_io_v4 */
+struct ufs_bsg_reply {
+	/*
+	 * The completion result. Result exists in two forms:
+	 * if negative, it is an -Exxx system errno value. There will
+	 * be no further reply information supplied.
+	 * else, it's the 4-byte scsi error result, with driver, host,
+	 * msg and status fields. The per-msgcode reply structure
+	 * will contain valid data.
+	 */
+	uint32_t result;
+
+	/* If there was reply_payload, how much was received? */
+	uint32_t reply_payload_rcv_len;
+
+	struct utp_upiu_req upiu_rsp;
 };
 #endif /* UFS_BSG_H */
