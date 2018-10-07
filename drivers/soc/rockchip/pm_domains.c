@@ -1014,7 +1014,7 @@ static const struct rockchip_pmu_info px30_pmu = {
 };
 
 static const struct rockchip_pmu_info rk1808_pmu = {
-	.pwr_offset = 0x14,
+	.pwr_offset = 0x18,
 	.status_offset = 0x20,
 	.req_offset = 0x64,
 	.idle_offset = 0x6c,
