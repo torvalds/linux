@@ -452,9 +452,11 @@ static inline bool is_mbpf_pseudo_call(const struct nfp_insn_meta *meta)
 /**
  * struct nfp_bpf_subprog_info - nfp BPF sub-program (a.k.a. function) info
  * @stack_depth:	maximum stack depth used by this sub-program
+ * @needs_reg_push:	whether sub-program uses callee-saved registers
  */
 struct nfp_bpf_subprog_info {
 	u16 stack_depth;
+	u8 needs_reg_push : 1;
 };
 
 /**

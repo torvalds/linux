@@ -644,7 +644,8 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 }
 
 static int
-nfp_assign_subprog_idx(struct bpf_verifier_env *env, struct nfp_prog *nfp_prog)
+nfp_assign_subprog_idx_and_regs(struct bpf_verifier_env *env,
+				struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
 	int index = 0;
@@ -653,6 +654,10 @@ nfp_assign_subprog_idx(struct bpf_verifier_env *env, struct nfp_prog *nfp_prog)
 		if (nfp_is_subprog_start(meta))
 			index++;
 		meta->subprog_idx = index;
+
+		if (meta->insn.dst_reg >= BPF_REG_6 &&
+		    meta->insn.dst_reg <= BPF_REG_9)
+			nfp_prog->subprog[index].needs_reg_push = 1;
 	}
 
 	if (index + 1 != nfp_prog->subprog_cnt) {
@@ -734,7 +739,7 @@ static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 	if (!nfp_prog->subprog)
 		return -ENOMEM;
 
-	nfp_assign_subprog_idx(env, nfp_prog);
+	nfp_assign_subprog_idx_and_regs(env, nfp_prog);
 
 	info = env->subprog_info;
 	for (i = 0; i < nfp_prog->subprog_cnt; i++) {
@@ -745,8 +750,9 @@ static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 
 		/* Account for size of return address. */
 		nfp_prog->subprog[i].stack_depth += REG_WIDTH;
-		/* Account for size of saved registers. */
-		nfp_prog->subprog[i].stack_depth += BPF_REG_SIZE * 4;
+		/* Account for size of saved registers, if necessary. */
+		if (nfp_prog->subprog[i].needs_reg_push)
+			nfp_prog->subprog[i].stack_depth += BPF_REG_SIZE * 4;
 	}
 
 	nn = netdev_priv(env->prog->aux->offload->netdev);
