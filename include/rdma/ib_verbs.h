@@ -2542,7 +2542,7 @@ struct ib_device {
 	/* First group for device attributes, NULL terminated array */
 	const struct attribute_group	*groups[2];
 
-	struct kobject               *ports_parent;
+	struct kobject			*ports_kobj;
 	struct list_head             port_list;
 
 	enum {

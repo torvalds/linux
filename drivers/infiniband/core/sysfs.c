@@ -1036,7 +1036,7 @@ static int add_port(struct ib_device *device, int port_num,
 	p->port_num   = port_num;
 
 	ret = kobject_init_and_add(&p->kobj, &port_type,
-				   device->ports_parent,
+				   device->ports_kobj,
 				   "%d", port_num);
 	if (ret) {
 		kfree(p);
@@ -1305,7 +1305,7 @@ static void free_port_list_attributes(struct ib_device *device)
 		kobject_put(p);
 	}
 
-	kobject_put(device->ports_parent);
+	kobject_put(device->ports_kobj);
 }
 
 int ib_device_register_sysfs(struct ib_device *device,
@@ -1323,9 +1323,8 @@ int ib_device_register_sysfs(struct ib_device *device,
 	if (ret)
 		goto err;
 
-	device->ports_parent = kobject_create_and_add("ports",
-						      &class_dev->kobj);
-	if (!device->ports_parent) {
+	device->ports_kobj = kobject_create_and_add("ports", &class_dev->kobj);
+	if (!device->ports_kobj) {
 		ret = -ENOMEM;
 		goto err_put;
 	}
