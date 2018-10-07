@@ -161,6 +161,13 @@ void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev);
 void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 
+static inline bool is_mt76x2(struct mt76x02_dev *dev)
+{
+	return mt76_chip(&dev->mt76) == 0x7612 ||
+	       mt76_chip(&dev->mt76) == 0x7662 ||
+	       mt76_chip(&dev->mt76) == 0x7602;
+}
+
 static inline void mt76x02_irq_enable(struct mt76x02_dev *dev, u32 mask)
 {
 	mt76x02_set_irq_mask(dev, 0, mask);
