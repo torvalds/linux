@@ -237,8 +237,8 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
-	mt76x02_phy_set_rxpath(&dev->mt76);
-	mt76x02_phy_set_txdac(&dev->mt76);
+	mt76x02_phy_set_rxpath(dev);
+	mt76x02_phy_set_txdac(dev);
 
 	return mt76x2u_mac_stop(dev);
 }

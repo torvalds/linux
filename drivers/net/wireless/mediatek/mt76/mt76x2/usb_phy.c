@@ -69,7 +69,7 @@ mt76x2u_phy_update_channel_gain(struct mt76x02_dev *dev)
 		break;
 	}
 
-	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(&dev->mt76);
+	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
 	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS,
 			      mt76_rr(dev, MT_RX_STAT_1));
 

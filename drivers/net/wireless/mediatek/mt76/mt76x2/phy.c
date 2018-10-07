@@ -187,7 +187,7 @@ void mt76x2_phy_set_txpower(struct mt76x02_dev *dev)
 	dev->target_power_delta[1] = txp_1 - txp.chain[0].target_power;
 	dev->mt76.rate_power = t;
 
-	mt76x02_phy_set_txpower(&dev->mt76, txp_0, txp_1);
+	mt76x02_phy_set_txpower(dev, txp_0, txp_1);
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_set_txpower);
 

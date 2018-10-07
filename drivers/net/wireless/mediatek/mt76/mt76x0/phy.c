@@ -618,7 +618,7 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 	dev->mt76.txpower_cur = mt76x02_get_max_rate_power(t);
 	mt76x02_add_rate_power_offset(t, -info[0]);
 
-	mt76x02_phy_set_txpower(&dev->mt76, info[0], info[1]);
+	mt76x02_phy_set_txpower(dev, info[0], info[1]);
 }
 
 int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
@@ -815,7 +815,7 @@ static void mt76x0_dynamic_vga_tuning(struct mt76x02_dev *dev)
 	int avg_rssi;
 
 	init_vga = chandef->chan->band == NL80211_BAND_5GHZ ? 0x54 : 0x4E;
-	avg_rssi = mt76x02_phy_get_min_avg_rssi(&dev->mt76);
+	avg_rssi = mt76x02_phy_get_min_avg_rssi(dev);
 	if (avg_rssi > -60)
 		init_vga -= 0x20;
 	else if (avg_rssi > -70)
@@ -897,6 +897,6 @@ void mt76x0_phy_init(struct mt76x02_dev *dev)
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x0_phy_calibrate);
 
 	mt76x0_rf_init(dev);
-	mt76x02_phy_set_rxpath(&dev->mt76);
-	mt76x02_phy_set_txdac(&dev->mt76);
+	mt76x02_phy_set_rxpath(dev);
+	mt76x02_phy_set_txdac(dev);
 }
