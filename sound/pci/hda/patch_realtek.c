@@ -8194,6 +8194,7 @@ static const struct hda_model_fixup alc662_fixup_models[] = {
 	{.id = ALC668_FIXUP_DELL_XPS13, .name = "dell-xps13"},
 	{.id = ALC662_FIXUP_ASUS_Nx50, .name = "asus-nx50"},
 	{.id = ALC668_FIXUP_ASUS_Nx51, .name = "asus-nx51"},
+	{.id = ALC668_FIXUP_ASUS_G751, .name = "asus-g751"},
 	{.id = ALC891_FIXUP_HEADSET_MODE, .name = "alc891-headset"},
 	{.id = ALC891_FIXUP_DELL_MIC_NO_PRESENCE, .name = "alc891-headset-multi"},
 	{.id = ALC662_FIXUP_ACER_VERITON, .name = "acer-veriton"},
