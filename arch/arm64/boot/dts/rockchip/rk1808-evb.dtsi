@@ -155,7 +155,7 @@
 		 * - SDIO_RESET_L_WL_REG_ON
 		 * - PDN (power down when low)
 		 */
-		reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_LOW>;
 	};
 
 	vcc5v0_sys: vcc5v0-sys {
@@ -184,7 +184,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_wake_host>;
 		wifi_chip_type = "ap6212";
-		WIFI,host_wake_irq = <&gpio4 RK_PC1 GPIO_ACTIVE_LOW>;
+		WIFI,host_wake_irq = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
@@ -561,10 +561,11 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	supports-sdio;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
+	keep-power-in-suspend;
+	non-removable;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	sd-uhs-sdr104;
-	status = "disabled";
+	status = "okay";
 };
 
 &sdmmc {
