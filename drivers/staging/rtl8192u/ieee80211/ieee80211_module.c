@@ -220,8 +220,7 @@ void free_ieee80211(struct net_device *dev)
 #ifdef CONFIG_IEEE80211_DEBUG
 
 u32 ieee80211_debug_level;
-static int debug = \
-	//		    IEEE80211_DL_INFO	|
+static int debug = //	    IEEE80211_DL_INFO	|
 	//		    IEEE80211_DL_WX	|
 	//		    IEEE80211_DL_SCAN	|
 	//		    IEEE80211_DL_STATE	|
