@@ -4018,20 +4018,35 @@ void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
 
 	/* Another pass to record jump information. */
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		struct nfp_insn_meta *dst_meta;
 		u64 code = meta->insn.code;
+		unsigned int dst_idx;
+		bool pseudo_call;
 
-		if (BPF_CLASS(code) == BPF_JMP && BPF_OP(code) != BPF_EXIT &&
-		    BPF_OP(code) != BPF_CALL) {
-			struct nfp_insn_meta *dst_meta;
-			unsigned short dst_indx;
+		if (BPF_CLASS(code) != BPF_JMP)
+			continue;
+		if (BPF_OP(code) == BPF_EXIT)
+			continue;
+		if (is_mbpf_helper_call(meta))
+			continue;
 
-			dst_indx = meta->n + 1 + meta->insn.off;
-			dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_indx,
-						     cnt);
+		/* If opcode is BPF_CALL at this point, this can only be a
+		 * BPF-to-BPF call (a.k.a pseudo call).
+		 */
+		pseudo_call = BPF_OP(code) == BPF_CALL;
 
-			meta->jmp_dst = dst_meta;
-			dst_meta->flags |= FLAG_INSN_IS_JUMP_DST;
-		}
+		if (pseudo_call)
+			dst_idx = meta->n + 1 + meta->insn.imm;
+		else
+			dst_idx = meta->n + 1 + meta->insn.off;
+
+		dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_idx, cnt);
+
+		if (pseudo_call)
+			dst_meta->flags |= FLAG_INSN_IS_SUBPROG_START;
+
+		dst_meta->flags |= FLAG_INSN_IS_JUMP_DST;
+		meta->jmp_dst = dst_meta;
 	}
 }
 
