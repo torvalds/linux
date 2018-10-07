@@ -382,7 +382,7 @@ ilr_again:
 		DBG(KERN_DEBUG "%s(%d, %p) mask 0x%x\n",
 			__func__, irq, intr_dev, mask);
 		generic_handle_irq(irq);
-		mask &= ~(1 << local_irq);
+		mask &= ~DINO_MASK_IRQ(local_irq);
 	} while (mask);
 
 	/* Support for level triggered IRQ lines.
