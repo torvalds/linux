@@ -283,6 +283,7 @@ struct nfp_bpf_reg_state {
  * @xadd_maybe_16bit: 16bit immediate is possible
  * @jmp_dst: destination info for jump instructions
  * @jump_neg_op: jump instruction has inverted immediate, use ADD instead of SUB
+ * @num_insns_after_br: number of insns following a branch jump, used for fixup
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
@@ -319,6 +320,7 @@ struct nfp_insn_meta {
 		struct {
 			struct nfp_insn_meta *jmp_dst;
 			bool jump_neg_op;
+			u32 num_insns_after_br; /* only for BPF-to-BPF calls */
 		};
 		/* function calls */
 		struct {

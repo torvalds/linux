@@ -3116,7 +3116,7 @@ static int jne_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int
 bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	u32 ret_tgt, stack_depth;
+	u32 ret_tgt, stack_depth, offset_br;
 	swreg tmp_reg;
 
 	stack_depth = round_up(nfp_prog->stack_frame_depth, STACK_FRAME_ALIGN);
@@ -3160,6 +3160,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	ret_tgt = nfp_prog_current_offset(nfp_prog) + 3;
 	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 2,
 		     RELO_BR_GO_CALL_PUSH_REGS);
+	offset_br = nfp_prog_current_offset(nfp_prog);
 	wrp_immed_relo(nfp_prog, imm_b(nfp_prog), 0, RELO_IMMED_REL);
 	wrp_immed_relo(nfp_prog, ret_reg(nfp_prog), ret_tgt, RELO_IMMED_REL);
 
@@ -3175,6 +3176,9 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			    NFP_CSR_ACT_LM_ADDR0);
 		wrp_nops(nfp_prog, 3);
 	}
+
+	meta->num_insns_after_br = nfp_prog_current_offset(nfp_prog);
+	meta->num_insns_after_br -= offset_br;
 
 	return 0;
 }
@@ -3344,9 +3348,12 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		if (meta->skip)
 			continue;
-		if (meta->insn.code == (BPF_JMP | BPF_CALL))
-			continue;
 		if (BPF_CLASS(meta->insn.code) != BPF_JMP)
+			continue;
+		if (meta->insn.code == (BPF_JMP | BPF_EXIT) &&
+		    !nfp_is_main_function(meta))
+			continue;
+		if (is_mbpf_helper_call(meta))
 			continue;
 
 		if (list_is_last(&meta->l, &nfp_prog->insns))
@@ -3354,11 +3361,23 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 		else
 			br_idx = list_next_entry(meta, l)->off - 1;
 
+		/* For BPF-to-BPF function call, a stack adjustment sequence is
+		 * generated after the return instruction. Therefore, we must
+		 * withdraw the length of this sequence to have br_idx pointing
+		 * to where the "branch" NFP instruction is expected to be.
+		 */
+		if (is_mbpf_pseudo_call(meta))
+			br_idx -= meta->num_insns_after_br;
+
 		if (!nfp_is_br(nfp_prog->prog[br_idx])) {
 			pr_err("Fixup found block not ending in branch %d %02x %016llx!!\n",
 			       br_idx, meta->insn.code, nfp_prog->prog[br_idx]);
 			return -ELOOP;
 		}
+
+		if (meta->insn.code == (BPF_JMP | BPF_EXIT))
+			continue;
+
 		/* Leave special branches for later */
 		if (FIELD_GET(OP_RELO_TYPE, nfp_prog->prog[br_idx]) !=
 		    RELO_BR_REL)
