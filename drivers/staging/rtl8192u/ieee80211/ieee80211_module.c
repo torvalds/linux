@@ -204,6 +204,7 @@ void free_ieee80211(struct net_device *dev)
 
 	for (i = 0; i < WEP_KEYS; i++) {
 		struct ieee80211_crypt_data *crypt = ieee->crypt[i];
+
 		if (crypt) {
 			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
@@ -253,6 +254,7 @@ static ssize_t write_debug_level(struct file *file, const char __user *buffer,
 {
 	unsigned long val;
 	int err = kstrtoul_from_user(buffer, count, 0, &val);
+
 	if (err)
 		return err;
 	ieee80211_debug_level = val;
