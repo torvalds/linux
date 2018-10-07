@@ -1187,9 +1187,11 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev,
 					   IORESOURCE_MEM, "test_code_regs");
-	csi->test_code_regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(csi->test_code_regs))
-		return PTR_ERR(csi->test_code_regs);
+	if (res) {
+		csi->test_code_regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(csi->test_code_regs))
+			dev_err(dev, "Unable to get test_code_regs\n");
+	}
 
 	csi->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(csi->pclk)) {
