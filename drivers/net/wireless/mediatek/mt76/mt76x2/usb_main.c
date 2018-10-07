@@ -50,7 +50,7 @@ static int mt76x2u_add_interface(struct ieee80211_hw *hw,
 	struct mt76x02_dev *dev = hw->priv;
 
 	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))
-		mt76x02_mac_setaddr(&dev->mt76, vif->addr);
+		mt76x02_mac_setaddr(dev, vif->addr);
 
 	mt76x02_vif_init(dev, vif, 0);
 	return 0;

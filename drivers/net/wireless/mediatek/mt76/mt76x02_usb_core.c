@@ -99,11 +99,12 @@ mt76x02u_set_txinfo(struct sk_buff *skb, struct mt76_wcid *wcid, u8 ep)
 	return mt76x02u_skb_dma_info(skb, WLAN_PORT, flags);
 }
 
-int mt76x02u_tx_prepare_skb(struct mt76_dev *dev, void *data,
+int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			    struct sk_buff *skb, struct mt76_queue *q,
 			    struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			    u32 *tx_info)
 {
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76x02_txwi *txwi;
 	int err, len = skb->len;
 

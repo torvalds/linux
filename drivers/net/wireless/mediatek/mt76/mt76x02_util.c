@@ -103,10 +103,10 @@ int mt76x02_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
 	msta->wcid.hw_key_idx = -1;
-	mt76x02_mac_wcid_setup(&dev->mt76, idx, mvif->idx, sta->addr);
-	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, false);
+	mt76x02_mac_wcid_setup(dev, idx, mvif->idx, sta->addr);
+	mt76x02_mac_wcid_set_drop(dev, idx, false);
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
-		mt76x02_txq_init(&dev->mt76, sta->txq[i]);
+		mt76x02_txq_init(dev, sta->txq[i]);
 
 	if (vif->type == NL80211_IFTYPE_AP)
 		set_bit(MT_WCID_FLAG_CHECK_PS, &msta->wcid.flags);
@@ -134,9 +134,9 @@ int mt76x02_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		mt76_txq_remove(&dev->mt76, sta->txq[i]);
-	mt76x02_mac_wcid_set_drop(&dev->mt76, idx, true);
+	mt76x02_mac_wcid_set_drop(dev, idx, true);
 	mt76_wcid_free(dev->mt76.wcid_mask, idx);
-	mt76x02_mac_wcid_setup(&dev->mt76, idx, 0, NULL);
+	mt76x02_mac_wcid_setup(dev, idx, 0, NULL);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return 0;
@@ -151,7 +151,7 @@ void mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
-	mt76x02_txq_init(&dev->mt76, vif->txq);
+	mt76x02_txq_init(dev, vif->txq);
 }
 EXPORT_SYMBOL_GPL(mt76x02_vif_init);
 
@@ -301,17 +301,15 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!msta) {
 		if (key || wcid->hw_key_idx == idx) {
-			ret = mt76x02_mac_wcid_set_key(&dev->mt76,
-						       wcid->idx, key);
+			ret = mt76x02_mac_wcid_set_key(dev, wcid->idx, key);
 			if (ret)
 				return ret;
 		}
 
-		return mt76x02_mac_shared_key_setup(&dev->mt76,
-						    mvif->idx, idx, key);
+		return mt76x02_mac_shared_key_setup(dev, mvif->idx, idx, key);
 	}
 
-	return mt76x02_mac_wcid_set_key(&dev->mt76, msta->wcid.idx, key);
+	return mt76x02_mac_wcid_set_key(dev, msta->wcid.idx, key);
 }
 EXPORT_SYMBOL_GPL(mt76x02_set_key);
 
@@ -363,7 +361,7 @@ void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt76x02_dev *dev = hw->priv;
 	struct mt76x02_sta *msta = (struct mt76x02_sta *) sta->drv_priv;
 	struct ieee80211_sta_rates *rates = rcu_dereference(sta->rates);
 	struct ieee80211_tx_rate rate = {};
@@ -374,7 +372,7 @@ void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 	rate.idx = rates->rate[0].idx;
 	rate.flags = rates->rate[0].flags;
 	mt76x02_mac_wcid_set_rate(dev, &msta->wcid, &rate);
-	msta->wcid.max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(dev, &rate);
+	msta->wcid.max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(&dev->mt76, &rate);
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_rate_tbl_update);
 

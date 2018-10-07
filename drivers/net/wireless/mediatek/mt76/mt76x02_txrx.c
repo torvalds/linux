@@ -157,8 +157,9 @@ void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_complete);
 
-bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update)
+bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update)
 {
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76x02_tx_status stat;
 
 	if (!mt76x02_mac_load_tx_status(dev, &stat))
@@ -181,9 +182,9 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 	int ret;
 
 	if (q == &dev->mt76.q_tx[MT_TXQ_PSD] && wcid && wcid->idx < 128)
-		mt76x02_mac_wcid_set_drop(&dev->mt76, wcid->idx, false);
+		mt76x02_mac_wcid_set_drop(dev, wcid->idx, false);
 
-	mt76x02_mac_write_txwi(mdev, txwi, skb, wcid, sta, skb->len);
+	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, skb->len);
 
 	ret = mt76x02_insert_hdr_pad(skb);
 	if (ret < 0)

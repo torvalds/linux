@@ -198,28 +198,29 @@ mt76x02_skb_tx_info(struct sk_buff *skb)
 	return (void *)info->status.status_driver_data;
 }
 
-void mt76x02_txq_init(struct mt76_dev *dev, struct ieee80211_txq *txq);
+void mt76x02_txq_init(struct mt76x02_dev *dev, struct ieee80211_txq *txq);
 enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data);
 
-int mt76x02_mac_shared_key_setup(struct mt76_dev *dev, u8 vif_idx, u8 key_idx,
-				struct ieee80211_key_conf *key);
-int mt76x02_mac_wcid_set_key(struct mt76_dev *dev, u8 idx,
-			    struct ieee80211_key_conf *key);
-void mt76x02_mac_wcid_setup(struct mt76_dev *dev, u8 idx, u8 vif_idx, u8 *mac);
-void mt76x02_mac_wcid_set_drop(struct mt76_dev *dev, u8 idx, bool drop);
-void mt76x02_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
-			      const struct ieee80211_tx_rate *rate);
-bool mt76x02_mac_load_tx_status(struct mt76_dev *dev,
-			       struct mt76x02_tx_status *stat);
-void mt76x02_send_tx_status(struct mt76_dev *dev,
-			   struct mt76x02_tx_status *stat, u8 *update);
+int mt76x02_mac_shared_key_setup(struct mt76x02_dev *dev, u8 vif_idx,
+				 u8 key_idx, struct ieee80211_key_conf *key);
+int mt76x02_mac_wcid_set_key(struct mt76x02_dev *dev, u8 idx,
+			     struct ieee80211_key_conf *key);
+void mt76x02_mac_wcid_setup(struct mt76x02_dev *dev, u8 idx, u8 vif_idx,
+			    u8 *mac);
+void mt76x02_mac_wcid_set_drop(struct mt76x02_dev *dev, u8 idx, bool drop);
+void mt76x02_mac_wcid_set_rate(struct mt76x02_dev *dev, struct mt76_wcid *wcid,
+			       const struct ieee80211_tx_rate *rate);
+bool mt76x02_mac_load_tx_status(struct mt76x02_dev *dev,
+				struct mt76x02_tx_status *stat);
+void mt76x02_send_tx_status(struct mt76x02_dev *dev,
+			    struct mt76x02_tx_status *stat, u8 *update);
 int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 			   void *rxi);
 int
 mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate);
-void mt76x02_mac_setaddr(struct mt76_dev *dev, u8 *addr);
-void mt76x02_mac_write_txwi(struct mt76_dev *dev, struct mt76x02_txwi *txwi,
+void mt76x02_mac_setaddr(struct mt76x02_dev *dev, u8 *addr);
+void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 			    struct sk_buff *skb, struct mt76_wcid *wcid,
 			    struct ieee80211_sta *sta, int len);
 void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq);

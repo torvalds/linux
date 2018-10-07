@@ -143,14 +143,14 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 		mt76_wr(dev, MT_WCID_DROP_BASE + i * 4, 0);
 
 	for (i = 0; i < 256; i++)
-		mt76x02_mac_wcid_setup(&dev->mt76, i, 0, NULL);
+		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
 
 	for (i = 0; i < MT_MAX_VIFS; i++)
-		mt76x02_mac_wcid_setup(&dev->mt76, MT_VIF_WCID(i), i, NULL);
+		mt76x02_mac_wcid_setup(dev, MT_VIF_WCID(i), i, NULL);
 
 	for (i = 0; i < 16; i++)
 		for (k = 0; k < 4; k++)
-			mt76x02_mac_shared_key_setup(&dev->mt76, i, k, NULL);
+			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 
 	for (i = 0; i < 8; i++) {
 		mt76x2_mac_set_bssid(dev, i, null_addr);
