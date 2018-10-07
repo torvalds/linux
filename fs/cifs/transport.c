@@ -137,7 +137,7 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		if (cifsFYI & CIFS_TIMER) {
 			pr_debug(" CIFS slow rsp: cmd %d mid %llu",
 			       midEntry->command, midEntry->mid);
-			pr_info(" A: 0x%lx S: 0x%lx R: 0x%lx\n",
+			cifs_info(" A: 0x%lx S: 0x%lx R: 0x%lx\n",
 			       now - midEntry->when_alloc,
 			       now - midEntry->when_sent,
 			       now - midEntry->when_received);

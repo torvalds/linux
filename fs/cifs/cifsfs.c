@@ -717,7 +717,12 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	struct cifs_mnt_data mnt_data;
 	struct dentry *root;
 
-	cifs_dbg(FYI, "Devname: %s flags: %d\n", dev_name, flags);
+	/* Prints in Kernel / CIFS log the attempted mount operation *
+	 *	IF CIFS_DEBUG && cifs_FYI */
+	if (cifsFYI)
+		cifs_dbg(FYI, "Devname: %s flags: %d\n", dev_name, flags);
+	else
+		cifs_info("Attempting to mount %s\n", dev_name);
 
 	volume_info = cifs_get_volume_info((char *)data, dev_name, is_smb3);
 	if (IS_ERR(volume_info))
