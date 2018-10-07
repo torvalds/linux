@@ -249,7 +249,7 @@ static int show_debug_level(struct seq_file *m, void *v)
 }
 
 static ssize_t write_debug_level(struct file *file, const char __user *buffer,
-			     size_t count, loff_t *ppos)
+				 size_t count, loff_t *ppos)
 {
 	unsigned long val;
 	int err = kstrtoul_from_user(buffer, count, 0, &val);
