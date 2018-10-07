@@ -396,9 +396,8 @@ ilr_again:
 	if (mask) {
 		if (--ilr_loop > 0)
 			goto ilr_again;
-		printk(KERN_ERR "Dino 0x%px: stuck interrupt %d\n",
+		pr_warn_ratelimited("Dino 0x%px: stuck interrupt %d\n",
 		       dino_dev->hba.base_addr, mask);
-		return IRQ_NONE;
 	}
 	return IRQ_HANDLED;
 }
