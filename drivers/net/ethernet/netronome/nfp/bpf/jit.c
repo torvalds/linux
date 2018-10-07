@@ -3340,10 +3340,25 @@ static const instr_cb_t instr_cb[256] = {
 };
 
 /* --- Assembler logic --- */
+static int
+nfp_fixup_immed_relo(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		     struct nfp_insn_meta *jmp_dst, u32 br_idx)
+{
+	if (immed_get_value(nfp_prog->prog[br_idx + 1])) {
+		pr_err("BUG: failed to fix up callee register saving\n");
+		return -EINVAL;
+	}
+
+	immed_set_value(&nfp_prog->prog[br_idx + 1], jmp_dst->off);
+
+	return 0;
+}
+
 static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta, *jmp_dst;
 	u32 idx, br_idx;
+	int err;
 
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		if (meta->skip)
@@ -3380,7 +3395,7 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 
 		/* Leave special branches for later */
 		if (FIELD_GET(OP_RELO_TYPE, nfp_prog->prog[br_idx]) !=
-		    RELO_BR_REL)
+		    RELO_BR_REL && !is_mbpf_pseudo_call(meta))
 			continue;
 
 		if (!meta->jmp_dst) {
@@ -3394,6 +3409,17 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			pr_err("Branch landing on removed instruction!!\n");
 			return -ELOOP;
 		}
+
+		if (is_mbpf_pseudo_call(meta)) {
+			err = nfp_fixup_immed_relo(nfp_prog, meta,
+						   jmp_dst, br_idx);
+			if (err)
+				return err;
+		}
+
+		if (FIELD_GET(OP_RELO_TYPE, nfp_prog->prog[br_idx]) !=
+		    RELO_BR_REL)
+			continue;
 
 		for (idx = meta->off; idx <= br_idx; idx++) {
 			if (!nfp_is_br(nfp_prog->prog[idx]))
