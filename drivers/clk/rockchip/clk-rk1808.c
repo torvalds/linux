@@ -1151,6 +1151,9 @@ static const char *const rk1808_critical_clocks[] __initconst = {
 	"msclk_bus_niu",
 	"lsclk_bus_niu",
 	"pclk_pmu_niu",
+	"pclk_top_pre",
+	"pclk_ddr_grf",
+	"aclk_gic",
 };
 
 static void __iomem *rk1808_cru_base;
