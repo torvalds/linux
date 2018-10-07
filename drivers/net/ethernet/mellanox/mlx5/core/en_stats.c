@@ -483,6 +483,9 @@ static int mlx5e_grp_802_3_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
+#define MLX5_BASIC_PPCNT_SUPPORTED(mdev) \
+	(MLX5_CAP_GEN(mdev, pcam_reg) ? MLX5_CAP_PCAM_REG(mdev, ppcnt) : 1)
+
 static void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv)
 {
 	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
@@ -490,6 +493,9 @@ static void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv)
 	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {0};
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	void *out;
+
+	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+		return;
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 	out = pstats->IEEE_802_3_counters;
@@ -602,6 +608,9 @@ static void mlx5e_grp_2819_update_stats(struct mlx5e_priv *priv)
 	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {0};
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	void *out;
+
+	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+		return;
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 	out = pstats->RFC_2819_counters;
@@ -1077,6 +1086,9 @@ static void mlx5e_grp_per_prio_update_stats(struct mlx5e_priv *priv)
 	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
 	int prio;
 	void *out;
+
+	if (!MLX5_BASIC_PPCNT_SUPPORTED(mdev))
+		return;
 
 	MLX5_SET(ppcnt_reg, in, local_port, 1);
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
