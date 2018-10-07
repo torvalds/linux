@@ -1068,7 +1068,7 @@
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_bus4>;
+		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_bus4 &sdmmc0_detn>;
 		status = "disabled";
 	};
 
@@ -1784,13 +1784,20 @@
 				/* sdmmc0_d3 */
 				<4 RK_PA5 1 &pcfg_pull_none>;
 			};
+
 			sdmmc0_cmd: sdmmc0-cmd {
 				rockchip,pins =
 					<4 RK_PA0 1 &pcfg_pull_none>;
 			};
+
 			sdmmc0_clk: sdmmc0-clk {
 				rockchip,pins =
 					<4 RK_PA1 1 &pcfg_pull_none>;
+			};
+
+			sdmmc0_detn: sdmmc0-detn {
+				rockchip,pins =
+					<0 RK_PA3 1 &pcfg_pull_none>;
 			};
 		};
 
