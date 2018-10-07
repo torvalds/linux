@@ -436,7 +436,7 @@ static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
- * @stack_depth: max stack depth from the verifier
+ * @stack_frame_depth: max stack depth for current frame
  * @adjust_head_location: if program has single adjust head call - the insn no.
  * @map_records_cnt: the number of map pointers recorded for this prog
  * @map_records: the map record pointers from bpf->maps_neutral
@@ -460,7 +460,7 @@ struct nfp_prog {
 	unsigned int n_translated;
 	int error;
 
-	unsigned int stack_depth;
+	unsigned int stack_frame_depth;
 	unsigned int adjust_head_location;
 
 	unsigned int map_records_cnt;

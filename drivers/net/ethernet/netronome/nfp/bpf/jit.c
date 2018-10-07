@@ -1137,7 +1137,7 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	     unsigned int size, unsigned int ptr_off, u8 gpr, u8 ptr_gpr,
 	     bool clr_gpr, lmem_step step)
 {
-	s32 off = nfp_prog->stack_depth + meta->insn.off + ptr_off;
+	s32 off = nfp_prog->stack_frame_depth + meta->insn.off + ptr_off;
 	bool first = true, last;
 	bool needs_inc = false;
 	swreg stack_off_reg;
@@ -1695,7 +1695,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	s64 lm_off;
 
 	/* We only have to reload LM0 if the key is not at start of stack */
-	lm_off = nfp_prog->stack_depth;
+	lm_off = nfp_prog->stack_frame_depth;
 	lm_off += meta->arg2.reg.var_off.value + meta->arg2.reg.off;
 	load_lm_ptr = meta->arg2.var_off || lm_off;
 
@@ -1808,10 +1808,10 @@ static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		swreg stack_depth_reg;
 
 		stack_depth_reg = ur_load_imm_any(nfp_prog,
-						  nfp_prog->stack_depth,
+						  nfp_prog->stack_frame_depth,
 						  stack_imm(nfp_prog));
-		emit_alu(nfp_prog, reg_both(dst),
-			 stack_reg(nfp_prog), ALU_OP_ADD, stack_depth_reg);
+		emit_alu(nfp_prog, reg_both(dst), stack_reg(nfp_prog),
+			 ALU_OP_ADD, stack_depth_reg);
 		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 	} else {
 		wrp_reg_mov(nfp_prog, dst, src);
