@@ -109,14 +109,6 @@ struct fsl_edma_sw_tcd {
 	struct fsl_edma_hw_tcd		*vtcd;
 };
 
-struct fsl_edma_slave_config {
-	enum dma_transfer_direction	dir;
-	enum dma_slave_buswidth		addr_width;
-	u32				dev_addr;
-	u32				burst;
-	u32				attr;
-};
-
 struct fsl_edma_chan {
 	struct virt_dma_chan		vchan;
 	enum dma_status			status;
@@ -125,7 +117,8 @@ struct fsl_edma_chan {
 	u32				slave_id;
 	struct fsl_edma_engine		*edma;
 	struct fsl_edma_desc		*edesc;
-	struct fsl_edma_slave_config	fsc;
+	struct dma_slave_config		cfg;
+	u32				attr;
 	struct dma_pool			*tcd_pool;
 };
 
@@ -133,6 +126,7 @@ struct fsl_edma_desc {
 	struct virt_dma_desc		vdesc;
 	struct fsl_edma_chan		*echan;
 	bool				iscyclic;
+	enum dma_transfer_direction	dirn;
 	unsigned int			n_tcds;
 	struct fsl_edma_sw_tcd		tcd[];
 };

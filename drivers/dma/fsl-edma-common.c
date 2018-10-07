@@ -178,19 +178,7 @@ int fsl_edma_slave_config(struct dma_chan *chan,
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
 
-	fsl_chan->fsc.dir = cfg->direction;
-	if (cfg->direction == DMA_DEV_TO_MEM) {
-		fsl_chan->fsc.dev_addr = cfg->src_addr;
-		fsl_chan->fsc.addr_width = cfg->src_addr_width;
-		fsl_chan->fsc.burst = cfg->src_maxburst;
-		fsl_chan->fsc.attr = fsl_edma_get_tcd_attr(cfg->src_addr_width);
-	} else if (cfg->direction == DMA_MEM_TO_DEV) {
-		fsl_chan->fsc.dev_addr = cfg->dst_addr;
-		fsl_chan->fsc.addr_width = cfg->dst_addr_width;
-		fsl_chan->fsc.burst = cfg->dst_maxburst;
-		fsl_chan->fsc.attr = fsl_edma_get_tcd_attr(cfg->dst_addr_width);
-	} else
-		return -EINVAL;
+	memcpy(&fsl_chan->cfg, cfg, sizeof(*cfg));
 
 	return 0;
 }
@@ -202,7 +190,7 @@ static size_t fsl_edma_desc_residue(struct fsl_edma_chan *fsl_chan,
 	struct fsl_edma_desc *edesc = fsl_chan->edesc;
 	struct edma_regs *regs = &fsl_chan->edma->regs;
 	u32 ch = fsl_chan->vchan.chan.chan_id;
-	enum dma_transfer_direction dir = fsl_chan->fsc.dir;
+	enum dma_transfer_direction dir = edesc->dirn;
 	dma_addr_t cur_addr, dma_addr;
 	size_t len, size;
 	int i;
@@ -387,7 +375,7 @@ struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 	u32 src_addr, dst_addr, last_sg, nbytes;
 	u16 soff, doff, iter;
 
-	if (!is_slave_direction(fsl_chan->fsc.dir))
+	if (!is_slave_direction(direction))
 		return NULL;
 
 	sg_len = buf_len / period_len;
@@ -395,9 +383,21 @@ struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 	if (!fsl_desc)
 		return NULL;
 	fsl_desc->iscyclic = true;
+	fsl_desc->dirn = direction;
 
 	dma_buf_next = dma_addr;
-	nbytes = fsl_chan->fsc.addr_width * fsl_chan->fsc.burst;
+	if (direction == DMA_MEM_TO_DEV) {
+		fsl_chan->attr =
+			fsl_edma_get_tcd_attr(fsl_chan->cfg.dst_addr_width);
+		nbytes = fsl_chan->cfg.dst_addr_width *
+			fsl_chan->cfg.dst_maxburst;
+	} else {
+		fsl_chan->attr =
+			fsl_edma_get_tcd_attr(fsl_chan->cfg.src_addr_width);
+		nbytes = fsl_chan->cfg.src_addr_width *
+			fsl_chan->cfg.src_maxburst;
+	}
+
 	iter = period_len / nbytes;
 
 	for (i = 0; i < sg_len; i++) {
@@ -407,20 +407,20 @@ struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 		/* get next sg's physical address */
 		last_sg = fsl_desc->tcd[(i + 1) % sg_len].ptcd;
 
-		if (fsl_chan->fsc.dir == DMA_MEM_TO_DEV) {
+		if (direction == DMA_MEM_TO_DEV) {
 			src_addr = dma_buf_next;
-			dst_addr = fsl_chan->fsc.dev_addr;
-			soff = fsl_chan->fsc.addr_width;
+			dst_addr = fsl_chan->cfg.dst_addr;
+			soff = fsl_chan->cfg.dst_addr_width;
 			doff = 0;
 		} else {
-			src_addr = fsl_chan->fsc.dev_addr;
+			src_addr = fsl_chan->cfg.src_addr;
 			dst_addr = dma_buf_next;
 			soff = 0;
-			doff = fsl_chan->fsc.addr_width;
+			doff = fsl_chan->cfg.src_addr_width;
 		}
 
 		fsl_edma_fill_tcd(fsl_desc->tcd[i].vtcd, src_addr, dst_addr,
-				  fsl_chan->fsc.attr, soff, nbytes, 0, iter,
+				  fsl_chan->attr, soff, nbytes, 0, iter,
 				  iter, doff, last_sg, true, false, true);
 		dma_buf_next += period_len;
 	}
@@ -441,42 +441,54 @@ struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 	u16 soff, doff, iter;
 	int i;
 
-	if (!is_slave_direction(fsl_chan->fsc.dir))
+	if (!is_slave_direction(direction))
 		return NULL;
 
 	fsl_desc = fsl_edma_alloc_desc(fsl_chan, sg_len);
 	if (!fsl_desc)
 		return NULL;
 	fsl_desc->iscyclic = false;
+	fsl_desc->dirn = direction;
 
-	nbytes = fsl_chan->fsc.addr_width * fsl_chan->fsc.burst;
+	if (direction == DMA_MEM_TO_DEV) {
+		fsl_chan->attr =
+			fsl_edma_get_tcd_attr(fsl_chan->cfg.dst_addr_width);
+		nbytes = fsl_chan->cfg.dst_addr_width *
+			fsl_chan->cfg.dst_maxburst;
+	} else {
+		fsl_chan->attr =
+			fsl_edma_get_tcd_attr(fsl_chan->cfg.src_addr_width);
+		nbytes = fsl_chan->cfg.src_addr_width *
+			fsl_chan->cfg.src_maxburst;
+	}
+
 	for_each_sg(sgl, sg, sg_len, i) {
 		/* get next sg's physical address */
 		last_sg = fsl_desc->tcd[(i + 1) % sg_len].ptcd;
 
-		if (fsl_chan->fsc.dir == DMA_MEM_TO_DEV) {
+		if (direction == DMA_MEM_TO_DEV) {
 			src_addr = sg_dma_address(sg);
-			dst_addr = fsl_chan->fsc.dev_addr;
-			soff = fsl_chan->fsc.addr_width;
+			dst_addr = fsl_chan->cfg.dst_addr;
+			soff = fsl_chan->cfg.dst_addr_width;
 			doff = 0;
 		} else {
-			src_addr = fsl_chan->fsc.dev_addr;
+			src_addr = fsl_chan->cfg.src_addr;
 			dst_addr = sg_dma_address(sg);
 			soff = 0;
-			doff = fsl_chan->fsc.addr_width;
+			doff = fsl_chan->cfg.src_addr_width;
 		}
 
 		iter = sg_dma_len(sg) / nbytes;
 		if (i < sg_len - 1) {
 			last_sg = fsl_desc->tcd[(i + 1)].ptcd;
 			fsl_edma_fill_tcd(fsl_desc->tcd[i].vtcd, src_addr,
-					  dst_addr, fsl_chan->fsc.attr, soff,
+					  dst_addr, fsl_chan->attr, soff,
 					  nbytes, 0, iter, iter, doff, last_sg,
 					  false, false, true);
 		} else {
 			last_sg = 0;
 			fsl_edma_fill_tcd(fsl_desc->tcd[i].vtcd, src_addr,
-					  dst_addr, fsl_chan->fsc.attr, soff,
+					  dst_addr, fsl_chan->attr, soff,
 					  nbytes, 0, iter, iter, doff, last_sg,
 					  true, true, false);
 		}
