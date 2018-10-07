@@ -382,12 +382,11 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		nss = wcid->tx_rate_nss;
 	} else {
 		txwi->rate = mt76x02_mac_tx_rate_val(dev, rate, &nss);
-		max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(&dev->mt76, rate);
+		max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(dev, rate);
 	}
 	spin_unlock_bh(&dev->mt76.lock);
 
-	txpwr_adj = mt76x02_tx_get_txpwr_adj(&dev->mt76,
-					     dev->mt76.txpower_conf,
+	txpwr_adj = mt76x02_tx_get_txpwr_adj(dev, dev->mt76.txpower_conf,
 					     max_txpwr_adj);
 	txwi->ctl2 = FIELD_PREP(MT_TX_PWR_ADJ, txpwr_adj);
 
