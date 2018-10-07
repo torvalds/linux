@@ -938,11 +938,11 @@
 		phy-names = "mipi_dphy";
 		power-domains = <&power RK1808_PD_VIO>;
 		rockchip,grf = <&grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
 
 		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
 
 			port {
 				csi_in_vop_raw: endpoint {
