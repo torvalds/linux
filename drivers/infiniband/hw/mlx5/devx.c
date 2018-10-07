@@ -19,7 +19,7 @@
 #define MLX5_MAX_DESTROY_INBOX_SIZE_DW MLX5_ST_SZ_DW(delete_fte_in)
 struct devx_obj {
 	struct mlx5_core_dev	*mdev;
-	u32			obj_id;
+	u64			obj_id;
 	u32			dinlen; /* destroy inbox length */
 	u32			dinbox[MLX5_MAX_DESTROY_INBOX_SIZE_DW];
 };
@@ -106,150 +106,218 @@ bool mlx5_ib_devx_is_flow_dest(void *obj, int *dest_id, int *dest_type)
 	}
 }
 
+/*
+ * As the obj_id in the firmware is not globally unique the object type
+ * must be considered upon checking for a valid object id.
+ * For that the opcode of the creator command is encoded as part of the obj_id.
+ */
+static u64 get_enc_obj_id(u16 opcode, u32 obj_id)
+{
+	return ((u64)opcode << 32) | obj_id;
+}
+
 static int devx_is_valid_obj_id(struct devx_obj *obj, const void *in)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
-	u32 obj_id;
+	u64 obj_id;
 
 	switch (opcode) {
 	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
 	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
-		obj_id = MLX5_GET(general_obj_in_cmd_hdr, in, obj_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_GENERAL_OBJECT,
+					MLX5_GET(general_obj_in_cmd_hdr, in,
+						 obj_id));
 		break;
 	case MLX5_CMD_OP_QUERY_MKEY:
-		obj_id = MLX5_GET(query_mkey_in, in, mkey_index);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_MKEY,
+					MLX5_GET(query_mkey_in, in,
+						 mkey_index));
 		break;
 	case MLX5_CMD_OP_QUERY_CQ:
-		obj_id = MLX5_GET(query_cq_in, in, cqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_CQ,
+					MLX5_GET(query_cq_in, in, cqn));
 		break;
 	case MLX5_CMD_OP_MODIFY_CQ:
-		obj_id = MLX5_GET(modify_cq_in, in, cqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_CQ,
+					MLX5_GET(modify_cq_in, in, cqn));
 		break;
 	case MLX5_CMD_OP_QUERY_SQ:
-		obj_id = MLX5_GET(query_sq_in, in, sqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_SQ,
+					MLX5_GET(query_sq_in, in, sqn));
 		break;
 	case MLX5_CMD_OP_MODIFY_SQ:
-		obj_id = MLX5_GET(modify_sq_in, in, sqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_SQ,
+					MLX5_GET(modify_sq_in, in, sqn));
 		break;
 	case MLX5_CMD_OP_QUERY_RQ:
-		obj_id = MLX5_GET(query_rq_in, in, rqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RQ,
+					MLX5_GET(query_rq_in, in, rqn));
 		break;
 	case MLX5_CMD_OP_MODIFY_RQ:
-		obj_id = MLX5_GET(modify_rq_in, in, rqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RQ,
+					MLX5_GET(modify_rq_in, in, rqn));
 		break;
 	case MLX5_CMD_OP_QUERY_RMP:
-		obj_id = MLX5_GET(query_rmp_in, in, rmpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RMP,
+					MLX5_GET(query_rmp_in, in, rmpn));
 		break;
 	case MLX5_CMD_OP_MODIFY_RMP:
-		obj_id = MLX5_GET(modify_rmp_in, in, rmpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RMP,
+					MLX5_GET(modify_rmp_in, in, rmpn));
 		break;
 	case MLX5_CMD_OP_QUERY_RQT:
-		obj_id = MLX5_GET(query_rqt_in, in, rqtn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RQT,
+					MLX5_GET(query_rqt_in, in, rqtn));
 		break;
 	case MLX5_CMD_OP_MODIFY_RQT:
-		obj_id = MLX5_GET(modify_rqt_in, in, rqtn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RQT,
+					MLX5_GET(modify_rqt_in, in, rqtn));
 		break;
 	case MLX5_CMD_OP_QUERY_TIR:
-		obj_id = MLX5_GET(query_tir_in, in, tirn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_TIR,
+					MLX5_GET(query_tir_in, in, tirn));
 		break;
 	case MLX5_CMD_OP_MODIFY_TIR:
-		obj_id = MLX5_GET(modify_tir_in, in, tirn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_TIR,
+					MLX5_GET(modify_tir_in, in, tirn));
 		break;
 	case MLX5_CMD_OP_QUERY_TIS:
-		obj_id = MLX5_GET(query_tis_in, in, tisn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_TIS,
+					MLX5_GET(query_tis_in, in, tisn));
 		break;
 	case MLX5_CMD_OP_MODIFY_TIS:
-		obj_id = MLX5_GET(modify_tis_in, in, tisn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_TIS,
+					MLX5_GET(modify_tis_in, in, tisn));
 		break;
 	case MLX5_CMD_OP_QUERY_FLOW_TABLE:
-		obj_id = MLX5_GET(query_flow_table_in, in, table_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_FLOW_TABLE,
+					MLX5_GET(query_flow_table_in, in,
+						 table_id));
 		break;
 	case MLX5_CMD_OP_MODIFY_FLOW_TABLE:
-		obj_id = MLX5_GET(modify_flow_table_in, in, table_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_FLOW_TABLE,
+					MLX5_GET(modify_flow_table_in, in,
+						 table_id));
 		break;
 	case MLX5_CMD_OP_QUERY_FLOW_GROUP:
-		obj_id = MLX5_GET(query_flow_group_in, in, group_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_FLOW_GROUP,
+					MLX5_GET(query_flow_group_in, in,
+						 group_id));
 		break;
 	case MLX5_CMD_OP_QUERY_FLOW_TABLE_ENTRY:
-		obj_id = MLX5_GET(query_fte_in, in, flow_index);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY,
+					MLX5_GET(query_fte_in, in,
+						 flow_index));
 		break;
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
-		obj_id = MLX5_GET(set_fte_in, in, flow_index);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY,
+					MLX5_GET(set_fte_in, in, flow_index));
 		break;
 	case MLX5_CMD_OP_QUERY_Q_COUNTER:
-		obj_id = MLX5_GET(query_q_counter_in, in, counter_set_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_ALLOC_Q_COUNTER,
+					MLX5_GET(query_q_counter_in, in,
+						 counter_set_id));
 		break;
 	case MLX5_CMD_OP_QUERY_FLOW_COUNTER:
-		obj_id = MLX5_GET(query_flow_counter_in, in, flow_counter_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_ALLOC_FLOW_COUNTER,
+					MLX5_GET(query_flow_counter_in, in,
+						 flow_counter_id));
 		break;
 	case MLX5_CMD_OP_QUERY_MODIFY_HEADER_CONTEXT:
-		obj_id = MLX5_GET(general_obj_in_cmd_hdr, in, obj_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_ALLOC_MODIFY_HEADER_CONTEXT,
+					MLX5_GET(general_obj_in_cmd_hdr, in,
+						 obj_id));
 		break;
 	case MLX5_CMD_OP_QUERY_SCHEDULING_ELEMENT:
-		obj_id = MLX5_GET(query_scheduling_element_in, in,
-				  scheduling_element_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_SCHEDULING_ELEMENT,
+					MLX5_GET(query_scheduling_element_in,
+						 in, scheduling_element_id));
 		break;
 	case MLX5_CMD_OP_MODIFY_SCHEDULING_ELEMENT:
-		obj_id = MLX5_GET(modify_scheduling_element_in, in,
-				  scheduling_element_id);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_SCHEDULING_ELEMENT,
+					MLX5_GET(modify_scheduling_element_in,
+						 in, scheduling_element_id));
 		break;
 	case MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT:
-		obj_id = MLX5_GET(add_vxlan_udp_dport_in, in, vxlan_udp_port);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_ADD_VXLAN_UDP_DPORT,
+					MLX5_GET(add_vxlan_udp_dport_in, in,
+						 vxlan_udp_port));
 		break;
 	case MLX5_CMD_OP_QUERY_L2_TABLE_ENTRY:
-		obj_id = MLX5_GET(query_l2_table_entry_in, in, table_index);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_SET_L2_TABLE_ENTRY,
+					MLX5_GET(query_l2_table_entry_in, in,
+						 table_index));
 		break;
 	case MLX5_CMD_OP_SET_L2_TABLE_ENTRY:
-		obj_id = MLX5_GET(set_l2_table_entry_in, in, table_index);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_SET_L2_TABLE_ENTRY,
+					MLX5_GET(set_l2_table_entry_in, in,
+						 table_index));
 		break;
 	case MLX5_CMD_OP_QUERY_QP:
-		obj_id = MLX5_GET(query_qp_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(query_qp_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_RST2INIT_QP:
-		obj_id = MLX5_GET(rst2init_qp_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(rst2init_qp_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_INIT2RTR_QP:
-		obj_id = MLX5_GET(init2rtr_qp_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(init2rtr_qp_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_RTR2RTS_QP:
-		obj_id = MLX5_GET(rtr2rts_qp_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(rtr2rts_qp_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_RTS2RTS_QP:
-		obj_id = MLX5_GET(rts2rts_qp_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(rts2rts_qp_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_SQERR2RTS_QP:
-		obj_id = MLX5_GET(sqerr2rts_qp_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(sqerr2rts_qp_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_2ERR_QP:
-		obj_id = MLX5_GET(qp_2err_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(qp_2err_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_2RST_QP:
-		obj_id = MLX5_GET(qp_2rst_in, in, qpn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_QP,
+					MLX5_GET(qp_2rst_in, in, qpn));
 		break;
 	case MLX5_CMD_OP_QUERY_DCT:
-		obj_id = MLX5_GET(query_dct_in, in, dctn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_DCT,
+					MLX5_GET(query_dct_in, in, dctn));
 		break;
 	case MLX5_CMD_OP_QUERY_XRQ:
-		obj_id = MLX5_GET(query_xrq_in, in, xrqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRQ,
+					MLX5_GET(query_xrq_in, in, xrqn));
 		break;
 	case MLX5_CMD_OP_QUERY_XRC_SRQ:
-		obj_id = MLX5_GET(query_xrc_srq_in, in, xrc_srqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRC_SRQ,
+					MLX5_GET(query_xrc_srq_in, in,
+						 xrc_srqn));
 		break;
 	case MLX5_CMD_OP_ARM_XRC_SRQ:
-		obj_id = MLX5_GET(arm_xrc_srq_in, in, xrc_srqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRC_SRQ,
+					MLX5_GET(arm_xrc_srq_in, in, xrc_srqn));
 		break;
 	case MLX5_CMD_OP_QUERY_SRQ:
-		obj_id = MLX5_GET(query_srq_in, in, srqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_SRQ,
+					MLX5_GET(query_srq_in, in, srqn));
 		break;
 	case MLX5_CMD_OP_ARM_RQ:
-		obj_id = MLX5_GET(arm_rq_in, in, srq_number);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_RQ,
+					MLX5_GET(arm_rq_in, in, srq_number));
 		break;
 	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
-		obj_id = MLX5_GET(drain_dct_in, in, dctn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_DCT,
+					MLX5_GET(drain_dct_in, in, dctn));
 		break;
 	case MLX5_CMD_OP_ARM_XRQ:
-		obj_id = MLX5_GET(arm_xrq_in, in, xrqn);
+		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRQ,
+					MLX5_GET(arm_xrq_in, in, xrqn));
 		break;
 	default:
 		return false;
@@ -352,11 +420,11 @@ static void devx_set_umem_valid(const void *in)
 	}
 }
 
-static bool devx_is_obj_create_cmd(const void *in)
+static bool devx_is_obj_create_cmd(const void *in, u16 *opcode)
 {
-	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
+	*opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
 
-	switch (opcode) {
+	switch (*opcode) {
 	case MLX5_CMD_OP_CREATE_GENERAL_OBJECT:
 	case MLX5_CMD_OP_CREATE_MKEY:
 	case MLX5_CMD_OP_CREATE_CQ:
@@ -854,12 +922,14 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 	struct devx_obj *obj;
 	int err;
 	int uid;
+	u32 obj_id;
+	u16 opcode;
 
 	uid = devx_get_uid(c, cmd_in);
 	if (uid < 0)
 		return uid;
 
-	if (!devx_is_obj_create_cmd(cmd_in))
+	if (!devx_is_obj_create_cmd(cmd_in, &opcode))
 		return -EINVAL;
 
 	cmd_out = uverbs_zalloc(attrs, cmd_out_len);
@@ -881,13 +951,15 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 
 	uobj->object = obj;
 	obj->mdev = dev->mdev;
-	devx_obj_build_destroy_cmd(cmd_in, cmd_out, obj->dinbox, &obj->dinlen, &obj->obj_id);
+	devx_obj_build_destroy_cmd(cmd_in, cmd_out, obj->dinbox, &obj->dinlen,
+				   &obj_id);
 	WARN_ON(obj->dinlen > MLX5_MAX_DESTROY_INBOX_SIZE_DW * sizeof(u32));
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
 	if (err)
 		goto obj_destroy;
 
+	obj->obj_id = get_enc_obj_id(opcode, obj_id);
 	return 0;
 
 obj_destroy:
