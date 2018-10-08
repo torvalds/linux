@@ -942,6 +942,13 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		break;
 	case H_ENTER_NESTED:
 		ret = H_FUNCTION;
+		if (!vcpu->kvm->arch.nested_enable)
+			break;
+		ret = kvmhv_enter_nested_guest(vcpu);
+		if (ret == H_INTERRUPT) {
+			kvmppc_set_gpr(vcpu, 3, 0);
+			return -EINTR;
+		}
 		break;
 	case H_TLB_INVALIDATE:
 		ret = H_FUNCTION;
@@ -1265,6 +1272,104 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			vcpu->arch.trap, kvmppc_get_pc(vcpu),
 			vcpu->arch.shregs.msr);
 		run->hw.hardware_exit_reason = vcpu->arch.trap;
+		r = RESUME_HOST;
+		break;
+	}
+
+	return r;
+}
+
+static int kvmppc_handle_nested_exit(struct kvm_vcpu *vcpu)
+{
+	int r;
+	int srcu_idx;
+
+	vcpu->stat.sum_exits++;
+
+	/*
+	 * This can happen if an interrupt occurs in the last stages
+	 * of guest entry or the first stages of guest exit (i.e. after
+	 * setting paca->kvm_hstate.in_guest to KVM_GUEST_MODE_GUEST_HV
+	 * and before setting it to KVM_GUEST_MODE_HOST_HV).
+	 * That can happen due to a bug, or due to a machine check
+	 * occurring at just the wrong time.
+	 */
+	if (vcpu->arch.shregs.msr & MSR_HV) {
+		pr_emerg("KVM trap in HV mode while nested!\n");
+		pr_emerg("trap=0x%x | pc=0x%lx | msr=0x%llx\n",
+			 vcpu->arch.trap, kvmppc_get_pc(vcpu),
+			 vcpu->arch.shregs.msr);
+		kvmppc_dump_regs(vcpu);
+		return RESUME_HOST;
+	}
+	switch (vcpu->arch.trap) {
+	/* We're good on these - the host merely wanted to get our attention */
+	case BOOK3S_INTERRUPT_HV_DECREMENTER:
+		vcpu->stat.dec_exits++;
+		r = RESUME_GUEST;
+		break;
+	case BOOK3S_INTERRUPT_EXTERNAL:
+		vcpu->stat.ext_intr_exits++;
+		r = RESUME_HOST;
+		break;
+	case BOOK3S_INTERRUPT_H_DOORBELL:
+	case BOOK3S_INTERRUPT_H_VIRT:
+		vcpu->stat.ext_intr_exits++;
+		r = RESUME_GUEST;
+		break;
+	/* SR/HMI/PMI are HV interrupts that host has handled. Resume guest.*/
+	case BOOK3S_INTERRUPT_HMI:
+	case BOOK3S_INTERRUPT_PERFMON:
+	case BOOK3S_INTERRUPT_SYSTEM_RESET:
+		r = RESUME_GUEST;
+		break;
+	case BOOK3S_INTERRUPT_MACHINE_CHECK:
+		/* Pass the machine check to the L1 guest */
+		r = RESUME_HOST;
+		/* Print the MCE event to host console. */
+		machine_check_print_event_info(&vcpu->arch.mce_evt, false);
+		break;
+	/*
+	 * We get these next two if the guest accesses a page which it thinks
+	 * it has mapped but which is not actually present, either because
+	 * it is for an emulated I/O device or because the corresonding
+	 * host page has been paged out.
+	 */
+	case BOOK3S_INTERRUPT_H_DATA_STORAGE:
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		r = kvmhv_nested_page_fault(vcpu);
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+		break;
+	case BOOK3S_INTERRUPT_H_INST_STORAGE:
+		vcpu->arch.fault_dar = kvmppc_get_pc(vcpu);
+		vcpu->arch.fault_dsisr = kvmppc_get_msr(vcpu) &
+					 DSISR_SRR1_MATCH_64S;
+		if (vcpu->arch.shregs.msr & HSRR1_HISI_WRITE)
+			vcpu->arch.fault_dsisr |= DSISR_ISSTORE;
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		r = kvmhv_nested_page_fault(vcpu);
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+		break;
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	case BOOK3S_INTERRUPT_HV_SOFTPATCH:
+		/*
+		 * This occurs for various TM-related instructions that
+		 * we need to emulate on POWER9 DD2.2.  We have already
+		 * handled the cases where the guest was in real-suspend
+		 * mode and was transitioning to transactional state.
+		 */
+		r = kvmhv_p9_tm_emulation(vcpu);
+		break;
+#endif
+
+	case BOOK3S_INTERRUPT_HV_RM_HARD:
+		vcpu->arch.trap = 0;
+		r = RESUME_GUEST;
+		if (!xive_enabled())
+			kvmppc_xics_rm_complete(vcpu, 0);
+		break;
+	default:
 		r = RESUME_HOST;
 		break;
 	}
@@ -3098,7 +3203,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 /*
  * Load up hypervisor-mode registers on P9.
  */
-static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit)
+static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit,
+				     unsigned long lpcr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	s64 hdec;
@@ -3155,7 +3261,7 @@ static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit)
 
 	mtspr(SPRN_AMOR, ~0UL);
 
-	mtspr(SPRN_LPCR, vc->lpcr);
+	mtspr(SPRN_LPCR, lpcr);
 	isync();
 
 	kvmppc_xive_push_vcpu(vcpu);
@@ -3225,7 +3331,8 @@ static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit)
  * Virtual-mode guest entry for POWER9 and later when the host and
  * guest are both using the radix MMU.  The LPIDR has already been set.
  */
-int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit)
+int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
+			 unsigned long lpcr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	unsigned long host_dscr = mfspr(SPRN_DSCR);
@@ -3291,13 +3398,31 @@ int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit)
 
 	mtspr(SPRN_DEC, vcpu->arch.dec_expires - mftb());
 
-	if (vcpu->arch.doorbell_request) {
-		vc->dpdes = 1;
-		smp_wmb();
-		vcpu->arch.doorbell_request = 0;
-	}
+	if (kvmhv_on_pseries()) {
+		/* call our hypervisor to load up HV regs and go */
+		struct hv_guest_state hvregs;
 
-	trap = kvmhv_load_hv_regs_and_go(vcpu, time_limit);
+		kvmhv_save_hv_regs(vcpu, &hvregs);
+		hvregs.lpcr = lpcr;
+		vcpu->arch.regs.msr = vcpu->arch.shregs.msr;
+		hvregs.version = HV_GUEST_STATE_VERSION;
+		if (vcpu->arch.nested) {
+			hvregs.lpid = vcpu->arch.nested->shadow_lpid;
+			hvregs.vcpu_token = vcpu->arch.nested_vcpu_id;
+		} else {
+			hvregs.lpid = vcpu->kvm->arch.lpid;
+			hvregs.vcpu_token = vcpu->vcpu_id;
+		}
+		hvregs.hdec_expiry = time_limit;
+		trap = plpar_hcall_norets(H_ENTER_NESTED, __pa(&hvregs),
+					  __pa(&vcpu->arch.regs));
+		kvmhv_restore_hv_return_state(vcpu, &hvregs);
+		vcpu->arch.shregs.msr = vcpu->arch.regs.msr;
+		vcpu->arch.shregs.dar = mfspr(SPRN_DAR);
+		vcpu->arch.shregs.dsisr = mfspr(SPRN_DSISR);
+	} else {
+		trap = kvmhv_load_hv_regs_and_go(vcpu, time_limit, lpcr);
+	}
 
 	vcpu->arch.slb_max = 0;
 	dec = mfspr(SPRN_DEC);
@@ -3539,6 +3664,11 @@ out:
 	trace_kvmppc_vcore_wakeup(do_sleep, block_ns);
 }
 
+/*
+ * This never fails for a radix guest, as none of the operations it does
+ * for a radix guest can fail or have a way to report failure.
+ * kvmhv_run_single_vcpu() relies on this fact.
+ */
 static int kvmhv_setup_mmu(struct kvm_vcpu *vcpu)
 {
 	int r = 0;
@@ -3688,13 +3818,16 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	return vcpu->arch.ret;
 }
 
-static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
-				 struct kvm_vcpu *vcpu, u64 time_limit)
+int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
+			  struct kvm_vcpu *vcpu, u64 time_limit,
+			  unsigned long lpcr)
 {
 	int trap, r, pcpu, pcpu0;
 	int srcu_idx;
 	struct kvmppc_vcore *vc;
 	struct kvm *kvm = vcpu->kvm;
+	struct kvm_nested_guest *nested = vcpu->arch.nested;
+	unsigned long lpid;
 
 	trace_kvmppc_run_vcpu_enter(vcpu);
 
@@ -3715,16 +3848,8 @@ static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 	vc->runner = vcpu;
 
 	/* See if the MMU is ready to go */
-	if (!kvm->arch.mmu_ready) {
-		r = kvmhv_setup_mmu(vcpu);
-		if (r) {
-			kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
-			kvm_run->fail_entry.
-				hardware_entry_failure_reason = 0;
-			vcpu->arch.ret = r;
-			goto out;
-		}
-	}
+	if (!kvm->arch.mmu_ready)
+		kvmhv_setup_mmu(vcpu);
 
 	if (need_resched())
 		cond_resched();
@@ -3746,7 +3871,22 @@ static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 	if (lazy_irq_pending() || need_resched() || !kvm->arch.mmu_ready)
 		goto out;
 
-	kvmppc_core_prepare_to_enter(vcpu);
+	if (!nested) {
+		kvmppc_core_prepare_to_enter(vcpu);
+		if (vcpu->arch.doorbell_request) {
+			vc->dpdes = 1;
+			smp_wmb();
+			vcpu->arch.doorbell_request = 0;
+		}
+		if (test_bit(BOOK3S_IRQPRIO_EXTERNAL,
+			     &vcpu->arch.pending_exceptions))
+			lpcr |= LPCR_MER;
+	} else if (vcpu->arch.pending_exceptions ||
+		   vcpu->arch.doorbell_request ||
+		   xive_interrupt_pending(vcpu)) {
+		vcpu->arch.ret = RESUME_HOST;
+		goto out;
+	}
 
 	kvmppc_clear_host_core(pcpu);
 
@@ -3760,7 +3900,10 @@ static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 	vc->vcore_state = VCORE_RUNNING;
 	trace_kvmppc_run_core(vc, 0);
 
-	mtspr(SPRN_LPID, vc->kvm->arch.lpid);
+	lpid = vc->kvm->arch.lpid;
+	if (nested)
+		lpid = nested->shadow_lpid;
+	mtspr(SPRN_LPID, lpid);
 	isync();
 
 	/* See comment above in kvmppc_run_core() about this */
@@ -3769,7 +3912,7 @@ static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 		pcpu0 &= ~0x3UL;
 
 	if (cpumask_test_cpu(pcpu0, &kvm->arch.need_tlb_flush)) {
-		radix__local_flush_tlb_lpid_guest(kvm->arch.lpid);
+		radix__local_flush_tlb_lpid_guest(lpid);
 		/* Clear the bit after the TLB flush */
 		cpumask_clear_cpu(pcpu0, &kvm->arch.need_tlb_flush);
 	}
@@ -3781,7 +3924,7 @@ static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 
 	this_cpu_disable_ftrace();
 
-	trap = kvmhv_p9_guest_entry(vcpu, time_limit);
+	trap = kvmhv_p9_guest_entry(vcpu, time_limit, lpcr);
 	vcpu->arch.trap = trap;
 
 	this_cpu_enable_ftrace();
@@ -3809,8 +3952,12 @@ static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 
 	trace_kvm_guest_exit(vcpu);
 	r = RESUME_GUEST;
-	if (trap)
-		r = kvmppc_handle_exit_hv(kvm_run, vcpu, current);
+	if (trap) {
+		if (!nested)
+			r = kvmppc_handle_exit_hv(kvm_run, vcpu, current);
+		else
+			r = kvmppc_handle_nested_exit(vcpu);
+	}
 	vcpu->arch.ret = r;
 
 	if (is_kvmppc_resume_guest(r) && vcpu->arch.ceded &&
@@ -3925,7 +4072,8 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	do {
 		if (kvm->arch.threads_indep && kvm_is_radix(kvm))
-			r = kvmhv_run_single_vcpu(run, vcpu, ~(u64)0);
+			r = kvmhv_run_single_vcpu(run, vcpu, ~(u64)0,
+						  vcpu->arch.vcore->lpcr);
 		else
 			r = kvmppc_run_vcpu(run, vcpu);
 
@@ -4479,8 +4627,14 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 * On POWER9, we only need to do this if the "indep_threads_mode"
 	 * module parameter has been set to N.
 	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		kvm->arch.threads_indep = indep_threads_mode;
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (!indep_threads_mode && !cpu_has_feature(CPU_FTR_HVMODE)) {
+			pr_warn("KVM: Ignoring indep_threads_mode=N in nested hypervisor\n");
+			kvm->arch.threads_indep = true;
+		} else {
+			kvm->arch.threads_indep = indep_threads_mode;
+		}
+	}
 	if (!kvm->arch.threads_indep)
 		kvm_hv_vm_activated();
 

@@ -20,6 +20,231 @@ static struct patb_entry *pseries_partition_tb;
 
 static void kvmhv_update_ptbl_cache(struct kvm_nested_guest *gp);
 
+void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
+	hr->pcr = vc->pcr;
+	hr->dpdes = vc->dpdes;
+	hr->hfscr = vcpu->arch.hfscr;
+	hr->tb_offset = vc->tb_offset;
+	hr->dawr0 = vcpu->arch.dawr;
+	hr->dawrx0 = vcpu->arch.dawrx;
+	hr->ciabr = vcpu->arch.ciabr;
+	hr->purr = vcpu->arch.purr;
+	hr->spurr = vcpu->arch.spurr;
+	hr->ic = vcpu->arch.ic;
+	hr->vtb = vc->vtb;
+	hr->srr0 = vcpu->arch.shregs.srr0;
+	hr->srr1 = vcpu->arch.shregs.srr1;
+	hr->sprg[0] = vcpu->arch.shregs.sprg0;
+	hr->sprg[1] = vcpu->arch.shregs.sprg1;
+	hr->sprg[2] = vcpu->arch.shregs.sprg2;
+	hr->sprg[3] = vcpu->arch.shregs.sprg3;
+	hr->pidr = vcpu->arch.pid;
+	hr->cfar = vcpu->arch.cfar;
+	hr->ppr = vcpu->arch.ppr;
+}
+
+static void save_hv_return_state(struct kvm_vcpu *vcpu, int trap,
+				 struct hv_guest_state *hr)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
+	hr->dpdes = vc->dpdes;
+	hr->hfscr = vcpu->arch.hfscr;
+	hr->purr = vcpu->arch.purr;
+	hr->spurr = vcpu->arch.spurr;
+	hr->ic = vcpu->arch.ic;
+	hr->vtb = vc->vtb;
+	hr->srr0 = vcpu->arch.shregs.srr0;
+	hr->srr1 = vcpu->arch.shregs.srr1;
+	hr->sprg[0] = vcpu->arch.shregs.sprg0;
+	hr->sprg[1] = vcpu->arch.shregs.sprg1;
+	hr->sprg[2] = vcpu->arch.shregs.sprg2;
+	hr->sprg[3] = vcpu->arch.shregs.sprg3;
+	hr->pidr = vcpu->arch.pid;
+	hr->cfar = vcpu->arch.cfar;
+	hr->ppr = vcpu->arch.ppr;
+	switch (trap) {
+	case BOOK3S_INTERRUPT_H_DATA_STORAGE:
+		hr->hdar = vcpu->arch.fault_dar;
+		hr->hdsisr = vcpu->arch.fault_dsisr;
+		hr->asdr = vcpu->arch.fault_gpa;
+		break;
+	case BOOK3S_INTERRUPT_H_INST_STORAGE:
+		hr->asdr = vcpu->arch.fault_gpa;
+		break;
+	case BOOK3S_INTERRUPT_H_EMUL_ASSIST:
+		hr->heir = vcpu->arch.emul_inst;
+		break;
+	}
+}
+
+static void restore_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
+	vc->pcr = hr->pcr;
+	vc->dpdes = hr->dpdes;
+	vcpu->arch.hfscr = hr->hfscr;
+	vcpu->arch.dawr = hr->dawr0;
+	vcpu->arch.dawrx = hr->dawrx0;
+	vcpu->arch.ciabr = hr->ciabr;
+	vcpu->arch.purr = hr->purr;
+	vcpu->arch.spurr = hr->spurr;
+	vcpu->arch.ic = hr->ic;
+	vc->vtb = hr->vtb;
+	vcpu->arch.shregs.srr0 = hr->srr0;
+	vcpu->arch.shregs.srr1 = hr->srr1;
+	vcpu->arch.shregs.sprg0 = hr->sprg[0];
+	vcpu->arch.shregs.sprg1 = hr->sprg[1];
+	vcpu->arch.shregs.sprg2 = hr->sprg[2];
+	vcpu->arch.shregs.sprg3 = hr->sprg[3];
+	vcpu->arch.pid = hr->pidr;
+	vcpu->arch.cfar = hr->cfar;
+	vcpu->arch.ppr = hr->ppr;
+}
+
+void kvmhv_restore_hv_return_state(struct kvm_vcpu *vcpu,
+				   struct hv_guest_state *hr)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
+	vc->dpdes = hr->dpdes;
+	vcpu->arch.hfscr = hr->hfscr;
+	vcpu->arch.purr = hr->purr;
+	vcpu->arch.spurr = hr->spurr;
+	vcpu->arch.ic = hr->ic;
+	vc->vtb = hr->vtb;
+	vcpu->arch.fault_dar = hr->hdar;
+	vcpu->arch.fault_dsisr = hr->hdsisr;
+	vcpu->arch.fault_gpa = hr->asdr;
+	vcpu->arch.emul_inst = hr->heir;
+	vcpu->arch.shregs.srr0 = hr->srr0;
+	vcpu->arch.shregs.srr1 = hr->srr1;
+	vcpu->arch.shregs.sprg0 = hr->sprg[0];
+	vcpu->arch.shregs.sprg1 = hr->sprg[1];
+	vcpu->arch.shregs.sprg2 = hr->sprg[2];
+	vcpu->arch.shregs.sprg3 = hr->sprg[3];
+	vcpu->arch.pid = hr->pidr;
+	vcpu->arch.cfar = hr->cfar;
+	vcpu->arch.ppr = hr->ppr;
+}
+
+long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
+{
+	long int err, r;
+	struct kvm_nested_guest *l2;
+	struct pt_regs l2_regs, saved_l1_regs;
+	struct hv_guest_state l2_hv, saved_l1_hv;
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	u64 hv_ptr, regs_ptr;
+	u64 hdec_exp;
+	s64 delta_purr, delta_spurr, delta_ic, delta_vtb;
+	u64 mask;
+	unsigned long lpcr;
+
+	if (vcpu->kvm->arch.l1_ptcr == 0)
+		return H_NOT_AVAILABLE;
+
+	/* copy parameters in */
+	hv_ptr = kvmppc_get_gpr(vcpu, 4);
+	err = kvm_vcpu_read_guest(vcpu, hv_ptr, &l2_hv,
+				  sizeof(struct hv_guest_state));
+	if (err)
+		return H_PARAMETER;
+	if (l2_hv.version != HV_GUEST_STATE_VERSION)
+		return H_P2;
+
+	regs_ptr = kvmppc_get_gpr(vcpu, 5);
+	err = kvm_vcpu_read_guest(vcpu, regs_ptr, &l2_regs,
+				  sizeof(struct pt_regs));
+	if (err)
+		return H_PARAMETER;
+
+	/* translate lpid */
+	l2 = kvmhv_get_nested(vcpu->kvm, l2_hv.lpid, true);
+	if (!l2)
+		return H_PARAMETER;
+	if (!l2->l1_gr_to_hr) {
+		mutex_lock(&l2->tlb_lock);
+		kvmhv_update_ptbl_cache(l2);
+		mutex_unlock(&l2->tlb_lock);
+	}
+
+	/* save l1 values of things */
+	vcpu->arch.regs.msr = vcpu->arch.shregs.msr;
+	saved_l1_regs = vcpu->arch.regs;
+	kvmhv_save_hv_regs(vcpu, &saved_l1_hv);
+
+	/* convert TB values/offsets to host (L0) values */
+	hdec_exp = l2_hv.hdec_expiry - vc->tb_offset;
+	vc->tb_offset += l2_hv.tb_offset;
+
+	/* set L1 state to L2 state */
+	vcpu->arch.nested = l2;
+	vcpu->arch.nested_vcpu_id = l2_hv.vcpu_token;
+	vcpu->arch.regs = l2_regs;
+	vcpu->arch.shregs.msr = vcpu->arch.regs.msr;
+	mask = LPCR_DPFD | LPCR_ILE | LPCR_TC | LPCR_AIL | LPCR_LD |
+		LPCR_LPES | LPCR_MER;
+	lpcr = (vc->lpcr & ~mask) | (l2_hv.lpcr & mask);
+	restore_hv_regs(vcpu, &l2_hv);
+
+	vcpu->arch.ret = RESUME_GUEST;
+	vcpu->arch.trap = 0;
+	do {
+		if (mftb() >= hdec_exp) {
+			vcpu->arch.trap = BOOK3S_INTERRUPT_HV_DECREMENTER;
+			r = RESUME_HOST;
+			break;
+		}
+		r = kvmhv_run_single_vcpu(vcpu->arch.kvm_run, vcpu, hdec_exp,
+					  lpcr);
+	} while (is_kvmppc_resume_guest(r));
+
+	/* save L2 state for return */
+	l2_regs = vcpu->arch.regs;
+	l2_regs.msr = vcpu->arch.shregs.msr;
+	delta_purr = vcpu->arch.purr - l2_hv.purr;
+	delta_spurr = vcpu->arch.spurr - l2_hv.spurr;
+	delta_ic = vcpu->arch.ic - l2_hv.ic;
+	delta_vtb = vc->vtb - l2_hv.vtb;
+	save_hv_return_state(vcpu, vcpu->arch.trap, &l2_hv);
+
+	/* restore L1 state */
+	vcpu->arch.nested = NULL;
+	vcpu->arch.regs = saved_l1_regs;
+	vcpu->arch.shregs.msr = saved_l1_regs.msr & ~MSR_TS_MASK;
+	/* set L1 MSR TS field according to L2 transaction state */
+	if (l2_regs.msr & MSR_TS_MASK)
+		vcpu->arch.shregs.msr |= MSR_TS_S;
+	vc->tb_offset = saved_l1_hv.tb_offset;
+	restore_hv_regs(vcpu, &saved_l1_hv);
+	vcpu->arch.purr += delta_purr;
+	vcpu->arch.spurr += delta_spurr;
+	vcpu->arch.ic += delta_ic;
+	vc->vtb += delta_vtb;
+
+	kvmhv_put_nested(l2);
+
+	/* copy l2_hv_state and regs back to guest */
+	err = kvm_vcpu_write_guest(vcpu, hv_ptr, &l2_hv,
+				   sizeof(struct hv_guest_state));
+	if (err)
+		return H_AUTHORITY;
+	err = kvm_vcpu_write_guest(vcpu, regs_ptr, &l2_regs,
+				   sizeof(struct pt_regs));
+	if (err)
+		return H_AUTHORITY;
+
+	if (r == -EINTR)
+		return H_INTERRUPT;
+
+	return vcpu->arch.trap;
+}
+
 long kvmhv_nested_init(void)
 {
 	long int ptb_order;
@@ -298,4 +523,9 @@ void kvmhv_put_nested(struct kvm_nested_guest *gp)
 	spin_unlock(&kvm->mmu_lock);
 	if (ref == 0)
 		kvmhv_release_nested(gp);
+}
+
+long kvmhv_nested_page_fault(struct kvm_vcpu *vcpu)
+{
+	return RESUME_HOST;
 }

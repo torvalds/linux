@@ -1393,6 +1393,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 BEGIN_FTR_SECTION
 	PPC_MSGSYNC
 	lwsync
+	/* always exit if we're running a nested guest */
+	ld	r0, VCPU_NESTED(r9)
+	cmpdi	r0, 0
+	bne	guest_exit_cont
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
@@ -2199,6 +2203,10 @@ hcall_try_real_mode:
 	andi.	r0,r11,MSR_PR
 	/* sc 1 from userspace - reflect to guest syscall */
 	bne	sc_1_fast_return
+	/* sc 1 from nested guest - give it to L1 to handle */
+	ld	r0, VCPU_NESTED(r9)
+	cmpdi	r0, 0
+	bne	guest_exit_cont
 	clrrdi	r3,r3,2
 	cmpldi	r3,hcall_real_table_end - hcall_real_table
 	bge	guest_exit_cont
