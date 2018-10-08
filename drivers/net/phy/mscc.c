@@ -300,7 +300,7 @@ static int vsc85xx_mdix_set(struct phy_device *phydev, u8 mdix)
 	u16 reg_val;
 
 	reg_val = phy_read(phydev, MSCC_PHY_BYPASS_CONTROL);
-	if ((mdix == ETH_TP_MDI) || (mdix == ETH_TP_MDI_X)) {
+	if (mdix == ETH_TP_MDI || mdix == ETH_TP_MDI_X) {
 		reg_val |= (DISABLE_PAIR_SWAP_CORR_MASK |
 			    DISABLE_POLARITY_CORR_MASK  |
 			    DISABLE_HP_AUTO_MDIX_MASK);
