@@ -796,10 +796,13 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 static void dw_mipi_dsi_set_transfer_mode(struct dw_mipi_dsi *dsi, int flags)
 {
 	if (flags & MIPI_DSI_MSG_USE_LPM) {
+		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG,
+				   LP_CMD_EN, LP_CMD_EN);
 		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
 		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
 				   PHY_TXREQUESTCLKHS, 0);
 	} else {
+		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG, LP_CMD_EN, 0);
 		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, 0);
 		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
 				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
@@ -963,15 +966,14 @@ static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
 
 static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 {
-	u32 val;
+	u32 val = LP_VACT_EN | LP_VFP_EN | LP_VBP_EN | LP_VSA_EN |
+		  LP_HFP_EN | LP_HBP_EN;
 
-	val = LP_VACT_EN | LP_VFP_EN | LP_VBP_EN | LP_VSA_EN | LP_CMD_EN;
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HFP)
+		val &= ~LP_HFP_EN;
 
-	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HFP))
-		val |= LP_HFP_EN;
-
-	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HBP))
-		val |= LP_HBP_EN;
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HBP)
+		val &= ~LP_HBP_EN;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
 		val |= VID_MODE_TYPE_BURST;
