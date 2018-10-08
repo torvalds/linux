@@ -536,8 +536,14 @@ static int ina3221_probe_child_from_dt(struct device *dev,
 	of_property_read_string(child, "label", &input->label);
 
 	/* Overwrite default shunt resistor value optionally */
-	if (!of_property_read_u32(child, "shunt-resistor-micro-ohms", &val))
+	if (!of_property_read_u32(child, "shunt-resistor-micro-ohms", &val)) {
+		if (val < 1 || val > INT_MAX) {
+			dev_err(dev, "invalid shunt resistor value %u of %s\n",
+				val, child->name);
+			return -EINVAL;
+		}
 		input->shunt_resistor = val;
+	}
 
 	return 0;
 }
