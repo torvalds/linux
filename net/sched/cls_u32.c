@@ -405,8 +405,7 @@ static int u32_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
-			   bool free_pf)
+static int u32_destroy_key(struct tc_u_knode *n, bool free_pf)
 {
 	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
 
@@ -440,7 +439,7 @@ static void u32_delete_key_work(struct work_struct *work)
 					      struct tc_u_knode,
 					      rwork);
 	rtnl_lock();
-	u32_destroy_key(key->tp, key, false);
+	u32_destroy_key(key, false);
 	rtnl_unlock();
 }
 
@@ -457,7 +456,7 @@ static void u32_delete_key_freepf_work(struct work_struct *work)
 					      struct tc_u_knode,
 					      rwork);
 	rtnl_lock();
-	u32_destroy_key(key->tp, key, true);
+	u32_destroy_key(key, true);
 	rtnl_unlock();
 }
 
@@ -600,7 +599,7 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 			if (tcf_exts_get_net(&n->exts))
 				tcf_queue_work(&n->rwork, u32_delete_key_freepf_work);
 			else
-				u32_destroy_key(n->tp, n, true);
+				u32_destroy_key(n, true);
 		}
 	}
 }
@@ -971,13 +970,13 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 				    tca[TCA_RATE], ovr, extack);
 
 		if (err) {
-			u32_destroy_key(tp, new, false);
+			u32_destroy_key(new, false);
 			return err;
 		}
 
 		err = u32_replace_hw_knode(tp, new, flags, extack);
 		if (err) {
-			u32_destroy_key(tp, new, false);
+			u32_destroy_key(new, false);
 			return err;
 		}
 
