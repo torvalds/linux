@@ -299,14 +299,32 @@ void kvmhv_nested_exit(void)
 	}
 }
 
+static void kvmhv_flush_lpid(unsigned int lpid)
+{
+	long rc;
+
+	if (!kvmhv_on_pseries()) {
+		radix__flush_tlb_lpid(lpid);
+		return;
+	}
+
+	rc = plpar_hcall_norets(H_TLB_INVALIDATE, H_TLBIE_P1_ENC(2, 0, 1),
+				lpid, TLBIEL_INVAL_SET_LPID);
+	if (rc)
+		pr_err("KVM: TLB LPID invalidation hcall failed, rc=%ld\n", rc);
+}
+
 void kvmhv_set_ptbl_entry(unsigned int lpid, u64 dw0, u64 dw1)
 {
-	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+	if (!kvmhv_on_pseries()) {
 		mmu_partition_table_set_entry(lpid, dw0, dw1);
-	} else {
-		pseries_partition_tb[lpid].patb0 = cpu_to_be64(dw0);
-		pseries_partition_tb[lpid].patb1 = cpu_to_be64(dw1);
+		return;
 	}
+
+	pseries_partition_tb[lpid].patb0 = cpu_to_be64(dw0);
+	pseries_partition_tb[lpid].patb1 = cpu_to_be64(dw1);
+	/* L0 will do the necessary barriers */
+	kvmhv_flush_lpid(lpid);
 }
 
 static void kvmhv_set_nested_ptbl(struct kvm_nested_guest *gp)
@@ -493,7 +511,7 @@ static void kvmhv_flush_nested(struct kvm_nested_guest *gp)
 	spin_lock(&kvm->mmu_lock);
 	kvmppc_free_pgtable_radix(kvm, gp->shadow_pgtable, gp->shadow_lpid);
 	spin_unlock(&kvm->mmu_lock);
-	radix__flush_tlb_lpid(gp->shadow_lpid);
+	kvmhv_flush_lpid(gp->shadow_lpid);
 	kvmhv_update_ptbl_cache(gp);
 	if (gp->l1_gr_to_hr == 0)
 		kvmhv_remove_nested(gp);
@@ -777,7 +795,7 @@ static void kvmhv_emulate_tlbie_lpid(struct kvm_vcpu *vcpu,
 		spin_lock(&kvm->mmu_lock);
 		kvmppc_free_pgtable_radix(kvm, gp->shadow_pgtable,
 					  gp->shadow_lpid);
-		radix__flush_tlb_lpid(gp->shadow_lpid);
+		kvmhv_flush_lpid(gp->shadow_lpid);
 		spin_unlock(&kvm->mmu_lock);
 		break;
 	case 1:
