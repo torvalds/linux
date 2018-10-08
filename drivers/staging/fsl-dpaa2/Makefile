@@ -3,4 +3,3 @@
 #
 
 obj-$(CONFIG_FSL_DPAA2_ETHSW)		+= ethsw/
-obj-$(CONFIG_FSL_DPAA2_PTP_CLOCK)	+= rtc/

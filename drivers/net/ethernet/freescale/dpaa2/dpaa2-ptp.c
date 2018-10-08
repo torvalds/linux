@@ -9,7 +9,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/fsl/mc.h>
 
-#include "rtc.h"
+#include "dpaa2-ptp.h"
 
 struct ptp_dpaa2_priv {
 	struct fsl_mc_device *rtc_mc_dev;
