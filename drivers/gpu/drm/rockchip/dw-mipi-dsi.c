@@ -1911,7 +1911,7 @@ static const u32 rk1808_dsi_grf_reg_fields[MAX_FIELDS] = {
 
 static const struct dw_mipi_dsi_plat_data rk1808_socdata = {
 	.dsi0_grf_reg_fields = rk1808_dsi_grf_reg_fields,
-	.max_bit_rate_per_lane = 2500000000UL,
+	.max_bit_rate_per_lane = 2000000000UL,
 	.soc_type = RK1808,
 };
 
