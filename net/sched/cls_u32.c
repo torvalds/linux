@@ -84,6 +84,7 @@ struct tc_u_hnode {
 	int			refcnt;
 	unsigned int		divisor;
 	struct idr		handle_idr;
+	bool			is_root;
 	struct rcu_head		rcu;
 	u32			flags;
 	/* The 'ht' field MUST be the last field in structure to allow for
@@ -377,6 +378,7 @@ static int u32_init(struct tcf_proto *tp)
 	root_ht->refcnt++;
 	root_ht->handle = tp_c ? gen_new_htid(tp_c, root_ht) : 0x80000000;
 	root_ht->prio = tp->prio;
+	root_ht->is_root = true;
 	idr_init(&root_ht->handle_idr);
 
 	if (tp_c == NULL) {
@@ -692,7 +694,7 @@ static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
 		goto out;
 	}
 
-	if (root_ht == ht) {
+	if (ht->is_root) {
 		NL_SET_ERR_MSG_MOD(extack, "Not allowed to delete root node");
 		return -EINVAL;
 	}
