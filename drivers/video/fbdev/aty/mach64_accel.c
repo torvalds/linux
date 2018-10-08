@@ -344,7 +344,7 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		 * since Rage 3D IIc we have DP_HOST_TRIPLE_EN bit
 		 * this hwaccelerated triple has an issue with not aligned data
 		 */
-		if (M64_HAS(HW_TRIPLE) && image->width % 8 == 0)
+		if (image->depth == 1 && M64_HAS(HW_TRIPLE) && image->width % 8 == 0)
 			pix_width |= DP_HOST_TRIPLE_EN;
 	}
 
@@ -381,7 +381,7 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 	src_bytes = (((image->width * image->depth) + 7) / 8) * image->height;
 
 	/* manual triple each pixel */
-	if (info->var.bits_per_pixel == 24 && !(pix_width & DP_HOST_TRIPLE_EN)) {
+	if (image->depth == 1 && info->var.bits_per_pixel == 24 && !(pix_width & DP_HOST_TRIPLE_EN)) {
 		int inbit, outbit, mult24, byte_id_in_dword, width;
 		u8 *pbitmapin = (u8*)image->data, *pbitmapout;
 		u32 hostdword;
@@ -414,7 +414,7 @@ void atyfb_imageblit(struct fb_info *info, const struct fb_image *image)
 				}
 			}
 			wait_for_fifo(1, par);
-			aty_st_le32(HOST_DATA0, hostdword, par);
+			aty_st_le32(HOST_DATA0, le32_to_cpu(hostdword), par);
 		}
 	} else {
 		u32 *pbitmap, dwords = (src_bytes + 3) / 4;
