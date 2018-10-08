@@ -8697,10 +8697,6 @@ static int patch_ca0132(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->codec = codec;
 
-	codec->patch_ops = ca0132_patch_ops;
-	codec->pcm_format_first = 1;
-	codec->no_sticky_stream = 1;
-
 	/* Detect codec quirk */
 	quirk = snd_pci_quirk_lookup(codec->bus->pci, ca0132_quirks);
 	if (quirk)
@@ -8710,6 +8706,15 @@ static int patch_ca0132(struct hda_codec *codec)
 
 	if (spec->quirk == QUIRK_SBZ)
 		sbz_detect_quirk(codec);
+
+	if (spec->quirk == QUIRK_ZXR_DBPRO)
+		codec->patch_ops = dbpro_patch_ops;
+	else
+		codec->patch_ops = ca0132_patch_ops;
+
+	codec->pcm_format_first = 1;
+	codec->no_sticky_stream = 1;
+
 
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
@@ -8725,7 +8730,6 @@ static int patch_ca0132(struct hda_codec *codec)
 		snd_hda_codec_set_name(codec, "Sound Blaster ZxR");
 		break;
 	case QUIRK_ZXR_DBPRO:
-		codec->patch_ops = dbpro_patch_ops;
 		break;
 	case QUIRK_R3D:
 		spec->mixers[0] = desktop_mixer;
