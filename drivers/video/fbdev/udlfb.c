@@ -916,8 +916,6 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 
 	dlfb->fb_count++;
 
-	kref_get(&dlfb->kref);
-
 	if (fb_defio && (info->fbdefio == NULL)) {
 		/* enable defio at last moment if not disabled by client */
 
@@ -940,14 +938,17 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 	return 0;
 }
 
-/*
- * Called when all client interfaces to start transactions have been disabled,
- * and all references to our device instance (dlfb_data) are released.
- * Every transaction must have a reference, so we know are fully spun down
- */
-static void dlfb_free(struct kref *kref)
+static void dlfb_ops_destroy(struct fb_info *info)
 {
-	struct dlfb_data *dlfb = container_of(kref, struct dlfb_data, kref);
+	struct dlfb_data *dlfb = info->par;
+
+	if (info->cmap.len != 0)
+		fb_dealloc_cmap(&info->cmap);
+	if (info->monspecs.modedb)
+		fb_destroy_modedb(info->monspecs.modedb);
+	vfree(info->screen_base);
+
+	fb_destroy_modelist(&info->modelist);
 
 	while (!list_empty(&dlfb->deferred_free)) {
 		struct dlfb_deferred_free *d = list_entry(dlfb->deferred_free.next, struct dlfb_deferred_free, list);
@@ -957,40 +958,13 @@ static void dlfb_free(struct kref *kref)
 	}
 	vfree(dlfb->backing_buffer);
 	kfree(dlfb->edid);
+	usb_put_dev(dlfb->udev);
 	kfree(dlfb);
+
+	/* Assume info structure is freed after this point */
+	framebuffer_release(info);
 }
 
-static void dlfb_free_framebuffer(struct dlfb_data *dlfb)
-{
-	struct fb_info *info = dlfb->info;
-
-	if (info) {
-		unregister_framebuffer(info);
-
-		if (info->cmap.len != 0)
-			fb_dealloc_cmap(&info->cmap);
-		if (info->monspecs.modedb)
-			fb_destroy_modedb(info->monspecs.modedb);
-		vfree(info->screen_base);
-
-		fb_destroy_modelist(&info->modelist);
-
-		dlfb->info = NULL;
-
-		/* Assume info structure is freed after this point */
-		framebuffer_release(info);
-	}
-
-	/* ref taken in probe() as part of registering framebfufer */
-	kref_put(&dlfb->kref, dlfb_free);
-}
-
-static void dlfb_free_framebuffer_work(struct work_struct *work)
-{
-	struct dlfb_data *dlfb = container_of(work, struct dlfb_data,
-					     free_framebuffer_work.work);
-	dlfb_free_framebuffer(dlfb);
-}
 /*
  * Assumes caller is holding info->lock mutex (for open and release at least)
  */
@@ -1000,10 +974,6 @@ static int dlfb_ops_release(struct fb_info *info, int user)
 
 	dlfb->fb_count--;
 
-	/* We can't free fb_info here - fbmem will touch it when we return */
-	if (dlfb->virtualized && (dlfb->fb_count == 0))
-		schedule_delayed_work(&dlfb->free_framebuffer_work, HZ);
-
 	if ((dlfb->fb_count == 0) && (info->fbdefio)) {
 		fb_deferred_io_cleanup(info);
 		kfree(info->fbdefio);
@@ -1012,8 +982,6 @@ static int dlfb_ops_release(struct fb_info *info, int user)
 	}
 
 	dev_dbg(info->dev, "release, user=%d count=%d\n", user, dlfb->fb_count);
-
-	kref_put(&dlfb->kref, dlfb_free);
 
 	return 0;
 }
@@ -1172,6 +1140,7 @@ static struct fb_ops dlfb_ops = {
 	.fb_blank = dlfb_ops_blank,
 	.fb_check_var = dlfb_ops_check_var,
 	.fb_set_par = dlfb_ops_set_par,
+	.fb_destroy = dlfb_ops_destroy,
 };
 
 
@@ -1615,12 +1584,13 @@ success:
 	return true;
 }
 
-static void dlfb_init_framebuffer_work(struct work_struct *work);
-
 static int dlfb_usb_probe(struct usb_interface *intf,
 			  const struct usb_device_id *id)
 {
+	int i;
+	const struct device_attribute *attr;
 	struct dlfb_data *dlfb;
+	struct fb_info *info;
 	int retval = -ENOMEM;
 	struct usb_device *usbdev = interface_to_usbdev(intf);
 
@@ -1631,10 +1601,9 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 		goto error;
 	}
 
-	kref_init(&dlfb->kref); /* matching kref_put in usb .disconnect fn */
 	INIT_LIST_HEAD(&dlfb->deferred_free);
 
-	dlfb->udev = usbdev;
+	dlfb->udev = usb_get_dev(usbdev);
 	usb_set_intfdata(intf, dlfb);
 
 	dev_dbg(&intf->dev, "console enable=%d\n", console);
@@ -1657,42 +1626,6 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	}
 
 
-	if (!dlfb_alloc_urb_list(dlfb, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
-		retval = -ENOMEM;
-		dev_err(&intf->dev, "unable to allocate urb list\n");
-		goto error;
-	}
-
-	kref_get(&dlfb->kref); /* matching kref_put in free_framebuffer_work */
-
-	/* We don't register a new USB class. Our client interface is dlfbev */
-
-	/* Workitem keep things fast & simple during USB enumeration */
-	INIT_DELAYED_WORK(&dlfb->init_framebuffer_work,
-			  dlfb_init_framebuffer_work);
-	schedule_delayed_work(&dlfb->init_framebuffer_work, 0);
-
-	return 0;
-
-error:
-	if (dlfb) {
-
-		kref_put(&dlfb->kref, dlfb_free); /* last ref from kref_init */
-
-		/* dev has been deallocated. Do not dereference */
-	}
-
-	return retval;
-}
-
-static void dlfb_init_framebuffer_work(struct work_struct *work)
-{
-	int i, retval;
-	struct fb_info *info;
-	const struct device_attribute *attr;
-	struct dlfb_data *dlfb = container_of(work, struct dlfb_data,
-					     init_framebuffer_work.work);
-
 	/* allocates framebuffer driver structure, not framebuffer memory */
 	info = framebuffer_alloc(0, &dlfb->udev->dev);
 	if (!info) {
@@ -1706,16 +1639,21 @@ static void dlfb_init_framebuffer_work(struct work_struct *work)
 	dlfb->ops = dlfb_ops;
 	info->fbops = &dlfb->ops;
 
+	INIT_LIST_HEAD(&info->modelist);
+
+	if (!dlfb_alloc_urb_list(dlfb, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
+		retval = -ENOMEM;
+		dev_err(&intf->dev, "unable to allocate urb list\n");
+		goto error;
+	}
+
+	/* We don't register a new USB class. Our client interface is dlfbev */
+
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0) {
 		dev_err(info->device, "cmap allocation failed: %d\n", retval);
 		goto error;
 	}
-
-	INIT_DELAYED_WORK(&dlfb->free_framebuffer_work,
-			  dlfb_free_framebuffer_work);
-
-	INIT_LIST_HEAD(&info->modelist);
 
 	retval = dlfb_setup_modes(dlfb, info, NULL, 0);
 	if (retval != 0) {
@@ -1760,10 +1698,16 @@ static void dlfb_init_framebuffer_work(struct work_struct *work)
 		 dev_name(info->dev), info->var.xres, info->var.yres,
 		 ((dlfb->backing_buffer) ?
 		 info->fix.smem_len * 2 : info->fix.smem_len) >> 10);
-	return;
+	return 0;
 
 error:
-	dlfb_free_framebuffer(dlfb);
+	if (dlfb->info) {
+		dlfb_ops_destroy(dlfb->info);
+	} else if (dlfb) {
+		usb_put_dev(dlfb->udev);
+		kfree(dlfb);
+	}
+	return retval;
 }
 
 static void dlfb_usb_disconnect(struct usb_interface *intf)
@@ -1791,20 +1735,9 @@ static void dlfb_usb_disconnect(struct usb_interface *intf)
 		for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
 			device_remove_file(info->dev, &fb_device_attrs[i]);
 		device_remove_bin_file(info->dev, &edid_attr);
-		unlink_framebuffer(info);
 	}
 
-	usb_set_intfdata(intf, NULL);
-	dlfb->udev = NULL;
-
-	/* if clients still have us open, will be freed on last close */
-	if (dlfb->fb_count == 0)
-		schedule_delayed_work(&dlfb->free_framebuffer_work, 0);
-
-	/* release reference taken by kref_init in probe() */
-	kref_put(&dlfb->kref, dlfb_free);
-
-	/* consider dlfb_data freed */
+	unregister_framebuffer(info);
 }
 
 static struct usb_driver dlfb_driver = {
