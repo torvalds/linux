@@ -291,6 +291,7 @@ struct kvm_arch {
 	u64 process_table;
 	struct dentry *debugfs_dir;
 	struct dentry *htab_dentry;
+	struct dentry *radix_dentry;
 	struct kvm_resize_hpt *resize_hpt; /* protected by kvm->lock */
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE

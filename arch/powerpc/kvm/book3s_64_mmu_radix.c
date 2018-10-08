@@ -10,6 +10,9 @@
 #include <linux/string.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/anon_inodes.h>
+#include <linux/file.h>
+#include <linux/debugfs.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -851,6 +854,182 @@ static void pte_ctor(void *addr)
 static void pmd_ctor(void *addr)
 {
 	memset(addr, 0, RADIX_PMD_TABLE_SIZE);
+}
+
+struct debugfs_radix_state {
+	struct kvm	*kvm;
+	struct mutex	mutex;
+	unsigned long	gpa;
+	int		chars_left;
+	int		buf_index;
+	char		buf[128];
+	u8		hdr;
+};
+
+static int debugfs_radix_open(struct inode *inode, struct file *file)
+{
+	struct kvm *kvm = inode->i_private;
+	struct debugfs_radix_state *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	kvm_get_kvm(kvm);
+	p->kvm = kvm;
+	mutex_init(&p->mutex);
+	file->private_data = p;
+
+	return nonseekable_open(inode, file);
+}
+
+static int debugfs_radix_release(struct inode *inode, struct file *file)
+{
+	struct debugfs_radix_state *p = file->private_data;
+
+	kvm_put_kvm(p->kvm);
+	kfree(p);
+	return 0;
+}
+
+static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
+				 size_t len, loff_t *ppos)
+{
+	struct debugfs_radix_state *p = file->private_data;
+	ssize_t ret, r;
+	unsigned long n;
+	struct kvm *kvm;
+	unsigned long gpa;
+	pgd_t *pgt;
+	pgd_t pgd, *pgdp;
+	pud_t pud, *pudp;
+	pmd_t pmd, *pmdp;
+	pte_t *ptep;
+	int shift;
+	unsigned long pte;
+
+	kvm = p->kvm;
+	if (!kvm_is_radix(kvm))
+		return 0;
+
+	ret = mutex_lock_interruptible(&p->mutex);
+	if (ret)
+		return ret;
+
+	if (p->chars_left) {
+		n = p->chars_left;
+		if (n > len)
+			n = len;
+		r = copy_to_user(buf, p->buf + p->buf_index, n);
+		n -= r;
+		p->chars_left -= n;
+		p->buf_index += n;
+		buf += n;
+		len -= n;
+		ret = n;
+		if (r) {
+			if (!n)
+				ret = -EFAULT;
+			goto out;
+		}
+	}
+
+	gpa = p->gpa;
+	pgt = kvm->arch.pgtable;
+	while (len != 0 && gpa < RADIX_PGTABLE_RANGE) {
+		if (!p->hdr) {
+			n = scnprintf(p->buf, sizeof(p->buf),
+				      "pgdir: %lx\n", (unsigned long)pgt);
+			p->hdr = 1;
+			goto copy;
+		}
+
+		pgdp = pgt + pgd_index(gpa);
+		pgd = READ_ONCE(*pgdp);
+		if (!(pgd_val(pgd) & _PAGE_PRESENT)) {
+			gpa = (gpa & PGDIR_MASK) + PGDIR_SIZE;
+			continue;
+		}
+
+		pudp = pud_offset(&pgd, gpa);
+		pud = READ_ONCE(*pudp);
+		if (!(pud_val(pud) & _PAGE_PRESENT)) {
+			gpa = (gpa & PUD_MASK) + PUD_SIZE;
+			continue;
+		}
+		if (pud_val(pud) & _PAGE_PTE) {
+			pte = pud_val(pud);
+			shift = PUD_SHIFT;
+			goto leaf;
+		}
+
+		pmdp = pmd_offset(&pud, gpa);
+		pmd = READ_ONCE(*pmdp);
+		if (!(pmd_val(pmd) & _PAGE_PRESENT)) {
+			gpa = (gpa & PMD_MASK) + PMD_SIZE;
+			continue;
+		}
+		if (pmd_val(pmd) & _PAGE_PTE) {
+			pte = pmd_val(pmd);
+			shift = PMD_SHIFT;
+			goto leaf;
+		}
+
+		ptep = pte_offset_kernel(&pmd, gpa);
+		pte = pte_val(READ_ONCE(*ptep));
+		if (!(pte & _PAGE_PRESENT)) {
+			gpa += PAGE_SIZE;
+			continue;
+		}
+		shift = PAGE_SHIFT;
+	leaf:
+		n = scnprintf(p->buf, sizeof(p->buf),
+			      " %lx: %lx %d\n", gpa, pte, shift);
+		gpa += 1ul << shift;
+	copy:
+		p->chars_left = n;
+		if (n > len)
+			n = len;
+		r = copy_to_user(buf, p->buf, n);
+		n -= r;
+		p->chars_left -= n;
+		p->buf_index = n;
+		buf += n;
+		len -= n;
+		ret += n;
+		if (r) {
+			if (!ret)
+				ret = -EFAULT;
+			break;
+		}
+	}
+	p->gpa = gpa;
+
+ out:
+	mutex_unlock(&p->mutex);
+	return ret;
+}
+
+static ssize_t debugfs_radix_write(struct file *file, const char __user *buf,
+			   size_t len, loff_t *ppos)
+{
+	return -EACCES;
+}
+
+static const struct file_operations debugfs_radix_fops = {
+	.owner	 = THIS_MODULE,
+	.open	 = debugfs_radix_open,
+	.release = debugfs_radix_release,
+	.read	 = debugfs_radix_read,
+	.write	 = debugfs_radix_write,
+	.llseek	 = generic_file_llseek,
+};
+
+void kvmhv_radix_debugfs_init(struct kvm *kvm)
+{
+	kvm->arch.radix_dentry = debugfs_create_file("radix", 0400,
+						     kvm->arch.debugfs_dir, kvm,
+						     &debugfs_radix_fops);
 }
 
 int kvmppc_radix_init(void)

@@ -4485,6 +4485,8 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	snprintf(buf, sizeof(buf), "vm%d", current->pid);
 	kvm->arch.debugfs_dir = debugfs_create_dir(buf, kvm_debugfs_dir);
 	kvmppc_mmu_debugfs_init(kvm);
+	if (radix_enabled())
+		kvmhv_radix_debugfs_init(kvm);
 
 	return 0;
 }
