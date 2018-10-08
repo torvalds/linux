@@ -853,6 +853,12 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 		.s_idx = cb->args[0],
 	};
 
+	if (cb->strict_check &&
+	    nlmsg_attrlen(cb->nlh, sizeof(struct rtgenmsg))) {
+			NL_SET_ERR_MSG(cb->extack, "Unknown data in network namespace id dump request");
+			return -EINVAL;
+	}
+
 	spin_lock_bh(&net->nsid_lock);
 	idr_for_each(&net->netns_ids, rtnl_net_dumpid_one, &net_cb);
 	spin_unlock_bh(&net->nsid_lock);

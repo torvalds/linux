@@ -373,6 +373,9 @@ int nla_validate(const struct nlattr *head, int len, int maxtype,
 int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	      int len, const struct nla_policy *policy,
 	      struct netlink_ext_ack *extack);
+int nla_parse_strict(struct nlattr **tb, int maxtype, const struct nlattr *head,
+		     int len, const struct nla_policy *policy,
+		     struct netlink_ext_ack *extack);
 int nla_policy_len(const struct nla_policy *, int);
 struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype);
 size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize);
@@ -516,11 +519,27 @@ static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
 			      const struct nla_policy *policy,
 			      struct netlink_ext_ack *extack)
 {
-	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
+		NL_SET_ERR_MSG(extack, "Invalid header length");
 		return -EINVAL;
+	}
 
 	return nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
 			 nlmsg_attrlen(nlh, hdrlen), policy, extack);
+}
+
+static inline int nlmsg_parse_strict(const struct nlmsghdr *nlh, int hdrlen,
+				     struct nlattr *tb[], int maxtype,
+				     const struct nla_policy *policy,
+				     struct netlink_ext_ack *extack)
+{
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
+		NL_SET_ERR_MSG(extack, "Invalid header length");
+		return -EINVAL;
+	}
+
+	return nla_parse_strict(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
+				nlmsg_attrlen(nlh, hdrlen), policy, extack);
 }
 
 /**

@@ -2457,6 +2457,15 @@ errout:
 
 static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
+
+	if (cb->strict_check) {
+		int err = ip_valid_fib_dump_req(nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
+
 	return mr_rtm_dumproute(skb, cb, ip6mr_mr_table_iter,
 				_ip6mr_fill_mroute, &mfc_unres_lock);
 }

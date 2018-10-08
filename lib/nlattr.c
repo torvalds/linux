@@ -391,9 +391,10 @@ EXPORT_SYMBOL(nla_policy_len);
  *
  * Returns 0 on success or a negative error code.
  */
-int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
-	      int len, const struct nla_policy *policy,
-	      struct netlink_ext_ack *extack)
+static int __nla_parse(struct nlattr **tb, int maxtype,
+		       const struct nlattr *head, int len,
+		       bool strict, const struct nla_policy *policy,
+		       struct netlink_ext_ack *extack)
 {
 	const struct nlattr *nla;
 	int rem;
@@ -403,26 +404,49 @@ int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
 	nla_for_each_attr(nla, head, len, rem) {
 		u16 type = nla_type(nla);
 
-		if (type > 0 && type <= maxtype) {
-			if (policy) {
-				int err = validate_nla(nla, maxtype, policy,
-						       extack);
-
-				if (err < 0)
-					return err;
+		if (type == 0 || type > maxtype) {
+			if (strict) {
+				NL_SET_ERR_MSG(extack, "Unknown attribute type");
+				return -EINVAL;
 			}
-
-			tb[type] = (struct nlattr *)nla;
+			continue;
 		}
+		if (policy) {
+			int err = validate_nla(nla, maxtype, policy, extack);
+
+			if (err < 0)
+				return err;
+		}
+
+		tb[type] = (struct nlattr *)nla;
 	}
 
-	if (unlikely(rem > 0))
+	if (unlikely(rem > 0)) {
 		pr_warn_ratelimited("netlink: %d bytes leftover after parsing attributes in process `%s'.\n",
 				    rem, current->comm);
+		NL_SET_ERR_MSG(extack, "bytes leftover after parsing attributes");
+		if (strict)
+			return -EINVAL;
+	}
 
 	return 0;
 }
+
+int nla_parse(struct nlattr **tb, int maxtype, const struct nlattr *head,
+	      int len, const struct nla_policy *policy,
+	      struct netlink_ext_ack *extack)
+{
+	return __nla_parse(tb, maxtype, head, len, false, policy, extack);
+}
 EXPORT_SYMBOL(nla_parse);
+
+int nla_parse_strict(struct nlattr **tb, int maxtype, const struct nlattr *head,
+		     int len, const struct nla_policy *policy,
+		     struct netlink_ext_ack *extack)
+{
+	return __nla_parse(tb, maxtype, head, len, true, policy, extack);
+}
+EXPORT_SYMBOL(nla_parse_strict);
 
 /**
  * nla_find - Find a specific attribute in a stream of attributes

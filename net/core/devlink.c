@@ -3504,7 +3504,7 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	start_offset = *((u64 *)&cb->args[0]);
 
 	err = nlmsg_parse(cb->nlh, GENL_HDRLEN + devlink_nl_family.hdrsize,
-			  attrs, DEVLINK_ATTR_MAX, ops->policy, NULL);
+			  attrs, DEVLINK_ATTR_MAX, ops->policy, cb->extack);
 	if (err)
 		goto out;
 

@@ -1671,7 +1671,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	ASSERT_RTNL();
 
 	err = nlmsg_parse(nlh, sizeof(struct tcmsg), tca, TCA_MAX,
-			  rtm_tca_policy, NULL);
+			  rtm_tca_policy, cb->extack);
 	if (err < 0)
 		return err;
 

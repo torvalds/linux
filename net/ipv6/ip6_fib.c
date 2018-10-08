@@ -564,6 +564,7 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 
 static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
@@ -572,6 +573,13 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct fib6_table *tb;
 	struct hlist_head *head;
 	int res = 0;
+
+	if (cb->strict_check) {
+		int err = ip_valid_fib_dump_req(nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
 
 	s_h = cb->args[0];
 	s_e = cb->args[1];

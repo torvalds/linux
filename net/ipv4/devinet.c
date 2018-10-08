@@ -782,7 +782,8 @@ static void set_ifa_lifetime(struct in_ifaddr *ifa, __u32 valid_lft,
 }
 
 static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
-				       __u32 *pvalid_lft, __u32 *pprefered_lft)
+				       __u32 *pvalid_lft, __u32 *pprefered_lft,
+				       struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[IFA_MAX+1];
 	struct in_ifaddr *ifa;
@@ -792,7 +793,7 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv4_policy,
-			  NULL);
+			  extack);
 	if (err < 0)
 		goto errout;
 
@@ -897,7 +898,7 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ASSERT_RTNL();
 
-	ifa = rtm_to_ifaddr(net, nlh, &valid_lft, &prefered_lft);
+	ifa = rtm_to_ifaddr(net, nlh, &valid_lft, &prefered_lft, extack);
 	if (IS_ERR(ifa))
 		return PTR_ERR(ifa);
 
@@ -1659,17 +1660,70 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int inet_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
+				      struct inet_fill_args *fillargs,
+				      struct net **tgt_net, struct sock *sk,
+				      struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[IFA_MAX+1];
+	struct ifaddrmsg *ifm;
+	int err, i;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid header for address dump request");
+		return -EINVAL;
+	}
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->ifa_prefixlen || ifm->ifa_flags || ifm->ifa_scope) {
+		NL_SET_ERR_MSG(extack, "ipv4: Invalid values in header for address dump request");
+		return -EINVAL;
+	}
+	if (ifm->ifa_index) {
+		NL_SET_ERR_MSG(extack, "ipv4: Filter by device index not supported for address dump");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
+				 ifa_ipv4_policy, extack);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i <= IFA_MAX; ++i) {
+		if (!tb[i])
+			continue;
+
+		if (i == IFA_TARGET_NETNSID) {
+			struct net *net;
+
+			fillargs->netnsid = nla_get_s32(tb[i]);
+
+			net = rtnl_get_net_ns_capable(sk, fillargs->netnsid);
+			if (IS_ERR(net)) {
+				NL_SET_ERR_MSG(extack, "ipv4: Invalid target network namespace id");
+				return PTR_ERR(net);
+			}
+			*tgt_net = net;
+		} else {
+			NL_SET_ERR_MSG(extack, "ipv4: Unsupported attribute in dump request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct inet_fill_args fillargs = {
 		.portid = NETLINK_CB(cb->skb).portid,
-		.seq = cb->nlh->nlmsg_seq,
+		.seq = nlh->nlmsg_seq,
 		.event = RTM_NEWADDR,
 		.flags = NLM_F_MULTI,
 		.netnsid = -1,
 	};
 	struct net *net = sock_net(skb->sk);
-	struct nlattr *tb[IFA_MAX+1];
 	struct net *tgt_net = net;
 	int h, s_h;
 	int idx, s_idx;
@@ -1683,16 +1737,13 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	s_idx = idx = cb->args[1];
 	s_ip_idx = ip_idx = cb->args[2];
 
-	if (nlmsg_parse(cb->nlh, sizeof(struct ifaddrmsg), tb, IFA_MAX,
-			ifa_ipv4_policy, NULL) >= 0) {
-		if (tb[IFA_TARGET_NETNSID]) {
-			fillargs.netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
+	if (cb->strict_check) {
+		int err;
 
-			tgt_net = rtnl_get_net_ns_capable(skb->sk,
-							  fillargs.netnsid);
-			if (IS_ERR(tgt_net))
-				return PTR_ERR(tgt_net);
-		}
+		err = inet_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
+						 skb->sk, cb->extack);
+		if (err < 0)
+			return err;
 	}
 
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
@@ -2035,12 +2086,28 @@ errout:
 static int inet_netconf_dump_devconf(struct sk_buff *skb,
 				     struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	int h, s_h;
 	int idx, s_idx;
 	struct net_device *dev;
 	struct in_device *in_dev;
 	struct hlist_head *head;
+
+	if (cb->strict_check) {
+		struct netlink_ext_ack *extack = cb->extack;
+		struct netconfmsg *ncm;
+
+		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ncm))) {
+			NL_SET_ERR_MSG(extack, "ipv4: Invalid header for netconf dump request");
+			return -EINVAL;
+		}
+
+		if (nlmsg_attrlen(nlh, sizeof(*ncm))) {
+			NL_SET_ERR_MSG(extack, "ipv4: Invalid data after header in netconf dump request");
+			return -EINVAL;
+		}
+	}
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
@@ -2061,7 +2128,7 @@ static int inet_netconf_dump_devconf(struct sk_buff *skb,
 			if (inet_netconf_fill_devconf(skb, dev->ifindex,
 						      &in_dev->cnf,
 						      NETLINK_CB(cb->skb).portid,
-						      cb->nlh->nlmsg_seq,
+						      nlh->nlmsg_seq,
 						      RTM_NEWNETCONF,
 						      NLM_F_MULTI,
 						      NETCONFA_ALL) < 0) {
@@ -2078,7 +2145,7 @@ cont:
 		if (inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_ALL,
 					      net->ipv4.devconf_all,
 					      NETLINK_CB(cb->skb).portid,
-					      cb->nlh->nlmsg_seq,
+					      nlh->nlmsg_seq,
 					      RTM_NEWNETCONF, NLM_F_MULTI,
 					      NETCONFA_ALL) < 0)
 			goto done;
@@ -2089,7 +2156,7 @@ cont:
 		if (inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_DEFAULT,
 					      net->ipv4.devconf_dflt,
 					      NETLINK_CB(cb->skb).portid,
-					      cb->nlh->nlmsg_seq,
+					      nlh->nlmsg_seq,
 					      RTM_NEWNETCONF, NLM_F_MULTI,
 					      NETCONFA_ALL) < 0)
 			goto done;
