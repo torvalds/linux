@@ -53,6 +53,66 @@ struct kvm_nested_guest {
 	struct kvm_nested_guest *next;
 };
 
+/*
+ * We define a nested rmap entry as a single 64-bit quantity
+ * 0xFFF0000000000000	12-bit lpid field
+ * 0x000FFFFFFFFFF000	40-bit guest 4k page frame number
+ * 0x0000000000000001	1-bit  single entry flag
+ */
+#define RMAP_NESTED_LPID_MASK		0xFFF0000000000000UL
+#define RMAP_NESTED_LPID_SHIFT		(52)
+#define RMAP_NESTED_GPA_MASK		0x000FFFFFFFFFF000UL
+#define RMAP_NESTED_IS_SINGLE_ENTRY	0x0000000000000001UL
+
+/* Structure for a nested guest rmap entry */
+struct rmap_nested {
+	struct llist_node list;
+	u64 rmap;
+};
+
+/*
+ * for_each_nest_rmap_safe - iterate over the list of nested rmap entries
+ *			     safe against removal of the list entry or NULL list
+ * @pos:	a (struct rmap_nested *) to use as a loop cursor
+ * @node:	pointer to the first entry
+ *		NOTE: this can be NULL
+ * @rmapp:	an (unsigned long *) in which to return the rmap entries on each
+ *		iteration
+ *		NOTE: this must point to already allocated memory
+ *
+ * The nested_rmap is a llist of (struct rmap_nested) entries pointed to by the
+ * rmap entry in the memslot. The list is always terminated by a "single entry"
+ * stored in the list element of the final entry of the llist. If there is ONLY
+ * a single entry then this is itself in the rmap entry of the memslot, not a
+ * llist head pointer.
+ *
+ * Note that the iterator below assumes that a nested rmap entry is always
+ * non-zero.  This is true for our usage because the LPID field is always
+ * non-zero (zero is reserved for the host).
+ *
+ * This should be used to iterate over the list of rmap_nested entries with
+ * processing done on the u64 rmap value given by each iteration. This is safe
+ * against removal of list entries and it is always safe to call free on (pos).
+ *
+ * e.g.
+ * struct rmap_nested *cursor;
+ * struct llist_node *first;
+ * unsigned long rmap;
+ * for_each_nest_rmap_safe(cursor, first, &rmap) {
+ *	do_something(rmap);
+ *	free(cursor);
+ * }
+ */
+#define for_each_nest_rmap_safe(pos, node, rmapp)			       \
+	for ((pos) = llist_entry((node), typeof(*(pos)), list);		       \
+	     (node) &&							       \
+	     (*(rmapp) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (node))) ?     \
+			  ((u64) (node)) : ((pos)->rmap))) &&		       \
+	     (((node) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (node))) ?      \
+			 ((struct llist_node *) ((pos) = NULL)) :	       \
+			 (pos)->list.next)), true);			       \
+	     (pos) = llist_entry((node), typeof(*(pos)), list))
+
 struct kvm_nested_guest *kvmhv_get_nested(struct kvm *kvm, int l1_lpid,
 					  bool create);
 void kvmhv_put_nested(struct kvm_nested_guest *gp);
@@ -551,7 +611,14 @@ static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
 
 extern int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 			     unsigned long gpa, unsigned int level,
-			     unsigned long mmu_seq, unsigned int lpid);
+			     unsigned long mmu_seq, unsigned int lpid,
+			     unsigned long *rmapp, struct rmap_nested **n_rmap);
+extern void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
+				   struct rmap_nested **n_rmap);
+extern void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
+				struct kvm_memory_slot *memslot,
+				unsigned long gpa, unsigned long hpa,
+				unsigned long nbytes);
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 

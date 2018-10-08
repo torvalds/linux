@@ -4486,6 +4486,7 @@ int kvmppc_switch_mmu_to_radix(struct kvm *kvm)
 	kvmppc_free_hpt(&kvm->arch.hpt);
 	kvmppc_update_lpcr(kvm, LPCR_UPRT | LPCR_GTSE | LPCR_HR,
 			   LPCR_VPM1 | LPCR_UPRT | LPCR_GTSE | LPCR_HR);
+	kvmppc_rmap_reset(kvm);
 	kvm->arch.radix = 1;
 	return 0;
 }

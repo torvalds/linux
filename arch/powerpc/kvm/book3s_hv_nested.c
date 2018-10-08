@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/kvm_host.h>
+#include <linux/llist.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -22,6 +23,7 @@
 static struct patb_entry *pseries_partition_tb;
 
 static void kvmhv_update_ptbl_cache(struct kvm_nested_guest *gp);
+static void kvmhv_free_memslot_nest_rmap(struct kvm_memory_slot *free);
 
 void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 {
@@ -456,6 +458,8 @@ void kvmhv_release_all_nested(struct kvm *kvm)
 	int i;
 	struct kvm_nested_guest *gp;
 	struct kvm_nested_guest *freelist = NULL;
+	struct kvm_memory_slot *memslot;
+	int srcu_idx;
 
 	spin_lock(&kvm->mmu_lock);
 	for (i = 0; i <= kvm->arch.max_nested_lpid; i++) {
@@ -474,6 +478,11 @@ void kvmhv_release_all_nested(struct kvm *kvm)
 		freelist = gp->next;
 		kvmhv_release_nested(gp);
 	}
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+	kvm_for_each_memslot(memslot, kvm_memslots(kvm))
+		kvmhv_free_memslot_nest_rmap(memslot);
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 }
 
 /* caller must hold gp->tlb_lock */
@@ -542,6 +551,123 @@ void kvmhv_put_nested(struct kvm_nested_guest *gp)
 	spin_unlock(&kvm->mmu_lock);
 	if (ref == 0)
 		kvmhv_release_nested(gp);
+}
+
+static struct kvm_nested_guest *kvmhv_find_nested(struct kvm *kvm, int lpid)
+{
+	if (lpid > kvm->arch.max_nested_lpid)
+		return NULL;
+	return kvm->arch.nested_guests[lpid];
+}
+
+static inline bool kvmhv_n_rmap_is_equal(u64 rmap_1, u64 rmap_2)
+{
+	return !((rmap_1 ^ rmap_2) & (RMAP_NESTED_LPID_MASK |
+				       RMAP_NESTED_GPA_MASK));
+}
+
+void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
+			    struct rmap_nested **n_rmap)
+{
+	struct llist_node *entry = ((struct llist_head *) rmapp)->first;
+	struct rmap_nested *cursor;
+	u64 rmap, new_rmap = (*n_rmap)->rmap;
+
+	/* Are there any existing entries? */
+	if (!(*rmapp)) {
+		/* No -> use the rmap as a single entry */
+		*rmapp = new_rmap | RMAP_NESTED_IS_SINGLE_ENTRY;
+		return;
+	}
+
+	/* Do any entries match what we're trying to insert? */
+	for_each_nest_rmap_safe(cursor, entry, &rmap) {
+		if (kvmhv_n_rmap_is_equal(rmap, new_rmap))
+			return;
+	}
+
+	/* Do we need to create a list or just add the new entry? */
+	rmap = *rmapp;
+	if (rmap & RMAP_NESTED_IS_SINGLE_ENTRY) /* Not previously a list */
+		*rmapp = 0UL;
+	llist_add(&((*n_rmap)->list), (struct llist_head *) rmapp);
+	if (rmap & RMAP_NESTED_IS_SINGLE_ENTRY) /* Not previously a list */
+		(*n_rmap)->list.next = (struct llist_node *) rmap;
+
+	/* Set NULL so not freed by caller */
+	*n_rmap = NULL;
+}
+
+static void kvmhv_remove_nest_rmap(struct kvm *kvm, u64 n_rmap,
+				   unsigned long hpa, unsigned long mask)
+{
+	struct kvm_nested_guest *gp;
+	unsigned long gpa;
+	unsigned int shift, lpid;
+	pte_t *ptep;
+
+	gpa = n_rmap & RMAP_NESTED_GPA_MASK;
+	lpid = (n_rmap & RMAP_NESTED_LPID_MASK) >> RMAP_NESTED_LPID_SHIFT;
+	gp = kvmhv_find_nested(kvm, lpid);
+	if (!gp)
+		return;
+
+	/* Find and invalidate the pte */
+	ptep = __find_linux_pte(gp->shadow_pgtable, gpa, NULL, &shift);
+	/* Don't spuriously invalidate ptes if the pfn has changed */
+	if (ptep && pte_present(*ptep) && ((pte_val(*ptep) & mask) == hpa))
+		kvmppc_unmap_pte(kvm, ptep, gpa, shift, NULL, gp->shadow_lpid);
+}
+
+static void kvmhv_remove_nest_rmap_list(struct kvm *kvm, unsigned long *rmapp,
+					unsigned long hpa, unsigned long mask)
+{
+	struct llist_node *entry = llist_del_all((struct llist_head *) rmapp);
+	struct rmap_nested *cursor;
+	unsigned long rmap;
+
+	for_each_nest_rmap_safe(cursor, entry, &rmap) {
+		kvmhv_remove_nest_rmap(kvm, rmap, hpa, mask);
+		kfree(cursor);
+	}
+}
+
+/* called with kvm->mmu_lock held */
+void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
+				  struct kvm_memory_slot *memslot,
+				  unsigned long gpa, unsigned long hpa,
+				  unsigned long nbytes)
+{
+	unsigned long gfn, end_gfn;
+	unsigned long addr_mask;
+
+	if (!memslot)
+		return;
+	gfn = (gpa >> PAGE_SHIFT) - memslot->base_gfn;
+	end_gfn = gfn + (nbytes >> PAGE_SHIFT);
+
+	addr_mask = PTE_RPN_MASK & ~(nbytes - 1);
+	hpa &= addr_mask;
+
+	for (; gfn < end_gfn; gfn++) {
+		unsigned long *rmap = &memslot->arch.rmap[gfn];
+		kvmhv_remove_nest_rmap_list(kvm, rmap, hpa, addr_mask);
+	}
+}
+
+static void kvmhv_free_memslot_nest_rmap(struct kvm_memory_slot *free)
+{
+	unsigned long page;
+
+	for (page = 0; page < free->npages; page++) {
+		unsigned long rmap, *rmapp = &free->arch.rmap[page];
+		struct rmap_nested *cursor;
+		struct llist_node *entry;
+
+		entry = llist_del_all((struct llist_head *) rmapp);
+		for_each_nest_rmap_safe(cursor, entry, &rmap)
+			kfree(cursor);
+	}
 }
 
 static bool kvmhv_invalidate_shadow_pte(struct kvm_vcpu *vcpu,
@@ -695,11 +821,13 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_memory_slot *memslot;
+	struct rmap_nested *n_rmap;
 	struct kvmppc_pte gpte;
 	pte_t pte, *pte_p;
 	unsigned long mmu_seq;
 	unsigned long dsisr = vcpu->arch.fault_dsisr;
 	unsigned long ea = vcpu->arch.fault_dar;
+	unsigned long *rmapp;
 	unsigned long n_gpa, gpa, gfn, perm = 0UL;
 	unsigned int shift, l1_shift, level;
 	bool writing = !!(dsisr & DSISR_ISSTORE);
@@ -833,8 +961,16 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 
 	/* 4. Insert the pte into our shadow_pgtable */
 
+	n_rmap = kzalloc(sizeof(*n_rmap), GFP_KERNEL);
+	if (!n_rmap)
+		return RESUME_GUEST; /* Let the guest try again */
+	n_rmap->rmap = (n_gpa & RMAP_NESTED_GPA_MASK) |
+		(((unsigned long) gp->l1_lpid) << RMAP_NESTED_LPID_SHIFT);
+	rmapp = &memslot->arch.rmap[gfn - memslot->base_gfn];
 	ret = kvmppc_create_pte(kvm, gp->shadow_pgtable, pte, n_gpa, level,
-				mmu_seq, gp->shadow_lpid);
+				mmu_seq, gp->shadow_lpid, rmapp, &n_rmap);
+	if (n_rmap)
+		kfree(n_rmap);
 	if (ret == -EAGAIN)
 		ret = RESUME_GUEST;	/* Let the guest try again */
 
