@@ -135,7 +135,7 @@ static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 	}
 
 	td = (struct xt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
-	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size) {
+	if (nla_len(tb[TCA_IPT_TARG]) != td->u.target_size) {
 		if (exists)
 			tcf_idr_release(*a, bind);
 		else

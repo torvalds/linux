@@ -11,7 +11,7 @@
 #define __INTEL_PASID_H
 
 #define PASID_MIN			0x1
-#define PASID_MAX			0x100000
+#define PASID_MAX			0x20000
 
 struct pasid_entry {
 	u64 val;

@@ -1570,16 +1570,6 @@ xlog_find_zeroed(
 	if (last_cycle != 0) {		/* log completely written to */
 		xlog_put_bp(bp);
 		return 0;
-	} else if (first_cycle != 1) {
-		/*
-		 * If the cycle of the last block is zero, the cycle of
-		 * the first block must be 1. If it's not, maybe we're
-		 * not looking at a log... Bail out.
-		 */
-		xfs_warn(log->l_mp,
-			"Log inconsistent or not a log (last==0, first!=1)");
-		error = -EINVAL;
-		goto bp_err;
 	}
 
 	/* we have a partially zeroed log */

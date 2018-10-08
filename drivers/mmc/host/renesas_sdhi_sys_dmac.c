@@ -498,7 +498,8 @@ static const struct soc_device_attribute gen3_soc_whitelist[] = {
 
 static int renesas_sdhi_sys_dmac_probe(struct platform_device *pdev)
 {
-	if (of_device_get_match_data(&pdev->dev) == &of_rcar_gen3_compatible &&
+	if ((of_device_get_match_data(&pdev->dev) == &of_rcar_gen3_compatible ||
+	    of_device_get_match_data(&pdev->dev) == &of_rcar_r8a7795_compatible) &&
 	    !soc_device_match(gen3_soc_whitelist))
 		return -ENODEV;
 

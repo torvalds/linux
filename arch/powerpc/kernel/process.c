@@ -1306,6 +1306,16 @@ void show_user_instructions(struct pt_regs *regs)
 
 	pc = regs->nip - (instructions_to_print * 3 / 4 * sizeof(int));
 
+	/*
+	 * Make sure the NIP points at userspace, not kernel text/data or
+	 * elsewhere.
+	 */
+	if (!__access_ok(pc, instructions_to_print * sizeof(int), USER_DS)) {
+		pr_info("%s[%d]: Bad NIP, not dumping instructions.\n",
+			current->comm, current->pid);
+		return;
+	}
+
 	pr_info("%s[%d]: code: ", current->comm, current->pid);
 
 	for (i = 0; i < instructions_to_print; i++) {
