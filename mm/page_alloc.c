@@ -6197,8 +6197,6 @@ static unsigned long __init calc_memmap_size(unsigned long spanned_pages,
 static void pgdat_init_numabalancing(struct pglist_data *pgdat)
 {
 	spin_lock_init(&pgdat->numabalancing_migrate_lock);
-	pgdat->numabalancing_migrate_nr_pages = 0;
-	pgdat->numabalancing_migrate_next_window = jiffies;
 }
 #else
 static void pgdat_init_numabalancing(struct pglist_data *pgdat) {}

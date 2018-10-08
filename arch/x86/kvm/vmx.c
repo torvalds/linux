@@ -121,7 +121,6 @@ module_param_named(pml, enable_pml, bool, S_IRUGO);
 
 #define MSR_BITMAP_MODE_X2APIC		1
 #define MSR_BITMAP_MODE_X2APIC_APICV	2
-#define MSR_BITMAP_MODE_LM		4
 
 #define KVM_VMX_TSC_MULTIPLIER_MAX     0xffffffffffffffffULL
 
@@ -857,6 +856,7 @@ struct nested_vmx {
 
 	/* to migrate it to L2 if VM_ENTRY_LOAD_DEBUG_CONTROLS is off */
 	u64 vmcs01_debugctl;
+	u64 vmcs01_guest_bndcfgs;
 
 	u16 vpid02;
 	u16 last_vpid;
@@ -2899,8 +2899,7 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 		vmx->msr_host_kernel_gs_base = read_msr(MSR_KERNEL_GS_BASE);
 	}
 
-	if (is_long_mode(&vmx->vcpu))
-		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #else
 	savesegment(fs, fs_sel);
 	savesegment(gs, gs_sel);
@@ -2951,8 +2950,7 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 	vmx->loaded_cpu_state = NULL;
 
 #ifdef CONFIG_X86_64
-	if (is_long_mode(&vmx->vcpu))
-		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+	rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #endif
 	if (host_state->ldt_sel || (host_state->gs_sel & 7)) {
 		kvm_load_ldt(host_state->ldt_sel);
@@ -2980,24 +2978,19 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 #ifdef CONFIG_X86_64
 static u64 vmx_read_guest_kernel_gs_base(struct vcpu_vmx *vmx)
 {
-	if (is_long_mode(&vmx->vcpu)) {
-		preempt_disable();
-		if (vmx->loaded_cpu_state)
-			rdmsrl(MSR_KERNEL_GS_BASE,
-			       vmx->msr_guest_kernel_gs_base);
-		preempt_enable();
-	}
+	preempt_disable();
+	if (vmx->loaded_cpu_state)
+		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+	preempt_enable();
 	return vmx->msr_guest_kernel_gs_base;
 }
 
 static void vmx_write_guest_kernel_gs_base(struct vcpu_vmx *vmx, u64 data)
 {
-	if (is_long_mode(&vmx->vcpu)) {
-		preempt_disable();
-		if (vmx->loaded_cpu_state)
-			wrmsrl(MSR_KERNEL_GS_BASE, data);
-		preempt_enable();
-	}
+	preempt_disable();
+	if (vmx->loaded_cpu_state)
+		wrmsrl(MSR_KERNEL_GS_BASE, data);
+	preempt_enable();
 	vmx->msr_guest_kernel_gs_base = data;
 }
 #endif
@@ -3533,9 +3526,6 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 		VM_EXIT_LOAD_IA32_EFER | VM_EXIT_SAVE_IA32_EFER |
 		VM_EXIT_SAVE_VMX_PREEMPTION_TIMER | VM_EXIT_ACK_INTR_ON_EXIT;
 
-	if (kvm_mpx_supported())
-		msrs->exit_ctls_high |= VM_EXIT_CLEAR_BNDCFGS;
-
 	/* We support free control of debug control saving. */
 	msrs->exit_ctls_low &= ~VM_EXIT_SAVE_DEBUG_CONTROLS;
 
@@ -3552,8 +3542,6 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 		VM_ENTRY_LOAD_IA32_PAT;
 	msrs->entry_ctls_high |=
 		(VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR | VM_ENTRY_LOAD_IA32_EFER);
-	if (kvm_mpx_supported())
-		msrs->entry_ctls_high |= VM_ENTRY_LOAD_BNDCFGS;
 
 	/* We support free control of debug control loading. */
 	msrs->entry_ctls_low &= ~VM_ENTRY_LOAD_DEBUG_CONTROLS;
@@ -3601,12 +3589,12 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 		msrs->secondary_ctls_high);
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
-		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_DESC |
 		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		SECONDARY_EXEC_WBINVD_EXITING;
+
 	/*
 	 * We can emulate "VMCS shadowing," even if the hardware
 	 * doesn't support it.
@@ -3662,6 +3650,10 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 	if (enable_unrestricted_guest)
 		msrs->secondary_ctls_high |=
 			SECONDARY_EXEC_UNRESTRICTED_GUEST;
+
+	if (flexpriority_enabled)
+		msrs->secondary_ctls_high |=
+			SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 
 	/* miscellaneous data */
 	rdmsr(MSR_IA32_VMX_MISC,
@@ -5073,19 +5065,6 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	if (!msr)
 		return;
 
-	/*
-	 * MSR_KERNEL_GS_BASE is not intercepted when the guest is in
-	 * 64-bit mode as a 64-bit kernel may frequently access the
-	 * MSR.  This means we need to manually save/restore the MSR
-	 * when switching between guest and host state, but only if
-	 * the guest is in 64-bit mode.  Sync our cached value if the
-	 * guest is transitioning to 32-bit mode and the CPU contains
-	 * guest state, i.e. the cache is stale.
-	 */
-#ifdef CONFIG_X86_64
-	if (!(efer & EFER_LMA))
-		(void)vmx_read_guest_kernel_gs_base(vmx);
-#endif
 	vcpu->arch.efer = efer;
 	if (efer & EFER_LMA) {
 		vm_entry_controls_setbit(to_vmx(vcpu), VM_ENTRY_IA32E_MODE);
@@ -6078,9 +6057,6 @@ static u8 vmx_msr_bitmap_mode(struct kvm_vcpu *vcpu)
 			mode |= MSR_BITMAP_MODE_X2APIC_APICV;
 	}
 
-	if (is_long_mode(vcpu))
-		mode |= MSR_BITMAP_MODE_LM;
-
 	return mode;
 }
 
@@ -6120,9 +6096,6 @@ static void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu)
 
 	if (!changed)
 		return;
-
-	vmx_set_intercept_for_msr(msr_bitmap, MSR_KERNEL_GS_BASE, MSR_TYPE_RW,
-				  !(mode & MSR_BITMAP_MODE_LM));
 
 	if (changed & (MSR_BITMAP_MODE_X2APIC | MSR_BITMAP_MODE_X2APIC_APICV))
 		vmx_update_msr_bitmap_x2apic(msr_bitmap, mode);
@@ -6189,6 +6162,11 @@ static void vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	nested_mark_vmcs12_pages_dirty(vcpu);
 }
 
+static u8 vmx_get_rvi(void)
+{
+	return vmcs_read16(GUEST_INTR_STATUS) & 0xff;
+}
+
 static bool vmx_guest_apic_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -6201,7 +6179,7 @@ static bool vmx_guest_apic_has_interrupt(struct kvm_vcpu *vcpu)
 		WARN_ON_ONCE(!vmx->nested.virtual_apic_page))
 		return false;
 
-	rvi = vmcs_read16(GUEST_INTR_STATUS) & 0xff;
+	rvi = vmx_get_rvi();
 
 	vapic_page = kmap(vmx->nested.virtual_apic_page);
 	vppr = *((u32 *)(vapic_page + APIC_PROCPRI));
@@ -10245,14 +10223,15 @@ static void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	if (!lapic_in_kernel(vcpu))
 		return;
 
+	if (!flexpriority_enabled &&
+	    !cpu_has_vmx_virtualize_x2apic_mode())
+		return;
+
 	/* Postpone execution until vmcs01 is the current VMCS. */
 	if (is_guest_mode(vcpu)) {
 		to_vmx(vcpu)->nested.change_vmcs01_virtual_apic_mode = true;
 		return;
 	}
-
-	if (!cpu_need_tpr_shadow(vcpu))
-		return;
 
 	sec_exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
 	sec_exec_control &= ~(SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
@@ -10373,6 +10352,14 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 	}
 	vmx_hwapic_irr_update(vcpu, max_irr);
 	return max_irr;
+}
+
+static u8 vmx_has_apicv_interrupt(struct kvm_vcpu *vcpu)
+{
+	u8 rvi = vmx_get_rvi();
+	u8 vppr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_PROCPRI);
+
+	return ((rvi & 0xf0) > (vppr & 0xf0));
 }
 
 static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
@@ -11264,6 +11251,23 @@ static void nested_vmx_cr_fixed1_bits_update(struct kvm_vcpu *vcpu)
 #undef cr4_fixed1_update
 }
 
+static void nested_vmx_entry_exit_ctls_update(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (kvm_mpx_supported()) {
+		bool mpx_enabled = guest_cpuid_has(vcpu, X86_FEATURE_MPX);
+
+		if (mpx_enabled) {
+			vmx->nested.msrs.entry_ctls_high |= VM_ENTRY_LOAD_BNDCFGS;
+			vmx->nested.msrs.exit_ctls_high |= VM_EXIT_CLEAR_BNDCFGS;
+		} else {
+			vmx->nested.msrs.entry_ctls_high &= ~VM_ENTRY_LOAD_BNDCFGS;
+			vmx->nested.msrs.exit_ctls_high &= ~VM_EXIT_CLEAR_BNDCFGS;
+		}
+	}
+}
+
 static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -11280,8 +11284,10 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 		to_vmx(vcpu)->msr_ia32_feature_control_valid_bits &=
 			~FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX;
 
-	if (nested_vmx_allowed(vcpu))
+	if (nested_vmx_allowed(vcpu)) {
 		nested_vmx_cr_fixed1_bits_update(vcpu);
+		nested_vmx_entry_exit_ctls_update(vcpu);
+	}
 }
 
 static void vmx_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
@@ -12049,8 +12055,13 @@ static void prepare_vmcs02_full(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	set_cr4_guest_host_mask(vmx);
 
-	if (vmx_mpx_supported())
-		vmcs_write64(GUEST_BNDCFGS, vmcs12->guest_bndcfgs);
+	if (kvm_mpx_supported()) {
+		if (vmx->nested.nested_run_pending &&
+			(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_BNDCFGS))
+			vmcs_write64(GUEST_BNDCFGS, vmcs12->guest_bndcfgs);
+		else
+			vmcs_write64(GUEST_BNDCFGS, vmx->nested.vmcs01_guest_bndcfgs);
+	}
 
 	if (enable_vpid) {
 		if (nested_cpu_has_vpid(vmcs12) && vmx->nested.vpid02)
@@ -12595,15 +12606,21 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	bool from_vmentry = !!exit_qual;
 	u32 dummy_exit_qual;
-	u32 vmcs01_cpu_exec_ctrl;
+	bool evaluate_pending_interrupts;
 	int r = 0;
 
-	vmcs01_cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	evaluate_pending_interrupts = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL) &
+		(CPU_BASED_VIRTUAL_INTR_PENDING | CPU_BASED_VIRTUAL_NMI_PENDING);
+	if (likely(!evaluate_pending_interrupts) && kvm_vcpu_apicv_active(vcpu))
+		evaluate_pending_interrupts |= vmx_has_apicv_interrupt(vcpu);
 
 	enter_guest_mode(vcpu);
 
 	if (!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS))
 		vmx->nested.vmcs01_debugctl = vmcs_read64(GUEST_IA32_DEBUGCTL);
+	if (kvm_mpx_supported() &&
+		!(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_BNDCFGS))
+		vmx->nested.vmcs01_guest_bndcfgs = vmcs_read64(GUEST_BNDCFGS);
 
 	vmx_switch_vmcs(vcpu, &vmx->nested.vmcs02);
 	vmx_segment_cache_clear(vmx);
@@ -12643,16 +12660,14 @@ static int enter_vmx_non_root_mode(struct kvm_vcpu *vcpu, u32 *exit_qual)
 	 * to L1 or delivered directly to L2 (e.g. In case L1 don't
 	 * intercept EXTERNAL_INTERRUPT).
 	 *
-	 * Usually this would be handled by L0 requesting a
-	 * IRQ/NMI window by setting VMCS accordingly. However,
-	 * this setting was done on VMCS01 and now VMCS02 is active
-	 * instead. Thus, we force L0 to perform pending event
-	 * evaluation by requesting a KVM_REQ_EVENT.
+	 * Usually this would be handled by the processor noticing an
+	 * IRQ/NMI window request, or checking RVI during evaluation of
+	 * pending virtual interrupts.  However, this setting was done
+	 * on VMCS01 and now VMCS02 is active instead. Thus, we force L0
+	 * to perform pending event evaluation by requesting a KVM_REQ_EVENT.
 	 */
-	if (vmcs01_cpu_exec_ctrl &
-		(CPU_BASED_VIRTUAL_INTR_PENDING | CPU_BASED_VIRTUAL_NMI_PENDING)) {
+	if (unlikely(evaluate_pending_interrupts))
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
-	}
 
 	/*
 	 * Note no nested_vmx_succeed or nested_vmx_fail here. At this point

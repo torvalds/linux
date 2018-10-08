@@ -646,6 +646,16 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 	local_irq_disable();
 	ptep = __find_linux_pte(vcpu->arch.pgdir, hva, NULL, &shift);
+	/*
+	 * If the PTE disappeared temporarily due to a THP
+	 * collapse, just return and let the guest try again.
+	 */
+	if (!ptep) {
+		local_irq_enable();
+		if (page)
+			put_page(page);
+		return RESUME_GUEST;
+	}
 	pte = *ptep;
 	local_irq_enable();
 

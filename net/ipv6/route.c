@@ -4321,11 +4321,6 @@ static int ip6_route_info_append(struct net *net,
 	if (!nh)
 		return -ENOMEM;
 	nh->fib6_info = rt;
-	err = ip6_convert_metrics(net, rt, r_cfg);
-	if (err) {
-		kfree(nh);
-		return err;
-	}
 	memcpy(&nh->r_cfg, r_cfg, sizeof(*r_cfg));
 	list_add_tail(&nh->next, rt6_nh_list);
 
