@@ -2729,7 +2729,7 @@ static umode_t nvme_ns_id_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-const struct attribute_group nvme_ns_id_attr_group = {
+static const struct attribute_group nvme_ns_id_attr_group = {
 	.attrs		= nvme_ns_id_attrs,
 	.is_visible	= nvme_ns_id_attrs_are_visible,
 };
