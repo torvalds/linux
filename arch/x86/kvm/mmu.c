@@ -4724,6 +4724,20 @@ static void paging32E_init_context(struct kvm_vcpu *vcpu,
 	paging64_init_context_common(vcpu, context, PT32E_ROOT_LEVEL);
 }
 
+static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu)
+{
+	union kvm_mmu_extended_role ext = {0};
+
+	ext.cr4_smep = !!kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
+	ext.cr4_smap = !!kvm_read_cr4_bits(vcpu, X86_CR4_SMAP);
+	ext.cr4_pse = !!is_pse(vcpu);
+	ext.cr4_pke = !!kvm_read_cr4_bits(vcpu, X86_CR4_PKE);
+
+	ext.valid = 1;
+
+	return ext;
+}
+
 static union kvm_mmu_page_role
 kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu)
 {
@@ -4830,19 +4844,23 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
-static union kvm_mmu_page_role
-kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty)
+static union kvm_mmu_role
+kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
+				   bool execonly)
 {
-	union kvm_mmu_page_role role;
+	union kvm_mmu_role role;
 
-	/* Role is inherited from root_mmu */
-	role.word = vcpu->arch.root_mmu.base_role.word;
+	/* Base role is inherited from root_mmu */
+	role.base.word = vcpu->arch.root_mmu.mmu_role.base.word;
+	role.ext = kvm_calc_mmu_role_ext(vcpu);
 
-	role.level = PT64_ROOT_4LEVEL;
-	role.direct = false;
-	role.ad_disabled = !accessed_dirty;
-	role.guest_mode = true;
-	role.access = ACC_ALL;
+	role.base.level = PT64_ROOT_4LEVEL;
+	role.base.direct = false;
+	role.base.ad_disabled = !accessed_dirty;
+	role.base.guest_mode = true;
+	role.base.access = ACC_ALL;
+
+	role.ext.execonly = execonly;
 
 	return role;
 }
@@ -4851,10 +4869,16 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 			     bool accessed_dirty, gpa_t new_eptp)
 {
 	struct kvm_mmu *context = vcpu->arch.mmu;
-	union kvm_mmu_page_role root_page_role =
-		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty);
+	union kvm_mmu_role new_role =
+		kvm_calc_shadow_ept_root_page_role(vcpu, accessed_dirty,
+						   execonly);
 
-	__kvm_mmu_new_cr3(vcpu, new_eptp, root_page_role, false);
+	__kvm_mmu_new_cr3(vcpu, new_eptp, new_role.base, false);
+
+	new_role.base.word &= mmu_base_role_mask.word;
+	if (new_role.as_u64 == context->mmu_role.as_u64)
+		return;
+
 	context->shadow_root_level = PT64_ROOT_4LEVEL;
 
 	context->nx = true;
@@ -4866,8 +4890,7 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	context->update_pte = ept_update_pte;
 	context->root_level = PT64_ROOT_4LEVEL;
 	context->direct_map = false;
-	context->mmu_role.base.word =
-		root_page_role.word & mmu_base_role_mask.word;
+	context->mmu_role.as_u64 = new_role.as_u64;
 
 	update_permission_bitmask(vcpu, context, true);
 	update_pkru_bitmask(vcpu, context, true);
