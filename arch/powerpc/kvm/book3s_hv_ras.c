@@ -177,6 +177,7 @@ void kvmppc_subcore_enter_guest(void)
 
 	local_paca->sibling_subcore_state->in_guest[subcore_id] = 1;
 }
+EXPORT_SYMBOL_GPL(kvmppc_subcore_enter_guest);
 
 void kvmppc_subcore_exit_guest(void)
 {
@@ -187,6 +188,7 @@ void kvmppc_subcore_exit_guest(void)
 
 	local_paca->sibling_subcore_state->in_guest[subcore_id] = 0;
 }
+EXPORT_SYMBOL_GPL(kvmppc_subcore_exit_guest);
 
 static bool kvmppc_tb_resync_required(void)
 {

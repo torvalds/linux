@@ -3080,6 +3080,273 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 }
 
 /*
+ * Load up hypervisor-mode registers on P9.
+ */
+static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	s64 hdec;
+	u64 tb, purr, spurr;
+	int trap;
+	unsigned long host_hfscr = mfspr(SPRN_HFSCR);
+	unsigned long host_ciabr = mfspr(SPRN_CIABR);
+	unsigned long host_dawr = mfspr(SPRN_DAWR);
+	unsigned long host_dawrx = mfspr(SPRN_DAWRX);
+	unsigned long host_psscr = mfspr(SPRN_PSSCR);
+	unsigned long host_pidr = mfspr(SPRN_PID);
+
+	hdec = time_limit - mftb();
+	if (hdec < 0)
+		return BOOK3S_INTERRUPT_HV_DECREMENTER;
+	mtspr(SPRN_HDEC, hdec);
+
+	if (vc->tb_offset) {
+		u64 new_tb = mftb() + vc->tb_offset;
+		mtspr(SPRN_TBU40, new_tb);
+		tb = mftb();
+		if ((tb & 0xffffff) < (new_tb & 0xffffff))
+			mtspr(SPRN_TBU40, new_tb + 0x1000000);
+		vc->tb_offset_applied = vc->tb_offset;
+	}
+
+	if (vc->pcr)
+		mtspr(SPRN_PCR, vc->pcr);
+	mtspr(SPRN_DPDES, vc->dpdes);
+	mtspr(SPRN_VTB, vc->vtb);
+
+	local_paca->kvm_hstate.host_purr = mfspr(SPRN_PURR);
+	local_paca->kvm_hstate.host_spurr = mfspr(SPRN_SPURR);
+	mtspr(SPRN_PURR, vcpu->arch.purr);
+	mtspr(SPRN_SPURR, vcpu->arch.spurr);
+
+	if (cpu_has_feature(CPU_FTR_DAWR)) {
+		mtspr(SPRN_DAWR, vcpu->arch.dawr);
+		mtspr(SPRN_DAWRX, vcpu->arch.dawrx);
+	}
+	mtspr(SPRN_CIABR, vcpu->arch.ciabr);
+	mtspr(SPRN_IC, vcpu->arch.ic);
+	mtspr(SPRN_PID, vcpu->arch.pid);
+
+	mtspr(SPRN_PSSCR, vcpu->arch.psscr | PSSCR_EC |
+	      (local_paca->kvm_hstate.fake_suspend << PSSCR_FAKE_SUSPEND_LG));
+
+	mtspr(SPRN_HFSCR, vcpu->arch.hfscr);
+
+	mtspr(SPRN_SPRG0, vcpu->arch.shregs.sprg0);
+	mtspr(SPRN_SPRG1, vcpu->arch.shregs.sprg1);
+	mtspr(SPRN_SPRG2, vcpu->arch.shregs.sprg2);
+	mtspr(SPRN_SPRG3, vcpu->arch.shregs.sprg3);
+
+	mtspr(SPRN_AMOR, ~0UL);
+
+	mtspr(SPRN_LPCR, vc->lpcr);
+	isync();
+
+	kvmppc_xive_push_vcpu(vcpu);
+
+	mtspr(SPRN_SRR0, vcpu->arch.shregs.srr0);
+	mtspr(SPRN_SRR1, vcpu->arch.shregs.srr1);
+
+	trap = __kvmhv_vcpu_entry_p9(vcpu);
+
+	/* Advance host PURR/SPURR by the amount used by guest */
+	purr = mfspr(SPRN_PURR);
+	spurr = mfspr(SPRN_SPURR);
+	mtspr(SPRN_PURR, local_paca->kvm_hstate.host_purr +
+	      purr - vcpu->arch.purr);
+	mtspr(SPRN_SPURR, local_paca->kvm_hstate.host_spurr +
+	      spurr - vcpu->arch.spurr);
+	vcpu->arch.purr = purr;
+	vcpu->arch.spurr = spurr;
+
+	vcpu->arch.ic = mfspr(SPRN_IC);
+	vcpu->arch.pid = mfspr(SPRN_PID);
+	vcpu->arch.psscr = mfspr(SPRN_PSSCR) & PSSCR_GUEST_VIS;
+
+	vcpu->arch.shregs.sprg0 = mfspr(SPRN_SPRG0);
+	vcpu->arch.shregs.sprg1 = mfspr(SPRN_SPRG1);
+	vcpu->arch.shregs.sprg2 = mfspr(SPRN_SPRG2);
+	vcpu->arch.shregs.sprg3 = mfspr(SPRN_SPRG3);
+
+	mtspr(SPRN_PSSCR, host_psscr);
+	mtspr(SPRN_HFSCR, host_hfscr);
+	mtspr(SPRN_CIABR, host_ciabr);
+	mtspr(SPRN_DAWR, host_dawr);
+	mtspr(SPRN_DAWRX, host_dawrx);
+	mtspr(SPRN_PID, host_pidr);
+
+	/*
+	 * Since this is radix, do a eieio; tlbsync; ptesync sequence in
+	 * case we interrupted the guest between a tlbie and a ptesync.
+	 */
+	asm volatile("eieio; tlbsync; ptesync");
+
+	mtspr(SPRN_LPID, vcpu->kvm->arch.host_lpid);	/* restore host LPID */
+	isync();
+
+	vc->dpdes = mfspr(SPRN_DPDES);
+	vc->vtb = mfspr(SPRN_VTB);
+	mtspr(SPRN_DPDES, 0);
+	if (vc->pcr)
+		mtspr(SPRN_PCR, 0);
+
+	if (vc->tb_offset_applied) {
+		u64 new_tb = mftb() - vc->tb_offset_applied;
+		mtspr(SPRN_TBU40, new_tb);
+		tb = mftb();
+		if ((tb & 0xffffff) < (new_tb & 0xffffff))
+			mtspr(SPRN_TBU40, new_tb + 0x1000000);
+		vc->tb_offset_applied = 0;
+	}
+
+	mtspr(SPRN_HDEC, 0x7fffffff);
+	mtspr(SPRN_LPCR, vcpu->kvm->arch.host_lpcr);
+
+	return trap;
+}
+
+/*
+ * Virtual-mode guest entry for POWER9 and later when the host and
+ * guest are both using the radix MMU.  The LPIDR has already been set.
+ */
+int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit)
+{
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+	unsigned long host_dscr = mfspr(SPRN_DSCR);
+	unsigned long host_tidr = mfspr(SPRN_TIDR);
+	unsigned long host_iamr = mfspr(SPRN_IAMR);
+	s64 dec;
+	u64 tb;
+	int trap, save_pmu;
+
+	dec = mfspr(SPRN_DEC);
+	tb = mftb();
+	if (dec < 512)
+		return BOOK3S_INTERRUPT_HV_DECREMENTER;
+	local_paca->kvm_hstate.dec_expires = dec + tb;
+	if (local_paca->kvm_hstate.dec_expires < time_limit)
+		time_limit = local_paca->kvm_hstate.dec_expires;
+
+	vcpu->arch.ceded = 0;
+
+	kvmhv_save_host_pmu();		/* saves it to PACA kvm_hstate */
+
+	kvmppc_subcore_enter_guest();
+
+	vc->entry_exit_map = 1;
+	vc->in_guest = 1;
+
+	if (vcpu->arch.vpa.pinned_addr) {
+		struct lppaca *lp = vcpu->arch.vpa.pinned_addr;
+		u32 yield_count = be32_to_cpu(lp->yield_count) + 1;
+		lp->yield_count = cpu_to_be32(yield_count);
+		vcpu->arch.vpa.dirty = 1;
+	}
+
+	if (cpu_has_feature(CPU_FTR_TM) ||
+	    cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST))
+		kvmppc_restore_tm_hv(vcpu, vcpu->arch.shregs.msr, true);
+
+	kvmhv_load_guest_pmu(vcpu);
+
+	msr_check_and_set(MSR_FP | MSR_VEC | MSR_VSX);
+	load_fp_state(&vcpu->arch.fp);
+#ifdef CONFIG_ALTIVEC
+	load_vr_state(&vcpu->arch.vr);
+#endif
+
+	mtspr(SPRN_DSCR, vcpu->arch.dscr);
+	mtspr(SPRN_IAMR, vcpu->arch.iamr);
+	mtspr(SPRN_PSPB, vcpu->arch.pspb);
+	mtspr(SPRN_FSCR, vcpu->arch.fscr);
+	mtspr(SPRN_TAR, vcpu->arch.tar);
+	mtspr(SPRN_EBBHR, vcpu->arch.ebbhr);
+	mtspr(SPRN_EBBRR, vcpu->arch.ebbrr);
+	mtspr(SPRN_BESCR, vcpu->arch.bescr);
+	mtspr(SPRN_WORT, vcpu->arch.wort);
+	mtspr(SPRN_TIDR, vcpu->arch.tid);
+	mtspr(SPRN_DAR, vcpu->arch.shregs.dar);
+	mtspr(SPRN_DSISR, vcpu->arch.shregs.dsisr);
+	mtspr(SPRN_AMR, vcpu->arch.amr);
+	mtspr(SPRN_UAMOR, vcpu->arch.uamor);
+
+	if (!(vcpu->arch.ctrl & 1))
+		mtspr(SPRN_CTRLT, mfspr(SPRN_CTRLF) & ~1);
+
+	mtspr(SPRN_DEC, vcpu->arch.dec_expires - mftb());
+
+	if (vcpu->arch.doorbell_request) {
+		vc->dpdes = 1;
+		smp_wmb();
+		vcpu->arch.doorbell_request = 0;
+	}
+
+	trap = kvmhv_load_hv_regs_and_go(vcpu, time_limit);
+
+	vcpu->arch.slb_max = 0;
+	dec = mfspr(SPRN_DEC);
+	tb = mftb();
+	vcpu->arch.dec_expires = dec + tb;
+	vcpu->cpu = -1;
+	vcpu->arch.thread_cpu = -1;
+	vcpu->arch.ctrl = mfspr(SPRN_CTRLF);
+
+	vcpu->arch.iamr = mfspr(SPRN_IAMR);
+	vcpu->arch.pspb = mfspr(SPRN_PSPB);
+	vcpu->arch.fscr = mfspr(SPRN_FSCR);
+	vcpu->arch.tar = mfspr(SPRN_TAR);
+	vcpu->arch.ebbhr = mfspr(SPRN_EBBHR);
+	vcpu->arch.ebbrr = mfspr(SPRN_EBBRR);
+	vcpu->arch.bescr = mfspr(SPRN_BESCR);
+	vcpu->arch.wort = mfspr(SPRN_WORT);
+	vcpu->arch.tid = mfspr(SPRN_TIDR);
+	vcpu->arch.amr = mfspr(SPRN_AMR);
+	vcpu->arch.uamor = mfspr(SPRN_UAMOR);
+	vcpu->arch.dscr = mfspr(SPRN_DSCR);
+
+	mtspr(SPRN_PSPB, 0);
+	mtspr(SPRN_WORT, 0);
+	mtspr(SPRN_AMR, 0);
+	mtspr(SPRN_UAMOR, 0);
+	mtspr(SPRN_DSCR, host_dscr);
+	mtspr(SPRN_TIDR, host_tidr);
+	mtspr(SPRN_IAMR, host_iamr);
+	mtspr(SPRN_PSPB, 0);
+
+	msr_check_and_set(MSR_FP | MSR_VEC | MSR_VSX);
+	store_fp_state(&vcpu->arch.fp);
+#ifdef CONFIG_ALTIVEC
+	store_vr_state(&vcpu->arch.vr);
+#endif
+
+	if (cpu_has_feature(CPU_FTR_TM) ||
+	    cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST))
+		kvmppc_save_tm_hv(vcpu, vcpu->arch.shregs.msr, true);
+
+	save_pmu = 1;
+	if (vcpu->arch.vpa.pinned_addr) {
+		struct lppaca *lp = vcpu->arch.vpa.pinned_addr;
+		u32 yield_count = be32_to_cpu(lp->yield_count) + 1;
+		lp->yield_count = cpu_to_be32(yield_count);
+		vcpu->arch.vpa.dirty = 1;
+		save_pmu = lp->pmcregs_in_use;
+	}
+
+	kvmhv_save_guest_pmu(vcpu, save_pmu);
+
+	vc->entry_exit_map = 0x101;
+	vc->in_guest = 0;
+
+	mtspr(SPRN_DEC, local_paca->kvm_hstate.dec_expires - mftb());
+
+	kvmhv_load_host_pmu();
+
+	kvmppc_subcore_exit_guest();
+
+	return trap;
+}
+
+/*
  * Wait for some other vcpu thread to execute us, and
  * wake us up when we need to handle something in the host.
  */
@@ -3405,6 +3672,167 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	return vcpu->arch.ret;
 }
 
+static int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
+				 struct kvm_vcpu *vcpu, u64 time_limit)
+{
+	int trap, r, pcpu, pcpu0;
+	int srcu_idx;
+	struct kvmppc_vcore *vc;
+	struct kvm *kvm = vcpu->kvm;
+
+	trace_kvmppc_run_vcpu_enter(vcpu);
+
+	kvm_run->exit_reason = 0;
+	vcpu->arch.ret = RESUME_GUEST;
+	vcpu->arch.trap = 0;
+
+	vc = vcpu->arch.vcore;
+	vcpu->arch.ceded = 0;
+	vcpu->arch.run_task = current;
+	vcpu->arch.kvm_run = kvm_run;
+	vcpu->arch.stolen_logged = vcore_stolen_time(vc, mftb());
+	vcpu->arch.state = KVMPPC_VCPU_RUNNABLE;
+	vcpu->arch.busy_preempt = TB_NIL;
+	vcpu->arch.last_inst = KVM_INST_FETCH_FAILED;
+	vc->runnable_threads[0] = vcpu;
+	vc->n_runnable = 1;
+	vc->runner = vcpu;
+
+	/* See if the MMU is ready to go */
+	if (!kvm->arch.mmu_ready) {
+		r = kvmhv_setup_mmu(vcpu);
+		if (r) {
+			kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+			kvm_run->fail_entry.
+				hardware_entry_failure_reason = 0;
+			vcpu->arch.ret = r;
+			goto out;
+		}
+	}
+
+	if (need_resched())
+		cond_resched();
+
+	kvmppc_update_vpas(vcpu);
+
+	init_vcore_to_run(vc);
+	vc->preempt_tb = TB_NIL;
+
+	preempt_disable();
+	pcpu = smp_processor_id();
+	vc->pcpu = pcpu;
+	kvmppc_prepare_radix_vcpu(vcpu, pcpu);
+
+	local_irq_disable();
+	hard_irq_disable();
+	if (signal_pending(current))
+		goto sigpend;
+	if (lazy_irq_pending() || need_resched() || !kvm->arch.mmu_ready)
+		goto out;
+
+	kvmppc_core_prepare_to_enter(vcpu);
+
+	kvmppc_clear_host_core(pcpu);
+
+	local_paca->kvm_hstate.tid = 0;
+	local_paca->kvm_hstate.napping = 0;
+	local_paca->kvm_hstate.kvm_split_mode = NULL;
+	kvmppc_start_thread(vcpu, vc);
+	kvmppc_create_dtl_entry(vcpu, vc);
+	trace_kvm_guest_enter(vcpu);
+
+	vc->vcore_state = VCORE_RUNNING;
+	trace_kvmppc_run_core(vc, 0);
+
+	mtspr(SPRN_LPID, vc->kvm->arch.lpid);
+	isync();
+
+	/* See comment above in kvmppc_run_core() about this */
+	pcpu0 = pcpu;
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pcpu0 &= ~0x3UL;
+
+	if (cpumask_test_cpu(pcpu0, &kvm->arch.need_tlb_flush)) {
+		radix__local_flush_tlb_lpid_guest(kvm->arch.lpid);
+		/* Clear the bit after the TLB flush */
+		cpumask_clear_cpu(pcpu0, &kvm->arch.need_tlb_flush);
+	}
+
+	trace_hardirqs_on();
+	guest_enter_irqoff();
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+
+	this_cpu_disable_ftrace();
+
+	trap = kvmhv_p9_guest_entry(vcpu, time_limit);
+	vcpu->arch.trap = trap;
+
+	this_cpu_enable_ftrace();
+
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+
+	mtspr(SPRN_LPID, kvm->arch.host_lpid);
+	isync();
+
+	trace_hardirqs_off();
+	set_irq_happened(trap);
+
+	kvmppc_set_host_core(pcpu);
+
+	local_irq_enable();
+	guest_exit();
+
+	cpumask_clear_cpu(pcpu, &kvm->arch.cpu_in_guest);
+
+	preempt_enable();
+
+	/* cancel pending decrementer exception if DEC is now positive */
+	if (get_tb() < vcpu->arch.dec_expires && kvmppc_core_pending_dec(vcpu))
+		kvmppc_core_dequeue_dec(vcpu);
+
+	trace_kvm_guest_exit(vcpu);
+	r = RESUME_GUEST;
+	if (trap)
+		r = kvmppc_handle_exit_hv(kvm_run, vcpu, current);
+	vcpu->arch.ret = r;
+
+	if (is_kvmppc_resume_guest(r) && vcpu->arch.ceded &&
+	    !kvmppc_vcpu_woken(vcpu)) {
+		kvmppc_set_timer(vcpu);
+		while (vcpu->arch.ceded && !kvmppc_vcpu_woken(vcpu)) {
+			if (signal_pending(current)) {
+				vcpu->stat.signal_exits++;
+				kvm_run->exit_reason = KVM_EXIT_INTR;
+				vcpu->arch.ret = -EINTR;
+				break;
+			}
+			spin_lock(&vc->lock);
+			kvmppc_vcore_blocked(vc);
+			spin_unlock(&vc->lock);
+		}
+	}
+	vcpu->arch.ceded = 0;
+
+	vc->vcore_state = VCORE_INACTIVE;
+	trace_kvmppc_run_core(vc, 1);
+
+ done:
+	kvmppc_remove_runnable(vc, vcpu);
+	trace_kvmppc_run_vcpu_exit(vcpu, kvm_run);
+
+	return vcpu->arch.ret;
+
+ sigpend:
+	vcpu->stat.signal_exits++;
+	kvm_run->exit_reason = KVM_EXIT_INTR;
+	vcpu->arch.ret = -EINTR;
+ out:
+	local_irq_enable();
+	preempt_enable();
+	goto done;
+}
+
 static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	int r;
@@ -3480,7 +3908,10 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 
 	do {
-		r = kvmppc_run_vcpu(run, vcpu);
+		if (kvm->arch.threads_indep && kvm_is_radix(kvm))
+			r = kvmhv_run_single_vcpu(run, vcpu, ~(u64)0);
+		else
+			r = kvmppc_run_vcpu(run, vcpu);
 
 		if (run->exit_reason == KVM_EXIT_PAPR_HCALL &&
 		    !(vcpu->arch.shregs.msr & MSR_PR)) {

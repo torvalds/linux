@@ -47,8 +47,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #define NAPPING_NOVCPU	2
 
 /* Stack frame offsets for kvmppc_hv_entry */
-#define SFS			160
+#define SFS			208
 #define STACK_SLOT_TRAP		(SFS-4)
+#define STACK_SLOT_SHORT_PATH	(SFS-8)
 #define STACK_SLOT_TID		(SFS-16)
 #define STACK_SLOT_PSSCR	(SFS-24)
 #define STACK_SLOT_PID		(SFS-32)
@@ -57,6 +58,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #define STACK_SLOT_DAWR		(SFS-56)
 #define STACK_SLOT_DAWRX	(SFS-64)
 #define STACK_SLOT_HFSCR	(SFS-72)
+/* the following is used by the P9 short path */
+#define STACK_SLOT_NVGPRS	(SFS-152)	/* 18 gprs */
 
 /*
  * Call kvmppc_hv_entry in real mode.
@@ -1020,6 +1023,9 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 no_xive:
 #endif /* CONFIG_KVM_XICS */
 
+	li	r0, 0
+	stw	r0, STACK_SLOT_SHORT_PATH(r1)
+
 deliver_guest_interrupt:	/* r4 = vcpu, r13 = paca */
 	/* Check if we can deliver an external or decrementer interrupt now */
 	ld	r0, VCPU_PENDING_EXC(r4)
@@ -1034,13 +1040,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	bl	kvmppc_guest_entry_inject_int
 	ld	r4, HSTATE_KVM_VCPU(r13)
 71:
-	ld	r10, VCPU_PC(r4)
-	ld	r11, VCPU_MSR(r4)
 	ld	r6, VCPU_SRR0(r4)
 	ld	r7, VCPU_SRR1(r4)
 	mtspr	SPRN_SRR0, r6
 	mtspr	SPRN_SRR1, r7
 
+fast_guest_entry_c:
+	ld	r10, VCPU_PC(r4)
+	ld	r11, VCPU_MSR(r4)
 	/* r11 = vcpu->arch.msr & ~MSR_HV */
 	rldicl	r11, r11, 63 - MSR_HV_LG, 1
 	rotldi	r11, r11, 1 + MSR_HV_LG
@@ -1115,6 +1122,83 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	ld	r0, VCPU_GPR(R0)(r4)
 	ld	r4, VCPU_GPR(R4)(r4)
 	HRFI_TO_GUEST
+	b	.
+
+/*
+ * Enter the guest on a P9 or later system where we have exactly
+ * one vcpu per vcore and we don't need to go to real mode
+ * (which implies that host and guest are both using radix MMU mode).
+ * r3 = vcpu pointer
+ * Most SPRs and all the VSRs have been loaded already.
+ */
+_GLOBAL(__kvmhv_vcpu_entry_p9)
+EXPORT_SYMBOL_GPL(__kvmhv_vcpu_entry_p9)
+	mflr	r0
+	std	r0, PPC_LR_STKOFF(r1)
+	stdu	r1, -SFS(r1)
+
+	li	r0, 1
+	stw	r0, STACK_SLOT_SHORT_PATH(r1)
+
+	std	r3, HSTATE_KVM_VCPU(r13)
+	mfcr	r4
+	stw	r4, SFS+8(r1)
+
+	std	r1, HSTATE_HOST_R1(r13)
+
+	reg = 14
+	.rept	18
+	std	reg, STACK_SLOT_NVGPRS + ((reg - 14) * 8)(r1)
+	reg = reg + 1
+	.endr
+
+	reg = 14
+	.rept	18
+	ld	reg, __VCPU_GPR(reg)(r3)
+	reg = reg + 1
+	.endr
+
+	mfmsr	r10
+	std	r10, HSTATE_HOST_MSR(r13)
+
+	mr	r4, r3
+	b	fast_guest_entry_c
+guest_exit_short_path:
+
+	li	r0, KVM_GUEST_MODE_NONE
+	stb	r0, HSTATE_IN_GUEST(r13)
+
+	reg = 14
+	.rept	18
+	std	reg, __VCPU_GPR(reg)(r9)
+	reg = reg + 1
+	.endr
+
+	reg = 14
+	.rept	18
+	ld	reg, STACK_SLOT_NVGPRS + ((reg - 14) * 8)(r1)
+	reg = reg + 1
+	.endr
+
+	lwz	r4, SFS+8(r1)
+	mtcr	r4
+
+	mr	r3, r12		/* trap number */
+
+	addi	r1, r1, SFS
+	ld	r0, PPC_LR_STKOFF(r1)
+	mtlr	r0
+
+	/* If we are in real mode, do a rfid to get back to the caller */
+	mfmsr	r4
+	andi.	r5, r4, MSR_IR
+	bnelr
+	rldicl	r5, r4, 64 - MSR_TS_S_LG, 62	/* extract TS field */
+	mtspr	SPRN_SRR0, r0
+	ld	r10, HSTATE_HOST_MSR(r13)
+	rldimi	r10, r5, MSR_TS_S_LG, 63 - MSR_TS_T_LG
+	mtspr	SPRN_SRR1, r10
+	RFI_TO_KERNEL
 	b	.
 
 secondary_too_late:
@@ -1376,6 +1460,11 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	eieio
 1:
 #endif /* CONFIG_KVM_XICS */
+
+	/* If we came in through the P9 short path, go back out to C now */
+	lwz	r0, STACK_SLOT_SHORT_PATH(r1)
+	cmpwi	r0, 0
+	bne	guest_exit_short_path
 
 	/* For hash guest, read the guest SLB and save it away */
 	ld	r5, VCPU_KVM(r9)
