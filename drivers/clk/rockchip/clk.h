@@ -107,10 +107,10 @@ struct clk;
 #define RK1808_EMMC_CON0		0x390
 #define RK1808_EMMC_CON1		0x394
 
-#define RK1808_PMU_PLL_CON(x)		((x) * 0x4 + 0xc000)
-#define RK1808_PMU_MODE_CON		0xc020
-#define RK1808_PMU_CLKSEL_CON(x)	((x) * 0x4 + 0xc040)
-#define RK1808_PMU_CLKGATE_CON(x)	((x) * 0x4 + 0xc080)
+#define RK1808_PMU_PLL_CON(x)		((x) * 0x4 + 0x4000)
+#define RK1808_PMU_MODE_CON		0x4020
+#define RK1808_PMU_CLKSEL_CON(x)	((x) * 0x4 + 0x4040)
+#define RK1808_PMU_CLKGATE_CON(x)	((x) * 0x4 + 0x4080)
 
 #define RK2928_PLL_CON(x)		((x) * 0x4)
 #define RK2928_MODE_CON		0x40
