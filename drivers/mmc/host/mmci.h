@@ -273,6 +273,7 @@ struct variant_data {
 
 /* mmci variant callbacks */
 struct mmci_host_ops {
+	int (*validate_data)(struct mmci_host *host, struct mmc_data *data);
 	int (*prep_data)(struct mmci_host *host, struct mmc_data *data,
 			 bool next);
 	void (*unprep_data)(struct mmci_host *host, struct mmc_data *data,
