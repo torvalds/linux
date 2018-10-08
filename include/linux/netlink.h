@@ -179,6 +179,7 @@ struct netlink_callback {
 	struct netlink_ext_ack	*extack;
 	u16			family;
 	u16			min_dump_alloc;
+	bool			strict_check;
 	unsigned int		prev_seq, seq;
 	long			args[6];
 };
