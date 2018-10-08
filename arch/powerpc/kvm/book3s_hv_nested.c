@@ -168,6 +168,9 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 	if (err)
 		return H_PARAMETER;
 
+	if (l2_hv.vcpu_token >= NR_CPUS)
+		return H_PARAMETER;
+
 	/* translate lpid */
 	l2 = kvmhv_get_nested(vcpu->kvm, l2_hv.lpid, true);
 	if (!l2)
@@ -411,6 +414,8 @@ struct kvm_nested_guest *kvmhv_alloc_nested(struct kvm *kvm, unsigned int lpid)
 	if (shadow_lpid < 0)
 		goto out_free2;
 	gp->shadow_lpid = shadow_lpid;
+
+	memset(gp->prev_cpu, -1, sizeof(gp->prev_cpu));
 
 	return gp;
 

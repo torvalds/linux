@@ -52,6 +52,9 @@ struct kvm_nested_guest {
 	long refcnt;			/* number of pointers to this struct */
 	struct mutex tlb_lock;		/* serialize page faults and tlbies */
 	struct kvm_nested_guest *next;
+	cpumask_t need_tlb_flush;
+	cpumask_t cpu_in_guest;
+	short prev_cpu[NR_CPUS];
 };
 
 /*

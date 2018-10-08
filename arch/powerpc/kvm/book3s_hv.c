@@ -2397,10 +2397,18 @@ static void kvmppc_release_hwthread(int cpu)
 
 static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
 {
+	struct kvm_nested_guest *nested = vcpu->arch.nested;
+	cpumask_t *cpu_in_guest;
 	int i;
 
 	cpu = cpu_first_thread_sibling(cpu);
-	cpumask_set_cpu(cpu, &kvm->arch.need_tlb_flush);
+	if (nested) {
+		cpumask_set_cpu(cpu, &nested->need_tlb_flush);
+		cpu_in_guest = &nested->cpu_in_guest;
+	} else {
+		cpumask_set_cpu(cpu, &kvm->arch.need_tlb_flush);
+		cpu_in_guest = &kvm->arch.cpu_in_guest;
+	}
 	/*
 	 * Make sure setting of bit in need_tlb_flush precedes
 	 * testing of cpu_in_guest bits.  The matching barrier on
@@ -2408,13 +2416,23 @@ static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
 	 */
 	smp_mb();
 	for (i = 0; i < threads_per_core; ++i)
-		if (cpumask_test_cpu(cpu + i, &kvm->arch.cpu_in_guest))
+		if (cpumask_test_cpu(cpu + i, cpu_in_guest))
 			smp_call_function_single(cpu + i, do_nothing, NULL, 1);
 }
 
 static void kvmppc_prepare_radix_vcpu(struct kvm_vcpu *vcpu, int pcpu)
 {
+	struct kvm_nested_guest *nested = vcpu->arch.nested;
 	struct kvm *kvm = vcpu->kvm;
+	int prev_cpu;
+
+	if (!cpu_has_feature(CPU_FTR_HVMODE))
+		return;
+
+	if (nested)
+		prev_cpu = nested->prev_cpu[vcpu->arch.nested_vcpu_id];
+	else
+		prev_cpu = vcpu->arch.prev_cpu;
 
 	/*
 	 * With radix, the guest can do TLB invalidations itself,
@@ -2428,12 +2446,46 @@ static void kvmppc_prepare_radix_vcpu(struct kvm_vcpu *vcpu, int pcpu)
 	 * ran to flush the TLB.  The TLB is shared between threads,
 	 * so we use a single bit in .need_tlb_flush for all 4 threads.
 	 */
-	if (vcpu->arch.prev_cpu != pcpu) {
-		if (vcpu->arch.prev_cpu >= 0 &&
-		    cpu_first_thread_sibling(vcpu->arch.prev_cpu) !=
+	if (prev_cpu != pcpu) {
+		if (prev_cpu >= 0 &&
+		    cpu_first_thread_sibling(prev_cpu) !=
 		    cpu_first_thread_sibling(pcpu))
-			radix_flush_cpu(kvm, vcpu->arch.prev_cpu, vcpu);
-		vcpu->arch.prev_cpu = pcpu;
+			radix_flush_cpu(kvm, prev_cpu, vcpu);
+		if (nested)
+			nested->prev_cpu[vcpu->arch.nested_vcpu_id] = pcpu;
+		else
+			vcpu->arch.prev_cpu = pcpu;
+	}
+}
+
+static void kvmppc_radix_check_need_tlb_flush(struct kvm *kvm, int pcpu,
+					      struct kvm_nested_guest *nested)
+{
+	cpumask_t *need_tlb_flush;
+	int lpid;
+
+	if (!cpu_has_feature(CPU_FTR_HVMODE))
+		return;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pcpu &= ~0x3UL;
+
+	if (nested) {
+		lpid = nested->shadow_lpid;
+		need_tlb_flush = &nested->need_tlb_flush;
+	} else {
+		lpid = kvm->arch.lpid;
+		need_tlb_flush = &kvm->arch.need_tlb_flush;
+	}
+
+	mtspr(SPRN_LPID, lpid);
+	isync();
+	smp_mb();
+
+	if (cpumask_test_cpu(pcpu, need_tlb_flush)) {
+		radix__local_flush_tlb_lpid_guest(lpid);
+		/* Clear the bit after the TLB flush */
+		cpumask_clear_cpu(pcpu, need_tlb_flush);
 	}
 }
 
@@ -3127,8 +3179,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		spin_unlock(&core_info.vc[sub]->lock);
 
 	if (kvm_is_radix(vc->kvm)) {
-		int tmp = pcpu;
-
 		/*
 		 * Do we need to flush the process scoped TLB for the LPAR?
 		 *
@@ -3139,17 +3189,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		 *
 		 * Hash must be flushed in realmode in order to use tlbiel.
 		 */
-		mtspr(SPRN_LPID, vc->kvm->arch.lpid);
-		isync();
-
-		if (cpu_has_feature(CPU_FTR_ARCH_300))
-			tmp &= ~0x3UL;
-
-		if (cpumask_test_cpu(tmp, &vc->kvm->arch.need_tlb_flush)) {
-			radix__local_flush_tlb_lpid_guest(vc->kvm->arch.lpid);
-			/* Clear the bit after the TLB flush */
-			cpumask_clear_cpu(tmp, &vc->kvm->arch.need_tlb_flush);
-		}
+		kvmppc_radix_check_need_tlb_flush(vc->kvm, pcpu, NULL);
 	}
 
 	/*
@@ -3872,12 +3912,11 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 			  struct kvm_vcpu *vcpu, u64 time_limit,
 			  unsigned long lpcr)
 {
-	int trap, r, pcpu, pcpu0;
+	int trap, r, pcpu;
 	int srcu_idx;
 	struct kvmppc_vcore *vc;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_nested_guest *nested = vcpu->arch.nested;
-	unsigned long lpid;
 
 	trace_kvmppc_run_vcpu_enter(vcpu);
 
@@ -3950,22 +3989,8 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 	vc->vcore_state = VCORE_RUNNING;
 	trace_kvmppc_run_core(vc, 0);
 
-	lpid = vc->kvm->arch.lpid;
-	if (nested)
-		lpid = nested->shadow_lpid;
-	mtspr(SPRN_LPID, lpid);
-	isync();
-
-	/* See comment above in kvmppc_run_core() about this */
-	pcpu0 = pcpu;
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		pcpu0 &= ~0x3UL;
-
-	if (cpumask_test_cpu(pcpu0, &kvm->arch.need_tlb_flush)) {
-		radix__local_flush_tlb_lpid_guest(lpid);
-		/* Clear the bit after the TLB flush */
-		cpumask_clear_cpu(pcpu0, &kvm->arch.need_tlb_flush);
-	}
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		kvmppc_radix_check_need_tlb_flush(kvm, pcpu, nested);
 
 	trace_hardirqs_on();
 	guest_enter_irqoff();
