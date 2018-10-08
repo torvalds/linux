@@ -614,13 +614,8 @@ void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 
 	bnxt_qplib_rcfw_stop_irq(rcfw, true);
 
-	if (rcfw->cmdq_bar_reg_iomem)
-		iounmap(rcfw->cmdq_bar_reg_iomem);
-	rcfw->cmdq_bar_reg_iomem = NULL;
-
-	if (rcfw->creq_bar_reg_iomem)
-		iounmap(rcfw->creq_bar_reg_iomem);
-	rcfw->creq_bar_reg_iomem = NULL;
+	iounmap(rcfw->cmdq_bar_reg_iomem);
+	iounmap(rcfw->creq_bar_reg_iomem);
 
 	indx = find_first_bit(rcfw->cmdq_bitmap, rcfw->bmap_size);
 	if (indx != rcfw->bmap_size)
@@ -629,6 +624,8 @@ void bnxt_qplib_disable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 	kfree(rcfw->cmdq_bitmap);
 	rcfw->bmap_size = 0;
 
+	rcfw->cmdq_bar_reg_iomem = NULL;
+	rcfw->creq_bar_reg_iomem = NULL;
 	rcfw->aeq_handler = NULL;
 	rcfw->vector = 0;
 }
@@ -714,6 +711,8 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 		dev_err(&rcfw->pdev->dev,
 			"QPLIB: CREQ BAR region %d mapping failed",
 			rcfw->creq_bar_reg);
+		iounmap(rcfw->cmdq_bar_reg_iomem);
+		rcfw->cmdq_bar_reg_iomem = NULL;
 		return -ENOMEM;
 	}
 	rcfw->creq_qp_event_processed = 0;
