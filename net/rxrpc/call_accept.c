@@ -333,11 +333,11 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  */
 struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 					   struct rxrpc_sock *rx,
-					   struct rxrpc_peer *peer,
-					   struct rxrpc_connection *conn,
 					   struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	struct rxrpc_connection *conn;
+	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
 
 	_enter("");
@@ -353,6 +353,13 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 		call = NULL;
 		goto out;
 	}
+
+	/* The peer, connection and call may all have sprung into existence due
+	 * to a duplicate packet being handled on another CPU in parallel, so
+	 * we have to recheck the routing.  However, we're now holding
+	 * rx->incoming_lock, so the values should remain stable.
+	 */
+	conn = rxrpc_find_connection_rcu(local, skb, &peer);
 
 	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, skb);
 	if (!call) {
@@ -396,10 +403,12 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 
 	case RXRPC_CONN_SERVICE:
 		write_lock(&call->state_lock);
-		if (rx->discard_new_call)
-			call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
-		else
-			call->state = RXRPC_CALL_SERVER_ACCEPTING;
+		if (call->state < RXRPC_CALL_COMPLETE) {
+			if (rx->discard_new_call)
+				call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
+			else
+				call->state = RXRPC_CALL_SERVER_ACCEPTING;
+		}
 		write_unlock(&call->state_lock);
 		break;
 
