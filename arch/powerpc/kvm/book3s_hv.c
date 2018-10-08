@@ -4509,12 +4509,18 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 
 	kvmppc_free_vcores(kvm);
 
-	kvmppc_free_lpid(kvm->arch.lpid);
 
 	if (kvm_is_radix(kvm))
 		kvmppc_free_radix(kvm);
 	else
 		kvmppc_free_hpt(&kvm->arch.hpt);
+
+	/* Perform global invalidation and return lpid to the pool */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		kvm->arch.process_table = 0;
+		kvmppc_setup_partition_table(kvm);
+	}
+	kvmppc_free_lpid(kvm->arch.lpid);
 
 	kvmppc_free_pimap(kvm);
 }
