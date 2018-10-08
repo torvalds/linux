@@ -33,7 +33,7 @@ union msr_pstate {
 		unsigned vid:8;
 		unsigned iddval:8;
 		unsigned idddiv:2;
-		unsigned res1:30;
+		unsigned res1:31;
 		unsigned en:1;
 	} fam17h_bits;
 	unsigned long long val;
