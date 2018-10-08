@@ -165,7 +165,7 @@
 #define FEATURE_DS_FCLK_MASK            (1 << FEATURE_DS_FCLK_BIT            )
 #define FEATURE_DS_MP1CLK_MASK          (1 << FEATURE_DS_MP1CLK_BIT          )
 #define FEATURE_DS_MP0CLK_MASK          (1 << FEATURE_DS_MP0CLK_BIT          )
-
+#define FEATURE_XGMI_MASK               (1 << FEATURE_XGMI_BIT               )
 
 #define DPM_OVERRIDE_DISABLE_SOCCLK_PID             0x00000001
 #define DPM_OVERRIDE_DISABLE_UCLK_PID               0x00000002
@@ -391,8 +391,8 @@ typedef struct {
   uint16_t PpmTemperatureThreshold;
 
   uint8_t  MemoryOnPackage;
-  uint8_t  padding8_limits[3];
-
+  uint8_t  padding8_limits;
+  uint16_t Tvr_SocLimit;
 
   uint16_t  UlvVoltageOffsetSoc;
   uint16_t  UlvVoltageOffsetGfx;
@@ -501,7 +501,7 @@ typedef struct {
   uint8_t           DcBtcEnabled[AVFS_VOLTAGE_COUNT];
   uint8_t           Padding8_GfxBtc[2];
 
-  uint16_t          DcBtcMin[AVFS_VOLTAGE_COUNT];
+  int16_t           DcBtcMin[AVFS_VOLTAGE_COUNT];
   uint16_t          DcBtcMax[AVFS_VOLTAGE_COUNT];
 
 
@@ -526,7 +526,10 @@ typedef struct {
 
   uint16_t     FanGainVrMem0;
   uint16_t     FanGainVrMem1;
-  uint32_t     Reserved[12];
+
+  uint16_t     DcBtcGb[AVFS_VOLTAGE_COUNT];
+
+  uint32_t     Reserved[11];
 
   uint32_t     Padding32[3];
 

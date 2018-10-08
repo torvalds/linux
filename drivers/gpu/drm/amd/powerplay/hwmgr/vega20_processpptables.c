@@ -100,9 +100,8 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("PpmTemperatureThreshold = %d\n", pptable->PpmTemperatureThreshold);
 
 	pr_info("MemoryOnPackage = 0x%02x\n", pptable->MemoryOnPackage);
-	pr_info("padding8_limits[0] = 0x%02x\n", pptable->padding8_limits[0]);
-	pr_info("padding8_limits[1] = 0x%02x\n", pptable->padding8_limits[1]);
-	pr_info("padding8_limits[2] = 0x%02x\n", pptable->padding8_limits[2]);
+	pr_info("padding8_limits = 0x%02x\n", pptable->padding8_limits);
+	pr_info("Tvr_SocLimit = %d\n", pptable->Tvr_SocLimit);
 
 	pr_info("UlvVoltageOffsetSoc = %d\n", pptable->UlvVoltageOffsetSoc);
 	pr_info("UlvVoltageOffsetGfx = %d\n", pptable->UlvVoltageOffsetGfx);
@@ -539,7 +538,10 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("FanGainVrMem0 = %d\n", pptable->FanGainVrMem0);
 	pr_info("FanGainVrMem0 = %d\n", pptable->FanGainVrMem0);
 
-	for (i = 0; i < 12; i++)
+	pr_info("DcBtcGb[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_GFX]);
+	pr_info("DcBtcGb[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_SOC]);
+
+	for (i = 0; i < 11; i++)
 		pr_info("Reserved[%d] = 0x%x\n", i, pptable->Reserved[i]);
 
 	for (i = 0; i < 3; i++)
