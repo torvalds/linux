@@ -77,7 +77,7 @@ static ssize_t name_show(struct kobject *kobj, struct device *dev, char *buf)
 	return sprintf(buf, "%s\n", VFIO_AP_MDEV_NAME_HWVIRT);
 }
 
-MDEV_TYPE_ATTR_RO(name);
+static MDEV_TYPE_ATTR_RO(name);
 
 static ssize_t available_instances_show(struct kobject *kobj,
 					struct device *dev, char *buf)
@@ -86,7 +86,7 @@ static ssize_t available_instances_show(struct kobject *kobj,
 		       atomic_read(&matrix_dev->available_instances));
 }
 
-MDEV_TYPE_ATTR_RO(available_instances);
+static MDEV_TYPE_ATTR_RO(available_instances);
 
 static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
 			       char *buf)
@@ -94,7 +94,7 @@ static ssize_t device_api_show(struct kobject *kobj, struct device *dev,
 	return sprintf(buf, "%s\n", VFIO_DEVICE_API_AP_STRING);
 }
 
-MDEV_TYPE_ATTR_RO(device_api);
+static MDEV_TYPE_ATTR_RO(device_api);
 
 static struct attribute *vfio_ap_mdev_type_attrs[] = {
 	&mdev_type_attr_name.attr,
@@ -395,7 +395,7 @@ static ssize_t unassign_adapter_store(struct device *dev,
 
 	return count;
 }
-DEVICE_ATTR_WO(unassign_adapter);
+static DEVICE_ATTR_WO(unassign_adapter);
 
 static int
 vfio_ap_mdev_verify_queues_reserved_for_apqi(struct ap_matrix_mdev *matrix_mdev,
@@ -491,7 +491,7 @@ done:
 
 	return ret;
 }
-DEVICE_ATTR_WO(assign_domain);
+static DEVICE_ATTR_WO(assign_domain);
 
 
 /**
@@ -537,7 +537,7 @@ static ssize_t unassign_domain_store(struct device *dev,
 
 	return count;
 }
-DEVICE_ATTR_WO(unassign_domain);
+static DEVICE_ATTR_WO(unassign_domain);
 
 /**
  * assign_control_domain_store
@@ -586,7 +586,7 @@ static ssize_t assign_control_domain_store(struct device *dev,
 
 	return count;
 }
-DEVICE_ATTR_WO(assign_control_domain);
+static DEVICE_ATTR_WO(assign_control_domain);
 
 /**
  * unassign_control_domain_store
@@ -630,7 +630,7 @@ static ssize_t unassign_control_domain_store(struct device *dev,
 
 	return count;
 }
-DEVICE_ATTR_WO(unassign_control_domain);
+static DEVICE_ATTR_WO(unassign_control_domain);
 
 static ssize_t control_domains_show(struct device *dev,
 				    struct device_attribute *dev_attr,
@@ -654,7 +654,7 @@ static ssize_t control_domains_show(struct device *dev,
 
 	return nchars;
 }
-DEVICE_ATTR_RO(control_domains);
+static DEVICE_ATTR_RO(control_domains);
 
 static ssize_t matrix_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -704,7 +704,7 @@ static ssize_t matrix_show(struct device *dev, struct device_attribute *attr,
 
 	return nchars;
 }
-DEVICE_ATTR_RO(matrix);
+static DEVICE_ATTR_RO(matrix);
 
 static struct attribute *vfio_ap_mdev_attrs[] = {
 	&dev_attr_assign_adapter.attr,
@@ -726,37 +726,6 @@ static const struct attribute_group *vfio_ap_mdev_attr_groups[] = {
 	&vfio_ap_mdev_attr_group,
 	NULL
 };
-
-static void vfio_ap_mdev_copy_masks(struct ap_matrix_mdev *matrix_mdev)
-{
-	int nbytes;
-	unsigned long *apm, *aqm, *adm;
-	struct kvm_s390_crypto_cb *crycb = matrix_mdev->kvm->arch.crypto.crycb;
-
-	switch (matrix_mdev->kvm->arch.crypto.crycbd & CRYCB_FORMAT_MASK) {
-	case CRYCB_FORMAT2:
-		apm = (unsigned long *)crycb->apcb1.apm;
-		aqm = (unsigned long *)crycb->apcb1.aqm;
-		adm = (unsigned long *)crycb->apcb1.adm;
-		break;
-	case CRYCB_FORMAT1:
-	case CRYCB_FORMAT0:
-		apm = (unsigned long *)crycb->apcb0.apm;
-		aqm = (unsigned long *)crycb->apcb0.aqm;
-		adm = (unsigned long *)crycb->apcb0.adm;
-		break;
-	default:
-		/* cannot happen */
-		return;
-	}
-
-	nbytes = DIV_ROUND_UP(matrix_mdev->matrix.apm_max + 1, BITS_PER_BYTE);
-	memcpy(apm, matrix_mdev->matrix.apm, nbytes);
-	nbytes = DIV_ROUND_UP(matrix_mdev->matrix.aqm_max + 1, BITS_PER_BYTE);
-	memcpy(aqm, matrix_mdev->matrix.aqm, nbytes);
-	nbytes = DIV_ROUND_UP(matrix_mdev->matrix.adm_max + 1, BITS_PER_BYTE);
-	memcpy(adm, matrix_mdev->matrix.adm, nbytes);
-}
 
 /**
  * vfio_ap_mdev_set_kvm
@@ -814,7 +783,9 @@ static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
 	if (!matrix_mdev->kvm->arch.crypto.crycbd)
 		return NOTIFY_DONE;
 
-	vfio_ap_mdev_copy_masks(matrix_mdev);
+	kvm_arch_crypto_set_masks(matrix_mdev->kvm, matrix_mdev->matrix.apm,
+				  matrix_mdev->matrix.aqm,
+				  matrix_mdev->matrix.adm);
 
 	return NOTIFY_OK;
 }
