@@ -78,7 +78,7 @@ struct can_dev_rcv_lists {
 /* statistic structures */
 
 /* can be reset e.g. by can_init_stats() */
-struct s_stats {
+struct can_pkg_stats {
 	unsigned long jiffies_init;
 
 	unsigned long rx_frames;
@@ -103,7 +103,7 @@ struct s_stats {
 };
 
 /* persistent statistics */
-struct s_pstats {
+struct can_rcv_lists_stats {
 	unsigned long stats_reset;
 	unsigned long user_reset;
 	unsigned long rcv_entries;

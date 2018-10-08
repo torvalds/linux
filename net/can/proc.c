@@ -78,14 +78,14 @@ static const char rx_list_name[][8] = {
 
 static void can_init_stats(struct net *net)
 {
-	struct s_stats *can_stats = net->can.can_stats;
-	struct s_pstats *can_pstats = net->can.can_pstats;
+	struct can_pkg_stats *can_stats = net->can.can_stats;
+	struct can_rcv_lists_stats *can_pstats = net->can.can_pstats;
 	/*
 	 * This memset function is called from a timer context (when
 	 * can_stattimer is active which is the default) OR in a process
 	 * context (reading the proc_fs when can_stattimer is disabled).
 	 */
-	memset(can_stats, 0, sizeof(struct s_stats));
+	memset(can_stats, 0, sizeof(struct can_pkg_stats));
 	can_stats->jiffies_init = jiffies;
 
 	can_pstats->stats_reset++;
@@ -119,7 +119,7 @@ static unsigned long calc_rate(unsigned long oldjif, unsigned long newjif,
 void can_stat_update(struct timer_list *t)
 {
 	struct net *net = from_timer(net, t, can.can_stattimer);
-	struct s_stats *can_stats = net->can.can_stats;
+	struct can_pkg_stats *can_stats = net->can.can_stats;
 	unsigned long j = jiffies; /* snapshot */
 
 	/* restart counting in timer context on user request */
@@ -212,8 +212,8 @@ static void can_print_recv_banner(struct seq_file *m)
 static int can_stats_proc_show(struct seq_file *m, void *v)
 {
 	struct net *net = m->private;
-	struct s_stats *can_stats = net->can.can_stats;
-	struct s_pstats *can_pstats = net->can.can_pstats;
+	struct can_pkg_stats *can_stats = net->can.can_stats;
+	struct can_rcv_lists_stats *can_pstats = net->can.can_pstats;
 
 	seq_putc(m, '\n');
 	seq_printf(m, " %8ld transmitted frames (TXF)\n", can_stats->tx_frames);
@@ -274,8 +274,8 @@ static int can_stats_proc_show(struct seq_file *m, void *v)
 static int can_reset_stats_proc_show(struct seq_file *m, void *v)
 {
 	struct net *net = m->private;
-	struct s_pstats *can_pstats = net->can.can_pstats;
-	struct s_stats *can_stats = net->can.can_stats;
+	struct can_rcv_lists_stats *can_pstats = net->can.can_pstats;
+	struct can_pkg_stats *can_stats = net->can.can_stats;
 
 	user_reset = 1;
 

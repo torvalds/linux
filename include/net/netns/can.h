@@ -9,8 +9,8 @@
 #include <linux/spinlock.h>
 
 struct can_dev_rcv_lists;
-struct s_stats;
-struct s_pstats;
+struct can_pkg_stats;
+struct can_rcv_lists_stats;
 
 struct netns_can {
 #if IS_ENABLED(CONFIG_PROC_FS)
@@ -31,8 +31,8 @@ struct netns_can {
 	struct can_dev_rcv_lists *can_rx_alldev_list;
 	spinlock_t can_rcvlists_lock;
 	struct timer_list can_stattimer;/* timer for statistics update */
-	struct s_stats *can_stats;	/* packet statistics */
-	struct s_pstats *can_pstats;	/* receive list statistics */
+	struct can_pkg_stats *can_stats;	/* packet statistics */
+	struct can_rcv_lists_stats *can_pstats;	/* receive list statistics */
 
 	/* CAN GW per-net gateway jobs */
 	struct hlist_head cgw_list;
