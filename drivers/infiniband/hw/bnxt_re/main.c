@@ -67,7 +67,7 @@
 #include "hw_counters.h"
 
 static char version[] =
-		BNXT_RE_DESC " v" ROCE_DRV_MODULE_VERSION "\n";
+		BNXT_RE_DESC "\n";
 
 MODULE_AUTHOR("Eddie Wai <eddie.wai@broadcom.com>");
 MODULE_DESCRIPTION(BNXT_RE_DESC " Driver");
