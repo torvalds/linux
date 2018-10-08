@@ -6365,7 +6365,8 @@ static int ca0132_build_controls(struct hda_codec *codec)
 					    NULL, ca0132_alt_slave_pfxs,
 					    "Playback Switch",
 					    true, &spec->vmaster_mute.sw_kctl);
-
+		if (err < 0)
+			return err;
 	}
 
 	/* Add in and out effects controls.
@@ -6392,8 +6393,14 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 * prefix, and change PlayEnhancement and CrystalVoice to match.
 	 */
 	if (spec->use_alt_controls) {
-		ca0132_alt_add_svm_enum(codec);
-		add_ca0132_alt_eq_presets(codec);
+		err = ca0132_alt_add_svm_enum(codec);
+		if (err < 0)
+			return err;
+
+		err = add_ca0132_alt_eq_presets(codec);
+		if (err < 0)
+			return err;
+
 		err = add_fx_switch(codec, PLAY_ENHANCEMENT,
 					"Enable OutFX", 0);
 		if (err < 0)
@@ -6430,7 +6437,9 @@ static int ca0132_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	add_voicefx(codec);
+	err = add_voicefx(codec);
+	if (err < 0)
+		return err;
 
 	/*
 	 * If the codec uses alt_functions, you need the enumerated controls
@@ -6438,23 +6447,37 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 * setting control.
 	 */
 	if (spec->use_alt_functions) {
-		ca0132_alt_add_output_enum(codec);
-		ca0132_alt_add_mic_boost_enum(codec);
+		err = ca0132_alt_add_output_enum(codec);
+		if (err < 0)
+			return err;
+		err = ca0132_alt_add_mic_boost_enum(codec);
+		if (err < 0)
+			return err;
 		/*
 		 * ZxR only has microphone input, there is no front panel
 		 * header on the card, and aux-in is handled by the DBPro board.
 		 */
-		if (spec->quirk != QUIRK_ZXR)
-			ca0132_alt_add_input_enum(codec);
+		if (spec->quirk != QUIRK_ZXR) {
+			err = ca0132_alt_add_input_enum(codec);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	if (spec->quirk == QUIRK_AE5) {
-		ae5_add_headphone_gain_enum(codec);
-		ae5_add_sound_filter_enum(codec);
+		err = ae5_add_headphone_gain_enum(codec);
+		if (err < 0)
+			return err;
+		err = ae5_add_sound_filter_enum(codec);
+		if (err < 0)
+			return err;
 	}
 
-	if (spec->quirk == QUIRK_ZXR)
-		zxr_add_headphone_gain_switch(codec);
+	if (spec->quirk == QUIRK_ZXR) {
+		err = zxr_add_headphone_gain_switch(codec);
+		if (err < 0)
+			return err;
+	}
 #ifdef ENABLE_TUNING_CONTROLS
 	add_tuning_ctls(codec);
 #endif
