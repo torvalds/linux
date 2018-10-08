@@ -2013,6 +2013,7 @@ rk1808_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 	} else {
 		*regmap = info->regmap_base;
 		*reg = RK1808_DRV_GRF_OFFSET;
+		*reg += (bank->bank_num - 1) * RK1808_DRV_BANK_STRIDE;
 	}
 
 	*reg += ((pin_num / RK1808_DRV_PINS_PER_REG) * 4);
