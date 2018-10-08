@@ -9074,7 +9074,7 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 			__invvpid(VMX_VPID_EXTENT_INDIVIDUAL_ADDR,
 				vpid02, operand.gla);
 		} else
-			__vmx_flush_tlb(vcpu, vpid02, true);
+			__vmx_flush_tlb(vcpu, vpid02, false);
 		break;
 	case VMX_VPID_EXTENT_SINGLE_CONTEXT:
 	case VMX_VPID_EXTENT_SINGLE_NON_GLOBAL:
@@ -9083,10 +9083,10 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 			return kvm_skip_emulated_instruction(vcpu);
 		}
-		__vmx_flush_tlb(vcpu, vpid02, true);
+		__vmx_flush_tlb(vcpu, vpid02, false);
 		break;
 	case VMX_VPID_EXTENT_ALL_CONTEXT:
-		__vmx_flush_tlb(vcpu, vpid02, true);
+		__vmx_flush_tlb(vcpu, vpid02, false);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -12295,7 +12295,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		if (nested_cpu_has_vpid(vmcs12) && vmx->nested.vpid02) {
 			if (vmcs12->virtual_processor_id != vmx->nested.last_vpid) {
 				vmx->nested.last_vpid = vmcs12->virtual_processor_id;
-				__vmx_flush_tlb(vcpu, vmx->nested.vpid02, true);
+				__vmx_flush_tlb(vcpu, vmx->nested.vpid02, false);
 			}
 		} else {
 			/*
