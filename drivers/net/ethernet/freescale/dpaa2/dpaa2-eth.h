@@ -40,6 +40,11 @@
  */
 #define DPAA2_ETH_TAILDROP_THRESH	(64 * 1024)
 
+/* Maximum number of Tx confirmation frames to be processed
+ * in a single NAPI call
+ */
+#define DPAA2_ETH_TXCONF_PER_NAPI	256
+
 /* Buffer quota per queue. Must be large enough such that for minimum sized
  * frames taildrop kicks in before the bpool gets depleted, so we compute
  * how many 64B frames fit inside the taildrop threshold and add a margin

@@ -289,10 +289,11 @@ err_frame_format:
  *
  * Observance of NAPI budget is not our concern, leaving that to the caller.
  */
-static int consume_frames(struct dpaa2_eth_channel *ch)
+static int consume_frames(struct dpaa2_eth_channel *ch,
+			  enum dpaa2_eth_fq_type *type)
 {
 	struct dpaa2_eth_priv *priv = ch->priv;
-	struct dpaa2_eth_fq *fq;
+	struct dpaa2_eth_fq *fq = NULL;
 	struct dpaa2_dq *dq;
 	const struct dpaa2_fd *fd;
 	int cleaned = 0;
@@ -311,11 +312,22 @@ static int consume_frames(struct dpaa2_eth_channel *ch)
 
 		fd = dpaa2_dq_fd(dq);
 		fq = (struct dpaa2_eth_fq *)(uintptr_t)dpaa2_dq_fqd_ctx(dq);
-		fq->stats.frames++;
 
 		fq->consume(priv, ch, fd, &ch->napi, fq->flowid);
 		cleaned++;
 	} while (!is_last);
+
+	if (!cleaned)
+		return 0;
+
+	fq->stats.frames += cleaned;
+	ch->stats.frames += cleaned;
+
+	/* A dequeue operation only pulls frames from a single queue
+	 * into the store. Return the frame queue type as an out param.
+	 */
+	if (type)
+		*type = fq->type;
 
 	return cleaned;
 }
@@ -921,14 +933,16 @@ static int pull_channel(struct dpaa2_eth_channel *ch)
 static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 {
 	struct dpaa2_eth_channel *ch;
-	int cleaned = 0, store_cleaned;
 	struct dpaa2_eth_priv *priv;
+	int rx_cleaned = 0, txconf_cleaned = 0;
+	enum dpaa2_eth_fq_type type;
+	int store_cleaned;
 	int err;
 
 	ch = container_of(napi, struct dpaa2_eth_channel, napi);
 	priv = ch->priv;
 
-	while (cleaned < budget) {
+	do {
 		err = pull_channel(ch);
 		if (unlikely(err))
 			break;
@@ -936,30 +950,32 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 		/* Refill pool if appropriate */
 		refill_pool(priv, ch, priv->bpid);
 
-		store_cleaned = consume_frames(ch);
-		cleaned += store_cleaned;
+		store_cleaned = consume_frames(ch, &type);
+		if (type == DPAA2_RX_FQ)
+			rx_cleaned += store_cleaned;
+		else
+			txconf_cleaned += store_cleaned;
 
-		/* If we have enough budget left for a full store,
-		 * try a new pull dequeue, otherwise we're done here
+		/* If we either consumed the whole NAPI budget with Rx frames
+		 * or we reached the Tx confirmations threshold, we're done.
 		 */
-		if (store_cleaned == 0 ||
-		    cleaned > budget - DPAA2_ETH_STORE_SIZE)
-			break;
-	}
+		if (rx_cleaned >= budget ||
+		    txconf_cleaned >= DPAA2_ETH_TXCONF_PER_NAPI)
+			return budget;
+	} while (store_cleaned);
 
-	if (cleaned < budget && napi_complete_done(napi, cleaned)) {
-		/* Re-enable data available notifications */
-		do {
-			err = dpaa2_io_service_rearm(ch->dpio, &ch->nctx);
-			cpu_relax();
-		} while (err == -EBUSY);
-		WARN_ONCE(err, "CDAN notifications rearm failed on core %d",
-			  ch->nctx.desired_cpu);
-	}
+	/* We didn't consume the entire budget, so finish napi and
+	 * re-enable data availability notifications
+	 */
+	napi_complete_done(napi, rx_cleaned);
+	do {
+		err = dpaa2_io_service_rearm(ch->dpio, &ch->nctx);
+		cpu_relax();
+	} while (err == -EBUSY);
+	WARN_ONCE(err, "CDAN notifications rearm failed on core %d",
+		  ch->nctx.desired_cpu);
 
-	ch->stats.frames += cleaned;
-
-	return cleaned;
+	return max(rx_cleaned, 1);
 }
 
 static void enable_ch_napi(struct dpaa2_eth_priv *priv)
@@ -1076,7 +1092,7 @@ static u32 drain_channel(struct dpaa2_eth_priv *priv,
 
 	do {
 		pull_channel(ch);
-		drained = consume_frames(ch);
+		drained = consume_frames(ch, NULL);
 		total += drained;
 	} while (drained);
 
