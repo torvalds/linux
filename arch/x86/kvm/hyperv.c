@@ -1354,12 +1354,12 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 	 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we can't
 	 * analyze it here, flush TLB regardless of the specified address space.
 	 */
-	cpumask_clear(&hv_vcpu->tlb_lush);
+	cpumask_clear(&hv_vcpu->tlb_flush);
 
 	if (all_cpus) {
 		kvm_make_vcpus_request_mask(kvm,
 				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
-				    NULL, &hv_vcpu->tlb_lush);
+				    NULL, &hv_vcpu->tlb_flush);
 		goto ret_success;
 	}
 
@@ -1397,7 +1397,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 flush_request:
 	kvm_make_vcpus_request_mask(kvm,
 				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
-				    vcpu_bitmap, &hv_vcpu->tlb_lush);
+				    vcpu_bitmap, &hv_vcpu->tlb_flush);
 
 ret_success:
 	/* We always do full TLB flush, set rep_done = rep_cnt. */
