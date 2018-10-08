@@ -51,24 +51,6 @@
 		regulator-max-microvolt = <1000000>;
 	};
 
-	vcc_1v8: vcc-1v8 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_1v8";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	vcc_3v3: vcc-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_3v3";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
 	vcc5v0_sys: vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
@@ -107,22 +89,6 @@
 			regulator-off-in-suspend;
 		};
 	};
-};
-
-&io_domains {
-	status = "okay";
-
-	vccio0-supply = <&vcc_1v8>;
-	vccio2-supply = <&vcc_1v8>;
-	vccio5-supply = <&vcc_1v8>;
-	vccio6-supply = <&vcc_3v3>;
-};
-
-&pmu_io_domains {
-	status = "okay";
-
-	pmuio1-supply = <&vcc_1v8>;
-	pmuio2-supply = <&vcc_1v8>;
 };
 
 &pinctrl {
