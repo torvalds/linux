@@ -301,8 +301,8 @@ static ssize_t ad2s1210_store_control(struct device *dev,
 			"ad2s1210: write control register fail\n");
 		goto error_ret;
 	}
-	st->resolution
-		= ad2s1210_resolution_value[data & AD2S1210_SET_RESOLUTION];
+	st->resolution =
+		ad2s1210_resolution_value[data & AD2S1210_SET_RESOLUTION];
 	if (st->pdata->gpioin) {
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
@@ -363,8 +363,8 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 		dev_err(dev, "ad2s1210: setting resolution fail\n");
 		goto error_ret;
 	}
-	st->resolution
-		= ad2s1210_resolution_value[data & AD2S1210_SET_RESOLUTION];
+	st->resolution =
+		ad2s1210_resolution_value[data & AD2S1210_SET_RESOLUTION];
 	if (st->pdata->gpioin) {
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
