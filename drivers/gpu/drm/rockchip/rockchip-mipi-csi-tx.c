@@ -1248,7 +1248,7 @@ static const u32 rk1808_csi_grf_reg_fields[MAX_FIELDS] = {
 
 static const struct rockchip_mipi_csi_plat_data rk1808_socdata = {
 	.csi0_grf_reg_fields = rk1808_csi_grf_reg_fields,
-	.max_bit_rate_per_lane = 2500000000UL,
+	.max_bit_rate_per_lane = 2000000000UL,
 	.soc_type = RK1808,
 };
 
