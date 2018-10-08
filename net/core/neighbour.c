@@ -2164,15 +2164,47 @@ errout:
 	return err;
 }
 
+static int neightbl_valid_dump_info(const struct nlmsghdr *nlh,
+				    struct netlink_ext_ack *extack)
+{
+	struct ndtmsg *ndtm;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndtm))) {
+		NL_SET_ERR_MSG(extack, "Invalid header for neighbor table dump request");
+		return -EINVAL;
+	}
+
+	ndtm = nlmsg_data(nlh);
+	if (ndtm->ndtm_pad1  || ndtm->ndtm_pad2) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for neighbor table dump request");
+		return -EINVAL;
+	}
+
+	if (nlmsg_attrlen(nlh, sizeof(*ndtm))) {
+		NL_SET_ERR_MSG(extack, "Invalid data after header in neighbor table dump request");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	int family, tidx, nidx = 0;
 	int tbl_skip = cb->args[0];
 	int neigh_skip = cb->args[1];
 	struct neigh_table *tbl;
 
-	family = ((struct rtgenmsg *) nlmsg_data(cb->nlh))->rtgen_family;
+	if (cb->strict_check) {
+		int err = neightbl_valid_dump_info(nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
+
+	family = ((struct rtgenmsg *)nlmsg_data(nlh))->rtgen_family;
 
 	for (tidx = 0; tidx < NEIGH_NR_TABLES; tidx++) {
 		struct neigh_parms *p;
@@ -2185,7 +2217,7 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 
 		if (neightbl_fill_info(skb, tbl, NETLINK_CB(cb->skb).portid,
-				       cb->nlh->nlmsg_seq, RTM_NEWNEIGHTBL,
+				       nlh->nlmsg_seq, RTM_NEWNEIGHTBL,
 				       NLM_F_MULTI) < 0)
 			break;
 
@@ -2200,7 +2232,7 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 
 			if (neightbl_fill_param_info(skb, tbl, p,
 						     NETLINK_CB(cb->skb).portid,
-						     cb->nlh->nlmsg_seq,
+						     nlh->nlmsg_seq,
 						     RTM_NEWNEIGHTBL,
 						     NLM_F_MULTI) < 0)
 				goto out;
