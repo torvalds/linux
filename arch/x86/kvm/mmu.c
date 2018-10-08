@@ -4936,8 +4936,14 @@ static void init_kvm_softmmu(struct kvm_vcpu *vcpu)
 
 static void init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 {
+	union kvm_mmu_role new_role = kvm_calc_mmu_role_common(vcpu, false);
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
+	new_role.base.word &= mmu_base_role_mask.word;
+	if (new_role.as_u64 == g_context->mmu_role.as_u64)
+		return;
+
+	g_context->mmu_role.as_u64 = new_role.as_u64;
 	g_context->get_cr3           = get_cr3;
 	g_context->get_pdptr         = kvm_pdptr_read;
 	g_context->inject_page_fault = kvm_inject_page_fault;
