@@ -1704,7 +1704,6 @@ __nvme_fc_init_request(struct nvme_fc_ctrl *ctrl,
 	op->fcp_req.rspaddr = &op->rsp_iu;
 	op->fcp_req.rsplen = sizeof(op->rsp_iu);
 	op->fcp_req.done = nvme_fc_fcpio_done;
-	op->fcp_req.first_sgl = &op_w_sgl->sgl[0];
 	op->fcp_req.private = &op->fcp_req.first_sgl[SG_CHUNK_SIZE];
 	op->ctrl = ctrl;
 	op->queue = queue;
@@ -1746,9 +1745,14 @@ nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	struct nvme_fcp_op_w_sgl *op = blk_mq_rq_to_pdu(rq);
 	int queue_idx = (set == &ctrl->tag_set) ? hctx_idx + 1 : 0;
 	struct nvme_fc_queue *queue = &ctrl->queues[queue_idx];
+	int res;
 
 	nvme_req(rq)->ctrl = &ctrl->ctrl;
-	return __nvme_fc_init_request(ctrl, queue, &op->op, rq, queue->rqcnt++);
+	res = __nvme_fc_init_request(ctrl, queue, &op->op, rq, queue->rqcnt++);
+	if (res)
+		return res;
+	op->op.fcp_req.first_sgl = &op->sgl[0];
+	return res;
 }
 
 static int
@@ -1778,7 +1782,6 @@ nvme_fc_init_aen_ops(struct nvme_fc_ctrl *ctrl)
 		}
 
 		aen_op->flags = FCOP_FLAGS_AEN;
-		aen_op->fcp_req.first_sgl = NULL; /* no sg list */
 		aen_op->fcp_req.private = private;
 
 		memset(sqe, 0, sizeof(*sqe));
