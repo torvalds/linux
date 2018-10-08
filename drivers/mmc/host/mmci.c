@@ -45,6 +45,12 @@
 
 #define DRIVER_NAME "mmci-pl18x"
 
+#ifdef CONFIG_DMA_ENGINE
+void mmci_variant_init(struct mmci_host *host);
+#else
+static inline void mmci_variant_init(struct mmci_host *host) {}
+#endif
+
 static unsigned int fmax = 515633;
 
 static struct variant_data variant_arm = {
@@ -57,6 +63,7 @@ static struct variant_data variant_arm = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_ROD,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_arm_extended_fifo = {
@@ -68,6 +75,7 @@ static struct variant_data variant_arm_extended_fifo = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_ROD,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_arm_extended_fifo_hwfc = {
@@ -80,6 +88,7 @@ static struct variant_data variant_arm_extended_fifo_hwfc = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_ROD,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_u300 = {
@@ -98,6 +107,7 @@ static struct variant_data variant_u300 = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_OD,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_nomadik = {
@@ -117,6 +127,7 @@ static struct variant_data variant_nomadik = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_OD,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_ux500 = {
@@ -142,6 +153,7 @@ static struct variant_data variant_ux500 = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_OD,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -169,6 +181,7 @@ static struct variant_data variant_ux500v2 = {
 	.mmcimask1		= true,
 	.start_err		= MCI_STARTBITERR,
 	.opendrain		= MCI_OD,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_stm32 = {
@@ -186,6 +199,7 @@ static struct variant_data variant_stm32 = {
 	.f_max			= 48000000,
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
+	.init			= mmci_variant_init,
 };
 
 static struct variant_data variant_qcom = {
@@ -356,6 +370,25 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 	mmci_write_clkreg(host, clk);
 }
 
+void mmci_dma_release(struct mmci_host *host)
+{
+	if (host->ops && host->ops->dma_release)
+		host->ops->dma_release(host);
+
+	host->use_dma = false;
+}
+
+void mmci_dma_setup(struct mmci_host *host)
+{
+	if (!host->ops || !host->ops->dma_setup)
+		return;
+
+	if (host->ops->dma_setup(host))
+		return;
+
+	host->use_dma = true;
+}
+
 static void
 mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 {
@@ -414,7 +447,7 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
  * no custom DMA interfaces are supported.
  */
 #ifdef CONFIG_DMA_ENGINE
-static void mmci_dma_setup(struct mmci_host *host)
+int mmci_dmae_setup(struct mmci_host *host)
 {
 	const char *rxname, *txname;
 
@@ -464,15 +497,19 @@ static void mmci_dma_setup(struct mmci_host *host)
 			host->mmc->max_seg_size = max_seg_size;
 	}
 
-	if (host->ops && host->ops->dma_setup)
-		host->ops->dma_setup(host);
+	if (!host->dma_tx_channel && !host->dma_rx_channel) {
+		mmci_dmae_release(host);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /*
  * This is used in or so inline it
  * so it can be discarded.
  */
-static inline void mmci_dma_release(struct mmci_host *host)
+void mmci_dmae_release(struct mmci_host *host)
 {
 	if (host->dma_rx_channel)
 		dma_release_channel(host->dma_rx_channel);
@@ -496,7 +533,7 @@ static void mmci_dma_unmap(struct mmci_host *host, struct mmc_data *data)
 
 static void mmci_dma_data_error(struct mmci_host *host)
 {
-	if (!dma_inprogress(host))
+	if (!host->use_dma || !dma_inprogress(host))
 		return;
 
 	dev_err(mmc_dev(host->mmc), "error during DMA transfer!\n");
@@ -514,7 +551,7 @@ static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 	u32 status;
 	int i;
 
-	if (!dma_inprogress(host))
+	if (!host->use_dma || !dma_inprogress(host))
 		return;
 
 	/* Wait up to 1ms for the DMA to complete */
@@ -640,6 +677,9 @@ static int mmci_dma_start_data(struct mmci_host *host, unsigned int datactrl)
 	int ret;
 	struct mmc_data *data = host->data;
 
+	if (!host->use_dma)
+		return -EINVAL;
+
 	ret = mmci_dma_prep_data(host, host->data);
 	if (ret)
 		return ret;
@@ -674,6 +714,9 @@ static void mmci_get_next_data(struct mmci_host *host, struct mmc_data *data)
 {
 	struct mmci_host_next *next = &host->next_data;
 
+	if (!host->use_dma)
+		return;
+
 	WARN_ON(data->host_cookie && data->host_cookie != next->cookie);
 	WARN_ON(!data->host_cookie && (next->dma_desc || next->dma_chan));
 
@@ -689,7 +732,7 @@ static void mmci_pre_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct mmc_data *data = mrq->data;
 	struct mmci_host_next *nd = &host->next_data;
 
-	if (!data)
+	if (!host->use_dma || !data)
 		return;
 
 	BUG_ON(data->host_cookie);
@@ -707,7 +750,7 @@ static void mmci_post_request(struct mmc_host *mmc, struct mmc_request *mrq,
 	struct mmci_host *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
 
-	if (!data || !data->host_cookie)
+	if (!host->use_dma || !data || !data->host_cookie)
 		return;
 
 	mmci_dma_unmap(host, data);
@@ -735,16 +778,18 @@ static void mmci_post_request(struct mmc_host *mmc, struct mmc_request *mrq,
 	}
 }
 
+static struct mmci_host_ops mmci_variant_ops = {
+	.dma_setup = mmci_dmae_setup,
+	.dma_release = mmci_dmae_release,
+};
+
+void mmci_variant_init(struct mmci_host *host)
+{
+	host->ops = &mmci_variant_ops;
+}
 #else
 /* Blank functions if the DMA engine is not available */
 static void mmci_get_next_data(struct mmci_host *host, struct mmc_data *data)
-{
-}
-static inline void mmci_dma_setup(struct mmci_host *host)
-{
-}
-
-static inline void mmci_dma_release(struct mmci_host *host)
 {
 }
 
