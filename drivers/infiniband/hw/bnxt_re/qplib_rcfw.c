@@ -333,10 +333,12 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			memcpy(crsqe->resp, qp_event, sizeof(*qp_event));
 			crsqe->resp = NULL;
 		} else {
-			dev_err(&rcfw->pdev->dev,
-				"CMD %s resp->cookie = %#x, evnt->cookie = %#x\n",
-				crsqe->resp ? "mismatch" : "collision",
-				crsqe->resp ? crsqe->resp->cookie : 0, mcookie);
+			if (crsqe->resp && crsqe->resp->cookie)
+				dev_err(&rcfw->pdev->dev,
+					"CMD %s cookie sent=%#x, recd=%#x\n",
+					crsqe->resp ? "mismatch" : "collision",
+					crsqe->resp ? crsqe->resp->cookie : 0,
+					mcookie);
 		}
 		if (!test_and_clear_bit(cbit, rcfw->cmdq_bitmap))
 			dev_warn(&rcfw->pdev->dev,
