@@ -1009,10 +1009,6 @@ static int check_subprogs(struct bpf_verifier_env *env)
 			verbose(env, "function calls to other bpf functions are allowed for root only\n");
 			return -EPERM;
 		}
-		if (bpf_prog_is_dev_bound(env->prog->aux)) {
-			verbose(env, "function calls in offloaded programs are not supported yet\n");
-			return -EINVAL;
-		}
 		ret = add_subprog(env, i + insn[i].imm + 1);
 		if (ret < 0)
 			return ret;
@@ -5968,10 +5964,10 @@ static int fixup_call_args(struct bpf_verifier_env *env)
 	struct bpf_insn *insn = prog->insnsi;
 	int i, depth;
 #endif
-	int err;
+	int err = 0;
 
-	err = 0;
-	if (env->prog->jit_requested) {
+	if (env->prog->jit_requested &&
+	    !bpf_prog_is_dev_bound(env->prog->aux)) {
 		err = jit_subprogs(env);
 		if (err == 0)
 			return 0;
@@ -6308,6 +6304,9 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 		free_verifier_state(env->cur_state, true);
 		env->cur_state = NULL;
 	}
+
+	if (ret == 0 && bpf_prog_is_dev_bound(env->prog->aux))
+		ret = bpf_prog_offload_finalize(env);
 
 skip_full_check:
 	while (!pop_stack(env, NULL, NULL));

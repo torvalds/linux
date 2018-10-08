@@ -208,6 +208,8 @@ static void nfp_prog_free(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta, *tmp;
 
+	kfree(nfp_prog->subprog);
+
 	list_for_each_entry_safe(meta, tmp, &nfp_prog->insns, l) {
 		list_del(&meta->l);
 		kfree(meta);
@@ -250,17 +252,8 @@ err_free:
 static int nfp_bpf_translate(struct nfp_net *nn, struct bpf_prog *prog)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
-	unsigned int stack_size;
 	unsigned int max_instr;
 	int err;
-
-	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
-	if (prog->aux->stack_depth > stack_size) {
-		nn_info(nn, "stack too large: program %dB > FW stack %dB\n",
-			prog->aux->stack_depth, stack_size);
-		return -EOPNOTSUPP;
-	}
-	nfp_prog->stack_depth = round_up(prog->aux->stack_depth, 4);
 
 	max_instr = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
 	nfp_prog->__prog_alloc_len = max_instr * sizeof(u64);
