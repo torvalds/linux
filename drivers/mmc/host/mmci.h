@@ -318,6 +318,8 @@ struct mmci_host {
 	struct clk		*clk;
 	u8			singleirq:1;
 
+	struct reset_control	*rst;
+
 	spinlock_t		lock;
 
 	unsigned int		mclk;
