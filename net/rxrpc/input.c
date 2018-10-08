@@ -1120,6 +1120,8 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
  * The socket is locked by the caller and this prevents the socket from being
  * shut down and the local endpoint from going away, thus sk_user_data will not
  * be cleared until this function returns.
+ *
+ * Called with the RCU read lock held from the IP layer via UDP.
  */
 int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 {
@@ -1215,8 +1217,6 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	if (sp->hdr.serviceId == 0)
 		goto bad_message;
 
-	rcu_read_lock();
-
 	if (rxrpc_to_server(sp)) {
 		/* Weed out packets to services we're not offering.  Packets
 		 * that would begin a call are explicitly rejected and the rest
@@ -1228,7 +1228,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 			if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
 			    sp->hdr.seq == 1)
 				goto unsupported_service;
-			goto discard_unlock;
+			goto discard;
 		}
 	}
 
@@ -1248,7 +1248,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 			/* Connection-level packet */
 			_debug("CONN %p {%d}", conn, conn->debug_id);
 			rxrpc_post_packet_to_conn(conn, skb);
-			goto out_unlock;
+			goto out;
 		}
 
 		/* Note the serial number skew here */
@@ -1267,19 +1267,19 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 
 		/* Ignore really old calls */
 		if (sp->hdr.callNumber < chan->last_call)
-			goto discard_unlock;
+			goto discard;
 
 		if (sp->hdr.callNumber == chan->last_call) {
 			if (chan->call ||
 			    sp->hdr.type == RXRPC_PACKET_TYPE_ABORT)
-				goto discard_unlock;
+				goto discard;
 
 			/* For the previous service call, if completed
 			 * successfully, we discard all further packets.
 			 */
 			if (rxrpc_conn_is_service(conn) &&
 			    chan->last_type == RXRPC_PACKET_TYPE_ACK)
-				goto discard_unlock;
+				goto discard;
 
 			/* But otherwise we need to retransmit the final packet
 			 * from data cached in the connection record.
@@ -1290,16 +1290,14 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 						    sp->hdr.serial,
 						    sp->hdr.flags, 0);
 			rxrpc_post_packet_to_conn(conn, skb);
-			goto out_unlock;
+			goto out;
 		}
 
 		call = rcu_dereference(chan->call);
 
 		if (sp->hdr.callNumber > chan->call_id) {
-			if (rxrpc_to_client(sp)) {
-				rcu_read_unlock();
+			if (rxrpc_to_client(sp))
 				goto reject_packet;
-			}
 			if (call)
 				rxrpc_input_implicit_end_call(conn, call);
 			call = NULL;
@@ -1318,55 +1316,42 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	if (!call || atomic_read(&call->usage) == 0) {
 		if (rxrpc_to_client(sp) ||
 		    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
-			goto bad_message_unlock;
+			goto bad_message;
 		if (sp->hdr.seq != 1)
-			goto discard_unlock;
+			goto discard;
 		call = rxrpc_new_incoming_call(local, rx, peer, conn, skb);
-		if (!call) {
-			rcu_read_unlock();
+		if (!call)
 			goto reject_packet;
-		}
 		rxrpc_send_ping(call, skb, skew);
 		mutex_unlock(&call->user_mutex);
 	}
 
 	rxrpc_input_call_packet(call, skb, skew);
-	goto discard_unlock;
+	goto discard;
 
-discard_unlock:
-	rcu_read_unlock();
 discard:
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 out:
 	trace_rxrpc_rx_done(0, 0);
 	return 0;
 
-out_unlock:
-	rcu_read_unlock();
-	goto out;
-
 wrong_security:
-	rcu_read_unlock();
 	trace_rxrpc_abort(0, "SEC", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RXKADINCONSISTENCY, EBADMSG);
 	skb->priority = RXKADINCONSISTENCY;
 	goto post_abort;
 
 unsupported_service:
-	rcu_read_unlock();
 	trace_rxrpc_abort(0, "INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RX_INVALID_OPERATION, EOPNOTSUPP);
 	skb->priority = RX_INVALID_OPERATION;
 	goto post_abort;
 
 reupgrade:
-	rcu_read_unlock();
 	trace_rxrpc_abort(0, "UPG", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RX_PROTOCOL_ERROR, EBADMSG);
 	goto protocol_error;
 
-bad_message_unlock:
-	rcu_read_unlock();
 bad_message:
 	trace_rxrpc_abort(0, "BAD", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RX_PROTOCOL_ERROR, EBADMSG);
