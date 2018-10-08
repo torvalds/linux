@@ -5021,7 +5021,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	s_ip_idx = ip_idx = cb->args[2];
 
 	if (nlmsg_parse(cb->nlh, sizeof(struct ifaddrmsg), tb, IFA_MAX,
-			ifa_ipv6_policy, NULL) >= 0) {
+			ifa_ipv6_policy, cb->extack) >= 0) {
 		if (tb[IFA_TARGET_NETNSID]) {
 			netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
 

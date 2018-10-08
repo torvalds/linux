@@ -4117,7 +4117,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv6_policy,
-			  NULL);
+			  extack);
 	if (err < 0)
 		goto errout;
 

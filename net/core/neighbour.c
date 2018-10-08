@@ -2445,7 +2445,8 @@ static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 	    ((struct ndmsg *)nlmsg_data(nlh))->ndm_flags == NTF_PROXY)
 		proxy = 1;
 
-	err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX, NULL, NULL);
+	err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX, NULL,
+			  cb->extack);
 	if (!err) {
 		if (tb[NDA_IFINDEX]) {
 			if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))

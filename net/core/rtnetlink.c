@@ -1909,7 +1909,7 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 		 sizeof(struct rtgenmsg) : sizeof(struct ifinfomsg);
 
 	if (nlmsg_parse(cb->nlh, hdrlen, tb, IFLA_MAX,
-			ifla_policy, NULL) >= 0) {
+			ifla_policy, cb->extack) >= 0) {
 		if (tb[IFLA_TARGET_NETNSID]) {
 			netnsid = nla_get_s32(tb[IFLA_TARGET_NETNSID]);
 			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
@@ -3774,7 +3774,7 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	    (nlmsg_len(cb->nlh) != sizeof(struct ndmsg) +
 	     nla_attr_size(sizeof(u32)))) {
 		err = nlmsg_parse(cb->nlh, sizeof(struct ifinfomsg), tb,
-				  IFLA_MAX, ifla_policy, NULL);
+				  IFLA_MAX, ifla_policy, cb->extack);
 		if (err < 0) {
 			return -EINVAL;
 		} else if (err == 0) {

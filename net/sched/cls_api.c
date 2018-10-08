@@ -1727,7 +1727,8 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
 
-	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL, NULL);
+	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL,
+			  cb->extack);
 	if (err)
 		return err;
 
@@ -2054,7 +2055,8 @@ static int tc_dump_chain(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nlmsg_len(cb->nlh) < sizeof(*tcm))
 		return skb->len;
 
-	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL, NULL);
+	err = nlmsg_parse(cb->nlh, sizeof(*tcm), tca, TCA_MAX, NULL,
+			  cb->extack);
 	if (err)
 		return err;
 
