@@ -162,12 +162,42 @@ out:
 	return err;
 }
 
+static int br_mdb_valid_dump_req(const struct nlmsghdr *nlh,
+				 struct netlink_ext_ack *extack)
+{
+	struct br_port_msg *bpm;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*bpm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for mdb dump request");
+		return -EINVAL;
+	}
+
+	bpm = nlmsg_data(nlh);
+	if (bpm->ifindex) {
+		NL_SET_ERR_MSG_MOD(extack, "Filtering by device index is not supported for mdb dump request");
+		return -EINVAL;
+	}
+	if (nlmsg_attrlen(nlh, sizeof(*bpm))) {
+		NL_SET_ERR_MSG(extack, "Invalid data after header in mdb dump request");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net_device *dev;
 	struct net *net = sock_net(skb->sk);
 	struct nlmsghdr *nlh = NULL;
 	int idx = 0, s_idx;
+
+	if (cb->strict_check) {
+		int err = br_mdb_valid_dump_req(cb->nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
 
 	s_idx = cb->args[0];
 
