@@ -627,17 +627,6 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 	return -ENOENT;
 }
 
-static bool ht_empty(struct tc_u_hnode *ht)
-{
-	unsigned int h;
-
-	for (h = 0; h <= ht->divisor; h++)
-		if (rcu_access_pointer(ht->ht[h]))
-			return false;
-
-	return true;
-}
-
 static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
@@ -675,12 +664,8 @@ static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
 		      struct netlink_ext_ack *extack)
 {
 	struct tc_u_hnode *ht = arg;
-	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
 	struct tc_u_common *tp_c = tp->data;
 	int ret = 0;
-
-	if (ht == NULL)
-		goto out;
 
 	if (TC_U32_KEY(ht->handle)) {
 		u32_remove_hw_knode(tp, (struct tc_u_knode *)ht, extack);
@@ -702,38 +687,7 @@ static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
 	}
 
 out:
-	*last = true;
-	if (root_ht) {
-		if (root_ht->refcnt > 1) {
-			*last = false;
-			goto ret;
-		}
-		if (root_ht->refcnt == 1) {
-			if (!ht_empty(root_ht)) {
-				*last = false;
-				goto ret;
-			}
-		}
-	}
-
-	if (tp_c->refcnt > 1) {
-		*last = false;
-		goto ret;
-	}
-
-	if (tp_c->refcnt == 1) {
-		struct tc_u_hnode *ht;
-
-		for (ht = rtnl_dereference(tp_c->hlist);
-		     ht;
-		     ht = rtnl_dereference(ht->next))
-			if (!ht_empty(ht)) {
-				*last = false;
-				break;
-			}
-	}
-
-ret:
+	*last = tp_c->refcnt == 1 && tp_c->knodes == 0;
 	return ret;
 }
 
