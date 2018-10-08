@@ -120,6 +120,7 @@ struct rmap_nested {
 struct kvm_nested_guest *kvmhv_get_nested(struct kvm *kvm, int l1_lpid,
 					  bool create);
 void kvmhv_put_nested(struct kvm_nested_guest *gp);
+int kvmhv_nested_next_lpid(struct kvm *kvm, int lpid);
 
 /* Encoding of first parameter for H_TLB_INVALIDATE */
 #define H_TLBIE_P1_ENC(ric, prs, r)	(___PPC_RIC(ric) | ___PPC_PRS(prs) | \

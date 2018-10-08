@@ -1002,6 +1002,7 @@ struct debugfs_radix_state {
 	struct kvm	*kvm;
 	struct mutex	mutex;
 	unsigned long	gpa;
+	int		lpid;
 	int		chars_left;
 	int		buf_index;
 	char		buf[128];
@@ -1043,6 +1044,7 @@ static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
 	struct kvm *kvm;
 	unsigned long gpa;
 	pgd_t *pgt;
+	struct kvm_nested_guest *nested;
 	pgd_t pgd, *pgdp;
 	pud_t pud, *pudp;
 	pmd_t pmd, *pmdp;
@@ -1077,10 +1079,39 @@ static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
 	}
 
 	gpa = p->gpa;
-	pgt = kvm->arch.pgtable;
-	while (len != 0 && gpa < RADIX_PGTABLE_RANGE) {
+	nested = NULL;
+	pgt = NULL;
+	while (len != 0 && p->lpid >= 0) {
+		if (gpa >= RADIX_PGTABLE_RANGE) {
+			gpa = 0;
+			pgt = NULL;
+			if (nested) {
+				kvmhv_put_nested(nested);
+				nested = NULL;
+			}
+			p->lpid = kvmhv_nested_next_lpid(kvm, p->lpid);
+			p->hdr = 0;
+			if (p->lpid < 0)
+				break;
+		}
+		if (!pgt) {
+			if (p->lpid == 0) {
+				pgt = kvm->arch.pgtable;
+			} else {
+				nested = kvmhv_get_nested(kvm, p->lpid, false);
+				if (!nested) {
+					gpa = RADIX_PGTABLE_RANGE;
+					continue;
+				}
+				pgt = nested->shadow_pgtable;
+			}
+		}
+		n = 0;
 		if (!p->hdr) {
-			n = scnprintf(p->buf, sizeof(p->buf),
+			if (p->lpid > 0)
+				n = scnprintf(p->buf, sizeof(p->buf),
+					      "\nNested LPID %d: ", p->lpid);
+			n += scnprintf(p->buf + n, sizeof(p->buf) - n,
 				      "pgdir: %lx\n", (unsigned long)pgt);
 			p->hdr = 1;
 			goto copy;
@@ -1146,6 +1177,8 @@ static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
 		}
 	}
 	p->gpa = gpa;
+	if (nested)
+		kvmhv_put_nested(nested);
 
  out:
 	mutex_unlock(&p->mutex);

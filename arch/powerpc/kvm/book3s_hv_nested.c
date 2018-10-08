@@ -1274,3 +1274,18 @@ long int kvmhv_nested_page_fault(struct kvm_vcpu *vcpu)
 	mutex_unlock(&gp->tlb_lock);
 	return ret;
 }
+
+int kvmhv_nested_next_lpid(struct kvm *kvm, int lpid)
+{
+	int ret = -1;
+
+	spin_lock(&kvm->mmu_lock);
+	while (++lpid <= kvm->arch.max_nested_lpid) {
+		if (kvm->arch.nested_guests[lpid]) {
+			ret = lpid;
+			break;
+		}
+	}
+	spin_unlock(&kvm->mmu_lock);
+	return ret;
+}
