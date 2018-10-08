@@ -1249,7 +1249,7 @@ static void nvme_free_queues(struct nvme_dev *dev, int lowest)
 
 /**
  * nvme_suspend_queue - put queue into suspended state
- * @nvmeq - queue to suspend
+ * @nvmeq: queue to suspend
  */
 static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 {
