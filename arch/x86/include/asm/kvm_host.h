@@ -256,7 +256,7 @@ struct kvm_mmu_memory_cache {
  * @nxe, @cr0_wp, @smep_andnot_wp and @smap_andnot_wp.
  */
 union kvm_mmu_page_role {
-	unsigned word;
+	u32 word;
 	struct {
 		unsigned level:4;
 		unsigned cr4_pae:1;
@@ -279,6 +279,18 @@ union kvm_mmu_page_role {
 		 * byte so it is also faster to load it from memory.
 		 */
 		unsigned smm:8;
+	};
+};
+
+union kvm_mmu_extended_role {
+	u32 word;
+};
+
+union kvm_mmu_role {
+	u64 as_u64;
+	struct {
+		union kvm_mmu_page_role base;
+		union kvm_mmu_extended_role ext;
 	};
 };
 
@@ -369,7 +381,7 @@ struct kvm_mmu {
 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			   u64 *spte, const void *pte);
 	hpa_t root_hpa;
-	union kvm_mmu_page_role base_role;
+	union kvm_mmu_role mmu_role;
 	u8 root_level;
 	u8 shadow_root_level;
 	u8 ept_ad;
