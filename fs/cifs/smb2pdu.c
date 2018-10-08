@@ -2651,7 +2651,7 @@ int
 SMB2_query_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 		     u64 persistent_fid, u64 volatile_fid,
 		     u8 info_class, u8 info_type, u32 additional_info,
-		     size_t output_len)
+		     size_t output_len, size_t input_len, void *input)
 {
 	struct smb2_query_info_req *req;
 	struct kvec *iov = rqst->rq_iov;
@@ -2669,16 +2669,17 @@ SMB2_query_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 	req->VolatileFileId = volatile_fid;
 	req->AdditionalInformation = cpu_to_le32(additional_info);
 
-	/*
-	 * We do not use the input buffer (do not send extra byte)
-	 */
-	req->InputBufferOffset = 0;
-
 	req->OutputBufferLength = cpu_to_le32(output_len);
+	if (input_len) {
+		req->InputBufferLength = cpu_to_le32(input_len);
+		/* total_len for smb query request never close to le16 max */
+		req->InputBufferOffset = cpu_to_le16(total_len - 1);
+		memcpy(req->Buffer, input, input_len);
+	}
 
 	iov[0].iov_base = (char *)req;
 	/* 1 for Buffer */
-	iov[0].iov_len = total_len - 1;
+	iov[0].iov_len = total_len - 1 + input_len;
 	return 0;
 }
 
@@ -2718,7 +2719,7 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = SMB2_query_info_init(tcon, &rqst, persistent_fid, volatile_fid,
 				  info_class, info_type, additional_info,
-				  output_len);
+				  output_len, 0, NULL);
 	if (rc)
 		goto qinf_exit;
 

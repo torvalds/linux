@@ -34,6 +34,24 @@
 #include "cifs_ioctl.h"
 #include <linux/btrfs.h>
 
+static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
+				  unsigned long p)
+{
+	struct cifsFileInfo *pSMBFile = filep->private_data;
+	struct cifs_tcon *tcon;
+
+	cifs_dbg(FYI, "%s %p\n", __func__, pSMBFile);
+	if (pSMBFile == NULL)
+		return -EISDIR;
+	tcon = tlink_tcon(pSMBFile->tlink);
+
+	if (tcon->ses->server->ops->ioctl_query_info)
+		return tcon->ses->server->ops->ioctl_query_info(
+				xid, pSMBFile, p);
+	else
+		return -EOPNOTSUPP;
+}
+
 static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd)
 {
@@ -193,6 +211,9 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			break;
 		case CIFS_IOC_COPYCHUNK_FILE:
 			rc = cifs_ioctl_copychunk(xid, filep, arg);
+			break;
+		case CIFS_QUERY_INFO:
+			rc = cifs_ioctl_query_info(xid, filep, arg);
 			break;
 		case CIFS_IOC_SET_INTEGRITY:
 			if (pSMBFile == NULL)

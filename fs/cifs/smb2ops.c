@@ -1118,6 +1118,86 @@ req_res_key_exit:
 	return rc;
 }
 
+static int
+smb2_ioctl_query_info(const unsigned int xid,
+		      struct cifsFileInfo *file,
+		      unsigned long p)
+{
+	struct cifs_tcon *tcon = tlink_tcon(file->tlink);
+	struct cifs_ses *ses = tcon->ses;
+	char __user *arg = (char __user *)p;
+	struct smb_query_info qi;
+	struct smb_query_info __user *pqi;
+	int rc = 0;
+	int flags = 0;
+	struct smb_rqst rqst;
+	struct kvec iov[1];
+	struct kvec rsp_iov;
+	int resp_buftype;
+	struct smb2_query_info_rsp *rsp = NULL;
+	void *buffer;
+
+	if (copy_from_user(&qi, arg, sizeof(struct smb_query_info)))
+		return -EFAULT;
+
+	if (qi.output_buffer_length > 1024)
+		return -EINVAL;
+
+	if (!ses || !(ses->server))
+		return -EIO;
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
+	buffer = kmalloc(qi.output_buffer_length, GFP_KERNEL);
+	if (buffer == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(buffer, arg + sizeof(struct smb_query_info),
+			   qi.output_buffer_length)) {
+		kfree(buffer);
+		return -EFAULT;
+	}
+
+	memset(&rqst, 0, sizeof(struct smb_rqst));
+	memset(&iov, 0, sizeof(iov));
+	rqst.rq_iov = iov;
+	rqst.rq_nvec = 1;
+
+	rc = SMB2_query_info_init(tcon, &rqst, file->fid.persistent_fid,
+				  file->fid.volatile_fid,
+				  qi.file_info_class, qi.info_type,
+				  qi.additional_information,
+				  qi.input_buffer_length,
+				  qi.output_buffer_length, buffer);
+	kfree(buffer);
+	if (rc)
+		goto iqinf_exit;
+
+	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
+	rsp = (struct smb2_query_info_rsp *)rsp_iov.iov_base;
+	if (rc)
+		goto iqinf_exit;
+
+	pqi = (struct smb_query_info __user *)arg;
+	if (le32_to_cpu(rsp->OutputBufferLength) < qi.input_buffer_length)
+		qi.input_buffer_length = le32_to_cpu(rsp->OutputBufferLength);
+	if (copy_to_user(&pqi->input_buffer_length, &qi.input_buffer_length,
+			 sizeof(qi.input_buffer_length))) {
+		rc = -EFAULT;
+		goto iqinf_exit;
+	}
+	if (copy_to_user(pqi + 1, rsp->Buffer, qi.input_buffer_length)) {
+		rc = -EFAULT;
+		goto iqinf_exit;
+	}
+
+ iqinf_exit:
+	SMB2_query_info_free(&rqst);
+	free_rsp_buf(resp_buftype, rsp);
+	return rc;
+}
+
 static ssize_t
 smb2_copychunk_range(const unsigned int xid,
 			struct cifsFileInfo *srcfile,
@@ -1697,7 +1777,8 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_query_info_init(tcon, &rqst[1], COMPOUND_FID, COMPOUND_FID,
 				  FS_FULL_SIZE_INFORMATION,
 				  SMB2_O_INFO_FILESYSTEM, 0,
-				  sizeof(struct smb2_fs_full_size_info));
+				  sizeof(struct smb2_fs_full_size_info), 0,
+				  NULL);
 	if (rc)
 		goto qfs_exit;
 	smb2_set_next_command(server, &rqst[1]);
@@ -3364,6 +3445,7 @@ struct smb_version_operations smb20_operations = {
 	.set_acl = set_smb2_acl,
 #endif /* CIFS_ACL */
 	.next_header = smb2_next_header,
+	.ioctl_query_info = smb2_ioctl_query_info,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -3459,6 +3541,7 @@ struct smb_version_operations smb21_operations = {
 	.set_acl = set_smb2_acl,
 #endif /* CIFS_ACL */
 	.next_header = smb2_next_header,
+	.ioctl_query_info = smb2_ioctl_query_info,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -3563,6 +3646,7 @@ struct smb_version_operations smb30_operations = {
 	.set_acl = set_smb2_acl,
 #endif /* CIFS_ACL */
 	.next_header = smb2_next_header,
+	.ioctl_query_info = smb2_ioctl_query_info,
 };
 
 struct smb_version_operations smb311_operations = {
@@ -3668,6 +3752,7 @@ struct smb_version_operations smb311_operations = {
 	.set_acl = set_smb2_acl,
 #endif /* CIFS_ACL */
 	.next_header = smb2_next_header,
+	.ioctl_query_info = smb2_ioctl_query_info,
 };
 
 struct smb_version_values smb20_values = {

@@ -110,7 +110,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 				COMPOUND_FID, FILE_ALL_INFORMATION,
 				SMB2_O_INFO_FILE, 0,
 				sizeof(struct smb2_file_all_info) +
-					  PATH_MAX * 2);
+					  PATH_MAX * 2, 0, NULL);
 		smb2_set_next_command(server, &rqst[num_rqst]);
 		smb2_set_related(&rqst[num_rqst++]);
 		break;
