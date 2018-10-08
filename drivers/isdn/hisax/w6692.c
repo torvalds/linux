@@ -72,7 +72,7 @@ W6692_new_ph(struct IsdnCardState *cs)
 	case (W_L1CMD_RST):
 		ph_command(cs, W_L1CMD_DRC);
 		l1_msg(cs, HW_RESET | INDICATION, NULL);
-		/* fallthru */
+		/* fall through */
 	case (W_L1IND_CD):
 		l1_msg(cs, HW_DEACTIVATE | CONFIRM, NULL);
 		break;

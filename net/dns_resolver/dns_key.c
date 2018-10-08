@@ -29,6 +29,7 @@
 #include <linux/keyctl.h>
 #include <linux/err.h>
 #include <linux/seq_file.h>
+#include <linux/dns_resolver.h>
 #include <keys/dns_resolver-type.h>
 #include <keys/user-type.h>
 #include "internal.h"
@@ -48,27 +49,86 @@ const struct cred *dns_resolver_cache;
 /*
  * Preparse instantiation data for a dns_resolver key.
  *
- * The data must be a NUL-terminated string, with the NUL char accounted in
- * datalen.
+ * For normal hostname lookups, the data must be a NUL-terminated string, with
+ * the NUL char accounted in datalen.
  *
  * If the data contains a '#' characters, then we take the clause after each
  * one to be an option of the form 'key=value'.  The actual data of interest is
  * the string leading up to the first '#'.  For instance:
  *
  *        "ip1,ip2,...#foo=bar"
+ *
+ * For server list requests, the data must begin with a NUL char and be
+ * followed by a byte indicating the version of the data format.  Version 1
+ * looks something like (note this is packed):
+ *
+ *	u8      Non-string marker (ie. 0)
+ *	u8	Content (DNS_PAYLOAD_IS_*)
+ *	u8	Version (e.g. 1)
+ *	u8	Source of server list
+ *	u8	Lookup status of server list
+ *	u8	Number of servers
+ *	foreach-server {
+ *		__le16	Name length
+ *		__le16	Priority (as per SRV record, low first)
+ *		__le16	Weight (as per SRV record, higher first)
+ *		__le16	Port
+ *		u8	Source of address list
+ *		u8	Lookup status of address list
+ *		u8	Protocol (DNS_SERVER_PROTOCOL_*)
+ *		u8	Number of addresses
+ *		char[]	Name (not NUL-terminated)
+ *		foreach-address {
+ *			u8		Family (DNS_ADDRESS_IS_*)
+ *			union {
+ *				u8[4]	ipv4_addr
+ *				u8[16]	ipv6_addr
+ *			}
+ *		}
+ *	}
+ *
  */
 static int
 dns_resolver_preparse(struct key_preparsed_payload *prep)
 {
+	const struct dns_payload_header *bin;
 	struct user_key_payload *upayload;
 	unsigned long derrno;
 	int ret;
 	int datalen = prep->datalen, result_len = 0;
 	const char *data = prep->data, *end, *opt;
 
+	if (datalen <= 1 || !data)
+		return -EINVAL;
+
+	if (data[0] == 0) {
+		/* It may be a server list. */
+		if (datalen <= sizeof(*bin))
+			return -EINVAL;
+
+		bin = (const struct dns_payload_header *)data;
+		kenter("[%u,%u],%u", bin->content, bin->version, datalen);
+		if (bin->content != DNS_PAYLOAD_IS_SERVER_LIST) {
+			pr_warn_ratelimited(
+				"dns_resolver: Unsupported content type (%u)\n",
+				bin->content);
+			return -EINVAL;
+		}
+
+		if (bin->version != 1) {
+			pr_warn_ratelimited(
+				"dns_resolver: Unsupported server list version (%u)\n",
+				bin->version);
+			return -EINVAL;
+		}
+
+		result_len = datalen;
+		goto store_result;
+	}
+
 	kenter("'%*.*s',%u", datalen, datalen, data, datalen);
 
-	if (datalen <= 1 || !data || data[datalen - 1] != '\0')
+	if (!data || data[datalen - 1] != '\0')
 		return -EINVAL;
 	datalen--;
 
@@ -144,6 +204,7 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 		return 0;
 	}
 
+store_result:
 	kdebug("store result");
 	prep->quotalen = result_len;
 

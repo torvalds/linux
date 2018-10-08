@@ -1325,11 +1325,15 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 		info->key.tun_id = tunid;
 	}
 
-	if (data[IFLA_GENEVE_TTL])
+	if (data[IFLA_GENEVE_TTL_INHERIT]) {
+		if (nla_get_u8(data[IFLA_GENEVE_TTL_INHERIT]))
+			*ttl_inherit = true;
+		else
+			*ttl_inherit = false;
+	} else if (data[IFLA_GENEVE_TTL]) {
 		info->key.ttl = nla_get_u8(data[IFLA_GENEVE_TTL]);
-
-	if (data[IFLA_GENEVE_TTL_INHERIT])
-		*ttl_inherit = true;
+		*ttl_inherit = false;
+	}
 
 	if (data[IFLA_GENEVE_TOS])
 		info->key.tos = nla_get_u8(data[IFLA_GENEVE_TOS]);

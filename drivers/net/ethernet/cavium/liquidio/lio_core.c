@@ -1732,7 +1732,7 @@ int liquidio_set_fec(struct lio *lio, int on_off)
 	if (oct->props[lio->ifidx].fec !=
 	    oct->props[lio->ifidx].fec_boot) {
 		dev_dbg(&oct->pci_dev->dev,
-			"Reloade driver to chang fec to %s\n",
+			"Reload driver to change fec to %s\n",
 			oct->props[lio->ifidx].fec ? "on" : "off");
 	}
 
@@ -1796,7 +1796,7 @@ int liquidio_get_fec(struct lio *lio)
 	if (oct->props[lio->ifidx].fec !=
 	    oct->props[lio->ifidx].fec_boot) {
 		dev_dbg(&oct->pci_dev->dev,
-			"Reloade driver to chang fec to %s\n",
+			"Reload driver to change fec to %s\n",
 			oct->props[lio->ifidx].fec ? "on" : "off");
 	}
 

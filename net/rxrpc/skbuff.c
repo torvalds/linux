@@ -69,21 +69,6 @@ void rxrpc_free_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
 }
 
 /*
- * Note the injected loss of a socket buffer.
- */
-void rxrpc_lose_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
-{
-	const void *here = __builtin_return_address(0);
-	if (skb) {
-		int n;
-		CHECK_SLAB_OKAY(&skb->users);
-		n = atomic_dec_return(select_skb_count(op));
-		trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n, here);
-		kfree_skb(skb);
-	}
-}
-
-/*
  * Clear a queue of socket buffers.
  */
 void rxrpc_purge_queue(struct sk_buff_head *list)

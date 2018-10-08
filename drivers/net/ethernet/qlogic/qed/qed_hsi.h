@@ -12102,6 +12102,7 @@ struct public_global {
 	u32 running_bundle_id;
 	s32 external_temperature;
 	u32 mdump_reason;
+	u64 reserved;
 	u32 data_ptr;
 	u32 data_size;
 };
@@ -13154,6 +13155,7 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_OFFSET		0
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G		0x1
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G		0x2
+#define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G             0x4
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G		0x8
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G		0x10
 #define NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G		0x20
@@ -13164,6 +13166,7 @@ struct nvm_cfg1_port {
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_AUTONEG			0x0
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_1G				0x1
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_10G			0x2
+#define NVM_CFG1_PORT_DRV_LINK_SPEED_20G                        0x3
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_25G			0x4
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_40G			0x5
 #define NVM_CFG1_PORT_DRV_LINK_SPEED_50G			0x6

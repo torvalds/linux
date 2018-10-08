@@ -1897,6 +1897,11 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 	if (err)
 		goto close;
 
+	priv->cls_rules = devm_kzalloc(dev, sizeof(struct dpaa2_eth_cls_rule) *
+				       dpaa2_eth_fs_count(priv), GFP_KERNEL);
+	if (!priv->cls_rules)
+		goto close;
+
 	return 0;
 
 close:
@@ -2004,13 +2009,25 @@ static int setup_tx_flow(struct dpaa2_eth_priv *priv,
 }
 
 /* Supported header fields for Rx hash distribution key */
-static const struct dpaa2_eth_hash_fields hash_fields[] = {
+static const struct dpaa2_eth_dist_fields dist_fields[] = {
 	{
 		/* L2 header */
 		.rxnfc_field = RXH_L2DA,
 		.cls_prot = NET_PROT_ETH,
 		.cls_field = NH_FLD_ETH_DA,
 		.size = 6,
+	}, {
+		.cls_prot = NET_PROT_ETH,
+		.cls_field = NH_FLD_ETH_SA,
+		.size = 6,
+	}, {
+		/* This is the last ethertype field parsed:
+		 * depending on frame format, it can be the MAC ethertype
+		 * or the VLAN etype.
+		 */
+		.cls_prot = NET_PROT_ETH,
+		.cls_field = NH_FLD_ETH_TYPE,
+		.size = 2,
 	}, {
 		/* VLAN header */
 		.rxnfc_field = RXH_VLAN,
@@ -2049,33 +2066,122 @@ static const struct dpaa2_eth_hash_fields hash_fields[] = {
 	},
 };
 
-/* Set RX hash options
+/* Configure the Rx hash key using the legacy API */
+static int config_legacy_hash_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_rx_tc_dist_cfg dist_cfg;
+	int err;
+
+	memset(&dist_cfg, 0, sizeof(dist_cfg));
+
+	dist_cfg.key_cfg_iova = key;
+	dist_cfg.dist_size = dpaa2_eth_queue_count(priv);
+	dist_cfg.dist_mode = DPNI_DIST_MODE_HASH;
+
+	err = dpni_set_rx_tc_dist(priv->mc_io, 0, priv->mc_token, 0, &dist_cfg);
+	if (err)
+		dev_err(dev, "dpni_set_rx_tc_dist failed\n");
+
+	return err;
+}
+
+/* Configure the Rx hash key using the new API */
+static int config_hash_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_rx_dist_cfg dist_cfg;
+	int err;
+
+	memset(&dist_cfg, 0, sizeof(dist_cfg));
+
+	dist_cfg.key_cfg_iova = key;
+	dist_cfg.dist_size = dpaa2_eth_queue_count(priv);
+	dist_cfg.enable = 1;
+
+	err = dpni_set_rx_hash_dist(priv->mc_io, 0, priv->mc_token, &dist_cfg);
+	if (err)
+		dev_err(dev, "dpni_set_rx_hash_dist failed\n");
+
+	return err;
+}
+
+/* Configure the Rx flow classification key */
+static int config_cls_key(struct dpaa2_eth_priv *priv, dma_addr_t key)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpni_rx_dist_cfg dist_cfg;
+	int err;
+
+	memset(&dist_cfg, 0, sizeof(dist_cfg));
+
+	dist_cfg.key_cfg_iova = key;
+	dist_cfg.dist_size = dpaa2_eth_queue_count(priv);
+	dist_cfg.enable = 1;
+
+	err = dpni_set_rx_fs_dist(priv->mc_io, 0, priv->mc_token, &dist_cfg);
+	if (err)
+		dev_err(dev, "dpni_set_rx_fs_dist failed\n");
+
+	return err;
+}
+
+/* Size of the Rx flow classification key */
+int dpaa2_eth_cls_key_size(void)
+{
+	int i, size = 0;
+
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++)
+		size += dist_fields[i].size;
+
+	return size;
+}
+
+/* Offset of header field in Rx classification key */
+int dpaa2_eth_cls_fld_off(int prot, int field)
+{
+	int i, off = 0;
+
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++) {
+		if (dist_fields[i].cls_prot == prot &&
+		    dist_fields[i].cls_field == field)
+			return off;
+		off += dist_fields[i].size;
+	}
+
+	WARN_ONCE(1, "Unsupported header field used for Rx flow cls\n");
+	return 0;
+}
+
+/* Set Rx distribution (hash or flow classification) key
  * flags is a combination of RXH_ bits
  */
-int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
+int dpaa2_eth_set_dist_key(struct net_device *net_dev,
+			   enum dpaa2_eth_rx_dist type, u64 flags)
 {
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpkg_profile_cfg cls_cfg;
-	struct dpni_rx_tc_dist_cfg dist_cfg;
 	u32 rx_hash_fields = 0;
+	dma_addr_t key_iova;
 	u8 *dma_mem;
 	int i;
 	int err = 0;
 
-	if (!dpaa2_eth_hash_enabled(priv)) {
-		dev_dbg(dev, "Hashing support is not enabled\n");
-		return -EOPNOTSUPP;
-	}
-
 	memset(&cls_cfg, 0, sizeof(cls_cfg));
 
-	for (i = 0; i < ARRAY_SIZE(hash_fields); i++) {
+	for (i = 0; i < ARRAY_SIZE(dist_fields); i++) {
 		struct dpkg_extract *key =
 			&cls_cfg.extracts[cls_cfg.num_extracts];
 
-		if (!(flags & hash_fields[i].rxnfc_field))
-			continue;
+		/* For Rx hashing key we set only the selected fields.
+		 * For Rx flow classification key we set all supported fields
+		 */
+		if (type == DPAA2_ETH_RX_DIST_HASH) {
+			if (!(flags & dist_fields[i].rxnfc_field))
+				continue;
+			rx_hash_fields |= dist_fields[i].rxnfc_field;
+		}
 
 		if (cls_cfg.num_extracts >= DPKG_MAX_NUM_OF_EXTRACTS) {
 			dev_err(dev, "error adding key extraction rule, too many rules?\n");
@@ -2083,12 +2189,10 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 		}
 
 		key->type = DPKG_EXTRACT_FROM_HDR;
-		key->extract.from_hdr.prot = hash_fields[i].cls_prot;
+		key->extract.from_hdr.prot = dist_fields[i].cls_prot;
 		key->extract.from_hdr.type = DPKG_FULL_FIELD;
-		key->extract.from_hdr.field = hash_fields[i].cls_field;
+		key->extract.from_hdr.field = dist_fields[i].cls_field;
 		cls_cfg.num_extracts++;
-
-		rx_hash_fields |= hash_fields[i].rxnfc_field;
 	}
 
 	dma_mem = kzalloc(DPAA2_CLASSIFIER_DMA_SIZE, GFP_KERNEL);
@@ -2098,36 +2202,71 @@ int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
 	err = dpni_prepare_key_cfg(&cls_cfg, dma_mem);
 	if (err) {
 		dev_err(dev, "dpni_prepare_key_cfg error %d\n", err);
-		goto err_prep_key;
+		goto free_key;
 	}
-
-	memset(&dist_cfg, 0, sizeof(dist_cfg));
 
 	/* Prepare for setting the rx dist */
-	dist_cfg.key_cfg_iova = dma_map_single(dev, dma_mem,
-					       DPAA2_CLASSIFIER_DMA_SIZE,
-					       DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, dist_cfg.key_cfg_iova)) {
+	key_iova = dma_map_single(dev, dma_mem, DPAA2_CLASSIFIER_DMA_SIZE,
+				  DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, key_iova)) {
 		dev_err(dev, "DMA mapping failed\n");
 		err = -ENOMEM;
-		goto err_dma_map;
+		goto free_key;
 	}
 
-	dist_cfg.dist_size = dpaa2_eth_queue_count(priv);
-	dist_cfg.dist_mode = DPNI_DIST_MODE_HASH;
+	if (type == DPAA2_ETH_RX_DIST_HASH) {
+		if (dpaa2_eth_has_legacy_dist(priv))
+			err = config_legacy_hash_key(priv, key_iova);
+		else
+			err = config_hash_key(priv, key_iova);
+	} else {
+		err = config_cls_key(priv, key_iova);
+	}
 
-	err = dpni_set_rx_tc_dist(priv->mc_io, 0, priv->mc_token, 0, &dist_cfg);
-	dma_unmap_single(dev, dist_cfg.key_cfg_iova,
-			 DPAA2_CLASSIFIER_DMA_SIZE, DMA_TO_DEVICE);
-	if (err)
-		dev_err(dev, "dpni_set_rx_tc_dist() error %d\n", err);
-	else
+	dma_unmap_single(dev, key_iova, DPAA2_CLASSIFIER_DMA_SIZE,
+			 DMA_TO_DEVICE);
+	if (!err && type == DPAA2_ETH_RX_DIST_HASH)
 		priv->rx_hash_fields = rx_hash_fields;
 
-err_dma_map:
-err_prep_key:
+free_key:
 	kfree(dma_mem);
 	return err;
+}
+
+int dpaa2_eth_set_hash(struct net_device *net_dev, u64 flags)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+
+	if (!dpaa2_eth_hash_enabled(priv))
+		return -EOPNOTSUPP;
+
+	return dpaa2_eth_set_dist_key(net_dev, DPAA2_ETH_RX_DIST_HASH, flags);
+}
+
+static int dpaa2_eth_set_cls(struct dpaa2_eth_priv *priv)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+
+	/* Check if we actually support Rx flow classification */
+	if (dpaa2_eth_has_legacy_dist(priv)) {
+		dev_dbg(dev, "Rx cls not supported by current MC version\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (priv->dpni_attrs.options & DPNI_OPT_NO_FS ||
+	    !(priv->dpni_attrs.options & DPNI_OPT_HAS_KEY_MASKING)) {
+		dev_dbg(dev, "Rx cls disabled in DPNI options\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (!dpaa2_eth_hash_enabled(priv)) {
+		dev_dbg(dev, "Rx cls disabled for single queue DPNIs\n");
+		return -EOPNOTSUPP;
+	}
+
+	priv->rx_cls_enabled = 1;
+
+	return dpaa2_eth_set_dist_key(priv->net_dev, DPAA2_ETH_RX_DIST_CLS, 0);
 }
 
 /* Bind the DPNI to its needed objects and resources: buffer pool, DPIOs,
@@ -2158,6 +2297,13 @@ static int bind_dpni(struct dpaa2_eth_priv *priv)
 	err = dpaa2_eth_set_hash(net_dev, DPAA2_RXH_DEFAULT);
 	if (err && err != -EOPNOTSUPP)
 		dev_err(dev, "Failed to configure hashing\n");
+
+	/* Configure the flow classification key; it includes all
+	 * supported header fields and cannot be modified at runtime
+	 */
+	err = dpaa2_eth_set_cls(priv);
+	if (err && err != -EOPNOTSUPP)
+		dev_err(dev, "Failed to configure Rx classification key\n");
 
 	/* Configure handling of error frames */
 	err_cfg.errors = DPAA2_FAS_RX_ERR_MASK;

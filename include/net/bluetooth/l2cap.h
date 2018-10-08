@@ -455,9 +455,6 @@ struct l2cap_conn_param_update_rsp {
 #define L2CAP_CONN_PARAM_ACCEPTED	0x0000
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
 
-#define L2CAP_LE_MAX_CREDITS		10
-#define L2CAP_LE_DEFAULT_MPS		230
-
 struct l2cap_le_conn_req {
 	__le16     psm;
 	__le16     scid;

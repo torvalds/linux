@@ -8,7 +8,7 @@
 #include "ice.h"
 #include "ice_lib.h"
 
-#define DRV_VERSION	"0.7.1-k"
+#define DRV_VERSION	"0.7.2-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -95,7 +95,7 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 				/* Trigger sw interrupt to revive the queue */
 				v_idx = tx_ring->q_vector->v_idx;
 				wr32(&vsi->back->hw,
-				     GLINT_DYN_CTL(vsi->base_vector + v_idx),
+				     GLINT_DYN_CTL(vsi->hw_base_vector + v_idx),
 				     (itr << GLINT_DYN_CTL_ITR_INDX_S) |
 				     GLINT_DYN_CTL_SWINT_TRIG_M |
 				     GLINT_DYN_CTL_INTENA_MSK_M);
@@ -253,7 +253,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		clear_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
 		if (vsi->current_netdev_flags & IFF_PROMISC) {
 			/* Apply TX filter rule to get traffic from VMs */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, true,
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
 						  ICE_FLTR_TX);
 			if (status) {
 				netdev_err(netdev, "Error setting default VSI %i tx rule\n",
@@ -263,7 +263,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 				goto out_promisc;
 			}
 			/* Apply RX filter rule to get traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, true,
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, true,
 						  ICE_FLTR_RX);
 			if (status) {
 				netdev_err(netdev, "Error setting default VSI %i rx rule\n",
@@ -274,7 +274,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 			}
 		} else {
 			/* Clear TX filter rule to stop traffic from VMs */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, false,
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
 						  ICE_FLTR_TX);
 			if (status) {
 				netdev_err(netdev, "Error clearing default VSI %i tx rule\n",
@@ -283,8 +283,8 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 				err = -EIO;
 				goto out_promisc;
 			}
-			/* Clear filter RX to remove traffic from wire */
-			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, false,
+			/* Clear RX filter to remove traffic from wire */
+			status = ice_cfg_dflt_vsi(hw, vsi->idx, false,
 						  ICE_FLTR_RX);
 			if (status) {
 				netdev_err(netdev, "Error clearing default VSI %i rx rule\n",
@@ -341,6 +341,10 @@ static void
 ice_prepare_for_reset(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
+
+	/* Notify VFs of impending reset */
+	if (ice_check_sq_alive(hw, &hw->mailboxq))
+		ice_vc_notify_reset(pf);
 
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf);
@@ -661,6 +665,8 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi)
 		}
 	}
 
+	ice_vc_notify_link_state(pf);
+
 	return 0;
 }
 
@@ -710,6 +716,10 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 	case ICE_CTL_Q_ADMIN:
 		cq = &hw->adminq;
 		qtype = "Admin";
+		break;
+	case ICE_CTL_Q_MAILBOX:
+		cq = &hw->mailboxq;
+		qtype = "Mailbox";
 		break;
 	default:
 		dev_warn(&pf->pdev->dev, "Unknown control queue type 0x%x\n",
@@ -792,6 +802,9 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 				dev_err(&pf->pdev->dev,
 					"Could not handle link event\n");
 			break;
+		case ice_mbx_opc_send_msg_to_pf:
+			ice_vc_process_vf_msg(pf, &event);
+			break;
 		case ice_aqc_opc_fw_logging:
 			ice_output_fw_log(hw, &event.desc, event.msg_buf);
 			break;
@@ -846,6 +859,28 @@ static void ice_clean_adminq_subtask(struct ice_pf *pf)
 	 */
 	if (ice_ctrlq_pending(hw, &hw->adminq))
 		__ice_clean_ctrlq(pf, ICE_CTL_Q_ADMIN);
+
+	ice_flush(hw);
+}
+
+/**
+ * ice_clean_mailboxq_subtask - clean the MailboxQ rings
+ * @pf: board private structure
+ */
+static void ice_clean_mailboxq_subtask(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+
+	if (!test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state))
+		return;
+
+	if (__ice_clean_ctrlq(pf, ICE_CTL_Q_MAILBOX))
+		return;
+
+	clear_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state);
+
+	if (ice_ctrlq_pending(hw, &hw->mailboxq))
+		__ice_clean_ctrlq(pf, ICE_CTL_Q_MAILBOX);
 
 	ice_flush(hw);
 }
@@ -916,6 +951,7 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 	struct ice_hw *hw = &pf->hw;
 	bool mdd_detected = false;
 	u32 reg;
+	int i;
 
 	if (!test_bit(__ICE_MDD_EVENT_PENDING, pf->state))
 		return;
@@ -1005,6 +1041,51 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 		}
 	}
 
+	/* see if one of the VFs needs to be reset */
+	for (i = 0; i < pf->num_alloc_vfs && mdd_detected; i++) {
+		struct ice_vf *vf = &pf->vf[i];
+
+		reg = rd32(hw, VP_MDET_TX_PQM(i));
+		if (reg & VP_MDET_TX_PQM_VALID_M) {
+			wr32(hw, VP_MDET_TX_PQM(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		reg = rd32(hw, VP_MDET_TX_TCLAN(i));
+		if (reg & VP_MDET_TX_TCLAN_VALID_M) {
+			wr32(hw, VP_MDET_TX_TCLAN(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		reg = rd32(hw, VP_MDET_TX_TDPU(i));
+		if (reg & VP_MDET_TX_TDPU_VALID_M) {
+			wr32(hw, VP_MDET_TX_TDPU(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		reg = rd32(hw, VP_MDET_RX(i));
+		if (reg & VP_MDET_RX_VALID_M) {
+			wr32(hw, VP_MDET_RX(i), 0xFFFF);
+			vf->num_mdd_events++;
+			dev_info(&pf->pdev->dev, "RX driver issue detected on VF %d\n",
+				 i);
+		}
+
+		if (vf->num_mdd_events > ICE_DFLT_NUM_MDD_EVENTS_ALLOWED) {
+			dev_info(&pf->pdev->dev,
+				 "Too many MDD events on VF %d, disabled\n", i);
+			dev_info(&pf->pdev->dev,
+				 "Use PF Control I/F to re-enable the VF\n");
+			set_bit(ICE_VF_STATE_DIS, vf->vf_states);
+		}
+	}
+
 	/* re-enable MDD interrupt cause */
 	clear_bit(__ICE_MDD_EVENT_PENDING, pf->state);
 	reg = rd32(hw, PFINT_OICR_ENA);
@@ -1038,8 +1119,10 @@ static void ice_service_task(struct work_struct *work)
 	ice_check_for_hang_subtask(pf);
 	ice_sync_fltr_subtask(pf);
 	ice_handle_mdd_event(pf);
+	ice_process_vflr_event(pf);
 	ice_watchdog_subtask(pf);
 	ice_clean_adminq_subtask(pf);
+	ice_clean_mailboxq_subtask(pf);
 
 	/* Clear __ICE_SERVICE_SCHED flag to allow scheduling next event */
 	ice_service_task_complete(pf);
@@ -1050,6 +1133,8 @@ static void ice_service_task(struct work_struct *work)
 	 */
 	if (time_after(jiffies, (start_time + pf->serv_tmr_period)) ||
 	    test_bit(__ICE_MDD_EVENT_PENDING, pf->state) ||
+	    test_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
+	    test_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state) ||
 	    test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		mod_timer(&pf->serv_tmr, jiffies);
 }
@@ -1064,6 +1149,10 @@ static void ice_set_ctrlq_len(struct ice_hw *hw)
 	hw->adminq.num_sq_entries = ICE_AQ_LEN;
 	hw->adminq.rq_buf_size = ICE_AQ_MAX_BUF_LEN;
 	hw->adminq.sq_buf_size = ICE_AQ_MAX_BUF_LEN;
+	hw->mailboxq.num_rq_entries = ICE_MBXQ_LEN;
+	hw->mailboxq.num_sq_entries = ICE_MBXQ_LEN;
+	hw->mailboxq.rq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
+	hw->mailboxq.sq_buf_size = ICE_MBXQ_MAX_BUF_LEN;
 }
 
 /**
@@ -1122,7 +1211,7 @@ static int ice_vsi_req_irq_msix(struct ice_vsi *vsi, char *basename)
 {
 	int q_vectors = vsi->num_q_vectors;
 	struct ice_pf *pf = vsi->back;
-	int base = vsi->base_vector;
+	int base = vsi->sw_base_vector;
 	int rx_int_idx = 0;
 	int tx_int_idx = 0;
 	int vector, err;
@@ -1197,13 +1286,14 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 	       PFINT_OICR_MAL_DETECT_M |
 	       PFINT_OICR_GRST_M |
 	       PFINT_OICR_PCI_EXCEPTION_M |
+	       PFINT_OICR_VFLR_M |
 	       PFINT_OICR_HMC_ERR_M |
 	       PFINT_OICR_PE_CRITERR_M);
 
 	wr32(hw, PFINT_OICR_ENA, val);
 
 	/* SW_ITR_IDX = 0, but don't change INTENA */
-	wr32(hw, GLINT_DYN_CTL(pf->oicr_idx),
+	wr32(hw, GLINT_DYN_CTL(pf->hw_oicr_idx),
 	     GLINT_DYN_CTL_SW_ITR_INDX_M | GLINT_DYN_CTL_INTENA_MSK_M);
 }
 
@@ -1220,6 +1310,7 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	u32 oicr, ena_mask;
 
 	set_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state);
+	set_bit(__ICE_MAILBOXQ_EVENT_PENDING, pf->state);
 
 	oicr = rd32(hw, PFINT_OICR);
 	ena_mask = rd32(hw, PFINT_OICR_ENA);
@@ -1227,6 +1318,10 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 	if (oicr & PFINT_OICR_MAL_DETECT_M) {
 		ena_mask &= ~PFINT_OICR_MAL_DETECT_M;
 		set_bit(__ICE_MDD_EVENT_PENDING, pf->state);
+	}
+	if (oicr & PFINT_OICR_VFLR_M) {
+		ena_mask &= ~PFINT_OICR_VFLR_M;
+		set_bit(__ICE_VFLR_EVENT_PENDING, pf->state);
 	}
 
 	if (oicr & PFINT_OICR_GRST_M) {
@@ -1241,8 +1336,11 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 			pf->corer_count++;
 		else if (reset == ICE_RESET_GLOBR)
 			pf->globr_count++;
-		else
+		else if (reset == ICE_RESET_EMPR)
 			pf->empr_count++;
+		else
+			dev_dbg(&pf->pdev->dev, "Invalid reset type %d\n",
+				reset);
 
 		/* If a reset cycle isn't already in progress, we set a bit in
 		 * pf->state so that the service task can start a reset/rebuild.
@@ -1321,12 +1419,15 @@ static void ice_free_irq_msix_misc(struct ice_pf *pf)
 	ice_flush(&pf->hw);
 
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags) && pf->msix_entries) {
-		synchronize_irq(pf->msix_entries[pf->oicr_idx].vector);
+		synchronize_irq(pf->msix_entries[pf->sw_oicr_idx].vector);
 		devm_free_irq(&pf->pdev->dev,
-			      pf->msix_entries[pf->oicr_idx].vector, pf);
+			      pf->msix_entries[pf->sw_oicr_idx].vector, pf);
 	}
 
-	ice_free_res(pf->irq_tracker, pf->oicr_idx, ICE_RES_MISC_VEC_ID);
+	pf->num_avail_sw_msix += 1;
+	ice_free_res(pf->sw_irq_tracker, pf->sw_oicr_idx, ICE_RES_MISC_VEC_ID);
+	pf->num_avail_hw_msix += 1;
+	ice_free_res(pf->hw_irq_tracker, pf->hw_oicr_idx, ICE_RES_MISC_VEC_ID);
 }
 
 /**
@@ -1356,39 +1457,58 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 	if (ice_is_reset_in_progress(pf->state))
 		goto skip_req_irq;
 
-	/* reserve one vector in irq_tracker for misc interrupts */
-	oicr_idx = ice_get_res(pf, pf->irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+	/* reserve one vector in sw_irq_tracker for misc interrupts */
+	oicr_idx = ice_get_res(pf, pf->sw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
 	if (oicr_idx < 0)
 		return oicr_idx;
 
-	pf->oicr_idx = oicr_idx;
+	pf->num_avail_sw_msix -= 1;
+	pf->sw_oicr_idx = oicr_idx;
+
+	/* reserve one vector in hw_irq_tracker for misc interrupts */
+	oicr_idx = ice_get_res(pf, pf->hw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+	if (oicr_idx < 0) {
+		ice_free_res(pf->sw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+		pf->num_avail_sw_msix += 1;
+		return oicr_idx;
+	}
+	pf->num_avail_hw_msix -= 1;
+	pf->hw_oicr_idx = oicr_idx;
 
 	err = devm_request_irq(&pf->pdev->dev,
-			       pf->msix_entries[pf->oicr_idx].vector,
+			       pf->msix_entries[pf->sw_oicr_idx].vector,
 			       ice_misc_intr, 0, pf->int_name, pf);
 	if (err) {
 		dev_err(&pf->pdev->dev,
 			"devm_request_irq for %s failed: %d\n",
 			pf->int_name, err);
-		ice_free_res(pf->irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+		ice_free_res(pf->sw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+		pf->num_avail_sw_msix += 1;
+		ice_free_res(pf->hw_irq_tracker, 1, ICE_RES_MISC_VEC_ID);
+		pf->num_avail_hw_msix += 1;
 		return err;
 	}
 
 skip_req_irq:
 	ice_ena_misc_vector(pf);
 
-	val = ((pf->oicr_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
+	val = ((pf->hw_oicr_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
 	       PFINT_OICR_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_OICR_CTL, val);
 
 	/* This enables Admin queue Interrupt causes */
-	val = ((pf->oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
+	val = ((pf->hw_oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
 	       PFINT_FW_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_FW_CTL, val);
 
-	itr_gran = hw->itr_gran_200;
+	/* This enables Mailbox queue Interrupt causes */
+	val = ((pf->hw_oicr_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
+	       PFINT_MBX_CTL_CAUSE_ENA_M);
+	wr32(hw, PFINT_MBX_CTL, val);
 
-	wr32(hw, GLINT_ITR(ICE_RX_ITR, pf->oicr_idx),
+	itr_gran = hw->itr_gran;
+
+	wr32(hw, GLINT_ITR(ICE_RX_ITR, pf->hw_oicr_idx),
 	     ITR_TO_REG(ICE_ITR_8K, itr_gran));
 
 	ice_flush(hw);
@@ -1755,6 +1875,15 @@ static void ice_init_pf(struct ice_pf *pf)
 {
 	bitmap_zero(pf->flags, ICE_PF_FLAGS_NBITS);
 	set_bit(ICE_FLAG_MSIX_ENA, pf->flags);
+#ifdef CONFIG_PCI_IOV
+	if (pf->hw.func_caps.common_cap.sr_iov_1_1) {
+		struct ice_hw *hw = &pf->hw;
+
+		set_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags);
+		pf->num_vfs_supported = min_t(int, hw->func_caps.num_allocd_vfs,
+					      ICE_MAX_VF_COUNT);
+	}
+#endif /* CONFIG_PCI_IOV */
 
 	mutex_init(&pf->sw_mutex);
 	mutex_init(&pf->avail_q_mutex);
@@ -1797,6 +1926,7 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 	/* reserve vectors for LAN traffic */
 	pf->num_lan_msix = min_t(int, num_online_cpus(), v_left);
 	v_budget += pf->num_lan_msix;
+	v_left -= pf->num_lan_msix;
 
 	pf->msix_entries = devm_kcalloc(&pf->pdev->dev, v_budget,
 					sizeof(struct msix_entry), GFP_KERNEL);
@@ -1824,10 +1954,11 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 			 "not enough vectors. requested = %d, obtained = %d\n",
 			 v_budget, v_actual);
 		if (v_actual >= (pf->num_lan_msix + 1)) {
-			pf->num_avail_msix = v_actual - (pf->num_lan_msix + 1);
+			pf->num_avail_sw_msix = v_actual -
+						(pf->num_lan_msix + 1);
 		} else if (v_actual >= 2) {
 			pf->num_lan_msix = 1;
-			pf->num_avail_msix = v_actual - 2;
+			pf->num_avail_sw_msix = v_actual - 2;
 		} else {
 			pci_disable_msix(pf->pdev);
 			err = -ERANGE;
@@ -1860,12 +1991,32 @@ static void ice_dis_msix(struct ice_pf *pf)
 }
 
 /**
+ * ice_clear_interrupt_scheme - Undo things done by ice_init_interrupt_scheme
+ * @pf: board private structure
+ */
+static void ice_clear_interrupt_scheme(struct ice_pf *pf)
+{
+	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
+		ice_dis_msix(pf);
+
+	if (pf->sw_irq_tracker) {
+		devm_kfree(&pf->pdev->dev, pf->sw_irq_tracker);
+		pf->sw_irq_tracker = NULL;
+	}
+
+	if (pf->hw_irq_tracker) {
+		devm_kfree(&pf->pdev->dev, pf->hw_irq_tracker);
+		pf->hw_irq_tracker = NULL;
+	}
+}
+
+/**
  * ice_init_interrupt_scheme - Determine proper interrupt scheme
  * @pf: board private structure to initialize
  */
 static int ice_init_interrupt_scheme(struct ice_pf *pf)
 {
-	int vectors = 0;
+	int vectors = 0, hw_vectors = 0;
 	ssize_t size;
 
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
@@ -1879,30 +2030,31 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 	/* set up vector assignment tracking */
 	size = sizeof(struct ice_res_tracker) + (sizeof(u16) * vectors);
 
-	pf->irq_tracker = devm_kzalloc(&pf->pdev->dev, size, GFP_KERNEL);
-	if (!pf->irq_tracker) {
+	pf->sw_irq_tracker = devm_kzalloc(&pf->pdev->dev, size, GFP_KERNEL);
+	if (!pf->sw_irq_tracker) {
 		ice_dis_msix(pf);
 		return -ENOMEM;
 	}
 
-	pf->irq_tracker->num_entries = vectors;
+	/* populate SW interrupts pool with number of OS granted IRQs. */
+	pf->num_avail_sw_msix = vectors;
+	pf->sw_irq_tracker->num_entries = vectors;
+
+	/* set up HW vector assignment tracking */
+	hw_vectors = pf->hw.func_caps.common_cap.num_msix_vectors;
+	size = sizeof(struct ice_res_tracker) + (sizeof(u16) * hw_vectors);
+
+	pf->hw_irq_tracker = devm_kzalloc(&pf->pdev->dev, size, GFP_KERNEL);
+	if (!pf->hw_irq_tracker) {
+		ice_clear_interrupt_scheme(pf);
+		return -ENOMEM;
+	}
+
+	/* populate HW interrupts pool with number of HW supported irqs. */
+	pf->num_avail_hw_msix = hw_vectors;
+	pf->hw_irq_tracker->num_entries = hw_vectors;
 
 	return 0;
-}
-
-/**
- * ice_clear_interrupt_scheme - Undo things done by ice_init_interrupt_scheme
- * @pf: board private structure
- */
-static void ice_clear_interrupt_scheme(struct ice_pf *pf)
-{
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		ice_dis_msix(pf);
-
-	if (pf->irq_tracker) {
-		devm_kfree(&pf->pdev->dev, pf->irq_tracker);
-		pf->irq_tracker = NULL;
-	}
 }
 
 /**
@@ -2087,6 +2239,7 @@ err_exit_unroll:
 static void ice_remove(struct pci_dev *pdev)
 {
 	struct ice_pf *pf = pci_get_drvdata(pdev);
+	int i;
 
 	if (!pf)
 		return;
@@ -2094,8 +2247,15 @@ static void ice_remove(struct pci_dev *pdev)
 	set_bit(__ICE_DOWN, pf->state);
 	ice_service_task_stop(pf);
 
+	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags))
+		ice_free_vfs(pf);
 	ice_vsi_release_all(pf);
 	ice_free_irq_msix_misc(pf);
+	ice_for_each_vsi(pf, i) {
+		if (!pf->vsi[i])
+			continue;
+		ice_vsi_free_q_vectors(pf->vsi[i]);
+	}
 	ice_clear_interrupt_scheme(pf);
 	ice_deinit_pf(pf);
 	ice_deinit_hw(&pf->hw);
@@ -2124,6 +2284,7 @@ static struct pci_driver ice_driver = {
 	.id_table = ice_pci_tbl,
 	.probe = ice_probe,
 	.remove = ice_remove,
+	.sriov_configure = ice_sriov_configure,
 };
 
 /**
@@ -2371,6 +2532,12 @@ static int ice_set_features(struct net_device *netdev,
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 	int ret = 0;
+
+	if (features & NETIF_F_RXHASH && !(netdev->features & NETIF_F_RXHASH))
+		ret = ice_vsi_manage_rss_lut(vsi, true);
+	else if (!(features & NETIF_F_RXHASH) &&
+		 netdev->features & NETIF_F_RXHASH)
+		ret = ice_vsi_manage_rss_lut(vsi, false);
 
 	if ((features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
@@ -2853,7 +3020,7 @@ int ice_down(struct ice_vsi *vsi)
 	}
 
 	ice_vsi_dis_irq(vsi);
-	tx_err = ice_vsi_stop_tx_rings(vsi);
+	tx_err = ice_vsi_stop_tx_rings(vsi, ICE_NO_RESET, 0);
 	if (tx_err)
 		netdev_err(vsi->netdev,
 			   "Failed stop Tx rings, VSI %d error %d\n",
@@ -3047,13 +3214,14 @@ static void ice_dis_vsi(struct ice_vsi *vsi)
 
 	set_bit(__ICE_NEEDS_RESTART, vsi->state);
 
-	if (vsi->netdev && netif_running(vsi->netdev) &&
-	    vsi->type == ICE_VSI_PF) {
-		rtnl_lock();
-		vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-		rtnl_unlock();
-	} else {
-		ice_vsi_close(vsi);
+	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
+			rtnl_lock();
+			vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+			rtnl_unlock();
+		} else {
+			ice_vsi_close(vsi);
+		}
 	}
 }
 
@@ -3065,12 +3233,16 @@ static int ice_ena_vsi(struct ice_vsi *vsi)
 {
 	int err = 0;
 
-	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state))
-		if (vsi->netdev && netif_running(vsi->netdev)) {
+	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state) &&
+	    vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
 			rtnl_lock();
 			err = vsi->netdev->netdev_ops->ndo_open(vsi->netdev);
 			rtnl_unlock();
+		} else {
+			err = ice_vsi_open(vsi);
 		}
+	}
 
 	return err;
 }
@@ -3119,6 +3291,10 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 		if (!pf->vsi[i])
 			continue;
 
+		/* VF VSI rebuild isn't supported yet */
+		if (pf->vsi[i]->type == ICE_VSI_VF)
+			continue;
+
 		err = ice_vsi_rebuild(pf->vsi[i]);
 		if (err) {
 			dev_err(&pf->pdev->dev,
@@ -3132,6 +3308,44 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 			 pf->vsi[i]->idx, pf->vsi[i]->vsi_num);
 	}
 
+	return 0;
+}
+
+/**
+ * ice_vsi_replay_all - replay all VSIs configuration in the PF
+ * @pf: the PF
+ */
+static int ice_vsi_replay_all(struct ice_pf *pf)
+{
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status ret;
+	int i;
+
+	/* loop through pf->vsi array and replay the VSI if found */
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		if (!pf->vsi[i])
+			continue;
+
+		ret = ice_replay_vsi(hw, pf->vsi[i]->idx);
+		if (ret) {
+			dev_err(&pf->pdev->dev,
+				"VSI at index %d replay failed %d\n",
+				pf->vsi[i]->idx, ret);
+			return -EIO;
+		}
+
+		/* Re-map HW VSI number, using VSI handle that has been
+		 * previously validated in ice_replay_vsi() call above
+		 */
+		pf->vsi[i]->vsi_num = ice_get_hw_vsi_num(hw, pf->vsi[i]->idx);
+
+		dev_info(&pf->pdev->dev,
+			 "VSI at index %d filter replayed successfully - vsi_num %i\n",
+			 pf->vsi[i]->idx, pf->vsi[i]->vsi_num);
+	}
+
+	/* Clean up replay filter after successful re-configuration */
+	ice_replay_post(hw);
 	return 0;
 }
 
@@ -3175,16 +3389,26 @@ static void ice_rebuild(struct ice_pf *pf)
 	if (err)
 		goto err_sched_init_port;
 
+	/* reset search_hint of irq_trackers to 0 since interrupts are
+	 * reclaimed and could be allocated from beginning during VSI rebuild
+	 */
+	pf->sw_irq_tracker->search_hint = 0;
+	pf->hw_irq_tracker->search_hint = 0;
+
 	err = ice_vsi_rebuild_all(pf);
 	if (err) {
 		dev_err(dev, "ice_vsi_rebuild_all failed\n");
 		goto err_vsi_rebuild;
 	}
 
-	ret = ice_replay_all_fltr(&pf->hw);
-	if (ret) {
+	err = ice_update_link_info(hw->port_info);
+	if (err)
+		dev_err(&pf->pdev->dev, "Get link status error %d\n", err);
+
+	/* Replay all VSIs Configuration, including filters after reset */
+	if (ice_vsi_replay_all(pf)) {
 		dev_err(&pf->pdev->dev,
-			"error replaying switch filter rules\n");
+			"error replaying VSI configurations with switch filter rules\n");
 		goto err_vsi_rebuild;
 	}
 
@@ -3207,6 +3431,7 @@ static void ice_rebuild(struct ice_pf *pf)
 		goto err_vsi_rebuild;
 	}
 
+	ice_reset_all_vfs(pf, true);
 	/* if we get here, reset flow is successful */
 	clear_bit(__ICE_RESET_FAILED, pf->state);
 	return;
@@ -3310,7 +3535,7 @@ int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 		struct ice_aqc_get_set_rss_keys *buf =
 				  (struct ice_aqc_get_set_rss_keys *)seed;
 
-		status = ice_aq_set_rss_key(hw, vsi->vsi_num, buf);
+		status = ice_aq_set_rss_key(hw, vsi->idx, buf);
 
 		if (status) {
 			dev_err(&pf->pdev->dev,
@@ -3321,8 +3546,8 @@ int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 	}
 
 	if (lut) {
-		status = ice_aq_set_rss_lut(hw, vsi->vsi_num,
-					    vsi->rss_lut_type, lut, lut_size);
+		status = ice_aq_set_rss_lut(hw, vsi->idx, vsi->rss_lut_type,
+					    lut, lut_size);
 		if (status) {
 			dev_err(&pf->pdev->dev,
 				"Cannot set RSS lut, err %d aq_err %d\n",
@@ -3353,7 +3578,7 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 		struct ice_aqc_get_set_rss_keys *buf =
 				  (struct ice_aqc_get_set_rss_keys *)seed;
 
-		status = ice_aq_get_rss_key(hw, vsi->vsi_num, buf);
+		status = ice_aq_get_rss_key(hw, vsi->idx, buf);
 		if (status) {
 			dev_err(&pf->pdev->dev,
 				"Cannot get RSS key, err %d aq_err %d\n",
@@ -3363,8 +3588,8 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 	}
 
 	if (lut) {
-		status = ice_aq_get_rss_lut(hw, vsi->vsi_num,
-					    vsi->rss_lut_type, lut, lut_size);
+		status = ice_aq_get_rss_lut(hw, vsi->idx, vsi->rss_lut_type,
+					    lut, lut_size);
 		if (status) {
 			dev_err(&pf->pdev->dev,
 				"Cannot get RSS lut, err %d aq_err %d\n",
@@ -3426,9 +3651,9 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 	else
 		/* change from VEB to VEPA mode */
 		ctxt.info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
-	ctxt.vsi_num = vsi->vsi_num;
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
-	status = ice_aq_update_vsi(hw, &ctxt, NULL);
+
+	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
 	if (status) {
 		dev_err(dev, "update VSI for bridge mode failed, bmode = %d err %d aq_err %d\n",
 			bmode, status, hw->adminq.sq_last_status);
@@ -3568,7 +3793,7 @@ static void ice_tx_timeout(struct net_device *netdev)
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 			val = rd32(&pf->hw,
 				   GLINT_DYN_CTL(tx_ring->q_vector->v_idx +
-						tx_ring->vsi->base_vector - 1));
+					tx_ring->vsi->hw_base_vector));
 
 		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HWB: 0x%x, NTU: 0x%x, TAIL: 0x%x, INT: 0x%x\n",
 			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,
@@ -3715,6 +3940,12 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = ice_change_mtu,
 	.ndo_get_stats64 = ice_get_stats64,
+	.ndo_set_vf_spoofchk = ice_set_vf_spoofchk,
+	.ndo_set_vf_mac = ice_set_vf_mac,
+	.ndo_get_vf_config = ice_get_vf_cfg,
+	.ndo_set_vf_trust = ice_set_vf_trust,
+	.ndo_set_vf_vlan = ice_set_vf_port_vlan,
+	.ndo_set_vf_link_state = ice_set_vf_link_state,
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_set_features = ice_set_features,

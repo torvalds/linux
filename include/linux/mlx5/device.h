@@ -504,6 +504,10 @@ struct health_buffer {
 	__be16		ext_synd;
 };
 
+enum mlx5_cmd_addr_l_sz_offset {
+	MLX5_NIC_IFC_OFFSET = 8,
+};
+
 struct mlx5_init_seg {
 	__be32			fw_rev;
 	__be32			cmdif_rev_fw_sub;

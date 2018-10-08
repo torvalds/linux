@@ -95,6 +95,8 @@ int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
+int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev);
+
 void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 		     unsigned long param);
 void mlx5_core_page_fault(struct mlx5_core_dev *dev,
@@ -214,4 +216,14 @@ int mlx5_lag_allow(struct mlx5_core_dev *dev);
 int mlx5_lag_forbid(struct mlx5_core_dev *dev);
 
 void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol);
+
+enum {
+	MLX5_NIC_IFC_FULL		= 0,
+	MLX5_NIC_IFC_DISABLED		= 1,
+	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
+	MLX5_NIC_IFC_INVALID		= 3
+};
+
+u8 mlx5_get_nic_state(struct mlx5_core_dev *dev);
+void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state);
 #endif /* __MLX5_CORE_H__ */

@@ -21,6 +21,7 @@
 
 static void hns3_clear_all_ring(struct hnae3_handle *h);
 static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h);
+static void hns3_remove_hw_addr(struct net_device *netdev);
 
 static const char hns3_driver_name[] = "hns3";
 const char hns3_driver_version[] = VERMAGIC_STRING;
@@ -475,9 +476,6 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 	if (netdev->flags & IFF_MULTICAST) {
 		if (__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync))
 			netdev_err(netdev, "sync mc address fail\n");
-
-		if (h->ae_algo->ops->update_mta_status)
-			h->ae_algo->ops->update_mta_status(h);
 	}
 }
 
@@ -2202,18 +2200,18 @@ static void hns3_rx_skb(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	napi_gro_receive(&ring->tqp_vector->napi, skb);
 }
 
-static u16 hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
-			       struct hns3_desc *desc, u32 l234info)
+static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
+				struct hns3_desc *desc, u32 l234info,
+				u16 *vlan_tag)
 {
 	struct pci_dev *pdev = ring->tqp->handle->pdev;
-	u16 vlan_tag;
 
 	if (pdev->revision == 0x20) {
-		vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
-		if (!(vlan_tag & VLAN_VID_MASK))
-			vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
+		*vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
+		if (!(*vlan_tag & VLAN_VID_MASK))
+			*vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
 
-		return vlan_tag;
+		return (*vlan_tag != 0);
 	}
 
 #define HNS3_STRP_OUTER_VLAN	0x1
@@ -2222,17 +2220,14 @@ static u16 hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 	switch (hnae3_get_field(l234info, HNS3_RXD_STRP_TAGP_M,
 				HNS3_RXD_STRP_TAGP_S)) {
 	case HNS3_STRP_OUTER_VLAN:
-		vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
-		break;
+		*vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
+		return true;
 	case HNS3_STRP_INNER_VLAN:
-		vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
-		break;
+		*vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
+		return true;
 	default:
-		vlan_tag = 0;
-		break;
+		return false;
 	}
-
-	return vlan_tag;
 }
 
 static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
@@ -2334,8 +2329,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
 		u16 vlan_tag;
 
-		vlan_tag = hns3_parse_vlan_tag(ring, desc, l234info);
-		if (vlan_tag & VLAN_VID_MASK)
+		if (hns3_parse_vlan_tag(ring, desc, l234info, &vlan_tag))
 			__vlan_hwaccel_put_tag(skb,
 					       htons(ETH_P_8021Q),
 					       vlan_tag);
@@ -3155,15 +3149,6 @@ static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 
 }
 
-static void hns3_uninit_mac_addr(struct net_device *netdev)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hnae3_handle *h = priv->ae_handle;
-
-	if (h->ae_algo->ops->rm_uc_addr)
-		h->ae_algo->ops->rm_uc_addr(h, netdev->dev_addr);
-}
-
 static int hns3_restore_fd_rules(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -3296,6 +3281,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
+	hns3_remove_hw_addr(netdev);
+
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
 
@@ -3318,8 +3305,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
-
-	hns3_uninit_mac_addr(netdev);
 
 	free_netdev(netdev);
 }
@@ -3390,6 +3375,25 @@ static void hns3_recover_hw_addr(struct net_device *ndev)
 	list = &ndev->mc;
 	list_for_each_entry_safe(ha, tmp, &list->list, list)
 		hns3_nic_mc_sync(ndev, ha->addr);
+}
+
+static void hns3_remove_hw_addr(struct net_device *netdev)
+{
+	struct netdev_hw_addr_list *list;
+	struct netdev_hw_addr *ha, *tmp;
+
+	hns3_nic_uc_unsync(netdev, netdev->dev_addr);
+
+	/* go through and unsync uc_addr entries to the device */
+	list = &netdev->uc;
+	list_for_each_entry_safe(ha, tmp, &list->list, list)
+		hns3_nic_uc_unsync(netdev, ha->addr);
+
+	/* go through and unsync mc_addr entries to the device */
+	list = &netdev->mc;
+	list_for_each_entry_safe(ha, tmp, &list->list, list)
+		if (ha->refcount > 1)
+			hns3_nic_mc_unsync(netdev, ha->addr);
 }
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
@@ -3637,14 +3641,14 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
 
-	hns3_uninit_mac_addr(netdev);
-
-	/* it is cumbersome for hardware to pick-and-choose rules for deletion
-	 * from TCAM. Hence, for function reset software intervention is
-	 * required to delete the rules
+	/* it is cumbersome for hardware to pick-and-choose entries for deletion
+	 * from table space. Hence, for function reset software intervention is
+	 * required to delete the entries
 	 */
-	if (hns3_dev_ongoing_func_reset(ae_dev))
+	if (hns3_dev_ongoing_func_reset(ae_dev)) {
+		hns3_remove_hw_addr(netdev);
 		hns3_del_all_fd_rules(netdev, false);
+	}
 
 	return ret;
 }

@@ -47,9 +47,6 @@
 #define HCLGEVF_RSS_CFG_TBL_NUM \
 	(HCLGEVF_RSS_IND_TBL_SIZE / HCLGEVF_RSS_CFG_TBL_SIZE)
 
-#define HCLGEVF_MTA_TBL_SIZE		4096
-#define HCLGEVF_MTA_TYPE_SEL_MAX	4
-
 /* states of hclgevf device & tasks */
 enum hclgevf_states {
 	/* device states */
@@ -157,8 +154,6 @@ struct hclgevf_dev {
 	u16 *vector_status;
 	int *vector_irq;
 
-	bool accept_mta_mc; /* whether to accept mta filter multicast */
-	u8 mta_mac_sel_type;
 	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */

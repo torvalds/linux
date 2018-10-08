@@ -1215,7 +1215,18 @@ static int vrf_add_fib_rules(const struct net_device *dev)
 		goto ipmr_err;
 #endif
 
+#if IS_ENABLED(CONFIG_IPV6_MROUTE_MULTIPLE_TABLES)
+	err = vrf_fib_rule(dev, RTNL_FAMILY_IP6MR, true);
+	if (err < 0)
+		goto ip6mr_err;
+#endif
+
 	return 0;
+
+#if IS_ENABLED(CONFIG_IPV6_MROUTE_MULTIPLE_TABLES)
+ip6mr_err:
+	vrf_fib_rule(dev, RTNL_FAMILY_IPMR,  false);
+#endif
 
 #if IS_ENABLED(CONFIG_IP_MROUTE_MULTIPLE_TABLES)
 ipmr_err:

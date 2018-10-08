@@ -670,10 +670,11 @@ enum qed_link_mode_bits {
 	QED_LM_1000baseT_Half_BIT = BIT(4),
 	QED_LM_1000baseT_Full_BIT = BIT(5),
 	QED_LM_10000baseKR_Full_BIT = BIT(6),
-	QED_LM_25000baseKR_Full_BIT = BIT(7),
-	QED_LM_40000baseLR4_Full_BIT = BIT(8),
-	QED_LM_50000baseKR2_Full_BIT = BIT(9),
-	QED_LM_100000baseKR4_Full_BIT = BIT(10),
+	QED_LM_20000baseKR2_Full_BIT = BIT(7),
+	QED_LM_25000baseKR_Full_BIT = BIT(8),
+	QED_LM_40000baseLR4_Full_BIT = BIT(9),
+	QED_LM_50000baseKR2_Full_BIT = BIT(10),
+	QED_LM_100000baseKR4_Full_BIT = BIT(11),
 	QED_LM_COUNT = 11
 };
 

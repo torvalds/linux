@@ -2731,8 +2731,6 @@ out_error:
 	return err;
 }
 
-static const struct of_device_id dpaa_match[];
-
 static inline u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl)
 {
 	u16 headroom;

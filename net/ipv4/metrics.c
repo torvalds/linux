@@ -5,8 +5,8 @@
 #include <net/net_namespace.h>
 #include <net/tcp.h>
 
-int ip_metrics_convert(struct net *net, struct nlattr *fc_mx, int fc_mx_len,
-		       u32 *metrics)
+static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
+			      int fc_mx_len, u32 *metrics)
 {
 	bool ecn_ca = false;
 	struct nlattr *nla;
@@ -52,4 +52,28 @@ int ip_metrics_convert(struct net *net, struct nlattr *fc_mx, int fc_mx_len,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ip_metrics_convert);
+
+struct dst_metrics *ip_fib_metrics_init(struct net *net, struct nlattr *fc_mx,
+					int fc_mx_len)
+{
+	struct dst_metrics *fib_metrics;
+	int err;
+
+	if (!fc_mx)
+		return (struct dst_metrics *)&dst_default_metrics;
+
+	fib_metrics = kzalloc(sizeof(*fib_metrics), GFP_KERNEL);
+	if (unlikely(!fib_metrics))
+		return ERR_PTR(-ENOMEM);
+
+	err = ip_metrics_convert(net, fc_mx, fc_mx_len, fib_metrics->metrics);
+	if (!err) {
+		refcount_set(&fib_metrics->refcnt, 1);
+	} else {
+		kfree(fib_metrics);
+		fib_metrics = ERR_PTR(err);
+	}
+
+	return fib_metrics;
+}
+EXPORT_SYMBOL_GPL(ip_fib_metrics_init);

@@ -100,6 +100,11 @@ enum iwl_data_path_subcmd_ids {
 	TLC_MNG_CONFIG_CMD = 0xF,
 
 	/**
+	 * @HE_AIR_SNIFFER_CONFIG_CMD: &struct iwl_he_monitor_cmd
+	 */
+	HE_AIR_SNIFFER_CONFIG_CMD = 0x13,
+
+	/**
 	 * @TLC_MNG_UPDATE_NOTIF: &struct iwl_tlc_update_notif
 	 */
 	TLC_MNG_UPDATE_NOTIF = 0xF7,

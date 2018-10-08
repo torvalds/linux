@@ -1217,18 +1217,15 @@ void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 		src = ip_hdr(skb)->saddr;
 	else {
 		struct fib_result res;
-		struct flowi4 fl4;
-		struct iphdr *iph;
-
-		iph = ip_hdr(skb);
-
-		memset(&fl4, 0, sizeof(fl4));
-		fl4.daddr = iph->daddr;
-		fl4.saddr = iph->saddr;
-		fl4.flowi4_tos = RT_TOS(iph->tos);
-		fl4.flowi4_oif = rt->dst.dev->ifindex;
-		fl4.flowi4_iif = skb->dev->ifindex;
-		fl4.flowi4_mark = skb->mark;
+		struct iphdr *iph = ip_hdr(skb);
+		struct flowi4 fl4 = {
+			.daddr = iph->daddr,
+			.saddr = iph->saddr,
+			.flowi4_tos = RT_TOS(iph->tos),
+			.flowi4_oif = rt->dst.dev->ifindex,
+			.flowi4_iif = skb->dev->ifindex,
+			.flowi4_mark = skb->mark,
+		};
 
 		rcu_read_lock();
 		if (fib_lookup(dev_net(rt->dst.dev), &fl4, &res, 0) == 0)
@@ -1479,12 +1476,9 @@ void rt_del_uncached_list(struct rtable *rt)
 
 static void ipv4_dst_destroy(struct dst_entry *dst)
 {
-	struct dst_metrics *p = (struct dst_metrics *)DST_METRICS_PTR(dst);
 	struct rtable *rt = (struct rtable *)dst;
 
-	if (p != &dst_default_metrics && refcount_dec_and_test(&p->refcnt))
-		kfree(p);
-
+	ip_dst_metrics_put(dst);
 	rt_del_uncached_list(rt);
 }
 
@@ -1531,11 +1525,8 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 			rt->rt_gateway = nh->nh_gw;
 			rt->rt_uses_gateway = 1;
 		}
-		dst_init_metrics(&rt->dst, fi->fib_metrics->metrics, true);
-		if (fi->fib_metrics != &dst_default_metrics) {
-			rt->dst._metrics |= DST_METRICS_REFCOUNTED;
-			refcount_inc(&fi->fib_metrics->refcnt);
-		}
+		ip_dst_init_metrics(&rt->dst, fi->fib_metrics);
+
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
@@ -2783,7 +2774,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct rtable *rt = NULL;
 	struct sk_buff *skb;
 	struct rtmsg *rtm;
-	struct flowi4 fl4;
+	struct flowi4 fl4 = {};
 	__be32 dst = 0;
 	__be32 src = 0;
 	kuid_t uid;
@@ -2823,7 +2814,6 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (!skb)
 		return -ENOBUFS;
 
-	memset(&fl4, 0, sizeof(fl4));
 	fl4.daddr = dst;
 	fl4.saddr = src;
 	fl4.flowi4_tos = rtm->rtm_tos;

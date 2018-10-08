@@ -2329,35 +2329,24 @@ static bool neigh_ifindex_filtered(struct net_device *dev, int filter_idx)
 	return false;
 }
 
+struct neigh_dump_filter {
+	int master_idx;
+	int dev_idx;
+};
+
 static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
-			    struct netlink_callback *cb)
+			    struct netlink_callback *cb,
+			    struct neigh_dump_filter *filter)
 {
 	struct net *net = sock_net(skb->sk);
-	const struct nlmsghdr *nlh = cb->nlh;
-	struct nlattr *tb[NDA_MAX + 1];
 	struct neighbour *n;
 	int rc, h, s_h = cb->args[1];
 	int idx, s_idx = idx = cb->args[2];
 	struct neigh_hash_table *nht;
-	int filter_master_idx = 0, filter_idx = 0;
 	unsigned int flags = NLM_F_MULTI;
-	int err;
 
-	err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX, NULL, NULL);
-	if (!err) {
-		if (tb[NDA_IFINDEX]) {
-			if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
-				return -EINVAL;
-			filter_idx = nla_get_u32(tb[NDA_IFINDEX]);
-		}
-		if (tb[NDA_MASTER]) {
-			if (nla_len(tb[NDA_MASTER]) != sizeof(u32))
-				return -EINVAL;
-			filter_master_idx = nla_get_u32(tb[NDA_MASTER]);
-		}
-		if (filter_idx || filter_master_idx)
-			flags |= NLM_F_DUMP_FILTERED;
-	}
+	if (filter->dev_idx || filter->master_idx)
+		flags |= NLM_F_DUMP_FILTERED;
 
 	rcu_read_lock_bh();
 	nht = rcu_dereference_bh(tbl->nht);
@@ -2370,8 +2359,8 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		     n = rcu_dereference_bh(n->next)) {
 			if (idx < s_idx || !net_eq(dev_net(n->dev), net))
 				goto next;
-			if (neigh_ifindex_filtered(n->dev, filter_idx) ||
-			    neigh_master_filtered(n->dev, filter_master_idx))
+			if (neigh_ifindex_filtered(n->dev, filter->dev_idx) ||
+			    neigh_master_filtered(n->dev, filter->master_idx))
 				goto next;
 			if (neigh_fill_info(skb, n, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
@@ -2393,12 +2382,17 @@ out:
 }
 
 static int pneigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
-			     struct netlink_callback *cb)
+			     struct netlink_callback *cb,
+			     struct neigh_dump_filter *filter)
 {
 	struct pneigh_entry *n;
 	struct net *net = sock_net(skb->sk);
 	int rc, h, s_h = cb->args[3];
 	int idx, s_idx = idx = cb->args[4];
+	unsigned int flags = NLM_F_MULTI;
+
+	if (filter->dev_idx || filter->master_idx)
+		flags |= NLM_F_DUMP_FILTERED;
 
 	read_lock_bh(&tbl->lock);
 
@@ -2408,10 +2402,12 @@ static int pneigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 		for (n = tbl->phash_buckets[h], idx = 0; n; n = n->next) {
 			if (idx < s_idx || pneigh_net(n) != net)
 				goto next;
+			if (neigh_ifindex_filtered(n->dev, filter->dev_idx) ||
+			    neigh_master_filtered(n->dev, filter->master_idx))
+				goto next;
 			if (pneigh_fill_info(skb, n, NETLINK_CB(cb->skb).portid,
 					    cb->nlh->nlmsg_seq,
-					    RTM_NEWNEIGH,
-					    NLM_F_MULTI, tbl) < 0) {
+					    RTM_NEWNEIGH, flags, tbl) < 0) {
 				read_unlock_bh(&tbl->lock);
 				rc = -1;
 				goto out;
@@ -2432,20 +2428,36 @@ out:
 
 static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
+	struct neigh_dump_filter filter = {};
+	struct nlattr *tb[NDA_MAX + 1];
 	struct neigh_table *tbl;
 	int t, family, s_t;
 	int proxy = 0;
 	int err;
 
-	family = ((struct rtgenmsg *) nlmsg_data(cb->nlh))->rtgen_family;
+	family = ((struct rtgenmsg *)nlmsg_data(nlh))->rtgen_family;
 
 	/* check for full ndmsg structure presence, family member is
 	 * the same for both structures
 	 */
-	if (nlmsg_len(cb->nlh) >= sizeof(struct ndmsg) &&
-	    ((struct ndmsg *) nlmsg_data(cb->nlh))->ndm_flags == NTF_PROXY)
+	if (nlmsg_len(nlh) >= sizeof(struct ndmsg) &&
+	    ((struct ndmsg *)nlmsg_data(nlh))->ndm_flags == NTF_PROXY)
 		proxy = 1;
 
+	err = nlmsg_parse(nlh, sizeof(struct ndmsg), tb, NDA_MAX, NULL, NULL);
+	if (!err) {
+		if (tb[NDA_IFINDEX]) {
+			if (nla_len(tb[NDA_IFINDEX]) != sizeof(u32))
+				return -EINVAL;
+			filter.dev_idx = nla_get_u32(tb[NDA_IFINDEX]);
+		}
+		if (tb[NDA_MASTER]) {
+			if (nla_len(tb[NDA_MASTER]) != sizeof(u32))
+				return -EINVAL;
+			filter.master_idx = nla_get_u32(tb[NDA_MASTER]);
+		}
+	}
 	s_t = cb->args[0];
 
 	for (t = 0; t < NEIGH_NR_TABLES; t++) {
@@ -2459,9 +2471,9 @@ static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 			memset(&cb->args[1], 0, sizeof(cb->args) -
 						sizeof(cb->args[0]));
 		if (proxy)
-			err = pneigh_dump_table(tbl, skb, cb);
+			err = pneigh_dump_table(tbl, skb, cb, &filter);
 		else
-			err = neigh_dump_table(tbl, skb, cb);
+			err = neigh_dump_table(tbl, skb, cb, &filter);
 		if (err < 0)
 			break;
 	}

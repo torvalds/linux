@@ -3485,17 +3485,6 @@ void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
 }
 
 /**
- * ixgbe_fw_recovery_mode - Check if in FW NVM recovery mode
- * @hw: pointer to hardware structure
- */
-bool ixgbe_fw_recovery_mode(struct ixgbe_hw *hw)
-{
-	if (hw->mac.ops.fw_recovery_mode)
-		return hw->mac.ops.fw_recovery_mode(hw);
-	return false;
-}
-
-/**
  *  ixgbe_get_device_caps_generic - Get additional device capabilities
  *  @hw: pointer to hardware structure
  *  @device_caps: the EEPROM word with the extra device capabilities

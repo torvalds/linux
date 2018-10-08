@@ -364,14 +364,11 @@ EXPORT_SYMBOL(ip6_dst_alloc);
 
 static void ip6_dst_destroy(struct dst_entry *dst)
 {
-	struct dst_metrics *p = (struct dst_metrics *)DST_METRICS_PTR(dst);
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	struct fib6_info *from;
 	struct inet6_dev *idev;
 
-	if (p != &dst_default_metrics && refcount_dec_and_test(&p->refcnt))
-		kfree(p);
-
+	ip_dst_metrics_put(dst);
 	rt6_uncached_list_del(rt);
 
 	idev = rt->rt6i_idev;
@@ -978,11 +975,7 @@ static void rt6_set_from(struct rt6_info *rt, struct fib6_info *from)
 {
 	rt->rt6i_flags &= ~RTF_EXPIRES;
 	rcu_assign_pointer(rt->from, from);
-	dst_init_metrics(&rt->dst, from->fib6_metrics->metrics, true);
-	if (from->fib6_metrics != &dst_default_metrics) {
-		rt->dst._metrics |= DST_METRICS_REFCOUNTED;
-		refcount_inc(&from->fib6_metrics->refcnt);
-	}
+	ip_dst_init_metrics(&rt->dst, from->fib6_metrics);
 }
 
 /* Caller must already hold reference to @ort */
@@ -2349,15 +2342,14 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 {
 	const struct ipv6hdr *iph = (struct ipv6hdr *) skb->data;
 	struct dst_entry *dst;
-	struct flowi6 fl6;
-
-	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = mark ? mark : IP6_REPLY_MARK(net, skb->mark);
-	fl6.daddr = iph->daddr;
-	fl6.saddr = iph->saddr;
-	fl6.flowlabel = ip6_flowinfo(iph);
-	fl6.flowi6_uid = uid;
+	struct flowi6 fl6 = {
+		.flowi6_oif = oif,
+		.flowi6_mark = mark ? mark : IP6_REPLY_MARK(net, skb->mark),
+		.daddr = iph->daddr,
+		.saddr = iph->saddr,
+		.flowlabel = ip6_flowinfo(iph),
+		.flowi6_uid = uid,
+	};
 
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (!dst->error)
@@ -2508,16 +2500,15 @@ void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
 {
 	const struct ipv6hdr *iph = (struct ipv6hdr *) skb->data;
 	struct dst_entry *dst;
-	struct flowi6 fl6;
-
-	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_iif = LOOPBACK_IFINDEX;
-	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = mark;
-	fl6.daddr = iph->daddr;
-	fl6.saddr = iph->saddr;
-	fl6.flowlabel = ip6_flowinfo(iph);
-	fl6.flowi6_uid = uid;
+	struct flowi6 fl6 = {
+		.flowi6_iif = LOOPBACK_IFINDEX,
+		.flowi6_oif = oif,
+		.flowi6_mark = mark,
+		.daddr = iph->daddr,
+		.saddr = iph->saddr,
+		.flowlabel = ip6_flowinfo(iph),
+		.flowi6_uid = uid,
+	};
 
 	dst = ip6_route_redirect(net, &fl6, skb, &ipv6_hdr(skb)->saddr);
 	rt6_do_redirect(dst, NULL, skb);
@@ -2525,21 +2516,18 @@ void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
 }
 EXPORT_SYMBOL_GPL(ip6_redirect);
 
-void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
-			    u32 mark)
+void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	const struct rd_msg *msg = (struct rd_msg *)icmp6_hdr(skb);
 	struct dst_entry *dst;
-	struct flowi6 fl6;
-
-	memset(&fl6, 0, sizeof(fl6));
-	fl6.flowi6_iif = LOOPBACK_IFINDEX;
-	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = mark;
-	fl6.daddr = msg->dest;
-	fl6.saddr = iph->daddr;
-	fl6.flowi6_uid = sock_net_uid(net, NULL);
+	struct flowi6 fl6 = {
+		.flowi6_iif = LOOPBACK_IFINDEX,
+		.flowi6_oif = oif,
+		.daddr = msg->dest,
+		.saddr = iph->daddr,
+		.flowi6_uid = sock_net_uid(net, NULL),
+	};
 
 	dst = ip6_route_redirect(net, &fl6, skb, &iph->saddr);
 	rt6_do_redirect(dst, NULL, skb);
@@ -2708,24 +2696,6 @@ static int ip6_dst_gc(struct dst_ops *ops)
 out:
 	net->ipv6.ip6_rt_gc_expire -= net->ipv6.ip6_rt_gc_expire>>rt_elasticity;
 	return entries > rt_max_size;
-}
-
-static int ip6_convert_metrics(struct net *net, struct fib6_info *rt,
-			       struct fib6_config *cfg)
-{
-	struct dst_metrics *p;
-
-	if (!cfg->fc_mx)
-		return 0;
-
-	p = kzalloc(sizeof(*rt->fib6_metrics), GFP_KERNEL);
-	if (unlikely(!p))
-		return -ENOMEM;
-
-	refcount_set(&p->refcnt, 1);
-	rt->fib6_metrics = p;
-
-	return ip_metrics_convert(net, cfg->fc_mx, cfg->fc_mx_len, p->metrics);
 }
 
 static struct rt6_info *ip6_nh_lookup_table(struct net *net,
@@ -3003,12 +2973,16 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 	if (!rt)
 		goto out;
 
+	rt->fib6_metrics = ip_fib_metrics_init(net, cfg->fc_mx, cfg->fc_mx_len);
+	if (IS_ERR(rt->fib6_metrics)) {
+		err = PTR_ERR(rt->fib6_metrics);
+		/* Do not leave garbage there. */
+		rt->fib6_metrics = (struct dst_metrics *)&dst_default_metrics;
+		goto out;
+	}
+
 	if (cfg->fc_flags & RTF_ADDRCONF)
 		rt->dst_nocount = true;
-
-	err = ip6_convert_metrics(net, rt, cfg);
-	if (err < 0)
-		goto out;
 
 	if (cfg->fc_flags & RTF_EXPIRES)
 		fib6_set_expires(rt, jiffies +
@@ -3609,23 +3583,23 @@ static void rtmsg_to_fib6_config(struct net *net,
 				 struct in6_rtmsg *rtmsg,
 				 struct fib6_config *cfg)
 {
-	memset(cfg, 0, sizeof(*cfg));
+	*cfg = (struct fib6_config){
+		.fc_table = l3mdev_fib_table_by_index(net, rtmsg->rtmsg_ifindex) ?
+			 : RT6_TABLE_MAIN,
+		.fc_ifindex = rtmsg->rtmsg_ifindex,
+		.fc_metric = rtmsg->rtmsg_metric,
+		.fc_expires = rtmsg->rtmsg_info,
+		.fc_dst_len = rtmsg->rtmsg_dst_len,
+		.fc_src_len = rtmsg->rtmsg_src_len,
+		.fc_flags = rtmsg->rtmsg_flags,
+		.fc_type = rtmsg->rtmsg_type,
 
-	cfg->fc_table = l3mdev_fib_table_by_index(net, rtmsg->rtmsg_ifindex) ?
-			 : RT6_TABLE_MAIN;
-	cfg->fc_ifindex = rtmsg->rtmsg_ifindex;
-	cfg->fc_metric = rtmsg->rtmsg_metric;
-	cfg->fc_expires = rtmsg->rtmsg_info;
-	cfg->fc_dst_len = rtmsg->rtmsg_dst_len;
-	cfg->fc_src_len = rtmsg->rtmsg_src_len;
-	cfg->fc_flags = rtmsg->rtmsg_flags;
-	cfg->fc_type = rtmsg->rtmsg_type;
+		.fc_nlinfo.nl_net = net,
 
-	cfg->fc_nlinfo.nl_net = net;
-
-	cfg->fc_dst = rtmsg->rtmsg_dst;
-	cfg->fc_src = rtmsg->rtmsg_src;
-	cfg->fc_gateway = rtmsg->rtmsg_gateway;
+		.fc_dst = rtmsg->rtmsg_dst,
+		.fc_src = rtmsg->rtmsg_src,
+		.fc_gateway = rtmsg->rtmsg_gateway,
+	};
 }
 
 int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg)
@@ -3732,6 +3706,7 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	if (!f6i)
 		return ERR_PTR(-ENOMEM);
 
+	f6i->fib6_metrics = ip_fib_metrics_init(net, NULL, 0);
 	f6i->dst_nocount = true;
 	f6i->dst_host = true;
 	f6i->fib6_protocol = RTPROT_KERNEL;
@@ -4148,14 +4123,19 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	err = -EINVAL;
 	rtm = nlmsg_data(nlh);
-	memset(cfg, 0, sizeof(*cfg));
 
-	cfg->fc_table = rtm->rtm_table;
-	cfg->fc_dst_len = rtm->rtm_dst_len;
-	cfg->fc_src_len = rtm->rtm_src_len;
-	cfg->fc_flags = RTF_UP;
-	cfg->fc_protocol = rtm->rtm_protocol;
-	cfg->fc_type = rtm->rtm_type;
+	*cfg = (struct fib6_config){
+		.fc_table = rtm->rtm_table,
+		.fc_dst_len = rtm->rtm_dst_len,
+		.fc_src_len = rtm->rtm_src_len,
+		.fc_flags = RTF_UP,
+		.fc_protocol = rtm->rtm_protocol,
+		.fc_type = rtm->rtm_type,
+
+		.fc_nlinfo.portid = NETLINK_CB(skb).portid,
+		.fc_nlinfo.nlh = nlh,
+		.fc_nlinfo.nl_net = sock_net(skb->sk),
+	};
 
 	if (rtm->rtm_type == RTN_UNREACHABLE ||
 	    rtm->rtm_type == RTN_BLACKHOLE ||
@@ -4170,10 +4150,6 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 		cfg->fc_flags |= RTF_CACHE;
 
 	cfg->fc_flags |= (rtm->rtm_flags & RTNH_F_ONLINK);
-
-	cfg->fc_nlinfo.portid = NETLINK_CB(skb).portid;
-	cfg->fc_nlinfo.nlh = nlh;
-	cfg->fc_nlinfo.nl_net = sock_net(skb->sk);
 
 	if (tb[RTA_GATEWAY]) {
 		cfg->fc_gateway = nla_get_in6_addr(tb[RTA_GATEWAY]);
@@ -4293,11 +4269,6 @@ static int ip6_route_info_append(struct net *net,
 	if (!nh)
 		return -ENOMEM;
 	nh->fib6_info = rt;
-	err = ip6_convert_metrics(net, rt, r_cfg);
-	if (err) {
-		kfree(nh);
-		return err;
-	}
 	memcpy(&nh->r_cfg, r_cfg, sizeof(*r_cfg));
 	list_add_tail(&nh->next, rt6_nh_list);
 
@@ -4827,7 +4798,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	struct rt6_info *rt;
 	struct sk_buff *skb;
 	struct rtmsg *rtm;
-	struct flowi6 fl6;
+	struct flowi6 fl6 = {};
 	bool fibmatch;
 
 	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv6_policy,
@@ -4836,7 +4807,6 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		goto errout;
 
 	err = -EINVAL;
-	memset(&fl6, 0, sizeof(fl6));
 	rtm = nlmsg_data(nlh);
 	fl6.flowlabel = ip6_make_flowinfo(rtm->rtm_tos, 0);
 	fibmatch = !!(rtm->rtm_flags & RTM_F_FIB_MATCH);

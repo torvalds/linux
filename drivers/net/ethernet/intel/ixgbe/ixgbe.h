@@ -228,13 +228,17 @@ struct ixgbe_tx_buffer {
 struct ixgbe_rx_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
-	struct page *page;
-#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
-	__u32 page_offset;
-#else
-	__u16 page_offset;
-#endif
-	__u16 pagecnt_bias;
+	union {
+		struct {
+			struct page *page;
+			__u32 page_offset;
+			__u16 pagecnt_bias;
+		};
+		struct {
+			void *addr;
+			u64 handle;
+		};
+	};
 };
 
 struct ixgbe_queue_stats {
@@ -271,6 +275,7 @@ enum ixgbe_ring_state_t {
 	__IXGBE_TX_DETECT_HANG,
 	__IXGBE_HANG_CHECK_ARMED,
 	__IXGBE_TX_XDP_RING,
+	__IXGBE_TX_DISABLED,
 };
 
 #define ring_uses_build_skb(ring) \
@@ -347,6 +352,10 @@ struct ixgbe_ring {
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
 	struct xdp_rxq_info xdp_rxq;
+	struct xdp_umem *xsk_umem;
+	struct zero_copy_allocator zca; /* ZC allocator anchor */
+	u16 ring_idx;		/* {rx,tx,xdp}_ring back reference idx */
+	u16 rx_buf_len;
 } ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
@@ -764,6 +773,11 @@ struct ixgbe_adapter {
 #ifdef CONFIG_XFRM_OFFLOAD
 	struct ixgbe_ipsec *ipsec;
 #endif /* CONFIG_XFRM_OFFLOAD */
+
+	/* AF_XDP zero-copy */
+	struct xdp_umem **xsk_umems;
+	u16 num_xsk_umems_used;
+	u16 num_xsk_umems;
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)

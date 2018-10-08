@@ -203,7 +203,6 @@ static void send_udp_frags(int fd_raw, struct sockaddr *addr,
 {
 	struct ip *iphdr = (struct ip *)ip_frame;
 	struct ip6_hdr *ip6hdr = (struct ip6_hdr *)ip_frame;
-	struct udphdr udphdr;
 	int res;
 	int offset;
 	int frag_len;

@@ -3144,7 +3144,8 @@ liquidio_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 }
 
 static int
-liquidio_eswitch_mode_set(struct devlink *devlink, u16 mode)
+liquidio_eswitch_mode_set(struct devlink *devlink, u16 mode,
+			  struct netlink_ext_ack *extack)
 {
 	struct lio_devlink_priv *priv;
 	struct octeon_device *oct;

@@ -1337,6 +1337,9 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		if (params->adv_speeds & QED_LM_10000baseKR_Full_BIT)
 			link_params->speed.advertised_speeds |=
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+		if (params->adv_speeds & QED_LM_20000baseKR2_Full_BIT)
+			link_params->speed.advertised_speeds |=
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
 		if (params->adv_speeds & QED_LM_25000baseKR_Full_BIT)
 			link_params->speed.advertised_speeds |=
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
@@ -1503,6 +1506,9 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
 		if_link->advertised_caps |= QED_LM_10000baseKR_Full_BIT;
 	if (params.speed.advertised_speeds &
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
+		if_link->advertised_caps |= QED_LM_20000baseKR2_Full_BIT;
+	if (params.speed.advertised_speeds &
 	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
 		if_link->advertised_caps |= QED_LM_25000baseKR_Full_BIT;
 	if (params.speed.advertised_speeds &
@@ -1522,6 +1528,9 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 	if (link_caps.speed_capabilities &
 	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G)
 		if_link->supported_caps |= QED_LM_10000baseKR_Full_BIT;
+	if (link_caps.speed_capabilities &
+	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G)
+		if_link->supported_caps |= QED_LM_20000baseKR2_Full_BIT;
 	if (link_caps.speed_capabilities &
 	    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G)
 		if_link->supported_caps |= QED_LM_25000baseKR_Full_BIT;
@@ -1559,6 +1568,8 @@ static void qed_fill_link(struct qed_hwfn *hwfn,
 		if_link->lp_caps |= QED_LM_1000baseT_Full_BIT;
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_10G)
 		if_link->lp_caps |= QED_LM_10000baseKR_Full_BIT;
+	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_20G)
+		if_link->lp_caps |= QED_LM_20000baseKR2_Full_BIT;
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_25G)
 		if_link->lp_caps |= QED_LM_25000baseKR_Full_BIT;
 	if (link.partner_adv_speed & QED_LINK_PARTNER_SPEED_40G)

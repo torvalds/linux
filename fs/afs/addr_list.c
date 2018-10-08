@@ -17,11 +17,6 @@
 #include "internal.h"
 #include "afs_fs.h"
 
-//#define AFS_MAX_ADDRESSES
-//	((unsigned int)((PAGE_SIZE - sizeof(struct afs_addr_list)) /
-//			sizeof(struct sockaddr_rxrpc)))
-#define AFS_MAX_ADDRESSES ((unsigned int)(sizeof(unsigned long) * 8))
-
 /*
  * Release an address list.
  */
@@ -43,11 +38,15 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr,
 
 	_enter("%u,%u,%u", nr, service, port);
 
+	if (nr > AFS_MAX_ADDRESSES)
+		nr = AFS_MAX_ADDRESSES;
+
 	alist = kzalloc(struct_size(alist, addrs, nr), GFP_KERNEL);
 	if (!alist)
 		return NULL;
 
 	refcount_set(&alist->usage, 1);
+	alist->max_addrs = nr;
 
 	for (i = 0; i < nr; i++) {
 		struct sockaddr_rxrpc *srx = &alist->addrs[i];
@@ -109,8 +108,6 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 	} while (p < end);
 
 	_debug("%u/%u addresses", nr, AFS_MAX_ADDRESSES);
-	if (nr > AFS_MAX_ADDRESSES)
-		nr = AFS_MAX_ADDRESSES;
 
 	alist = afs_alloc_addrlist(nr, service, port);
 	if (!alist)
@@ -119,8 +116,10 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 	/* Extract the addresses */
 	p = text;
 	do {
-		struct sockaddr_rxrpc *srx = &alist->addrs[alist->nr_addrs];
 		const char *q, *stop;
+		unsigned int xport = port;
+		__be32 x[4];
+		int family;
 
 		if (*p == delim) {
 			p++;
@@ -136,19 +135,12 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 					break;
 		}
 
-		if (in4_pton(p, q - p,
-			     (u8 *)&srx->transport.sin6.sin6_addr.s6_addr32[3],
-			     -1, &stop)) {
-			srx->transport.sin6.sin6_addr.s6_addr32[0] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[1] = 0;
-			srx->transport.sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-		} else if (in6_pton(p, q - p,
-				    srx->transport.sin6.sin6_addr.s6_addr,
-				    -1, &stop)) {
-			/* Nothing to do */
-		} else {
+		if (in4_pton(p, q - p, (u8 *)&x[0], -1, &stop))
+			family = AF_INET;
+		else if (in6_pton(p, q - p, (u8 *)x, -1, &stop))
+			family = AF_INET6;
+		else
 			goto bad_address;
-		}
 
 		if (stop != q)
 			goto bad_address;
@@ -160,7 +152,7 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 		if (p < end) {
 			if (*p == '+') {
 				/* Port number specification "+1234" */
-				unsigned int xport = 0;
+				xport = 0;
 				p++;
 				if (p >= end || !isdigit(*p))
 					goto bad_address;
@@ -171,7 +163,6 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 						goto bad_address;
 					p++;
 				} while (p < end && isdigit(*p));
-				srx->transport.sin6.sin6_port = htons(xport);
 			} else if (*p == delim) {
 				p++;
 			} else {
@@ -179,8 +170,12 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 			}
 		}
 
-		alist->nr_addrs++;
-	} while (p < end && alist->nr_addrs < AFS_MAX_ADDRESSES);
+		if (family == AF_INET)
+			afs_merge_fs_addr4(alist, x[0], xport);
+		else
+			afs_merge_fs_addr6(alist, x, xport);
+
+	} while (p < end);
 
 	_leave(" = [nr %u]", alist->nr_addrs);
 	return alist;
@@ -237,19 +232,23 @@ struct afs_addr_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
  */
 void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 {
-	struct sockaddr_in6 *a;
-	__be16 xport = htons(port);
+	struct sockaddr_rxrpc *srx;
+	u32 addr = ntohl(xdr);
 	int i;
 
+	if (alist->nr_addrs >= alist->max_addrs)
+		return;
+
 	for (i = 0; i < alist->nr_ipv4; i++) {
-		a = &alist->addrs[i].transport.sin6;
-		if (xdr == a->sin6_addr.s6_addr32[3] &&
-		    xport == a->sin6_port)
+		struct sockaddr_in *a = &alist->addrs[i].transport.sin;
+		u32 a_addr = ntohl(a->sin_addr.s_addr);
+		u16 a_port = ntohs(a->sin_port);
+
+		if (addr == a_addr && port == a_port)
 			return;
-		if (xdr == a->sin6_addr.s6_addr32[3] &&
-		    (u16 __force)xport < (u16 __force)a->sin6_port)
+		if (addr == a_addr && port < a_port)
 			break;
-		if ((u32 __force)xdr < (u32 __force)a->sin6_addr.s6_addr32[3])
+		if (addr < a_addr)
 			break;
 	}
 
@@ -258,12 +257,11 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	a = &alist->addrs[i].transport.sin6;
-	a->sin6_port		  = xport;
-	a->sin6_addr.s6_addr32[0] = 0;
-	a->sin6_addr.s6_addr32[1] = 0;
-	a->sin6_addr.s6_addr32[2] = htonl(0xffff);
-	a->sin6_addr.s6_addr32[3] = xdr;
+	srx = &alist->addrs[i];
+	srx->transport_len = sizeof(srx->transport.sin);
+	srx->transport.sin.sin_family = AF_INET;
+	srx->transport.sin.sin_port = htons(port);
+	srx->transport.sin.sin_addr.s_addr = xdr;
 	alist->nr_ipv4++;
 	alist->nr_addrs++;
 }
@@ -273,18 +271,20 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
  */
 void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 {
-	struct sockaddr_in6 *a;
-	__be16 xport = htons(port);
+	struct sockaddr_rxrpc *srx;
 	int i, diff;
 
+	if (alist->nr_addrs >= alist->max_addrs)
+		return;
+
 	for (i = alist->nr_ipv4; i < alist->nr_addrs; i++) {
-		a = &alist->addrs[i].transport.sin6;
+		struct sockaddr_in6 *a = &alist->addrs[i].transport.sin6;
+		u16 a_port = ntohs(a->sin6_port);
+
 		diff = memcmp(xdr, &a->sin6_addr, 16);
-		if (diff == 0 &&
-		    xport == a->sin6_port)
+		if (diff == 0 && port == a_port)
 			return;
-		if (diff == 0 &&
-		    (u16 __force)xport < (u16 __force)a->sin6_port)
+		if (diff == 0 && port < a_port)
 			break;
 		if (diff < 0)
 			break;
@@ -295,12 +295,11 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 			alist->addrs + i,
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
-	a = &alist->addrs[i].transport.sin6;
-	a->sin6_port		  = xport;
-	a->sin6_addr.s6_addr32[0] = xdr[0];
-	a->sin6_addr.s6_addr32[1] = xdr[1];
-	a->sin6_addr.s6_addr32[2] = xdr[2];
-	a->sin6_addr.s6_addr32[3] = xdr[3];
+	srx = &alist->addrs[i];
+	srx->transport_len = sizeof(srx->transport.sin6);
+	srx->transport.sin6.sin6_family = AF_INET6;
+	srx->transport.sin6.sin6_port = htons(port);
+	memcpy(&srx->transport.sin6.sin6_addr, xdr, 16);
 	alist->nr_addrs++;
 }
 

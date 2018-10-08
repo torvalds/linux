@@ -2679,6 +2679,9 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	case NVM_CFG1_PORT_DRV_LINK_SPEED_10G:
 		link->speed.forced_speed = 10000;
 		break;
+	case NVM_CFG1_PORT_DRV_LINK_SPEED_20G:
+		link->speed.forced_speed = 20000;
+		break;
 	case NVM_CFG1_PORT_DRV_LINK_SPEED_25G:
 		link->speed.forced_speed = 25000;
 		break;

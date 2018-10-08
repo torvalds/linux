@@ -418,6 +418,7 @@ struct ice_tlan_ctx {
 	u8  pf_num;
 	u16 vmvf_num;
 	u8  vmvf_type;
+#define ICE_TLAN_CTX_VMVF_TYPE_VF	0
 #define ICE_TLAN_CTX_VMVF_TYPE_VMQ	1
 #define ICE_TLAN_CTX_VMVF_TYPE_PF	2
 	u16 src_vsi;
@@ -473,4 +474,16 @@ static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
 {
 	return ice_ptype_lkup[ptype];
 }
+
+#define ICE_LINK_SPEED_UNKNOWN		0
+#define ICE_LINK_SPEED_10MBPS		10
+#define ICE_LINK_SPEED_100MBPS		100
+#define ICE_LINK_SPEED_1000MBPS		1000
+#define ICE_LINK_SPEED_2500MBPS		2500
+#define ICE_LINK_SPEED_5000MBPS		5000
+#define ICE_LINK_SPEED_10000MBPS	10000
+#define ICE_LINK_SPEED_20000MBPS	20000
+#define ICE_LINK_SPEED_25000MBPS	25000
+#define ICE_LINK_SPEED_40000MBPS	40000
+
 #endif /* _ICE_LAN_TX_RX_H_ */

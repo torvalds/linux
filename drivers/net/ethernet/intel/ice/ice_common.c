@@ -422,7 +422,7 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 			devm_kfree(ice_hw_to_dev(hw), lst_itr);
 		}
 	}
-
+	ice_rm_all_sw_replay_rule_info(hw);
 	devm_kfree(ice_hw_to_dev(hw), sw->recp_list);
 	devm_kfree(ice_hw_to_dev(hw), sw);
 }
@@ -598,6 +598,39 @@ void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
 }
 
 /**
+ * ice_get_itr_intrl_gran - determine int/intrl granularity
+ * @hw: pointer to the hw struct
+ *
+ * Determines the itr/intrl granularities based on the maximum aggregate
+ * bandwidth according to the device's configuration during power-on.
+ */
+static enum ice_status ice_get_itr_intrl_gran(struct ice_hw *hw)
+{
+	u8 max_agg_bw = (rd32(hw, GL_PWR_MODE_CTL) &
+			 GL_PWR_MODE_CTL_CAR_MAX_BW_M) >>
+			GL_PWR_MODE_CTL_CAR_MAX_BW_S;
+
+	switch (max_agg_bw) {
+	case ICE_MAX_AGG_BW_200G:
+	case ICE_MAX_AGG_BW_100G:
+	case ICE_MAX_AGG_BW_50G:
+		hw->itr_gran = ICE_ITR_GRAN_ABOVE_25;
+		hw->intrl_gran = ICE_INTRL_GRAN_ABOVE_25;
+		break;
+	case ICE_MAX_AGG_BW_25G:
+		hw->itr_gran = ICE_ITR_GRAN_MAX_25;
+		hw->intrl_gran = ICE_INTRL_GRAN_MAX_25;
+		break;
+	default:
+		ice_debug(hw, ICE_DBG_INIT,
+			  "Failed to determine itr/intrl granularity\n");
+		return ICE_ERR_CFG;
+	}
+
+	return 0;
+}
+
+/**
  * ice_init_hw - main hardware initialization routine
  * @hw: pointer to the hardware structure
  */
@@ -621,11 +654,9 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		return status;
 
-	/* set these values to minimum allowed */
-	hw->itr_gran_200 = ICE_ITR_GRAN_MIN_200;
-	hw->itr_gran_100 = ICE_ITR_GRAN_MIN_100;
-	hw->itr_gran_50 = ICE_ITR_GRAN_MIN_50;
-	hw->itr_gran_25 = ICE_ITR_GRAN_MIN_25;
+	status = ice_get_itr_intrl_gran(hw);
+	if (status)
+		return status;
 
 	status = ice_init_all_ctrlq(hw);
 	if (status)
@@ -1375,6 +1406,28 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 		u16 cap = le16_to_cpu(cap_resp->cap);
 
 		switch (cap) {
+		case ICE_AQC_CAPS_SRIOV:
+			caps->sr_iov_1_1 = (number == 1);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: SR-IOV = %d\n", caps->sr_iov_1_1);
+			break;
+		case ICE_AQC_CAPS_VF:
+			if (dev_p) {
+				dev_p->num_vfs_exposed = number;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: VFs exposed = %d\n",
+					  dev_p->num_vfs_exposed);
+			} else if (func_p) {
+				func_p->num_allocd_vfs = number;
+				func_p->vf_base_id = logical_id;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: VFs allocated = %d\n",
+					  func_p->num_allocd_vfs);
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: VF base_id = %d\n",
+					  func_p->vf_base_id);
+			}
+			break;
 		case ICE_AQC_CAPS_VSI:
 			if (dev_p) {
 				dev_p->num_vsi_allocd_to_host = number;
@@ -1740,8 +1793,7 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
  * ice_update_link_info - update status of the HW network link
  * @pi: port info structure of the interested logical port
  */
-static enum ice_status
-ice_update_link_info(struct ice_port_info *pi)
+enum ice_status ice_update_link_info(struct ice_port_info *pi)
 {
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_phy_info *phy_info;
@@ -2055,7 +2107,7 @@ ice_aq_get_set_rss_lut_exit:
 /**
  * ice_aq_get_rss_lut
  * @hw: pointer to the hardware structure
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @lut_type: LUT table type
  * @lut: pointer to the LUT buffer provided by the caller
  * @lut_size: size of the LUT buffer
@@ -2063,17 +2115,20 @@ ice_aq_get_set_rss_lut_exit:
  * get the RSS lookup table, PF or VSI type
  */
 enum ice_status
-ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
-		   u16 lut_size)
+ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type,
+		   u8 *lut, u16 lut_size)
 {
-	return __ice_aq_get_set_rss_lut(hw, vsi_id, lut_type, lut, lut_size, 0,
-					false);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_lut(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					lut_type, lut, lut_size, 0, false);
 }
 
 /**
  * ice_aq_set_rss_lut
  * @hw: pointer to the hardware structure
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @lut_type: LUT table type
  * @lut: pointer to the LUT buffer provided by the caller
  * @lut_size: size of the LUT buffer
@@ -2081,11 +2136,14 @@ ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
  * set the RSS lookup table, PF or VSI type
  */
 enum ice_status
-ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
-		   u16 lut_size)
+ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type,
+		   u8 *lut, u16 lut_size)
 {
-	return __ice_aq_get_set_rss_lut(hw, vsi_id, lut_type, lut, lut_size, 0,
-					true);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_lut(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					lut_type, lut, lut_size, 0, true);
 }
 
 /**
@@ -2126,31 +2184,39 @@ ice_status __ice_aq_get_set_rss_key(struct ice_hw *hw, u16 vsi_id,
 /**
  * ice_aq_get_rss_key
  * @hw: pointer to the hw struct
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @key: pointer to key info struct
  *
  * get the RSS key per VSI
  */
 enum ice_status
-ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_id,
+ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_handle,
 		   struct ice_aqc_get_set_rss_keys *key)
 {
-	return __ice_aq_get_set_rss_key(hw, vsi_id, key, false);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !key)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_key(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					key, false);
 }
 
 /**
  * ice_aq_set_rss_key
  * @hw: pointer to the hw struct
- * @vsi_id: VSI FW index
+ * @vsi_handle: software VSI handle
  * @keys: pointer to key info struct
  *
  * set the RSS key per VSI
  */
 enum ice_status
-ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_id,
+ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_handle,
 		   struct ice_aqc_get_set_rss_keys *keys)
 {
-	return __ice_aq_get_set_rss_key(hw, vsi_id, keys, true);
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !keys)
+		return ICE_ERR_PARAM;
+
+	return __ice_aq_get_set_rss_key(hw, ice_get_hw_vsi_num(hw, vsi_handle),
+					keys, true);
 }
 
 /**
@@ -2221,6 +2287,8 @@ ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
  * @num_qgrps: number of groups in the list
  * @qg_list: the list of groups to disable
  * @buf_size: the total size of the qg_list buffer in bytes
+ * @rst_src: if called due to reset, specifies the RST source
+ * @vmvf_num: the relative VM or VF number that is undergoing the reset
  * @cd: pointer to command details structure or NULL
  *
  * Disable LAN Tx queue (0x0C31)
@@ -2228,6 +2296,7 @@ ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 static enum ice_status
 ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 		   struct ice_aqc_dis_txq_item *qg_list, u16 buf_size,
+		   enum ice_disq_rst_src rst_src, u16 vmvf_num,
 		   struct ice_sq_cd *cd)
 {
 	struct ice_aqc_dis_txqs *cmd;
@@ -2237,13 +2306,44 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	cmd = &desc.params.dis_txqs;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_dis_txqs);
 
-	if (!qg_list)
+	/* qg_list can be NULL only in VM/VF reset flow */
+	if (!qg_list && !rst_src)
 		return ICE_ERR_PARAM;
 
 	if (num_qgrps > ICE_LAN_TXQ_MAX_QGRPS)
 		return ICE_ERR_PARAM;
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
 	cmd->num_entries = num_qgrps;
+
+	cmd->vmvf_and_timeout = cpu_to_le16((5 << ICE_AQC_Q_DIS_TIMEOUT_S) &
+					    ICE_AQC_Q_DIS_TIMEOUT_M);
+
+	switch (rst_src) {
+	case ICE_VM_RESET:
+		cmd->cmd_type = ICE_AQC_Q_DIS_CMD_VM_RESET;
+		cmd->vmvf_and_timeout |=
+			cpu_to_le16(vmvf_num & ICE_AQC_Q_DIS_VMVF_NUM_M);
+		break;
+	case ICE_VF_RESET:
+		cmd->cmd_type = ICE_AQC_Q_DIS_CMD_VF_RESET;
+		/* In this case, FW expects vmvf_num to be absolute VF id */
+		cmd->vmvf_and_timeout |=
+			cpu_to_le16((vmvf_num + hw->func_caps.vf_base_id) &
+				    ICE_AQC_Q_DIS_VMVF_NUM_M);
+		break;
+	case ICE_NO_RESET:
+	default:
+		break;
+	}
+
+	/* If no queue group info, we are in a reset flow. Issue the AQ */
+	if (!qg_list)
+		goto do_aq;
+
+	/* set RD bit to indicate that command buffer is provided by the driver
+	 * and it needs to be read by the firmware
+	 */
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
 
 	for (i = 0; i < num_qgrps; ++i) {
 		/* Calculate the size taken up by the queue IDs in this group */
@@ -2260,6 +2360,7 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	if (buf_size != sz)
 		return ICE_ERR_PARAM;
 
+do_aq:
 	return ice_aq_send_cmd(hw, &desc, qg_list, buf_size, cd);
 }
 
@@ -2489,7 +2590,7 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 /**
  * ice_ena_vsi_txq
  * @pi: port information structure
- * @vsi_id: VSI id
+ * @vsi_handle: software VSI handle
  * @tc: tc number
  * @num_qgrps: Number of added queue groups
  * @buf: list of queue groups to be added
@@ -2499,7 +2600,7 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
  * This function adds one lan q
  */
 enum ice_status
-ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_id, u8 tc, u8 num_qgrps,
+ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_qgrps,
 		struct ice_aqc_add_tx_qgrp *buf, u16 buf_size,
 		struct ice_sq_cd *cd)
 {
@@ -2516,15 +2617,19 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_id, u8 tc, u8 num_qgrps,
 
 	hw = pi->hw;
 
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
 	mutex_lock(&pi->sched_lock);
 
 	/* find a parent node */
-	parent = ice_sched_get_free_qparent(pi, vsi_id, tc,
+	parent = ice_sched_get_free_qparent(pi, vsi_handle, tc,
 					    ICE_SCHED_NODE_OWNER_LAN);
 	if (!parent) {
 		status = ICE_ERR_PARAM;
 		goto ena_txq_exit;
 	}
+
 	buf->parent_teid = parent->info.node_teid;
 	node.parent_teid = parent->info.node_teid;
 	/* Mark that the values in the "generic" section as valid. The default
@@ -2562,13 +2667,16 @@ ena_txq_exit:
  * @num_queues: number of queues
  * @q_ids: pointer to the q_id array
  * @q_teids: pointer to queue node teids
+ * @rst_src: if called due to reset, specifies the RST source
+ * @vmvf_num: the relative VM or VF number that is undergoing the reset
  * @cd: pointer to command details structure or NULL
  *
  * This function removes queues and their corresponding nodes in SW DB
  */
 enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
-		u32 *q_teids, struct ice_sq_cd *cd)
+		u32 *q_teids, enum ice_disq_rst_src rst_src, u16 vmvf_num,
+		struct ice_sq_cd *cd)
 {
 	enum ice_status status = ICE_ERR_DOES_NOT_EXIST;
 	struct ice_aqc_dis_txq_item qg_list;
@@ -2576,6 +2684,15 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return ICE_ERR_CFG;
+
+	/* if queue is disabled already yet the disable queue command has to be
+	 * sent to complete the VF reset, then call ice_aq_dis_lan_txq without
+	 * any queue information
+	 */
+
+	if (!num_queues && rst_src)
+		return ice_aq_dis_lan_txq(pi->hw, 0, NULL, 0, rst_src, vmvf_num,
+					  NULL);
 
 	mutex_lock(&pi->sched_lock);
 
@@ -2589,7 +2706,8 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 		qg_list.num_qs = 1;
 		qg_list.q_id[0] = cpu_to_le16(q_ids[i]);
 		status = ice_aq_dis_lan_txq(pi->hw, 1, &qg_list,
-					    sizeof(qg_list), cd);
+					    sizeof(qg_list), rst_src, vmvf_num,
+					    cd);
 
 		if (status)
 			break;
@@ -2602,7 +2720,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 /**
  * ice_cfg_vsi_qs - configure the new/exisiting VSI queues
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc_bitmap: TC bitmap
  * @maxqs: max queues array per TC
  * @owner: lan or rdma
@@ -2610,7 +2728,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
  * This function adds/updates the VSI queues per TC.
  */
 static enum ice_status
-ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
+ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 	       u16 *maxqs, u8 owner)
 {
 	enum ice_status status = 0;
@@ -2619,6 +2737,9 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return ICE_ERR_CFG;
 
+	if (!ice_is_vsi_valid(pi->hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
 	mutex_lock(&pi->sched_lock);
 
 	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
@@ -2626,7 +2747,7 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
 		if (!ice_sched_get_tc_node(pi, i))
 			continue;
 
-		status = ice_sched_cfg_vsi(pi, vsi_id, i, maxqs[i], owner,
+		status = ice_sched_cfg_vsi(pi, vsi_handle, i, maxqs[i], owner,
 					   ice_is_tc_ena(tc_bitmap, i));
 		if (status)
 			break;
@@ -2639,18 +2760,81 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
 /**
  * ice_cfg_vsi_lan - configure VSI lan queues
  * @pi: port information structure
- * @vsi_id: VSI Id
+ * @vsi_handle: software VSI handle
  * @tc_bitmap: TC bitmap
  * @max_lanqs: max lan queues array per TC
  *
  * This function adds/updates the VSI lan queues per TC.
  */
 enum ice_status
-ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
+ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 		u16 *max_lanqs)
 {
-	return ice_cfg_vsi_qs(pi, vsi_id, tc_bitmap, max_lanqs,
+	return ice_cfg_vsi_qs(pi, vsi_handle, tc_bitmap, max_lanqs,
 			      ICE_SCHED_NODE_OWNER_LAN);
+}
+
+/**
+ * ice_replay_pre_init - replay pre initialization
+ * @hw: pointer to the hw struct
+ *
+ * Initializes required config data for VSI, FD, ACL, and RSS before replay.
+ */
+static enum ice_status ice_replay_pre_init(struct ice_hw *hw)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	u8 i;
+
+	/* Delete old entries from replay filter list head if there is any */
+	ice_rm_all_sw_replay_rule_info(hw);
+	/* In start of replay, move entries into replay_rules list, it
+	 * will allow adding rules entries back to filt_rules list,
+	 * which is operational list.
+	 */
+	for (i = 0; i < ICE_SW_LKUP_LAST; i++)
+		list_replace_init(&sw->recp_list[i].filt_rules,
+				  &sw->recp_list[i].filt_replay_rules);
+
+	return 0;
+}
+
+/**
+ * ice_replay_vsi - replay VSI configuration
+ * @hw: pointer to the hw struct
+ * @vsi_handle: driver VSI handle
+ *
+ * Restore all VSI configuration after reset. It is required to call this
+ * function with main VSI first.
+ */
+enum ice_status ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle)
+{
+	enum ice_status status;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle))
+		return ICE_ERR_PARAM;
+
+	/* Replay pre-initialization if there is any */
+	if (vsi_handle == ICE_MAIN_VSI_HANDLE) {
+		status = ice_replay_pre_init(hw);
+		if (status)
+			return status;
+	}
+
+	/* Replay per VSI all filters */
+	status = ice_replay_vsi_all_fltr(hw, vsi_handle);
+	return status;
+}
+
+/**
+ * ice_replay_post - post replay configuration cleanup
+ * @hw: pointer to the hw struct
+ *
+ * Post replay cleanup.
+ */
+void ice_replay_post(struct ice_hw *hw)
+{
+	/* Delete old entries from replay filter list head */
+	ice_rm_all_sw_replay_rule_info(hw);
 }
 
 /**

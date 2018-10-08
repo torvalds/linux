@@ -19,11 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -482,15 +477,11 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 	u32 status;
 	int resp_len, n_channels;
 	u16 mcc;
-	bool resp_v2 = fw_has_capa(&mvm->fw->ucode_capa,
-				   IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	cmd.len[0] = sizeof(struct iwl_mcc_update_cmd);
-	if (!resp_v2)
-		cmd.len[0] = sizeof(struct iwl_mcc_update_cmd_v1);
 
 	IWL_DEBUG_LAR(mvm, "send MCC update to FW with '%c%c' src = %d\n",
 		      alpha2[0], alpha2[1], src_id);
@@ -502,7 +493,8 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 	pkt = cmd.resp_pkt;
 
 	/* Extract MCC response */
-	if (resp_v2) {
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT)) {
 		struct iwl_mcc_update_resp *mcc_resp = (void *)pkt->data;
 
 		n_channels =  __le32_to_cpu(mcc_resp->n_channels);
@@ -514,9 +506,9 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 			goto exit;
 		}
 	} else {
-		struct iwl_mcc_update_resp_v1 *mcc_resp_v1 = (void *)pkt->data;
+		struct iwl_mcc_update_resp_v3 *mcc_resp_v3 = (void *)pkt->data;
 
-		n_channels =  __le32_to_cpu(mcc_resp_v1->n_channels);
+		n_channels =  __le32_to_cpu(mcc_resp_v3->n_channels);
 		resp_len = sizeof(struct iwl_mcc_update_resp) +
 			   n_channels * sizeof(__le32);
 		resp_cp = kzalloc(resp_len, GFP_KERNEL);
@@ -525,12 +517,14 @@ iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
 			goto exit;
 		}
 
-		resp_cp->status = mcc_resp_v1->status;
-		resp_cp->mcc = mcc_resp_v1->mcc;
-		resp_cp->cap = mcc_resp_v1->cap;
-		resp_cp->source_id = mcc_resp_v1->source_id;
-		resp_cp->n_channels = mcc_resp_v1->n_channels;
-		memcpy(resp_cp->channels, mcc_resp_v1->channels,
+		resp_cp->status = mcc_resp_v3->status;
+		resp_cp->mcc = mcc_resp_v3->mcc;
+		resp_cp->cap = cpu_to_le16(mcc_resp_v3->cap);
+		resp_cp->source_id = mcc_resp_v3->source_id;
+		resp_cp->time = mcc_resp_v3->time;
+		resp_cp->geo_info = mcc_resp_v3->geo_info;
+		resp_cp->n_channels = mcc_resp_v3->n_channels;
+		memcpy(resp_cp->channels, mcc_resp_v3->channels,
 		       n_channels * sizeof(__le32));
 	}
 

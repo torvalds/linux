@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -35,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +82,10 @@ const u8 iwl_mvm_ac_to_gen2_tx_fifo[] = {
 	IWL_GEN2_EDCA_TX_FIFO_VI,
 	IWL_GEN2_EDCA_TX_FIFO_BE,
 	IWL_GEN2_EDCA_TX_FIFO_BK,
+	IWL_GEN2_TRIG_TX_FIFO_VO,
+	IWL_GEN2_TRIG_TX_FIFO_VI,
+	IWL_GEN2_TRIG_TX_FIFO_BE,
+	IWL_GEN2_TRIG_TX_FIFO_BK,
 };
 
 struct iwl_mvm_mac_iface_iterator_data {
@@ -1486,23 +1487,17 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 	     IWL_MVM_MISSED_BEACONS_THRESHOLD)
 		ieee80211_beacon_loss(vif);
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw,
-					FW_DBG_TRIGGER_MISSED_BEACONS))
+	trigger = iwl_fw_dbg_trigger_on(&mvm->fwrt, ieee80211_vif_to_wdev(vif),
+					FW_DBG_TRIGGER_MISSED_BEACONS);
+	if (!trigger)
 		return;
 
-	trigger = iwl_fw_dbg_get_trigger(mvm->fw,
-					 FW_DBG_TRIGGER_MISSED_BEACONS);
 	bcon_trig = (void *)trigger->data;
 	stop_trig_missed_bcon = le32_to_cpu(bcon_trig->stop_consec_missed_bcon);
 	stop_trig_missed_bcon_since_rx =
 		le32_to_cpu(bcon_trig->stop_consec_missed_bcon_since_rx);
 
 	/* TODO: implement start trigger */
-
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-					   ieee80211_vif_to_wdev(vif),
-					   trigger))
-		return;
 
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)
@@ -1566,6 +1561,65 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 
 	/* pass it as regular rx to mac80211 */
 	ieee80211_rx_napi(mvm->hw, NULL, skb, NULL);
+}
+
+static void iwl_mvm_probe_resp_data_iter(void *_data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_probe_resp_data_notif *notif = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_probe_resp_data *old_data, *new_data;
+
+	if (mvmvif->id != (u16)le32_to_cpu(notif->mac_id))
+		return;
+
+	new_data = kzalloc(sizeof(*new_data), GFP_KERNEL);
+	if (!new_data)
+		return;
+
+	memcpy(&new_data->notif, notif, sizeof(new_data->notif));
+
+	/* noa_attr contains 1 reserved byte, need to substruct it */
+	new_data->noa_len = sizeof(struct ieee80211_vendor_ie) +
+			    sizeof(new_data->notif.noa_attr) - 1;
+
+	/*
+	 * If it's a one time NoA, only one descriptor is needed,
+	 * adjust the length according to len_low.
+	 */
+	if (new_data->notif.noa_attr.len_low ==
+	    sizeof(struct ieee80211_p2p_noa_desc) + 2)
+		new_data->noa_len -= sizeof(struct ieee80211_p2p_noa_desc);
+
+	old_data = rcu_dereference_protected(mvmvif->probe_resp_data,
+					lockdep_is_held(&mvmvif->mvm->mutex));
+	rcu_assign_pointer(mvmvif->probe_resp_data, new_data);
+
+	if (old_data)
+		kfree_rcu(old_data, rcu_head);
+
+	if (notif->csa_counter != IWL_PROBE_RESP_DATA_NO_CSA &&
+	    notif->csa_counter >= 1)
+		ieee80211_csa_set_counter(vif, notif->csa_counter);
+}
+
+void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_probe_resp_data_notif *notif = (void *)pkt->data;
+	int len = iwl_rx_packet_payload_len(pkt);
+
+	if (WARN_ON_ONCE(len < sizeof(*notif)))
+		return;
+
+	IWL_DEBUG_INFO(mvm, "Probe response data notif: noa %d, csa %d\n",
+		       notif->noa_active, notif->csa_counter);
+
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_ACTIVE,
+					    iwl_mvm_probe_resp_data_iter,
+					    notif);
 }
 
 void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
