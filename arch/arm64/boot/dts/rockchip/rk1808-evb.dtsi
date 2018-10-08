@@ -555,6 +555,11 @@
 	status = "okay";
 };
 
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
+
 &sdio {
 	bus-width = <4>;
 	cap-mmc-highspeed;
