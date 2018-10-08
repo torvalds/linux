@@ -11964,6 +11964,25 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	return 0;
 }
 
+/*
+ * Returns if KVM is able to config CPU to tag TLB entries
+ * populated by L2 differently than TLB entries populated
+ * by L1.
+ *
+ * If L1 uses EPT, then TLB entries are tagged with different EPTP.
+ *
+ * If L1 uses VPID and we allocated a vpid02, TLB entries are tagged
+ * with different VPID (L1 entries are tagged with vmx->vpid
+ * while L2 entries are tagged with vmx->nested.vpid02).
+ */
+static bool nested_has_guest_tlb_tag(struct kvm_vcpu *vcpu)
+{
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+
+	return nested_cpu_has_ept(vmcs12) ||
+	       (nested_cpu_has_vpid(vmcs12) && to_vmx(vcpu)->nested.vpid02);
+}
+
 static void prepare_vmcs02_full(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -12292,10 +12311,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		 * influence global bitmap(for vpid01 and vpid02 allocation)
 		 * even if spawn a lot of nested vCPUs.
 		 */
-		if (nested_cpu_has_vpid(vmcs12) && vmx->nested.vpid02) {
+		if (nested_cpu_has_vpid(vmcs12) && nested_has_guest_tlb_tag(vcpu)) {
 			if (vmcs12->virtual_processor_id != vmx->nested.last_vpid) {
 				vmx->nested.last_vpid = vmcs12->virtual_processor_id;
-				__vmx_flush_tlb(vcpu, vmx->nested.vpid02, false);
+				__vmx_flush_tlb(vcpu, nested_get_vpid02(vcpu), false);
 			}
 		} else {
 			/*
@@ -13194,23 +13213,21 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	load_vmcs12_mmu_host_state(vcpu, vmcs12);
 
 	/*
-	 * If vmcs01 don't use VPID, CPU flushes TLB on every
+	 * If vmcs01 doesn't use VPID, CPU flushes TLB on every
 	 * VMEntry/VMExit. Thus, no need to flush TLB.
 	 *
-	 * If vmcs12 uses VPID, TLB entries populated by L2 are
-	 * tagged with vmx->nested.vpid02 while L1 entries are tagged
-	 * with vmx->vpid. Thus, no need to flush TLB.
+	 * If vmcs12 doesn't use VPID, L1 expects TLB to be
+	 * flushed on every VMEntry/VMExit.
 	 *
-	 * Therefore, flush TLB only in case vmcs01 uses VPID and
-	 * vmcs12 don't use VPID as in this case L1 & L2 TLB entries
-	 * are both tagged with vmx->vpid.
+	 * Otherwise, we can preserve TLB entries as long as we are
+	 * able to tag L1 TLB entries differently than L2 TLB entries.
 	 *
 	 * If vmcs12 uses EPT, we need to execute this flush on EPTP01
 	 * and therefore we request the TLB flush to happen only after VMCS EPTP
 	 * has been set by KVM_REQ_LOAD_CR3.
 	 */
 	if (enable_vpid &&
-	    !(nested_cpu_has_vpid(vmcs12) && to_vmx(vcpu)->nested.vpid02)) {
+	    (!nested_cpu_has_vpid(vmcs12) || !nested_has_guest_tlb_tag(vcpu))) {
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 
