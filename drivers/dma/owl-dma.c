@@ -162,6 +162,7 @@ struct owl_dma_lli {
  * struct owl_dma_txd - Wrapper for struct dma_async_tx_descriptor
  * @vd: virtual DMA descriptor
  * @lli_list: link list of lli nodes
+ * @cyclic: flag to indicate cyclic transfers
  */
 struct owl_dma_txd {
 	struct virt_dma_desc	vd;
@@ -188,6 +189,8 @@ struct owl_dma_pchan {
  * @vc: wrappped virtual channel
  * @pchan: the physical channel utilized by this channel
  * @txd: active transaction on this channel
+ * @cfg: slave configuration for this channel
+ * @drq: physical DMA request ID for this channel
  */
 struct owl_dma_vchan {
 	struct virt_dma_chan	vc;
@@ -204,6 +207,7 @@ struct owl_dma_vchan {
  * @clk: clock for the DMA controller
  * @lock: a lock to use when change DMA controller global register
  * @lli_pool: a pool for the LLI descriptors
+ * @irq: interrupt ID for the DMA controller
  * @nr_pchans: the number of physical channels
  * @pchans: array of data for the physical channels
  * @nr_vchans: the number of physical channels
