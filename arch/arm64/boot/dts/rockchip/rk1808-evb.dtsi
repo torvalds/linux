@@ -521,7 +521,7 @@
 		compatible = "gs_mma7660";
 		reg = <0x4c>;
 		type = <SENSOR_TYPE_ACCEL>;
-		irq-gpio = <&gpio0 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
+		irq-gpio = <&gpio0 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
 		layout = <2>;
