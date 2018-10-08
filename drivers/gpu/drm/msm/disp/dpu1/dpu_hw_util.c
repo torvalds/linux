@@ -50,9 +50,6 @@ static u32 dpu_hw_util_log_mask = DPU_DBG_MASK_NONE;
 #define QSEED3_CLK_CTRL0                   0x54
 #define QSEED3_CLK_CTRL1                   0x58
 #define QSEED3_CLK_STATUS                  0x5C
-#define QSEED3_MISR_CTRL                   0x70
-#define QSEED3_MISR_SIGNATURE_0            0x74
-#define QSEED3_MISR_SIGNATURE_1            0x78
 #define QSEED3_PHASE_INIT_Y_H              0x90
 #define QSEED3_PHASE_INIT_Y_V              0x94
 #define QSEED3_PHASE_INIT_UV_H             0x98

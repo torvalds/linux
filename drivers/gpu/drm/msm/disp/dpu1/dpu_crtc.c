@@ -47,237 +47,17 @@
 #define LEFT_MIXER 0
 #define RIGHT_MIXER 1
 
-#define MISR_BUFF_SIZE			256
+static inline int _dpu_crtc_get_mixer_width(struct dpu_crtc_state *cstate,
+					    struct drm_display_mode *mode)
+{
+	return mode->hdisplay / cstate->num_mixers;
+}
 
 static inline struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
-	struct msm_drm_private *priv;
-
-	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
-		DPU_ERROR("invalid crtc\n");
-		return NULL;
-	}
-	priv = crtc->dev->dev_private;
-	if (!priv || !priv->kms) {
-		DPU_ERROR("invalid kms\n");
-		return NULL;
-	}
+	struct msm_drm_private *priv = crtc->dev->dev_private;
 
 	return to_dpu_kms(priv->kms);
-}
-
-static inline int _dpu_crtc_power_enable(struct dpu_crtc *dpu_crtc, bool enable)
-{
-	struct drm_crtc *crtc;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-
-	if (!dpu_crtc) {
-		DPU_ERROR("invalid dpu crtc\n");
-		return -EINVAL;
-	}
-
-	crtc = &dpu_crtc->base;
-	if (!crtc->dev || !crtc->dev->dev_private) {
-		DPU_ERROR("invalid drm device\n");
-		return -EINVAL;
-	}
-
-	priv = crtc->dev->dev_private;
-	if (!priv->kms) {
-		DPU_ERROR("invalid kms\n");
-		return -EINVAL;
-	}
-
-	dpu_kms = to_dpu_kms(priv->kms);
-
-	if (enable)
-		pm_runtime_get_sync(&dpu_kms->pdev->dev);
-	else
-		pm_runtime_put_sync(&dpu_kms->pdev->dev);
-
-	return 0;
-}
-
-/**
- * _dpu_crtc_rp_to_crtc - get crtc from resource pool object
- * @rp: Pointer to resource pool
- * return: Pointer to drm crtc if success; null otherwise
- */
-static struct drm_crtc *_dpu_crtc_rp_to_crtc(struct dpu_crtc_respool *rp)
-{
-	if (!rp)
-		return NULL;
-
-	return container_of(rp, struct dpu_crtc_state, rp)->base.crtc;
-}
-
-/**
- * _dpu_crtc_rp_reclaim - reclaim unused, or all if forced, resources in pool
- * @rp: Pointer to resource pool
- * @force: True to reclaim all resources; otherwise, reclaim only unused ones
- * return: None
- */
-static void _dpu_crtc_rp_reclaim(struct dpu_crtc_respool *rp, bool force)
-{
-	struct dpu_crtc_res *res, *next;
-	struct drm_crtc *crtc;
-
-	crtc = _dpu_crtc_rp_to_crtc(rp);
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-
-	DPU_DEBUG("crtc%d.%u %s\n", crtc->base.id, rp->sequence_id,
-			force ? "destroy" : "free_unused");
-
-	list_for_each_entry_safe(res, next, &rp->res_list, list) {
-		if (!force && !(res->flags & DPU_CRTC_RES_FLAG_FREE))
-			continue;
-		DPU_DEBUG("crtc%d.%u reclaim res:0x%x/0x%llx/%pK/%d\n",
-				crtc->base.id, rp->sequence_id,
-				res->type, res->tag, res->val,
-				atomic_read(&res->refcount));
-		list_del(&res->list);
-		if (res->ops.put)
-			res->ops.put(res->val);
-		kfree(res);
-	}
-}
-
-/**
- * _dpu_crtc_rp_free_unused - free unused resource in pool
- * @rp: Pointer to resource pool
- * return: none
- */
-static void _dpu_crtc_rp_free_unused(struct dpu_crtc_respool *rp)
-{
-	mutex_lock(rp->rp_lock);
-	_dpu_crtc_rp_reclaim(rp, false);
-	mutex_unlock(rp->rp_lock);
-}
-
-/**
- * _dpu_crtc_rp_destroy - destroy resource pool
- * @rp: Pointer to resource pool
- * return: None
- */
-static void _dpu_crtc_rp_destroy(struct dpu_crtc_respool *rp)
-{
-	mutex_lock(rp->rp_lock);
-	list_del_init(&rp->rp_list);
-	_dpu_crtc_rp_reclaim(rp, true);
-	mutex_unlock(rp->rp_lock);
-}
-
-/**
- * _dpu_crtc_hw_blk_get - get callback for hardware block
- * @val: Resource handle
- * @type: Resource type
- * @tag: Search tag for given resource
- * return: Resource handle
- */
-static void *_dpu_crtc_hw_blk_get(void *val, u32 type, u64 tag)
-{
-	DPU_DEBUG("res:%d/0x%llx/%pK\n", type, tag, val);
-	return dpu_hw_blk_get(val, type, tag);
-}
-
-/**
- * _dpu_crtc_hw_blk_put - put callback for hardware block
- * @val: Resource handle
- * return: None
- */
-static void _dpu_crtc_hw_blk_put(void *val)
-{
-	DPU_DEBUG("res://%pK\n", val);
-	dpu_hw_blk_put(val);
-}
-
-/**
- * _dpu_crtc_rp_duplicate - duplicate resource pool and reset reference count
- * @rp: Pointer to original resource pool
- * @dup_rp: Pointer to duplicated resource pool
- * return: None
- */
-static void _dpu_crtc_rp_duplicate(struct dpu_crtc_respool *rp,
-		struct dpu_crtc_respool *dup_rp)
-{
-	struct dpu_crtc_res *res, *dup_res;
-	struct drm_crtc *crtc;
-
-	if (!rp || !dup_rp || !rp->rp_head) {
-		DPU_ERROR("invalid resource pool\n");
-		return;
-	}
-
-	crtc = _dpu_crtc_rp_to_crtc(rp);
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-
-	DPU_DEBUG("crtc%d.%u duplicate\n", crtc->base.id, rp->sequence_id);
-
-	mutex_lock(rp->rp_lock);
-	dup_rp->sequence_id = rp->sequence_id + 1;
-	INIT_LIST_HEAD(&dup_rp->res_list);
-	dup_rp->ops = rp->ops;
-	list_for_each_entry(res, &rp->res_list, list) {
-		dup_res = kzalloc(sizeof(struct dpu_crtc_res), GFP_KERNEL);
-		if (!dup_res) {
-			mutex_unlock(rp->rp_lock);
-			return;
-		}
-		INIT_LIST_HEAD(&dup_res->list);
-		atomic_set(&dup_res->refcount, 0);
-		dup_res->type = res->type;
-		dup_res->tag = res->tag;
-		dup_res->val = res->val;
-		dup_res->ops = res->ops;
-		dup_res->flags = DPU_CRTC_RES_FLAG_FREE;
-		DPU_DEBUG("crtc%d.%u dup res:0x%x/0x%llx/%pK/%d\n",
-				crtc->base.id, dup_rp->sequence_id,
-				dup_res->type, dup_res->tag, dup_res->val,
-				atomic_read(&dup_res->refcount));
-		list_add_tail(&dup_res->list, &dup_rp->res_list);
-		if (dup_res->ops.get)
-			dup_res->ops.get(dup_res->val, 0, -1);
-	}
-
-	dup_rp->rp_lock = rp->rp_lock;
-	dup_rp->rp_head = rp->rp_head;
-	INIT_LIST_HEAD(&dup_rp->rp_list);
-	list_add_tail(&dup_rp->rp_list, rp->rp_head);
-	mutex_unlock(rp->rp_lock);
-}
-
-/**
- * _dpu_crtc_rp_reset - reset resource pool after allocation
- * @rp: Pointer to original resource pool
- * @rp_lock: Pointer to serialization resource pool lock
- * @rp_head: Pointer to crtc resource pool head
- * return: None
- */
-static void _dpu_crtc_rp_reset(struct dpu_crtc_respool *rp,
-		struct mutex *rp_lock, struct list_head *rp_head)
-{
-	if (!rp || !rp_lock || !rp_head) {
-		DPU_ERROR("invalid resource pool\n");
-		return;
-	}
-
-	mutex_lock(rp_lock);
-	rp->rp_lock = rp_lock;
-	rp->rp_head = rp_head;
-	INIT_LIST_HEAD(&rp->rp_list);
-	rp->sequence_id = 0;
-	INIT_LIST_HEAD(&rp->res_list);
-	rp->ops.get = _dpu_crtc_hw_blk_get;
-	rp->ops.put = _dpu_crtc_hw_blk_put;
-	list_add_tail(&rp->rp_list, rp->rp_head);
-	mutex_unlock(rp_lock);
 }
 
 static void dpu_crtc_destroy(struct drm_crtc *crtc)
@@ -297,14 +77,29 @@ static void dpu_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
-		struct dpu_plane_state *pstate)
+		struct dpu_plane_state *pstate, struct dpu_format *format)
 {
 	struct dpu_hw_mixer *lm = mixer->hw_lm;
+	uint32_t blend_op;
+	struct drm_format_name_buf format_name;
 
 	/* default to opaque blending */
-	lm->ops.setup_blend_config(lm, pstate->stage, 0XFF, 0,
-				DPU_BLEND_FG_ALPHA_FG_CONST |
-				DPU_BLEND_BG_ALPHA_BG_CONST);
+	blend_op = DPU_BLEND_FG_ALPHA_FG_CONST |
+		DPU_BLEND_BG_ALPHA_BG_CONST;
+
+	if (format->alpha_enable) {
+		/* coverage blending */
+		blend_op = DPU_BLEND_FG_ALPHA_FG_PIXEL |
+			DPU_BLEND_BG_ALPHA_FG_PIXEL |
+			DPU_BLEND_BG_INV_ALPHA;
+	}
+
+	lm->ops.setup_blend_config(lm, pstate->stage,
+				0xFF, 0, blend_op);
+
+	DPU_DEBUG("format:%s, alpha_en:%u blend_op:0x%x\n",
+		drm_get_format_name(format->base.pixel_format, &format_name),
+		format->alpha_enable, blend_op);
 }
 
 static void _dpu_crtc_program_lm_output_roi(struct drm_crtc *crtc)
@@ -317,9 +112,9 @@ static void _dpu_crtc_program_lm_output_roi(struct drm_crtc *crtc)
 	crtc_state = to_dpu_crtc_state(crtc->state);
 
 	lm_horiz_position = 0;
-	for (lm_idx = 0; lm_idx < dpu_crtc->num_mixers; lm_idx++) {
+	for (lm_idx = 0; lm_idx < crtc_state->num_mixers; lm_idx++) {
 		const struct drm_rect *lm_roi = &crtc_state->lm_bounds[lm_idx];
-		struct dpu_hw_mixer *hw_lm = dpu_crtc->mixers[lm_idx].hw_lm;
+		struct dpu_hw_mixer *hw_lm = crtc_state->mixers[lm_idx].hw_lm;
 		struct dpu_hw_mixer_cfg cfg;
 
 		if (!lm_roi || !drm_rect_visible(lm_roi))
@@ -339,27 +134,16 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	struct drm_framebuffer *fb;
 	struct drm_plane_state *state;
-	struct dpu_crtc_state *cstate;
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	struct dpu_plane_state *pstate = NULL;
 	struct dpu_format *format;
-	struct dpu_hw_ctl *ctl;
-	struct dpu_hw_mixer *lm;
-	struct dpu_hw_stage_cfg *stage_cfg;
+	struct dpu_hw_ctl *ctl = mixer->lm_ctl;
+	struct dpu_hw_stage_cfg *stage_cfg = &dpu_crtc->stage_cfg;
 
 	u32 flush_mask;
 	uint32_t stage_idx, lm_idx;
 	int zpos_cnt[DPU_STAGE_MAX + 1] = { 0 };
 	bool bg_alpha_enable = false;
-
-	if (!dpu_crtc || !mixer) {
-		DPU_ERROR("invalid dpu_crtc or mixer\n");
-		return;
-	}
-
-	ctl = mixer->hw_ctl;
-	lm = mixer->hw_lm;
-	stage_cfg = &dpu_crtc->stage_cfg;
-	cstate = to_dpu_crtc_state(crtc->state);
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		state = plane->state;
@@ -379,10 +163,6 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 				state->fb ? state->fb->base.id : -1);
 
 		format = to_dpu_format(msm_framebuffer_format(pstate->base.fb));
-		if (!format) {
-			DPU_ERROR("invalid format\n");
-			return;
-		}
 
 		if (pstate->stage == DPU_STAGE_BASE && format->alpha_enable)
 			bg_alpha_enable = true;
@@ -400,8 +180,9 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 					   fb ? fb->modifier : 0);
 
 		/* blend config update */
-		for (lm_idx = 0; lm_idx < dpu_crtc->num_mixers; lm_idx++) {
-			_dpu_crtc_setup_blend_cfg(mixer + lm_idx, pstate);
+		for (lm_idx = 0; lm_idx < cstate->num_mixers; lm_idx++) {
+			_dpu_crtc_setup_blend_cfg(mixer + lm_idx,
+						pstate, format);
 
 			mixer[lm_idx].flush_mask |= flush_mask;
 
@@ -422,38 +203,25 @@ static void _dpu_crtc_blend_setup_mixer(struct drm_crtc *crtc,
  */
 static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_state *dpu_crtc_state;
-	struct dpu_crtc_mixer *mixer;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
+	struct dpu_crtc_mixer *mixer = cstate->mixers;
 	struct dpu_hw_ctl *ctl;
 	struct dpu_hw_mixer *lm;
-
 	int i;
-
-	if (!crtc)
-		return;
-
-	dpu_crtc = to_dpu_crtc(crtc);
-	dpu_crtc_state = to_dpu_crtc_state(crtc->state);
-	mixer = dpu_crtc->mixers;
 
 	DPU_DEBUG("%s\n", dpu_crtc->name);
 
-	if (dpu_crtc->num_mixers > CRTC_DUAL_MIXERS) {
-		DPU_ERROR("invalid number mixers: %d\n", dpu_crtc->num_mixers);
-		return;
-	}
-
-	for (i = 0; i < dpu_crtc->num_mixers; i++) {
-		if (!mixer[i].hw_lm || !mixer[i].hw_ctl) {
+	for (i = 0; i < cstate->num_mixers; i++) {
+		if (!mixer[i].hw_lm || !mixer[i].lm_ctl) {
 			DPU_ERROR("invalid lm or ctl assigned to mixer\n");
 			return;
 		}
 		mixer[i].mixer_op_mode = 0;
 		mixer[i].flush_mask = 0;
-		if (mixer[i].hw_ctl->ops.clear_all_blendstages)
-			mixer[i].hw_ctl->ops.clear_all_blendstages(
-					mixer[i].hw_ctl);
+		if (mixer[i].lm_ctl->ops.clear_all_blendstages)
+			mixer[i].lm_ctl->ops.clear_all_blendstages(
+					mixer[i].lm_ctl);
 	}
 
 	/* initialize stage cfg */
@@ -461,8 +229,8 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 
 	_dpu_crtc_blend_setup_mixer(crtc, dpu_crtc, mixer);
 
-	for (i = 0; i < dpu_crtc->num_mixers; i++) {
-		ctl = mixer[i].hw_ctl;
+	for (i = 0; i < cstate->num_mixers; i++) {
+		ctl = mixer[i].lm_ctl;
 		lm = mixer[i].hw_lm;
 
 		lm->ops.setup_alpha_out(lm, mixer[i].mixer_op_mode);
@@ -543,34 +311,13 @@ static void dpu_crtc_vblank_cb(void *data)
 
 static void dpu_crtc_frame_event_work(struct kthread_work *work)
 {
-	struct msm_drm_private *priv;
-	struct dpu_crtc_frame_event *fevent;
-	struct drm_crtc *crtc;
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_kms *dpu_kms;
+	struct dpu_crtc_frame_event *fevent = container_of(work,
+			struct dpu_crtc_frame_event, work);
+	struct drm_crtc *crtc = fevent->crtc;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	unsigned long flags;
 	bool frame_done = false;
 
-	if (!work) {
-		DPU_ERROR("invalid work handle\n");
-		return;
-	}
-
-	fevent = container_of(work, struct dpu_crtc_frame_event, work);
-	if (!fevent->crtc || !fevent->crtc->state) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-
-	crtc = fevent->crtc;
-	dpu_crtc = to_dpu_crtc(crtc);
-
-	dpu_kms = _dpu_crtc_get_kms(crtc);
-	if (!dpu_kms) {
-		DPU_ERROR("invalid kms handle\n");
-		return;
-	}
-	priv = dpu_kms->dev->dev_private;
 	DPU_ATRACE_BEGIN("crtc_frame_event");
 
 	DRM_DEBUG_KMS("crtc%d event:%u ts:%lld\n", crtc->base.id, fevent->event,
@@ -636,11 +383,6 @@ static void dpu_crtc_frame_event_cb(void *data, u32 event)
 	unsigned long flags;
 	u32 crtc_id;
 
-	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
-		DPU_ERROR("invalid parameters\n");
-		return;
-	}
-
 	/* Nothing to do on idle event */
 	if (event & DPU_ENCODER_FRAME_EVENT_IDLE)
 		return;
@@ -683,7 +425,7 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 		struct drm_crtc *crtc,
 		struct drm_encoder *enc)
 {
-	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
 	struct dpu_rm *rm = &dpu_kms->rm;
 	struct dpu_crtc_mixer *mixer;
@@ -695,8 +437,8 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 	dpu_rm_init_hw_iter(&ctl_iter, enc->base.id, DPU_HW_BLK_CTL);
 
 	/* Set up all the mixers and ctls reserved by this encoder */
-	for (i = dpu_crtc->num_mixers; i < ARRAY_SIZE(dpu_crtc->mixers); i++) {
-		mixer = &dpu_crtc->mixers[i];
+	for (i = cstate->num_mixers; i < ARRAY_SIZE(cstate->mixers); i++) {
+		mixer = &cstate->mixers[i];
 
 		if (!dpu_rm_get_hw(rm, &lm_iter))
 			break;
@@ -706,14 +448,14 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 		if (!dpu_rm_get_hw(rm, &ctl_iter)) {
 			DPU_DEBUG("no ctl assigned to lm %d, using previous\n",
 					mixer->hw_lm->idx - LM_0);
-			mixer->hw_ctl = last_valid_ctl;
+			mixer->lm_ctl = last_valid_ctl;
 		} else {
-			mixer->hw_ctl = (struct dpu_hw_ctl *)ctl_iter.hw;
-			last_valid_ctl = mixer->hw_ctl;
+			mixer->lm_ctl = (struct dpu_hw_ctl *)ctl_iter.hw;
+			last_valid_ctl = mixer->lm_ctl;
 		}
 
 		/* Shouldn't happen, mixers are always >= ctls */
-		if (!mixer->hw_ctl) {
+		if (!mixer->lm_ctl) {
 			DPU_ERROR("no valid ctls found for lm %d\n",
 					mixer->hw_lm->idx - LM_0);
 			return;
@@ -721,11 +463,11 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 
 		mixer->encoder = enc;
 
-		dpu_crtc->num_mixers++;
+		cstate->num_mixers++;
 		DPU_DEBUG("setup mixer %d: lm %d\n",
 				i, mixer->hw_lm->idx - LM_0);
 		DPU_DEBUG("setup mixer %d: ctl %d\n",
-				i, mixer->hw_ctl->idx - CTL_0);
+				i, mixer->lm_ctl->idx - CTL_0);
 	}
 }
 
@@ -733,10 +475,6 @@ static void _dpu_crtc_setup_mixers(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct drm_encoder *enc;
-
-	dpu_crtc->num_mixers = 0;
-	dpu_crtc->mixers_swapped = false;
-	memset(dpu_crtc->mixers, 0, sizeof(dpu_crtc->mixers));
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 	/* Check for mixers on all encoders attached to this crtc */
@@ -753,24 +491,13 @@ static void _dpu_crtc_setup_mixers(struct drm_crtc *crtc)
 static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_state *cstate;
-	struct drm_display_mode *adj_mode;
-	u32 crtc_split_width;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
+	struct drm_display_mode *adj_mode = &state->adjusted_mode;
+	u32 crtc_split_width = _dpu_crtc_get_mixer_width(cstate, adj_mode);
 	int i;
 
-	if (!crtc || !state) {
-		DPU_ERROR("invalid args\n");
-		return;
-	}
-
-	dpu_crtc = to_dpu_crtc(crtc);
-	cstate = to_dpu_crtc_state(state);
-
-	adj_mode = &state->adjusted_mode;
-	crtc_split_width = dpu_crtc_get_mixer_width(dpu_crtc, cstate, adj_mode);
-
-	for (i = 0; i < dpu_crtc->num_mixers; i++) {
+	for (i = 0; i < cstate->num_mixers; i++) {
 		struct drm_rect *r = &cstate->lm_bounds[i];
 		r->x1 = crtc_split_width * i;
 		r->y1 = 0;
@@ -787,6 +514,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
 	struct dpu_crtc *dpu_crtc;
+	struct dpu_crtc_state *cstate;
 	struct drm_encoder *encoder;
 	struct drm_device *dev;
 	unsigned long flags;
@@ -806,10 +534,11 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
 
 	dpu_crtc = to_dpu_crtc(crtc);
+	cstate = to_dpu_crtc_state(crtc->state);
 	dev = crtc->dev;
 	smmu_state = &dpu_crtc->smmu_state;
 
-	if (!dpu_crtc->num_mixers) {
+	if (!cstate->num_mixers) {
 		_dpu_crtc_setup_mixers(crtc);
 		_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 	}
@@ -836,7 +565,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	 * it means we are trying to flush a CRTC whose state is disabled:
 	 * nothing else needs to be done.
 	 */
-	if (unlikely(!dpu_crtc->num_mixers))
+	if (unlikely(!cstate->num_mixers))
 		return;
 
 	_dpu_crtc_blend_setup(crtc);
@@ -860,11 +589,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct msm_drm_thread *event_thread;
 	unsigned long flags;
 	struct dpu_crtc_state *cstate;
-
-	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
 
 	if (!crtc->state->enable) {
 		DPU_DEBUG("crtc%d -> enable %d, skip atomic_flush\n",
@@ -900,7 +624,7 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	 * it means we are trying to flush a CRTC whose state is disabled:
 	 * nothing else needs to be done.
 	 */
-	if (unlikely(!dpu_crtc->num_mixers))
+	if (unlikely(!cstate->num_mixers))
 		return;
 
 	/*
@@ -951,8 +675,6 @@ static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
 
-	_dpu_crtc_rp_destroy(&cstate->rp);
-
 	__drm_atomic_helper_crtc_destroy_state(state);
 
 	kfree(cstate);
@@ -960,14 +682,8 @@ static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 
 static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	int ret, rc = 0;
-
-	if (!crtc) {
-		DPU_ERROR("invalid argument\n");
-		return -EINVAL;
-	}
-	dpu_crtc = to_dpu_crtc(crtc);
 
 	if (!atomic_read(&dpu_crtc->frame_pending)) {
 		DPU_DEBUG("no frames pending\n");
@@ -989,35 +705,18 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder;
-	struct drm_device *dev;
-	struct dpu_crtc *dpu_crtc;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-	struct dpu_crtc_state *cstate;
+	struct drm_device *dev = crtc->dev;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	int ret;
-
-	if (!crtc) {
-		DPU_ERROR("invalid argument\n");
-		return;
-	}
-	dev = crtc->dev;
-	dpu_crtc = to_dpu_crtc(crtc);
-	dpu_kms = _dpu_crtc_get_kms(crtc);
-
-	if (!dpu_kms || !dpu_kms->dev || !dpu_kms->dev->dev_private) {
-		DPU_ERROR("invalid argument\n");
-		return;
-	}
-
-	priv = dpu_kms->dev->dev_private;
-	cstate = to_dpu_crtc_state(crtc->state);
 
 	/*
 	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
 	 * it means we are trying to start a CRTC whose state is disabled:
 	 * nothing else needs to be done.
 	 */
-	if (unlikely(!dpu_crtc->num_mixers))
+	if (unlikely(!cstate->num_mixers))
 		return;
 
 	DPU_ATRACE_BEGIN("crtc_commit");
@@ -1072,33 +771,19 @@ end:
  * _dpu_crtc_vblank_enable_no_lock - update power resource and vblank request
  * @dpu_crtc: Pointer to dpu crtc structure
  * @enable: Whether to enable/disable vblanks
- *
- * @Return: error code
  */
-static int _dpu_crtc_vblank_enable_no_lock(
+static void _dpu_crtc_vblank_enable_no_lock(
 		struct dpu_crtc *dpu_crtc, bool enable)
 {
-	struct drm_device *dev;
-	struct drm_crtc *crtc;
+	struct drm_crtc *crtc = &dpu_crtc->base;
+	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *enc;
 
-	if (!dpu_crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return -EINVAL;
-	}
-
-	crtc = &dpu_crtc->base;
-	dev = crtc->dev;
-
 	if (enable) {
-		int ret;
-
 		/* drop lock since power crtc cb may try to re-acquire lock */
 		mutex_unlock(&dpu_crtc->crtc_lock);
-		ret = _dpu_crtc_power_enable(dpu_crtc, true);
+		pm_runtime_get_sync(dev->dev);
 		mutex_lock(&dpu_crtc->crtc_lock);
-		if (ret)
-			return ret;
 
 		list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
 			if (enc->crtc != crtc)
@@ -1125,11 +810,9 @@ static int _dpu_crtc_vblank_enable_no_lock(
 
 		/* drop lock since power crtc cb may try to re-acquire lock */
 		mutex_unlock(&dpu_crtc->crtc_lock);
-		_dpu_crtc_power_enable(dpu_crtc, false);
+		pm_runtime_put_sync(dev->dev);
 		mutex_lock(&dpu_crtc->crtc_lock);
 	}
-
-	return 0;
 }
 
 /**
@@ -1139,23 +822,7 @@ static int _dpu_crtc_vblank_enable_no_lock(
  */
 static void _dpu_crtc_set_suspend(struct drm_crtc *crtc, bool enable)
 {
-	struct dpu_crtc *dpu_crtc;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
-	int ret = 0;
-
-	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-	dpu_crtc = to_dpu_crtc(crtc);
-	priv = crtc->dev->dev_private;
-
-	if (!priv->kms) {
-		DPU_ERROR("invalid crtc kms\n");
-		return;
-	}
-	dpu_kms = to_dpu_kms(priv->kms);
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 
 	DRM_DEBUG_KMS("crtc%d suspend = %d\n", crtc->base.id, enable);
 
@@ -1170,10 +837,7 @@ static void _dpu_crtc_set_suspend(struct drm_crtc *crtc, bool enable)
 		DPU_DEBUG("crtc%d suspend already set to %d, ignoring update\n",
 				crtc->base.id, enable);
 	else if (dpu_crtc->enabled && dpu_crtc->vblank_requested) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, !enable);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, !enable);
 	}
 
 	dpu_crtc->suspend = enable;
@@ -1205,8 +869,6 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	/* duplicate base helper */
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &cstate->base);
-
-	_dpu_crtc_rp_duplicate(&old_cstate->rp, &cstate->rp);
 
 	return &cstate->base;
 }
@@ -1244,9 +906,6 @@ static void dpu_crtc_reset(struct drm_crtc *crtc)
 		return;
 	}
 
-	_dpu_crtc_rp_reset(&cstate->rp, &dpu_crtc->rp_lock,
-			&dpu_crtc->rp_head);
-
 	cstate->base.crtc = crtc;
 	crtc->state = &cstate->base;
 }
@@ -1254,62 +913,19 @@ static void dpu_crtc_reset(struct drm_crtc *crtc)
 static void dpu_crtc_handle_power_event(u32 event_type, void *arg)
 {
 	struct drm_crtc *crtc = arg;
-	struct dpu_crtc *dpu_crtc;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct drm_encoder *encoder;
-	struct dpu_crtc_mixer *m;
-	u32 i, misr_status;
-
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-	dpu_crtc = to_dpu_crtc(crtc);
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 
 	trace_dpu_crtc_handle_power_event(DRMID(crtc), event_type);
 
-	switch (event_type) {
-	case DPU_POWER_EVENT_POST_ENABLE:
-		/* restore encoder; crtc will be programmed during commit */
-		drm_for_each_encoder(encoder, crtc->dev) {
-			if (encoder->crtc != crtc)
-				continue;
+	/* restore encoder; crtc will be programmed during commit */
+	drm_for_each_encoder(encoder, crtc->dev) {
+		if (encoder->crtc != crtc)
+			continue;
 
-			dpu_encoder_virt_restore(encoder);
-		}
-
-		for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-			m = &dpu_crtc->mixers[i];
-			if (!m->hw_lm || !m->hw_lm->ops.setup_misr ||
-					!dpu_crtc->misr_enable)
-				continue;
-
-			m->hw_lm->ops.setup_misr(m->hw_lm, true,
-					dpu_crtc->misr_frame_count);
-		}
-		break;
-	case DPU_POWER_EVENT_PRE_DISABLE:
-		for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-			m = &dpu_crtc->mixers[i];
-			if (!m->hw_lm || !m->hw_lm->ops.collect_misr ||
-					!dpu_crtc->misr_enable)
-				continue;
-
-			misr_status = m->hw_lm->ops.collect_misr(m->hw_lm);
-			dpu_crtc->misr_data[i] = misr_status ? misr_status :
-							dpu_crtc->misr_data[i];
-		}
-		break;
-	case DPU_POWER_EVENT_POST_DISABLE:
-		/**
-		 * Nothing to do. All the planes on the CRTC will be
-		 * programmed for every frame
-		 */
-		break;
-	default:
-		DPU_DEBUG("event:%d not handled\n", event_type);
-		break;
+		dpu_encoder_virt_restore(encoder);
 	}
 
 	mutex_unlock(&dpu_crtc->crtc_lock);
@@ -1322,7 +938,6 @@ static void dpu_crtc_disable(struct drm_crtc *crtc)
 	struct drm_display_mode *mode;
 	struct drm_encoder *encoder;
 	struct msm_drm_private *priv;
-	int ret;
 	unsigned long flags;
 
 	if (!crtc || !crtc->dev || !crtc->dev->dev_private || !crtc->state) {
@@ -1353,10 +968,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc)
 	trace_dpu_crtc_disable(DRMID(crtc), false, dpu_crtc);
 	if (dpu_crtc->enabled && !dpu_crtc->suspend &&
 			dpu_crtc->vblank_requested) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, false);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, false);
 	}
 	dpu_crtc->enabled = false;
 
@@ -1379,9 +991,8 @@ static void dpu_crtc_disable(struct drm_crtc *crtc)
 		dpu_power_handle_unregister_event(dpu_crtc->phandle,
 				dpu_crtc->power_event);
 
-	memset(dpu_crtc->mixers, 0, sizeof(dpu_crtc->mixers));
-	dpu_crtc->num_mixers = 0;
-	dpu_crtc->mixers_swapped = false;
+	memset(cstate->mixers, 0, sizeof(cstate->mixers));
+	cstate->num_mixers = 0;
 
 	/* disable clk & bw control until clk & bw properties are set */
 	cstate->bw_control = false;
@@ -1403,7 +1014,6 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;
 	struct msm_drm_private *priv;
-	int ret;
 
 	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
 		DPU_ERROR("invalid crtc\n");
@@ -1425,10 +1035,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	trace_dpu_crtc_enable(DRMID(crtc), true, dpu_crtc);
 	if (!dpu_crtc->enabled && !dpu_crtc->suspend &&
 			dpu_crtc->vblank_requested) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, true);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, true);
 	}
 	dpu_crtc->enabled = true;
 
@@ -1438,9 +1045,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 
 	dpu_crtc->power_event = dpu_power_handle_register_event(
-		dpu_crtc->phandle,
-		DPU_POWER_EVENT_POST_ENABLE | DPU_POWER_EVENT_POST_DISABLE |
-		DPU_POWER_EVENT_PRE_DISABLE,
+		dpu_crtc->phandle, DPU_POWER_EVENT_ENABLE,
 		dpu_crtc_handle_power_event, crtc, dpu_crtc->name);
 
 }
@@ -1496,7 +1101,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 	memset(pipe_staged, 0, sizeof(pipe_staged));
 
-	mixer_width = dpu_crtc_get_mixer_width(dpu_crtc, cstate, mode);
+	mixer_width = _dpu_crtc_get_mixer_width(cstate, mode);
 
 	_dpu_crtc_setup_lm_bounds(crtc, state);
 
@@ -1535,8 +1140,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 		cnt++;
 
 		dst = drm_plane_state_dest(pstate);
-		if (!drm_rect_intersect(&clip, &dst) ||
-		    !drm_rect_equals(&clip, &dst)) {
+		if (!drm_rect_intersect(&clip, &dst)) {
 			DPU_ERROR("invalid vertical/horizontal destination\n");
 			DPU_ERROR("display: " DRM_RECT_FMT " plane: "
 				  DRM_RECT_FMT "\n", DRM_RECT_ARG(&crtc_rect),
@@ -1679,7 +1283,6 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 end:
-	_dpu_crtc_rp_free_unused(&cstate->rp);
 	kfree(pstates);
 	return rc;
 }
@@ -1687,7 +1290,6 @@ end:
 int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 {
 	struct dpu_crtc *dpu_crtc;
-	int ret;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
@@ -1698,10 +1300,7 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 	mutex_lock(&dpu_crtc->crtc_lock);
 	trace_dpu_crtc_vblank(DRMID(&dpu_crtc->base), en, dpu_crtc);
 	if (dpu_crtc->enabled && !dpu_crtc->suspend) {
-		ret = _dpu_crtc_vblank_enable_no_lock(dpu_crtc, en);
-		if (ret)
-			DPU_ERROR("%s vblank enable failed: %d\n",
-					dpu_crtc->name, ret);
+		_dpu_crtc_vblank_enable_no_lock(dpu_crtc, en);
 	}
 	dpu_crtc->vblank_requested = en;
 	mutex_unlock(&dpu_crtc->crtc_lock);
@@ -1730,26 +1329,28 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 
 	dpu_crtc = s->private;
 	crtc = &dpu_crtc->base;
+
+	drm_modeset_lock_all(crtc->dev);
 	cstate = to_dpu_crtc_state(crtc->state);
 
 	mutex_lock(&dpu_crtc->crtc_lock);
 	mode = &crtc->state->adjusted_mode;
-	out_width = dpu_crtc_get_mixer_width(dpu_crtc, cstate, mode);
+	out_width = _dpu_crtc_get_mixer_width(cstate, mode);
 
 	seq_printf(s, "crtc:%d width:%d height:%d\n", crtc->base.id,
 				mode->hdisplay, mode->vdisplay);
 
 	seq_puts(s, "\n");
 
-	for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-		m = &dpu_crtc->mixers[i];
+	for (i = 0; i < cstate->num_mixers; ++i) {
+		m = &cstate->mixers[i];
 		if (!m->hw_lm)
 			seq_printf(s, "\tmixer[%d] has no lm\n", i);
-		else if (!m->hw_ctl)
+		else if (!m->lm_ctl)
 			seq_printf(s, "\tmixer[%d] has no ctl\n", i);
 		else
 			seq_printf(s, "\tmixer:%d ctl:%d width:%d height:%d\n",
-				m->hw_lm->idx - LM_0, m->hw_ctl->idx - CTL_0,
+				m->hw_lm->idx - LM_0, m->lm_ctl->idx - CTL_0,
 				out_width, mode->vdisplay);
 	}
 
@@ -1822,6 +1423,7 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	seq_printf(s, "vblank_enable:%d\n", dpu_crtc->vblank_requested);
 
 	mutex_unlock(&dpu_crtc->crtc_lock);
+	drm_modeset_unlock_all(crtc->dev);
 
 	return 0;
 }
@@ -1829,113 +1431,6 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 static int _dpu_debugfs_status_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, _dpu_debugfs_status_show, inode->i_private);
-}
-
-static ssize_t _dpu_crtc_misr_setup(struct file *file,
-		const char __user *user_buf, size_t count, loff_t *ppos)
-{
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_mixer *m;
-	int i = 0, rc;
-	char buf[MISR_BUFF_SIZE + 1];
-	u32 frame_count, enable;
-	size_t buff_copy;
-
-	if (!file || !file->private_data)
-		return -EINVAL;
-
-	dpu_crtc = file->private_data;
-	buff_copy = min_t(size_t, count, MISR_BUFF_SIZE);
-	if (copy_from_user(buf, user_buf, buff_copy)) {
-		DPU_ERROR("buffer copy failed\n");
-		return -EINVAL;
-	}
-
-	buf[buff_copy] = 0; /* end of string */
-
-	if (sscanf(buf, "%u %u", &enable, &frame_count) != 2)
-		return -EINVAL;
-
-	rc = _dpu_crtc_power_enable(dpu_crtc, true);
-	if (rc)
-		return rc;
-
-	mutex_lock(&dpu_crtc->crtc_lock);
-	dpu_crtc->misr_enable = enable;
-	dpu_crtc->misr_frame_count = frame_count;
-	for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-		dpu_crtc->misr_data[i] = 0;
-		m = &dpu_crtc->mixers[i];
-		if (!m->hw_lm || !m->hw_lm->ops.setup_misr)
-			continue;
-
-		m->hw_lm->ops.setup_misr(m->hw_lm, enable, frame_count);
-	}
-	mutex_unlock(&dpu_crtc->crtc_lock);
-	_dpu_crtc_power_enable(dpu_crtc, false);
-
-	return count;
-}
-
-static ssize_t _dpu_crtc_misr_read(struct file *file,
-		char __user *user_buff, size_t count, loff_t *ppos)
-{
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_mixer *m;
-	int i = 0, rc;
-	u32 misr_status;
-	ssize_t len = 0;
-	char buf[MISR_BUFF_SIZE + 1] = {'\0'};
-
-	if (*ppos)
-		return 0;
-
-	if (!file || !file->private_data)
-		return -EINVAL;
-
-	dpu_crtc = file->private_data;
-	rc = _dpu_crtc_power_enable(dpu_crtc, true);
-	if (rc)
-		return rc;
-
-	mutex_lock(&dpu_crtc->crtc_lock);
-	if (!dpu_crtc->misr_enable) {
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len,
-			"disabled\n");
-		goto buff_check;
-	}
-
-	for (i = 0; i < dpu_crtc->num_mixers; ++i) {
-		m = &dpu_crtc->mixers[i];
-		if (!m->hw_lm || !m->hw_lm->ops.collect_misr)
-			continue;
-
-		misr_status = m->hw_lm->ops.collect_misr(m->hw_lm);
-		dpu_crtc->misr_data[i] = misr_status ? misr_status :
-							dpu_crtc->misr_data[i];
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len, "lm idx:%d\n",
-					m->hw_lm->idx - LM_0);
-		len += snprintf(buf + len, MISR_BUFF_SIZE - len, "0x%x\n",
-							dpu_crtc->misr_data[i]);
-	}
-
-buff_check:
-	if (count <= len) {
-		len = 0;
-		goto end;
-	}
-
-	if (copy_to_user(user_buff, buf, len)) {
-		len = -EFAULT;
-		goto end;
-	}
-
-	*ppos += len;   /* increase offset */
-
-end:
-	mutex_unlock(&dpu_crtc->crtc_lock);
-	_dpu_crtc_power_enable(dpu_crtc, false);
-	return len;
 }
 
 #define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)                          \
@@ -1955,8 +1450,6 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 {
 	struct drm_crtc *crtc = (struct drm_crtc *) s->private;
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-	struct dpu_crtc_res *res;
-	struct dpu_crtc_respool *rp;
 	int i;
 
 	seq_printf(s, "client type: %d\n", dpu_crtc_get_client_type(crtc));
@@ -1973,17 +1466,6 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 				dpu_crtc->cur_perf.max_per_pipe_ib[i]);
 	}
 
-	mutex_lock(&dpu_crtc->rp_lock);
-	list_for_each_entry(rp, &dpu_crtc->rp_head, rp_list) {
-		seq_printf(s, "rp.%d: ", rp->sequence_id);
-		list_for_each_entry(res, &rp->res_list, list)
-			seq_printf(s, "0x%x/0x%llx/%pK/%d ",
-					res->type, res->tag, res->val,
-					atomic_read(&res->refcount));
-		seq_puts(s, "\n");
-	}
-	mutex_unlock(&dpu_crtc->rp_lock);
-
 	return 0;
 }
 DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_crtc_debugfs_state);
@@ -1999,19 +1481,12 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 		.llseek =	seq_lseek,
 		.release =	single_release,
 	};
-	static const struct file_operations debugfs_misr_fops = {
-		.open =		simple_open,
-		.read =		_dpu_crtc_misr_read,
-		.write =	_dpu_crtc_misr_setup,
-	};
 
 	if (!crtc)
 		return -EINVAL;
 	dpu_crtc = to_dpu_crtc(crtc);
 
 	dpu_kms = _dpu_crtc_get_kms(crtc);
-	if (!dpu_kms)
-		return -EINVAL;
 
 	dpu_crtc->debugfs_root = debugfs_create_dir(dpu_crtc->name,
 			crtc->dev->primary->debugfs_root);
@@ -2026,8 +1501,6 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 			dpu_crtc->debugfs_root,
 			&dpu_crtc->base,
 			&dpu_crtc_debugfs_state_fops);
-	debugfs_create_file("misr_data", 0600, dpu_crtc->debugfs_root,
-					dpu_crtc, &debugfs_misr_fops);
 
 	return 0;
 }
@@ -2082,7 +1555,8 @@ static const struct drm_crtc_helper_funcs dpu_crtc_helper_funcs = {
 };
 
 /* initialize crtc */
-struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane)
+struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
+				struct drm_plane *cursor)
 {
 	struct drm_crtc *crtc = NULL;
 	struct dpu_crtc *dpu_crtc = NULL;
@@ -2104,9 +1578,6 @@ struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane)
 	spin_lock_init(&dpu_crtc->spin_lock);
 	atomic_set(&dpu_crtc->frame_pending, 0);
 
-	mutex_init(&dpu_crtc->rp_lock);
-	INIT_LIST_HEAD(&dpu_crtc->rp_head);
-
 	init_completion(&dpu_crtc->frame_done_comp);
 
 	INIT_LIST_HEAD(&dpu_crtc->frame_event_list);
@@ -2119,7 +1590,7 @@ struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane)
 				dpu_crtc_frame_event_work);
 	}
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &dpu_crtc_funcs,
+	drm_crtc_init_with_planes(dev, crtc, plane, cursor, &dpu_crtc_funcs,
 				NULL);
 
 	drm_crtc_helper_add(crtc, &dpu_crtc_helper_funcs);
