@@ -4793,12 +4793,19 @@ static inline int inet6_ifaddr_msgsize(void)
 	       + nla_total_size(4)  /* IFA_RT_PRIORITY */;
 }
 
+enum addr_type_t {
+	UNICAST_ADDR,
+	MULTICAST_ADDR,
+	ANYCAST_ADDR,
+};
+
 struct inet6_fill_args {
 	u32 portid;
 	u32 seq;
 	int event;
 	unsigned int flags;
 	int netnsid;
+	enum addr_type_t type;
 };
 
 static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
@@ -4930,39 +4937,28 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 	return 0;
 }
 
-enum addr_type_t {
-	UNICAST_ADDR,
-	MULTICAST_ADDR,
-	ANYCAST_ADDR,
-};
-
 /* called with rcu_read_lock() */
 static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
-			  struct netlink_callback *cb, enum addr_type_t type,
-			  int s_ip_idx, int *p_ip_idx, int netnsid)
+			  struct netlink_callback *cb,
+			  int s_ip_idx, int *p_ip_idx,
+			  struct inet6_fill_args *fillargs)
 {
-	struct inet6_fill_args fillargs = {
-		.portid = NETLINK_CB(cb->skb).portid,
-		.seq = cb->nlh->nlmsg_seq,
-		.flags = NLM_F_MULTI,
-		.netnsid = netnsid,
-	};
 	struct ifmcaddr6 *ifmca;
 	struct ifacaddr6 *ifaca;
 	int err = 1;
 	int ip_idx = *p_ip_idx;
 
 	read_lock_bh(&idev->lock);
-	switch (type) {
+	switch (fillargs->type) {
 	case UNICAST_ADDR: {
 		struct inet6_ifaddr *ifa;
-		fillargs.event = RTM_NEWADDR;
+		fillargs->event = RTM_NEWADDR;
 
 		/* unicast address incl. temp addr */
 		list_for_each_entry(ifa, &idev->addr_list, if_list) {
 			if (++ip_idx < s_ip_idx)
 				continue;
-			err = inet6_fill_ifaddr(skb, ifa, &fillargs);
+			err = inet6_fill_ifaddr(skb, ifa, fillargs);
 			if (err < 0)
 				break;
 			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
@@ -4970,26 +4966,26 @@ static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
 		break;
 	}
 	case MULTICAST_ADDR:
-		fillargs.event = RTM_GETMULTICAST;
+		fillargs->event = RTM_GETMULTICAST;
 
 		/* multicast address */
 		for (ifmca = idev->mc_list; ifmca;
 		     ifmca = ifmca->next, ip_idx++) {
 			if (ip_idx < s_ip_idx)
 				continue;
-			err = inet6_fill_ifmcaddr(skb, ifmca, &fillargs);
+			err = inet6_fill_ifmcaddr(skb, ifmca, fillargs);
 			if (err < 0)
 				break;
 		}
 		break;
 	case ANYCAST_ADDR:
-		fillargs.event = RTM_GETANYCAST;
+		fillargs->event = RTM_GETANYCAST;
 		/* anycast address */
 		for (ifaca = idev->ac_list; ifaca;
 		     ifaca = ifaca->aca_next, ip_idx++) {
 			if (ip_idx < s_ip_idx)
 				continue;
-			err = inet6_fill_ifacaddr(skb, ifaca, &fillargs);
+			err = inet6_fill_ifacaddr(skb, ifaca, fillargs);
 			if (err < 0)
 				break;
 		}
@@ -5005,10 +5001,16 @@ static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
 static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			   enum addr_type_t type)
 {
+	struct inet6_fill_args fillargs = {
+		.portid = NETLINK_CB(cb->skb).portid,
+		.seq = cb->nlh->nlmsg_seq,
+		.flags = NLM_F_MULTI,
+		.netnsid = -1,
+		.type = type,
+	};
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
 	struct net *tgt_net = net;
-	int netnsid = -1;
 	int h, s_h;
 	int idx, ip_idx;
 	int s_idx, s_ip_idx;
@@ -5023,9 +5025,10 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	if (nlmsg_parse(cb->nlh, sizeof(struct ifaddrmsg), tb, IFA_MAX,
 			ifa_ipv6_policy, cb->extack) >= 0) {
 		if (tb[IFA_TARGET_NETNSID]) {
-			netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
+			fillargs.netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
 
-			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
+			tgt_net = rtnl_get_net_ns_capable(skb->sk,
+							  fillargs.netnsid);
 			if (IS_ERR(tgt_net))
 				return PTR_ERR(tgt_net);
 		}
@@ -5046,8 +5049,8 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			if (!idev)
 				goto cont;
 
-			if (in6_dump_addrs(idev, skb, cb, type,
-					   s_ip_idx, &ip_idx, netnsid) < 0)
+			if (in6_dump_addrs(idev, skb, cb, s_ip_idx, &ip_idx,
+					   &fillargs) < 0)
 				goto done;
 cont:
 			idx++;
@@ -5058,7 +5061,7 @@ done:
 	cb->args[0] = h;
 	cb->args[1] = idx;
 	cb->args[2] = ip_idx;
-	if (netnsid >= 0)
+	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
 	return skb->len;
