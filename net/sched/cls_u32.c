@@ -797,6 +797,10 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 				NL_SET_ERR_MSG_MOD(extack, "Link hash table not found");
 				return -EINVAL;
 			}
+			if (ht_down->is_root) {
+				NL_SET_ERR_MSG_MOD(extack, "Not linking to root node");
+				return -EINVAL;
+			}
 			ht_down->refcnt++;
 		}
 
