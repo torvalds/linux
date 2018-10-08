@@ -232,6 +232,20 @@ static bool compress_init(struct compress *c)
 	return true;
 }
 
+static void *compress_next_page(struct drm_i915_error_object *dst)
+{
+	unsigned long page;
+
+	if (dst->page_count >= dst->num_pages)
+		return ERR_PTR(-ENOSPC);
+
+	page = __get_free_page(GFP_ATOMIC | __GFP_NOWARN);
+	if (!page)
+		return ERR_PTR(-ENOMEM);
+
+	return dst->pages[dst->page_count++] = (void *)page;
+}
+
 static int compress_page(struct compress *c,
 			 void *src,
 			 struct drm_i915_error_object *dst)
@@ -245,19 +259,14 @@ static int compress_page(struct compress *c,
 
 	do {
 		if (zstream->avail_out == 0) {
-			unsigned long page;
+			zstream->next_out = compress_next_page(dst);
+			if (IS_ERR(zstream->next_out))
+				return PTR_ERR(zstream->next_out);
 
-			page = __get_free_page(GFP_ATOMIC | __GFP_NOWARN);
-			if (!page)
-				return -ENOMEM;
-
-			dst->pages[dst->page_count++] = (void *)page;
-
-			zstream->next_out = (void *)page;
 			zstream->avail_out = PAGE_SIZE;
 		}
 
-		if (zlib_deflate(zstream, Z_SYNC_FLUSH) != Z_OK)
+		if (zlib_deflate(zstream, Z_NO_FLUSH) != Z_OK)
 			return -EIO;
 	} while (zstream->avail_in);
 
@@ -268,19 +277,42 @@ static int compress_page(struct compress *c,
 	return 0;
 }
 
+static int compress_flush(struct compress *c,
+			  struct drm_i915_error_object *dst)
+{
+	struct z_stream_s *zstream = &c->zstream;
+
+	do {
+		switch (zlib_deflate(zstream, Z_FINISH)) {
+		case Z_OK: /* more space requested */
+			zstream->next_out = compress_next_page(dst);
+			if (IS_ERR(zstream->next_out))
+				return PTR_ERR(zstream->next_out);
+
+			zstream->avail_out = PAGE_SIZE;
+			break;
+
+		case Z_STREAM_END:
+			goto end;
+
+		default: /* any error */
+			return -EIO;
+		}
+	} while (1);
+
+end:
+	memset(zstream->next_out, 0, zstream->avail_out);
+	dst->unused = zstream->avail_out;
+	return 0;
+}
+
 static void compress_fini(struct compress *c,
 			  struct drm_i915_error_object *dst)
 {
 	struct z_stream_s *zstream = &c->zstream;
 
-	if (dst) {
-		zlib_deflate(zstream, Z_FINISH);
-		dst->unused = zstream->avail_out;
-	}
-
 	zlib_deflateEnd(zstream);
 	kfree(zstream->workspace);
-
 	if (c->tmp)
 		free_page((unsigned long)c->tmp);
 }
@@ -316,6 +348,12 @@ static int compress_page(struct compress *c,
 		memcpy(ptr, src, PAGE_SIZE);
 	dst->pages[dst->page_count++] = ptr;
 
+	return 0;
+}
+
+static int compress_flush(struct compress *c,
+			  struct drm_i915_error_object *dst)
+{
 	return 0;
 }
 
@@ -917,6 +955,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 	unsigned long num_pages;
 	struct sgt_iter iter;
 	dma_addr_t dma;
+	int ret;
 
 	if (!vma)
 		return NULL;
@@ -930,6 +969,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 
 	dst->gtt_offset = vma->node.start;
 	dst->gtt_size = vma->node.size;
+	dst->num_pages = num_pages;
 	dst->page_count = 0;
 	dst->unused = 0;
 
@@ -938,28 +978,26 @@ i915_error_object_create(struct drm_i915_private *i915,
 		return NULL;
 	}
 
+	ret = -EINVAL;
 	for_each_sgt_dma(dma, iter, vma->pages) {
 		void __iomem *s;
-		int ret;
 
 		ggtt->vm.insert_page(&ggtt->vm, dma, slot, I915_CACHE_NONE, 0);
 
 		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
 		ret = compress_page(&compress, (void  __force *)s, dst);
 		io_mapping_unmap_atomic(s);
-
 		if (ret)
-			goto unwind;
+			break;
 	}
-	goto out;
 
-unwind:
-	while (dst->page_count--)
-		free_page((unsigned long)dst->pages[dst->page_count]);
-	kfree(dst);
-	dst = NULL;
+	if (ret || compress_flush(&compress, dst)) {
+		while (dst->page_count--)
+			free_page((unsigned long)dst->pages[dst->page_count]);
+		kfree(dst);
+		dst = NULL;
+	}
 
-out:
 	compress_fini(&compress, dst);
 	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
 	return dst;

@@ -2185,25 +2185,6 @@ error_drop_packet:
 	return NETDEV_TX_OK;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void ena_netpoll(struct net_device *netdev)
-{
-	struct ena_adapter *adapter = netdev_priv(netdev);
-	int i;
-
-	/* Dont schedule NAPI if the driver is in the middle of reset
-	 * or netdev is down.
-	 */
-
-	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags) ||
-	    test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
-		return;
-
-	for (i = 0; i < adapter->num_queues; i++)
-		napi_schedule(&adapter->ena_napi[i].napi);
-}
-#endif /* CONFIG_NET_POLL_CONTROLLER */
-
 static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 			    struct net_device *sb_dev,
 			    select_queue_fallback_t fallback)
@@ -2369,9 +2350,6 @@ static const struct net_device_ops ena_netdev_ops = {
 	.ndo_change_mtu		= ena_change_mtu,
 	.ndo_set_mac_address	= NULL,
 	.ndo_validate_addr	= eth_validate_addr,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= ena_netpoll,
-#endif /* CONFIG_NET_POLL_CONTROLLER */
 };
 
 static int ena_device_validate_params(struct ena_adapter *adapter,

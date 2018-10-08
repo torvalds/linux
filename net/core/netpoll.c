@@ -135,27 +135,9 @@ static void queue_process(struct work_struct *work)
 	}
 }
 
-/*
- * Check whether delayed processing was scheduled for our NIC. If so,
- * we attempt to grab the poll lock and use ->poll() to pump the card.
- * If this fails, either we've recursed in ->poll() or it's already
- * running on another CPU.
- *
- * Note: we don't mask interrupts with this lock because we're using
- * trylock here and interrupts are already disabled in the softirq
- * case. Further, we test the poll_owner to avoid recursion on UP
- * systems where the lock doesn't exist.
- */
 static void poll_one_napi(struct napi_struct *napi)
 {
-	int work = 0;
-
-	/* net_rx_action's ->poll() invocations and our's are
-	 * synchronized by this test which is only made while
-	 * holding the napi->poll_lock.
-	 */
-	if (!test_bit(NAPI_STATE_SCHED, &napi->state))
-		return;
+	int work;
 
 	/* If we set this bit but see that it has already been set,
 	 * that indicates that napi has been disabled and we need
@@ -330,6 +312,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 	/* It is up to the caller to keep npinfo alive. */
 	struct netpoll_info *npinfo;
 
+	rcu_read_lock_bh();
 	lockdep_assert_irqs_disabled();
 
 	npinfo = rcu_dereference_bh(np->dev->npinfo);
@@ -374,6 +357,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 		skb_queue_tail(&npinfo->txq, skb);
 		schedule_delayed_work(&npinfo->tx_work,0);
 	}
+	rcu_read_unlock_bh();
 }
 EXPORT_SYMBOL(netpoll_send_skb_on_dev);
 
