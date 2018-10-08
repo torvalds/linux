@@ -391,9 +391,10 @@ static void bnxt_qplib_service_creq(unsigned long data)
 					 "aeqe:%#x Not handled\n", type);
 			break;
 		default:
-			dev_warn(&rcfw->pdev->dev,
-				 "creqe with op_event = 0x%x not handled\n",
-				 type);
+			if (type != ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT)
+				dev_warn(&rcfw->pdev->dev,
+					 "creqe with event 0x%x not handled\n",
+					 type);
 			break;
 		}
 		raw_cons++;
