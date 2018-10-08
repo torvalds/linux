@@ -137,8 +137,16 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_srq = le16_to_cpu(sb->max_srq);
 	attr->max_srq_wqes = le32_to_cpu(sb->max_srq_wr) - 1;
 	attr->max_srq_sges = sb->max_srq_sge;
-	/* Bono only reports 1 PKEY for now, but it can support > 1 */
 	attr->max_pkey = le32_to_cpu(sb->max_pkeys);
+	/*
+	 * Some versions of FW reports more than 0xFFFF.
+	 * Restrict it for now to 0xFFFF to avoid
+	 * reporting trucated value
+	 */
+	if (attr->max_pkey > 0xFFFF) {
+		/* ib_port_attr::pkey_tbl_len is u16 */
+		attr->max_pkey = 0xFFFF;
+	}
 
 	attr->max_inline_data = le32_to_cpu(sb->max_inline_data);
 	attr->l2_db_size = (sb->l2_db_space_size + 1) *
