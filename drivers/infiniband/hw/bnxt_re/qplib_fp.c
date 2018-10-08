@@ -1970,6 +1970,7 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	INIT_LIST_HEAD(&cq->sqf_head);
 	INIT_LIST_HEAD(&cq->rqf_head);
 	spin_lock_init(&cq->compl_lock);
+	spin_lock_init(&cq->flush_lock);
 
 	bnxt_qplib_arm_cq_enable(cq);
 	return 0;

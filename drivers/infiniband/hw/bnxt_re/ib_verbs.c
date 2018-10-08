@@ -2664,6 +2664,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	nq->budget++;
 
 	atomic_inc(&rdev->cq_count);
+	spin_lock_init(&cq->cq_lock);
 
 	if (context) {
 		struct bnxt_re_cq_resp resp;
