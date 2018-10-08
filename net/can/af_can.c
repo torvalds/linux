@@ -331,7 +331,7 @@ static unsigned int effhash(canid_t can_id)
 }
 
 /**
- * find_rcv_list - determine optimal filterlist inside device filter struct
+ * can_rcv_list_find - determine optimal filterlist inside device filter struct
  * @can_id: pointer to CAN identifier of a given can_filter
  * @mask: pointer to CAN mask of a given can_filter
  * @d: pointer to the device filter struct
@@ -357,8 +357,8 @@ static unsigned int effhash(canid_t can_id)
  *  Constistency checked mask.
  *  Reduced can_id to have a preprocessed filter compare value.
  */
-static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
-					struct can_dev_rcv_lists *dev_rcv_lists)
+static struct hlist_head *can_rcv_list_find(canid_t *can_id, canid_t *mask,
+					    struct can_dev_rcv_lists *dev_rcv_lists)
 {
 	canid_t inv = *can_id & CAN_INV_FILTER; /* save flag before masking */
 
@@ -460,7 +460,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 
 	dev_rcv_lists = find_dev_rcv_lists(net, dev);
 	if (dev_rcv_lists) {
-		rl = find_rcv_list(&can_id, &mask, dev_rcv_lists);
+		rl = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
 
 		r->can_id  = can_id;
 		r->mask    = mask;
@@ -533,7 +533,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 		goto out;
 	}
 
-	rl = find_rcv_list(&can_id, &mask, dev_rcv_lists);
+	rl = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
 
 	/* Search the receiver list for the item to delete.  This should
 	 * exist, since no receiver may be unregistered that hasn't
