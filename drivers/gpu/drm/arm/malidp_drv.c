@@ -38,6 +38,7 @@
 
 #define MALIDP_CONF_VALID_TIMEOUT	250
 #define AFBC_HEADER_SIZE		16
+#define AFBC_SUPERBLK_ALIGNMENT		128
 
 static void malidp_write_gamma_table(struct malidp_hw_device *hwdev,
 				     u32 data[MALIDP_COEFFTAB_NUM_COEFFS])
@@ -336,7 +337,8 @@ malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
 	afbc_superblock_size = info->cpp[0] * afbc_superblock_width *
 		afbc_superblock_height;
 
-	afbc_size = ALIGN(n_superblocks * AFBC_HEADER_SIZE, 128);
+	afbc_size = ALIGN(n_superblocks * AFBC_HEADER_SIZE, AFBC_SUPERBLK_ALIGNMENT);
+	afbc_size += n_superblocks * ALIGN(afbc_superblock_size, AFBC_SUPERBLK_ALIGNMENT);
 
 	if (mode_cmd->width * info->cpp[0] != mode_cmd->pitches[0]) {
 		DRM_DEBUG_KMS("Invalid value of pitch (=%u) should be same as width (=%u) * cpp (=%u)\n",
