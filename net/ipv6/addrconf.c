@@ -4998,9 +4998,62 @@ static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
 	return err;
 }
 
+static int inet6_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
+				       struct inet6_fill_args *fillargs,
+				       struct net **tgt_net, struct sock *sk,
+				       struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[IFA_MAX+1];
+	struct ifaddrmsg *ifm;
+	int err, i;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for address dump request");
+		return -EINVAL;
+	}
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->ifa_prefixlen || ifm->ifa_flags || ifm->ifa_scope) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for address dump request");
+		return -EINVAL;
+	}
+	if (ifm->ifa_index) {
+		NL_SET_ERR_MSG_MOD(extack, "Filter by device index not supported for address dump");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
+				 ifa_ipv6_policy, extack);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i <= IFA_MAX; ++i) {
+		if (!tb[i])
+			continue;
+
+		if (i == IFA_TARGET_NETNSID) {
+			struct net *net;
+
+			fillargs->netnsid = nla_get_s32(tb[i]);
+			net = rtnl_get_net_ns_capable(sk, fillargs->netnsid);
+			if (IS_ERR(net)) {
+				NL_SET_ERR_MSG_MOD(extack, "Invalid target network namespace id");
+				return PTR_ERR(net);
+			}
+			*tgt_net = net;
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in dump request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			   enum addr_type_t type)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct inet6_fill_args fillargs = {
 		.portid = NETLINK_CB(cb->skb).portid,
 		.seq = cb->nlh->nlmsg_seq,
@@ -5009,7 +5062,6 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		.type = type,
 	};
 	struct net *net = sock_net(skb->sk);
-	struct nlattr *tb[IFA_MAX+1];
 	struct net *tgt_net = net;
 	int h, s_h;
 	int idx, ip_idx;
@@ -5022,16 +5074,13 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	s_idx = idx = cb->args[1];
 	s_ip_idx = ip_idx = cb->args[2];
 
-	if (nlmsg_parse(cb->nlh, sizeof(struct ifaddrmsg), tb, IFA_MAX,
-			ifa_ipv6_policy, cb->extack) >= 0) {
-		if (tb[IFA_TARGET_NETNSID]) {
-			fillargs.netnsid = nla_get_s32(tb[IFA_TARGET_NETNSID]);
+	if (cb->strict_check) {
+		int err;
 
-			tgt_net = rtnl_get_net_ns_capable(skb->sk,
-							  fillargs.netnsid);
-			if (IS_ERR(tgt_net))
-				return PTR_ERR(tgt_net);
-		}
+		err = inet6_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
+						  skb->sk, cb->extack);
+		if (err < 0)
+			return err;
 	}
 
 	rcu_read_lock();
