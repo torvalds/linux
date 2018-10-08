@@ -650,8 +650,8 @@ static void dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 		{1200, 0x1b}, {1250, 0x2b}, {1300, 0x3b}, {1350, 0x0c},
 		{1400, 0x1c}, {1450, 0x2c}, {1500, 0x3c}
 	};
-	u8 hsfreqrange;
-	unsigned int index;
+	u8 hsfreqrange, counter;
+	unsigned int index, txbyteclkhs;
 
 	for (index = 0; index < ARRAY_SIZE(hsfreqrange_table); index++)
 		if (dsi->lane_mbps <= hsfreqrange_table[index].max_lane_mbps)
@@ -662,6 +662,11 @@ static void dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 
 	hsfreqrange = hsfreqrange_table[index].hsfreqrange;
 	regmap_write(dphy->regmap, 0x44, HSFREQRANGE(hsfreqrange));
+
+	txbyteclkhs = dsi->lane_mbps >> 3;
+	counter = txbyteclkhs * 60 / NSEC_PER_USEC;
+	regmap_write(dphy->regmap, 0x60, 0x80 | counter);
+	regmap_write(dphy->regmap, 0x70, 0x80 | counter);
 
 	if (IS_DSI0(dsi))
 		dw_mipi_dsi_phy_pll_init(dsi);
