@@ -462,28 +462,22 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 	spin_lock(&net->can.rcvlists_lock);
 
 	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
-	if (dev_rcv_lists) {
-		rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
+	rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
 
-		rcv->can_id = can_id;
-		rcv->mask = mask;
-		rcv->matches = 0;
-		rcv->func = func;
-		rcv->data = data;
-		rcv->ident = ident;
-		rcv->sk = sk;
+	rcv->can_id = can_id;
+	rcv->mask = mask;
+	rcv->matches = 0;
+	rcv->func = func;
+	rcv->data = data;
+	rcv->ident = ident;
+	rcv->sk = sk;
 
-		hlist_add_head_rcu(&rcv->list, rcv_list);
-		dev_rcv_lists->entries++;
+	hlist_add_head_rcu(&rcv->list, rcv_list);
+	dev_rcv_lists->entries++;
 
-		rcv_lists_stats->rcv_entries++;
-		rcv_lists_stats->rcv_entries_max = max(rcv_lists_stats->rcv_entries_max,
-						       rcv_lists_stats->rcv_entries);
-	} else {
-		kmem_cache_free(rcv_cache, rcv);
-		err = -ENODEV;
-	}
-
+	rcv_lists_stats->rcv_entries++;
+	rcv_lists_stats->rcv_entries_max = max(rcv_lists_stats->rcv_entries_max,
+					       rcv_lists_stats->rcv_entries);
 	spin_unlock(&net->can.rcvlists_lock);
 
 	return err;
@@ -530,12 +524,6 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	spin_lock(&net->can.rcvlists_lock);
 
 	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
-	if (!dev_rcv_lists) {
-		pr_err("BUG: receive list not found for dev %s, id %03X, mask %03X\n",
-		       DNAME(dev), can_id, mask);
-		goto out;
-	}
-
 	rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
 
 	/* Search the receiver list for the item to delete.  This should
@@ -668,8 +656,7 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 
 	/* find receive list for this device */
 	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
-	if (dev_rcv_lists)
-		matches += can_rcv_filter(dev_rcv_lists, skb);
+	matches += can_rcv_filter(dev_rcv_lists, skb);
 
 	rcu_read_unlock();
 
