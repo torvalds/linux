@@ -169,3 +169,10 @@
 	status = "okay";
 };
 
+&vpu_mmu {
+	status = "okay";
+};
+
+&vpu_service {
+	status = "okay";
+};
