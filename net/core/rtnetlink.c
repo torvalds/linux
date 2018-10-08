@@ -4680,6 +4680,7 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct netlink_ext_ack *extack = cb->extack;
 	int h, s_h, err, s_idx, s_idxattr, s_prividx;
 	struct net *net = sock_net(skb->sk);
 	unsigned int flags = NLM_F_MULTI;
@@ -4696,13 +4697,32 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	cb->seq = net->dev_base_seq;
 
-	if (nlmsg_len(cb->nlh) < sizeof(*ifsm))
+	if (nlmsg_len(cb->nlh) < sizeof(*ifsm)) {
+		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
 		return -EINVAL;
+	}
 
 	ifsm = nlmsg_data(cb->nlh);
+
+	/* only requests using NLM_F_DUMP_PROPER_HDR can pass data to
+	 * influence the dump. The legacy exception is filter_mask.
+	 */
+	if (cb->strict_check) {
+		if (ifsm->pad1 || ifsm->pad2 || ifsm->ifindex) {
+			NL_SET_ERR_MSG(extack, "Invalid values in header for stats dump request");
+			return -EINVAL;
+		}
+		if (nlmsg_attrlen(cb->nlh, sizeof(*ifsm))) {
+			NL_SET_ERR_MSG(extack, "Invalid attributes after stats header");
+			return -EINVAL;
+		}
+	}
+
 	filter_mask = ifsm->filter_mask;
-	if (!filter_mask)
+	if (!filter_mask) {
+		NL_SET_ERR_MSG(extack, "Filter mask must be set for stats dump");
 		return -EINVAL;
+	}
 
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
