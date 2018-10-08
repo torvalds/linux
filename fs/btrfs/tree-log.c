@@ -273,6 +273,13 @@ struct walk_control {
 	/* what stage of the replay code we're currently in */
 	int stage;
 
+	/*
+	 * Ignore any items from the inode currently being processed. Needs
+	 * to be set every time we find a BTRFS_INODE_ITEM_KEY and we are in
+	 * the LOG_WALK_REPLAY_INODES stage.
+	 */
+	bool ignore_cur_inode;
+
 	/* the root we are currently replaying */
 	struct btrfs_root *replay_dest;
 
@@ -2363,6 +2370,20 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 
 			inode_item = btrfs_item_ptr(eb, i,
 					    struct btrfs_inode_item);
+			/*
+			 * If we have a tmpfile (O_TMPFILE) that got fsync'ed
+			 * and never got linked before the fsync, skip it, as
+			 * replaying it is pointless since it would be deleted
+			 * later. We skip logging tmpfiles, but it's always
+			 * possible we are replaying a log created with a kernel
+			 * that used to log tmpfiles.
+			 */
+			if (btrfs_inode_nlink(eb, inode_item) == 0) {
+				wc->ignore_cur_inode = true;
+				continue;
+			} else {
+				wc->ignore_cur_inode = false;
+			}
 			ret = replay_xattr_deletes(wc->trans, root, log,
 						   path, key.objectid);
 			if (ret)
@@ -2400,16 +2421,8 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 					     root->fs_info->sectorsize);
 				ret = btrfs_drop_extents(wc->trans, root, inode,
 							 from, (u64)-1, 1);
-				/*
-				 * If the nlink count is zero here, the iput
-				 * will free the inode.  We bump it to make
-				 * sure it doesn't get freed until the link
-				 * count fixup is done.
-				 */
 				if (!ret) {
-					if (inode->i_nlink == 0)
-						inc_nlink(inode);
-					/* Update link count and nbytes. */
+					/* Update the inode's nbytes. */
 					ret = btrfs_update_inode(wc->trans,
 								 root, inode);
 				}
@@ -2423,6 +2436,9 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			if (ret)
 				break;
 		}
+
+		if (wc->ignore_cur_inode)
+			continue;
 
 		if (key.type == BTRFS_DIR_INDEX_KEY &&
 		    wc->stage == LOG_WALK_REPLAY_DIR_INDEX) {
@@ -5644,7 +5660,13 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto end_no_trans;
 
-	if (btrfs_inode_in_log(inode, trans->transid)) {
+	/*
+	 * Skip already logged inodes or inodes corresponding to tmpfiles
+	 * (since logging them is pointless, a link count of 0 means they
+	 * will never be accessible).
+	 */
+	if (btrfs_inode_in_log(inode, trans->transid) ||
+	    inode->vfs_inode.i_nlink == 0) {
 		ret = BTRFS_NO_LOG_SYNC;
 		goto end_no_trans;
 	}
