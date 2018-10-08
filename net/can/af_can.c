@@ -302,10 +302,12 @@ EXPORT_SYMBOL(can_send);
 static struct can_dev_rcv_lists *can_dev_rcv_lists_find(struct net *net,
 							struct net_device *dev)
 {
-	if (!dev)
+	if (dev) {
+		struct can_ml_priv *ml_priv = dev->ml_priv;
+		return &ml_priv->dev_rcv_lists;
+	} else {
 		return net->can.rx_alldev_list;
-	else
-		return (struct can_dev_rcv_lists *)dev->ml_priv;
+	}
 }
 
 /**
@@ -561,12 +563,6 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	if (rcv_lists_stats->rcv_entries > 0)
 		rcv_lists_stats->rcv_entries--;
 
-	/* remove device structure requested by NETDEV_UNREGISTER */
-	if (dev_rcv_lists->remove_on_zero_entries && !dev_rcv_lists->entries) {
-		kfree(dev_rcv_lists);
-		dev->ml_priv = NULL;
-	}
-
  out:
 	spin_unlock(&net->can.rcvlists_lock);
 
@@ -788,41 +784,14 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 			void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct can_dev_rcv_lists *dev_rcv_lists;
 
 	if (dev->type != ARPHRD_CAN)
 		return NOTIFY_DONE;
 
 	switch (msg) {
 	case NETDEV_REGISTER:
-
-		/* create new dev_rcv_lists for this device */
-		dev_rcv_lists = kzalloc(sizeof(*dev_rcv_lists), GFP_KERNEL);
-		if (!dev_rcv_lists)
-			return NOTIFY_DONE;
-		BUG_ON(dev->ml_priv);
-		dev->ml_priv = dev_rcv_lists;
-
-		break;
-
-	case NETDEV_UNREGISTER:
-		spin_lock(&dev_net(dev)->can.rcvlists_lock);
-
-		dev_rcv_lists = dev->ml_priv;
-		if (dev_rcv_lists) {
-			if (dev_rcv_lists->entries)
-				dev_rcv_lists->remove_on_zero_entries = 1;
-			else {
-				kfree(dev_rcv_lists);
-				dev->ml_priv = NULL;
-			}
-		} else {
-			pr_err("can: notifier: receive list not found for dev %s\n",
-			       dev->name);
-		}
-
-		spin_unlock(&dev_net(dev)->can.rcvlists_lock);
-
+		WARN(!dev->ml_priv,
+		     "No CAN mid layer private allocated, please fix your driver and use alloc_candev()!\n");
 		break;
 	}
 
