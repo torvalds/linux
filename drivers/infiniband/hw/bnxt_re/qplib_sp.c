@@ -840,6 +840,16 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	stats->res_srq_load_err = le64_to_cpu(sb->res_srq_load_err);
 	stats->res_tx_pci_err = le64_to_cpu(sb->res_tx_pci_err);
 	stats->res_rx_pci_err = le64_to_cpu(sb->res_rx_pci_err);
+	if (!rcfw->init_oos_stats) {
+		rcfw->oos_prev = le64_to_cpu(sb->res_oos_drop_count);
+		rcfw->init_oos_stats = 1;
+	} else {
+		stats->res_oos_drop_count +=
+				(le64_to_cpu(sb->res_oos_drop_count) -
+				 rcfw->oos_prev) & BNXT_QPLIB_OOS_COUNT_MASK;
+		rcfw->oos_prev = le64_to_cpu(sb->res_oos_drop_count);
+	}
+
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
 	return rc;

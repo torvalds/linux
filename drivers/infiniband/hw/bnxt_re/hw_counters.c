@@ -108,7 +108,8 @@ static const char * const bnxt_re_stat_name[] = {
 	[BNXT_RE_RES_CQ_LOAD_ERR]       = "res_cq_load_err",
 	[BNXT_RE_RES_SRQ_LOAD_ERR]      = "res_srq_load_err",
 	[BNXT_RE_RES_TX_PCI_ERR]        = "res_tx_pci_err",
-	[BNXT_RE_RES_RX_PCI_ERR]        = "res_rx_pci_err"
+	[BNXT_RE_RES_RX_PCI_ERR]        = "res_rx_pci_err",
+	[BNXT_RE_OUT_OF_SEQ_ERR]        = "oos_drop_count"
 };
 
 int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
@@ -226,6 +227,8 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 				rdev->stats.res_tx_pci_err;
 		stats->value[BNXT_RE_RES_RX_PCI_ERR]    =
 				rdev->stats.res_rx_pci_err;
+		stats->value[BNXT_RE_OUT_OF_SEQ_ERR]    =
+				rdev->stats.res_oos_drop_count;
 	}
 
 	return ARRAY_SIZE(bnxt_re_stat_name);
