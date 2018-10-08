@@ -1443,8 +1443,8 @@ static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
 	busy_cycles = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
 			REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
 
-	busy_time = (busy_cycles - gpu->devfreq.busy_cycles);
-	do_div(busy_time, (clk_get_rate(gpu->core_clk) / 1000000));
+	busy_time = busy_cycles - gpu->devfreq.busy_cycles;
+	do_div(busy_time, clk_get_rate(gpu->core_clk) / 1000000);
 
 	gpu->devfreq.busy_cycles = busy_cycles;
 
