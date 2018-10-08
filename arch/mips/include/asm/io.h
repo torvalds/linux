@@ -46,6 +46,11 @@
 # define __raw_ioswabq(a, x)	(x)
 # define ____raw_ioswabq(a, x)	(x)
 
+# define __relaxed_ioswabb ioswabb
+# define __relaxed_ioswabw ioswabw
+# define __relaxed_ioswabl ioswabl
+# define __relaxed_ioswabq ioswabq
+
 /* ioswab[bwlq], __mem_ioswab[bwlq] are defined in mangle-port.h */
 
 #define IO_SPACE_LIMIT 0xffff
@@ -311,7 +316,7 @@ static inline void iounmap(const volatile void __iomem *addr)
 #define war_io_reorder_wmb()		barrier()
 #endif
 
-#define __BUILD_MEMORY_SINGLE(pfx, bwlq, type, barrier, irq)		\
+#define __BUILD_MEMORY_SINGLE(pfx, bwlq, type, barrier, relax, irq)	\
 									\
 static inline void pfx##write##bwlq(type val,				\
 				    volatile void __iomem *mem)		\
@@ -385,11 +390,12 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 	}								\
 									\
 	/* prevent prefetching of coherent DMA data prematurely */	\
-	rmb();								\
+	if (!relax)							\
+		rmb();							\
 	return pfx##ioswab##bwlq(__mem, __val);				\
 }
 
-#define __BUILD_IOPORT_SINGLE(pfx, bwlq, type, barrier, p)		\
+#define __BUILD_IOPORT_SINGLE(pfx, bwlq, type, barrier, relax, p)	\
 									\
 static inline void pfx##out##bwlq##p(type val, unsigned long port)	\
 {									\
@@ -426,19 +432,21 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 	__val = *__addr;						\
 									\
 	/* prevent prefetching of coherent DMA data prematurely */	\
-	rmb();								\
+	if (!relax)							\
+		rmb();							\
 	return pfx##ioswab##bwlq(__addr, __val);			\
 }
 
-#define __BUILD_MEMORY_PFX(bus, bwlq, type)				\
+#define __BUILD_MEMORY_PFX(bus, bwlq, type, relax)			\
 									\
-__BUILD_MEMORY_SINGLE(bus, bwlq, type, 1, 1)
+__BUILD_MEMORY_SINGLE(bus, bwlq, type, 1, relax, 1)
 
 #define BUILDIO_MEM(bwlq, type)						\
 									\
-__BUILD_MEMORY_PFX(__raw_, bwlq, type)					\
-__BUILD_MEMORY_PFX(, bwlq, type)					\
-__BUILD_MEMORY_PFX(__mem_, bwlq, type)					\
+__BUILD_MEMORY_PFX(__raw_, bwlq, type, 0)				\
+__BUILD_MEMORY_PFX(__relaxed_, bwlq, type, 1)				\
+__BUILD_MEMORY_PFX(__mem_, bwlq, type, 0)				\
+__BUILD_MEMORY_PFX(, bwlq, type, 0)
 
 BUILDIO_MEM(b, u8)
 BUILDIO_MEM(w, u16)
@@ -446,8 +454,8 @@ BUILDIO_MEM(l, u32)
 BUILDIO_MEM(q, u64)
 
 #define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
-	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1,)			\
-	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1, _p)
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1, 0,)			\
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1, 0, _p)
 
 #define BUILDIO_IOPORT(bwlq, type)					\
 	__BUILD_IOPORT_PFX(, bwlq, type)				\
@@ -462,19 +470,19 @@ BUILDIO_IOPORT(q, u64)
 
 #define __BUILDIO(bwlq, type)						\
 									\
-__BUILD_MEMORY_SINGLE(____raw_, bwlq, type, 1, 0)
+__BUILD_MEMORY_SINGLE(____raw_, bwlq, type, 1, 0, 0)
 
 __BUILDIO(q, u64)
 
-#define readb_relaxed			readb
-#define readw_relaxed			readw
-#define readl_relaxed			readl
-#define readq_relaxed			readq
+#define readb_relaxed			__relaxed_readb
+#define readw_relaxed			__relaxed_readw
+#define readl_relaxed			__relaxed_readl
+#define readq_relaxed			__relaxed_readq
 
-#define writeb_relaxed			writeb
-#define writew_relaxed			writew
-#define writel_relaxed			writel
-#define writeq_relaxed			writeq
+#define writeb_relaxed			__relaxed_writeb
+#define writew_relaxed			__relaxed_writew
+#define writel_relaxed			__relaxed_writel
+#define writeq_relaxed			__relaxed_writeq
 
 #define readb_be(addr)							\
 	__raw_readb((__force unsigned *)(addr))
