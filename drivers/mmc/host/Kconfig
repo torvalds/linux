@@ -34,6 +34,16 @@ config MMC_QCOM_DML
 
 	  if unsure, say N.
 
+config MMC_STM32_SDMMC
+	bool "STMicroelectronics STM32 SDMMC Controller"
+	depends on MMC_ARMMMCI
+	default y
+	help
+	  This selects the STMicroelectronics STM32 SDMMC host controller.
+	  If you have a STM32 sdmmc host with internal DMA say Y here.
+
+	  If unsure, say N.
+
 config MMC_PXA
 	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA

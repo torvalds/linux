@@ -52,6 +52,12 @@ void mmci_variant_init(struct mmci_host *host);
 static inline void mmci_variant_init(struct mmci_host *host) {}
 #endif
 
+#ifdef CONFIG_MMC_STM32_SDMMC
+void sdmmc_variant_init(struct mmci_host *host);
+#else
+static inline void sdmmc_variant_init(struct mmci_host *host) {}
+#endif
+
 static unsigned int fmax = 515633;
 
 static struct variant_data variant_arm = {
@@ -257,6 +263,25 @@ static struct variant_data variant_stm32 = {
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
 	.init			= mmci_variant_init,
+};
+
+static struct variant_data variant_stm32_sdmmc = {
+	.fifosize		= 16 * 4,
+	.fifohalfsize		= 8 * 4,
+	.f_max			= 208000000,
+	.stm32_clkdiv		= true,
+	.cmdreg_cpsm_enable	= MCI_CPSM_STM32_ENABLE,
+	.cmdreg_lrsp_crc	= MCI_CPSM_STM32_LRSP_CRC,
+	.cmdreg_srsp_crc	= MCI_CPSM_STM32_SRSP_CRC,
+	.cmdreg_srsp		= MCI_CPSM_STM32_SRSP,
+	.data_cmd_enable	= MCI_CPSM_STM32_CMDTRANS,
+	.irq_pio_mask		= MCI_IRQ_PIO_STM32_MASK,
+	.datactrl_first		= true,
+	.datacnt_useless	= true,
+	.datalength_bits	= 25,
+	.datactrl_blocksz	= 14,
+	.stm32_idmabsize_mask	= GENMASK(12, 5),
+	.init			= sdmmc_variant_init,
 };
 
 static struct variant_data variant_qcom = {
@@ -1736,6 +1761,12 @@ static int mmci_of_parse(struct device_node *np, struct mmc_host *mmc)
 		host->pwr_reg_add |= MCI_ST_CMDDIREN;
 	if (of_get_property(np, "st,sig-pin-fbclk", NULL))
 		host->pwr_reg_add |= MCI_ST_FBCLKEN;
+	if (of_get_property(np, "st,sig-dir", NULL))
+		host->pwr_reg_add |= MCI_STM32_DIRPOL;
+	if (of_get_property(np, "st,neg-edge", NULL))
+		host->clk_reg_add |= MCI_STM32_CLK_NEGEDGE;
+	if (of_get_property(np, "st,use-ckin", NULL))
+		host->clk_reg_add |= MCI_STM32_CLK_SELCKIN;
 
 	if (of_get_property(np, "mmc-cap-mmc-highspeed", NULL))
 		mmc->caps |= MMC_CAP_MMC_HIGHSPEED;
@@ -2176,6 +2207,11 @@ static const struct amba_id mmci_ids[] = {
 		.id     = 0x00880180,
 		.mask   = 0x00ffffff,
 		.data	= &variant_stm32,
+	},
+	{
+		.id     = 0x10153180,
+		.mask	= 0xf0ffffff,
+		.data	= &variant_stm32_sdmmc,
 	},
 	/* Qualcomm variants */
 	{

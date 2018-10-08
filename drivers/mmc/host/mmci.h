@@ -304,6 +304,8 @@ struct mmci_host;
  * @start_err: bitmask identifying the STARTBITERR bit inside MMCISTATUS
  *	       register.
  * @opendrain: bitmask identifying the OPENDRAIN bit inside MMCIPOWER register
+ * @dma_lli: true if variant has dma link list feature.
+ * @stm32_idmabsize_mask: stm32 sdmmc idma buffer size.
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -346,6 +348,8 @@ struct variant_data {
 	unsigned int		irq_pio_mask;
 	u32			start_err;
 	u32			opendrain;
+	u8			dma_lli:1;
+	u32			stm32_idmabsize_mask;
 	void (*init)(struct mmci_host *host);
 };
 
@@ -387,6 +391,7 @@ struct mmci_host {
 	u32			pwr_reg;
 	u32			pwr_reg_add;
 	u32			clk_reg;
+	u32			clk_reg_add;
 	u32			datactrl_reg;
 	u32			busy_status;
 	u32			mask1_reg;
