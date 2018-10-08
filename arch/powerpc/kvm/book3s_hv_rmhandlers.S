@@ -1122,11 +1122,11 @@ kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
 
 	/* Check if we can deliver an external or decrementer interrupt now */
 	ld	r0, VCPU_PENDING_EXC(r4)
-	rldicl	r0, r0, 64 - BOOK3S_IRQPRIO_EXTERNAL_LEVEL, 63
+	rldicl	r0, r0, 64 - BOOK3S_IRQPRIO_EXTERNAL, 63
 	cmpdi	cr1, r0, 0
 	andi.	r8, r11, MSR_EE
 	mfspr	r8, SPRN_LPCR
-	/* Insert EXTERNAL_LEVEL bit into LPCR at the MER bit position */
+	/* Insert EXTERNAL bit into LPCR at the MER bit position */
 	rldimi	r8, r0, LPCR_MER_SH, 63 - LPCR_MER_SH
 	mtspr	SPRN_LPCR, r8
 	isync

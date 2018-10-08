@@ -136,7 +136,7 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 
 	/* Mark the target VCPU as having an interrupt pending */
 	vcpu->stat.queue_intr++;
-	set_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL, &vcpu->arch.pending_exceptions);
+	set_bit(BOOK3S_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
 
 	/* Kick self ? Just set MER and return */
 	if (vcpu == this_vcpu) {
@@ -170,8 +170,7 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 static void icp_rm_clr_vcpu_irq(struct kvm_vcpu *vcpu)
 {
 	/* Note: Only called on self ! */
-	clear_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL,
-		  &vcpu->arch.pending_exceptions);
+	clear_bit(BOOK3S_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~LPCR_MER);
 }
 

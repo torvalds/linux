@@ -285,7 +285,7 @@ X_STATIC unsigned long GLUE(X_PFX,h_xirr)(struct kvm_vcpu *vcpu)
 	 * set by pull or an escalation interrupts).
 	 */
 	if (test_bit(BOOK3S_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions))
-		clear_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL,
+		clear_bit(BOOK3S_IRQPRIO_EXTERNAL,
 			  &vcpu->arch.pending_exceptions);
 
 	pr_devel(" new pending=0x%02x hw_cppr=%d cppr=%d\n",

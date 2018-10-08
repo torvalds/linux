@@ -707,6 +707,7 @@ struct kvm_vcpu_arch {
 	u8 hcall_needed;
 	u8 epr_flags; /* KVMPPC_EPR_xxx */
 	u8 epr_needed;
+	u8 external_oneshot;	/* clear external irq after delivery */
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 

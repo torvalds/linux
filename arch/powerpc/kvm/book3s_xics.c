@@ -310,7 +310,7 @@ static inline bool icp_try_update(struct kvmppc_icp *icp,
 	 */
 	if (new.out_ee) {
 		kvmppc_book3s_queue_irqprio(icp->vcpu,
-					    BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
+					    BOOK3S_INTERRUPT_EXTERNAL);
 		if (!change_self)
 			kvmppc_fast_vcpu_kick(icp->vcpu);
 	}
@@ -593,8 +593,7 @@ static noinline unsigned long kvmppc_h_xirr(struct kvm_vcpu *vcpu)
 	u32 xirr;
 
 	/* First, remove EE from the processor */
-	kvmppc_book3s_dequeue_irqprio(icp->vcpu,
-				      BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
+	kvmppc_book3s_dequeue_irqprio(icp->vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 
 	/*
 	 * ICP State: Accept_Interrupt
@@ -754,8 +753,7 @@ static noinline void kvmppc_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 	 * We can remove EE from the current processor, the update
 	 * transaction will set it again if needed
 	 */
-	kvmppc_book3s_dequeue_irqprio(icp->vcpu,
-				      BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
+	kvmppc_book3s_dequeue_irqprio(icp->vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 
 	do {
 		old_state = new_state = READ_ONCE(icp->state);
@@ -1167,8 +1165,7 @@ int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
 	 * Deassert the CPU interrupt request.
 	 * icp_try_update will reassert it if necessary.
 	 */
-	kvmppc_book3s_dequeue_irqprio(icp->vcpu,
-				      BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
+	kvmppc_book3s_dequeue_irqprio(icp->vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 
 	/*
 	 * Note that if we displace an interrupt from old_state.xisr,
