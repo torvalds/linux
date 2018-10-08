@@ -666,12 +666,28 @@ errout:
 static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 				      struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	int h, s_h;
 	int idx, s_idx;
 	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct hlist_head *head;
+
+	if (cb->strict_check) {
+		struct netlink_ext_ack *extack = cb->extack;
+		struct netconfmsg *ncm;
+
+		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ncm))) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid header for netconf dump request");
+			return -EINVAL;
+		}
+
+		if (nlmsg_attrlen(nlh, sizeof(*ncm))) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid data after header in netconf dump request");
+			return -EINVAL;
+		}
+	}
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
@@ -692,7 +708,7 @@ static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 			if (inet6_netconf_fill_devconf(skb, dev->ifindex,
 						       &idev->cnf,
 						       NETLINK_CB(cb->skb).portid,
-						       cb->nlh->nlmsg_seq,
+						       nlh->nlmsg_seq,
 						       RTM_NEWNETCONF,
 						       NLM_F_MULTI,
 						       NETCONFA_ALL) < 0) {
@@ -709,7 +725,7 @@ cont:
 		if (inet6_netconf_fill_devconf(skb, NETCONFA_IFINDEX_ALL,
 					       net->ipv6.devconf_all,
 					       NETLINK_CB(cb->skb).portid,
-					       cb->nlh->nlmsg_seq,
+					       nlh->nlmsg_seq,
 					       RTM_NEWNETCONF, NLM_F_MULTI,
 					       NETCONFA_ALL) < 0)
 			goto done;
@@ -720,7 +736,7 @@ cont:
 		if (inet6_netconf_fill_devconf(skb, NETCONFA_IFINDEX_DEFAULT,
 					       net->ipv6.devconf_dflt,
 					       NETLINK_CB(cb->skb).portid,
-					       cb->nlh->nlmsg_seq,
+					       nlh->nlmsg_seq,
 					       RTM_NEWNETCONF, NLM_F_MULTI,
 					       NETCONFA_ALL) < 0)
 			goto done;
