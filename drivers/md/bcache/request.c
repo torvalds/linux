@@ -1218,6 +1218,9 @@ static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
 
+	if (dc->io_disable)
+		return -EIO;
+
 	return __blkdev_driver_ioctl(dc->bdev, mode, cmd, arg);
 }
 
