@@ -5261,12 +5261,7 @@ intel_dp_connector_destroy(struct drm_connector *connector)
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
-	/*
-	 * Can't call intel_dp_is_edp() since the encoder may have been
-	 * destroyed already.
-	 */
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-		intel_panel_fini(&intel_connector->panel);
+	intel_panel_fini(&intel_connector->panel);
 
 	drm_connector_cleanup(connector);
 	kfree(connector);
