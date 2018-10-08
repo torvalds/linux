@@ -452,4 +452,6 @@ static inline void fib_proc_exit(struct net *net)
 
 u32 ip_mtu_from_fib_result(struct fib_result *res, __be32 daddr);
 
+int ip_valid_fib_dump_req(const struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack);
 #endif  /* _NET_FIB_H */
