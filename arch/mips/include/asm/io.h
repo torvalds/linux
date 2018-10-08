@@ -311,7 +311,7 @@ static inline void iounmap(const volatile void __iomem *addr)
 #define war_io_reorder_wmb()		barrier()
 #endif
 
-#define __BUILD_MEMORY_SINGLE(pfx, bwlq, type, irq)			\
+#define __BUILD_MEMORY_SINGLE(pfx, bwlq, type, barrier, irq)		\
 									\
 static inline void pfx##write##bwlq(type val,				\
 				    volatile void __iomem *mem)		\
@@ -319,7 +319,10 @@ static inline void pfx##write##bwlq(type val,				\
 	volatile type *__mem;						\
 	type __val;							\
 									\
-	war_io_reorder_wmb();					\
+	if (barrier)							\
+		iobarrier_rw();						\
+	else								\
+		war_io_reorder_wmb();					\
 									\
 	__mem = (void *)__swizzle_addr_##bwlq((unsigned long)(mem));	\
 									\
@@ -356,6 +359,9 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 									\
 	__mem = (void *)__swizzle_addr_##bwlq((unsigned long)(mem));	\
 									\
+	if (barrier)							\
+		iobarrier_rw();						\
+									\
 	if (sizeof(type) != sizeof(u64) || sizeof(u64) == sizeof(long)) \
 		__val = *__mem;						\
 	else if (cpu_has_64bits) {					\
@@ -383,14 +389,17 @@ static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 	return pfx##ioswab##bwlq(__mem, __val);				\
 }
 
-#define __BUILD_IOPORT_SINGLE(pfx, bwlq, type, p)			\
+#define __BUILD_IOPORT_SINGLE(pfx, bwlq, type, barrier, p)		\
 									\
 static inline void pfx##out##bwlq##p(type val, unsigned long port)	\
 {									\
 	volatile type *__addr;						\
 	type __val;							\
 									\
-	war_io_reorder_wmb();					\
+	if (barrier)							\
+		iobarrier_rw();						\
+	else								\
+		war_io_reorder_wmb();					\
 									\
 	__addr = (void *)__swizzle_addr_##bwlq(mips_io_port_base + port); \
 									\
@@ -411,6 +420,9 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 									\
 	BUILD_BUG_ON(sizeof(type) > sizeof(unsigned long));		\
 									\
+	if (barrier)							\
+		iobarrier_rw();						\
+									\
 	__val = *__addr;						\
 									\
 	/* prevent prefetching of coherent DMA data prematurely */	\
@@ -420,7 +432,7 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 
 #define __BUILD_MEMORY_PFX(bus, bwlq, type)				\
 									\
-__BUILD_MEMORY_SINGLE(bus, bwlq, type, 1)
+__BUILD_MEMORY_SINGLE(bus, bwlq, type, 1, 1)
 
 #define BUILDIO_MEM(bwlq, type)						\
 									\
@@ -434,8 +446,8 @@ BUILDIO_MEM(l, u32)
 BUILDIO_MEM(q, u64)
 
 #define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
-	__BUILD_IOPORT_SINGLE(bus, bwlq, type,)				\
-	__BUILD_IOPORT_SINGLE(bus, bwlq, type, _p)
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1,)			\
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1, _p)
 
 #define BUILDIO_IOPORT(bwlq, type)					\
 	__BUILD_IOPORT_PFX(, bwlq, type)				\
@@ -450,7 +462,7 @@ BUILDIO_IOPORT(q, u64)
 
 #define __BUILDIO(bwlq, type)						\
 									\
-__BUILD_MEMORY_SINGLE(____raw_, bwlq, type, 0)
+__BUILD_MEMORY_SINGLE(____raw_, bwlq, type, 1, 0)
 
 __BUILDIO(q, u64)
 
