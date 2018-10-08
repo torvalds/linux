@@ -1710,6 +1710,9 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_ONLINE:
 		*val = get_reg_val(id, vcpu->arch.online);
 		break;
+	case KVM_REG_PPC_PTCR:
+		*val = get_reg_val(id, vcpu->kvm->arch.l1_ptcr);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -1940,6 +1943,9 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		else if (!i && vcpu->arch.online)
 			atomic_dec(&vcpu->arch.vcore->online_count);
 		vcpu->arch.online = i;
+		break;
+	case KVM_REG_PPC_PTCR:
+		vcpu->kvm->arch.l1_ptcr = set_reg_val(id, *val);
 		break;
 	default:
 		r = -EINVAL;
