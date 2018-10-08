@@ -229,6 +229,19 @@ route_get_dst_pmtu_from_exception() {
 	mtu_parse "$(route_get_dst_exception "${ns_cmd}" ${dst})"
 }
 
+check_pmtu_value() {
+	expected="${1}"
+	value="${2}"
+	event="${3}"
+
+	[ "${expected}" = "any" ] && [ -n "${value}" ] && return 0
+	[ "${value}" = "${expected}" ] && return 0
+	[ -z "${value}" ] &&    err "  PMTU exception wasn't created after ${event}" && return 1
+	[ -z "${expected}" ] && err "  PMTU exception shouldn't exist after ${event}" && return 1
+	err "  found PMTU exception with incorrect MTU ${value}, expected ${expected}, after ${event}"
+	return 1
+}
+
 test_pmtu_vti4_exception() {
 	setup namespaces veth vti4 xfrm4 || return 2
 
@@ -248,24 +261,13 @@ test_pmtu_vti4_exception() {
 	# exception is created
 	${ns_a} ping -q -M want -i 0.1 -w 2 -s ${ping_payload} ${vti4_b_addr} > /dev/null
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti4_b_addr})"
-	if [ "${pmtu}" != "" ]; then
-		err "  unexpected exception created with PMTU ${pmtu} for IP payload length ${esp_payload_rfc4106}"
-		return 1
-	fi
+	check_pmtu_value "" "${pmtu}" "sending packet smaller than PMTU (IP payload length ${esp_payload_rfc4106})" || return 1
 
 	# Now exceed link layer MTU by one byte, check that exception is created
+	# with the right PMTU value
 	${ns_a} ping -q -M want -i 0.1 -w 2 -s $((ping_payload + 1)) ${vti4_b_addr} > /dev/null
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti4_b_addr})"
-	if [ "${pmtu}" = "" ]; then
-		err "  exception not created for IP payload length $((esp_payload_rfc4106 + 1))"
-		return 1
-	fi
-
-	# ...with the right PMTU value
-	if [ ${pmtu} -ne ${esp_payload_rfc4106} ]; then
-		err "  wrong PMTU ${pmtu} in exception, expected: ${esp_payload_rfc4106}"
-		return 1
-	fi
+	check_pmtu_value "${esp_payload_rfc4106}" "${pmtu}" "exceeding PMTU (IP payload length $((esp_payload_rfc4106 + 1)))"
 }
 
 test_pmtu_vti6_exception() {
@@ -280,25 +282,18 @@ test_pmtu_vti6_exception() {
 	${ns_a} ${ping6} -q -i 0.1 -w 2 -s 60000 ${vti6_b_addr} > /dev/null
 
 	# Check that exception was created
-	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" = "" ]; then
-		err "  tunnel exceeding link layer MTU didn't create route exception"
-		return 1
-	fi
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})"
+	check_pmtu_value any "${pmtu}" "creating tunnel exceeding link layer MTU" || return 1
 
 	# Decrease tunnel MTU, check for PMTU decrease in route exception
 	mtu "${ns_a}" vti6_a 3000
-
-	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 3000 ]; then
-		err "  decreasing tunnel MTU didn't decrease route exception PMTU"
-		fail=1
-	fi
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})"
+	check_pmtu_value "3000" "${pmtu}" "decreasing tunnel MTU" || fail=1
 
 	# Increase tunnel MTU, check for PMTU increase in route exception
 	mtu "${ns_a}" vti6_a 9000
-	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 9000 ]; then
-		err "  increasing tunnel MTU didn't increase route exception PMTU"
-		fail=1
-	fi
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})"
+	check_pmtu_value "9000" "${pmtu}" "increasing tunnel MTU" || fail=1
 
 	return ${fail}
 }
