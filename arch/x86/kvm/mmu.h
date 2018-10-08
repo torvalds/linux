@@ -75,7 +75,7 @@ static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
-	if (likely(vcpu->arch.mmu.root_hpa != INVALID_PAGE))
+	if (likely(vcpu->arch.mmu->root_hpa != INVALID_PAGE))
 		return 0;
 
 	return kvm_mmu_load(vcpu);
@@ -97,9 +97,9 @@ static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
 
 static inline void kvm_mmu_load_cr3(struct kvm_vcpu *vcpu)
 {
-	if (VALID_PAGE(vcpu->arch.mmu.root_hpa))
-		vcpu->arch.mmu.set_cr3(vcpu, vcpu->arch.mmu.root_hpa |
-					     kvm_get_active_pcid(vcpu));
+	if (VALID_PAGE(vcpu->arch.mmu->root_hpa))
+		vcpu->arch.mmu->set_cr3(vcpu, vcpu->arch.mmu->root_hpa |
+					      kvm_get_active_pcid(vcpu));
 }
 
 /*
