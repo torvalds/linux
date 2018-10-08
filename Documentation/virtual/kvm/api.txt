@@ -2270,6 +2270,10 @@ The supported flags are:
         The emulated MMU supports 1T segments in addition to the
         standard 256M ones.
 
+    - KVM_PPC_NO_HASH
+	This flag indicates that HPT guests are not supported by KVM,
+	thus all guests must use radix MMU mode.
+
 The "slb_size" field indicates how many SLB entries are supported
 
 The "sps" array contains 8 entries indicating the supported base

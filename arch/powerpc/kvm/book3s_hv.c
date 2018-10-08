@@ -4257,6 +4257,10 @@ static int kvm_vm_ioctl_get_smmu_info_hv(struct kvm *kvm,
 	kvmppc_add_seg_page_size(&sps, 16, SLB_VSID_L | SLB_VSID_LP_01);
 	kvmppc_add_seg_page_size(&sps, 24, SLB_VSID_L);
 
+	/* If running as a nested hypervisor, we don't support HPT guests */
+	if (kvmhv_on_pseries())
+		info->flags |= KVM_PPC_NO_HASH;
+
 	return 0;
 }
 
