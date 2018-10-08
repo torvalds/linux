@@ -1814,11 +1814,8 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 	return 0;
 }
 
-void intel_panel_destroy_backlight(struct drm_connector *connector)
+static void intel_panel_destroy_backlight(struct intel_panel *panel)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_panel *panel = &intel_connector->panel;
-
 	/* dispose of the pwm */
 	if (panel->backlight.pwm)
 		pwm_put(panel->backlight.pwm);
@@ -1922,6 +1919,8 @@ void intel_panel_fini(struct intel_panel *panel)
 {
 	struct intel_connector *intel_connector =
 		container_of(panel, struct intel_connector, panel);
+
+	intel_panel_destroy_backlight(panel);
 
 	if (panel->fixed_mode)
 		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);

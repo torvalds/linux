@@ -15860,7 +15860,6 @@ void intel_connector_unregister(struct drm_connector *connector)
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
 	intel_backlight_device_unregister(intel_connector);
-	intel_panel_destroy_backlight(connector);
 }
 
 static void intel_hpd_poll_fini(struct drm_device *dev)
