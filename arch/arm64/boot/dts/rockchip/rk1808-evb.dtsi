@@ -218,8 +218,8 @@
 		pinctrl-0 = <&vsel_gpio>;
 		vsel-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vdd_npu";
-		regulator-min-microvolt = <712500>;
-		regulator-max-microvolt = <1500000>;
+		regulator-min-microvolt = <750000>;
+		regulator-max-microvolt = <950000>;
 		regulator-ramp-delay = <1000>;
 		fcs,suspend-voltage-selector = <1>;
 		regulator-boot-on;
@@ -290,28 +290,27 @@
 			vdd_log: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <950000>;
-				regulator-max-microvolt = <1350000>;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_log";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <950000>;
+					regulator-suspend-microvolt = <800000>;
 				};
 			};
 
 			vdd_cpu: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <950000>;
-				regulator-max-microvolt = <1350000>;
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_cpu";
 				regulator-state-mem {
 					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <950000>;
 				};
 			};
 
