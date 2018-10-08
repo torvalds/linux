@@ -397,6 +397,22 @@ static const struct ts_dmi_data trekstor_primebook_c13_data = {
 	.properties	= trekstor_primebook_c13_props,
 };
 
+static const struct property_entry trekstor_primetab_t13b_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 2500),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1900),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1680-trekstor-primetab-t13b.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	{ }
+};
+
+static const struct ts_dmi_data trekstor_primetab_t13b_data = {
+	.acpi_name  = "MSSL1680:00",
+	.properties = trekstor_primetab_t13b_props,
+};
+
 static const struct property_entry trekstor_surftab_twin_10_1_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1900),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
@@ -670,6 +686,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Primebook C13"),
+		},
+	},
+	{
+		/* Trekstor Primetab T13B */
+		.driver_data = (void *)&trekstor_primetab_t13b_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Primetab T13B"),
 		},
 	},
 	{
