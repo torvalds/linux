@@ -5587,8 +5587,7 @@ static int prepare_user_rq(struct ib_pd *pd,
 	err = create_user_rq(dev, pd, rwq, &ucmd);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
-		if (err)
-			return err;
+		return err;
 	}
 
 	rwq->user_index = ucmd.user_index;
