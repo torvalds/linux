@@ -36,7 +36,7 @@
 		/* If enable uart uses irq instead of fiq */
 		rockchip,irq-mode-enable = <0>;
 		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
-		interrupts = <GIC_SPI 274 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2m0_xfer>;
 		status = "okay";
@@ -83,12 +83,33 @@
 		regulator-min-microvolt = <850000>;
 		regulator-max-microvolt = <850000>;
 		regulator-ramp-delay = <1000>;
-		fcs,suspend-voltage-selector = <1>;
+		fcs,suspend-voltage-selector = <0>;
 		regulator-boot-on;
 		regulator-state-mem {
 			regulator-off-in-suspend;
 		};
 	};
+};
+
+&npu {
+	npu-supply = <&vdd_npu>;
+	status = "okay";
+};
+
+&u2phy {
+	status = "okay";
+};
+
+&u2phy_otg {
+	status = "okay";
+};
+
+&usbdrd3 {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	status = "okay";
 };
 
 &pinctrl {
