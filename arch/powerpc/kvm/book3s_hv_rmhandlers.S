@@ -1018,8 +1018,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 no_xive:
 #endif /* CONFIG_KVM_XICS */
 
-deliver_guest_interrupt:
-kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
+deliver_guest_interrupt:	/* r4 = vcpu, r13 = paca */
 	/* Check if we can deliver an external or decrementer interrupt now */
 	ld	r0, VCPU_PENDING_EXC(r4)
 BEGIN_FTR_SECTION
@@ -1269,17 +1268,25 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	std	r3, VCPU_CTR(r9)
 	std	r4, VCPU_XER(r9)
 
+	/* Save more register state  */
+	mfdar	r3
+	mfdsisr	r4
+	std	r3, VCPU_DAR(r9)
+	stw	r4, VCPU_DSISR(r9)
+
+	/* If this is a page table miss then see if it's theirs or ours */
+	cmpwi	r12, BOOK3S_INTERRUPT_H_DATA_STORAGE
+	beq	kvmppc_hdsi
+	std	r3, VCPU_FAULT_DAR(r9)
+	stw	r4, VCPU_FAULT_DSISR(r9)
+	cmpwi	r12, BOOK3S_INTERRUPT_H_INST_STORAGE
+	beq	kvmppc_hisi
+
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	/* For softpatch interrupt, go off and do TM instruction emulation */
 	cmpwi	r12, BOOK3S_INTERRUPT_HV_SOFTPATCH
 	beq	kvmppc_tm_emul
 #endif
-
-	/* If this is a page table miss then see if it's theirs or ours */
-	cmpwi	r12, BOOK3S_INTERRUPT_H_DATA_STORAGE
-	beq	kvmppc_hdsi
-	cmpwi	r12, BOOK3S_INTERRUPT_H_INST_STORAGE
-	beq	kvmppc_hisi
 
 	/* See if this is a leftover HDEC interrupt */
 	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
@@ -1303,7 +1310,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	lbz	r0, HSTATE_HOST_IPI(r13)
 	cmpwi	r0, 0
-	beq	4f
+	beq	maybe_reenter_guest
 	b	guest_exit_cont
 3:
 	/* If it's a hypervisor facility unavailable interrupt, save HFSCR */
@@ -1315,82 +1322,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 14:
 	/* External interrupt ? */
 	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	bne+	guest_exit_cont
-
-	/* External interrupt, first check for host_ipi. If this is
-	 * set, we know the host wants us out so let's do it now
-	 */
-	bl	kvmppc_read_intr
-
-	/*
-	 * Restore the active volatile registers after returning from
-	 * a C function.
-	 */
-	ld	r9, HSTATE_KVM_VCPU(r13)
-	li	r12, BOOK3S_INTERRUPT_EXTERNAL
-
-	/*
-	 * kvmppc_read_intr return codes:
-	 *
-	 * Exit to host (r3 > 0)
-	 *   1 An interrupt is pending that needs to be handled by the host
-	 *     Exit guest and return to host by branching to guest_exit_cont
-	 *
-	 *   2 Passthrough that needs completion in the host
-	 *     Exit guest and return to host by branching to guest_exit_cont
-	 *     However, we also set r12 to BOOK3S_INTERRUPT_HV_RM_HARD
-	 *     to indicate to the host to complete handling the interrupt
-	 *
-	 * Before returning to guest, we check if any CPU is heading out
-	 * to the host and if so, we head out also. If no CPUs are heading
-	 * check return values <= 0.
-	 *
-	 * Return to guest (r3 <= 0)
-	 *  0 No external interrupt is pending
-	 * -1 A guest wakeup IPI (which has now been cleared)
-	 *    In either case, we return to guest to deliver any pending
-	 *    guest interrupts.
-	 *
-	 * -2 A PCI passthrough external interrupt was handled
-	 *    (interrupt was delivered directly to guest)
-	 *    Return to guest to deliver any pending guest interrupts.
-	 */
-
-	cmpdi	r3, 1
-	ble	1f
-
-	/* Return code = 2 */
-	li	r12, BOOK3S_INTERRUPT_HV_RM_HARD
-	stw	r12, VCPU_TRAP(r9)
-	b	guest_exit_cont
-
-1:	/* Return code <= 1 */
-	cmpdi	r3, 0
-	bgt	guest_exit_cont
-
-	/* Return code <= 0 */
-4:	ld	r5, HSTATE_KVM_VCORE(r13)
-	lwz	r0, VCORE_ENTRY_EXIT(r5)
-	cmpwi	r0, 0x100
-	mr	r4, r9
-	blt	deliver_guest_interrupt
-
-guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
-	/* Save more register state  */
-	mfdar	r6
-	mfdsisr	r7
-	std	r6, VCPU_DAR(r9)
-	stw	r7, VCPU_DSISR(r9)
-	/* don't overwrite fault_dar/fault_dsisr if HDSI */
-	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE
-	beq	mc_cont
-	std	r6, VCPU_FAULT_DAR(r9)
-	stw	r7, VCPU_FAULT_DSISR(r9)
-
+	beq	kvmppc_guest_external
 	/* See if it is a machine check */
 	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
 	beq	machine_check_realmode
-mc_cont:
+	/* Or a hypervisor maintenance interrupt */
+	cmpwi	r12, BOOK3S_INTERRUPT_HMI
+	beq	hmi_realmode
+
+guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
+
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	addi	r3, r9, VCPU_TB_RMEXIT
 	mr	r4, r9
@@ -1821,24 +1762,6 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_DPDES, r8
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
-	/* If HMI, call kvmppc_realmode_hmi_handler() */
-	lwz	r12, STACK_SLOT_TRAP(r1)
-	cmpwi	r12, BOOK3S_INTERRUPT_HMI
-	bne	27f
-	bl	kvmppc_realmode_hmi_handler
-	nop
-	cmpdi	r3, 0
-	/*
-	 * At this point kvmppc_realmode_hmi_handler may have resync-ed
-	 * the TB, and if it has, we must not subtract the guest timebase
-	 * offset from the timebase. So, skip it.
-	 *
-	 * Also, do not call kvmppc_subcore_exit_guest() because it has
-	 * been invoked as part of kvmppc_realmode_hmi_handler().
-	 */
-	beq	30f
-
-27:
 	/* Subtract timebase offset from timebase */
 	ld	r8, VCORE_TB_OFFSET_APPL(r5)
 	cmpdi	r8,0
@@ -1856,7 +1779,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	addis	r8,r8,0x100		/* if so, increment upper 40 bits */
 	mtspr	SPRN_TBU40,r8
 
-17:	bl	kvmppc_subcore_exit_guest
+17:
+	/*
+	 * If this is an HMI, we called kvmppc_realmode_hmi_handler
+	 * above, which may or may not have already called
+	 * kvmppc_subcore_exit_guest.  Fortunately, all that
+	 * kvmppc_subcore_exit_guest does is clear a flag, so calling
+	 * it again here is benign even if kvmppc_realmode_hmi_handler
+	 * has already called it.
+	 */
+	bl	kvmppc_subcore_exit_guest
 	nop
 30:	ld	r5,HSTATE_KVM_VCORE(r13)
 	ld	r4,VCORE_KVM(r5)	/* pointer to struct kvm */
@@ -1909,6 +1841,67 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	addi	r1, r1, SFS
 	mtlr	r0
 	blr
+
+kvmppc_guest_external:
+	/* External interrupt, first check for host_ipi. If this is
+	 * set, we know the host wants us out so let's do it now
+	 */
+	bl	kvmppc_read_intr
+
+	/*
+	 * Restore the active volatile registers after returning from
+	 * a C function.
+	 */
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	li	r12, BOOK3S_INTERRUPT_EXTERNAL
+
+	/*
+	 * kvmppc_read_intr return codes:
+	 *
+	 * Exit to host (r3 > 0)
+	 *   1 An interrupt is pending that needs to be handled by the host
+	 *     Exit guest and return to host by branching to guest_exit_cont
+	 *
+	 *   2 Passthrough that needs completion in the host
+	 *     Exit guest and return to host by branching to guest_exit_cont
+	 *     However, we also set r12 to BOOK3S_INTERRUPT_HV_RM_HARD
+	 *     to indicate to the host to complete handling the interrupt
+	 *
+	 * Before returning to guest, we check if any CPU is heading out
+	 * to the host and if so, we head out also. If no CPUs are heading
+	 * check return values <= 0.
+	 *
+	 * Return to guest (r3 <= 0)
+	 *  0 No external interrupt is pending
+	 * -1 A guest wakeup IPI (which has now been cleared)
+	 *    In either case, we return to guest to deliver any pending
+	 *    guest interrupts.
+	 *
+	 * -2 A PCI passthrough external interrupt was handled
+	 *    (interrupt was delivered directly to guest)
+	 *    Return to guest to deliver any pending guest interrupts.
+	 */
+
+	cmpdi	r3, 1
+	ble	1f
+
+	/* Return code = 2 */
+	li	r12, BOOK3S_INTERRUPT_HV_RM_HARD
+	stw	r12, VCPU_TRAP(r9)
+	b	guest_exit_cont
+
+1:	/* Return code <= 1 */
+	cmpdi	r3, 0
+	bgt	guest_exit_cont
+
+	/* Return code <= 0 */
+maybe_reenter_guest:
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	lwz	r0, VCORE_ENTRY_EXIT(r5)
+	cmpwi	r0, 0x100
+	mr	r4, r9
+	blt	deliver_guest_interrupt
+	b	guest_exit_cont
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 /*
@@ -2685,13 +2678,7 @@ END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	mr	r9, r4
 	cmpdi	r3, 0
 	bgt	guest_exit_cont
-
-	/* see if any other thread is already exiting */
-	lwz	r0,VCORE_ENTRY_EXIT(r5)
-	cmpwi	r0,0x100
-	bge	guest_exit_cont
-
-	b	kvmppc_cede_reentry	/* if not go back to guest */
+	b	maybe_reenter_guest
 
 	/* cede when already previously prodded case */
 kvm_cede_prodded:
@@ -2758,12 +2745,12 @@ machine_check_realmode:
 	 */
 	ld	r11, VCPU_MSR(r9)
 	rldicl.	r0, r11, 64-MSR_HV_LG, 63 /* check if it happened in HV mode */
-	bne	mc_cont			/* if so, exit to host */
+	bne	guest_exit_cont		/* if so, exit to host */
 	/* Check if guest is capable of handling NMI exit */
 	ld	r10, VCPU_KVM(r9)
 	lbz	r10, KVM_FWNMI(r10)
 	cmpdi	r10, 1			/* FWNMI capable? */
-	beq	mc_cont			/* if so, exit with KVM_EXIT_NMI. */
+	beq	guest_exit_cont		/* if so, exit with KVM_EXIT_NMI. */
 
 	/* if not, fall through for backward compatibility. */
 	andi.	r10, r11, MSR_RI	/* check for unrecoverable exception */
@@ -2775,6 +2762,21 @@ machine_check_realmode:
 1:	li	r10, BOOK3S_INTERRUPT_MACHINE_CHECK
 	bl	kvmppc_msr_interrupt
 2:	b	fast_interrupt_c_return
+
+/*
+ * Call C code to handle a HMI in real mode.
+ * Only the primary thread does the call, secondary threads are handled
+ * by calling hmi_exception_realmode() after kvmppc_hv_entry returns.
+ * r9 points to the vcpu on entry
+ */
+hmi_realmode:
+	lbz	r0, HSTATE_PTID(r13)
+	cmpwi	r0, 0
+	bne	guest_exit_cont
+	bl	kvmppc_realmode_hmi_handler
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	li	r12, BOOK3S_INTERRUPT_HMI
+	b	guest_exit_cont
 
 /*
  * Check the reason we woke from nap, and take appropriate action.
