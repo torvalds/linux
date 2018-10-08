@@ -2174,15 +2174,18 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	 * Set the default HFSCR for the guest from the host value.
 	 * This value is only used on POWER9.
 	 * On POWER9, we want to virtualize the doorbell facility, so we
-	 * turn off the HFSCR bit, which causes those instructions to trap.
+	 * don't set the HFSCR_MSGP bit, and that causes those instructions
+	 * to trap and then we emulate them.
 	 */
-	vcpu->arch.hfscr = mfspr(SPRN_HFSCR);
-	if (cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST))
+	vcpu->arch.hfscr = HFSCR_TAR | HFSCR_EBB | HFSCR_PM | HFSCR_BHRB |
+		HFSCR_DSCR | HFSCR_VECVSX | HFSCR_FP;
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		vcpu->arch.hfscr &= mfspr(SPRN_HFSCR);
+		if (cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST))
+			vcpu->arch.hfscr |= HFSCR_TM;
+	}
+	if (cpu_has_feature(CPU_FTR_TM_COMP))
 		vcpu->arch.hfscr |= HFSCR_TM;
-	else if (!cpu_has_feature(CPU_FTR_TM_COMP))
-		vcpu->arch.hfscr &= ~HFSCR_TM;
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		vcpu->arch.hfscr &= ~HFSCR_MSGP;
 
 	kvmppc_mmu_book3s_hv_init(vcpu);
 
@@ -4006,8 +4009,10 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 
-	mtspr(SPRN_LPID, kvm->arch.host_lpid);
-	isync();
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		mtspr(SPRN_LPID, kvm->arch.host_lpid);
+		isync();
+	}
 
 	trace_hardirqs_off();
 	set_irq_happened(trap);
@@ -4634,9 +4639,13 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 		kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
 
 	/* Init LPCR for virtual RMA mode */
-	kvm->arch.host_lpid = mfspr(SPRN_LPID);
-	kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
-	lpcr &= LPCR_PECE | LPCR_LPES;
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		kvm->arch.host_lpid = mfspr(SPRN_LPID);
+		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
+		lpcr &= LPCR_PECE | LPCR_LPES;
+	} else {
+		lpcr = 0;
+	}
 	lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
 		LPCR_VPM0 | LPCR_VPM1;
 	kvm->arch.vrma_slb_v = SLB_VSID_B_1T |
