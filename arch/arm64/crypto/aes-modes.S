@@ -359,18 +359,17 @@ AES_ENTRY(aes_xts_encrypt)
 	mov		x29, sp
 
 	ld1		{v4.16b}, [x6]
+	xts_load_mask	v8
 	cbz		w7, .Lxtsencnotfirst
 
 	enc_prepare	w3, x5, x8
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
 	enc_switch_key	w3, x2, x8
-	xts_load_mask	v8
 	b		.LxtsencNx
 
 .Lxtsencnotfirst:
 	enc_prepare	w3, x2, x8
 .LxtsencloopNx:
-	xts_reload_mask	v8
 	next_tweak	v4, v4, v8
 .LxtsencNx:
 	subs		w4, w4, #4
@@ -391,6 +390,7 @@ AES_ENTRY(aes_xts_encrypt)
 	st1		{v0.16b-v3.16b}, [x0], #64
 	mov		v4.16b, v7.16b
 	cbz		w4, .Lxtsencout
+	xts_reload_mask	v8
 	b		.LxtsencloopNx
 .Lxtsenc1x:
 	adds		w4, w4, #4
@@ -417,18 +417,17 @@ AES_ENTRY(aes_xts_decrypt)
 	mov		x29, sp
 
 	ld1		{v4.16b}, [x6]
+	xts_load_mask	v8
 	cbz		w7, .Lxtsdecnotfirst
 
 	enc_prepare	w3, x5, x8
 	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
 	dec_prepare	w3, x2, x8
-	xts_load_mask	v8
 	b		.LxtsdecNx
 
 .Lxtsdecnotfirst:
 	dec_prepare	w3, x2, x8
 .LxtsdecloopNx:
-	xts_reload_mask	v8
 	next_tweak	v4, v4, v8
 .LxtsdecNx:
 	subs		w4, w4, #4
@@ -449,6 +448,7 @@ AES_ENTRY(aes_xts_decrypt)
 	st1		{v0.16b-v3.16b}, [x0], #64
 	mov		v4.16b, v7.16b
 	cbz		w4, .Lxtsdecout
+	xts_reload_mask	v8
 	b		.LxtsdecloopNx
 .Lxtsdec1x:
 	adds		w4, w4, #4
