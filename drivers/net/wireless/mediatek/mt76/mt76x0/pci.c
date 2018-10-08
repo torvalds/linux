@@ -115,12 +115,12 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 		if (val & MT_EE_NIC_CONF_0_PA_IO_CURRENT) {
 			u32 data;
 
-			/* set external external PA I/O
+			/* set external PA I/O
 			 * current to 16mA
 			 */
 			data = mt76_rr(dev, 0x11c);
-			val |= 0xc03;
-			mt76_wr(dev, 0x11c, val);
+			data |= 0xc03;
+			mt76_wr(dev, 0x11c, data);
 		}
 	}
 
