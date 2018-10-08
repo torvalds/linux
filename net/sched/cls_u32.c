@@ -761,7 +761,7 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 };
 
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
-			 unsigned long base, struct tc_u_hnode *ht,
+			 unsigned long base, struct tc_u_common *tp_c,
 			 struct tc_u_knode *n, struct nlattr **tb,
 			 struct nlattr *est, bool ovr,
 			 struct netlink_ext_ack *extack)
@@ -782,7 +782,7 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 		}
 
 		if (handle) {
-			ht_down = u32_lookup_ht(ht->tp_c, handle);
+			ht_down = u32_lookup_ht(tp_c, handle);
 
 			if (!ht_down) {
 				NL_SET_ERR_MSG_MOD(extack, "Link hash table not found");
@@ -957,7 +957,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -ENOMEM;
 
 		err = u32_set_parms(net, tp, base,
-				    rtnl_dereference(n->ht_up), new, tb,
+				    rtnl_dereference(n->ht_up)->tp_c, new, tb,
 				    tca[TCA_RATE], ovr, extack);
 
 		if (err) {
@@ -1124,7 +1124,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	err = u32_set_parms(net, tp, base, ht, n, tb, tca[TCA_RATE], ovr,
+	err = u32_set_parms(net, tp, base, ht->tp_c, n, tb, tca[TCA_RATE], ovr,
 			    extack);
 	if (err == 0) {
 		struct tc_u_knode __rcu **ins;
