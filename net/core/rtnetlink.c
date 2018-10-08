@@ -4021,28 +4021,72 @@ nla_put_failure:
 }
 EXPORT_SYMBOL_GPL(ndo_dflt_bridge_getlink);
 
+static int valid_bridge_getlink_req(const struct nlmsghdr *nlh,
+				    bool strict_check, u32 *filter_mask,
+				    struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[IFLA_MAX+1];
+	int err, i;
+
+	if (strict_check) {
+		struct ifinfomsg *ifm;
+
+		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+			NL_SET_ERR_MSG(extack, "Invalid header for bridge link dump");
+			return -EINVAL;
+		}
+
+		ifm = nlmsg_data(nlh);
+		if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
+		    ifm->ifi_change || ifm->ifi_index) {
+			NL_SET_ERR_MSG(extack, "Invalid values in header for bridge link dump request");
+			return -EINVAL;
+		}
+
+		err = nlmsg_parse_strict(nlh, sizeof(struct ifinfomsg), tb,
+					 IFLA_MAX, ifla_policy, extack);
+	} else {
+		err = nlmsg_parse(nlh, sizeof(struct ifinfomsg), tb,
+				  IFLA_MAX, ifla_policy, extack);
+	}
+	if (err < 0)
+		return err;
+
+	/* new attributes should only be added with strict checking */
+	for (i = 0; i <= IFLA_MAX; ++i) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case IFLA_EXT_MASK:
+			*filter_mask = nla_get_u32(tb[i]);
+			break;
+		default:
+			if (strict_check) {
+				NL_SET_ERR_MSG(extack, "Unsupported attribute in bridge link dump request");
+				return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	struct net_device *dev;
 	int idx = 0;
 	u32 portid = NETLINK_CB(cb->skb).portid;
-	u32 seq = cb->nlh->nlmsg_seq;
+	u32 seq = nlh->nlmsg_seq;
 	u32 filter_mask = 0;
 	int err;
 
-	if (nlmsg_len(cb->nlh) > sizeof(struct ifinfomsg)) {
-		struct nlattr *extfilt;
-
-		extfilt = nlmsg_find_attr(cb->nlh, sizeof(struct ifinfomsg),
-					  IFLA_EXT_MASK);
-		if (extfilt) {
-			if (nla_len(extfilt) < sizeof(filter_mask))
-				return -EINVAL;
-
-			filter_mask = nla_get_u32(extfilt);
-		}
-	}
+	err = valid_bridge_getlink_req(nlh, cb->strict_check, &filter_mask,
+				       cb->extack);
+	if (err < 0 && cb->strict_check)
+		return err;
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
