@@ -4,6 +4,7 @@ menu "MediaTek pinctrl drivers"
 config EINT_MTK
 	bool "MediaTek External Interrupt Support"
 	depends on PINCTRL_MTK || PINCTRL_MTK_MOORE || COMPILE_TEST
+	select GPIOLIB
 	select IRQ_DOMAIN
 
 config PINCTRL_MTK
