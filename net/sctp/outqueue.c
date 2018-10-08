@@ -1048,7 +1048,7 @@ static void sctp_outq_flush_data(struct sctp_flush_ctx *ctx,
 		if (!ctx->packet || !ctx->packet->has_cookie_echo)
 			return;
 
-		/* fallthru */
+		/* fall through */
 	case SCTP_STATE_ESTABLISHED:
 	case SCTP_STATE_SHUTDOWN_PENDING:
 	case SCTP_STATE_SHUTDOWN_RECEIVED:

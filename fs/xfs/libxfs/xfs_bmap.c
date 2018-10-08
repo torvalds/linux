@@ -673,7 +673,8 @@ xfs_bmap_extents_to_btree(
 	ASSERT(XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_EXTENTS);
 
 	/*
-	 * Make space in the inode incore.
+	 * Make space in the inode incore. This needs to be undone if we fail
+	 * to expand the root.
 	 */
 	xfs_iroot_realloc(ip, 1, whichfork);
 	ifp->if_flags |= XFS_IFBROOT;
@@ -711,16 +712,15 @@ xfs_bmap_extents_to_btree(
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = wasdel;
 	*logflagsp = 0;
-	if ((error = xfs_alloc_vextent(&args))) {
-		ASSERT(ifp->if_broot == NULL);
-		goto err1;
-	}
+	error = xfs_alloc_vextent(&args);
+	if (error)
+		goto out_root_realloc;
 
 	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
-		ASSERT(ifp->if_broot == NULL);
 		error = -ENOSPC;
-		goto err1;
+		goto out_root_realloc;
 	}
+
 	/*
 	 * Allocation can't fail, the space was reserved.
 	 */
@@ -732,9 +732,10 @@ xfs_bmap_extents_to_btree(
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, 1L);
 	abp = xfs_btree_get_bufl(mp, tp, args.fsbno, 0);
 	if (!abp) {
-		error = -ENOSPC;
-		goto err2;
+		error = -EFSCORRUPTED;
+		goto out_unreserve_dquot;
 	}
+
 	/*
 	 * Fill in the child block.
 	 */
@@ -775,11 +776,12 @@ xfs_bmap_extents_to_btree(
 	*logflagsp = XFS_ILOG_CORE | xfs_ilog_fbroot(whichfork);
 	return 0;
 
-err2:
+out_unreserve_dquot:
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
-err1:
+out_root_realloc:
 	xfs_iroot_realloc(ip, -1, whichfork);
 	XFS_IFORK_FMT_SET(ip, whichfork, XFS_DINODE_FMT_EXTENTS);
+	ASSERT(ifp->if_broot == NULL);
 	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 
 	return error;

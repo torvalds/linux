@@ -2896,6 +2896,15 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 	u64 umin_val, umax_val;
 	u64 insn_bitness = (BPF_CLASS(insn->code) == BPF_ALU64) ? 64 : 32;
 
+	if (insn_bitness == 32) {
+		/* Relevant for 32-bit RSH: Information can propagate towards
+		 * LSB, so it isn't sufficient to only truncate the output to
+		 * 32 bits.
+		 */
+		coerce_reg_to_size(dst_reg, 4);
+		coerce_reg_to_size(&src_reg, 4);
+	}
+
 	smin_val = src_reg.smin_value;
 	smax_val = src_reg.smax_value;
 	umin_val = src_reg.umin_value;
@@ -3131,7 +3140,6 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 	if (BPF_CLASS(insn->code) != BPF_ALU64) {
 		/* 32-bit ALU ops are (32,32)->32 */
 		coerce_reg_to_size(dst_reg, 4);
-		coerce_reg_to_size(&src_reg, 4);
 	}
 
 	__reg_deduce_bounds(dst_reg);
@@ -3163,7 +3171,7 @@ static int adjust_reg_min_max_vals(struct bpf_verifier_env *env,
 				 * an arbitrary scalar. Disallow all math except
 				 * pointer subtraction
 				 */
-				if (opcode == BPF_SUB){
+				if (opcode == BPF_SUB && env->allow_ptr_leaks) {
 					mark_reg_unknown(env, regs, insn->dst_reg);
 					return 0;
 				}

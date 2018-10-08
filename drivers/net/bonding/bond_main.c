@@ -210,6 +210,7 @@ static void bond_get_stats(struct net_device *bond_dev,
 static void bond_slave_arr_handler(struct work_struct *work);
 static bool bond_time_in_interval(struct bonding *bond, unsigned long last_act,
 				  int mod);
+static void bond_netdev_notify_work(struct work_struct *work);
 
 /*---------------------------- General routines -----------------------------*/
 
@@ -971,16 +972,13 @@ static void bond_poll_controller(struct net_device *bond_dev)
 	struct slave *slave = NULL;
 	struct list_head *iter;
 	struct ad_info ad_info;
-	struct netpoll_info *ni;
-	const struct net_device_ops *ops;
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD)
 		if (bond_3ad_get_active_agg_info(bond, &ad_info))
 			return;
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
-		ops = slave->dev->netdev_ops;
-		if (!bond_slave_is_up(slave) || !ops->ndo_poll_controller)
+		if (!bond_slave_is_up(slave))
 			continue;
 
 		if (BOND_MODE(bond) == BOND_MODE_8023AD) {
@@ -992,11 +990,7 @@ static void bond_poll_controller(struct net_device *bond_dev)
 				continue;
 		}
 
-		ni = rcu_dereference_bh(slave->dev->npinfo);
-		if (down_trylock(&ni->dev_lock))
-			continue;
-		ops->ndo_poll_controller(slave->dev);
-		up(&ni->dev_lock);
+		netpoll_poll_dev(slave->dev);
 	}
 }
 
@@ -1177,9 +1171,27 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 		}
 	}
 
-	/* don't change skb->dev for link-local packets */
-	if (is_link_local_ether_addr(eth_hdr(skb)->h_dest))
+	/* Link-local multicast packets should be passed to the
+	 * stack on the link they arrive as well as pass them to the
+	 * bond-master device. These packets are mostly usable when
+	 * stack receives it with the link on which they arrive
+	 * (e.g. LLDP) they also must be available on master. Some of
+	 * the use cases include (but are not limited to): LLDP agents
+	 * that must be able to operate both on enslaved interfaces as
+	 * well as on bonds themselves; linux bridges that must be able
+	 * to process/pass BPDUs from attached bonds when any kind of
+	 * STP version is enabled on the network.
+	 */
+	if (is_link_local_ether_addr(eth_hdr(skb)->h_dest)) {
+		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
+
+		if (nskb) {
+			nskb->dev = bond->dev;
+			nskb->queue_mapping = 0;
+			netif_rx(nskb);
+		}
 		return RX_HANDLER_PASS;
+	}
 	if (bond_should_deliver_exact_match(skb, slave, bond))
 		return RX_HANDLER_EXACT;
 
@@ -1276,6 +1288,8 @@ static struct slave *bond_alloc_slave(struct bonding *bond)
 			return NULL;
 		}
 	}
+	INIT_DELAYED_WORK(&slave->notify_work, bond_netdev_notify_work);
+
 	return slave;
 }
 
@@ -1283,6 +1297,7 @@ static void bond_free_slave(struct slave *slave)
 {
 	struct bonding *bond = bond_get_bond_by_slave(slave);
 
+	cancel_delayed_work_sync(&slave->notify_work);
 	if (BOND_MODE(bond) == BOND_MODE_8023AD)
 		kfree(SLAVE_AD_INFO(slave));
 
@@ -1304,39 +1319,26 @@ static void bond_fill_ifslave(struct slave *slave, struct ifslave *info)
 	info->link_failure_count = slave->link_failure_count;
 }
 
-static void bond_netdev_notify(struct net_device *dev,
-			       struct netdev_bonding_info *info)
-{
-	rtnl_lock();
-	netdev_bonding_info_change(dev, info);
-	rtnl_unlock();
-}
-
 static void bond_netdev_notify_work(struct work_struct *_work)
 {
-	struct netdev_notify_work *w =
-		container_of(_work, struct netdev_notify_work, work.work);
+	struct slave *slave = container_of(_work, struct slave,
+					   notify_work.work);
 
-	bond_netdev_notify(w->dev, &w->bonding_info);
-	dev_put(w->dev);
-	kfree(w);
+	if (rtnl_trylock()) {
+		struct netdev_bonding_info binfo;
+
+		bond_fill_ifslave(slave, &binfo.slave);
+		bond_fill_ifbond(slave->bond, &binfo.master);
+		netdev_bonding_info_change(slave->dev, &binfo);
+		rtnl_unlock();
+	} else {
+		queue_delayed_work(slave->bond->wq, &slave->notify_work, 1);
+	}
 }
 
 void bond_queue_slave_event(struct slave *slave)
 {
-	struct bonding *bond = slave->bond;
-	struct netdev_notify_work *nnw = kzalloc(sizeof(*nnw), GFP_ATOMIC);
-
-	if (!nnw)
-		return;
-
-	dev_hold(slave->dev);
-	nnw->dev = slave->dev;
-	bond_fill_ifslave(slave, &nnw->bonding_info.slave);
-	bond_fill_ifbond(bond, &nnw->bonding_info.master);
-	INIT_DELAYED_WORK(&nnw->work, bond_netdev_notify_work);
-
-	queue_delayed_work(slave->bond->wq, &nnw->work, 0);
+	queue_delayed_work(slave->bond->wq, &slave->notify_work, 0);
 }
 
 void bond_lower_state_changed(struct slave *slave)

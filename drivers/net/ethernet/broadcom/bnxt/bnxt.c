@@ -1884,8 +1884,11 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
 			tx_pkts++;
 			/* return full budget so NAPI will complete. */
-			if (unlikely(tx_pkts > bp->tx_wake_thresh))
+			if (unlikely(tx_pkts > bp->tx_wake_thresh)) {
 				rx_pkts = budget;
+				raw_cons = NEXT_RAW_CMP(raw_cons);
+				break;
+			}
 		} else if ((TX_CMP_TYPE(txcmp) & 0x30) == 0x10) {
 			if (likely(budget))
 				rc = bnxt_rx_pkt(bp, bnapi, &raw_cons, &event);
@@ -1913,7 +1916,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 		}
 		raw_cons = NEXT_RAW_CMP(raw_cons);
 
-		if (rx_pkts == budget)
+		if (rx_pkts && rx_pkts == budget)
 			break;
 	}
 
@@ -2027,8 +2030,12 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 	while (1) {
 		work_done += bnxt_poll_work(bp, bnapi, budget - work_done);
 
-		if (work_done >= budget)
+		if (work_done >= budget) {
+			if (!budget)
+				BNXT_CP_DB_REARM(cpr->cp_doorbell,
+						 cpr->cp_raw_cons);
 			break;
+		}
 
 		if (!bnxt_has_work(bp, cpr)) {
 			if (napi_complete_done(napi, work_done))
@@ -3010,10 +3017,11 @@ static void bnxt_free_hwrm_resources(struct bnxt *bp)
 {
 	struct pci_dev *pdev = bp->pdev;
 
-	dma_free_coherent(&pdev->dev, PAGE_SIZE, bp->hwrm_cmd_resp_addr,
-			  bp->hwrm_cmd_resp_dma_addr);
-
-	bp->hwrm_cmd_resp_addr = NULL;
+	if (bp->hwrm_cmd_resp_addr) {
+		dma_free_coherent(&pdev->dev, PAGE_SIZE, bp->hwrm_cmd_resp_addr,
+				  bp->hwrm_cmd_resp_dma_addr);
+		bp->hwrm_cmd_resp_addr = NULL;
+	}
 }
 
 static int bnxt_alloc_hwrm_resources(struct bnxt *bp)
@@ -4643,7 +4651,7 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct hwrm_func_cfg_input *req,
 				      FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
 		enables |= ring_grps ?
 			   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
-		enables |= vnics ? FUNC_VF_CFG_REQ_ENABLES_NUM_VNICS : 0;
+		enables |= vnics ? FUNC_CFG_REQ_ENABLES_NUM_VNICS : 0;
 
 		req->num_rx_rings = cpu_to_le16(rx_rings);
 		req->num_hw_ring_grps = cpu_to_le16(ring_grps);
@@ -7672,21 +7680,6 @@ static void bnxt_tx_timeout(struct net_device *dev)
 	bnxt_queue_sp_work(bp);
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void bnxt_poll_controller(struct net_device *dev)
-{
-	struct bnxt *bp = netdev_priv(dev);
-	int i;
-
-	/* Only process tx rings/combined rings in netpoll mode. */
-	for (i = 0; i < bp->tx_nr_rings; i++) {
-		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
-
-		napi_schedule(&txr->bnapi->napi);
-	}
-}
-#endif
-
 static void bnxt_timer(struct timer_list *t)
 {
 	struct bnxt *bp = from_timer(bp, t, timer);
@@ -8027,7 +8020,7 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
 
-	rc = bnxt_approve_mac(bp, addr->sa_data);
+	rc = bnxt_approve_mac(bp, addr->sa_data, true);
 	if (rc)
 		return rc;
 
@@ -8520,9 +8513,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,
 	.ndo_set_vf_trust	= bnxt_set_vf_trust,
 #endif
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= bnxt_poll_controller,
-#endif
 	.ndo_setup_tc           = bnxt_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= bnxt_rx_flow_steer,
@@ -8632,7 +8622,7 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	*max_tx = hw_resc->max_tx_rings;
 	*max_rx = hw_resc->max_rx_rings;
 	*max_cp = min_t(int, bnxt_get_max_func_cp_rings_for_en(bp),
-			hw_resc->max_irqs);
+			hw_resc->max_irqs - bnxt_get_ulp_msix_num(bp));
 	*max_cp = min_t(int, *max_cp, hw_resc->max_stat_ctxs);
 	max_ring_grps = hw_resc->max_hw_ring_grps;
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && BNXT_PF(bp)) {
@@ -8827,14 +8817,19 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	} else {
 #ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
+		bool strict_approval = true;
 
 		if (is_valid_ether_addr(vf->mac_addr)) {
 			/* overwrite netdev dev_addr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+			/* Older PF driver or firmware may not approve this
+			 * correctly.
+			 */
+			strict_approval = false;
 		} else {
 			eth_hw_addr_random(bp->dev);
 		}
-		rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
+		rc = bnxt_approve_mac(bp, bp->dev->dev_addr, strict_approval);
 #endif
 	}
 	return rc;
@@ -9063,6 +9058,7 @@ init_err_cleanup_tc:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
+	bnxt_free_hwrm_resources(bp);
 	bnxt_cleanup_pci(bp);
 
 init_err_free:

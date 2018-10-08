@@ -659,7 +659,15 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 		mid->mid_state = MID_RESPONSE_RECEIVED;
 	else
 		mid->mid_state = MID_RESPONSE_MALFORMED;
-	list_del_init(&mid->qhead);
+	/*
+	 * Trying to handle/dequeue a mid after the send_recv()
+	 * function has finished processing it is a bug.
+	 */
+	if (mid->mid_flags & MID_DELETED)
+		printk_once(KERN_WARNING
+			    "trying to dequeue a deleted mid\n");
+	else
+		list_del_init(&mid->qhead);
 	spin_unlock(&GlobalMid_Lock);
 }
 
@@ -938,8 +946,7 @@ next_pdu:
 		} else {
 			mids[0] = server->ops->find_mid(server, buf);
 			bufs[0] = buf;
-			if (mids[0])
-				num_mids = 1;
+			num_mids = 1;
 
 			if (!mids[0] || !mids[0]->receive)
 				length = standard_receive3(server, mids[0]);

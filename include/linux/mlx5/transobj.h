@@ -90,6 +90,8 @@ struct mlx5_hairpin {
 
 	u32 *rqn;
 	u32 *sqn;
+
+	bool peer_gone;
 };
 
 struct mlx5_hairpin *

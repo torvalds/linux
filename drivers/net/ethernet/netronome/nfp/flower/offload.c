@@ -192,6 +192,17 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		key_size += sizeof(struct nfp_flower_mac_mpls);
 	}
 
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_dissector_key_vlan *flow_vlan;
+
+		flow_vlan = skb_flow_dissector_target(flow->dissector,
+						      FLOW_DISSECTOR_KEY_VLAN,
+						      flow->mask);
+		if (!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_PCP) &&
+		    flow_vlan->vlan_priority)
+			return -EOPNOTSUPP;
+	}
+
 	if (dissector_uses_key(flow->dissector,
 			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
 		struct flow_dissector_key_ipv4_addrs *mask_ipv4 = NULL;
