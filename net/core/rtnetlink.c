@@ -3799,6 +3799,60 @@ out:
 }
 EXPORT_SYMBOL(ndo_dflt_fdb_dump);
 
+static int valid_fdb_dump_strict(const struct nlmsghdr *nlh,
+				 int *br_idx, int *brport_idx,
+				 struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[NDA_MAX + 1];
+	struct ndmsg *ndm;
+	int err, i;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndm))) {
+		NL_SET_ERR_MSG(extack, "Invalid header for fdb dump request");
+		return -EINVAL;
+	}
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_state ||
+	    ndm->ndm_flags || ndm->ndm_type) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for fbd dump request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(struct ndmsg), tb, NDA_MAX,
+				 NULL, extack);
+	if (err < 0)
+		return err;
+
+	*brport_idx = ndm->ndm_ifindex;
+	for (i = 0; i <= NDA_MAX; ++i) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case NDA_IFINDEX:
+			if (nla_len(tb[i]) != sizeof(u32)) {
+				NL_SET_ERR_MSG(extack, "Invalid IFINDEX attribute in fdb dump request");
+				return -EINVAL;
+			}
+			*brport_idx = nla_get_u32(tb[NDA_IFINDEX]);
+			break;
+		case NDA_MASTER:
+			if (nla_len(tb[i]) != sizeof(u32)) {
+				NL_SET_ERR_MSG(extack, "Invalid MASTER attribute in fdb dump request");
+				return -EINVAL;
+			}
+			*br_idx = nla_get_u32(tb[NDA_MASTER]);
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Unsupported attribute in fdb dump request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int valid_fdb_dump_legacy(const struct nlmsghdr *nlh,
 				 int *br_idx, int *brport_idx,
 				 struct netlink_ext_ack *extack)
@@ -3846,8 +3900,12 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int err = 0;
 	int fidx = 0;
 
-	err = valid_fdb_dump_legacy(cb->nlh, &br_idx, &brport_idx,
-				    cb->extack);
+	if (cb->strict_check)
+		err = valid_fdb_dump_strict(cb->nlh, &br_idx, &brport_idx,
+					    cb->extack);
+	else
+		err = valid_fdb_dump_legacy(cb->nlh, &br_idx, &brport_idx,
+					    cb->extack);
 	if (err < 0)
 		return err;
 
