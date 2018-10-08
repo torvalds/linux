@@ -343,19 +343,16 @@ static void *tc_u_common_ptr(const struct tcf_proto *tp)
 		return block->q;
 }
 
-static unsigned int tc_u_hash(const struct tcf_proto *tp)
+static struct hlist_head *tc_u_hash(void *key)
 {
-	return hash_ptr(tc_u_common_ptr(tp), U32_HASH_SHIFT);
+	return tc_u_common_hash + hash_ptr(key, U32_HASH_SHIFT);
 }
 
-static struct tc_u_common *tc_u_common_find(const struct tcf_proto *tp)
+static struct tc_u_common *tc_u_common_find(void *key)
 {
 	struct tc_u_common *tc;
-	unsigned int h;
-
-	h = tc_u_hash(tp);
-	hlist_for_each_entry(tc, &tc_u_common_hash[h], hnode) {
-		if (tc->ptr == tc_u_common_ptr(tp))
+	hlist_for_each_entry(tc, tc_u_hash(key), hnode) {
+		if (tc->ptr == key)
 			return tc;
 	}
 	return NULL;
@@ -364,10 +361,8 @@ static struct tc_u_common *tc_u_common_find(const struct tcf_proto *tp)
 static int u32_init(struct tcf_proto *tp)
 {
 	struct tc_u_hnode *root_ht;
-	struct tc_u_common *tp_c;
-	unsigned int h;
-
-	tp_c = tc_u_common_find(tp);
+	void *key = tc_u_common_ptr(tp);
+	struct tc_u_common *tp_c = tc_u_common_find(key);
 
 	root_ht = kzalloc(sizeof(*root_ht), GFP_KERNEL);
 	if (root_ht == NULL)
@@ -385,12 +380,11 @@ static int u32_init(struct tcf_proto *tp)
 			kfree(root_ht);
 			return -ENOBUFS;
 		}
-		tp_c->ptr = tc_u_common_ptr(tp);
+		tp_c->ptr = key;
 		INIT_HLIST_NODE(&tp_c->hnode);
 		idr_init(&tp_c->handle_idr);
 
-		h = tc_u_hash(tp);
-		hlist_add_head(&tp_c->hnode, &tc_u_common_hash[h]);
+		hlist_add_head(&tp_c->hnode, tc_u_hash(key));
 	}
 
 	tp_c->refcnt++;
