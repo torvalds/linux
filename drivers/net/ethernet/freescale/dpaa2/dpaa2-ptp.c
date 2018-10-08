@@ -46,7 +46,7 @@ static int ptp_dpaa2_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 					  mc_dev->mc_handle, tmr_add);
 	if (err)
 		dev_err(dev, "dprtc_set_freq_compensation err %d\n", err);
-	return 0;
+	return err;
 }
 
 static int ptp_dpaa2_adjtime(struct ptp_clock_info *ptp, s64 delta)
@@ -61,17 +61,15 @@ static int ptp_dpaa2_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	err = dprtc_get_time(mc_dev->mc_io, 0, mc_dev->mc_handle, &now);
 	if (err) {
 		dev_err(dev, "dprtc_get_time err %d\n", err);
-		return 0;
+		return err;
 	}
 
 	now += delta;
 
 	err = dprtc_set_time(mc_dev->mc_io, 0, mc_dev->mc_handle, now);
-	if (err) {
+	if (err)
 		dev_err(dev, "dprtc_set_time err %d\n", err);
-		return 0;
-	}
-	return 0;
+	return err;
 }
 
 static int ptp_dpaa2_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
@@ -87,12 +85,12 @@ static int ptp_dpaa2_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	err = dprtc_get_time(mc_dev->mc_io, 0, mc_dev->mc_handle, &ns);
 	if (err) {
 		dev_err(dev, "dprtc_get_time err %d\n", err);
-		return 0;
+		return err;
 	}
 
 	ts->tv_sec = div_u64_rem(ns, 1000000000, &remainder);
 	ts->tv_nsec = remainder;
-	return 0;
+	return err;
 }
 
 static int ptp_dpaa2_settime(struct ptp_clock_info *ptp,
@@ -111,10 +109,10 @@ static int ptp_dpaa2_settime(struct ptp_clock_info *ptp,
 	err = dprtc_set_time(mc_dev->mc_io, 0, mc_dev->mc_handle, ns);
 	if (err)
 		dev_err(dev, "dprtc_set_time err %d\n", err);
-	return 0;
+	return err;
 }
 
-static struct ptp_clock_info ptp_dpaa2_caps = {
+static const struct ptp_clock_info ptp_dpaa2_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "DPAA2 PTP Clock",
 	.max_adj	= 512000,
@@ -136,7 +134,7 @@ static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 	u32 tmr_add = 0;
 	int err;
 
-	ptp_dpaa2 = kzalloc(sizeof(*ptp_dpaa2), GFP_KERNEL);
+	ptp_dpaa2 = devm_kzalloc(dev, sizeof(*ptp_dpaa2), GFP_KERNEL);
 	if (!ptp_dpaa2)
 		return -ENOMEM;
 
@@ -182,8 +180,6 @@ err_close:
 err_free_mcp:
 	fsl_mc_portal_free(mc_dev->mc_io);
 err_exit:
-	kfree(ptp_dpaa2);
-	dev_set_drvdata(dev, NULL);
 	return err;
 }
 
@@ -197,9 +193,6 @@ static int dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
 
 	dprtc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	fsl_mc_portal_free(mc_dev->mc_io);
-
-	kfree(ptp_dpaa2);
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 }
