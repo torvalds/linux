@@ -34,17 +34,6 @@ void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_complete_skb);
 
-static int mt76x02u_check_skb_rooms(struct sk_buff *skb)
-{
-	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
-	u32 need_head;
-
-	need_head = sizeof(struct mt76x02_txwi) + MT_DMA_HDR_LEN;
-	if (hdr_len % 4)
-		need_head += 2;
-	return skb_cow(skb, need_head);
-}
-
 int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 {
 	struct sk_buff *iter, *last = skb;
@@ -106,11 +95,7 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76x02_txwi *txwi;
-	int err, len = skb->len;
-
-	err = mt76x02u_check_skb_rooms(skb);
-	if (err < 0)
-		return -ENOMEM;
+	int len = skb->len;
 
 	mt76x02_insert_hdr_pad(skb);
 
