@@ -14,6 +14,7 @@ notrace long
 __vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused)
 {
 	vdso_read_cpunode(cpu, node);
+
 	return 0;
 }
 
