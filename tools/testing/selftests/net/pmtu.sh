@@ -196,7 +196,9 @@ mtu_parse() {
 
 	next=0
 	for i in ${input}; do
+		[ ${next} -eq 1 -a "${i}" = "lock" ] && next=2 && continue
 		[ ${next} -eq 1 ] && echo "${i}" && return
+		[ ${next} -eq 2 ] && echo "lock ${i}" && return
 		[ "${i}" = "mtu" ] && next=1
 	done
 }
