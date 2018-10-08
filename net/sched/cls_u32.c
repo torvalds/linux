@@ -68,7 +68,6 @@ struct tc_u_knode {
 	u32			mask;
 	u32 __percpu		*pcpu_success;
 #endif
-	struct tcf_proto	*tp;
 	struct rcu_work		rwork;
 	/* The 'sel' field MUST be the last field in structure to allow for
 	 * tc_u32_keys allocated at end of structure.
@@ -896,7 +895,6 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 	/* Similarly success statistics must be moved as pointers */
 	new->pcpu_success = n->pcpu_success;
 #endif
-	new->tp = tp;
 	memcpy(&new->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
 
 	if (tcf_exts_init(&new->exts, TCA_U32_ACT, TCA_U32_POLICE)) {
@@ -1112,7 +1110,6 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
 	n->flags = flags;
-	n->tp = tp;
 
 	err = tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
 	if (err < 0)
