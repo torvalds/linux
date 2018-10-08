@@ -202,6 +202,10 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_SGBRG12:
 	case V4L2_PIX_FMT_SGRBG12:
 	case V4L2_PIX_FMT_SRGGB12:
+	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SRGGB16:
 		tpg->interleaved = true;
 		tpg->vdownsampling[1] = 1;
 		tpg->hdownsampling[1] = 1;
@@ -394,6 +398,10 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_SGRBG12:
 	case V4L2_PIX_FMT_SGBRG12:
 	case V4L2_PIX_FMT_SBGGR12:
+	case V4L2_PIX_FMT_SRGGB16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_SBGGR16:
 		tpg->twopixelsize[0] = 4;
 		tpg->twopixelsize[1] = 4;
 		break;
@@ -1358,6 +1366,22 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset] |= (buf[0][offset] >> 4) & 0xf;
 		buf[1][offset] |= (buf[1][offset] >> 4) & 0xf;
 		break;
+	case V4L2_PIX_FMT_SBGGR16:
+		buf[0][offset] = buf[0][offset + 1] = odd ? g_u_s : b_v;
+		buf[1][offset] = buf[1][offset + 1] = odd ? r_y_h : g_u_s;
+		break;
+	case V4L2_PIX_FMT_SGBRG16:
+		buf[0][offset] = buf[0][offset + 1] = odd ? b_v : g_u_s;
+		buf[1][offset] = buf[1][offset + 1] = odd ? g_u_s : r_y_h;
+		break;
+	case V4L2_PIX_FMT_SGRBG16:
+		buf[0][offset] = buf[0][offset + 1] = odd ? r_y_h : g_u_s;
+		buf[1][offset] = buf[1][offset + 1] = odd ? g_u_s : b_v;
+		break;
+	case V4L2_PIX_FMT_SRGGB16:
+		buf[0][offset] = buf[0][offset + 1] = odd ? g_u_s : r_y_h;
+		buf[1][offset] = buf[1][offset + 1] = odd ? b_v : g_u_s;
+		break;
 	}
 }
 
@@ -1376,6 +1400,10 @@ unsigned tpg_g_interleaved_plane(const struct tpg_data *tpg, unsigned buf_line)
 	case V4L2_PIX_FMT_SGBRG12:
 	case V4L2_PIX_FMT_SGRBG12:
 	case V4L2_PIX_FMT_SRGGB12:
+	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SRGGB16:
 		return buf_line & 1;
 	default:
 		return 0;
