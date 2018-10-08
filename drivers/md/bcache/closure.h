@@ -345,7 +345,8 @@ do {									\
 } while (0)
 
 /**
- * closure_return - finish execution of a closure, with destructor
+ * closure_return_with_destructor - finish execution of a closure,
+ *				    with destructor
  *
  * Works like closure_return(), except @destructor will be called when all
  * outstanding refs on @cl have been dropped; @destructor may be used to safely
