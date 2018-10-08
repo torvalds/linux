@@ -481,7 +481,7 @@ out_unlock:
 static int vsc85xx_edge_rate_magic_get(struct phy_device *phydev)
 {
 	u32 vdd, sd;
-	int rc, i, j;
+	int i, j;
 	struct device *dev = &phydev->mdio.dev;
 	struct device_node *of_node = dev->of_node;
 	u8 sd_array_size = ARRAY_SIZE(edge_table[0].slowdown);
@@ -489,12 +489,10 @@ static int vsc85xx_edge_rate_magic_get(struct phy_device *phydev)
 	if (!of_node)
 		return -ENODEV;
 
-	rc = of_property_read_u32(of_node, "vsc8531,vddmac", &vdd);
-	if (rc != 0)
+	if (of_property_read_u32(of_node, "vsc8531,vddmac", &vdd))
 		vdd = MSCC_VDDMAC_3300;
 
-	rc = of_property_read_u32(of_node, "vsc8531,edge-slowdown", &sd);
-	if (rc != 0)
+	if (of_property_read_u32(of_node, "vsc8531,edge-slowdown", &sd))
 		sd = 0;
 
 	for (i = 0; i < ARRAY_SIZE(edge_table); i++)
@@ -735,9 +733,7 @@ static int vsc85xx_config_init(struct phy_device *phydev)
 			return rc;
 	}
 
-	rc = genphy_config_init(phydev);
-
-	return rc;
+	return genphy_config_init(phydev);
 }
 
 static int vsc85xx_ack_interrupt(struct phy_device *phydev)
