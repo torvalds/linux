@@ -124,7 +124,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	struct kvec iov[2];
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top;
-	ktime_t now;
 	size_t len, n;
 	int ret;
 	u8 reason;
@@ -196,9 +195,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 		/* We need to stick a time in before we send the packet in case
 		 * the reply gets back before kernel_sendmsg() completes - but
 		 * asking UDP to send the packet can take a relatively long
-		 * time, so we update the time after, on the assumption that
-		 * the packet transmission is more likely to happen towards the
-		 * end of the kernel_sendmsg() call.
+		 * time.
 		 */
 		call->ping_time = ktime_get_real();
 		set_bit(RXRPC_CALL_PINGING, &call->flags);
@@ -206,9 +203,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	}
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
-	now = ktime_get_real();
-	if (ping)
-		call->ping_time = now;
 	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
@@ -363,8 +357,14 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	/* If our RTT cache needs working on, request an ACK.  Also request
 	 * ACKs if a DATA packet appears to have been lost.
+	 *
+	 * However, we mustn't request an ACK on the last reply packet of a
+	 * service call, lest OpenAFS incorrectly send us an ACK with some
+	 * soft-ACKs in it and then never follow up with a proper hard ACK.
 	 */
-	if (!(sp->hdr.flags & RXRPC_LAST_PACKET) &&
+	if ((!(sp->hdr.flags & RXRPC_LAST_PACKET) ||
+	     rxrpc_to_server(sp)
+	     ) &&
 	    (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events) ||
 	     retrans ||
 	     call->cong_mode == RXRPC_CALL_SLOW_START ||
@@ -390,6 +390,11 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		goto send_fragmentable;
 
 	down_read(&conn->params.local->defrag_sem);
+
+	sp->hdr.serial = serial;
+	smp_wmb(); /* Set serial before timestamp */
+	skb->tstamp = ktime_get_real();
+
 	/* send the packet by UDP
 	 * - returns -EMSGSIZE if UDP would have to fragment the packet
 	 *   to go out of the interface
@@ -413,12 +418,8 @@ done:
 	trace_rxrpc_tx_data(call, sp->hdr.seq, serial, whdr.flags,
 			    retrans, lost);
 	if (ret >= 0) {
-		ktime_t now = ktime_get_real();
-		skb->tstamp = now;
-		smp_wmb();
-		sp->hdr.serial = serial;
 		if (whdr.flags & RXRPC_REQUEST_ACK) {
-			call->peer->rtt_last_req = now;
+			call->peer->rtt_last_req = skb->tstamp;
 			trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, serial);
 			if (call->peer->rtt_usage > 1) {
 				unsigned long nowj = jiffies, ack_lost_at;
@@ -456,6 +457,10 @@ send_fragmentable:
 	_debug("send fragment");
 
 	down_write(&conn->params.local->defrag_sem);
+
+	sp->hdr.serial = serial;
+	smp_wmb(); /* Set serial before timestamp */
+	skb->tstamp = ktime_get_real();
 
 	switch (conn->params.local->srx.transport.family) {
 	case AF_INET:
@@ -519,7 +524,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	struct kvec iov[2];
 	size_t size;
 	__be32 code;
-	int ret;
+	int ret, ioc;
 
 	_enter("%d", local->debug_id);
 
@@ -527,7 +532,6 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	iov[0].iov_len = sizeof(whdr);
 	iov[1].iov_base = &code;
 	iov[1].iov_len = sizeof(code);
-	size = sizeof(whdr) + sizeof(code);
 
 	msg.msg_name = &srx.transport;
 	msg.msg_control = NULL;
@@ -535,16 +539,30 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	msg.msg_flags = 0;
 
 	memset(&whdr, 0, sizeof(whdr));
-	whdr.type = RXRPC_PACKET_TYPE_ABORT;
 
 	while ((skb = skb_dequeue(&local->reject_queue))) {
 		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		sp = rxrpc_skb(skb);
 
+		switch (skb->mark) {
+		case RXRPC_SKB_MARK_REJECT_BUSY:
+			whdr.type = RXRPC_PACKET_TYPE_BUSY;
+			size = sizeof(whdr);
+			ioc = 1;
+			break;
+		case RXRPC_SKB_MARK_REJECT_ABORT:
+			whdr.type = RXRPC_PACKET_TYPE_ABORT;
+			code = htonl(skb->priority);
+			size = sizeof(whdr) + sizeof(code);
+			ioc = 2;
+			break;
+		default:
+			rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+			continue;
+		}
+
 		if (rxrpc_extract_addr_from_skb(local, &srx, skb) == 0) {
 			msg.msg_namelen = srx.transport_len;
-
-			code = htonl(skb->priority);
 
 			whdr.epoch	= htonl(sp->hdr.epoch);
 			whdr.cid	= htonl(sp->hdr.cid);

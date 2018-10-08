@@ -485,7 +485,7 @@ xfs_attr_rmtval_set(
 				  blkcnt, XFS_BMAPI_ATTRFORK, args->total, &map,
 				  &nmap);
 		if (error)
-			goto out_defer_cancel;
+			return error;
 		error = xfs_defer_finish(&args->trans);
 		if (error)
 			return error;
@@ -553,9 +553,6 @@ xfs_attr_rmtval_set(
 	}
 	ASSERT(valuelen == 0);
 	return 0;
-out_defer_cancel:
-	xfs_defer_cancel(args->trans);
-	return error;
 }
 
 /*
@@ -625,7 +622,7 @@ xfs_attr_rmtval_remove(
 		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
 				    XFS_BMAPI_ATTRFORK, 1, &done);
 		if (error)
-			goto out_defer_cancel;
+			return error;
 		error = xfs_defer_finish(&args->trans);
 		if (error)
 			return error;
@@ -638,7 +635,4 @@ xfs_attr_rmtval_remove(
 			return error;
 	}
 	return 0;
-out_defer_cancel:
-	xfs_defer_cancel(args->trans);
-	return error;
 }

@@ -16,6 +16,8 @@ struct mlx5e_tc_table {
 
 	DECLARE_HASHTABLE(mod_hdr_tbl, 8);
 	DECLARE_HASHTABLE(hairpin_tbl, 8);
+
+	struct notifier_block     netdevice_nb;
 };
 
 struct mlx5e_flow_table {

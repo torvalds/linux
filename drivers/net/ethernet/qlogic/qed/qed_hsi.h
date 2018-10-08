@@ -11987,6 +11987,7 @@ struct public_global {
 	u32 running_bundle_id;
 	s32 external_temperature;
 	u32 mdump_reason;
+	u64 reserved;
 	u32 data_ptr;
 	u32 data_size;
 };
