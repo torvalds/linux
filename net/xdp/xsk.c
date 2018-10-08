@@ -744,6 +744,8 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_destruct = xsk_destruct;
 	sk_refcnt_debug_inc(sk);
 
+	sock_set_flag(sk, SOCK_RCU_FREE);
+
 	xs = xdp_sk(sk);
 	mutex_init(&xs->mutex);
 	spin_lock_init(&xs->tx_completion_lock);
