@@ -538,8 +538,6 @@ struct kvm_vcpu_arch {
 	ulong tar;
 #endif
 
-	u32 cr;
-
 #ifdef CONFIG_PPC_BOOK3S
 	ulong hflags;
 	ulong guest_owned_ext;
