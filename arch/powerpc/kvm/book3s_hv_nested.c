@@ -51,6 +51,48 @@ void kvmhv_save_hv_regs(struct kvm_vcpu *vcpu, struct hv_guest_state *hr)
 	hr->ppr = vcpu->arch.ppr;
 }
 
+static void byteswap_pt_regs(struct pt_regs *regs)
+{
+	unsigned long *addr = (unsigned long *) regs;
+
+	for (; addr < ((unsigned long *) (regs + 1)); addr++)
+		*addr = swab64(*addr);
+}
+
+static void byteswap_hv_regs(struct hv_guest_state *hr)
+{
+	hr->version = swab64(hr->version);
+	hr->lpid = swab32(hr->lpid);
+	hr->vcpu_token = swab32(hr->vcpu_token);
+	hr->lpcr = swab64(hr->lpcr);
+	hr->pcr = swab64(hr->pcr);
+	hr->amor = swab64(hr->amor);
+	hr->dpdes = swab64(hr->dpdes);
+	hr->hfscr = swab64(hr->hfscr);
+	hr->tb_offset = swab64(hr->tb_offset);
+	hr->dawr0 = swab64(hr->dawr0);
+	hr->dawrx0 = swab64(hr->dawrx0);
+	hr->ciabr = swab64(hr->ciabr);
+	hr->hdec_expiry = swab64(hr->hdec_expiry);
+	hr->purr = swab64(hr->purr);
+	hr->spurr = swab64(hr->spurr);
+	hr->ic = swab64(hr->ic);
+	hr->vtb = swab64(hr->vtb);
+	hr->hdar = swab64(hr->hdar);
+	hr->hdsisr = swab64(hr->hdsisr);
+	hr->heir = swab64(hr->heir);
+	hr->asdr = swab64(hr->asdr);
+	hr->srr0 = swab64(hr->srr0);
+	hr->srr1 = swab64(hr->srr1);
+	hr->sprg[0] = swab64(hr->sprg[0]);
+	hr->sprg[1] = swab64(hr->sprg[1]);
+	hr->sprg[2] = swab64(hr->sprg[2]);
+	hr->sprg[3] = swab64(hr->sprg[3]);
+	hr->pidr = swab64(hr->pidr);
+	hr->cfar = swab64(hr->cfar);
+	hr->ppr = swab64(hr->ppr);
+}
+
 static void save_hv_return_state(struct kvm_vcpu *vcpu, int trap,
 				 struct hv_guest_state *hr)
 {
@@ -175,6 +217,8 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 				  sizeof(struct hv_guest_state));
 	if (err)
 		return H_PARAMETER;
+	if (kvmppc_need_byteswap(vcpu))
+		byteswap_hv_regs(&l2_hv);
 	if (l2_hv.version != HV_GUEST_STATE_VERSION)
 		return H_P2;
 
@@ -183,7 +227,8 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 				  sizeof(struct pt_regs));
 	if (err)
 		return H_PARAMETER;
-
+	if (kvmppc_need_byteswap(vcpu))
+		byteswap_pt_regs(&l2_regs);
 	if (l2_hv.vcpu_token >= NR_CPUS)
 		return H_PARAMETER;
 
@@ -255,6 +300,10 @@ long kvmhv_enter_nested_guest(struct kvm_vcpu *vcpu)
 	kvmhv_put_nested(l2);
 
 	/* copy l2_hv_state and regs back to guest */
+	if (kvmppc_need_byteswap(vcpu)) {
+		byteswap_hv_regs(&l2_hv);
+		byteswap_pt_regs(&l2_regs);
+	}
 	err = kvm_vcpu_write_guest(vcpu, hv_ptr, &l2_hv,
 				   sizeof(struct hv_guest_state));
 	if (err)
