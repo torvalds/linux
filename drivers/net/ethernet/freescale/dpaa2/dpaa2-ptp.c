@@ -12,7 +12,7 @@
 #include "dpaa2-ptp.h"
 
 struct ptp_dpaa2_priv {
-	struct fsl_mc_device *rtc_mc_dev;
+	struct fsl_mc_device *ptp_mc_dev;
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
 	u32 freq_comp;
@@ -23,7 +23,7 @@ static int ptp_dpaa2_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 {
 	struct ptp_dpaa2_priv *ptp_dpaa2 =
 		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->rtc_mc_dev;
+	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
 	struct device *dev = &mc_dev->dev;
 	u64 adj;
 	u32 diff, tmr_add;
@@ -53,7 +53,7 @@ static int ptp_dpaa2_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct ptp_dpaa2_priv *ptp_dpaa2 =
 		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->rtc_mc_dev;
+	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
 	struct device *dev = &mc_dev->dev;
 	s64 now;
 	int err = 0;
@@ -78,7 +78,7 @@ static int ptp_dpaa2_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct ptp_dpaa2_priv *ptp_dpaa2 =
 		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->rtc_mc_dev;
+	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
 	struct device *dev = &mc_dev->dev;
 	u64 ns;
 	u32 remainder;
@@ -100,7 +100,7 @@ static int ptp_dpaa2_settime(struct ptp_clock_info *ptp,
 {
 	struct ptp_dpaa2_priv *ptp_dpaa2 =
 		container_of(ptp, struct ptp_dpaa2_priv, caps);
-	struct fsl_mc_device *mc_dev = ptp_dpaa2->rtc_mc_dev;
+	struct fsl_mc_device *mc_dev = ptp_dpaa2->ptp_mc_dev;
 	struct device *dev = &mc_dev->dev;
 	u64 ns;
 	int err = 0;
@@ -129,7 +129,7 @@ static struct ptp_clock_info ptp_dpaa2_caps = {
 	.settime64	= ptp_dpaa2_settime,
 };
 
-static int rtc_probe(struct fsl_mc_device *mc_dev)
+static int dpaa2_ptp_probe(struct fsl_mc_device *mc_dev)
 {
 	struct device *dev = &mc_dev->dev;
 	struct ptp_dpaa2_priv *ptp_dpaa2;
@@ -153,7 +153,7 @@ static int rtc_probe(struct fsl_mc_device *mc_dev)
 		goto err_free_mcp;
 	}
 
-	ptp_dpaa2->rtc_mc_dev = mc_dev;
+	ptp_dpaa2->ptp_mc_dev = mc_dev;
 
 	err = dprtc_get_freq_compensation(mc_dev->mc_io, 0,
 					  mc_dev->mc_handle, &tmr_add);
@@ -187,7 +187,7 @@ err_exit:
 	return err;
 }
 
-static int rtc_remove(struct fsl_mc_device *mc_dev)
+static int dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
 {
 	struct ptp_dpaa2_priv *ptp_dpaa2;
 	struct device *dev = &mc_dev->dev;
@@ -204,26 +204,26 @@ static int rtc_remove(struct fsl_mc_device *mc_dev)
 	return 0;
 }
 
-static const struct fsl_mc_device_id rtc_match_id_table[] = {
+static const struct fsl_mc_device_id dpaa2_ptp_match_id_table[] = {
 	{
 		.vendor = FSL_MC_VENDOR_FREESCALE,
 		.obj_type = "dprtc",
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(fslmc, rtc_match_id_table);
+MODULE_DEVICE_TABLE(fslmc, dpaa2_ptp_match_id_table);
 
-static struct fsl_mc_driver rtc_drv = {
+static struct fsl_mc_driver dpaa2_ptp_drv = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,
 	},
-	.probe = rtc_probe,
-	.remove = rtc_remove,
-	.match_id_table = rtc_match_id_table,
+	.probe = dpaa2_ptp_probe,
+	.remove = dpaa2_ptp_remove,
+	.match_id_table = dpaa2_ptp_match_id_table,
 };
 
-module_fsl_mc_driver(rtc_drv);
+module_fsl_mc_driver(dpaa2_ptp_drv);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DPAA2 PTP Clock Driver");
