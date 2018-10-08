@@ -122,7 +122,7 @@ struct nvmet_rdma_device {
 	int			inline_page_count;
 };
 
-struct workqueue_struct *nvmet_rdma_delete_wq;
+static struct workqueue_struct *nvmet_rdma_delete_wq;
 static bool nvmet_rdma_use_srq;
 module_param_named(use_srq, nvmet_rdma_use_srq, bool, 0444);
 MODULE_PARM_DESC(use_srq, "Use shared receive queue.");
