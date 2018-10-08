@@ -72,11 +72,6 @@
 
 #define QTN_EP_LHOST_TQE_PORT	4
 
-enum qtnf_pcie_bda_ipc_flags {
-	QTN_PCIE_IPC_FLAG_HBM_MAGIC	= BIT(0),
-	QTN_PCIE_IPC_FLAG_SHM_PIO	= BIT(1),
-};
-
 enum qtnf_fw_loadtype {
 	QTN_FW_DBEGIN,
 	QTN_FW_DSUB,
