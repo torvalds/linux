@@ -767,6 +767,14 @@ static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
 	void __iomem *xics_phys;
 	int64_t rc;
 
+	if (kvmhv_on_pseries()) {
+		unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+		iosync();
+		plpar_hcall_raw(H_EOI, retbuf, hwirq);
+		return;
+	}
+
 	rc = pnv_opal_pci_msi_eoi(c, hwirq);
 
 	if (rc)

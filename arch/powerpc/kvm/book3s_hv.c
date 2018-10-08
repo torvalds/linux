@@ -173,6 +173,10 @@ static bool kvmppc_ipi_thread(int cpu)
 {
 	unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 
+	/* If we're a nested hypervisor, fall back to ordinary IPIs for now */
+	if (kvmhv_on_pseries())
+		return false;
+
 	/* On POWER9 we can use msgsnd to IPI any cpu */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		msg |= get_hard_smp_processor_id(cpu);
@@ -5177,7 +5181,8 @@ static int kvmppc_book3s_init_hv(void)
 	 * indirectly, via OPAL.
 	 */
 #ifdef CONFIG_SMP
-	if (!xive_enabled() && !local_paca->kvm_hstate.xics_phys) {
+	if (!xive_enabled() && !kvmhv_on_pseries() &&
+	    !local_paca->kvm_hstate.xics_phys) {
 		struct device_node *np;
 
 		np = of_find_compatible_node(NULL, NULL, "ibm,opal-intc");
