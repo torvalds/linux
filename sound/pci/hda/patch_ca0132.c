@@ -7223,6 +7223,8 @@ static void r3d_setup_defaults(struct hda_codec *codec)
 	int num_fx;
 	int idx, i;
 
+	msleep(100);
+
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
@@ -7266,6 +7268,8 @@ static void sbz_setup_defaults(struct hda_codec *codec)
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
+
+	msleep(100);
 
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
@@ -7323,6 +7327,8 @@ static void ae5_setup_defaults(struct hda_codec *codec)
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
+
+	msleep(100);
 
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
