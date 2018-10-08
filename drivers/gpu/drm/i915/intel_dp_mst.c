@@ -38,11 +38,11 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct intel_connector *connector =
-		to_intel_connector(conn_state->connector);
+	struct drm_connector *connector = conn_state->connector;
+	void *port = to_intel_connector(connector)->port;
 	struct drm_atomic_state *state = pipe_config->base.state;
 	int bpp;
-	int lane_count, slots;
+	int lane_count, slots = 0;
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	int mst_pbn;
 	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
@@ -70,17 +70,23 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->port_clock = intel_dp_max_link_rate(intel_dp);
 
-	if (drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, connector->port))
+	if (drm_dp_mst_port_has_audio(&intel_dp->mst_mgr, port))
 		pipe_config->has_audio = true;
 
 	mst_pbn = drm_dp_calc_pbn_mode(adjusted_mode->crtc_clock, bpp);
 	pipe_config->pbn = mst_pbn;
 
-	slots = drm_dp_atomic_find_vcpi_slots(state, &intel_dp->mst_mgr,
-					      connector->port, mst_pbn);
-	if (slots < 0) {
-		DRM_DEBUG_KMS("failed finding vcpi slots:%d\n", slots);
-		return false;
+	/* Zombie connectors can't have VCPI slots */
+	if (READ_ONCE(connector->registered)) {
+		slots = drm_dp_atomic_find_vcpi_slots(state,
+						      &intel_dp->mst_mgr,
+						      port,
+						      mst_pbn);
+		if (slots < 0) {
+			DRM_DEBUG_KMS("failed finding vcpi slots:%d\n",
+				      slots);
+			return false;
+		}
 	}
 
 	intel_link_compute_m_n(bpp, lane_count,
