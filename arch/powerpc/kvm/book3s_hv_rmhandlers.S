@@ -1209,7 +1209,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 	ld	r5, VCPU_LR(r4)
-	lwz	r6, VCPU_CR(r4)
+	ld	r6, VCPU_CR(r4)
 	mtlr	r5
 	mtcr	r6
 
@@ -1320,7 +1320,7 @@ kvmppc_interrupt_hv:
 	std	r3, VCPU_GPR(R12)(r9)
 	/* CR is in the high half of r12 */
 	srdi	r4, r12, 32
-	stw	r4, VCPU_CR(r9)
+	std	r4, VCPU_CR(r9)
 BEGIN_FTR_SECTION
 	ld	r3, HSTATE_CFAR(r13)
 	std	r3, VCPU_CFAR(r9)
