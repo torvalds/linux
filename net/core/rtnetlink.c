@@ -3799,14 +3799,44 @@ out:
 }
 EXPORT_SYMBOL(ndo_dflt_fdb_dump);
 
+static int valid_fdb_dump_legacy(const struct nlmsghdr *nlh,
+				 int *br_idx, int *brport_idx,
+				 struct netlink_ext_ack *extack)
+{
+	struct ifinfomsg *ifm = nlmsg_data(nlh);
+	struct nlattr *tb[IFLA_MAX+1];
+	int err;
+
+	/* A hack to preserve kernel<->userspace interface.
+	 * Before Linux v4.12 this code accepted ndmsg since iproute2 v3.3.0.
+	 * However, ndmsg is shorter than ifinfomsg thus nlmsg_parse() bails.
+	 * So, check for ndmsg with an optional u32 attribute (not used here).
+	 * Fortunately these sizes don't conflict with the size of ifinfomsg
+	 * with an optional attribute.
+	 */
+	if (nlmsg_len(nlh) != sizeof(struct ndmsg) &&
+	    (nlmsg_len(nlh) != sizeof(struct ndmsg) +
+	     nla_attr_size(sizeof(u32)))) {
+		err = nlmsg_parse(nlh, sizeof(struct ifinfomsg), tb, IFLA_MAX,
+				  ifla_policy, extack);
+		if (err < 0) {
+			return -EINVAL;
+		} else if (err == 0) {
+			if (tb[IFLA_MASTER])
+				*br_idx = nla_get_u32(tb[IFLA_MASTER]);
+		}
+
+		*brport_idx = ifm->ifi_index;
+	}
+	return 0;
+}
+
 static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net_device *dev;
-	struct nlattr *tb[IFLA_MAX+1];
 	struct net_device *br_dev = NULL;
 	const struct net_device_ops *ops = NULL;
 	const struct net_device_ops *cops = NULL;
-	struct ifinfomsg *ifm = nlmsg_data(cb->nlh);
 	struct net *net = sock_net(skb->sk);
 	struct hlist_head *head;
 	int brport_idx = 0;
@@ -3816,27 +3846,10 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int err = 0;
 	int fidx = 0;
 
-	/* A hack to preserve kernel<->userspace interface.
-	 * Before Linux v4.12 this code accepted ndmsg since iproute2 v3.3.0.
-	 * However, ndmsg is shorter than ifinfomsg thus nlmsg_parse() bails.
-	 * So, check for ndmsg with an optional u32 attribute (not used here).
-	 * Fortunately these sizes don't conflict with the size of ifinfomsg
-	 * with an optional attribute.
-	 */
-	if (nlmsg_len(cb->nlh) != sizeof(struct ndmsg) &&
-	    (nlmsg_len(cb->nlh) != sizeof(struct ndmsg) +
-	     nla_attr_size(sizeof(u32)))) {
-		err = nlmsg_parse(cb->nlh, sizeof(struct ifinfomsg), tb,
-				  IFLA_MAX, ifla_policy, cb->extack);
-		if (err < 0) {
-			return -EINVAL;
-		} else if (err == 0) {
-			if (tb[IFLA_MASTER])
-				br_idx = nla_get_u32(tb[IFLA_MASTER]);
-		}
-
-		brport_idx = ifm->ifi_index;
-	}
+	err = valid_fdb_dump_legacy(cb->nlh, &br_idx, &brport_idx,
+				    cb->extack);
+	if (err < 0)
+		return err;
 
 	if (br_idx) {
 		br_dev = __dev_get_by_index(net, br_idx);
