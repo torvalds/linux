@@ -759,11 +759,13 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
 	 */
 	mr      r3, r4
 	ld      r4, VCPU_MSR(r3)
+	li	r5, 0			/* don't preserve non-vol regs */
 	bl	kvmppc_restore_tm_hv
+	nop
 	ld	r4, HSTATE_KVM_VCPU(r13)
 91:
 #endif
@@ -1603,11 +1605,13 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
 	 */
 	mr      r3, r9
 	ld      r4, VCPU_MSR(r3)
+	li	r5, 0			/* don't preserve non-vol regs */
 	bl	kvmppc_save_tm_hv
+	nop
 	ld	r9, HSTATE_KVM_VCPU(r13)
 91:
 #endif
@@ -2486,11 +2490,13 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
 	 */
 	ld	r3, HSTATE_KVM_VCPU(r13)
 	ld      r4, VCPU_MSR(r3)
+	li	r5, 0			/* don't preserve non-vol regs */
 	bl	kvmppc_save_tm_hv
+	nop
 91:
 #endif
 
@@ -2606,11 +2612,13 @@ BEGIN_FTR_SECTION
 	b	91f
 END_FTR_SECTION(CPU_FTR_TM | CPU_FTR_P9_TM_HV_ASSIST, 0)
 	/*
-	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS INCLUDING CR
+	 * NOTE THAT THIS TRASHES ALL NON-VOLATILE REGISTERS (but not CR)
 	 */
 	mr      r3, r4
 	ld      r4, VCPU_MSR(r3)
+	li	r5, 0			/* don't preserve non-vol regs */
 	bl	kvmppc_restore_tm_hv
+	nop
 	ld	r4, HSTATE_KVM_VCPU(r13)
 91:
 #endif
@@ -2943,10 +2951,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
  * Save transactional state and TM-related registers.
  * Called with r3 pointing to the vcpu struct and r4 containing
  * the guest MSR value.
- * This can modify all checkpointed registers, but
+ * r5 is non-zero iff non-volatile register state needs to be maintained.
+ * If r5 == 0, this can modify all checkpointed registers, but
  * restores r1 and r2 before exit.
  */
-kvmppc_save_tm_hv:
+_GLOBAL_TOC(kvmppc_save_tm_hv)
+EXPORT_SYMBOL_GPL(kvmppc_save_tm_hv)
 	/* See if we need to handle fake suspend mode */
 BEGIN_FTR_SECTION
 	b	__kvmppc_save_tm
@@ -2974,12 +2984,6 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 	nop
 
-	std	r1, HSTATE_HOST_R1(r13)
-
-	/* Clear the MSR RI since r1, r13 may be foobar. */
-	li	r5, 0
-	mtmsrd	r5, 1
-
 	/* We have to treclaim here because that's the only way to do S->N */
 	li	r3, TM_CAUSE_KVM_RESCHED
 	TRECLAIM(R3)
@@ -2988,22 +2992,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 	 * We were in fake suspend, so we are not going to save the
 	 * register state as the guest checkpointed state (since
 	 * we already have it), therefore we can now use any volatile GPR.
+	 * In fact treclaim in fake suspend state doesn't modify
+	 * any registers.
 	 */
-	/* Reload PACA pointer, stack pointer and TOC. */
-	GET_PACA(r13)
-	ld	r1, HSTATE_HOST_R1(r13)
-	ld	r2, PACATOC(r13)
 
-	/* Set MSR RI now we have r1 and r13 back. */
-	li	r5, MSR_RI
-	mtmsrd	r5, 1
-
-	HMT_MEDIUM
-	ld	r6, HSTATE_DSCR(r13)
-	mtspr	SPRN_DSCR, r6
-BEGIN_FTR_SECTION_NESTED(96)
+BEGIN_FTR_SECTION
 	bl	pnv_power9_force_smt4_release
-END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
+END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_XER_SO_BUG)
 	nop
 
 4:
@@ -3029,10 +3024,12 @@ END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
  * Restore transactional state and TM-related registers.
  * Called with r3 pointing to the vcpu struct
  * and r4 containing the guest MSR value.
+ * r5 is non-zero iff non-volatile register state needs to be maintained.
  * This potentially modifies all checkpointed registers.
  * It restores r1 and r2 from the PACA.
  */
-kvmppc_restore_tm_hv:
+_GLOBAL_TOC(kvmppc_restore_tm_hv)
+EXPORT_SYMBOL_GPL(kvmppc_restore_tm_hv)
 	/*
 	 * If we are doing TM emulation for the guest on a POWER9 DD2,
 	 * then we don't actually do a trechkpt -- we either set up
