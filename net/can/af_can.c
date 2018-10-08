@@ -866,26 +866,11 @@ static int can_pernet_init(struct net *net)
 
 static void can_pernet_exit(struct net *net)
 {
-	struct net_device *dev;
-
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		can_remove_proc(net);
 		if (stats_timer)
 			del_timer_sync(&net->can.stattimer);
 	}
-
-	/* remove created dev_rcv_lists from still registered CAN devices */
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
-			struct can_dev_rcv_lists *dev_rcv_lists = dev->ml_priv;
-
-			BUG_ON(dev_rcv_lists->entries);
-			kfree(dev_rcv_lists);
-			dev->ml_priv = NULL;
-		}
-	}
-	rcu_read_unlock();
 
 	kfree(net->can.rx_alldev_list);
 	kfree(net->can.pkg_stats);
