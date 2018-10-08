@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /* Copyright (c) 2002-2007 Volkswagen Group Electronic Research
+ * Copyright (c) 2017 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,67 +39,28 @@
  *
  */
 
-#ifndef AF_CAN_H
-#define AF_CAN_H
+#ifndef CAN_ML_H
+#define CAN_ML_H
 
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <linux/list.h>
-#include <linux/rcupdate.h>
 #include <linux/can.h>
+#include <linux/list.h>
 
-/* af_can rx dispatcher structures */
+#define CAN_SFF_RCV_ARRAY_SZ (1 << CAN_SFF_ID_BITS)
+#define CAN_EFF_RCV_HASH_BITS 10
+#define CAN_EFF_RCV_ARRAY_SZ (1 << CAN_EFF_RCV_HASH_BITS)
 
-struct receiver {
-	struct hlist_node list;
-	canid_t can_id;
-	canid_t mask;
-	unsigned long matches;
-	void (*func)(struct sk_buff *skb, void *data);
-	void *data;
-	char *ident;
-	struct sock *sk;
-	struct rcu_head rcu;
+enum { RX_ERR, RX_ALL, RX_FIL, RX_INV, RX_MAX };
+
+struct can_dev_rcv_lists {
+	struct hlist_head rx[RX_MAX];
+	struct hlist_head rx_sff[CAN_SFF_RCV_ARRAY_SZ];
+	struct hlist_head rx_eff[CAN_EFF_RCV_ARRAY_SZ];
+	int remove_on_zero_entries;
+	int entries;
 };
 
-/* statistic structures */
-
-/* can be reset e.g. by can_init_stats() */
-struct can_pkg_stats {
-	unsigned long jiffies_init;
-
-	unsigned long rx_frames;
-	unsigned long tx_frames;
-	unsigned long matches;
-
-	unsigned long total_rx_rate;
-	unsigned long total_tx_rate;
-	unsigned long total_rx_match_ratio;
-
-	unsigned long current_rx_rate;
-	unsigned long current_tx_rate;
-	unsigned long current_rx_match_ratio;
-
-	unsigned long max_rx_rate;
-	unsigned long max_tx_rate;
-	unsigned long max_rx_match_ratio;
-
-	unsigned long rx_frames_delta;
-	unsigned long tx_frames_delta;
-	unsigned long matches_delta;
+struct can_ml_priv {
+	struct can_dev_rcv_lists dev_rcv_lists;
 };
 
-/* persistent statistics */
-struct can_rcv_lists_stats {
-	unsigned long stats_reset;
-	unsigned long user_reset;
-	unsigned long rcv_entries;
-	unsigned long rcv_entries_max;
-};
-
-/* function prototypes for the CAN networklayer procfs (proc.c) */
-void can_init_proc(struct net *net);
-void can_remove_proc(struct net *net);
-void can_stat_update(struct timer_list *t);
-
-#endif /* AF_CAN_H */
+#endif /* CAN_ML_H */

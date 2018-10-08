@@ -45,6 +45,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/if_arp.h>
+#include <linux/can/can-ml.h>
 #include <linux/can/core.h>
 
 #include "af_can.h"
