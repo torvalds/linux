@@ -29,83 +29,92 @@
  */
 static int p9_supported_radix_bits[4] = { 5, 9, 9, 13 };
 
-int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
-			   struct kvmppc_pte *gpte, bool data, bool iswrite)
+/*
+ * Used to walk a partition or process table radix tree in guest memory
+ * Note: We exploit the fact that a partition table and a process
+ * table have the same layout, a partition-scoped page table and a
+ * process-scoped page table have the same layout, and the 2nd
+ * doubleword of a partition table entry has the same layout as
+ * the PTCR register.
+ */
+int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
+				     struct kvmppc_pte *gpte, u64 table,
+				     int table_index, u64 *pte_ret_p)
 {
 	struct kvm *kvm = vcpu->kvm;
-	u32 pid;
 	int ret, level, ps;
-	__be64 prte, rpte;
-	unsigned long ptbl;
-	unsigned long root, pte, index;
+	unsigned long ptbl, root;
 	unsigned long rts, bits, offset;
-	unsigned long gpa;
-	unsigned long proc_tbl_size;
+	unsigned long size, index;
+	struct prtb_entry entry;
+	u64 pte, base, gpa;
+	__be64 rpte;
 
-	/* Work out effective PID */
-	switch (eaddr >> 62) {
-	case 0:
-		pid = vcpu->arch.pid;
-		break;
-	case 3:
-		pid = 0;
-		break;
-	default:
+	if ((table & PRTS_MASK) > 24)
 		return -EINVAL;
-	}
-	proc_tbl_size = 1 << ((kvm->arch.process_table & PRTS_MASK) + 12);
-	if (pid * 16 >= proc_tbl_size)
+	size = 1ul << ((table & PRTS_MASK) + 12);
+
+	/* Is the table big enough to contain this entry? */
+	if ((table_index * sizeof(entry)) >= size)
 		return -EINVAL;
 
-	/* Read partition table to find root of tree for effective PID */
-	ptbl = (kvm->arch.process_table & PRTB_MASK) + (pid * 16);
-	ret = kvm_read_guest(kvm, ptbl, &prte, sizeof(prte));
+	/* Read the table to find the root of the radix tree */
+	ptbl = (table & PRTB_MASK) + (table_index * sizeof(entry));
+	ret = kvm_read_guest(kvm, ptbl, &entry, sizeof(entry));
 	if (ret)
 		return ret;
 
-	root = be64_to_cpu(prte);
+	/* Root is stored in the first double word */
+	root = be64_to_cpu(entry.prtb0);
 	rts = ((root & RTS1_MASK) >> (RTS1_SHIFT - 3)) |
 		((root & RTS2_MASK) >> RTS2_SHIFT);
 	bits = root & RPDS_MASK;
-	root = root & RPDB_MASK;
+	base = root & RPDB_MASK;
 
 	offset = rts + 31;
 
-	/* current implementations only support 52-bit space */
+	/* Current implementations only support 52-bit space */
 	if (offset != 52)
 		return -EINVAL;
 
+	/* Walk each level of the radix tree */
 	for (level = 3; level >= 0; --level) {
+		/* Check a valid size */
 		if (level && bits != p9_supported_radix_bits[level])
 			return -EINVAL;
 		if (level == 0 && !(bits == 5 || bits == 9))
 			return -EINVAL;
 		offset -= bits;
 		index = (eaddr >> offset) & ((1UL << bits) - 1);
-		/* check that low bits of page table base are zero */
-		if (root & ((1UL << (bits + 3)) - 1))
+		/* Check that low bits of page table base are zero */
+		if (base & ((1UL << (bits + 3)) - 1))
 			return -EINVAL;
-		ret = kvm_read_guest(kvm, root + index * 8,
+		/* Read the entry from guest memory */
+		ret = kvm_read_guest(kvm, base + (index * sizeof(rpte)),
 				     &rpte, sizeof(rpte));
 		if (ret)
 			return ret;
 		pte = __be64_to_cpu(rpte);
 		if (!(pte & _PAGE_PRESENT))
 			return -ENOENT;
+		/* Check if a leaf entry */
 		if (pte & _PAGE_PTE)
 			break;
-		bits = pte & 0x1f;
-		root = pte & 0x0fffffffffffff00ul;
+		/* Get ready to walk the next level */
+		base = pte & RPDB_MASK;
+		bits = pte & RPDS_MASK;
 	}
-	/* need a leaf at lowest level; 512GB pages not supported */
+
+	/* Need a leaf at lowest level; 512GB pages not supported */
 	if (level < 0 || level == 3)
 		return -EINVAL;
 
-	/* offset is now log base 2 of the page size */
+	/* We found a valid leaf PTE */
+	/* Offset is now log base 2 of the page size */
 	gpa = pte & 0x01fffffffffff000ul;
 	if (gpa & ((1ul << offset) - 1))
 		return -EINVAL;
-	gpa += eaddr & ((1ul << offset) - 1);
+	gpa |= eaddr & ((1ul << offset) - 1);
 	for (ps = MMU_PAGE_4K; ps < MMU_PAGE_COUNT; ++ps)
 		if (offset == mmu_psize_defs[ps].shift)
 			break;
@@ -118,6 +127,38 @@ int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	gpte->may_read = !!(pte & _PAGE_READ);
 	gpte->may_write = !!(pte & _PAGE_WRITE);
 	gpte->may_execute = !!(pte & _PAGE_EXEC);
+
+	if (pte_ret_p)
+		*pte_ret_p = pte;
+
+	return 0;
+}
+
+int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
+			   struct kvmppc_pte *gpte, bool data, bool iswrite)
+{
+	u32 pid;
+	u64 pte;
+	int ret;
+
+	/* Work out effective PID */
+	switch (eaddr >> 62) {
+	case 0:
+		pid = vcpu->arch.pid;
+		break;
+	case 3:
+		pid = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = kvmppc_mmu_radix_translate_table(vcpu, eaddr, gpte,
+				vcpu->kvm->arch.process_table, pid, &pte);
+	if (ret)
+		return ret;
+
+	/* Check privilege (applies only to process scoped translations) */
 	if (kvmppc_get_msr(vcpu) & MSR_PR) {
 		if (pte & _PAGE_PRIVILEGED) {
 			gpte->may_read = 0;
