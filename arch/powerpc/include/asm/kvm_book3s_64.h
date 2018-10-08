@@ -23,6 +23,39 @@
 #include <linux/string.h>
 #include <asm/bitops.h>
 #include <asm/book3s/64/mmu-hash.h>
+#include <asm/cpu_has_feature.h>
+
+#ifdef CONFIG_PPC_PSERIES
+static inline bool kvmhv_on_pseries(void)
+{
+	return !cpu_has_feature(CPU_FTR_HVMODE);
+}
+#else
+static inline bool kvmhv_on_pseries(void)
+{
+	return false;
+}
+#endif
+
+/*
+ * Structure for a nested guest, that is, for a guest that is managed by
+ * one of our guests.
+ */
+struct kvm_nested_guest {
+	struct kvm *l1_host;		/* L1 VM that owns this nested guest */
+	int l1_lpid;			/* lpid L1 guest thinks this guest is */
+	int shadow_lpid;		/* real lpid of this nested guest */
+	pgd_t *shadow_pgtable;		/* our page table for this guest */
+	u64 l1_gr_to_hr;		/* L1's addr of part'n-scoped table */
+	u64 process_table;		/* process table entry for this guest */
+	long refcnt;			/* number of pointers to this struct */
+	struct mutex tlb_lock;		/* serialize page faults and tlbies */
+	struct kvm_nested_guest *next;
+};
+
+struct kvm_nested_guest *kvmhv_get_nested(struct kvm *kvm, int l1_lpid,
+					  bool create);
+void kvmhv_put_nested(struct kvm_nested_guest *gp);
 
 /* Power architecture requires HPT is at least 256kiB, at most 64TiB */
 #define PPC_MIN_HPT_ORDER	18

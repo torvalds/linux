@@ -934,6 +934,19 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		if (ret == H_TOO_HARD)
 			return RESUME_HOST;
 		break;
+
+	case H_SET_PARTITION_TABLE:
+		ret = H_FUNCTION;
+		if (vcpu->kvm->arch.nested_enable)
+			ret = kvmhv_set_partition_table(vcpu);
+		break;
+	case H_ENTER_NESTED:
+		ret = H_FUNCTION;
+		break;
+	case H_TLB_INVALIDATE:
+		ret = H_FUNCTION;
+		break;
+
 	default:
 		return RESUME_HOST;
 	}
@@ -4157,8 +4170,7 @@ void kvmppc_setup_partition_table(struct kvm *kvm)
 			__pa(kvm->arch.pgtable) | RADIX_PGD_INDEX_SIZE;
 		dw1 = PATB_GR | kvm->arch.process_table;
 	}
-
-	mmu_partition_table_set_entry(kvm->arch.lpid, dw0, dw1);
+	kvmhv_set_ptbl_entry(kvm->arch.lpid, dw0, dw1);
 }
 
 /*
@@ -4254,6 +4266,10 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 /* Must be called with kvm->lock held and mmu_ready = 0 and no vcpus running */
 int kvmppc_switch_mmu_to_hpt(struct kvm *kvm)
 {
+	if (kvm->arch.nested_enable) {
+		kvm->arch.nested_enable = false;
+		kvmhv_release_all_nested(kvm);
+	}
 	kvmppc_free_radix(kvm);
 	kvmppc_update_lpcr(kvm, LPCR_VPM1,
 			   LPCR_VPM1 | LPCR_UPRT | LPCR_GTSE | LPCR_HR);
@@ -4373,6 +4389,8 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	kvm->arch.lpid = lpid;
 
 	kvmppc_alloc_host_rm_ops();
+
+	kvmhv_vm_nested_init(kvm);
 
 	/*
 	 * Since we don't flush the TLB when tearing down a VM,
@@ -4517,8 +4535,10 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 
 	/* Perform global invalidation and return lpid to the pool */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (kvm->arch.nested_enable)
+			kvmhv_release_all_nested(kvm);
 		kvm->arch.process_table = 0;
-		kvmppc_setup_partition_table(kvm);
+		kvmhv_set_ptbl_entry(kvm->arch.lpid, 0, 0);
 	}
 	kvmppc_free_lpid(kvm->arch.lpid);
 
@@ -4989,6 +5009,10 @@ static int kvmppc_book3s_init_hv(void)
 	if (r < 0)
 		return -ENODEV;
 
+	r = kvmhv_nested_init();
+	if (r)
+		return r;
+
 	r = kvm_init_subcore_bitmap();
 	if (r)
 		return r;
@@ -5047,6 +5071,7 @@ static void kvmppc_book3s_exit_hv(void)
 	if (kvmppc_radix_possible())
 		kvmppc_radix_exit();
 	kvmppc_hv_ops = NULL;
+	kvmhv_nested_exit();
 }
 
 module_init(kvmppc_book3s_init_hv);

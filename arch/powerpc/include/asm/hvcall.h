@@ -322,6 +322,11 @@
 #define H_GET_24X7_DATA		0xF07C
 #define H_GET_PERF_COUNTER_INFO	0xF080
 
+/* Platform-specific hcalls used for nested HV KVM */
+#define H_SET_PARTITION_TABLE	0xF800
+#define H_ENTER_NESTED		0xF804
+#define H_TLB_INVALIDATE	0xF808
+
 /* Values for 2nd argument to H_SET_MODE */
 #define H_SET_MODE_RESOURCE_SET_CIABR		1
 #define H_SET_MODE_RESOURCE_SET_DAWR		2

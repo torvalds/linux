@@ -274,6 +274,13 @@ static inline void kvmppc_save_tm_sprs(struct kvm_vcpu *vcpu) {}
 static inline void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu) {}
 #endif
 
+long kvmhv_nested_init(void);
+void kvmhv_nested_exit(void);
+void kvmhv_vm_nested_init(struct kvm *kvm);
+long kvmhv_set_partition_table(struct kvm_vcpu *vcpu);
+void kvmhv_set_ptbl_entry(unsigned int lpid, u64 dw0, u64 dw1);
+void kvmhv_release_all_nested(struct kvm *kvm);
+
 void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac);
 
 extern int kvm_irq_bypass;
@@ -386,9 +393,6 @@ extern int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu);
 #define INS_DCBZ			0x7c0007ec
 /* TO = 31 for unconditional trap */
 #define INS_TW				0x7fe00008
-
-/* LPIDs we support with this build -- runtime limit may be lower */
-#define KVMPPC_NR_LPIDS			(LPID_RSVD + 1)
 
 #define SPLIT_HACK_MASK			0xff000000
 #define SPLIT_HACK_OFFS			0xfb000000
