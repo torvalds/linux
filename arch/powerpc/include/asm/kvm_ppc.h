@@ -650,6 +650,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
                     unsigned long mfrr);
 int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr);
 int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr);
+void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu);
 
 /*
  * Host-side operations we want to set up while running in real

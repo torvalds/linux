@@ -1101,13 +1101,20 @@ no_xive:
 #endif /* CONFIG_KVM_XICS */
 
 deliver_guest_interrupt:
-	ld	r6, VCPU_CTR(r4)
-	ld	r7, VCPU_XER(r4)
-
-	mtctr	r6
-	mtxer	r7
-
 kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
+	/* Check if we can deliver an external or decrementer interrupt now */
+	ld	r0, VCPU_PENDING_EXC(r4)
+BEGIN_FTR_SECTION
+	/* On POWER9, also check for emulated doorbell interrupt */
+	lbz	r3, VCPU_DBELL_REQ(r4)
+	or	r0, r0, r3
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	cmpdi	r0, 0
+	beq	71f
+	mr	r3, r4
+	bl	kvmppc_guest_entry_inject_int
+	ld	r4, HSTATE_KVM_VCPU(r13)
+71:
 	ld	r10, VCPU_PC(r4)
 	ld	r11, VCPU_MSR(r4)
 	ld	r6, VCPU_SRR0(r4)
@@ -1120,53 +1127,10 @@ kvmppc_cede_reentry:		/* r4 = vcpu, r13 = paca */
 	rotldi	r11, r11, 1 + MSR_HV_LG
 	ori	r11, r11, MSR_ME
 
-	/* Check if we can deliver an external or decrementer interrupt now */
-	ld	r0, VCPU_PENDING_EXC(r4)
-	rldicl	r0, r0, 64 - BOOK3S_IRQPRIO_EXTERNAL, 63
-	cmpdi	cr1, r0, 0
-	andi.	r8, r11, MSR_EE
-	mfspr	r8, SPRN_LPCR
-	/* Insert EXTERNAL bit into LPCR at the MER bit position */
-	rldimi	r8, r0, LPCR_MER_SH, 63 - LPCR_MER_SH
-	mtspr	SPRN_LPCR, r8
-	isync
-	beq	5f
-	li	r0, BOOK3S_INTERRUPT_EXTERNAL
-	bne	cr1, 12f
-	mfspr	r0, SPRN_DEC
-BEGIN_FTR_SECTION
-	/* On POWER9 check whether the guest has large decrementer enabled */
-	andis.	r8, r8, LPCR_LD@h
-	bne	15f
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	extsw	r0, r0
-15:	cmpdi	r0, 0
-	li	r0, BOOK3S_INTERRUPT_DECREMENTER
-	bge	5f
-
-12:	mtspr	SPRN_SRR0, r10
-	mr	r10,r0
-	mtspr	SPRN_SRR1, r11
-	mr	r9, r4
-	bl	kvmppc_msr_interrupt
-5:
-BEGIN_FTR_SECTION
-	b	fast_guest_return
-END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
-	/* On POWER9, check for pending doorbell requests */
-	lbz	r0, VCPU_DBELL_REQ(r4)
-	cmpwi	r0, 0
-	beq	fast_guest_return
-	ld	r5, HSTATE_KVM_VCORE(r13)
-	/* Set DPDES register so the CPU will take a doorbell interrupt */
-	li	r0, 1
-	mtspr	SPRN_DPDES, r0
-	std	r0, VCORE_DPDES(r5)
-	/* Make sure other cpus see vcore->dpdes set before dbell req clear */
-	lwsync
-	/* Clear the pending doorbell request */
-	li	r0, 0
-	stb	r0, VCPU_DBELL_REQ(r4)
+	ld	r6, VCPU_CTR(r4)
+	ld	r7, VCPU_XER(r4)
+	mtctr	r6
+	mtxer	r7
 
 /*
  * Required state:
