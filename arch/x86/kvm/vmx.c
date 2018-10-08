@@ -12290,7 +12290,15 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 				__vmx_flush_tlb(vcpu, vmx->nested.vpid02, true);
 			}
 		} else {
-			vmx_flush_tlb(vcpu, true);
+			/*
+			 * If L1 use EPT, then L0 needs to execute INVEPT on
+			 * EPTP02 instead of EPTP01. Therefore, delay TLB
+			 * flush until vmcs02->eptp is fully updated by
+			 * KVM_REQ_LOAD_CR3. Note that this assumes
+			 * KVM_REQ_TLB_FLUSH is evaluated after
+			 * KVM_REQ_LOAD_CR3 in vcpu_enter_guest().
+			 */
+			kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		}
 	}
 
@@ -13188,10 +13196,14 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	 * Therefore, flush TLB only in case vmcs01 uses VPID and
 	 * vmcs12 don't use VPID as in this case L1 & L2 TLB entries
 	 * are both tagged with vmx->vpid.
+	 *
+	 * If vmcs12 uses EPT, we need to execute this flush on EPTP01
+	 * and therefore we request the TLB flush to happen only after VMCS EPTP
+	 * has been set by KVM_REQ_LOAD_CR3.
 	 */
 	if (enable_vpid &&
 	    !(nested_cpu_has_vpid(vmcs12) && to_vmx(vcpu)->nested.vpid02)) {
-		vmx_flush_tlb(vcpu, true);
+		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	}
 
 	vmcs_write32(GUEST_SYSENTER_CS, vmcs12->host_ia32_sysenter_cs);
