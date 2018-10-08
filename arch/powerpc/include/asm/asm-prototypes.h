@@ -167,4 +167,8 @@ void kvmhv_load_guest_pmu(struct kvm_vcpu *vcpu);
 
 int __kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu);
 
+long kvmppc_h_set_dabr(struct kvm_vcpu *vcpu, unsigned long dabr);
+long kvmppc_h_set_xdabr(struct kvm_vcpu *vcpu, unsigned long dabr,
+			unsigned long dabrx);
+
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */

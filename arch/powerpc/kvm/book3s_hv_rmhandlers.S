@@ -2466,6 +2466,7 @@ hcall_real_table:
 hcall_real_table_end:
 
 _GLOBAL(kvmppc_h_set_xdabr)
+EXPORT_SYMBOL_GPL(kvmppc_h_set_xdabr)
 	andi.	r0, r5, DABRX_USER | DABRX_KERNEL
 	beq	6f
 	li	r0, DABRX_USER | DABRX_KERNEL | DABRX_BTI
@@ -2475,6 +2476,7 @@ _GLOBAL(kvmppc_h_set_xdabr)
 	blr
 
 _GLOBAL(kvmppc_h_set_dabr)
+EXPORT_SYMBOL_GPL(kvmppc_h_set_dabr)
 	li	r5, DABRX_USER | DABRX_KERNEL
 3:
 BEGIN_FTR_SECTION

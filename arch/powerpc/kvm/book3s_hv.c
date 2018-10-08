@@ -50,6 +50,7 @@
 #include <asm/reg.h>
 #include <asm/ppc-opcode.h>
 #include <asm/asm-prototypes.h>
+#include <asm/archrandom.h>
 #include <asm/debug.h>
 #include <asm/disassemble.h>
 #include <asm/cputable.h>
@@ -915,6 +916,19 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 			break;
 		}
 		return RESUME_HOST;
+	case H_SET_DABR:
+		ret = kvmppc_h_set_dabr(vcpu, kvmppc_get_gpr(vcpu, 4));
+		break;
+	case H_SET_XDABR:
+		ret = kvmppc_h_set_xdabr(vcpu, kvmppc_get_gpr(vcpu, 4),
+						kvmppc_get_gpr(vcpu, 5));
+		break;
+	case H_GET_TCE:
+		ret = kvmppc_h_get_tce(vcpu, kvmppc_get_gpr(vcpu, 4),
+						kvmppc_get_gpr(vcpu, 5));
+		if (ret == H_TOO_HARD)
+			return RESUME_HOST;
+		break;
 	case H_PUT_TCE:
 		ret = kvmppc_h_put_tce(vcpu, kvmppc_get_gpr(vcpu, 4),
 						kvmppc_get_gpr(vcpu, 5),
@@ -937,6 +951,10 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 						kvmppc_get_gpr(vcpu, 7));
 		if (ret == H_TOO_HARD)
 			return RESUME_HOST;
+		break;
+	case H_RANDOM:
+		if (!powernv_get_random_long(&vcpu->arch.regs.gpr[4]))
+			ret = H_HARDWARE;
 		break;
 
 	case H_SET_PARTITION_TABLE:
@@ -964,6 +982,24 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	kvmppc_set_gpr(vcpu, 3, ret);
 	vcpu->arch.hcall_needed = 0;
 	return RESUME_GUEST;
+}
+
+/*
+ * Handle H_CEDE in the nested virtualization case where we haven't
+ * called the real-mode hcall handlers in book3s_hv_rmhandlers.S.
+ * This has to be done early, not in kvmppc_pseries_do_hcall(), so
+ * that the cede logic in kvmppc_run_single_vcpu() works properly.
+ */
+static void kvmppc_nested_cede(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.shregs.msr |= MSR_EE;
+	vcpu->arch.ceded = 1;
+	smp_mb();
+	if (vcpu->arch.prodded) {
+		vcpu->arch.prodded = 0;
+		smp_mb();
+		vcpu->arch.ceded = 0;
+	}
 }
 
 static int kvmppc_hcall_impl_hv(unsigned long cmd)
@@ -3424,6 +3460,13 @@ int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 		vcpu->arch.shregs.msr = vcpu->arch.regs.msr;
 		vcpu->arch.shregs.dar = mfspr(SPRN_DAR);
 		vcpu->arch.shregs.dsisr = mfspr(SPRN_DSISR);
+
+		/* H_CEDE has to be handled now, not later */
+		if (trap == BOOK3S_INTERRUPT_SYSCALL && !vcpu->arch.nested &&
+		    kvmppc_get_gpr(vcpu, 3) == H_CEDE) {
+			kvmppc_nested_cede(vcpu);
+			trap = 0;
+		}
 	} else {
 		trap = kvmhv_load_hv_regs_and_go(vcpu, time_limit, lpcr);
 	}

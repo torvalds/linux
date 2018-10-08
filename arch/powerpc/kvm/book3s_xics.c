@@ -1390,7 +1390,8 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 	}
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
+	if (cpu_has_feature(CPU_FTR_ARCH_206) &&
+	    cpu_has_feature(CPU_FTR_HVMODE)) {
 		/* Enable real mode support */
 		xics->real_mode = ENABLE_REALMODE;
 		xics->real_mode_dbg = DEBUG_REALMODE;
