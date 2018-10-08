@@ -240,19 +240,22 @@ static void kvmppc_pmd_free(pmd_t *pmdp)
 }
 
 static void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte,
-			     unsigned long gpa, unsigned int shift)
+			     unsigned long gpa, unsigned int shift,
+			     struct kvm_memory_slot *memslot)
 
 {
-	unsigned long page_size = 1ul << shift;
 	unsigned long old;
 
 	old = kvmppc_radix_update_pte(kvm, pte, ~0UL, 0, gpa, shift);
 	kvmppc_radix_tlbie_page(kvm, gpa, shift);
 	if (old & _PAGE_DIRTY) {
 		unsigned long gfn = gpa >> PAGE_SHIFT;
-		struct kvm_memory_slot *memslot;
+		unsigned long page_size = PAGE_SIZE;
 
-		memslot = gfn_to_memslot(kvm, gfn);
+		if (shift)
+			page_size = 1ul << shift;
+		if (!memslot)
+			memslot = gfn_to_memslot(kvm, gfn);
 		if (memslot && memslot->dirty_bitmap)
 			kvmppc_update_dirty_map(memslot, gfn, page_size);
 	}
@@ -282,7 +285,7 @@ static void kvmppc_unmap_free_pte(struct kvm *kvm, pte_t *pte, bool full)
 			WARN_ON_ONCE(1);
 			kvmppc_unmap_pte(kvm, p,
 					 pte_pfn(*p) << PAGE_SHIFT,
-					 PAGE_SHIFT);
+					 PAGE_SHIFT, NULL);
 		}
 	}
 
@@ -304,7 +307,7 @@ static void kvmppc_unmap_free_pmd(struct kvm *kvm, pmd_t *pmd, bool full)
 				WARN_ON_ONCE(1);
 				kvmppc_unmap_pte(kvm, (pte_t *)p,
 					 pte_pfn(*(pte_t *)p) << PAGE_SHIFT,
-					 PMD_SHIFT);
+					 PMD_SHIFT, NULL);
 			}
 		} else {
 			pte_t *pte;
@@ -468,7 +471,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 			goto out_unlock;
 		}
 		/* Valid 1GB page here already, remove it */
-		kvmppc_unmap_pte(kvm, (pte_t *)pud, hgpa, PUD_SHIFT);
+		kvmppc_unmap_pte(kvm, (pte_t *)pud, hgpa, PUD_SHIFT, NULL);
 	}
 	if (level == 2) {
 		if (!pud_none(*pud)) {
@@ -517,7 +520,7 @@ static int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 			goto out_unlock;
 		}
 		/* Valid 2MB page here already, remove it */
-		kvmppc_unmap_pte(kvm, pmdp_ptep(pmd), lgpa, PMD_SHIFT);
+		kvmppc_unmap_pte(kvm, pmdp_ptep(pmd), lgpa, PMD_SHIFT, NULL);
 	}
 	if (level == 1) {
 		if (!pmd_none(*pmd)) {
@@ -780,20 +783,10 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	pte_t *ptep;
 	unsigned long gpa = gfn << PAGE_SHIFT;
 	unsigned int shift;
-	unsigned long old;
 
 	ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
-	if (ptep && pte_present(*ptep)) {
-		old = kvmppc_radix_update_pte(kvm, ptep, ~0UL, 0,
-					      gpa, shift);
-		kvmppc_radix_tlbie_page(kvm, gpa, shift);
-		if ((old & _PAGE_DIRTY) && memslot->dirty_bitmap) {
-			unsigned long psize = PAGE_SIZE;
-			if (shift)
-				psize = 1ul << shift;
-			kvmppc_update_dirty_map(memslot, gfn, psize);
-		}
-	}
+	if (ptep && pte_present(*ptep))
+		kvmppc_unmap_pte(kvm, ptep, gpa, shift, memslot);
 	return 0;				
 }
 
