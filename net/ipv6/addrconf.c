@@ -5644,6 +5644,31 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int inet6_valid_dump_ifinfo(const struct nlmsghdr *nlh,
+				   struct netlink_ext_ack *extack)
+{
+	struct ifinfomsg *ifm;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for link dump request");
+		return -EINVAL;
+	}
+
+	if (nlmsg_attrlen(nlh, sizeof(*ifm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header");
+		return -EINVAL;
+	}
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
+	    ifm->ifi_change || ifm->ifi_index) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for dump request");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
@@ -5652,6 +5677,16 @@ static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct hlist_head *head;
+
+	/* only requests using strict checking can pass data to
+	 * influence the dump
+	 */
+	if (cb->strict_check) {
+		int err = inet6_valid_dump_ifinfo(cb->nlh, cb->extack);
+
+		if (err < 0)
+			return err;
+	}
 
 	s_h = cb->args[0];
 	s_idx = cb->args[1];
