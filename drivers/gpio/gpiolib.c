@@ -1525,7 +1525,7 @@ static int devm_gpio_chip_match(struct device *dev, void *res, void *data)
 
 /**
  * devm_gpiochip_add_data() - Resource manager gpiochip_add_data()
- * @dev: the device pointer on which irq_chip belongs to.
+ * @dev: pointer to the device that gpio_chip belongs to.
  * @chip: the chip to register, with chip->base initialized
  * @data: driver-private data associated with this chip
  *
