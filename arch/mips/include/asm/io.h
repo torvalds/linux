@@ -97,6 +97,9 @@ static inline void set_io_port_base(unsigned long base)
 #define iobarrier_w() wmb()
 #define iobarrier_sync() iob()
 
+/* Some callers use this older API instead.  */
+#define mmiowb() iobarrier_w()
+
 /*
  *     virt_to_phys    -       map virtual addresses to physical
  *     @address: address to remap
@@ -543,14 +546,6 @@ BUILDSTRING(w, u16)
 BUILDSTRING(l, u32)
 #ifdef CONFIG_64BIT
 BUILDSTRING(q, u64)
-#endif
-
-
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-#define mmiowb() wmb()
-#else
-/* Depends on MIPS II instruction set */
-#define mmiowb() asm volatile ("sync" ::: "memory")
 #endif
 
 static inline void memset_io(volatile void __iomem *addr, unsigned char val, int count)
