@@ -1203,7 +1203,7 @@ static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 		bnxt_re_unregister_ib(rdev);
 	}
 	if (test_and_clear_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags))
-		cancel_delayed_work(&rdev->worker);
+		cancel_delayed_work_sync(&rdev->worker);
 
 	bnxt_re_cleanup_res(rdev);
 	bnxt_re_free_res(rdev);
