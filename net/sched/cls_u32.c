@@ -994,7 +994,11 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	if (tb[TCA_U32_DIVISOR]) {
 		unsigned int divisor = nla_get_u32(tb[TCA_U32_DIVISOR]);
 
-		if (--divisor > 0x100) {
+		if (!is_power_of_2(divisor)) {
+			NL_SET_ERR_MSG_MOD(extack, "Divisor is not a power of 2");
+			return -EINVAL;
+		}
+		if (divisor-- > 0x100) {
 			NL_SET_ERR_MSG_MOD(extack, "Exceeded maximum 256 hash buckets");
 			return -EINVAL;
 		}
