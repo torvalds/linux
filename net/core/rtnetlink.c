@@ -1878,8 +1878,52 @@ struct net *rtnl_get_net_ns_capable(struct sock *sk, int netnsid)
 }
 EXPORT_SYMBOL_GPL(rtnl_get_net_ns_capable);
 
+static int rtnl_valid_dump_ifinfo_req(const struct nlmsghdr *nlh,
+				      bool strict_check, struct nlattr **tb,
+				      struct netlink_ext_ack *extack)
+{
+	int hdrlen;
+
+	if (strict_check) {
+		struct ifinfomsg *ifm;
+
+		if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+			NL_SET_ERR_MSG(extack, "Invalid header for link dump");
+			return -EINVAL;
+		}
+
+		ifm = nlmsg_data(nlh);
+		if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
+		    ifm->ifi_change) {
+			NL_SET_ERR_MSG(extack, "Invalid values in header for link dump request");
+			return -EINVAL;
+		}
+		if (ifm->ifi_index) {
+			NL_SET_ERR_MSG(extack, "Filter by device index not supported for link dumps");
+			return -EINVAL;
+		}
+
+		return nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFLA_MAX,
+					  ifla_policy, extack);
+	}
+
+	/* A hack to preserve kernel<->userspace interface.
+	 * The correct header is ifinfomsg. It is consistent with rtnl_getlink.
+	 * However, before Linux v3.9 the code here assumed rtgenmsg and that's
+	 * what iproute2 < v3.9.0 used.
+	 * We can detect the old iproute2. Even including the IFLA_EXT_MASK
+	 * attribute, its netlink message is shorter than struct ifinfomsg.
+	 */
+	hdrlen = nlmsg_len(nlh) < sizeof(struct ifinfomsg) ?
+		 sizeof(struct rtgenmsg) : sizeof(struct ifinfomsg);
+
+	return nlmsg_parse(nlh, hdrlen, tb, IFLA_MAX, ifla_policy, extack);
+}
+
 static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct netlink_ext_ack *extack = cb->extack;
+	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	struct net *tgt_net = net;
 	int h, s_h;
@@ -1892,44 +1936,54 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int flags = NLM_F_MULTI;
 	int master_idx = 0;
 	int netnsid = -1;
-	int err;
-	int hdrlen;
+	int err, i;
 
 	s_h = cb->args[0];
 	s_idx = cb->args[1];
 
-	/* A hack to preserve kernel<->userspace interface.
-	 * The correct header is ifinfomsg. It is consistent with rtnl_getlink.
-	 * However, before Linux v3.9 the code here assumed rtgenmsg and that's
-	 * what iproute2 < v3.9.0 used.
-	 * We can detect the old iproute2. Even including the IFLA_EXT_MASK
-	 * attribute, its netlink message is shorter than struct ifinfomsg.
-	 */
-	hdrlen = nlmsg_len(cb->nlh) < sizeof(struct ifinfomsg) ?
-		 sizeof(struct rtgenmsg) : sizeof(struct ifinfomsg);
+	err = rtnl_valid_dump_ifinfo_req(nlh, cb->strict_check, tb, extack);
+	if (err < 0) {
+		if (cb->strict_check)
+			return err;
 
-	if (nlmsg_parse(cb->nlh, hdrlen, tb, IFLA_MAX,
-			ifla_policy, cb->extack) >= 0) {
-		if (tb[IFLA_TARGET_NETNSID]) {
-			netnsid = nla_get_s32(tb[IFLA_TARGET_NETNSID]);
-			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
-			if (IS_ERR(tgt_net))
-				return PTR_ERR(tgt_net);
-		}
-
-		if (tb[IFLA_EXT_MASK])
-			ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
-
-		if (tb[IFLA_MASTER])
-			master_idx = nla_get_u32(tb[IFLA_MASTER]);
-
-		if (tb[IFLA_LINKINFO])
-			kind_ops = linkinfo_to_kind_ops(tb[IFLA_LINKINFO]);
-
-		if (master_idx || kind_ops)
-			flags |= NLM_F_DUMP_FILTERED;
+		goto walk_entries;
 	}
 
+	for (i = 0; i <= IFLA_MAX; ++i) {
+		if (!tb[i])
+			continue;
+
+		/* new attributes should only be added with strict checking */
+		switch (i) {
+		case IFLA_TARGET_NETNSID:
+			netnsid = nla_get_s32(tb[i]);
+			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
+			if (IS_ERR(tgt_net)) {
+				NL_SET_ERR_MSG(extack, "Invalid target network namespace id");
+				return PTR_ERR(tgt_net);
+			}
+			break;
+		case IFLA_EXT_MASK:
+			ext_filter_mask = nla_get_u32(tb[i]);
+			break;
+		case IFLA_MASTER:
+			master_idx = nla_get_u32(tb[i]);
+			break;
+		case IFLA_LINKINFO:
+			kind_ops = linkinfo_to_kind_ops(tb[i]);
+			break;
+		default:
+			if (cb->strict_check) {
+				NL_SET_ERR_MSG(extack, "Unsupported attribute in link dump request");
+				return -EINVAL;
+			}
+		}
+	}
+
+	if (master_idx || kind_ops)
+		flags |= NLM_F_DUMP_FILTERED;
+
+walk_entries:
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
 		head = &tgt_net->dev_index_head[h];
@@ -1941,8 +1995,7 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			err = rtnl_fill_ifinfo(skb, dev, net,
 					       RTM_NEWLINK,
 					       NETLINK_CB(cb->skb).portid,
-					       cb->nlh->nlmsg_seq, 0,
-					       flags,
+					       nlh->nlmsg_seq, 0, flags,
 					       ext_filter_mask, 0, NULL, 0,
 					       netnsid);
 
