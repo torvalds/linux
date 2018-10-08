@@ -302,7 +302,7 @@ static struct can_dev_rcv_lists *find_dev_rcv_lists(struct net *net,
 						    struct net_device *dev)
 {
 	if (!dev)
-		return net->can.can_rx_alldev_list;
+		return net->can.rx_alldev_list;
 	else
 		return (struct can_dev_rcv_lists *)dev->ml_priv;
 }
@@ -456,7 +456,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 	if (!r)
 		return -ENOMEM;
 
-	spin_lock(&net->can.can_rcvlists_lock);
+	spin_lock(&net->can.rcvlists_lock);
 
 	d = find_dev_rcv_lists(net, dev);
 	if (d) {
@@ -481,7 +481,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 		err = -ENODEV;
 	}
 
-	spin_unlock(&net->can.can_rcvlists_lock);
+	spin_unlock(&net->can.rcvlists_lock);
 
 	return err;
 }
@@ -524,7 +524,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	if (dev && !net_eq(net, dev_net(dev)))
 		return;
 
-	spin_lock(&net->can.can_rcvlists_lock);
+	spin_lock(&net->can.rcvlists_lock);
 
 	d = find_dev_rcv_lists(net, dev);
 	if (!d) {
@@ -569,7 +569,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	}
 
  out:
-	spin_unlock(&net->can.can_rcvlists_lock);
+	spin_unlock(&net->can.rcvlists_lock);
 
 	/* schedule the receiver item for deletion */
 	if (r) {
@@ -669,7 +669,7 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_lock();
 
 	/* deliver the packet to sockets listening on all devices */
-	matches = can_rcv_filter(net->can.can_rx_alldev_list, skb);
+	matches = can_rcv_filter(net->can.rx_alldev_list, skb);
 
 	/* find receive list for this device */
 	d = find_dev_rcv_lists(net, dev);
@@ -807,7 +807,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 		break;
 
 	case NETDEV_UNREGISTER:
-		spin_lock(&dev_net(dev)->can.can_rcvlists_lock);
+		spin_lock(&dev_net(dev)->can.rcvlists_lock);
 
 		d = dev->ml_priv;
 		if (d) {
@@ -822,7 +822,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 			       dev->name);
 		}
 
-		spin_unlock(&dev_net(dev)->can.can_rcvlists_lock);
+		spin_unlock(&dev_net(dev)->can.rcvlists_lock);
 
 		break;
 	}
@@ -832,10 +832,10 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
 
 static int can_pernet_init(struct net *net)
 {
-	spin_lock_init(&net->can.can_rcvlists_lock);
-	net->can.can_rx_alldev_list =
-		kzalloc(sizeof(*net->can.can_rx_alldev_list), GFP_KERNEL);
-	if (!net->can.can_rx_alldev_list)
+	spin_lock_init(&net->can.rcvlists_lock);
+	net->can.rx_alldev_list =
+		kzalloc(sizeof(*net->can.rx_alldev_list), GFP_KERNEL);
+	if (!net->can.rx_alldev_list)
 		goto out;
 	net->can.pkg_stats = kzalloc(sizeof(*net->can.pkg_stats), GFP_KERNEL);
 	if (!net->can.pkg_stats)
@@ -847,9 +847,9 @@ static int can_pernet_init(struct net *net)
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		/* the statistics are updated every second (timer triggered) */
 		if (stats_timer) {
-			timer_setup(&net->can.can_stattimer, can_stat_update,
+			timer_setup(&net->can.stattimer, can_stat_update,
 				    0);
-			mod_timer(&net->can.can_stattimer,
+			mod_timer(&net->can.stattimer,
 				  round_jiffies(jiffies + HZ));
 		}
 		net->can.pkg_stats->jiffies_init = jiffies;
@@ -861,7 +861,7 @@ static int can_pernet_init(struct net *net)
  out_free_pkg_stats:
 	kfree(net->can.pkg_stats);
  out_free_rx_alldev_list:
-	kfree(net->can.can_rx_alldev_list);
+	kfree(net->can.rx_alldev_list);
  out:
 	return -ENOMEM;
 }
@@ -873,7 +873,7 @@ static void can_pernet_exit(struct net *net)
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		can_remove_proc(net);
 		if (stats_timer)
-			del_timer_sync(&net->can.can_stattimer);
+			del_timer_sync(&net->can.stattimer);
 	}
 
 	/* remove created dev_rcv_lists from still registered CAN devices */
@@ -889,7 +889,7 @@ static void can_pernet_exit(struct net *net)
 	}
 	rcu_read_unlock();
 
-	kfree(net->can.can_rx_alldev_list);
+	kfree(net->can.rx_alldev_list);
 	kfree(net->can.pkg_stats);
 	kfree(net->can.rcv_lists_stats);
 }
