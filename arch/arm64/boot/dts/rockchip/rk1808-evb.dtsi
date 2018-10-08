@@ -650,8 +650,10 @@
 		};
 	};
 
-	uart4_rts_gpio: uart4-rts-gpio {
-		rockchip,pins = <4 RK_PB7 0 &pcfg_pull_none>;
+	wireless-bluetooth {
+		uart4_rts_gpio: uart4-rts-gpio {
+			rockchip,pins = <4 RK_PB7 0 &pcfg_pull_none>;
+		};
 	};
 
 	wireless-wlan {
