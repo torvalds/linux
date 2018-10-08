@@ -2071,6 +2071,11 @@ static int cache_alloc(struct cache *ca)
 	 */
 	btree_buckets = ca->sb.njournal_buckets ?: 8;
 	free = roundup_pow_of_two(ca->sb.nbuckets) >> 10;
+	if (!free) {
+		ret = -EPERM;
+		err = "ca->sb.nbuckets is too small";
+		goto err_free;
+	}
 
 	if (!init_fifo(&ca->free[RESERVE_BTREE], btree_buckets,
 						GFP_KERNEL)) {
@@ -2148,6 +2153,7 @@ err_movinggc_alloc:
 err_prio_alloc:
 	free_fifo(&ca->free[RESERVE_BTREE]);
 err_btree_alloc:
+err_free:
 	module_put(THIS_MODULE);
 	if (err)
 		pr_notice("error %s: %s", ca->cache_dev_name, err);
@@ -2177,6 +2183,8 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 		blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 		if (ret == -ENOMEM)
 			err = "cache_alloc(): -ENOMEM";
+		else if (ret == -EPERM)
+			err = "cache_alloc(): cache device is too small";
 		else
 			err = "cache_alloc(): unknown error";
 		goto err;
