@@ -4811,11 +4811,15 @@ static int kvmppc_core_emulate_mfspr_hv(struct kvm_vcpu *vcpu, int sprn,
 
 static int kvmppc_core_check_processor_compat_hv(void)
 {
-	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
-	    !cpu_has_feature(CPU_FTR_ARCH_206))
-		return -EIO;
+	if (cpu_has_feature(CPU_FTR_HVMODE) &&
+	    cpu_has_feature(CPU_FTR_ARCH_206))
+		return 0;
 
-	return 0;
+	/* POWER9 in radix mode is capable of being a nested hypervisor. */
+	if (cpu_has_feature(CPU_FTR_ARCH_300) && radix_enabled())
+		return 0;
+
+	return -EIO;
 }
 
 #ifdef CONFIG_KVM_XICS
@@ -5131,6 +5135,10 @@ static int kvmhv_configure_mmu(struct kvm *kvm, struct kvm_ppc_mmuv3_cfg *cfg)
 
 	/* We can change a guest to/from radix now, if the host is radix */
 	if (radix && !radix_enabled())
+		return -EINVAL;
+
+	/* If we're a nested hypervisor, we currently only support radix */
+	if (kvmhv_on_pseries() && !radix)
 		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
