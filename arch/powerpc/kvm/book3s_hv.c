@@ -1084,7 +1084,6 @@ static int kvmppc_emulate_doorbell_instr(struct kvm_vcpu *vcpu)
 	return RESUME_GUEST;
 }
 
-/* Called with vcpu->arch.vcore->lock held */
 static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				 struct task_struct *tsk)
 {
@@ -1205,10 +1204,7 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				swab32(vcpu->arch.emul_inst) :
 				vcpu->arch.emul_inst;
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP) {
-			/* Need vcore unlocked to call kvmppc_get_last_inst */
-			spin_unlock(&vcpu->arch.vcore->lock);
 			r = kvmppc_emulate_debug_inst(run, vcpu);
-			spin_lock(&vcpu->arch.vcore->lock);
 		} else {
 			kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
 			r = RESUME_GUEST;
@@ -1224,12 +1220,8 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOK3S_INTERRUPT_H_FAC_UNAVAIL:
 		r = EMULATE_FAIL;
 		if (((vcpu->arch.hfscr >> 56) == FSCR_MSGP_LG) &&
-		    cpu_has_feature(CPU_FTR_ARCH_300)) {
-			/* Need vcore unlocked to call kvmppc_get_last_inst */
-			spin_unlock(&vcpu->arch.vcore->lock);
+		    cpu_has_feature(CPU_FTR_ARCH_300))
 			r = kvmppc_emulate_doorbell_instr(vcpu);
-			spin_lock(&vcpu->arch.vcore->lock);
-		}
 		if (r == EMULATE_FAIL) {
 			kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
 			r = RESUME_GUEST;
@@ -2599,6 +2591,14 @@ static void post_guest_process(struct kvmppc_vcore *vc, bool is_master)
 	spin_lock(&vc->lock);
 	now = get_tb();
 	for_each_runnable_thread(i, vcpu, vc) {
+		/*
+		 * It's safe to unlock the vcore in the loop here, because
+		 * for_each_runnable_thread() is safe against removal of
+		 * the vcpu, and the vcore state is VCORE_EXITING here,
+		 * so any vcpus becoming runnable will have their arch.trap
+		 * set to zero and can't actually run in the guest.
+		 */
+		spin_unlock(&vc->lock);
 		/* cancel pending dec exception if dec is positive */
 		if (now < vcpu->arch.dec_expires &&
 		    kvmppc_core_pending_dec(vcpu))
@@ -2614,6 +2614,7 @@ static void post_guest_process(struct kvmppc_vcore *vc, bool is_master)
 		vcpu->arch.ret = ret;
 		vcpu->arch.trap = 0;
 
+		spin_lock(&vc->lock);
 		if (is_kvmppc_resume_guest(vcpu->arch.ret)) {
 			if (vcpu->arch.pending_exceptions)
 				kvmppc_core_prepare_to_enter(vcpu);
