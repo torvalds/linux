@@ -266,6 +266,12 @@ void amdgpu_ring_emit_reg_write_reg_wait_helper(struct amdgpu_ring *ring,
 bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
 			       struct dma_fence *fence);
 
+static inline void amdgpu_ring_set_preempt_cond_exec(struct amdgpu_ring *ring,
+							bool cond_exec)
+{
+	*ring->cond_exe_cpu_addr = cond_exec;
+}
+
 static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
 	int i = 0;
