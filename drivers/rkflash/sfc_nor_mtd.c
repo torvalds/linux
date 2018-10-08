@@ -188,7 +188,7 @@ int sfc_nor_mtd_init(struct SFNOR_DEV *p_dev)
 		goto free_dma_buf;
 	}
 	part_num = 0;
-	if (snor_read(p_dev, 0, 4, g_part) == 0) {
+	if (snor_read(p_dev, 0, 4, g_part) == 4) {
 		if (g_part->hdr.ui_fw_tag == RK_PARTITION_TAG) {
 			part_num = g_part->hdr.ui_part_entry_count;
 			for (i = 0; i < part_num; i++) {
