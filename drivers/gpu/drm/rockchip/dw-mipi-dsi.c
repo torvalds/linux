@@ -112,34 +112,20 @@
 #define DSI_VID_VFP_LINES		0x5c
 #define DSI_VID_VACTIVE_LINES		0x60
 #define DSI_CMD_MODE_CFG		0x68
-#define MAX_RD_PKT_SIZE_LP		BIT(24)
-#define DCS_LW_TX_LP			BIT(19)
-#define DCS_SR_0P_TX_LP			BIT(18)
-#define DCS_SW_1P_TX_LP			BIT(17)
-#define DCS_SW_0P_TX_LP			BIT(16)
-#define GEN_LW_TX_LP			BIT(14)
-#define GEN_SR_2P_TX_LP			BIT(13)
-#define GEN_SR_1P_TX_LP			BIT(12)
-#define GEN_SR_0P_TX_LP			BIT(11)
-#define GEN_SW_2P_TX_LP			BIT(10)
-#define GEN_SW_1P_TX_LP			BIT(9)
-#define GEN_SW_0P_TX_LP			BIT(8)
-#define EN_ACK_RQST			BIT(1)
-#define EN_TEAR_FX			BIT(0)
-
-#define CMD_MODE_ALL_LP			(MAX_RD_PKT_SIZE_LP | \
-					 DCS_LW_TX_LP | \
-					 DCS_SR_0P_TX_LP | \
-					 DCS_SW_1P_TX_LP | \
-					 DCS_SW_0P_TX_LP | \
-					 GEN_LW_TX_LP | \
-					 GEN_SR_2P_TX_LP | \
-					 GEN_SR_1P_TX_LP | \
-					 GEN_SR_0P_TX_LP | \
-					 GEN_SW_2P_TX_LP | \
-					 GEN_SW_1P_TX_LP | \
-					 GEN_SW_0P_TX_LP)
-
+#define MAX_RD_PKT_SIZE			BIT(24)
+#define DCS_LW_TX			BIT(19)
+#define DCS_SR_0P_TX			BIT(18)
+#define DCS_SW_1P_TX			BIT(17)
+#define DCS_SW_0P_TX			BIT(16)
+#define GEN_LW_TX			BIT(14)
+#define GEN_SR_2P_TX			BIT(13)
+#define GEN_SR_1P_TX			BIT(12)
+#define GEN_SR_0P_TX			BIT(11)
+#define GEN_SW_2P_TX			BIT(10)
+#define GEN_SW_1P_TX			BIT(9)
+#define GEN_SW_0P_TX			BIT(8)
+#define ACK_RQST_EN			BIT(1)
+#define TEAR_FX_EN			BIT(0)
 #define DSI_GEN_HDR			0x6c
 #define GEN_HDATA(data)			(((data) & 0xffff) << 8)
 #define GEN_HDATA_MASK			(0xffff << 8)
@@ -798,22 +784,6 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
-static void dw_mipi_dsi_set_transfer_mode(struct dw_mipi_dsi *dsi, int flags)
-{
-	if (flags & MIPI_DSI_MSG_USE_LPM) {
-		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG,
-				   LP_CMD_EN, LP_CMD_EN);
-		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
-		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
-				   PHY_TXREQUESTCLKHS, 0);
-	} else {
-		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG, LP_CMD_EN, 0);
-		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, 0);
-		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
-				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
-	}
-}
-
 static int dw_mipi_dsi_read_from_fifo(struct dw_mipi_dsi *dsi,
 				      const struct mipi_dsi_msg *msg)
 {
@@ -871,6 +841,27 @@ static ssize_t dw_mipi_dsi_transfer(struct dw_mipi_dsi *dsi,
 	int val;
 	int len = msg->tx_len;
 
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM) {
+		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG,
+				   LP_CMD_EN, LP_CMD_EN);
+		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG,
+			     MAX_RD_PKT_SIZE | DCS_LW_TX | DCS_SR_0P_TX |
+			     DCS_SW_1P_TX | DCS_SW_0P_TX | GEN_LW_TX |
+			     GEN_SR_2P_TX | GEN_SR_1P_TX | GEN_SR_0P_TX |
+			     GEN_SW_2P_TX | GEN_SW_1P_TX | GEN_SW_0P_TX);
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   PHY_TXREQUESTCLKHS, 0);
+	} else {
+		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG, LP_CMD_EN, 0);
+		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, 0);
+		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
+	}
+
+	if (msg->flags & MIPI_DSI_MSG_REQ_ACK)
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG,
+				   ACK_RQST_EN, ACK_RQST_EN);
+
 	switch (msg->type) {
 	case MIPI_DSI_SHUTDOWN_PERIPHERAL:
 		return dw_mipi_dsi_shutdown_peripheral(dsi);
@@ -899,8 +890,6 @@ static ssize_t dw_mipi_dsi_transfer(struct dw_mipi_dsi *dsi,
 		dev_err(dsi->dev, "failed to create packet: %d\n", ret);
 		return ret;
 	}
-
-	dw_mipi_dsi_set_transfer_mode(dsi, msg->flags);
 
 	/* Send payload */
 	while (DIV_ROUND_UP(packet.payload_length, 4)) {
