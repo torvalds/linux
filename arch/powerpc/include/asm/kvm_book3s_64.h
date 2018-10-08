@@ -549,6 +549,10 @@ static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
 }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
+extern int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
+			     unsigned long gpa, unsigned int level,
+			     unsigned long mmu_seq, unsigned int lpid);
+
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

@@ -188,17 +188,34 @@ extern int kvmppc_book3s_hcall_implemented(struct kvm *kvm, unsigned long hc);
 extern int kvmppc_book3s_radix_page_fault(struct kvm_run *run,
 			struct kvm_vcpu *vcpu,
 			unsigned long ea, unsigned long dsisr);
+extern int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
+				      struct kvmppc_pte *gpte, u64 root,
+				      u64 *pte_ret_p);
 extern int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 			struct kvmppc_pte *gpte, u64 table,
 			int table_index, u64 *pte_ret_p);
 extern int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 			struct kvmppc_pte *gpte, bool data, bool iswrite);
+extern bool kvmppc_hv_handle_set_rc(struct kvm *kvm, pgd_t *pgtable,
+				    bool writing, unsigned long gpa,
+				    unsigned int lpid);
+extern int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
+				unsigned long gpa,
+				struct kvm_memory_slot *memslot,
+				bool writing, bool kvm_ro,
+				pte_t *inserted_pte, unsigned int *levelp);
 extern int kvmppc_init_vm_radix(struct kvm *kvm);
 extern void kvmppc_free_radix(struct kvm *kvm);
+extern void kvmppc_free_pgtable_radix(struct kvm *kvm, pgd_t *pgd,
+				      unsigned int lpid);
 extern int kvmppc_radix_init(void);
 extern void kvmppc_radix_exit(void);
 extern int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			unsigned long gfn);
+extern void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte,
+			     unsigned long gpa, unsigned int shift,
+			     struct kvm_memory_slot *memslot,
+			     unsigned int lpid);
 extern int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			unsigned long gfn);
 extern int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
