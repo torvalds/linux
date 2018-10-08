@@ -97,6 +97,7 @@ struct tc_u_common {
 	int			refcnt;
 	struct idr		handle_idr;
 	struct hlist_node	hnode;
+	long			knodes;
 };
 
 static inline unsigned int u32_hash_fold(__be32 key,
@@ -452,6 +453,7 @@ static void u32_delete_key_freepf_work(struct work_struct *work)
 
 static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 {
+	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_knode __rcu **kp;
 	struct tc_u_knode *pkp;
 	struct tc_u_hnode *ht = rtnl_dereference(key->ht_up);
@@ -462,6 +464,7 @@ static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 		     kp = &pkp->next, pkp = rtnl_dereference(*kp)) {
 			if (pkp == key) {
 				RCU_INIT_POINTER(*kp, key->next);
+				tp_c->knodes--;
 
 				tcf_unbind_filter(tp, &key->res);
 				idr_remove(&ht->handle_idr, key->handle);
@@ -576,6 +579,7 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 			    struct netlink_ext_ack *extack)
 {
+	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_knode *n;
 	unsigned int h;
 
@@ -583,6 +587,7 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 		while ((n = rtnl_dereference(ht->ht[h])) != NULL) {
 			RCU_INIT_POINTER(ht->ht[h],
 					 rtnl_dereference(n->next));
+			tp_c->knodes--;
 			tcf_unbind_filter(tp, &n->res);
 			u32_remove_hw_knode(tp, n, extack);
 			idr_remove(&ht->handle_idr, n->handle);
@@ -1141,6 +1146,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		RCU_INIT_POINTER(n->next, pins);
 		rcu_assign_pointer(*ins, n);
+		tp_c->knodes++;
 		*arg = n;
 		return 0;
 	}
