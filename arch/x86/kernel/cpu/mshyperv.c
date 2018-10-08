@@ -199,6 +199,16 @@ static unsigned long hv_get_tsc_khz(void)
 	return freq / 1000;
 }
 
+#if defined(CONFIG_SMP) && IS_ENABLED(CONFIG_HYPERV)
+static void __init hv_smp_prepare_boot_cpu(void)
+{
+	native_smp_prepare_boot_cpu();
+#if defined(CONFIG_X86_64) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+	hv_init_spinlocks();
+#endif
+}
+#endif
+
 static void __init ms_hyperv_init_platform(void)
 {
 	int hv_host_info_eax;
@@ -303,6 +313,10 @@ static void __init ms_hyperv_init_platform(void)
 	if (ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE)
 		alloc_intr_gate(HYPERV_STIMER0_VECTOR,
 				hv_stimer0_callback_vector);
+
+# ifdef CONFIG_SMP
+	smp_ops.smp_prepare_boot_cpu = hv_smp_prepare_boot_cpu;
+# endif
 #endif
 }
 
