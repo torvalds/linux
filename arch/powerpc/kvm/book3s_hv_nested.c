@@ -486,7 +486,7 @@ void kvmhv_release_all_nested(struct kvm *kvm)
 }
 
 /* caller must hold gp->tlb_lock */
-void kvmhv_flush_nested(struct kvm_nested_guest *gp)
+static void kvmhv_flush_nested(struct kvm_nested_guest *gp)
 {
 	struct kvm *kvm = gp->l1_host;
 
@@ -692,6 +692,200 @@ static bool kvmhv_invalidate_shadow_pte(struct kvm_vcpu *vcpu,
 	if (shift_ret)
 		*shift_ret = shift;
 	return ret;
+}
+
+static inline int get_ric(unsigned int instr)
+{
+	return (instr >> 18) & 0x3;
+}
+
+static inline int get_prs(unsigned int instr)
+{
+	return (instr >> 17) & 0x1;
+}
+
+static inline int get_r(unsigned int instr)
+{
+	return (instr >> 16) & 0x1;
+}
+
+static inline int get_lpid(unsigned long r_val)
+{
+	return r_val & 0xffffffff;
+}
+
+static inline int get_is(unsigned long r_val)
+{
+	return (r_val >> 10) & 0x3;
+}
+
+static inline int get_ap(unsigned long r_val)
+{
+	return (r_val >> 5) & 0x7;
+}
+
+static inline long get_epn(unsigned long r_val)
+{
+	return r_val >> 12;
+}
+
+static int kvmhv_emulate_tlbie_tlb_addr(struct kvm_vcpu *vcpu, int lpid,
+					int ap, long epn)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_nested_guest *gp;
+	long npages;
+	int shift, shadow_shift;
+	unsigned long addr;
+
+	shift = ap_to_shift(ap);
+	addr = epn << 12;
+	if (shift < 0)
+		/* Invalid ap encoding */
+		return -EINVAL;
+
+	addr &= ~((1UL << shift) - 1);
+	npages = 1UL << (shift - PAGE_SHIFT);
+
+	gp = kvmhv_get_nested(kvm, lpid, false);
+	if (!gp) /* No such guest -> nothing to do */
+		return 0;
+	mutex_lock(&gp->tlb_lock);
+
+	/* There may be more than one host page backing this single guest pte */
+	do {
+		kvmhv_invalidate_shadow_pte(vcpu, gp, addr, &shadow_shift);
+
+		npages -= 1UL << (shadow_shift - PAGE_SHIFT);
+		addr += 1UL << shadow_shift;
+	} while (npages > 0);
+
+	mutex_unlock(&gp->tlb_lock);
+	kvmhv_put_nested(gp);
+	return 0;
+}
+
+static void kvmhv_emulate_tlbie_lpid(struct kvm_vcpu *vcpu,
+				     struct kvm_nested_guest *gp, int ric)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	mutex_lock(&gp->tlb_lock);
+	switch (ric) {
+	case 0:
+		/* Invalidate TLB */
+		spin_lock(&kvm->mmu_lock);
+		kvmppc_free_pgtable_radix(kvm, gp->shadow_pgtable,
+					  gp->shadow_lpid);
+		radix__flush_tlb_lpid(gp->shadow_lpid);
+		spin_unlock(&kvm->mmu_lock);
+		break;
+	case 1:
+		/*
+		 * Invalidate PWC
+		 * We don't cache this -> nothing to do
+		 */
+		break;
+	case 2:
+		/* Invalidate TLB, PWC and caching of partition table entries */
+		kvmhv_flush_nested(gp);
+		break;
+	default:
+		break;
+	}
+	mutex_unlock(&gp->tlb_lock);
+}
+
+static void kvmhv_emulate_tlbie_all_lpid(struct kvm_vcpu *vcpu, int ric)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_nested_guest *gp;
+	int i;
+
+	spin_lock(&kvm->mmu_lock);
+	for (i = 0; i <= kvm->arch.max_nested_lpid; i++) {
+		gp = kvm->arch.nested_guests[i];
+		if (gp) {
+			spin_unlock(&kvm->mmu_lock);
+			kvmhv_emulate_tlbie_lpid(vcpu, gp, ric);
+			spin_lock(&kvm->mmu_lock);
+		}
+	}
+	spin_unlock(&kvm->mmu_lock);
+}
+
+static int kvmhv_emulate_priv_tlbie(struct kvm_vcpu *vcpu, unsigned int instr,
+				    unsigned long rsval, unsigned long rbval)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_nested_guest *gp;
+	int r, ric, prs, is, ap;
+	int lpid;
+	long epn;
+	int ret = 0;
+
+	ric = get_ric(instr);
+	prs = get_prs(instr);
+	r = get_r(instr);
+	lpid = get_lpid(rsval);
+	is = get_is(rbval);
+
+	/*
+	 * These cases are invalid and are not handled:
+	 * r   != 1 -> Only radix supported
+	 * prs == 1 -> Not HV privileged
+	 * ric == 3 -> No cluster bombs for radix
+	 * is  == 1 -> Partition scoped translations not associated with pid
+	 * (!is) && (ric == 1 || ric == 2) -> Not supported by ISA
+	 */
+	if ((!r) || (prs) || (ric == 3) || (is == 1) ||
+	    ((!is) && (ric == 1 || ric == 2)))
+		return -EINVAL;
+
+	switch (is) {
+	case 0:
+		/*
+		 * We know ric == 0
+		 * Invalidate TLB for a given target address
+		 */
+		epn = get_epn(rbval);
+		ap = get_ap(rbval);
+		ret = kvmhv_emulate_tlbie_tlb_addr(vcpu, lpid, ap, epn);
+		break;
+	case 2:
+		/* Invalidate matching LPID */
+		gp = kvmhv_get_nested(kvm, lpid, false);
+		if (gp) {
+			kvmhv_emulate_tlbie_lpid(vcpu, gp, ric);
+			kvmhv_put_nested(gp);
+		}
+		break;
+	case 3:
+		/* Invalidate ALL LPIDs */
+		kvmhv_emulate_tlbie_all_lpid(vcpu, ric);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+/*
+ * This handles the H_TLB_INVALIDATE hcall.
+ * Parameters are (r4) tlbie instruction code, (r5) rS contents,
+ * (r6) rB contents.
+ */
+long kvmhv_do_nested_tlbie(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	ret = kvmhv_emulate_priv_tlbie(vcpu, kvmppc_get_gpr(vcpu, 4),
+			kvmppc_get_gpr(vcpu, 5), kvmppc_get_gpr(vcpu, 6));
+	if (ret)
+		return H_PARAMETER;
+	return H_SUCCESS;
 }
 
 /* Used to convert a nested guest real address to a L1 guest real address */

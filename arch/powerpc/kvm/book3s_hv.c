@@ -974,6 +974,9 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		break;
 	case H_TLB_INVALIDATE:
 		ret = H_FUNCTION;
+		if (!vcpu->kvm->arch.nested_enable)
+			break;
+		ret = kvmhv_do_nested_tlbie(vcpu);
 		break;
 
 	default:
