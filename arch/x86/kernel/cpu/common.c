@@ -1732,7 +1732,7 @@ static void wait_for_master_cpu(int cpu)
 #ifdef CONFIG_X86_64
 static void setup_getcpu(int cpu)
 {
-	unsigned long cpudata = vdso_encode_cpu_node(cpu, early_cpu_to_node(cpu));
+	unsigned long cpudata = vdso_encode_cpunode(cpu, early_cpu_to_node(cpu));
 	struct desc_struct d = { };
 
 	if (static_cpu_has(X86_FEATURE_RDTSCP))
@@ -1748,7 +1748,7 @@ static void setup_getcpu(int cpu)
 	d.p = 1;		/* Present */
 	d.d = 1;		/* 32-bit */
 
-	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_CPU_NUMBER, &d, DESCTYPE_S);
+	write_gdt_entry(get_cpu_gdt_rw(cpu), GDT_ENTRY_CPUNODE, &d, DESCTYPE_S);
 }
 #endif
 

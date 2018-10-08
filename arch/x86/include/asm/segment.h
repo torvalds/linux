@@ -186,7 +186,7 @@
 #define GDT_ENTRY_TLS_MIN		12
 #define GDT_ENTRY_TLS_MAX		14
 
-#define GDT_ENTRY_CPU_NUMBER		15
+#define GDT_ENTRY_CPUNODE		15
 
 /*
  * Number of entries in the GDT table:
@@ -206,7 +206,7 @@
 #define __USER_DS			(GDT_ENTRY_DEFAULT_USER_DS*8 + 3)
 #define __USER32_DS			__USER_DS
 #define __USER_CS			(GDT_ENTRY_DEFAULT_USER_CS*8 + 3)
-#define __CPU_NUMBER_SEG		(GDT_ENTRY_CPU_NUMBER*8 + 3)
+#define __CPUNODE_SEG			(GDT_ENTRY_CPUNODE*8 + 3)
 
 #endif
 
@@ -227,24 +227,24 @@
 #ifdef CONFIG_X86_64
 
 /* Bit size and mask of CPU number stored in the per CPU data (and TSC_AUX) */
-#define VDSO_CPU_SIZE			12
-#define VDSO_CPU_MASK			0xfff
+#define VDSO_CPUNODE_BITS		12
+#define VDSO_CPUNODE_MASK		0xfff
 
 #ifndef __ASSEMBLY__
 
 /* Helper functions to store/load CPU and node numbers */
 
-static inline unsigned long vdso_encode_cpu_node(int cpu, unsigned long node)
+static inline unsigned long vdso_encode_cpunode(int cpu, unsigned long node)
 {
-	return ((node << VDSO_CPU_SIZE) | cpu);
+	return (node << VDSO_CPUNODE_BITS) | cpu;
 }
 
-static inline void vdso_read_cpu_node(unsigned *cpu, unsigned *node)
+static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
 {
 	unsigned int p;
 
 	/*
-	 * Load CPU and node number from GDT.  LSL is faster than RDTSCP
+	 * Load CPU and node number from the GDT.  LSL is faster than RDTSCP
 	 * and works on all CPUs.  This is volatile so that it orders
 	 * correctly with respect to barrier() and to keep GCC from cleverly
 	 * hoisting it out of the calling function.
@@ -254,12 +254,12 @@ static inline void vdso_read_cpu_node(unsigned *cpu, unsigned *node)
 	alternative_io ("lsl %[seg],%[p]",
 			".byte 0xf3,0x0f,0xc7,0xf8", /* RDPID %eax/rax */
 			X86_FEATURE_RDPID,
-			[p] "=a" (p), [seg] "r" (__CPU_NUMBER_SEG));
+			[p] "=a" (p), [seg] "r" (__CPUNODE_SEG));
 
 	if (cpu)
-		*cpu = (p & VDSO_CPU_MASK);
+		*cpu = (p & VDSO_CPUNODE_MASK);
 	if (node)
-		*node = (p >> VDSO_CPU_SIZE);
+		*node = (p >> VDSO_CPUNODE_BITS);
 }
 
 #endif /* !__ASSEMBLY__ */
