@@ -198,7 +198,7 @@ int can_send(struct sk_buff *skb, int loop)
 {
 	struct sk_buff *newskb = NULL;
 	struct canfd_frame *cfd = (struct canfd_frame *)skb->data;
-	struct can_pkg_stats *can_stats = dev_net(skb->dev)->can.can_stats;
+	struct can_pkg_stats *can_stats = dev_net(skb->dev)->can.pkg_stats;
 	int err = -EINVAL;
 
 	if (skb->len == CAN_MTU) {
@@ -441,7 +441,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 	struct receiver *r;
 	struct hlist_head *rl;
 	struct can_dev_rcv_lists *d;
-	struct can_rcv_lists_stats *can_pstats = net->can.can_pstats;
+	struct can_rcv_lists_stats *can_pstats = net->can.rcv_lists_stats;
 	int err = 0;
 
 	/* insert new receiver  (dev,canid,mask) -> (func,data) */
@@ -515,7 +515,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 {
 	struct receiver *r = NULL;
 	struct hlist_head *rl;
-	struct can_rcv_lists_stats *can_pstats = net->can.can_pstats;
+	struct can_rcv_lists_stats *can_pstats = net->can.rcv_lists_stats;
 	struct can_dev_rcv_lists *d;
 
 	if (dev && dev->type != ARPHRD_CAN)
@@ -655,7 +655,7 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 {
 	struct can_dev_rcv_lists *d;
 	struct net *net = dev_net(dev);
-	struct can_pkg_stats *can_stats = net->can.can_stats;
+	struct can_pkg_stats *can_stats = net->can.pkg_stats;
 	int matches;
 
 	/* update statistics */
@@ -837,12 +837,12 @@ static int can_pernet_init(struct net *net)
 		kzalloc(sizeof(*net->can.can_rx_alldev_list), GFP_KERNEL);
 	if (!net->can.can_rx_alldev_list)
 		goto out;
-	net->can.can_stats = kzalloc(sizeof(*net->can.can_stats), GFP_KERNEL);
-	if (!net->can.can_stats)
-		goto out_free_alldev_list;
-	net->can.can_pstats = kzalloc(sizeof(*net->can.can_pstats), GFP_KERNEL);
-	if (!net->can.can_pstats)
-		goto out_free_can_stats;
+	net->can.pkg_stats = kzalloc(sizeof(*net->can.pkg_stats), GFP_KERNEL);
+	if (!net->can.pkg_stats)
+		goto out_free_rx_alldev_list;
+	net->can.rcv_lists_stats = kzalloc(sizeof(*net->can.rcv_lists_stats), GFP_KERNEL);
+	if (!net->can.rcv_lists_stats)
+		goto out_free_pkg_stats;
 
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		/* the statistics are updated every second (timer triggered) */
@@ -852,15 +852,15 @@ static int can_pernet_init(struct net *net)
 			mod_timer(&net->can.can_stattimer,
 				  round_jiffies(jiffies + HZ));
 		}
-		net->can.can_stats->jiffies_init = jiffies;
+		net->can.pkg_stats->jiffies_init = jiffies;
 		can_init_proc(net);
 	}
 
 	return 0;
 
- out_free_can_stats:
-	kfree(net->can.can_stats);
- out_free_alldev_list:
+ out_free_pkg_stats:
+	kfree(net->can.pkg_stats);
+ out_free_rx_alldev_list:
 	kfree(net->can.can_rx_alldev_list);
  out:
 	return -ENOMEM;
@@ -890,8 +890,8 @@ static void can_pernet_exit(struct net *net)
 	rcu_read_unlock();
 
 	kfree(net->can.can_rx_alldev_list);
-	kfree(net->can.can_stats);
-	kfree(net->can.can_pstats);
+	kfree(net->can.pkg_stats);
+	kfree(net->can.rcv_lists_stats);
 }
 
 /* af_can module init/exit functions */
