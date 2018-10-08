@@ -79,7 +79,6 @@ struct tc_u_hnode {
 	struct tc_u_hnode __rcu	*next;
 	u32			handle;
 	u32			prio;
-	struct tc_u_common	*tp_c;
 	int			refcnt;
 	unsigned int		divisor;
 	struct idr		handle_idr;
@@ -390,7 +389,6 @@ static int u32_init(struct tcf_proto *tp)
 	tp_c->refcnt++;
 	RCU_INIT_POINTER(root_ht->next, tp_c->hlist);
 	rcu_assign_pointer(tp_c->hlist, root_ht);
-	root_ht->tp_c = tp_c;
 
 	rcu_assign_pointer(tp->root, root_ht);
 	tp->data = tp_c;
@@ -761,7 +759,7 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 };
 
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
-			 unsigned long base, struct tc_u_common *tp_c,
+			 unsigned long base,
 			 struct tc_u_knode *n, struct nlattr **tb,
 			 struct nlattr *est, bool ovr,
 			 struct netlink_ext_ack *extack)
@@ -782,7 +780,7 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 		}
 
 		if (handle) {
-			ht_down = u32_lookup_ht(tp_c, handle);
+			ht_down = u32_lookup_ht(tp->data, handle);
 
 			if (!ht_down) {
 				NL_SET_ERR_MSG_MOD(extack, "Link hash table not found");
@@ -956,7 +954,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		if (!new)
 			return -ENOMEM;
 
-		err = u32_set_parms(net, tp, base, tp_c, new, tb,
+		err = u32_set_parms(net, tp, base, new, tb,
 				    tca[TCA_RATE], ovr, extack);
 
 		if (err) {
@@ -1012,7 +1010,6 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 				return err;
 			}
 		}
-		ht->tp_c = tp_c;
 		ht->refcnt = 1;
 		ht->divisor = divisor;
 		ht->handle = handle;
@@ -1123,7 +1120,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	err = u32_set_parms(net, tp, base, tp_c, n, tb, tca[TCA_RATE], ovr,
+	err = u32_set_parms(net, tp, base, n, tb, tca[TCA_RATE], ovr,
 			    extack);
 	if (err == 0) {
 		struct tc_u_knode __rcu **ins;
