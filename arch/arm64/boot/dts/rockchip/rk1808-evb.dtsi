@@ -505,10 +505,10 @@
 &i2c4 {
 	status = "okay";
 
-	sensor@f {
+	sensor@d {
 		status = "okay";
 		compatible = "ak8963";
-		reg = <0x0f>;
+		reg = <0x0d>;
 		type = <SENSOR_TYPE_COMPASS>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
