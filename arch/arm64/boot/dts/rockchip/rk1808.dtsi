@@ -1024,7 +1024,7 @@
 		status = "disabled";
 	};
 
-	vpu: vpu@ffb80000 {
+	vpu_service: vpu_service@ffb80000 {
 		compatible = "rockchip,vpu_service";
 		reg = <0x0 0xffb80000 0x0 0x800>;
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
