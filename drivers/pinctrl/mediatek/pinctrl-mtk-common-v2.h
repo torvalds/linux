@@ -154,7 +154,7 @@ struct mtk_func_desc {
  * @eitn_n:		the eint number for this pin
  */
 struct mtk_eint_desc {
-	u8 eint_m;
+	u16 eint_m;
 	u16 eint_n;
 };
 
