@@ -516,8 +516,10 @@ static inline int nlmsg_parse(const struct nlmsghdr *nlh, int hdrlen,
 			      const struct nla_policy *policy,
 			      struct netlink_ext_ack *extack)
 {
-	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen)) {
+		NL_SET_ERR_MSG(extack, "Invalid header length");
 		return -EINVAL;
+	}
 
 	return nla_parse(tb, maxtype, nlmsg_attrdata(nlh, hdrlen),
 			 nlmsg_attrlen(nlh, hdrlen), policy, extack);
