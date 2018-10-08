@@ -20,6 +20,7 @@
 #include <linux/irqflags.h>
 
 #include <asm/addrspace.h>
+#include <asm/barrier.h>
 #include <asm/bug.h>
 #include <asm/byteorder.h>
 #include <asm/cpu.h>
@@ -79,10 +80,22 @@ static inline void set_io_port_base(unsigned long base)
  * mips_io_port_base for iomap(), but we don't reserve any low addresses for
  * use with I/O ports.
  */
+
 #define HAVE_ARCH_PIO_SIZE
 #define PIO_OFFSET	mips_io_port_base
 #define PIO_MASK	IO_SPACE_LIMIT
 #define PIO_RESERVED	0x0UL
+
+/*
+ * Enforce in-order execution of data I/O.  In the MIPS architecture
+ * these are equivalent to corresponding platform-specific memory
+ * barriers defined in <asm/barrier.h>.  API pinched from PowerPC,
+ * with sync additionally defined.
+ */
+#define iobarrier_rw() mb()
+#define iobarrier_r() rmb()
+#define iobarrier_w() wmb()
+#define iobarrier_sync() iob()
 
 /*
  *     virt_to_phys    -       map virtual addresses to physical
