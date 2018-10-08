@@ -300,11 +300,11 @@ static int can_version_proc_show(struct seq_file *m, void *v)
 
 static inline void can_rcvlist_proc_show_one(struct seq_file *m, int idx,
 					     struct net_device *dev,
-					     struct can_dev_rcv_lists *d)
+					     struct can_dev_rcv_lists *dev_rcv_lists)
 {
-	if (!hlist_empty(&d->rx[idx])) {
+	if (!hlist_empty(&dev_rcv_lists->rx[idx])) {
 		can_print_recv_banner(m);
-		can_print_rcvlist(m, &d->rx[idx], dev);
+		can_print_rcvlist(m, &dev_rcv_lists->rx[idx], dev);
 	} else
 		seq_printf(m, "  (%s: no entry)\n", DNAME(dev));
 
@@ -315,7 +315,7 @@ static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 	/* double cast to prevent GCC warning */
 	int idx = (int)(long)PDE_DATA(m->file->f_inode);
 	struct net_device *dev;
-	struct can_dev_rcv_lists *d;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
 
 	seq_printf(m, "\nreceive list '%s':\n", rx_list_name[idx]);
@@ -323,8 +323,8 @@ static int can_rcvlist_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* receive list for 'all' CAN devices (dev == NULL) */
-	d = net->can.rx_alldev_list;
-	can_rcvlist_proc_show_one(m, idx, NULL, d);
+	dev_rcv_lists = net->can.rx_alldev_list;
+	can_rcvlist_proc_show_one(m, idx, NULL, dev_rcv_lists);
 
 	/* receive list for registered CAN devices */
 	for_each_netdev_rcu(net, dev) {
@@ -366,7 +366,7 @@ static inline void can_rcvlist_proc_show_array(struct seq_file *m,
 static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
-	struct can_dev_rcv_lists *d;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
 
 	/* RX_SFF */
@@ -375,15 +375,16 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* sff receive list for 'all' CAN devices (dev == NULL) */
-	d = net->can.rx_alldev_list;
-	can_rcvlist_proc_show_array(m, NULL, d->rx_sff, ARRAY_SIZE(d->rx_sff));
+	dev_rcv_lists = net->can.rx_alldev_list;
+	can_rcvlist_proc_show_array(m, NULL, dev_rcv_lists->rx_sff,
+				    ARRAY_SIZE(dev_rcv_lists->rx_sff));
 
 	/* sff receive list for registered CAN devices */
 	for_each_netdev_rcu(net, dev) {
 		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
-			d = dev->ml_priv;
-			can_rcvlist_proc_show_array(m, dev, d->rx_sff,
-						    ARRAY_SIZE(d->rx_sff));
+			dev_rcv_lists = dev->ml_priv;
+			can_rcvlist_proc_show_array(m, dev, dev_rcv_lists->rx_sff,
+						    ARRAY_SIZE(dev_rcv_lists->rx_sff));
 		}
 	}
 
@@ -396,7 +397,7 @@ static int can_rcvlist_sff_proc_show(struct seq_file *m, void *v)
 static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev;
-	struct can_dev_rcv_lists *d;
+	struct can_dev_rcv_lists *dev_rcv_lists;
 	struct net *net = m->private;
 
 	/* RX_EFF */
@@ -405,15 +406,16 @@ static int can_rcvlist_eff_proc_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* eff receive list for 'all' CAN devices (dev == NULL) */
-	d = net->can.rx_alldev_list;
-	can_rcvlist_proc_show_array(m, NULL, d->rx_eff, ARRAY_SIZE(d->rx_eff));
+	dev_rcv_lists = net->can.rx_alldev_list;
+	can_rcvlist_proc_show_array(m, NULL, dev_rcv_lists->rx_eff,
+				    ARRAY_SIZE(dev_rcv_lists->rx_eff));
 
 	/* eff receive list for registered CAN devices */
 	for_each_netdev_rcu(net, dev) {
 		if (dev->type == ARPHRD_CAN && dev->ml_priv) {
-			d = dev->ml_priv;
-			can_rcvlist_proc_show_array(m, dev, d->rx_eff,
-						    ARRAY_SIZE(d->rx_eff));
+			dev_rcv_lists = dev->ml_priv;
+			can_rcvlist_proc_show_array(m, dev, dev_rcv_lists->rx_eff,
+						    ARRAY_SIZE(dev_rcv_lists->rx_eff));
 		}
 	}
 
