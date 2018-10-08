@@ -259,7 +259,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		struct phy_device *phy;
 		struct resource *res;
 		struct phy *serdes;
-		enum phy_mode phy_mode;
 		void __iomem *regs;
 		char res_name[8];
 		u32 port;
@@ -297,10 +296,8 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		case PHY_INTERFACE_MODE_NA:
 			continue;
 		case PHY_INTERFACE_MODE_SGMII:
-			phy_mode = PHY_MODE_SGMII;
 			break;
 		case PHY_INTERFACE_MODE_QSGMII:
-			phy_mode = PHY_MODE_QSGMII;
 			break;
 		default:
 			dev_err(ocelot->dev,
