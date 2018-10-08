@@ -317,7 +317,7 @@ out_done:
  * @template:  LLDD entrypoints and operational parameters for the port
  * @dev:       physical hardware device node port corresponds to. Will be
  *             used for DMA mappings
- * @lport_p:   pointer to a local port pointer. Upon success, the routine
+ * @portptr:   pointer to a local port pointer. Upon success, the routine
  *             will allocate a nvme_fc_local_port structure and place its
  *             address in the local port pointer. Upon failure, local port
  *             pointer will be set to 0.
@@ -425,8 +425,7 @@ EXPORT_SYMBOL_GPL(nvme_fc_register_localport);
  * nvme_fc_unregister_localport - transport entry point called by an
  *                              LLDD to deregister/remove a previously
  *                              registered a NVME host FC port.
- * @localport: pointer to the (registered) local port that is to be
- *             deregistered.
+ * @portptr: pointer to the (registered) local port that is to be deregistered.
  *
  * Returns:
  * a completion status. Must be 0 upon success; a negative errno
@@ -632,7 +631,7 @@ __nvme_fc_set_dev_loss_tmo(struct nvme_fc_rport *rport,
  * @localport: pointer to the (registered) local port that the remote
  *             subsystem port is connected to.
  * @pinfo:     pointer to information about the port to be registered
- * @rport_p:   pointer to a remote port pointer. Upon success, the routine
+ * @portptr:   pointer to a remote port pointer. Upon success, the routine
  *             will allocate a nvme_fc_remote_port structure and place its
  *             address in the remote port pointer. Upon failure, remote port
  *             pointer will be set to 0.
@@ -809,8 +808,8 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
  * nvme_fc_unregister_remoteport - transport entry point called by an
  *                              LLDD to deregister/remove a previously
  *                              registered a NVME subsystem FC port.
- * @remoteport: pointer to the (registered) remote port that is to be
- *              deregistered.
+ * @portptr: pointer to the (registered) remote port that is to be
+ *           deregistered.
  *
  * Returns:
  * a completion status. Must be 0 upon success; a negative errno
