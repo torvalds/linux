@@ -3857,7 +3857,6 @@ static int valid_fdb_dump_legacy(const struct nlmsghdr *nlh,
 				 int *br_idx, int *brport_idx,
 				 struct netlink_ext_ack *extack)
 {
-	struct ifinfomsg *ifm = nlmsg_data(nlh);
 	struct nlattr *tb[IFLA_MAX+1];
 	int err;
 
@@ -3871,6 +3870,8 @@ static int valid_fdb_dump_legacy(const struct nlmsghdr *nlh,
 	if (nlmsg_len(nlh) != sizeof(struct ndmsg) &&
 	    (nlmsg_len(nlh) != sizeof(struct ndmsg) +
 	     nla_attr_size(sizeof(u32)))) {
+		struct ifinfomsg *ifm;
+
 		err = nlmsg_parse(nlh, sizeof(struct ifinfomsg), tb, IFLA_MAX,
 				  ifla_policy, extack);
 		if (err < 0) {
@@ -3880,6 +3881,7 @@ static int valid_fdb_dump_legacy(const struct nlmsghdr *nlh,
 				*br_idx = nla_get_u32(tb[IFLA_MASTER]);
 		}
 
+		ifm = nlmsg_data(nlh);
 		*brport_idx = ifm->ifi_index;
 	}
 	return 0;
