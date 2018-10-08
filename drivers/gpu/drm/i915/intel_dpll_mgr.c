@@ -126,7 +126,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 
 /**
  * intel_prepare_shared_dpll - call a dpll's prepare hook
- * @crtc: CRTC which has a shared dpll
+ * @crtc_state: CRTC, and its state, which has a shared dpll
  *
  * This calls the PLL's prepare hook if it has one and if the PLL is not
  * already enabled. The prepare hook is platform specific.
@@ -154,7 +154,7 @@ void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
 
 /**
  * intel_enable_shared_dpll - enable a CRTC's shared DPLL
- * @crtc: CRTC which has a shared DPLL
+ * @crtc_state: CRTC, and its state, which has a shared DPLL
  *
  * Enable the shared DPLL used by @crtc.
  */
@@ -199,7 +199,7 @@ out:
 
 /**
  * intel_disable_shared_dpll - disable a CRTC's shared DPLL
- * @crtc: CRTC which has a shared DPLL
+ * @crtc_state: CRTC, and its state, which has a shared DPLL
  *
  * Disable the shared DPLL used by @crtc.
  */
