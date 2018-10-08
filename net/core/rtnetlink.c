@@ -4777,8 +4777,8 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	ifsm = nlmsg_data(cb->nlh);
 
-	/* only requests using NLM_F_DUMP_PROPER_HDR can pass data to
-	 * influence the dump. The legacy exception is filter_mask.
+	/* only requests using strict checks can pass data to influence
+	 * the dump. The legacy exception is filter_mask.
 	 */
 	if (cb->strict_check) {
 		if (ifsm->pad1 || ifsm->pad2 || ifsm->ifindex) {
