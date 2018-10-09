@@ -23,7 +23,7 @@
 
 static DECLARE_RWSEM(pblk_rb_lock);
 
-void pblk_rb_data_free(struct pblk_rb *rb)
+static void pblk_rb_data_free(struct pblk_rb *rb)
 {
 	struct pblk_rb_pages *p, *t;
 
@@ -36,22 +36,46 @@ void pblk_rb_data_free(struct pblk_rb *rb)
 	up_write(&pblk_rb_lock);
 }
 
+void pblk_rb_free(struct pblk_rb *rb)
+{
+	pblk_rb_data_free(rb);
+	vfree(rb->entries);
+}
+
+/*
+ * pblk_rb_calculate_size -- calculate the size of the write buffer
+ */
+static unsigned int pblk_rb_calculate_size(unsigned int nr_entries)
+{
+	/* Alloc a write buffer that can at least fit 128 entries */
+	return (1 << max(get_count_order(nr_entries), 7));
+}
+
 /*
  * Initialize ring buffer. The data and metadata buffers must be previously
  * allocated and their size must be a power of two
  * (Documentation/core-api/circular-buffers.rst)
  */
-int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
-		 unsigned int power_size, unsigned int power_seg_sz)
+int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int seg_size)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
+	struct pblk_rb_entry *entries;
 	unsigned int init_entry = 0;
-	unsigned int alloc_order = power_size;
 	unsigned int max_order = MAX_ORDER - 1;
-	unsigned int order, iter;
+	unsigned int power_size, power_seg_sz;
+	unsigned int alloc_order, order, iter;
+	unsigned int nr_entries;
+
+	nr_entries = pblk_rb_calculate_size(size);
+	entries = vzalloc(array_size(nr_entries, sizeof(struct pblk_rb_entry)));
+	if (!entries)
+		return -ENOMEM;
+
+	power_size = get_count_order(size);
+	power_seg_sz = get_count_order(seg_size);
 
 	down_write(&pblk_rb_lock);
-	rb->entries = rb_entry_base;
+	rb->entries = entries;
 	rb->seg_size = (1 << power_seg_sz);
 	rb->nr_entries = (1 << power_size);
 	rb->mem = rb->subm = rb->sync = rb->l2p_update = 0;
@@ -62,6 +86,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 
 	INIT_LIST_HEAD(&rb->pages);
 
+	alloc_order = power_size;
 	if (alloc_order >= max_order) {
 		order = max_order;
 		iter = (1 << (alloc_order - max_order));
@@ -80,6 +105,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 		page_set = kmalloc(sizeof(struct pblk_rb_pages), GFP_KERNEL);
 		if (!page_set) {
 			up_write(&pblk_rb_lock);
+			vfree(entries);
 			return -ENOMEM;
 		}
 
@@ -89,6 +115,7 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 			kfree(page_set);
 			pblk_rb_data_free(rb);
 			up_write(&pblk_rb_lock);
+			vfree(entries);
 			return -ENOMEM;
 		}
 		kaddr = page_address(page_set->pages);
@@ -123,20 +150,6 @@ int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
 	pblk_rl_init(&pblk->rl, rb->nr_entries);
 
 	return 0;
-}
-
-/*
- * pblk_rb_calculate_size -- calculate the size of the write buffer
- */
-unsigned int pblk_rb_calculate_size(unsigned int nr_entries)
-{
-	/* Alloc a write buffer that can at least fit 128 entries */
-	return (1 << max(get_count_order(nr_entries), 7));
-}
-
-void *pblk_rb_entries_ref(struct pblk_rb *rb)
-{
-	return rb->entries;
 }
 
 static void clean_wctx(struct pblk_w_ctx *w_ctx)

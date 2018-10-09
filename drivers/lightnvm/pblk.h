@@ -734,10 +734,7 @@ struct pblk_line_ws {
 /*
  * pblk ring buffer operations
  */
-int pblk_rb_init(struct pblk_rb *rb, struct pblk_rb_entry *rb_entry_base,
-		 unsigned int power_size, unsigned int power_seg_sz);
-unsigned int pblk_rb_calculate_size(unsigned int nr_entries);
-void *pblk_rb_entries_ref(struct pblk_rb *rb);
+int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int seg_sz);
 int pblk_rb_may_write_user(struct pblk_rb *rb, struct bio *bio,
 			   unsigned int nr_entries, unsigned int *pos);
 int pblk_rb_may_write_gc(struct pblk_rb *rb, unsigned int nr_entries,
@@ -771,7 +768,7 @@ unsigned int pblk_rb_wrap_pos(struct pblk_rb *rb, unsigned int pos);
 
 int pblk_rb_tear_down_check(struct pblk_rb *rb);
 int pblk_rb_pos_oob(struct pblk_rb *rb, u64 pos);
-void pblk_rb_data_free(struct pblk_rb *rb);
+void pblk_rb_free(struct pblk_rb *rb);
 ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf);
 
 /*

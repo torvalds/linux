@@ -185,17 +185,14 @@ static void pblk_rwb_free(struct pblk *pblk)
 	if (pblk_rb_tear_down_check(&pblk->rwb))
 		pblk_err(pblk, "write buffer error on tear down\n");
 
-	pblk_rb_data_free(&pblk->rwb);
-	vfree(pblk_rb_entries_ref(&pblk->rwb));
+	pblk_rb_free(&pblk->rwb);
 }
 
 static int pblk_rwb_init(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct pblk_rb_entry *entries;
-	unsigned long nr_entries, buffer_size;
-	unsigned int power_size, power_seg_sz;
+	unsigned long buffer_size;
 	int pgs_in_buffer;
 
 	pgs_in_buffer = max(geo->mw_cunits, geo->ws_opt) * geo->all_luns;
@@ -205,16 +202,7 @@ static int pblk_rwb_init(struct pblk *pblk)
 	else
 		buffer_size = pgs_in_buffer;
 
-	nr_entries = pblk_rb_calculate_size(buffer_size);
-
-	entries = vzalloc(array_size(nr_entries, sizeof(struct pblk_rb_entry)));
-	if (!entries)
-		return -ENOMEM;
-
-	power_size = get_count_order(nr_entries);
-	power_seg_sz = get_count_order(geo->csecs);
-
-	return pblk_rb_init(&pblk->rwb, entries, power_size, power_seg_sz);
+	return pblk_rb_init(&pblk->rwb, buffer_size, geo->csecs);
 }
 
 /* Minimum pages needed within a lun */
