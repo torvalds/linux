@@ -119,42 +119,26 @@ nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
 				      nfp_flower_table_params);
 }
 
-static void
-nfp_flower_update_stats(struct nfp_app *app, struct nfp_fl_stats_frame *stats)
-{
-	struct nfp_fl_payload *nfp_flow;
-	unsigned long flower_cookie;
-
-	flower_cookie = be64_to_cpu(stats->stats_cookie);
-
-	rcu_read_lock();
-	nfp_flow = nfp_flower_search_fl_table(app, flower_cookie, NULL,
-					      stats->stats_con_id);
-	if (!nfp_flow)
-		goto exit_rcu_unlock;
-
-	spin_lock(&nfp_flow->lock);
-	nfp_flow->stats.pkts += be32_to_cpu(stats->pkt_count);
-	nfp_flow->stats.bytes += be64_to_cpu(stats->byte_count);
-	nfp_flow->stats.used = jiffies;
-	spin_unlock(&nfp_flow->lock);
-
-exit_rcu_unlock:
-	rcu_read_unlock();
-}
-
 void nfp_flower_rx_flow_stats(struct nfp_app *app, struct sk_buff *skb)
 {
 	unsigned int msg_len = nfp_flower_cmsg_get_data_len(skb);
-	struct nfp_fl_stats_frame *stats_frame;
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_fl_stats_frame *stats;
 	unsigned char *msg;
+	u32 ctx_id;
 	int i;
 
 	msg = nfp_flower_cmsg_get_data(skb);
 
-	stats_frame = (struct nfp_fl_stats_frame *)msg;
-	for (i = 0; i < msg_len / sizeof(*stats_frame); i++)
-		nfp_flower_update_stats(app, stats_frame + i);
+	spin_lock(&priv->stats_lock);
+	for (i = 0; i < msg_len / sizeof(*stats); i++) {
+		stats = (struct nfp_fl_stats_frame *)msg + i;
+		ctx_id = be32_to_cpu(stats->stats_con_id);
+		priv->stats[ctx_id].pkts += be32_to_cpu(stats->pkt_count);
+		priv->stats[ctx_id].bytes += be64_to_cpu(stats->byte_count);
+		priv->stats[ctx_id].used = jiffies;
+	}
+	spin_unlock(&priv->stats_lock);
 }
 
 static int nfp_release_mask_id(struct nfp_app *app, u8 mask_id)
@@ -348,9 +332,9 @@ int nfp_compile_flow_metadata(struct nfp_app *app,
 
 	/* Update flow payload with mask ids. */
 	nfp_flow->unmasked_data[NFP_FL_MASK_ID_LOCATION] = new_mask_id;
-	nfp_flow->stats.pkts = 0;
-	nfp_flow->stats.bytes = 0;
-	nfp_flow->stats.used = jiffies;
+	priv->stats[stats_cxt].pkts = 0;
+	priv->stats[stats_cxt].bytes = 0;
+	priv->stats[stats_cxt].used = jiffies;
 
 	check_entry = nfp_flower_search_fl_table(app, flow->cookie, netdev,
 						 NFP_FL_STATS_CTX_DONT_CARE);
@@ -469,8 +453,17 @@ int nfp_flower_metadata_init(struct nfp_app *app)
 
 	priv->stats_ids.init_unalloc = NFP_FL_REPEATED_HASH_MAX;
 
+	priv->stats = kvmalloc_array(NFP_FL_STATS_ENTRY_RS,
+				     sizeof(struct nfp_fl_stats), GFP_KERNEL);
+	if (!priv->stats)
+		goto err_free_ring_buf;
+
+	spin_lock_init(&priv->stats_lock);
+
 	return 0;
 
+err_free_ring_buf:
+	vfree(priv->stats_ids.free_list.buf);
 err_free_last_used:
 	kfree(priv->mask_ids.last_used);
 err_free_mask_id:
@@ -489,6 +482,7 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app)
 
 	rhashtable_free_and_destroy(&priv->flow_table,
 				    nfp_check_rhashtable_empty, NULL);
+	kvfree(priv->stats);
 	kfree(priv->mask_ids.mask_id_free_list.buf);
 	kfree(priv->mask_ids.last_used);
 	vfree(priv->stats_ids.free_list.buf);

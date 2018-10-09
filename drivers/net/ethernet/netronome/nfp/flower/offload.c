@@ -428,8 +428,6 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer, bool egress)
 
 	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
-	spin_lock_init(&flow_pay->lock);
-
 	flow_pay->ingress_offload = !egress;
 
 	return flow_pay;
@@ -604,8 +602,10 @@ static int
 nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		     struct tc_cls_flower_offload *flow, bool egress)
 {
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *nfp_flow;
 	struct net_device *ingr_dev;
+	u32 ctx_id;
 
 	ingr_dev = egress ? NULL : netdev;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, ingr_dev,
@@ -616,13 +616,16 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	if (nfp_flow->ingress_offload && egress)
 		return 0;
 
-	spin_lock_bh(&nfp_flow->lock);
-	tcf_exts_stats_update(flow->exts, nfp_flow->stats.bytes,
-			      nfp_flow->stats.pkts, nfp_flow->stats.used);
+	ctx_id = be32_to_cpu(nfp_flow->meta.host_ctx_id);
 
-	nfp_flow->stats.pkts = 0;
-	nfp_flow->stats.bytes = 0;
-	spin_unlock_bh(&nfp_flow->lock);
+	spin_lock_bh(&priv->stats_lock);
+	tcf_exts_stats_update(flow->exts, priv->stats[ctx_id].bytes,
+			      priv->stats[ctx_id].pkts,
+			      priv->stats[ctx_id].used);
+
+	priv->stats[ctx_id].pkts = 0;
+	priv->stats[ctx_id].bytes = 0;
+	spin_unlock_bh(&priv->stats_lock);
 
 	return 0;
 }

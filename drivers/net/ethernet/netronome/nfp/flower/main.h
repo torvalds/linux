@@ -139,6 +139,8 @@ struct nfp_fl_lag {
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
  * @flow_table:		Hash table used to store flower rules
+ * @stats:		Stored stats updates for flower rules
+ * @stats_lock:		Lock for flower rule stats updates
  * @cmsg_work:		Workqueue for control messages processing
  * @cmsg_skbs_high:	List of higher priority skbs for control message
  *			processing
@@ -172,6 +174,8 @@ struct nfp_flower_priv {
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
 	struct rhashtable flow_table;
+	struct nfp_fl_stats *stats;
+	spinlock_t stats_lock; /* lock stats */
 	struct work_struct cmsg_work;
 	struct sk_buff_head cmsg_skbs_high;
 	struct sk_buff_head cmsg_skbs_low;
@@ -229,8 +233,6 @@ struct nfp_fl_payload {
 	unsigned long tc_flower_cookie;
 	struct rhash_head fl_node;
 	struct rcu_head rcu;
-	spinlock_t lock; /* lock stats */
-	struct nfp_fl_stats stats;
 	__be32 nfp_tun_ipv4_addr;
 	struct net_device *ingress_dev;
 	char *unmasked_data;
