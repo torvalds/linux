@@ -170,7 +170,7 @@ struct dc_stream_status *dc_stream_get_status(
 }
 
 /**
- * Update the cursor attributes and set cursor surface address
+ * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
  */
 bool dc_stream_set_cursor_attributes(
 	struct dc_stream_state *stream,

@@ -198,6 +198,13 @@ static bool program_hpd_filter(
 	return result;
 }
 
+/**
+ * dc_link_detect_sink() - Determine if there is a sink connected
+ *
+ * @type: Returned connection type
+ * Does not detect downstream devices, such as MST sinks
+ * or display connected through active dongles
+ */
 bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 {
 	uint32_t is_hpd_high = 0;
@@ -324,9 +331,9 @@ static enum signal_type get_basic_signal_type(
 	return SIGNAL_TYPE_NONE;
 }
 
-/*
- * @brief
- * Check whether there is a dongle on DP connector
+/**
+ * dc_link_is_dp_sink_present() - Check if there is a native DP
+ * or passive DP-HDMI dongle connected
  */
 bool dc_link_is_dp_sink_present(struct dc_link *link)
 {
@@ -593,6 +600,14 @@ static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 	return (memcmp(old_edid->raw_edid, new_edid->raw_edid, new_edid->length) == 0);
 }
 
+/**
+ * dc_link_detect() - Detect if a sink is attached to a given link
+ *
+ * link->local_sink is created or destroyed as needed.
+ *
+ * This does not create remote sinks but will trigger DM
+ * to start MST detection if a branch is detected.
+ */
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };

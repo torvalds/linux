@@ -1447,6 +1447,14 @@ static bool are_stream_backends_same(
 	return true;
 }
 
+/**
+ * dc_is_stream_unchanged() - Compare two stream states for equivalence.
+ *
+ * Checks if there a difference between the two states
+ * that would require a mode change.
+ *
+ * Does not compare cursor position or attributes.
+ */
 bool dc_is_stream_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
 {
@@ -1457,6 +1465,9 @@ bool dc_is_stream_unchanged(
 	return true;
 }
 
+/**
+ * dc_is_stream_scaling_unchanged() - Compare scaling rectangles of two streams.
+ */
 bool dc_is_stream_scaling_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
 {
@@ -1616,6 +1627,9 @@ bool resource_is_stream_unchanged(
 	return false;
 }
 
+/**
+ * dc_add_stream_to_ctx() - Add a new dc_stream_state to a dc_state.
+ */
 enum dc_status dc_add_stream_to_ctx(
 		struct dc *dc,
 		struct dc_state *new_ctx,
@@ -1640,6 +1654,9 @@ enum dc_status dc_add_stream_to_ctx(
 	return res;
 }
 
+/**
+ * dc_remove_stream_from_ctx() - Remove a stream from a dc_state.
+ */
 enum dc_status dc_remove_stream_from_ctx(
 			struct dc *dc,
 			struct dc_state *new_ctx,
@@ -1860,6 +1877,12 @@ enum dc_status resource_map_pool_resources(
 	return DC_ERROR_UNEXPECTED;
 }
 
+/**
+ * dc_resource_state_copy_construct_current() - Creates a new dc_state from existing state
+ * Is a shallow copy.  Increments refcounts on existing streams and planes.
+ * @dc: copy out of dc->current_state
+ * @dst_ctx: copy into this
+ */
 void dc_resource_state_copy_construct_current(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
@@ -1875,6 +1898,14 @@ void dc_resource_state_construct(
 	dst_ctx->dccg = dc->res_pool->clk_mgr;
 }
 
+/**
+ * dc_validate_global_state() - Determine if HW can support a given state
+ * Checks HW resource availability and bandwidth requirement.
+ * @dc: dc struct for this driver
+ * @new_ctx: state to be validated
+ *
+ * Return: DC_OK if the result can be programmed.  Otherwise, an error code.
+ */
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx)
@@ -2364,10 +2395,6 @@ void dc_resource_state_destruct(struct dc_state *context)
 	}
 }
 
-/*
- * Copy src_ctx into dst_ctx and retain all surfaces and streams referenced
- * by the src_ctx
- */
 void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx)

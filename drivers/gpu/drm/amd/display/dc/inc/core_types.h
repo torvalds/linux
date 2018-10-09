@@ -272,6 +272,17 @@ union bw_context {
 	struct dce_bw_output dce;
 };
 
+/**
+ * struct dc_state - The full description of a state requested by a user
+ *
+ * @streams: Stream properties
+ * @stream_status: The planes on a given stream
+ * @res_ctx: Persistent state of resources
+ * @bw: The output from bandwidth and watermark calculations
+ * @pp_display_cfg: PowerPlay clocks and settings
+ * @dcn_bw_vars: non-stack memory to support bandwidth calculations
+ *
+ */
 struct dc_state {
 	struct dc_stream_state *streams[MAX_PIPES];
 	struct dc_stream_status stream_status[MAX_PIPES];
@@ -279,7 +290,6 @@ struct dc_state {
 
 	struct resource_context res_ctx;
 
-	/* The output from BW and WM calculations. */
 	union bw_context bw;
 
 	/* Note: these are big structures, do *not* put on stack! */
