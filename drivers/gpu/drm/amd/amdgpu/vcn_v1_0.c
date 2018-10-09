@@ -325,6 +325,24 @@ static void vcn_v1_0_mc_resume_spg_mode(struct amdgpu_device *adev)
 			adev->gfx.config.gb_addr_config);
 	WREG32_SOC15(UVD, 0, mmUVD_UDEC_DBW_ADDR_CONFIG,
 			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_UDEC_DBW_UV_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_MIF_CURR_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_MIF_CURR_UV_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_MIF_RECON1_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_MIF_RECON1_UV_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_MIF_REF_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_MIF_REF_UV_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_JPEG_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
+	WREG32_SOC15(UVD, 0, mmUVD_JPEG_UV_ADDR_CONFIG,
+			adev->gfx.config.gb_addr_config);
 }
 
 static void vcn_v1_0_mc_resume_dpg_mode(struct amdgpu_device *adev)
