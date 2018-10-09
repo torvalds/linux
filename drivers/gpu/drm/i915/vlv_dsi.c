@@ -1642,16 +1642,6 @@ static int intel_dsi_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
-static void intel_dsi_connector_destroy(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-
-	DRM_DEBUG_KMS("\n");
-	intel_panel_fini(&intel_connector->panel);
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
@@ -1676,7 +1666,7 @@ static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_dsi_connector_destroy,
+	.destroy = intel_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,

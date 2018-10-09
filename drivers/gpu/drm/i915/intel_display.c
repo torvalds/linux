@@ -6365,11 +6365,29 @@ struct intel_connector *intel_connector_alloc(void)
  * This should only be used after intel_connector_alloc has returned
  * successfully, and before drm_connector_init returns successfully.
  * Otherwise the destroy callbacks for the connector and the state should
- * take care of proper cleanup/free
+ * take care of proper cleanup/free (see intel_connector_destroy).
  */
 void intel_connector_free(struct intel_connector *connector)
 {
 	kfree(to_intel_digital_connector_state(connector->base.state));
+	kfree(connector);
+}
+
+/*
+ * Connector type independent destroy hook for drm_connector_funcs.
+ */
+void intel_connector_destroy(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	kfree(intel_connector->detect_edid);
+
+	if (!IS_ERR_OR_NULL(intel_connector->edid))
+		kfree(intel_connector->edid);
+
+	intel_panel_fini(&intel_connector->panel);
+
+	drm_connector_cleanup(connector);
 	kfree(connector);
 }
 

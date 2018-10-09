@@ -335,24 +335,12 @@ intel_dp_mst_detect(struct drm_connector *connector, bool force)
 				      intel_connector->port);
 }
 
-static void
-intel_dp_mst_connector_destroy(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-
-	if (!IS_ERR_OR_NULL(intel_connector->edid))
-		kfree(intel_connector->edid);
-
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.detect = intel_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_dp_mst_connector_destroy,
+	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };

@@ -2073,9 +2073,8 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 {
 	if (intel_attached_hdmi(connector)->cec_notifier)
 		cec_notifier_put(intel_attached_hdmi(connector)->cec_notifier);
-	kfree(to_intel_connector(connector)->detect_edid);
-	drm_connector_cleanup(connector);
-	kfree(connector);
+
+	intel_connector_destroy(connector);
 }
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {

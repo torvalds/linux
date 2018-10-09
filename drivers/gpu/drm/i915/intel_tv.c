@@ -1377,17 +1377,10 @@ intel_tv_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static void
-intel_tv_destroy(struct drm_connector *connector)
-{
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_tv_destroy,
+	.destroy = intel_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,

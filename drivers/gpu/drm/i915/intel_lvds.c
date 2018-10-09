@@ -477,27 +477,6 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
-/**
- * intel_lvds_destroy - unregister and free LVDS structures
- * @connector: connector to free
- *
- * Unregister the DDC bus for this connector then free the driver private
- * structure.
- */
-static void intel_lvds_destroy(struct drm_connector *connector)
-{
-	struct intel_lvds_connector *lvds_connector =
-		to_lvds_connector(connector);
-
-	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
-		kfree(lvds_connector->base.edid);
-
-	intel_panel_fini(&lvds_connector->base.panel);
-
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
 	.get_modes = intel_lvds_get_modes,
 	.mode_valid = intel_lvds_mode_valid,
@@ -511,7 +490,7 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_lvds_destroy,
+	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };

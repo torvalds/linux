@@ -849,12 +849,6 @@ out:
 	return status;
 }
 
-static void intel_crt_destroy(struct drm_connector *connector)
-{
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
 static int intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -909,7 +903,7 @@ static const struct drm_connector_funcs intel_crt_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_crt_destroy,
+	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
