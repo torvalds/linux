@@ -252,9 +252,9 @@ static void pblk_end_partial_read(struct nvm_rq *rqd)
 	i = 0;
 	hole = find_first_zero_bit(read_bitmap, nr_secs);
 	do {
-		int line_id = pblk_ppa_to_line(rqd->ppa_list[i]);
-		struct pblk_line *line = &pblk->lines[line_id];
+		struct pblk_line *line;
 
+		line = pblk_ppa_to_line(pblk, rqd->ppa_list[i]);
 		kref_put(&line->ref, pblk_line_put);
 
 		meta_list[hole].lba = lba_list_media[i];

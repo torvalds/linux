@@ -984,9 +984,15 @@ static inline int pblk_pad_distance(struct pblk *pblk)
 	return geo->mw_cunits * geo->all_luns * geo->ws_opt;
 }
 
-static inline int pblk_ppa_to_line(struct ppa_addr p)
+static inline int pblk_ppa_to_line_id(struct ppa_addr p)
 {
 	return p.a.blk;
+}
+
+static inline struct pblk_line *pblk_ppa_to_line(struct pblk *pblk,
+						 struct ppa_addr p)
+{
+	return &pblk->lines[pblk_ppa_to_line_id(p)];
 }
 
 static inline int pblk_ppa_to_pos(struct nvm_geo *geo, struct ppa_addr p)
@@ -1039,7 +1045,7 @@ static inline struct nvm_chk_meta *pblk_dev_ppa_to_chunk(struct pblk *pblk,
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct pblk_line *line = &pblk->lines[pblk_ppa_to_line(p)];
+	struct pblk_line *line = pblk_ppa_to_line(pblk, p);
 	int pos = pblk_ppa_to_pos(geo, p);
 
 	return &line->chks[pos];
@@ -1371,8 +1377,7 @@ static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
 		int i;
 
 		for (i = 0; i < rqd->nr_ppas; i++) {
-			ppa = ppa_list[i];
-			line = &pblk->lines[pblk_ppa_to_line(ppa)];
+			line = pblk_ppa_to_line(pblk, ppa_list[i]);
 
 			spin_lock(&line->lock);
 			if (line->state != PBLK_LINESTATE_OPEN) {

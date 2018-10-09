@@ -32,7 +32,7 @@ static void pblk_line_mark_bb(struct work_struct *work)
 		struct pblk_line *line;
 		int pos;
 
-		line = &pblk->lines[pblk_ppa_to_line(*ppa)];
+		line = pblk_ppa_to_line(pblk, *ppa);
 		pos = pblk_ppa_to_pos(&dev->geo, *ppa);
 
 		pblk_err(pblk, "failed to mark bb, line:%d, pos:%d\n",
@@ -80,7 +80,7 @@ static void __pblk_end_io_erase(struct pblk *pblk, struct nvm_rq *rqd)
 	struct pblk_line *line;
 	int pos;
 
-	line = &pblk->lines[pblk_ppa_to_line(rqd->ppa_addr)];
+	line = pblk_ppa_to_line(pblk, rqd->ppa_addr);
 	pos = pblk_ppa_to_pos(geo, rqd->ppa_addr);
 	chunk = &line->chks[pos];
 
@@ -192,7 +192,6 @@ void pblk_map_invalidate(struct pblk *pblk, struct ppa_addr ppa)
 {
 	struct pblk_line *line;
 	u64 paddr;
-	int line_id;
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
 	/* Callers must ensure that the ppa points to a device address */
@@ -200,8 +199,7 @@ void pblk_map_invalidate(struct pblk *pblk, struct ppa_addr ppa)
 	BUG_ON(pblk_ppa_empty(ppa));
 #endif
 
-	line_id = pblk_ppa_to_line(ppa);
-	line = &pblk->lines[line_id];
+	line = pblk_ppa_to_line(pblk, ppa);
 	paddr = pblk_dev_ppa_to_line_addr(pblk, ppa);
 
 	__pblk_map_invalidate(pblk, line, paddr);
@@ -1430,7 +1428,7 @@ void pblk_ppa_to_line_put(struct pblk *pblk, struct ppa_addr ppa)
 {
 	struct pblk_line *line;
 
-	line = &pblk->lines[pblk_ppa_to_line(ppa)];
+	line = pblk_ppa_to_line(pblk, ppa);
 	kref_put(&line->ref, pblk_line_put_wq);
 }
 
@@ -1688,7 +1686,7 @@ int pblk_blk_erase_async(struct pblk *pblk, struct ppa_addr ppa)
 		struct nvm_geo *geo = &dev->geo;
 
 		pblk_err(pblk, "could not async erase line:%d,blk:%d\n",
-					pblk_ppa_to_line(ppa),
+					pblk_ppa_to_line_id(ppa),
 					pblk_ppa_to_pos(geo, ppa));
 	}
 
@@ -2059,8 +2057,7 @@ void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
 
 		/* If the L2P entry maps to a line, the reference is valid */
 		if (!pblk_ppa_empty(ppa) && !pblk_addr_in_cache(ppa)) {
-			int line_id = pblk_ppa_to_line(ppa);
-			struct pblk_line *line = &pblk->lines[line_id];
+			struct pblk_line *line = pblk_ppa_to_line(pblk, ppa);
 
 			kref_get(&line->ref);
 		}
