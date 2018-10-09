@@ -844,7 +844,7 @@ typedef struct fore200e {
     enum fore200e_state        state;                  /* device state                       */
 
     char                       name[16];               /* device name                        */
-    void*                      bus_dev;                /* bus-specific kernel data           */
+    struct device	       *dev;
     int                        irq;                    /* irq number                         */
     unsigned long              phys_base;              /* physical base address              */
     void __iomem *             virt_base;              /* virtual base address               */
