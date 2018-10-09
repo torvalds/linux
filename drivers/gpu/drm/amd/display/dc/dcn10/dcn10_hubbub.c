@@ -133,7 +133,43 @@ bool hubbub1_verify_allow_pstate_change_high(
 		forced_pstate_allow = false;
 	}
 
-	/* RV1:
+	/* RV2:
+	 * dchubbubdebugind, at: 0xB
+	 * description
+	 * 0:     Pipe0 Plane0 Allow Pstate Change
+	 * 1:     Pipe0 Plane1 Allow Pstate Change
+	 * 2:     Pipe0 Cursor0 Allow Pstate Change
+	 * 3:     Pipe0 Cursor1 Allow Pstate Change
+	 * 4:     Pipe1 Plane0 Allow Pstate Change
+	 * 5:     Pipe1 Plane1 Allow Pstate Change
+	 * 6:     Pipe1 Cursor0 Allow Pstate Change
+	 * 7:     Pipe1 Cursor1 Allow Pstate Change
+	 * 8:     Pipe2 Plane0 Allow Pstate Change
+	 * 9:     Pipe2 Plane1 Allow Pstate Change
+	 * 10:    Pipe2 Cursor0 Allow Pstate Change
+	 * 11:    Pipe2 Cursor1 Allow Pstate Change
+	 * 12:    Pipe3 Plane0 Allow Pstate Change
+	 * 13:    Pipe3 Plane1 Allow Pstate Change
+	 * 14:    Pipe3 Cursor0 Allow Pstate Change
+	 * 15:    Pipe3 Cursor1 Allow Pstate Change
+	 * 16:    Pipe4 Plane0 Allow Pstate Change
+	 * 17:    Pipe4 Plane1 Allow Pstate Change
+	 * 18:    Pipe4 Cursor0 Allow Pstate Change
+	 * 19:    Pipe4 Cursor1 Allow Pstate Change
+	 * 20:    Pipe5 Plane0 Allow Pstate Change
+	 * 21:    Pipe5 Plane1 Allow Pstate Change
+	 * 22:    Pipe5 Cursor0 Allow Pstate Change
+	 * 23:    Pipe5 Cursor1 Allow Pstate Change
+	 * 24:    Pipe6 Plane0 Allow Pstate Change
+	 * 25:    Pipe6 Plane1 Allow Pstate Change
+	 * 26:    Pipe6 Cursor0 Allow Pstate Change
+	 * 27:    Pipe6 Cursor1 Allow Pstate Change
+	 * 28:    WB0 Allow Pstate Change
+	 * 29:    WB1 Allow Pstate Change
+	 * 30:    Arbiter's allow_pstate_change
+	 * 31:    SOC pstate change request"
+	 *
+	 * RV1:
 	 * dchubbubdebugind, at: 0x7
 	 * description "3-0:   Pipe0 cursor0 QOS
 	 * 7-4:   Pipe1 cursor0 QOS
@@ -156,7 +192,6 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 30:    Arbiter's allow_pstate_change
 	 * 31:    SOC pstate change request
 	 */
-
 
 	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, hubbub->debug_test_index_pstate);
 
@@ -819,5 +854,9 @@ void hubbub1_construct(struct hubbub *hubbub,
 	hubbub->masks = hubbub_mask;
 
 	hubbub->debug_test_index_pstate = 0x7;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (ctx->dce_version == DCN_VERSION_1_01)
+		hubbub->debug_test_index_pstate = 0xB;
+#endif
 }
 
