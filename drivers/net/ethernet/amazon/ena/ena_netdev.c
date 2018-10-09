@@ -3099,15 +3099,8 @@ err_rss_init:
 
 static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 {
-	int release_bars;
+	int release_bars = pci_select_bars(pdev, IORESOURCE_MEM) & ENA_BAR_MASK;
 
-	if (ena_dev->mem_bar)
-		devm_iounmap(&pdev->dev, ena_dev->mem_bar);
-
-	if (ena_dev->reg_bar)
-		devm_iounmap(&pdev->dev, ena_dev->reg_bar);
-
-	release_bars = pci_select_bars(pdev, IORESOURCE_MEM) & ENA_BAR_MASK;
 	pci_release_selected_regions(pdev, release_bars);
 }
 
