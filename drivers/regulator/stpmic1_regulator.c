@@ -441,7 +441,7 @@ static unsigned int stpmic1_map_mode(unsigned int mode)
 	case STPMIC1_BUCK_MODE_LP:
 		return REGULATOR_MODE_STANDBY;
 	default:
-		return -EINVAL;
+		return REGULATOR_MODE_INVALID;
 	}
 }
 
