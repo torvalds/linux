@@ -2031,6 +2031,40 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+#if IS_ENABLED(CONFIG_INET)
+static int mpls_valid_fib_dump_req(const struct nlmsghdr *nlh,
+				   struct netlink_ext_ack *extack)
+{
+	return ip_valid_fib_dump_req(nlh, extack);
+}
+#else
+static int mpls_valid_fib_dump_req(const struct nlmsghdr *nlh,
+				   struct netlink_ext_ack *extack)
+{
+	struct rtmsg *rtm;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid header for FIB dump request");
+		return -EINVAL;
+	}
+
+	rtm = nlmsg_data(nlh);
+	if (rtm->rtm_dst_len || rtm->rtm_src_len  || rtm->rtm_tos   ||
+	    rtm->rtm_table   || rtm->rtm_protocol || rtm->rtm_scope ||
+	    rtm->rtm_type    || rtm->rtm_flags) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for FIB dump request");
+		return -EINVAL;
+	}
+
+	if (nlmsg_attrlen(nlh, sizeof(*rtm))) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header in FIB dump request");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+#endif
+
 static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = cb->nlh;
@@ -2042,7 +2076,7 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	ASSERT_RTNL();
 
 	if (cb->strict_check) {
-		int err = ip_valid_fib_dump_req(nlh, cb->extack);
+		int err = mpls_valid_fib_dump_req(nlh, cb->extack);
 
 		if (err < 0)
 			return err;
