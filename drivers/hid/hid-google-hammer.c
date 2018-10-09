@@ -161,7 +161,7 @@ static __maybe_unused int cbas_ec_resume(struct device *dev)
 	return 0;
 }
 
-static const SIMPLE_DEV_PM_OPS(cbas_ec_pm_ops, NULL, cbas_ec_resume);
+static SIMPLE_DEV_PM_OPS(cbas_ec_pm_ops, NULL, cbas_ec_resume);
 
 static void cbas_ec_set_input(struct input_dev *input)
 {
