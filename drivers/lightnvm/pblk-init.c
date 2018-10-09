@@ -376,12 +376,6 @@ static int pblk_core_init(struct pblk *pblk)
 	pblk->max_write_pgs = min_t(int, max_write_ppas, NVM_MAX_VLBA);
 	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
 
-	if (pblk->max_write_pgs > PBLK_MAX_REQ_ADDRS) {
-		pblk_err(pblk, "vector list too big(%u > %u)\n",
-				pblk->max_write_pgs, PBLK_MAX_REQ_ADDRS);
-		return -EINVAL;
-	}
-
 	pblk->pad_dist = kcalloc(pblk->min_write_pgs - 1, sizeof(atomic64_t),
 								GFP_KERNEL);
 	if (!pblk->pad_dist)

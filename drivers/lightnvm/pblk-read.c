@@ -43,7 +43,7 @@ static void pblk_read_ppalist_rq(struct pblk *pblk, struct nvm_rq *rqd,
 				 unsigned long *read_bitmap)
 {
 	struct pblk_sec_meta *meta_list = rqd->meta_list;
-	struct ppa_addr ppas[PBLK_MAX_REQ_ADDRS];
+	struct ppa_addr ppas[NVM_MAX_VLBA];
 	int nr_secs = rqd->nr_ppas;
 	bool advanced_bio = false;
 	int i, j = 0;
@@ -450,7 +450,7 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	int ret = NVM_IO_ERR;
 
 	/* logic error: lba out-of-bounds. Ignore read request */
-	if (blba >= pblk->rl.nr_secs || nr_secs > PBLK_MAX_REQ_ADDRS) {
+	if (blba >= pblk->rl.nr_secs || nr_secs > NVM_MAX_VLBA) {
 		WARN(1, "pblk: read lba out of bounds (lba:%llu, nr:%d)\n",
 					(unsigned long long)blba, nr_secs);
 		return NVM_IO_ERR;
@@ -547,7 +547,7 @@ static int read_ppalist_rq_gc(struct pblk *pblk, struct nvm_rq *rqd,
 			      struct pblk_line *line, u64 *lba_list,
 			      u64 *paddr_list_gc, unsigned int nr_secs)
 {
-	struct ppa_addr ppa_list_l2p[PBLK_MAX_REQ_ADDRS];
+	struct ppa_addr ppa_list_l2p[NVM_MAX_VLBA];
 	struct ppa_addr ppa_gc;
 	int valid_secs = 0;
 	int i;

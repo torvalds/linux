@@ -37,8 +37,6 @@
 
 #define PBLK_SECTOR (512)
 #define PBLK_EXPOSED_PAGE_SIZE (4096)
-#define PBLK_MAX_REQ_ADDRS (64)
-#define PBLK_MAX_REQ_ADDRS_PW (6)
 
 #define PBLK_NR_CLOSE_JOBS (4)
 
@@ -99,8 +97,8 @@ enum {
 	PBLK_RL_LOW = 4
 };
 
-#define pblk_dma_meta_size (sizeof(struct pblk_sec_meta) * PBLK_MAX_REQ_ADDRS)
-#define pblk_dma_ppa_size (sizeof(u64) * PBLK_MAX_REQ_ADDRS)
+#define pblk_dma_meta_size (sizeof(struct pblk_sec_meta) * NVM_MAX_VLBA)
+#define pblk_dma_ppa_size (sizeof(u64) * NVM_MAX_VLBA)
 
 /* write buffer completion context */
 struct pblk_c_ctx {
@@ -218,8 +216,8 @@ struct pblk_lun {
 struct pblk_gc_rq {
 	struct pblk_line *line;
 	void *data;
-	u64 paddr_list[PBLK_MAX_REQ_ADDRS];
-	u64 lba_list[PBLK_MAX_REQ_ADDRS];
+	u64 paddr_list[NVM_MAX_VLBA];
+	u64 lba_list[NVM_MAX_VLBA];
 	int nr_secs;
 	int secs_to_gc;
 	struct list_head list;
