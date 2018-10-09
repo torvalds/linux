@@ -1460,7 +1460,7 @@ ex:
 	return err;
 }
 
-int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq)
+int mlx5_ib_get_cqe_size(struct ib_cq *ibcq)
 {
 	struct mlx5_ib_cq *cq;
 
