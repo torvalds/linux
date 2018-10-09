@@ -51,9 +51,8 @@ struct net_device;
 struct nfp_app;
 
 #define NFP_FL_STATS_CTX_DONT_CARE	cpu_to_be32(0xffffffff)
-#define NFP_FL_STATS_ENTRY_RS		BIT(20)
-#define NFP_FL_STATS_ELEM_RS		4
-#define NFP_FL_REPEATED_HASH_MAX	BIT(17)
+#define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
+						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
 #define NFP_FLOWER_MASK_ELEMENT_RS	1
 #define NFP_FLOWER_MASK_HASH_BITS	10
@@ -138,6 +137,7 @@ struct nfp_fl_lag {
  * @stats_ids:		List of free stats ids
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
+ * @stats_ring_size:	Maximum number of allowed stats ids
  * @flow_table:		Hash table used to store flower rules
  * @stats:		Stored stats updates for flower rules
  * @stats_lock:		Lock for flower rule stats updates
@@ -173,6 +173,7 @@ struct nfp_flower_priv {
 	struct nfp_fl_stats_id stats_ids;
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
+	u32 stats_ring_size;
 	struct rhashtable flow_table;
 	struct nfp_fl_stats *stats;
 	spinlock_t stats_lock; /* lock stats */
@@ -250,7 +251,7 @@ struct nfp_fl_stats_frame {
 	__be64 stats_cookie;
 };
 
-int nfp_flower_metadata_init(struct nfp_app *app);
+int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,

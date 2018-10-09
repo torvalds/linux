@@ -61,14 +61,14 @@ static int nfp_release_stats_entry(struct nfp_app *app, u32 stats_context_id)
 
 	ring = &priv->stats_ids.free_list;
 	/* Check if buffer is full. */
-	if (!CIRC_SPACE(ring->head, ring->tail, NFP_FL_STATS_ENTRY_RS *
-			NFP_FL_STATS_ELEM_RS -
+	if (!CIRC_SPACE(ring->head, ring->tail,
+			priv->stats_ring_size * NFP_FL_STATS_ELEM_RS -
 			NFP_FL_STATS_ELEM_RS + 1))
 		return -ENOBUFS;
 
 	memcpy(&ring->buf[ring->head], &stats_context_id, NFP_FL_STATS_ELEM_RS);
 	ring->head = (ring->head + NFP_FL_STATS_ELEM_RS) %
-		     (NFP_FL_STATS_ENTRY_RS * NFP_FL_STATS_ELEM_RS);
+		     (priv->stats_ring_size * NFP_FL_STATS_ELEM_RS);
 
 	return 0;
 }
@@ -80,7 +80,7 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 	struct circ_buf *ring;
 
 	ring = &priv->stats_ids.free_list;
-	freed_stats_id = NFP_FL_STATS_ENTRY_RS;
+	freed_stats_id = priv->stats_ring_size;
 	/* Check for unallocated entries first. */
 	if (priv->stats_ids.init_unalloc > 0) {
 		*stats_context_id = priv->stats_ids.init_unalloc - 1;
@@ -98,7 +98,7 @@ static int nfp_get_stats_entry(struct nfp_app *app, u32 *stats_context_id)
 	*stats_context_id = temp_stats_id;
 	memcpy(&ring->buf[ring->tail], &freed_stats_id, NFP_FL_STATS_ELEM_RS);
 	ring->tail = (ring->tail + NFP_FL_STATS_ELEM_RS) %
-		     (NFP_FL_STATS_ENTRY_RS * NFP_FL_STATS_ELEM_RS);
+		     (priv->stats_ring_size * NFP_FL_STATS_ELEM_RS);
 
 	return 0;
 }
@@ -415,7 +415,7 @@ const struct rhashtable_params nfp_flower_table_params = {
 	.automatic_shrinking	= true,
 };
 
-int nfp_flower_metadata_init(struct nfp_app *app)
+int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	int err;
@@ -447,13 +447,13 @@ int nfp_flower_metadata_init(struct nfp_app *app)
 	/* Init ring buffer and unallocated stats_ids. */
 	priv->stats_ids.free_list.buf =
 		vmalloc(array_size(NFP_FL_STATS_ELEM_RS,
-				   NFP_FL_STATS_ENTRY_RS));
+				   priv->stats_ring_size));
 	if (!priv->stats_ids.free_list.buf)
 		goto err_free_last_used;
 
-	priv->stats_ids.init_unalloc = NFP_FL_REPEATED_HASH_MAX;
+	priv->stats_ids.init_unalloc = host_ctx_count;
 
-	priv->stats = kvmalloc_array(NFP_FL_STATS_ENTRY_RS,
+	priv->stats = kvmalloc_array(priv->stats_ring_size,
 				     sizeof(struct nfp_fl_stats), GFP_KERNEL);
 	if (!priv->stats)
 		goto err_free_ring_buf;
