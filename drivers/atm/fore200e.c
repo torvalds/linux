@@ -209,6 +209,34 @@ fore200e_chunk_free(struct fore200e* fore200e, struct chunk* chunk)
     kfree(chunk->alloc_addr);
 }
 
+/*
+ * Allocate a DMA consistent chunk of memory intended to act as a communication
+ * mechanism (to hold descriptors, status, queues, etc.) shared by the driver
+ * and the adapter.
+ */
+static int
+fore200e_dma_chunk_alloc(struct fore200e *fore200e, struct chunk *chunk,
+		int size, int nbr, int alignment)
+{
+	/* returned chunks are page-aligned */
+	chunk->alloc_size = size * nbr;
+	chunk->alloc_addr = dma_alloc_coherent(fore200e->dev, chunk->alloc_size,
+					       &chunk->dma_addr, GFP_KERNEL);
+	if (!chunk->alloc_addr)
+		return -ENOMEM;
+	chunk->align_addr = chunk->alloc_addr;
+	return 0;
+}
+
+/*
+ * Free a DMA consistent chunk of memory.
+ */
+static void
+fore200e_dma_chunk_free(struct fore200e* fore200e, struct chunk* chunk)
+{
+	dma_free_coherent(fore200e->dev, chunk->alloc_size, chunk->alloc_addr,
+			  chunk->dma_addr);
+}
 
 static void
 fore200e_spin(int msecs)
@@ -301,10 +329,10 @@ fore200e_uninit_bs_queue(struct fore200e* fore200e)
 	    struct chunk* rbd_block = &fore200e->host_bsq[ scheme ][ magn ].rbd_block;
 	    
 	    if (status->alloc_addr)
-		fore200e->bus->dma_chunk_free(fore200e, status);
+		fore200e_dma_chunk_free(fore200e, status);
 	    
 	    if (rbd_block->alloc_addr)
-		fore200e->bus->dma_chunk_free(fore200e, rbd_block);
+		fore200e_dma_chunk_free(fore200e, rbd_block);
 	}
     }
 }
@@ -370,17 +398,17 @@ fore200e_shutdown(struct fore200e* fore200e)
 
 	/* fall through */
     case FORE200E_STATE_INIT_RXQ:
-	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_rxq.status);
-	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_rxq.rpd);
+	fore200e_dma_chunk_free(fore200e, &fore200e->host_rxq.status);
+	fore200e_dma_chunk_free(fore200e, &fore200e->host_rxq.rpd);
 
 	/* fall through */
     case FORE200E_STATE_INIT_TXQ:
-	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_txq.status);
-	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_txq.tpd);
+	fore200e_dma_chunk_free(fore200e, &fore200e->host_txq.status);
+	fore200e_dma_chunk_free(fore200e, &fore200e->host_txq.tpd);
 
 	/* fall through */
     case FORE200E_STATE_INIT_CMDQ:
-	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_cmdq.status);
+	fore200e_dma_chunk_free(fore200e, &fore200e->host_cmdq.status);
 
 	/* fall through */
     case FORE200E_STATE_INITIALIZE:
@@ -426,41 +454,6 @@ static void fore200e_pca_write(u32 val, volatile u32 __iomem *addr)
        the endianess of slave RAM accesses  */
     writel(cpu_to_le32(val), addr);
 }
-
-/* allocate a DMA consistent chunk of memory intended to act as a communication mechanism
-   (to hold descriptors, status, queues, etc.) shared by the driver and the adapter */
-
-static int
-fore200e_pca_dma_chunk_alloc(struct fore200e* fore200e, struct chunk* chunk,
-			     int size, int nbr, int alignment)
-{
-    /* returned chunks are page-aligned */
-    chunk->alloc_size = size * nbr;
-    chunk->alloc_addr = dma_alloc_coherent(fore200e->dev,
-					   chunk->alloc_size,
-					   &chunk->dma_addr,
-					   GFP_KERNEL);
-    
-    if ((chunk->alloc_addr == NULL) || (chunk->dma_addr == 0))
-	return -ENOMEM;
-
-    chunk->align_addr = chunk->alloc_addr;
-    
-    return 0;
-}
-
-
-/* free a DMA consistent chunk of memory */
-
-static void
-fore200e_pca_dma_chunk_free(struct fore200e* fore200e, struct chunk* chunk)
-{
-    dma_free_coherent(fore200e->dev,
-			chunk->alloc_size,
-			chunk->alloc_addr,
-			chunk->dma_addr);
-}
-
 
 static int
 fore200e_pca_irq_check(struct fore200e* fore200e)
@@ -631,8 +624,6 @@ static const struct fore200e_bus fore200e_pci_ops = {
 	.status_alignment	= 32,
 	.read			= fore200e_pca_read,
 	.write			= fore200e_pca_write,
-	.dma_chunk_alloc	= fore200e_pca_dma_chunk_alloc,
-	.dma_chunk_free		= fore200e_pca_dma_chunk_free,
 	.configure		= fore200e_pca_configure,
 	.map			= fore200e_pca_map,
 	.reset			= fore200e_pca_reset,
@@ -654,33 +645,6 @@ static u32 fore200e_sba_read(volatile u32 __iomem *addr)
 static void fore200e_sba_write(u32 val, volatile u32 __iomem *addr)
 {
     sbus_writel(val, addr);
-}
-
-/* Allocate a DVMA consistent chunk of memory intended to act as a communication mechanism
- * (to hold descriptors, status, queues, etc.) shared by the driver and the adapter.
- */
-static int fore200e_sba_dma_chunk_alloc(struct fore200e *fore200e, struct chunk *chunk,
-					int size, int nbr, int alignment)
-{
-	chunk->alloc_size = size * nbr;
-
-	/* returned chunks are page-aligned */
-	chunk->alloc_addr = dma_alloc_coherent(fore200e->dev, chunk->alloc_size,
-					       &chunk->dma_addr, GFP_ATOMIC);
-
-	if ((chunk->alloc_addr == NULL) || (chunk->dma_addr == 0))
-		return -ENOMEM;
-
-	chunk->align_addr = chunk->alloc_addr;
-    
-	return 0;
-}
-
-/* free a DVMA consistent chunk of memory */
-static void fore200e_sba_dma_chunk_free(struct fore200e *fore200e, struct chunk *chunk)
-{
-	dma_free_coherent(fore200e->dev, chunk->alloc_size,
-			  chunk->alloc_addr, chunk->dma_addr);
 }
 
 static void fore200e_sba_irq_enable(struct fore200e *fore200e)
@@ -796,8 +760,6 @@ static const struct fore200e_bus fore200e_sbus_ops = {
 	.status_alignment	= 32,
 	.read			= fore200e_sba_read,
 	.write			= fore200e_sba_write,
-	.dma_chunk_alloc	= fore200e_sba_dma_chunk_alloc,
-	.dma_chunk_free		= fore200e_sba_dma_chunk_free,
 	.configure		= fore200e_sba_configure,
 	.map			= fore200e_sba_map,
 	.reset			= fore200e_sba_reset,
@@ -2111,7 +2073,7 @@ static int fore200e_init_bs_queue(struct fore200e *fore200e)
 	    bsq = &fore200e->host_bsq[ scheme ][ magn ];
 
 	    /* allocate and align the array of status words */
-	    if (fore200e->bus->dma_chunk_alloc(fore200e,
+	    if (fore200e_dma_chunk_alloc(fore200e,
 					       &bsq->status,
 					       sizeof(enum status), 
 					       QUEUE_SIZE_BS,
@@ -2120,13 +2082,13 @@ static int fore200e_init_bs_queue(struct fore200e *fore200e)
 	    }
 
 	    /* allocate and align the array of receive buffer descriptors */
-	    if (fore200e->bus->dma_chunk_alloc(fore200e,
+	    if (fore200e_dma_chunk_alloc(fore200e,
 					       &bsq->rbd_block,
 					       sizeof(struct rbd_block),
 					       QUEUE_SIZE_BS,
 					       fore200e->bus->descr_alignment) < 0) {
 		
-		fore200e->bus->dma_chunk_free(fore200e, &bsq->status);
+		fore200e_dma_chunk_free(fore200e, &bsq->status);
 		return -ENOMEM;
 	    }
 	    
@@ -2167,7 +2129,7 @@ static int fore200e_init_rx_queue(struct fore200e *fore200e)
     DPRINTK(2, "receive queue is being initialized\n");
 
     /* allocate and align the array of status words */
-    if (fore200e->bus->dma_chunk_alloc(fore200e,
+    if (fore200e_dma_chunk_alloc(fore200e,
 				       &rxq->status,
 				       sizeof(enum status), 
 				       QUEUE_SIZE_RX,
@@ -2176,13 +2138,13 @@ static int fore200e_init_rx_queue(struct fore200e *fore200e)
     }
 
     /* allocate and align the array of receive PDU descriptors */
-    if (fore200e->bus->dma_chunk_alloc(fore200e,
+    if (fore200e_dma_chunk_alloc(fore200e,
 				       &rxq->rpd,
 				       sizeof(struct rpd), 
 				       QUEUE_SIZE_RX,
 				       fore200e->bus->descr_alignment) < 0) {
 	
-	fore200e->bus->dma_chunk_free(fore200e, &rxq->status);
+	fore200e_dma_chunk_free(fore200e, &rxq->status);
 	return -ENOMEM;
     }
 
@@ -2226,7 +2188,7 @@ static int fore200e_init_tx_queue(struct fore200e *fore200e)
     DPRINTK(2, "transmit queue is being initialized\n");
 
     /* allocate and align the array of status words */
-    if (fore200e->bus->dma_chunk_alloc(fore200e,
+    if (fore200e_dma_chunk_alloc(fore200e,
 				       &txq->status,
 				       sizeof(enum status), 
 				       QUEUE_SIZE_TX,
@@ -2235,13 +2197,13 @@ static int fore200e_init_tx_queue(struct fore200e *fore200e)
     }
 
     /* allocate and align the array of transmit PDU descriptors */
-    if (fore200e->bus->dma_chunk_alloc(fore200e,
+    if (fore200e_dma_chunk_alloc(fore200e,
 				       &txq->tpd,
 				       sizeof(struct tpd), 
 				       QUEUE_SIZE_TX,
 				       fore200e->bus->descr_alignment) < 0) {
 	
-	fore200e->bus->dma_chunk_free(fore200e, &txq->status);
+	fore200e_dma_chunk_free(fore200e, &txq->status);
 	return -ENOMEM;
     }
 
@@ -2288,7 +2250,7 @@ static int fore200e_init_cmd_queue(struct fore200e *fore200e)
     DPRINTK(2, "command queue is being initialized\n");
 
     /* allocate and align the array of status words */
-    if (fore200e->bus->dma_chunk_alloc(fore200e,
+    if (fore200e_dma_chunk_alloc(fore200e,
 				       &cmdq->status,
 				       sizeof(enum status), 
 				       QUEUE_SIZE_CMD,
