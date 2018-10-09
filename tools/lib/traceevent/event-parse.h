@@ -405,149 +405,18 @@ void tep_print_plugins(struct trace_seq *s,
 			const char *prefix, const char *suffix,
 			const struct tep_plugin_list *list);
 
-struct cmdline;
-struct cmdline_list;
-struct func_map;
-struct func_list;
-struct event_handler;
-struct func_resolver;
-
+/* tep_handle */
 typedef char *(tep_func_resolver_t)(void *priv,
 				    unsigned long long *addrp, char **modp);
+void tep_set_flag(struct tep_handle *tep, int flag);
+unsigned short __tep_data2host2(struct tep_handle *pevent, unsigned short data);
+unsigned int __tep_data2host4(struct tep_handle *pevent, unsigned int data);
+unsigned long long
+__tep_data2host8(struct tep_handle *pevent, unsigned long long data);
 
-struct tep_handle {
-	int ref_count;
-
-	int header_page_ts_offset;
-	int header_page_ts_size;
-	int header_page_size_offset;
-	int header_page_size_size;
-	int header_page_data_offset;
-	int header_page_data_size;
-	int header_page_overwrite;
-
-	int file_bigendian;
-	int host_bigendian;
-
-	int latency_format;
-
-	int old_format;
-
-	int cpus;
-	int long_size;
-	int page_size;
-
-	struct cmdline *cmdlines;
-	struct cmdline_list *cmdlist;
-	int cmdline_count;
-
-	struct func_map *func_map;
-	struct func_resolver *func_resolver;
-	struct func_list *funclist;
-	unsigned int func_count;
-
-	struct printk_map *printk_map;
-	struct printk_list *printklist;
-	unsigned int printk_count;
-
-
-	struct tep_event_format **events;
-	int nr_events;
-	struct tep_event_format **sort_events;
-	enum tep_event_sort_type last_type;
-
-	int type_offset;
-	int type_size;
-
-	int pid_offset;
-	int pid_size;
-
- 	int pc_offset;
-	int pc_size;
-
-	int flags_offset;
-	int flags_size;
-
-	int ld_offset;
-	int ld_size;
-
-	int print_raw;
-
-	int test_filters;
-
-	int flags;
-
-	struct tep_format_field *bprint_ip_field;
-	struct tep_format_field *bprint_fmt_field;
-	struct tep_format_field *bprint_buf_field;
-
-	struct event_handler *handlers;
-	struct tep_function_handler *func_handlers;
-
-	/* cache */
-	struct tep_event_format *last_event;
-
-	char *trace_clock;
-};
-
-static inline void tep_set_flag(struct tep_handle *pevent, int flag)
-{
-	pevent->flags |= flag;
-}
-
-static inline unsigned short
-__tep_data2host2(struct tep_handle *pevent, unsigned short data)
-{
-	unsigned short swap;
-
-	if (pevent->host_bigendian == pevent->file_bigendian)
-		return data;
-
-	swap = ((data & 0xffULL) << 8) |
-		((data & (0xffULL << 8)) >> 8);
-
-	return swap;
-}
-
-static inline unsigned int
-__tep_data2host4(struct tep_handle *pevent, unsigned int data)
-{
-	unsigned int swap;
-
-	if (pevent->host_bigendian == pevent->file_bigendian)
-		return data;
-
-	swap = ((data & 0xffULL) << 24) |
-		((data & (0xffULL << 8)) << 8) |
-		((data & (0xffULL << 16)) >> 8) |
-		((data & (0xffULL << 24)) >> 24);
-
-	return swap;
-}
-
-static inline unsigned long long
-__tep_data2host8(struct tep_handle *pevent, unsigned long long data)
-{
-	unsigned long long swap;
-
-	if (pevent->host_bigendian == pevent->file_bigendian)
-		return data;
-
-	swap = ((data & 0xffULL) << 56) |
-		((data & (0xffULL << 8)) << 40) |
-		((data & (0xffULL << 16)) << 24) |
-		((data & (0xffULL << 24)) << 8) |
-		((data & (0xffULL << 32)) >> 8) |
-		((data & (0xffULL << 40)) >> 24) |
-		((data & (0xffULL << 48)) >> 40) |
-		((data & (0xffULL << 56)) >> 56);
-
-	return swap;
-}
-
-#define tep_data2host2(pevent, ptr)		__tep_data2host2(pevent, *(unsigned short *)(ptr))
-#define tep_data2host4(pevent, ptr)		__tep_data2host4(pevent, *(unsigned int *)(ptr))
-#define tep_data2host8(pevent, ptr)					\
+#define tep_data2host2(pevent, ptr)	__tep_data2host2(pevent, *(unsigned short *)(ptr))
+#define tep_data2host4(pevent, ptr)	__tep_data2host4(pevent, *(unsigned int *)(ptr))
+#define tep_data2host8(pevent, ptr)	\
 ({								\
 	unsigned long long __val;				\
 								\
@@ -655,11 +524,12 @@ unsigned long long tep_read_number(struct tep_handle *pevent, const void *ptr, i
 int tep_read_number_field(struct tep_format_field *field, const void *data,
 			  unsigned long long *value);
 
+struct tep_event_format *tep_get_first_event(struct tep_handle *tep);
+int tep_get_events_count(struct tep_handle *tep);
 struct tep_event_format *tep_find_event(struct tep_handle *pevent, int id);
 
 struct tep_event_format *
 tep_find_event_by_name(struct tep_handle *pevent, const char *sys, const char *name);
-
 struct tep_event_format *
 tep_find_event_by_record(struct tep_handle *pevent, struct tep_record *record);
 
@@ -689,65 +559,23 @@ struct tep_event_format **tep_list_events(struct tep_handle *pevent, enum tep_ev
 struct tep_format_field **tep_event_common_fields(struct tep_event_format *event);
 struct tep_format_field **tep_event_fields(struct tep_event_format *event);
 
-static inline int tep_get_cpus(struct tep_handle *pevent)
-{
-	return pevent->cpus;
-}
-
-static inline void tep_set_cpus(struct tep_handle *pevent, int cpus)
-{
-	pevent->cpus = cpus;
-}
-
-static inline int tep_get_long_size(struct tep_handle *pevent)
-{
-	return pevent->long_size;
-}
-
-static inline void tep_set_long_size(struct tep_handle *pevent, int long_size)
-{
-	pevent->long_size = long_size;
-}
-
-static inline int tep_get_page_size(struct tep_handle *pevent)
-{
-	return pevent->page_size;
-}
-
-static inline void tep_set_page_size(struct tep_handle *pevent, int _page_size)
-{
-	pevent->page_size = _page_size;
-}
-
-static inline int tep_is_file_bigendian(struct tep_handle *pevent)
-{
-	return pevent->file_bigendian;
-}
-
-static inline void tep_set_file_bigendian(struct tep_handle *pevent, int endian)
-{
-	pevent->file_bigendian = endian;
-}
-
-static inline int tep_is_host_bigendian(struct tep_handle *pevent)
-{
-	return pevent->host_bigendian;
-}
-
-static inline void tep_set_host_bigendian(struct tep_handle *pevent, int endian)
-{
-	pevent->host_bigendian = endian;
-}
-
-static inline int tep_is_latency_format(struct tep_handle *pevent)
-{
-	return pevent->latency_format;
-}
-
-static inline void tep_set_latency_format(struct tep_handle *pevent, int lat)
-{
-	pevent->latency_format = lat;
-}
+enum tep_endian {
+        TEP_LITTLE_ENDIAN = 0,
+        TEP_BIG_ENDIAN
+};
+int tep_get_cpus(struct tep_handle *pevent);
+void tep_set_cpus(struct tep_handle *pevent, int cpus);
+int tep_get_long_size(struct tep_handle *pevent);
+void tep_set_long_size(struct tep_handle *pevent, int long_size);
+int tep_get_page_size(struct tep_handle *pevent);
+void tep_set_page_size(struct tep_handle *pevent, int _page_size);
+int tep_is_file_bigendian(struct tep_handle *pevent);
+void tep_set_file_bigendian(struct tep_handle *pevent, enum tep_endian endian);
+int tep_is_host_bigendian(struct tep_handle *pevent);
+void tep_set_host_bigendian(struct tep_handle *pevent, enum tep_endian endian);
+int tep_is_latency_format(struct tep_handle *pevent);
+void tep_set_latency_format(struct tep_handle *pevent, int lat);
+int tep_get_header_page_size(struct tep_handle *pevent);
 
 struct tep_handle *tep_alloc(void);
 void tep_free(struct tep_handle *pevent);

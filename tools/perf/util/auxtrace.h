@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
+#include <asm/bitsperlong.h>
 
 #include "../perf.h"
 #include "event.h"

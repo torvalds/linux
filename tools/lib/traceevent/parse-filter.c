@@ -11,6 +11,7 @@
 #include <sys/types.h>
 
 #include "event-parse.h"
+#include "event-parse-local.h"
 #include "event-utils.h"
 
 #define COMM "COMM"
