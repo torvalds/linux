@@ -30,6 +30,19 @@ $(obj)/x509.asn1.o: $(obj)/x509.asn1.c $(obj)/x509.asn1.h
 $(obj)/x509_akid.asn1.o: $(obj)/x509_akid.asn1.c $(obj)/x509_akid.asn1.h
 
 #
+# PKCS#8 private key handling
+#
+obj-$(CONFIG_PKCS8_PRIVATE_KEY_PARSER) += pkcs8_key_parser.o
+pkcs8_key_parser-y := \
+	pkcs8.asn1.o \
+	pkcs8_parser.o
+
+$(obj)/pkcs8_parser.o: $(obj)/pkcs8.asn1.h
+$(obj)/pkcs8-asn1.o: $(obj)/pkcs8.asn1.c $(obj)/pkcs8.asn1.h
+
+clean-files	+= pkcs8.asn1.c pkcs8.asn1.h
+
+#
 # PKCS#7 message handling
 #
 obj-$(CONFIG_PKCS7_MESSAGE_PARSER) += pkcs7_message.o

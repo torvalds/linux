@@ -248,6 +248,8 @@ Examples of blob formats for which parsers could be implemented include:
  - X.509 ASN.1 stream.
  - Pointer to TPM key.
  - Pointer to UEFI key.
+ - PKCS#8 private key [RFC 5208].
+ - PKCS#5 encrypted private key [RFC 2898].
 
 During key instantiation each parser in the list is tried until one doesn't
 return -EBADMSG.
