@@ -301,11 +301,27 @@ static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY);
 static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
 static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+static inline bool pte_exec(pte_t pte)		{ return true; }
 static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
 
 static inline int pte_present(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_PRESENT;
+}
+
+static inline bool pte_hw_valid(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_PRESENT;
+}
+
+static inline bool pte_hashpte(pte_t pte)
+{
+	return !!(pte_val(pte) & _PAGE_HASHPTE);
+}
+
+static inline bool pte_ci(pte_t pte)
+{
+	return !!(pte_val(pte) & _PAGE_NO_CACHE);
 }
 
 /*
@@ -354,6 +370,11 @@ static inline pte_t pte_wrprotect(pte_t pte)
 	return __pte(pte_val(pte) & ~_PAGE_RW);
 }
 
+static inline pte_t pte_exprotect(pte_t pte)
+{
+	return pte;
+}
+
 static inline pte_t pte_mkclean(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
@@ -362,6 +383,16 @@ static inline pte_t pte_mkclean(pte_t pte)
 static inline pte_t pte_mkold(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_ACCESSED);
+}
+
+static inline pte_t pte_mkexec(pte_t pte)
+{
+	return pte;
+}
+
+static inline pte_t pte_mkpte(pte_t pte)
+{
+	return pte;
 }
 
 static inline pte_t pte_mkwrite(pte_t pte)
@@ -387,6 +418,16 @@ static inline pte_t pte_mkspecial(pte_t pte)
 static inline pte_t pte_mkhuge(pte_t pte)
 {
 	return pte;
+}
+
+static inline pte_t pte_mkprivileged(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_USER);
+}
+
+static inline pte_t pte_mkuser(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_USER);
 }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
