@@ -1483,6 +1483,112 @@ The structure has a number of fields, some of which are mandatory:
      attempted key link operation. If there is no match, -EINVAL is returned.
 
 
+  *  ``int (*asym_eds_op)(struct kernel_pkey_params *params,
+			  const void *in, void *out);``
+     ``int (*asym_verify_signature)(struct kernel_pkey_params *params,
+				    const void *in, const void *in2);``
+
+     These methods are optional.  If provided the first allows a key to be
+     used to encrypt, decrypt or sign a blob of data, and the second allows a
+     key to verify a signature.
+
+     In all cases, the following information is provided in the params block::
+
+	struct kernel_pkey_params {
+		struct key	*key;
+		const char	*encoding;
+		const char	*hash_algo;
+		char		*info;
+		__u32		in_len;
+		union {
+			__u32	out_len;
+			__u32	in2_len;
+		};
+		enum kernel_pkey_operation op : 8;
+	};
+
+     This includes the key to be used; a string indicating the encoding to use
+     (for instance, "pkcs1" may be used with an RSA key to indicate
+     RSASSA-PKCS1-v1.5 or RSAES-PKCS1-v1.5 encoding or "raw" if no encoding);
+     the name of the hash algorithm used to generate the data for a signature
+     (if appropriate); the sizes of the input and output (or second input)
+     buffers; and the ID of the operation to be performed.
+
+     For a given operation ID, the input and output buffers are used as
+     follows::
+
+	Operation ID		in,in_len	out,out_len	in2,in2_len
+	=======================	===============	===============	===============
+	kernel_pkey_encrypt	Raw data	Encrypted data	-
+	kernel_pkey_decrypt	Encrypted data	Raw data	-
+	kernel_pkey_sign	Raw data	Signature	-
+	kernel_pkey_verify	Raw data	-		Signature
+
+     asym_eds_op() deals with encryption, decryption and signature creation as
+     specified by params->op.  Note that params->op is also set for
+     asym_verify_signature().
+
+     Encrypting and signature creation both take raw data in the input buffer
+     and return the encrypted result in the output buffer.  Padding may have
+     been added if an encoding was set.  In the case of signature creation,
+     depending on the encoding, the padding created may need to indicate the
+     digest algorithm - the name of which should be supplied in hash_algo.
+
+     Decryption takes encrypted data in the input buffer and returns the raw
+     data in the output buffer.  Padding will get checked and stripped off if
+     an encoding was set.
+
+     Verification takes raw data in the input buffer and the signature in the
+     second input buffer and checks that the one matches the other.  Padding
+     will be validated.  Depending on the encoding, the digest algorithm used
+     to generate the raw data may need to be indicated in hash_algo.
+
+     If successful, asym_eds_op() should return the number of bytes written
+     into the output buffer.  asym_verify_signature() should return 0.
+
+     A variety of errors may be returned, including EOPNOTSUPP if the operation
+     is not supported; EKEYREJECTED if verification fails; ENOPKG if the
+     required crypto isn't available.
+
+
+  *  ``int (*asym_query)(const struct kernel_pkey_params *params,
+			 struct kernel_pkey_query *info);``
+
+     This method is optional.  If provided it allows information about the
+     public or asymmetric key held in the key to be determined.
+
+     The parameter block is as for asym_eds_op() and co. but in_len and out_len
+     are unused.  The encoding and hash_algo fields should be used to reduce
+     the returned buffer/data sizes as appropriate.
+
+     If successful, the following information is filled in::
+
+	struct kernel_pkey_query {
+		__u32		supported_ops;
+		__u32		key_size;
+		__u16		max_data_size;
+		__u16		max_sig_size;
+		__u16		max_enc_size;
+		__u16		max_dec_size;
+	};
+
+     The supported_ops field will contain a bitmask indicating what operations
+     are supported by the key, including encryption of a blob, decryption of a
+     blob, signing a blob and verifying the signature on a blob.  The following
+     constants are defined for this::
+
+	KEYCTL_SUPPORTS_{ENCRYPT,DECRYPT,SIGN,VERIFY}
+
+     The key_size field is the size of the key in bits.  max_data_size and
+     max_sig_size are the maximum raw data and signature sizes for creation and
+     verification of a signature; max_enc_size and max_dec_size are the maximum
+     raw data and signature sizes for encryption and decryption.  The
+     max_*_size fields are measured in bytes.
+
+     If successful, 0 will be returned.  If the key doesn't support this,
+     EOPNOTSUPP will be returned.
+
+
 Request-Key Callback Service
 ============================
 

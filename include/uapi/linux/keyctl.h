@@ -82,4 +82,9 @@ struct keyctl_kdf_params {
 	__u32 __spare[8];
 };
 
+#define KEYCTL_SUPPORTS_ENCRYPT		0x01
+#define KEYCTL_SUPPORTS_DECRYPT		0x02
+#define KEYCTL_SUPPORTS_SIGN		0x04
+#define KEYCTL_SUPPORTS_VERIFY		0x08
+
 #endif /*  _LINUX_KEYCTL_H */
