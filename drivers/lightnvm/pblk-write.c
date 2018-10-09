@@ -16,6 +16,7 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 
 static unsigned long pblk_end_w_bio(struct pblk *pblk, struct nvm_rq *rqd,
 				    struct pblk_c_ctx *c_ctx)
@@ -251,11 +252,13 @@ static void pblk_end_io_write(struct nvm_rq *rqd)
 	if (rqd->error) {
 		pblk_end_w_fail(pblk, rqd);
 		return;
-	}
+	} else {
+		if (trace_pblk_chunk_state_enabled())
+			pblk_check_chunk_state_update(pblk, rqd);
 #ifdef CONFIG_NVM_PBLK_DEBUG
-	else
 		WARN_ONCE(rqd->bio->bi_status, "pblk: corrupted write error\n");
 #endif
+	}
 
 	pblk_complete_write(pblk, rqd, c_ctx);
 	atomic_dec(&pblk->inflight_io);
@@ -276,6 +279,9 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 		pblk_log_write_err(pblk, rqd);
 		pblk_err(pblk, "metadata I/O failed. Line %d\n", line->id);
 		line->w_err_gc->has_write_err = 1;
+	} else {
+		if (trace_pblk_chunk_state_enabled())
+			pblk_check_chunk_state_update(pblk, rqd);
 	}
 
 	sync = atomic_add_return(rqd->nr_ppas, &emeta->sync);

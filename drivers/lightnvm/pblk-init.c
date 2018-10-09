@@ -19,6 +19,7 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 
 static unsigned int write_buffer_size;
 
@@ -663,6 +664,9 @@ static int pblk_setup_line_meta_chk(struct pblk *pblk, struct pblk_line *line,
 		chunk->slba = chunk_meta->slba;
 		chunk->cnlb = chunk_meta->cnlb;
 		chunk->wp = chunk_meta->wp;
+
+		trace_pblk_chunk_state(pblk_disk_name(pblk), &ppa,
+					chunk->state);
 
 		if (chunk->type & NVM_CHK_TP_SZ_SPEC) {
 			WARN_ONCE(1, "pblk: custom-sized chunks unsupported\n");

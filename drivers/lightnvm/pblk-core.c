@@ -16,7 +16,10 @@
  *
  */
 
+#define CREATE_TRACE_POINTS
+
 #include "pblk.h"
+#include "pblk-trace.h"
 
 static void pblk_line_mark_bb(struct work_struct *work)
 {
@@ -92,6 +95,9 @@ static void __pblk_end_io_erase(struct pblk *pblk, struct nvm_rq *rqd)
 	} else {
 		chunk->state = NVM_CHK_ST_FREE;
 	}
+
+	trace_pblk_chunk_state(pblk_disk_name(pblk), &rqd->ppa_addr,
+				chunk->state);
 
 	atomic_dec(&pblk->inflight_io);
 }
@@ -477,9 +483,30 @@ int pblk_submit_io(struct pblk *pblk, struct nvm_rq *rqd)
 	return nvm_submit_io(dev, rqd);
 }
 
+void pblk_check_chunk_state_update(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
+
+	int i;
+
+	for (i = 0; i < rqd->nr_ppas; i++) {
+		struct ppa_addr *ppa = &ppa_list[i];
+		struct nvm_chk_meta *chunk = pblk_dev_ppa_to_chunk(pblk, *ppa);
+		u64 caddr = pblk_dev_ppa_to_chunk_addr(pblk, *ppa);
+
+		if (caddr == 0)
+			trace_pblk_chunk_state(pblk_disk_name(pblk),
+							ppa, NVM_CHK_ST_OPEN);
+		else if (caddr == chunk->cnlb)
+			trace_pblk_chunk_state(pblk_disk_name(pblk),
+							ppa, NVM_CHK_ST_CLOSED);
+	}
+}
+
 int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
+	int ret;
 
 	atomic_inc(&pblk->inflight_io);
 
@@ -488,7 +515,13 @@ int pblk_submit_io_sync(struct pblk *pblk, struct nvm_rq *rqd)
 		return NVM_IO_ERR;
 #endif
 
-	return nvm_submit_io_sync(dev, rqd);
+	ret = nvm_submit_io_sync(dev, rqd);
+
+	if (trace_pblk_chunk_state_enabled() && !ret &&
+	    rqd->opcode == NVM_OP_PWRITE)
+		pblk_check_chunk_state_update(pblk, rqd);
+
+	return ret;
 }
 
 static void pblk_bio_map_addr_endio(struct bio *bio)
