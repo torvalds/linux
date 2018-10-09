@@ -46,6 +46,7 @@ static const char * const power_supply_type_text[] = {
 	"USB_PD", "USB_PD_DRP", "BrickID",
 	"USB_HVDCP", "USB_HVDCP_3", "Wireless", "USB_FLOAT",
 	"BMS", "Parallel", "Main", "Wipower", "USB_C_UFP", "USB_C_DFP",
+	"Charge_Pump",
 };
 
 static const char * const power_supply_usb_type_text[] = {
@@ -446,6 +447,16 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(fcc_stepper_enable),
 	POWER_SUPPLY_ATTR(toggle_stat),
 	POWER_SUPPLY_ATTR(main_fcc_max),
+	/* Charge pump properties */
+	POWER_SUPPLY_ATTR(cp_status1),
+	POWER_SUPPLY_ATTR(cp_status2),
+	POWER_SUPPLY_ATTR(cp_enable),
+	POWER_SUPPLY_ATTR(cp_switcher_en),
+	POWER_SUPPLY_ATTR(cp_die_temp),
+	POWER_SUPPLY_ATTR(cp_isns),
+	POWER_SUPPLY_ATTR(cp_toggle_switcher),
+	POWER_SUPPLY_ATTR(cp_irq_status),
+	POWER_SUPPLY_ATTR(cp_ilim),
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_ATTR(charge_counter_ext),
 	/* Properties of type `const char *' */
