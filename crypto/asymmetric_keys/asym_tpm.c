@@ -7,9 +7,23 @@
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
 #include <linux/tpm.h>
+#include <crypto/akcipher.h>
 #include <asm/unaligned.h>
 #include <keys/asymmetric-subtype.h>
 #include <crypto/asym_tpm_subtype.h>
+
+/*
+ * Maximum buffer size for the BER/DER encoded public key.  The public key
+ * is of the form SEQUENCE { INTEGER n, INTEGER e } where n is a maximum 2048
+ * bit key and e is usually 65537
+ * The encoding overhead is:
+ * - max 4 bytes for SEQUENCE
+ *   - max 4 bytes for INTEGER n type/length
+ *     - 257 bytes of n
+ *   - max 2 bytes for INTEGER e type/length
+ *     - 3 bytes of e
+ */
+#define PUB_KEY_BUF_SIZE (4 + 4 + 257 + 2 + 3)
 
 /*
  * Provide a part of a description of the key for /proc/keys.
@@ -36,6 +50,126 @@ static void asym_tpm_destroy(void *payload0, void *payload3)
 	tk->blob_len = 0;
 
 	kfree(tk);
+}
+
+/* How many bytes will it take to encode the length */
+static inline uint32_t definite_length(uint32_t len)
+{
+	if (len <= 127)
+		return 1;
+	if (len <= 255)
+		return 2;
+	return 3;
+}
+
+static inline uint8_t *encode_tag_length(uint8_t *buf, uint8_t tag,
+					 uint32_t len)
+{
+	*buf++ = tag;
+
+	if (len <= 127) {
+		buf[0] = len;
+		return buf + 1;
+	}
+
+	if (len <= 255) {
+		buf[0] = 0x81;
+		buf[1] = len;
+		return buf + 2;
+	}
+
+	buf[0] = 0x82;
+	put_unaligned_be16(len, buf + 1);
+	return buf + 3;
+}
+
+static uint32_t derive_pub_key(const void *pub_key, uint32_t len, uint8_t *buf)
+{
+	uint8_t *cur = buf;
+	uint32_t n_len = definite_length(len) + 1 + len + 1;
+	uint32_t e_len = definite_length(3) + 1 + 3;
+	uint8_t e[3] = { 0x01, 0x00, 0x01 };
+
+	/* SEQUENCE */
+	cur = encode_tag_length(cur, 0x30, n_len + e_len);
+	/* INTEGER n */
+	cur = encode_tag_length(cur, 0x02, len + 1);
+	cur[0] = 0x00;
+	memcpy(cur + 1, pub_key, len);
+	cur += len + 1;
+	cur = encode_tag_length(cur, 0x02, sizeof(e));
+	memcpy(cur, e, sizeof(e));
+	cur += sizeof(e);
+
+	return cur - buf;
+}
+
+/*
+ * Determine the crypto algorithm name.
+ */
+static int determine_akcipher(const char *encoding, const char *hash_algo,
+			      char alg_name[CRYPTO_MAX_ALG_NAME])
+{
+	/* TODO: We don't support hashing yet */
+	if (hash_algo)
+		return -ENOPKG;
+
+	if (strcmp(encoding, "pkcs1") == 0) {
+		strcpy(alg_name, "pkcs1pad(rsa)");
+		return 0;
+	}
+
+	if (strcmp(encoding, "raw") == 0) {
+		strcpy(alg_name, "rsa");
+		return 0;
+	}
+
+	return -ENOPKG;
+}
+
+/*
+ * Query information about a key.
+ */
+static int tpm_key_query(const struct kernel_pkey_params *params,
+			 struct kernel_pkey_query *info)
+{
+	struct tpm_key *tk = params->key->payload.data[asym_crypto];
+	int ret;
+	char alg_name[CRYPTO_MAX_ALG_NAME];
+	struct crypto_akcipher *tfm;
+	uint8_t der_pub_key[PUB_KEY_BUF_SIZE];
+	uint32_t der_pub_key_len;
+	int len;
+
+	/* TPM only works on private keys, public keys still done in software */
+	ret = determine_akcipher(params->encoding, params->hash_algo, alg_name);
+	if (ret < 0)
+		return ret;
+
+	tfm = crypto_alloc_akcipher(alg_name, 0, 0);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	der_pub_key_len = derive_pub_key(tk->pub_key, tk->pub_key_len,
+					 der_pub_key);
+
+	ret = crypto_akcipher_set_pub_key(tfm, der_pub_key, der_pub_key_len);
+	if (ret < 0)
+		goto error_free_tfm;
+
+	len = crypto_akcipher_maxsize(tfm);
+
+	info->key_size = tk->key_len;
+	info->max_data_size = tk->key_len / 8;
+	info->max_sig_size = len;
+	info->max_enc_size = len;
+	info->max_dec_size = tk->key_len / 8;
+
+	ret = 0;
+error_free_tfm:
+	crypto_free_akcipher(tfm);
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
 }
 
 /*
@@ -194,6 +328,7 @@ struct asymmetric_key_subtype asym_tpm_subtype = {
 	.name_len		= sizeof("asym_tpm") - 1,
 	.describe		= asym_tpm_describe,
 	.destroy		= asym_tpm_destroy,
+	.query			= tpm_key_query,
 };
 EXPORT_SYMBOL_GPL(asym_tpm_subtype);
 
