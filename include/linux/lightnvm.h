@@ -320,6 +320,11 @@ static inline void *nvm_rq_to_pdu(struct nvm_rq *rqdata)
 	return rqdata + 1;
 }
 
+static inline struct ppa_addr *nvm_rq_to_ppa_list(struct nvm_rq *rqd)
+{
+	return (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
+}
+
 enum {
 	NVM_BLK_ST_FREE =	0x1,	/* Free block */
 	NVM_BLK_ST_TGT =	0x2,	/* Block in use by target */

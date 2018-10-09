@@ -116,10 +116,9 @@ static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
 
 		if (lba != blba + i) {
 #ifdef CONFIG_NVM_PBLK_DEBUG
-			struct ppa_addr *p;
+			struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
-			p = (nr_lbas == 1) ? &rqd->ppa_list[i] : &rqd->ppa_addr;
-			print_ppa(pblk, p, "seq", i);
+			print_ppa(pblk, &ppa_list[i], "seq", i);
 #endif
 			pblk_err(pblk, "corrupted read LBA (%llu/%llu)\n",
 							lba, (u64)blba + i);
@@ -148,11 +147,9 @@ static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
 
 		if (lba != meta_lba) {
 #ifdef CONFIG_NVM_PBLK_DEBUG
-			struct ppa_addr *p;
-			int nr_ppas = rqd->nr_ppas;
+			struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
-			p = (nr_ppas == 1) ? &rqd->ppa_list[j] : &rqd->ppa_addr;
-			print_ppa(pblk, p, "seq", j);
+			print_ppa(pblk, &ppa_list[j], "seq", j);
 #endif
 			pblk_err(pblk, "corrupted read LBA (%llu/%llu)\n",
 								lba, meta_lba);

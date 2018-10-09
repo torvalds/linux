@@ -208,14 +208,9 @@ static void pblk_submit_rec(struct work_struct *work)
 	struct pblk *pblk = recovery->pblk;
 	struct nvm_rq *rqd = recovery->rqd;
 	struct pblk_c_ctx *c_ctx = nvm_rq_to_pdu(rqd);
-	struct ppa_addr *ppa_list;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
 	pblk_log_write_err(pblk, rqd);
-
-	if (rqd->nr_ppas == 1)
-		ppa_list = &rqd->ppa_addr;
-	else
-		ppa_list = rqd->ppa_list;
 
 	pblk_map_remaining(pblk, ppa_list);
 	pblk_queue_resubmit(pblk, c_ctx);
@@ -273,9 +268,10 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 	struct pblk_g_ctx *m_ctx = nvm_rq_to_pdu(rqd);
 	struct pblk_line *line = m_ctx->private;
 	struct pblk_emeta *emeta = line->emeta;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int sync;
 
-	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_up_page(pblk, ppa_list, rqd->nr_ppas);
 
 	if (rqd->error) {
 		pblk_log_write_err(pblk, rqd);
@@ -375,6 +371,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_emeta *emeta = meta_line->emeta;
+	struct ppa_addr *ppa_list;
 	struct pblk_g_ctx *m_ctx;
 	struct bio *bio;
 	struct nvm_rq *rqd;
@@ -409,12 +406,13 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	if (ret)
 		goto fail_free_bio;
 
+	ppa_list = nvm_rq_to_ppa_list(rqd);
 	for (i = 0; i < rqd->nr_ppas; ) {
 		spin_lock(&meta_line->lock);
 		paddr = __pblk_alloc_page(pblk, meta_line, rq_ppas);
 		spin_unlock(&meta_line->lock);
 		for (j = 0; j < rq_ppas; j++, i++, paddr++)
-			rqd->ppa_list[i] = addr_to_gen_ppa(pblk, paddr, id);
+			ppa_list[i] = addr_to_gen_ppa(pblk, paddr, id);
 	}
 
 	spin_lock(&l_mg->close_lock);
@@ -423,7 +421,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 		list_del(&meta_line->list);
 	spin_unlock(&l_mg->close_lock);
 
-	pblk_down_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_down_page(pblk, ppa_list, rqd->nr_ppas);
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
@@ -434,7 +432,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	return NVM_IO_OK;
 
 fail_rollback:
-	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_up_page(pblk, ppa_list, rqd->nr_ppas);
 	spin_lock(&l_mg->close_lock);
 	pblk_dealloc_page(pblk, meta_line, rq_ppas);
 	list_add(&meta_line->list, &meta_line->list);

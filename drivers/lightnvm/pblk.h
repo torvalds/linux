@@ -1362,9 +1362,7 @@ static inline int pblk_boundary_ppa_checks(struct nvm_tgt_dev *tgt_dev,
 static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
-	struct ppa_addr *ppa_list;
-
-	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
 	if (pblk_boundary_ppa_checks(dev, ppa_list, rqd->nr_ppas)) {
 		WARN_ON(1);

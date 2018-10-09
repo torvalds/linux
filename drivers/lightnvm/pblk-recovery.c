@@ -161,6 +161,8 @@ next_read_rq:
 	if (pblk_io_aligned(pblk, rq_ppas))
 		rqd->is_seq = 1;
 
+	ppa_list = nvm_rq_to_ppa_list(rqd);
+
 	for (i = 0; i < rqd->nr_ppas; ) {
 		struct ppa_addr ppa;
 		int pos;
@@ -175,7 +177,7 @@ next_read_rq:
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++, r_ptr_int++)
-			rqd->ppa_list[i] =
+			ppa_list[i] =
 				addr_to_gen_ppa(pblk, r_ptr_int, line->id);
 	}
 
@@ -202,7 +204,7 @@ next_read_rq:
 		if (lba == ADDR_EMPTY || lba > pblk->rl.nr_secs)
 			continue;
 
-		pblk_update_map(pblk, lba, rqd->ppa_list[i]);
+		pblk_update_map(pblk, lba, ppa_list[i]);
 	}
 
 	left_ppas -= rq_ppas;
@@ -221,10 +223,11 @@ static void pblk_recov_complete(struct kref *ref)
 
 static void pblk_end_io_recov(struct nvm_rq *rqd)
 {
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	struct pblk_pad_rq *pad_rq = rqd->private;
 	struct pblk *pblk = pad_rq->pblk;
 
-	pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_up_page(pblk, ppa_list, rqd->nr_ppas);
 
 	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 

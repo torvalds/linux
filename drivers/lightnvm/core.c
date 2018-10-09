@@ -603,22 +603,16 @@ static void nvm_ppa_dev_to_tgt(struct nvm_tgt_dev *tgt_dev,
 
 static void nvm_rq_tgt_to_dev(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
-	if (rqd->nr_ppas == 1) {
-		nvm_ppa_tgt_to_dev(tgt_dev, &rqd->ppa_addr, 1);
-		return;
-	}
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
-	nvm_ppa_tgt_to_dev(tgt_dev, rqd->ppa_list, rqd->nr_ppas);
+	nvm_ppa_tgt_to_dev(tgt_dev, ppa_list, rqd->nr_ppas);
 }
 
 static void nvm_rq_dev_to_tgt(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
-	if (rqd->nr_ppas == 1) {
-		nvm_ppa_dev_to_tgt(tgt_dev, &rqd->ppa_addr, 1);
-		return;
-	}
+	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 
-	nvm_ppa_dev_to_tgt(tgt_dev, rqd->ppa_list, rqd->nr_ppas);
+	nvm_ppa_dev_to_tgt(tgt_dev, ppa_list, rqd->nr_ppas);
 }
 
 int nvm_register_tgt_type(struct nvm_tgt_type *tt)
