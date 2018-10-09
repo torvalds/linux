@@ -1426,6 +1426,25 @@ retry_setup:
 	return line;
 }
 
+void pblk_ppa_to_line_put(struct pblk *pblk, struct ppa_addr ppa)
+{
+	struct pblk_line *line;
+
+	line = &pblk->lines[pblk_ppa_to_line(ppa)];
+	kref_put(&line->ref, pblk_line_put_wq);
+}
+
+void pblk_rq_to_line_put(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct ppa_addr *ppa_list;
+	int i;
+
+	ppa_list = (rqd->nr_ppas > 1) ? rqd->ppa_list : &rqd->ppa_addr;
+
+	for (i = 0; i < rqd->nr_ppas; i++)
+		pblk_ppa_to_line_put(pblk, ppa_list[i]);
+}
+
 static void pblk_stop_writes(struct pblk *pblk, struct pblk_line *line)
 {
 	lockdep_assert_held(&pblk->l_mg.free_lock);

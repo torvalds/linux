@@ -787,6 +787,8 @@ struct bio *pblk_bio_map_addr(struct pblk *pblk, void *data,
 struct pblk_line *pblk_line_get(struct pblk *pblk);
 struct pblk_line *pblk_line_get_first_data(struct pblk *pblk);
 struct pblk_line *pblk_line_replace_data(struct pblk *pblk);
+void pblk_ppa_to_line_put(struct pblk *pblk, struct ppa_addr ppa);
+void pblk_rq_to_line_put(struct pblk *pblk, struct nvm_rq *rqd);
 int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line);
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line);
 struct pblk_line *pblk_line_get_data(struct pblk *pblk);
