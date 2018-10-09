@@ -98,7 +98,8 @@ static long restore_sigcontext(struct pt_regs *regs,
 	/* sc_regs is structured the same as the start of pt_regs */
 	err = __copy_from_user(regs, &sc->sc_regs, sizeof(sc->sc_regs));
 	/* Restore the floating-point state. */
-	err |= restore_fp_state(regs, &sc->sc_fpregs);
+	if (has_fpu)
+		err |= restore_fp_state(regs, &sc->sc_fpregs);
 	return err;
 }
 
@@ -150,7 +151,8 @@ static long setup_sigcontext(struct rt_sigframe __user *frame,
 	/* sc_regs is structured the same as the start of pt_regs */
 	err = __copy_to_user(&sc->sc_regs, regs, sizeof(sc->sc_regs));
 	/* Save the floating-point state. */
-	err |= save_fp_state(regs, &sc->sc_fpregs);
+	if (has_fpu)
+		err |= save_fp_state(regs, &sc->sc_fpregs);
 	return err;
 }
 

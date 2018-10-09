@@ -56,13 +56,12 @@ static inline void __switch_to_aux(struct task_struct *prev,
 	fstate_restore(next, task_pt_regs(next));
 }
 
-#define DEFAULT_SSTATUS (SR_SPIE | SR_FS_INITIAL)
-
+extern bool has_fpu;
 #else
+#define has_fpu false
 #define fstate_save(task, regs) do { } while (0)
 #define fstate_restore(task, regs) do { } while (0)
 #define __switch_to_aux(__prev, __next) do { } while (0)
-#define DEFAULT_SSTATUS (SR_SPIE | SR_FS_OFF)
 #endif
 
 extern struct task_struct *__switch_to(struct task_struct *,
@@ -72,7 +71,8 @@ extern struct task_struct *__switch_to(struct task_struct *,
 do {							\
 	struct task_struct *__prev = (prev);		\
 	struct task_struct *__next = (next);		\
-	__switch_to_aux(__prev, __next);		\
+	if (has_fpu)					\
+		__switch_to_aux(__prev, __next);	\
 	((last) = __switch_to(__prev, __next));		\
 } while (0)
 

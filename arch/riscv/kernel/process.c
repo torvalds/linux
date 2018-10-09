@@ -76,7 +76,9 @@ void show_regs(struct pt_regs *regs)
 void start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long sp)
 {
-	regs->sstatus = DEFAULT_SSTATUS;
+	regs->sstatus = SR_SPIE;
+	if (has_fpu)
+		regs->sstatus |= SR_FS_INITIAL;
 	regs->sepc = pc;
 	regs->sp = sp;
 	set_fs(USER_DS);
