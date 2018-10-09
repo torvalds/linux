@@ -183,6 +183,10 @@ and looks like the following:
 
 		void (*describe)(const struct key *key, struct seq_file *m);
 		void (*destroy)(void *payload);
+		int (*query)(const struct kernel_pkey_params *params,
+			     struct kernel_pkey_query *info);
+		int (*eds_op)(struct kernel_pkey_params *params,
+			      const void *in, void *out);
 		int (*verify_signature)(const struct key *key,
 					const struct public_key_signature *sig);
 	};
@@ -207,12 +211,22 @@ There are a number of operations defined by the subtype:
      asymmetric key will look after freeing the fingerprint and releasing the
      reference on the subtype module.
 
- (3) verify_signature().
+ (3) query().
 
-     Optional.  These are the entry points for the key usage operations.
-     Currently there is only the one defined.  If not set, the caller will be
-     given -ENOTSUPP.  The subtype may do anything it likes to implement an
-     operation, including offloading to hardware.
+     Mandatory.  This is a function for querying the capabilities of a key.
+
+ (4) eds_op().
+
+     Optional.  This is the entry point for the encryption, decryption and
+     signature creation operations (which are distinguished by the operation ID
+     in the parameter struct).  The subtype may do anything it likes to
+     implement an operation, including offloading to hardware.
+
+ (5) verify_signature().
+
+     Optional.  This is the entry point for signature verification.  The
+     subtype may do anything it likes to implement an operation, including
+     offloading to hardware.
 
 
 ==========================
