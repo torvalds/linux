@@ -2096,7 +2096,7 @@ int sockmap_get_from_fd(const union bpf_attr *attr, int type,
 
 static void *sock_map_lookup(struct bpf_map *map, void *key)
 {
-	return NULL;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 static int sock_map_update_elem(struct bpf_map *map,

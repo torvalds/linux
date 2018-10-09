@@ -154,7 +154,7 @@ void __xsk_map_flush(struct bpf_map *map)
 
 static void *xsk_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	return NULL;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
