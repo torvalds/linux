@@ -1034,12 +1034,14 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
 
 /*
- * The zone descriptors obtained with a zone report indicate
- * zone positions within the target device. The zone descriptors
- * must be remapped to match their position within the dm device.
- * A target may call dm_remap_zone_report after completion of a
- * REQ_OP_ZONE_REPORT bio to remap the zone descriptors obtained
- * from the target device mapping to the dm device.
+ * The zone descriptors obtained with a zone report indicate zone positions
+ * within the target backing device, regardless of that device is a partition
+ * and regardless of the target mapping start sector on the device or partition.
+ * The zone descriptors start sector and write pointer position must be adjusted
+ * to match their relative position within the dm device.
+ * A target may call dm_remap_zone_report() after completion of a
+ * REQ_OP_ZONE_REPORT bio to remap the zone descriptors obtained from the
+ * backing device.
  */
 void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
 {
@@ -1050,12 +1052,22 @@ void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
 	struct blk_zone *zone;
 	unsigned int nr_rep = 0;
 	unsigned int ofst;
+	sector_t part_offset;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	void *addr;
 
 	if (bio->bi_status)
 		return;
+
+	/*
+	 * bio sector was incremented by the request size on completion. Taking
+	 * into account the original request sector, the target start offset on
+	 * the backing device and the target mapping offset (ti->begin), the
+	 * start sector of the backing device. The partition offset is always 0
+	 * if the target uses a whole device.
+	 */
+	part_offset = bio->bi_iter.bi_sector + ti->begin - (start + bio_end_sector(report_bio));
 
 	/*
 	 * Remap the start sector of the reported zones. For sequential zones,
@@ -1074,6 +1086,7 @@ void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
 		/* Set zones start sector */
 		while (hdr->nr_zones && ofst < bvec.bv_len) {
 			zone = addr + ofst;
+			zone->start -= part_offset;
 			if (zone->start >= start + ti->len) {
 				hdr->nr_zones = 0;
 				break;
@@ -1085,7 +1098,7 @@ void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
 				else if (zone->cond == BLK_ZONE_COND_EMPTY)
 					zone->wp = zone->start;
 				else
-					zone->wp = zone->wp + ti->begin - start;
+					zone->wp = zone->wp + ti->begin - start - part_offset;
 			}
 			ofst += sizeof(struct blk_zone);
 			hdr->nr_zones--;
