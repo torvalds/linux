@@ -305,6 +305,8 @@ struct nvm_rq {
 	u64 ppa_status; /* ppa media status */
 	int error;
 
+	int is_seq; /* Sequential hint flag. 1.2 only */
+
 	void *private;
 };
 

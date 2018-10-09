@@ -752,6 +752,24 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 }
 EXPORT_SYMBOL(nvm_set_tgt_bb_tbl);
 
+static int nvm_set_flags(struct nvm_geo *geo, struct nvm_rq *rqd)
+{
+	int flags = 0;
+
+	if (geo->version == NVM_OCSSD_SPEC_20)
+		return 0;
+
+	if (rqd->is_seq)
+		flags |= geo->pln_mode >> 1;
+
+	if (rqd->opcode == NVM_OP_PREAD)
+		flags |= (NVM_IO_SCRAMBLE_ENABLE | NVM_IO_SUSPEND);
+	else if (rqd->opcode == NVM_OP_PWRITE)
+		flags |= NVM_IO_SCRAMBLE_ENABLE;
+
+	return flags;
+}
+
 int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
 	struct nvm_dev *dev = tgt_dev->parent;
@@ -763,6 +781,7 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	nvm_rq_tgt_to_dev(tgt_dev, rqd);
 
 	rqd->dev = tgt_dev;
+	rqd->flags = nvm_set_flags(&tgt_dev->geo, rqd);
 
 	/* In case of error, fail with right address format */
 	ret = dev->ops->submit_io(dev, rqd);
@@ -783,6 +802,7 @@ int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 	nvm_rq_tgt_to_dev(tgt_dev, rqd);
 
 	rqd->dev = tgt_dev;
+	rqd->flags = nvm_set_flags(&tgt_dev->geo, rqd);
 
 	/* In case of error, fail with right address format */
 	ret = dev->ops->submit_io_sync(dev, rqd);

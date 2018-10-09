@@ -159,9 +159,7 @@ next_read_rq:
 	rqd->dma_meta_list = dma_meta_list;
 
 	if (pblk_io_aligned(pblk, rq_ppas))
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
-	else
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
+		rqd->is_seq = 1;
 
 	for (i = 0; i < rqd->nr_ppas; ) {
 		struct ppa_addr ppa;
@@ -302,7 +300,7 @@ next_pad_rq:
 
 	rqd->bio = bio;
 	rqd->opcode = NVM_OP_PWRITE;
-	rqd->flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
+	rqd->is_seq = 1;
 	rqd->meta_list = meta_list;
 	rqd->nr_ppas = rq_ppas;
 	rqd->ppa_list = ppa_list;
@@ -436,9 +434,7 @@ next_rq:
 	rqd->dma_meta_list = dma_meta_list;
 
 	if (pblk_io_aligned(pblk, rq_ppas))
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
-	else
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
+		rqd->is_seq = 1;
 
 	for (i = 0; i < rqd->nr_ppas; ) {
 		struct ppa_addr ppa;
@@ -567,9 +563,7 @@ next_rq:
 	rqd->dma_meta_list = dma_meta_list;
 
 	if (pblk_io_aligned(pblk, rq_ppas))
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
-	else
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
+		rqd->is_seq = 1;
 
 	for (i = 0; i < rqd->nr_ppas; ) {
 		struct ppa_addr ppa;

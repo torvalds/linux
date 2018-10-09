@@ -93,9 +93,7 @@ next:
 	}
 
 	if (pblk_io_aligned(pblk, nr_secs))
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
-	else
-		rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
+		rqd->is_seq = 1;
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
 	atomic_long_add(nr_secs, &pblk->inflight_reads);
@@ -344,7 +342,6 @@ static int pblk_setup_partial_read(struct pblk *pblk, struct nvm_rq *rqd,
 
 	rqd->bio = new_bio;
 	rqd->nr_ppas = nr_holes;
-	rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 
 	pr_ctx->ppa_ptr = NULL;
 	pr_ctx->orig_bio = bio;
@@ -438,8 +435,6 @@ retry:
 	} else {
 		rqd->ppa_addr = ppa;
 	}
-
-	rqd->flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 }
 
 int pblk_submit_read(struct pblk *pblk, struct bio *bio)
@@ -663,7 +658,6 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 
 	rqd.opcode = NVM_OP_PREAD;
 	rqd.nr_ppas = gc_rq->secs_to_gc;
-	rqd.flags = pblk_set_read_mode(pblk, PBLK_READ_RANDOM);
 	rqd.bio = bio;
 
 	if (pblk_submit_io_sync(pblk, &rqd)) {

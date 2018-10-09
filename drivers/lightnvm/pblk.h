@@ -1255,44 +1255,6 @@ static inline u32 pblk_calc_emeta_crc(struct pblk *pblk,
 	return crc;
 }
 
-static inline int pblk_set_progr_mode(struct pblk *pblk, int type)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	int flags;
-
-	if (geo->version == NVM_OCSSD_SPEC_20)
-		return 0;
-
-	flags = geo->pln_mode >> 1;
-
-	if (type == PBLK_WRITE)
-		flags |= NVM_IO_SCRAMBLE_ENABLE;
-
-	return flags;
-}
-
-enum {
-	PBLK_READ_RANDOM	= 0,
-	PBLK_READ_SEQUENTIAL	= 1,
-};
-
-static inline int pblk_set_read_mode(struct pblk *pblk, int type)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	int flags;
-
-	if (geo->version == NVM_OCSSD_SPEC_20)
-		return 0;
-
-	flags = NVM_IO_SUSPEND | NVM_IO_SCRAMBLE_ENABLE;
-	if (type == PBLK_READ_SEQUENTIAL)
-		flags |= geo->pln_mode >> 1;
-
-	return flags;
-}
-
 static inline int pblk_io_aligned(struct pblk *pblk, int nr_secs)
 {
 	return !(nr_secs % pblk->min_write_pgs);

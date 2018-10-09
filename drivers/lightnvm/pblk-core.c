@@ -688,7 +688,7 @@ next_rq:
 	if (dir == PBLK_WRITE) {
 		struct pblk_sec_meta *meta_list = rqd.meta_list;
 
-		rqd.flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
+		rqd.is_seq = 1;
 		for (i = 0; i < rqd.nr_ppas; ) {
 			spin_lock(&line->lock);
 			paddr = __pblk_alloc_page(pblk, line, min);
@@ -703,11 +703,9 @@ next_rq:
 		for (i = 0; i < rqd.nr_ppas; ) {
 			struct ppa_addr ppa = addr_to_gen_ppa(pblk, paddr, id);
 			int pos = pblk_ppa_to_pos(geo, ppa);
-			int read_type = PBLK_READ_RANDOM;
 
 			if (pblk_io_aligned(pblk, rq_ppas))
-				read_type = PBLK_READ_SEQUENTIAL;
-			rqd.flags = pblk_set_read_mode(pblk, read_type);
+				rqd.is_seq = 1;
 
 			while (test_bit(pos, line->blk_bitmap)) {
 				paddr += min;
@@ -787,17 +785,14 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	__le64 *lba_list = NULL;
 	int i, ret;
 	int cmd_op, bio_op;
-	int flags;
 
 	if (dir == PBLK_WRITE) {
 		bio_op = REQ_OP_WRITE;
 		cmd_op = NVM_OP_PWRITE;
-		flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
 		lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	} else if (dir == PBLK_READ_RECOV || dir == PBLK_READ) {
 		bio_op = REQ_OP_READ;
 		cmd_op = NVM_OP_PREAD;
-		flags = pblk_set_read_mode(pblk, PBLK_READ_SEQUENTIAL);
 	} else
 		return -EINVAL;
 
@@ -822,7 +817,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 
 	rqd.bio = bio;
 	rqd.opcode = cmd_op;
-	rqd.flags = flags;
+	rqd.is_seq = 1;
 	rqd.nr_ppas = lm->smeta_sec;
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++) {
@@ -885,7 +880,7 @@ static void pblk_setup_e_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	rqd->opcode = NVM_OP_ERASE;
 	rqd->ppa_addr = ppa;
 	rqd->nr_ppas = 1;
-	rqd->flags = pblk_set_progr_mode(pblk, PBLK_ERASE);
+	rqd->is_seq = 1;
 	rqd->bio = NULL;
 }
 

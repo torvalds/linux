@@ -302,7 +302,7 @@ static int pblk_alloc_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	/* Setup write request */
 	rqd->opcode = NVM_OP_PWRITE;
 	rqd->nr_ppas = nr_secs;
-	rqd->flags = pblk_set_progr_mode(pblk, PBLK_WRITE);
+	rqd->is_seq = 1;
 	rqd->private = pblk;
 	rqd->end_io = end_io;
 
