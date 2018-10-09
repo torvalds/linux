@@ -8,6 +8,7 @@
 #include <dt-bindings/power/rk1808-power.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "rockchip,rk1808";
@@ -500,6 +501,55 @@
 		rockchip,combphygrf = <&combphy_grf>;
 		rockchip,usbpciegrf = <&usb_pcie_grf>;
 		status = "disabled";
+	};
+
+	thermal_zones: thermal-zones {
+		soc_thermal: soc-thermal {
+			polling-delay-passive = <20>; /* milliseconds */
+			polling-delay = <1000>; /* milliseconds */
+			sustainable-power = <527>; /* milliwatts */
+
+			thermal-sensors = <&tsadc 0>;
+
+			trips {
+				threshold: trip-point-0 {
+					/* millicelsius */
+					temperature = <75000>;
+					/* millicelsius */
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point-1 {
+					/* millicelsius */
+					temperature = <85000>;
+					/* millicelsius */
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				soc_crit: soc-crit {
+					/* millicelsius */
+					temperature = <115000>;
+					/* millicelsius */
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device =
+						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <4096>;
+				};
+				map1 {
+					trip = <&target>;
+					cooling-device =
+						<&npu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+			};
+		};
 	};
 
 	tsadc: tsadc@ff3a0000 {
