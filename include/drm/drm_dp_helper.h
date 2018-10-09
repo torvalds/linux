@@ -685,6 +685,8 @@
 # define DP_EDP_12			    0x01
 # define DP_EDP_13			    0x02
 # define DP_EDP_14			    0x03
+# define DP_EDP_14a                         0x04    /* eDP 1.4a */
+# define DP_EDP_14b                         0x05    /* eDP 1.4b */
 
 #define DP_EDP_GENERAL_CAP_1		    0x701
 # define DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP		(1 << 0)
