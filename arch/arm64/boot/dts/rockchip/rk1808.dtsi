@@ -396,6 +396,16 @@
 			<100000000>;
 	};
 
+	mipi_dphy_rx: mipi-dphy-rx@ff360000 {
+		compatible = "rockchip,rk1808-mipi-dphy-rx";
+		reg = <0x0 0xff360000 0x0 0x4000>;
+		clocks = <&cru PCLK_MIPICSIPHY>;
+		clock-names = "pclk";
+		power-domains = <&power RK1808_PD_VIO>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
 	mipi_dphy: mipi-dphy@ff370000 {
 		compatible = "rockchip,rk1808-mipi-dphy";
 		reg = <0x0 0xff370000 0x0 0x500>;
@@ -1138,6 +1148,33 @@
 		status = "disabled";
 	};
 
+	rkisp1: rkisp1@ffb50000 {
+		compatible = "rockchip,rk1808-rkisp1";
+		reg = <0x0 0xffb50000 0x0 0x8000>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			<&cru SCLK_ISP>, <&cru DCLK_CIF>;
+		clock-names = "aclk_isp", "hclk_isp",
+			"clk_isp", "pclk_isp";
+		power-domains = <&power RK1808_PD_VIO>;
+		iommus = <&isp_mmu>;
+		status = "disabled";
+	};
+
+	isp_mmu: iommu@ffb58000 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xffb58000 0x0 0x100>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_mmu";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			<&cru SCLK_ISP>;
+		clock-names = "aclk", "hclk", "sclk";
+		power-domains = <&power RK1808_PD_VIO>;
+		rk_iommu,disable_reset_quirk;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	vpu_service: vpu_service@ffb80000 {
 		compatible = "rockchip,vpu_service";
 		reg = <0x0 0xffb80000 0x0 0x800>;
@@ -1452,6 +1489,13 @@
 		pcfg_input_smt: pcfg-input-smt {
 			input-enable;
 			input-schmitt-enable;
+		};
+
+		cif-m0 {
+			cif_clkout_m0: cif-clkout-m0 {
+				rockchip,pins =
+					<2 RK_PB7 1 &pcfg_pull_none>;
+			};
 		};
 
 		emmc {
