@@ -195,6 +195,10 @@ fore200e_chunk_alloc(struct fore200e* fore200e, struct chunk* chunk, int size, i
 
     chunk->dma_addr = dma_map_single(fore200e->dev, chunk->align_addr,
 				     size, direction);
+    if (dma_mapping_error(fore200e->dev, chunk->dma_addr)) {
+	kfree(chunk->alloc_addr);
+	return -ENOMEM;
+    }
     return 0;
 }
 
@@ -576,6 +580,8 @@ fore200e_pca_prom_read(struct fore200e* fore200e, struct prom_data* prom)
 
     prom_dma = dma_map_single(fore200e->dev, prom, sizeof(struct prom_data),
 			      DMA_FROM_DEVICE);
+    if (dma_mapping_error(fore200e->dev, prom_dma))
+	return -ENOMEM;
 
     fore200e->bus->write(prom_dma, &entry->cp_entry->cmd.prom_block.prom_haddr);
     
@@ -1597,6 +1603,11 @@ fore200e_send(struct atm_vcc *vcc, struct sk_buff *skb)
     tpd = entry->tpd;
     tpd->tsd[ 0 ].buffer = dma_map_single(fore200e->dev, data, tx_len,
 					  DMA_TO_DEVICE);
+    if (dma_mapping_error(fore200e->dev, tpd->tsd[0].buffer)) {
+	if (tx_copy)
+	    kfree(data);
+	return -ENOMEM;
+    }
     tpd->tsd[ 0 ].length = tx_len;
 
     FORE200E_NEXT_ENTRY(txq->head, QUEUE_SIZE_TX);
@@ -1671,6 +1682,8 @@ fore200e_getstats(struct fore200e* fore200e)
     
     stats_dma_addr = dma_map_single(fore200e->dev, fore200e->stats,
 				    sizeof(struct stats), DMA_FROM_DEVICE);
+    if (dma_mapping_error(fore200e->dev, stats_dma_addr))
+    	return -ENOMEM;
     
     FORE200E_NEXT_ENTRY(cmdq->head, QUEUE_SIZE_CMD);
 
