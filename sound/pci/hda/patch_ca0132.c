@@ -4857,7 +4857,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 			val = 0;
 
 		/* If Voice Focus on SBZ, set to two channel. */
-		if ((nid == VOICE_FOCUS) && (spec->quirk == QUIRK_SBZ)
+		if ((nid == VOICE_FOCUS) && (spec->use_pci_mmio)
 				&& (spec->cur_mic_type != REAR_LINE_IN)) {
 			if (spec->effects_switch[CRYSTAL_VOICE -
 						 EFFECT_START_NID]) {
@@ -4876,7 +4876,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 		 * For SBZ noise reduction, there's an extra command
 		 * to module ID 0x47. No clue why.
 		 */
-		if ((nid == NOISE_REDUCTION) && (spec->quirk == QUIRK_SBZ)
+		if ((nid == NOISE_REDUCTION) && (spec->use_pci_mmio)
 				&& (spec->cur_mic_type != REAR_LINE_IN)) {
 			if (spec->effects_switch[CRYSTAL_VOICE -
 						 EFFECT_START_NID]) {
@@ -6365,7 +6365,8 @@ static int ca0132_build_controls(struct hda_codec *codec)
 					    NULL, ca0132_alt_slave_pfxs,
 					    "Playback Switch",
 					    true, &spec->vmaster_mute.sw_kctl);
-
+		if (err < 0)
+			return err;
 	}
 
 	/* Add in and out effects controls.
@@ -6373,8 +6374,8 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 */
 	num_fx = OUT_EFFECTS_COUNT + IN_EFFECTS_COUNT;
 	for (i = 0; i < num_fx; i++) {
-		/* SBZ and R3D break if Echo Cancellation is used. */
-		if (spec->quirk == QUIRK_SBZ || spec->quirk == QUIRK_R3D) {
+		/* Desktop cards break if Echo Cancellation is used. */
+		if (spec->use_pci_mmio) {
 			if (i == (ECHO_CANCELLATION - IN_EFFECT_START_NID +
 						OUT_EFFECTS_COUNT))
 				continue;
@@ -6392,8 +6393,14 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 * prefix, and change PlayEnhancement and CrystalVoice to match.
 	 */
 	if (spec->use_alt_controls) {
-		ca0132_alt_add_svm_enum(codec);
-		add_ca0132_alt_eq_presets(codec);
+		err = ca0132_alt_add_svm_enum(codec);
+		if (err < 0)
+			return err;
+
+		err = add_ca0132_alt_eq_presets(codec);
+		if (err < 0)
+			return err;
+
 		err = add_fx_switch(codec, PLAY_ENHANCEMENT,
 					"Enable OutFX", 0);
 		if (err < 0)
@@ -6430,7 +6437,9 @@ static int ca0132_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	add_voicefx(codec);
+	err = add_voicefx(codec);
+	if (err < 0)
+		return err;
 
 	/*
 	 * If the codec uses alt_functions, you need the enumerated controls
@@ -6438,23 +6447,37 @@ static int ca0132_build_controls(struct hda_codec *codec)
 	 * setting control.
 	 */
 	if (spec->use_alt_functions) {
-		ca0132_alt_add_output_enum(codec);
-		ca0132_alt_add_mic_boost_enum(codec);
+		err = ca0132_alt_add_output_enum(codec);
+		if (err < 0)
+			return err;
+		err = ca0132_alt_add_mic_boost_enum(codec);
+		if (err < 0)
+			return err;
 		/*
 		 * ZxR only has microphone input, there is no front panel
 		 * header on the card, and aux-in is handled by the DBPro board.
 		 */
-		if (spec->quirk != QUIRK_ZXR)
-			ca0132_alt_add_input_enum(codec);
+		if (spec->quirk != QUIRK_ZXR) {
+			err = ca0132_alt_add_input_enum(codec);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	if (spec->quirk == QUIRK_AE5) {
-		ae5_add_headphone_gain_enum(codec);
-		ae5_add_sound_filter_enum(codec);
+		err = ae5_add_headphone_gain_enum(codec);
+		if (err < 0)
+			return err;
+		err = ae5_add_sound_filter_enum(codec);
+		if (err < 0)
+			return err;
 	}
 
-	if (spec->quirk == QUIRK_ZXR)
-		zxr_add_headphone_gain_switch(codec);
+	if (spec->quirk == QUIRK_ZXR) {
+		err = zxr_add_headphone_gain_switch(codec);
+		if (err < 0)
+			return err;
+	}
 #ifdef ENABLE_TUNING_CONTROLS
 	add_tuning_ctls(codec);
 #endif
@@ -7223,6 +7246,8 @@ static void r3d_setup_defaults(struct hda_codec *codec)
 	int num_fx;
 	int idx, i;
 
+	msleep(100);
+
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
@@ -7266,6 +7291,8 @@ static void sbz_setup_defaults(struct hda_codec *codec)
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
+
+	msleep(100);
 
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
@@ -7323,6 +7350,8 @@ static void ae5_setup_defaults(struct hda_codec *codec)
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
+
+	msleep(100);
 
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
@@ -8691,10 +8720,6 @@ static int patch_ca0132(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->codec = codec;
 
-	codec->patch_ops = ca0132_patch_ops;
-	codec->pcm_format_first = 1;
-	codec->no_sticky_stream = 1;
-
 	/* Detect codec quirk */
 	quirk = snd_pci_quirk_lookup(codec->bus->pci, ca0132_quirks);
 	if (quirk)
@@ -8704,6 +8729,15 @@ static int patch_ca0132(struct hda_codec *codec)
 
 	if (spec->quirk == QUIRK_SBZ)
 		sbz_detect_quirk(codec);
+
+	if (spec->quirk == QUIRK_ZXR_DBPRO)
+		codec->patch_ops = dbpro_patch_ops;
+	else
+		codec->patch_ops = ca0132_patch_ops;
+
+	codec->pcm_format_first = 1;
+	codec->no_sticky_stream = 1;
+
 
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
@@ -8719,7 +8753,6 @@ static int patch_ca0132(struct hda_codec *codec)
 		snd_hda_codec_set_name(codec, "Sound Blaster ZxR");
 		break;
 	case QUIRK_ZXR_DBPRO:
-		codec->patch_ops = dbpro_patch_ops;
 		break;
 	case QUIRK_R3D:
 		spec->mixers[0] = desktop_mixer;
