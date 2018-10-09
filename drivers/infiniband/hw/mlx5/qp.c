@@ -1706,15 +1706,20 @@ static void configure_responder_scat_cqe(struct ib_qp_init_attr *init_attr,
 
 static void configure_requester_scat_cqe(struct mlx5_ib_dev *dev,
 					 struct ib_qp_init_attr *init_attr,
+					 struct mlx5_ib_create_qp *ucmd,
 					 void *qpc)
 {
 	enum ib_qp_type qpt = init_attr->qp_type;
 	int scqe_sz;
+	bool allow_scat_cqe = 0;
 
 	if (qpt == IB_QPT_UC || qpt == IB_QPT_UD)
 		return;
 
-	if (init_attr->sq_sig_type != IB_SIGNAL_ALL_WR)
+	if (ucmd)
+		allow_scat_cqe = ucmd->flags & MLX5_QP_FLAG_ALLOW_SCATTER_CQE;
+
+	if (!allow_scat_cqe && init_attr->sq_sig_type != IB_SIGNAL_ALL_WR)
 		return;
 
 	scqe_sz = mlx5_ib_get_cqe_size(init_attr->send_cq);
@@ -1836,7 +1841,8 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 					      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
 					      MLX5_QP_FLAG_BFREG_INDEX |
 					      MLX5_QP_FLAG_TYPE_DCT |
-					      MLX5_QP_FLAG_TYPE_DCI))
+					      MLX5_QP_FLAG_TYPE_DCI |
+					      MLX5_QP_FLAG_ALLOW_SCATTER_CQE))
 			return -EINVAL;
 
 		err = get_qp_user_index(to_mucontext(pd->uobject->context),
@@ -1971,7 +1977,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (qp->scat_cqe && is_connected(init_attr->qp_type)) {
 		configure_responder_scat_cqe(init_attr, qpc);
-		configure_requester_scat_cqe(dev, init_attr, qpc);
+		configure_requester_scat_cqe(dev, init_attr,
+					     (pd && pd->uobject) ? &ucmd : NULL,
+					     qpc);
 	}
 
 	if (qp->rq.wqe_cnt) {
