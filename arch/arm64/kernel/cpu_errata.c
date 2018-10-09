@@ -99,7 +99,12 @@ has_mismatched_cache_type(const struct arm64_cpu_capabilities *entry,
 static void
 cpu_enable_trap_ctr_access(const struct arm64_cpu_capabilities *__unused)
 {
-	sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
+	u64 mask = arm64_ftr_reg_ctrel0.strict_mask;
+
+	/* Trap CTR_EL0 access on this CPU, only if it has a mismatch */
+	if ((read_cpuid_cachetype() & mask) !=
+	    (arm64_ftr_reg_ctrel0.sys_val & mask))
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
 atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
