@@ -729,32 +729,6 @@ unsigned int pblk_rb_flush_point_count(struct pblk_rb *rb)
 	return (submitted < to_flush) ? (to_flush - submitted) : 0;
 }
 
-/*
- * Scan from the current position of the sync pointer to find the entry that
- * corresponds to the given ppa. This is necessary since write requests can be
- * completed out of order. The assumption is that the ppa is close to the sync
- * pointer thus the search will not take long.
- *
- * The caller of this function must guarantee that the sync pointer will no
- * reach the entry while it is using the metadata associated with it. With this
- * assumption in mind, there is no need to take the sync lock.
- */
-struct pblk_rb_entry *pblk_rb_sync_scan_entry(struct pblk_rb *rb,
-					      struct ppa_addr *ppa)
-{
-	unsigned int sync, subm, count;
-	unsigned int i;
-
-	sync = READ_ONCE(rb->sync);
-	subm = READ_ONCE(rb->subm);
-	count = pblk_rb_ring_count(subm, sync, rb->nr_entries);
-
-	for (i = 0; i < count; i++)
-		sync = (sync + 1) & (rb->nr_entries - 1);
-
-	return NULL;
-}
-
 int pblk_rb_tear_down_check(struct pblk_rb *rb)
 {
 	struct pblk_rb_entry *entry;
