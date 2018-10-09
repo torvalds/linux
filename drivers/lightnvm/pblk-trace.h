@@ -15,6 +15,16 @@ struct ppa_addr;
 	{ NVM_CHK_ST_OPEN,		"OPEN",		},	\
 	{ NVM_CHK_ST_OFFLINE,		"OFFLINE",	})
 
+#define show_line_state(state) __print_symbolic(state,		\
+	{ PBLK_LINESTATE_NEW,		"NEW",		},	\
+	{ PBLK_LINESTATE_FREE,		"FREE",		},	\
+	{ PBLK_LINESTATE_OPEN,		"OPEN",		},	\
+	{ PBLK_LINESTATE_CLOSED,	"CLOSED",	},	\
+	{ PBLK_LINESTATE_GC,		"GC",		},	\
+	{ PBLK_LINESTATE_BAD,		"BAD",		},	\
+	{ PBLK_LINESTATE_CORRUPT,	"CORRUPT"	})
+
+
 TRACE_EVENT(pblk_chunk_state,
 
 	TP_PROTO(const char *name, struct ppa_addr *ppa, int state),
@@ -41,6 +51,29 @@ TRACE_EVENT(pblk_chunk_state,
 
 );
 
+TRACE_EVENT(pblk_line_state,
+
+	TP_PROTO(const char *name, int line, int state),
+
+	TP_ARGS(name, line, state),
+
+	TP_STRUCT__entry(
+		__string(name, name)
+		__field(int, line)
+		__field(int, state);
+	),
+
+	TP_fast_assign(
+		__assign_str(name, name);
+		__entry->line = line;
+		__entry->state = state;
+	),
+
+	TP_printk("dev=%s line=%d state=%s", __get_str(name),
+			(int)__entry->line,
+			show_line_state((int)__entry->state))
+
+);
 
 #endif /* !defined(_TRACE_PBLK_H) || defined(TRACE_HEADER_MULTI_READ) */
 

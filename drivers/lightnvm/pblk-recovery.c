@@ -15,6 +15,7 @@
  */
 
 #include "pblk.h"
+#include "pblk-trace.h"
 
 int pblk_recov_check_emeta(struct pblk *pblk, struct line_emeta *emeta_buf)
 {
@@ -932,6 +933,8 @@ next:
 
 			spin_lock(&line->lock);
 			line->state = PBLK_LINESTATE_CLOSED;
+			trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 			move_list = pblk_line_gc_list(pblk, line);
 			spin_unlock(&line->lock);
 
@@ -946,6 +949,9 @@ next:
 		} else {
 			if (open_lines > 1)
 				pblk_err(pblk, "failed to recover L2P\n");
+
+			trace_pblk_line_state(pblk_disk_name(pblk), line->id,
+					line->state);
 
 			open_lines++;
 			line->meta_line = meta_line;
