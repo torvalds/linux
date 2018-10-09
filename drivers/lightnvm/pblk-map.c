@@ -79,7 +79,7 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 		}
 	}
 
-	pblk_down_rq(pblk, ppa_list, nr_secs, lun_bitmap);
+	pblk_down_rq(pblk, ppa_list[0], lun_bitmap);
 	return 0;
 }
 

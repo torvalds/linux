@@ -227,7 +227,7 @@ static void pblk_end_io_recov(struct nvm_rq *rqd)
 	struct pblk_pad_rq *pad_rq = rqd->private;
 	struct pblk *pblk = pad_rq->pblk;
 
-	pblk_up_page(pblk, ppa_list, rqd->nr_ppas);
+	pblk_up_chunk(pblk, ppa_list[0]);
 
 	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 
@@ -339,12 +339,12 @@ next_pad_rq:
 	}
 
 	kref_get(&pad_rq->ref);
-	pblk_down_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+	pblk_down_chunk(pblk, rqd->ppa_list[0]);
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
-		pblk_up_page(pblk, rqd->ppa_list, rqd->nr_ppas);
+		pblk_up_chunk(pblk, rqd->ppa_list[0]);
 		goto fail_free_bio;
 	}
 

@@ -270,7 +270,7 @@ static void pblk_end_io_write_meta(struct nvm_rq *rqd)
 	struct ppa_addr *ppa_list = nvm_rq_to_ppa_list(rqd);
 	int sync;
 
-	pblk_up_page(pblk, ppa_list, rqd->nr_ppas);
+	pblk_up_chunk(pblk, ppa_list[0]);
 
 	if (rqd->error) {
 		pblk_log_write_err(pblk, rqd);
@@ -420,7 +420,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 		list_del(&meta_line->list);
 	spin_unlock(&l_mg->close_lock);
 
-	pblk_down_page(pblk, ppa_list, rqd->nr_ppas);
+	pblk_down_chunk(pblk, ppa_list[0]);
 
 	ret = pblk_submit_io(pblk, rqd);
 	if (ret) {
@@ -431,7 +431,7 @@ int pblk_submit_meta_io(struct pblk *pblk, struct pblk_line *meta_line)
 	return NVM_IO_OK;
 
 fail_rollback:
-	pblk_up_page(pblk, ppa_list, rqd->nr_ppas);
+	pblk_up_chunk(pblk, ppa_list[0]);
 	spin_lock(&l_mg->close_lock);
 	pblk_dealloc_page(pblk, meta_line, rq_ppas);
 	list_add(&meta_line->list, &meta_line->list);

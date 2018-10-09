@@ -1861,8 +1861,7 @@ void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 	queue_work(wq, &line_ws->ws);
 }
 
-static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
-			     int nr_ppas, int pos)
+static void __pblk_down_chunk(struct pblk *pblk, int pos)
 {
 	struct pblk_lun *rlun = &pblk->luns[pos];
 	int ret;
@@ -1871,13 +1870,6 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 	 * Only send one inflight I/O per LUN. Since we map at a page
 	 * granurality, all ppas in the I/O will map to the same LUN
 	 */
-#ifdef CONFIG_NVM_PBLK_DEBUG
-	int i;
-
-	for (i = 1; i < nr_ppas; i++)
-		WARN_ON(ppa_list[0].a.lun != ppa_list[i].a.lun ||
-				ppa_list[0].a.ch != ppa_list[i].a.ch);
-#endif
 
 	ret = down_timeout(&rlun->wr_sem, msecs_to_jiffies(30000));
 	if (ret == -ETIME || ret == -EINTR)
@@ -1885,21 +1877,21 @@ static void __pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list,
 				-ret);
 }
 
-void pblk_down_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
+void pblk_down_chunk(struct pblk *pblk, struct ppa_addr ppa)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
+	int pos = pblk_ppa_to_pos(geo, ppa);
 
-	__pblk_down_page(pblk, ppa_list, nr_ppas, pos);
+	__pblk_down_chunk(pblk, pos);
 }
 
-void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
+void pblk_down_rq(struct pblk *pblk, struct ppa_addr ppa,
 		  unsigned long *lun_bitmap)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
+	int pos = pblk_ppa_to_pos(geo, ppa);
 
 	/* If the LUN has been locked for this same request, do no attempt to
 	 * lock it again
@@ -1907,23 +1899,15 @@ void pblk_down_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
 	if (test_and_set_bit(pos, lun_bitmap))
 		return;
 
-	__pblk_down_page(pblk, ppa_list, nr_ppas, pos);
+	__pblk_down_chunk(pblk, pos);
 }
 
-void pblk_up_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
+void pblk_up_chunk(struct pblk *pblk, struct ppa_addr ppa)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	struct pblk_lun *rlun;
-	int pos = pblk_ppa_to_pos(geo, ppa_list[0]);
-
-#ifdef CONFIG_NVM_PBLK_DEBUG
-	int i;
-
-	for (i = 1; i < nr_ppas; i++)
-		WARN_ON(ppa_list[0].a.lun != ppa_list[i].a.lun ||
-				ppa_list[0].a.ch != ppa_list[i].a.ch);
-#endif
+	int pos = pblk_ppa_to_pos(geo, ppa);
 
 	rlun = &pblk->luns[pos];
 	up(&rlun->wr_sem);
