@@ -155,6 +155,10 @@ static struct bpf_sock *(*bpf_sk_lookup_udp)(void *ctx,
 	(void *) BPF_FUNC_sk_lookup_udp;
 static int (*bpf_sk_release)(struct bpf_sock *sk) =
 	(void *) BPF_FUNC_sk_release;
+static int (*bpf_skb_vlan_push)(void *ctx, __be16 vlan_proto, __u16 vlan_tci) =
+	(void *) BPF_FUNC_skb_vlan_push;
+static int (*bpf_skb_vlan_pop)(void *ctx) =
+	(void *) BPF_FUNC_skb_vlan_pop;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
