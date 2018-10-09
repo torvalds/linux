@@ -169,6 +169,12 @@ static unsigned int pblk_rb_space(struct pblk_rb *rb)
 	return pblk_rb_ring_space(rb, mem, sync, rb->nr_entries);
 }
 
+unsigned int pblk_rb_ptr_wrap(struct pblk_rb *rb, unsigned int p,
+			      unsigned int nr_entries)
+{
+	return (p + nr_entries) & (rb->nr_entries - 1);
+}
+
 /*
  * Buffer count is calculated with respect to the submission entry signaling the
  * entries that are available to send to the media
@@ -195,8 +201,7 @@ unsigned int pblk_rb_read_commit(struct pblk_rb *rb, unsigned int nr_entries)
 
 	subm = READ_ONCE(rb->subm);
 	/* Commit read means updating submission pointer */
-	smp_store_release(&rb->subm,
-				(subm + nr_entries) & (rb->nr_entries - 1));
+	smp_store_release(&rb->subm, pblk_rb_ptr_wrap(rb, subm, nr_entries));
 
 	return subm;
 }
@@ -229,7 +234,7 @@ static int __pblk_rb_update_l2p(struct pblk_rb *rb, unsigned int to_update)
 		line = pblk_ppa_to_line(pblk, w_ctx->ppa);
 		kref_put(&line->ref, pblk_line_put);
 		clean_wctx(w_ctx);
-		rb->l2p_update = (rb->l2p_update + 1) & (rb->nr_entries - 1);
+		rb->l2p_update = pblk_rb_ptr_wrap(rb, rb->l2p_update, 1);
 	}
 
 	pblk_rl_out(&pblk->rl, user_io, gc_io);
@@ -408,7 +413,7 @@ static int pblk_rb_may_write(struct pblk_rb *rb, unsigned int nr_entries,
 		return 0;
 
 	/* Protect from read count */
-	smp_store_release(&rb->mem, (*pos + nr_entries) & (rb->nr_entries - 1));
+	smp_store_release(&rb->mem, pblk_rb_ptr_wrap(rb, *pos, nr_entries));
 	return 1;
 }
 
@@ -432,7 +437,7 @@ static int pblk_rb_may_write_flush(struct pblk_rb *rb, unsigned int nr_entries,
 	if (!__pblk_rb_may_write(rb, nr_entries, pos))
 		return 0;
 
-	mem = (*pos + nr_entries) & (rb->nr_entries - 1);
+	mem = pblk_rb_ptr_wrap(rb, *pos, nr_entries);
 	*io_ret = NVM_IO_DONE;
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
@@ -572,7 +577,7 @@ try:
 		/* Release flags on context. Protect from writes */
 		smp_store_release(&entry->w_ctx.flags, flags);
 
-		pos = (pos + 1) & (rb->nr_entries - 1);
+		pos = pblk_rb_ptr_wrap(rb, pos, 1);
 	}
 
 	if (pad) {
@@ -652,7 +657,7 @@ out:
 
 struct pblk_w_ctx *pblk_rb_w_ctx(struct pblk_rb *rb, unsigned int pos)
 {
-	unsigned int entry = pos & (rb->nr_entries - 1);
+	unsigned int entry = pblk_rb_ptr_wrap(rb, pos, 0);
 
 	return &rb->entries[entry].w_ctx;
 }
@@ -698,7 +703,7 @@ unsigned int pblk_rb_sync_advance(struct pblk_rb *rb, unsigned int nr_entries)
 		}
 	}
 
-	sync = (sync + nr_entries) & (rb->nr_entries - 1);
+	sync = pblk_rb_ptr_wrap(rb, sync, nr_entries);
 
 	/* Protect from counts */
 	smp_store_release(&rb->sync, sync);

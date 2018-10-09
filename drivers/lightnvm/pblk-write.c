@@ -140,12 +140,11 @@ static void pblk_prepare_resubmit(struct pblk *pblk, unsigned int sentry,
 	struct pblk_w_ctx *w_ctx;
 	struct ppa_addr ppa_l2p;
 	int flags;
-	unsigned int pos, i;
+	unsigned int i;
 
 	spin_lock(&pblk->trans_lock);
-	pos = sentry;
 	for (i = 0; i < nr_entries; i++) {
-		entry = &rb->entries[pos];
+		entry = &rb->entries[pblk_rb_ptr_wrap(rb, sentry, i)];
 		w_ctx = &entry->w_ctx;
 
 		/* Check if the lba has been overwritten */
@@ -164,8 +163,6 @@ static void pblk_prepare_resubmit(struct pblk *pblk, unsigned int sentry,
 		 */
 		line = pblk_ppa_to_line(pblk, w_ctx->ppa);
 		kref_put(&line->ref, pblk_line_put);
-
-		pos = (pos + 1) & (rb->nr_entries - 1);
 	}
 	spin_unlock(&pblk->trans_lock);
 }
