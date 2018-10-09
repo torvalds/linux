@@ -119,19 +119,10 @@ static inline int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
 	return dma_set_coherent_mask(&dev->dev, mask);
 }
-
-static inline int pci_set_dma_max_seg_size(struct pci_dev *dev,
-					   unsigned int size)
-{
-	return dma_set_max_seg_size(&dev->dev, size);
-}
 #else
 static inline int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 { return -EIO; }
 static inline int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{ return -EIO; }
-static inline int pci_set_dma_max_seg_size(struct pci_dev *dev,
-					   unsigned int size)
 { return -EIO; }
 #endif
 
