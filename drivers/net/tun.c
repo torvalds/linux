@@ -562,12 +562,11 @@ static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
 		e->rps_rxhash = hash;
 }
 
-/* We try to identify a flow through its rxhash first. The reason that
+/* We try to identify a flow through its rxhash. The reason that
  * we do not check rxq no. is because some cards(e.g 82599), chooses
  * the rxq based on the txq where the last packet of the flow comes. As
  * the userspace application move between processors, we may get a
- * different rxq no. here. If we could not get rxhash, then we would
- * hope the rxq no. may help here.
+ * different rxq no. here.
  */
 static u16 tun_automq_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 {
@@ -578,18 +577,13 @@ static u16 tun_automq_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 	numqueues = READ_ONCE(tun->numqueues);
 
 	txq = __skb_get_hash_symmetric(skb);
-	if (txq) {
-		e = tun_flow_find(&tun->flows[tun_hashfn(txq)], txq);
-		if (e) {
-			tun_flow_save_rps_rxhash(e, txq);
-			txq = e->queue_index;
-		} else
-			/* use multiply and shift instead of expensive divide */
-			txq = ((u64)txq * numqueues) >> 32;
-	} else if (likely(skb_rx_queue_recorded(skb))) {
-		txq = skb_get_rx_queue(skb);
-		while (unlikely(txq >= numqueues))
-			txq -= numqueues;
+	e = tun_flow_find(&tun->flows[tun_hashfn(txq)], txq);
+	if (e) {
+		tun_flow_save_rps_rxhash(e, txq);
+		txq = e->queue_index;
+	} else {
+		/* use multiply and shift instead of expensive divide */
+		txq = ((u64)txq * numqueues) >> 32;
 	}
 
 	return txq;
@@ -1047,16 +1041,13 @@ static void tun_automq_xmit(struct tun_struct *tun, struct sk_buff *skb)
 		/* Select queue was not called for the skbuff, so we extract the
 		 * RPS hash and save it into the flow_table here.
 		 */
+		struct tun_flow_entry *e;
 		__u32 rxhash;
 
 		rxhash = __skb_get_hash_symmetric(skb);
-		if (rxhash) {
-			struct tun_flow_entry *e;
-			e = tun_flow_find(&tun->flows[tun_hashfn(rxhash)],
-					rxhash);
-			if (e)
-				tun_flow_save_rps_rxhash(e, rxhash);
-		}
+		e = tun_flow_find(&tun->flows[tun_hashfn(rxhash)], rxhash);
+		if (e)
+			tun_flow_save_rps_rxhash(e, rxhash);
 	}
 #endif
 }
