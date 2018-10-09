@@ -435,7 +435,8 @@ static int tpm_key_query(const struct kernel_pkey_params *params,
 
 	info->supported_ops = KEYCTL_SUPPORTS_ENCRYPT |
 			      KEYCTL_SUPPORTS_DECRYPT |
-			      KEYCTL_SUPPORTS_VERIFY;
+			      KEYCTL_SUPPORTS_VERIFY |
+			      KEYCTL_SUPPORTS_SIGN;
 
 	ret = 0;
 error_free_tfm:
@@ -557,6 +558,156 @@ error:
 }
 
 /*
+ * Hash algorithm OIDs plus ASN.1 DER wrappings [RFC4880 sec 5.2.2].
+ */
+static const u8 digest_info_md5[] = {
+	0x30, 0x20, 0x30, 0x0c, 0x06, 0x08,
+	0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, /* OID */
+	0x05, 0x00, 0x04, 0x10
+};
+
+static const u8 digest_info_sha1[] = {
+	0x30, 0x21, 0x30, 0x09, 0x06, 0x05,
+	0x2b, 0x0e, 0x03, 0x02, 0x1a,
+	0x05, 0x00, 0x04, 0x14
+};
+
+static const u8 digest_info_rmd160[] = {
+	0x30, 0x21, 0x30, 0x09, 0x06, 0x05,
+	0x2b, 0x24, 0x03, 0x02, 0x01,
+	0x05, 0x00, 0x04, 0x14
+};
+
+static const u8 digest_info_sha224[] = {
+	0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09,
+	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04,
+	0x05, 0x00, 0x04, 0x1c
+};
+
+static const u8 digest_info_sha256[] = {
+	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09,
+	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+	0x05, 0x00, 0x04, 0x20
+};
+
+static const u8 digest_info_sha384[] = {
+	0x30, 0x41, 0x30, 0x0d, 0x06, 0x09,
+	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02,
+	0x05, 0x00, 0x04, 0x30
+};
+
+static const u8 digest_info_sha512[] = {
+	0x30, 0x51, 0x30, 0x0d, 0x06, 0x09,
+	0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
+	0x05, 0x00, 0x04, 0x40
+};
+
+static const struct asn1_template {
+	const char	*name;
+	const u8	*data;
+	size_t		size;
+} asn1_templates[] = {
+#define _(X) { #X, digest_info_##X, sizeof(digest_info_##X) }
+	_(md5),
+	_(sha1),
+	_(rmd160),
+	_(sha256),
+	_(sha384),
+	_(sha512),
+	_(sha224),
+	{ NULL }
+#undef _
+};
+
+static const struct asn1_template *lookup_asn1(const char *name)
+{
+	const struct asn1_template *p;
+
+	for (p = asn1_templates; p->name; p++)
+		if (strcmp(name, p->name) == 0)
+			return p;
+	return NULL;
+}
+
+/*
+ * Sign operation is performed with the private key in the TPM.
+ */
+static int tpm_key_sign(struct tpm_key *tk,
+			struct kernel_pkey_params *params,
+			const void *in, void *out)
+{
+	struct tpm_buf *tb;
+	uint32_t keyhandle;
+	uint8_t srkauth[SHA1_DIGEST_SIZE];
+	uint8_t keyauth[SHA1_DIGEST_SIZE];
+	void *asn1_wrapped = NULL;
+	uint32_t in_len = params->in_len;
+	int r;
+
+	pr_devel("==>%s()\n", __func__);
+
+	if (strcmp(params->encoding, "pkcs1"))
+		return -ENOPKG;
+
+	if (params->hash_algo) {
+		const struct asn1_template *asn1 =
+						lookup_asn1(params->hash_algo);
+
+		if (!asn1)
+			return -ENOPKG;
+
+		/* request enough space for the ASN.1 template + input hash */
+		asn1_wrapped = kzalloc(in_len + asn1->size, GFP_KERNEL);
+		if (!asn1_wrapped)
+			return -ENOMEM;
+
+		/* Copy ASN.1 template, then the input */
+		memcpy(asn1_wrapped, asn1->data, asn1->size);
+		memcpy(asn1_wrapped + asn1->size, in, in_len);
+
+		in = asn1_wrapped;
+		in_len += asn1->size;
+	}
+
+	if (in_len > tk->key_len / 8 - 11) {
+		r = -EOVERFLOW;
+		goto error_free_asn1_wrapped;
+	}
+
+	r = -ENOMEM;
+	tb = kzalloc(sizeof(*tb), GFP_KERNEL);
+	if (!tb)
+		goto error_free_asn1_wrapped;
+
+	/* TODO: Handle a non-all zero SRK authorization */
+	memset(srkauth, 0, sizeof(srkauth));
+
+	r = tpm_loadkey2(tb, SRKHANDLE, srkauth,
+			 tk->blob, tk->blob_len, &keyhandle);
+	if (r < 0) {
+		pr_devel("loadkey2 failed (%d)\n", r);
+		goto error_free_tb;
+	}
+
+	/* TODO: Handle a non-all zero key authorization */
+	memset(keyauth, 0, sizeof(keyauth));
+
+	r = tpm_sign(tb, keyhandle, keyauth, in, in_len, out, params->out_len);
+	if (r < 0)
+		pr_devel("tpm_sign failed (%d)\n", r);
+
+	if (tpm_flushspecific(tb, keyhandle) < 0)
+		pr_devel("flushspecific failed (%d)\n", r);
+
+error_free_tb:
+	kzfree(tb);
+error_free_asn1_wrapped:
+	kfree(asn1_wrapped);
+	pr_devel("<==%s() = %d\n", __func__, r);
+	return r;
+}
+
+/*
  * Do encryption, decryption and signing ops.
  */
 static int tpm_key_eds_op(struct kernel_pkey_params *params,
@@ -572,6 +723,9 @@ static int tpm_key_eds_op(struct kernel_pkey_params *params,
 		break;
 	case kernel_pkey_decrypt:
 		ret = tpm_key_decrypt(tk, params, in, out);
+		break;
+	case kernel_pkey_sign:
+		ret = tpm_key_sign(tk, params, in, out);
 		break;
 	default:
 		BUG();
