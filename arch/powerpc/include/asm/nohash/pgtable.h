@@ -39,10 +39,12 @@
 #ifndef __ASSEMBLY__
 
 /* Generic accessors to PTE bits */
+#ifndef pte_write
 static inline int pte_write(pte_t pte)
 {
-	return (pte_val(pte) & (_PAGE_RW | _PAGE_RO)) != _PAGE_RO;
+	return pte_val(pte) & _PAGE_RW;
 }
+#endif
 static inline int pte_read(pte_t pte)		{ return 1; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
@@ -84,10 +86,12 @@ static inline bool pte_hw_valid(pte_t pte)
  * and PTE_64BIT, PAGE_KERNEL_X contains _PAGE_BAP_SR which is also in
  * _PAGE_USER.  Need to explicitly match _PAGE_BAP_UR bit in that case too.
  */
+#ifndef pte_user
 static inline bool pte_user(pte_t pte)
 {
-	return (pte_val(pte) & (_PAGE_USER | _PAGE_PRIVILEGED)) == _PAGE_USER;
+	return (pte_val(pte) & _PAGE_USER) == _PAGE_USER;
 }
+#endif
 
 /*
  * We only find page table entry in the last level
@@ -127,10 +131,12 @@ static inline pte_t pte_exprotect(pte_t pte)
 	return __pte(pte_val(pte) & ~_PAGE_EXEC);
 }
 
+#ifndef pte_mkclean
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~(_PAGE_DIRTY | _PAGE_HWWRITE));
+	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
 }
+#endif
 
 static inline pte_t pte_mkold(pte_t pte)
 {
@@ -147,20 +153,26 @@ static inline pte_t pte_mkspecial(pte_t pte)
 	return __pte(pte_val(pte) | _PAGE_SPECIAL);
 }
 
+#ifndef pte_mkhuge
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_HUGE);
+	return __pte(pte_val(pte));
 }
+#endif
 
+#ifndef pte_mkprivileged
 static inline pte_t pte_mkprivileged(pte_t pte)
 {
-	return __pte((pte_val(pte) & ~_PAGE_USER) | _PAGE_PRIVILEGED);
+	return __pte(pte_val(pte) & ~_PAGE_USER);
 }
+#endif
 
+#ifndef pte_mkuser
 static inline pte_t pte_mkuser(pte_t pte)
 {
-	return __pte((pte_val(pte) & ~_PAGE_PRIVILEGED) | _PAGE_USER);
+	return __pte(pte_val(pte) | _PAGE_USER);
 }
+#endif
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {

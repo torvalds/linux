@@ -90,11 +90,7 @@
  */
 #include <asm/nohash/pte-book3e.h>
 
-#define _PAGE_HWWRITE	0
 #define _PAGE_SAO	0
-#define _PAGE_RO 0
-#define _PAGE_NA 0
-#define _PAGE_HUGE 0
 
 #define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
 

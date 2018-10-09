@@ -136,14 +136,12 @@ extern int icache_44x_need_flush;
 #define pte_clear(mm, addr, ptep) \
 	do { pte_update(ptep, ~0, 0); } while (0)
 
+#ifndef pte_mkwrite
 static inline pte_t pte_mkwrite(pte_t pte)
 {
-	pte_basic_t ptev;
-
-	ptev = pte_val(pte) & ~_PAGE_RO;
-	ptev |= _PAGE_RW;
-	return __pte(ptev);
+	return __pte(pte_val(pte) | _PAGE_RW);
 }
+#endif
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {
@@ -155,14 +153,12 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return __pte(pte_val(pte) | _PAGE_ACCESSED);
 }
 
+#ifndef pte_wrprotect
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	pte_basic_t ptev;
-
-	ptev = pte_val(pte) & ~(_PAGE_RW | _PAGE_HWWRITE);
-	ptev |= _PAGE_RO;
-	return __pte(ptev);
+	return __pte(pte_val(pte) & ~_PAGE_RW);
 }
+#endif
 
 static inline pte_t pte_mkexec(pte_t pte)
 {

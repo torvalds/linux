@@ -5,35 +5,11 @@
  * Some bits are only used on some cpu families... Make sure that all
  * the undefined gets a sensible default
  */
-#ifndef _PAGE_HWWRITE
-#define _PAGE_HWWRITE	0
-#endif
 #ifndef _PAGE_COHERENT
 #define _PAGE_COHERENT	0
 #endif
 #ifndef _PAGE_WRITETHRU
 #define _PAGE_WRITETHRU	0
-#endif
-/* _PAGE_RO and _PAGE_RW shall not be defined at the same time */
-#ifndef _PAGE_RO
-#define _PAGE_RO 0
-#else
-#define _PAGE_RW 0
-#endif
-
-/* At least one of _PAGE_PRIVILEGED or _PAGE_USER must be defined */
-#ifndef _PAGE_PRIVILEGED
-#define _PAGE_PRIVILEGED 0
-#else
-#ifndef _PAGE_USER
-#define _PAGE_USER 0
-#endif
-#endif
-#ifndef _PAGE_NA
-#define _PAGE_NA 0
-#endif
-#ifndef _PAGE_HUGE
-#define _PAGE_HUGE 0
 #endif
 
 /* Location of the PFN in the PTE. Most 32-bit platforms use the same

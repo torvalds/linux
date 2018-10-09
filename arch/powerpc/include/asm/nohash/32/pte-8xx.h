@@ -87,5 +87,56 @@
 #define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_RO)
 #define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_RO | _PAGE_EXEC)
 
+#ifndef __ASSEMBLY__
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_RO);
+}
+
+#define pte_wrprotect pte_wrprotect
+
+static inline int pte_write(pte_t pte)
+{
+	return !(pte_val(pte) & _PAGE_RO);
+}
+
+#define pte_write pte_write
+
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_RO);
+}
+
+#define pte_mkwrite pte_mkwrite
+
+static inline bool pte_user(pte_t pte)
+{
+	return !(pte_val(pte) & _PAGE_PRIVILEGED);
+}
+
+#define pte_user pte_user
+
+static inline pte_t pte_mkprivileged(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_PRIVILEGED);
+}
+
+#define pte_mkprivileged pte_mkprivileged
+
+static inline pte_t pte_mkuser(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_PRIVILEGED);
+}
+
+#define pte_mkuser pte_mkuser
+
+static inline pte_t pte_mkhuge(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_HUGE);
+}
+
+#define pte_mkhuge pte_mkhuge
+#endif
+
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_NOHASH_32_PTE_8xx_H */
