@@ -859,6 +859,7 @@ The keyctl syscall functions are:
      and either the buffer length or the OtherInfo length exceeds the
      allowed length.
 
+
   *  Restrict keyring linkage::
 
 	long keyctl(KEYCTL_RESTRICT_KEYRING, key_serial_t keyring,
@@ -888,6 +889,116 @@ The keyctl syscall functions are:
      chains or individual certificate signatures using the asymmetric key type.
      See Documentation/crypto/asymmetric-keys.txt for specific restrictions
      applicable to the asymmetric key type.
+
+
+  *  Query an asymmetric key::
+
+	long keyctl(KEYCTL_PKEY_QUERY,
+		    key_serial_t key_id, unsigned long reserved,
+		    struct keyctl_pkey_query *info);
+
+     Get information about an asymmetric key.  The information is returned in
+     the keyctl_pkey_query struct::
+
+	__u32	supported_ops;
+	__u32	key_size;
+	__u16	max_data_size;
+	__u16	max_sig_size;
+	__u16	max_enc_size;
+	__u16	max_dec_size;
+	__u32	__spare[10];
+
+     ``supported_ops`` contains a bit mask of flags indicating which ops are
+     supported.  This is constructed from a bitwise-OR of::
+
+	KEYCTL_SUPPORTS_{ENCRYPT,DECRYPT,SIGN,VERIFY}
+
+     ``key_size`` indicated the size of the key in bits.
+
+     ``max_*_size`` indicate the maximum sizes in bytes of a blob of data to be
+     signed, a signature blob, a blob to be encrypted and a blob to be
+     decrypted.
+
+     ``__spare[]`` must be set to 0.  This is intended for future use to hand
+     over one or more passphrases needed unlock a key.
+
+     If successful, 0 is returned.  If the key is not an asymmetric key,
+     EOPNOTSUPP is returned.
+
+
+  *  Encrypt, decrypt, sign or verify a blob using an asymmetric key::
+
+	long keyctl(KEYCTL_PKEY_ENCRYPT,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    void *out);
+
+	long keyctl(KEYCTL_PKEY_DECRYPT,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    void *out);
+
+	long keyctl(KEYCTL_PKEY_SIGN,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    void *out);
+
+	long keyctl(KEYCTL_PKEY_VERIFY,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    const void *in2);
+
+     Use an asymmetric key to perform a public-key cryptographic operation a
+     blob of data.  For encryption and verification, the asymmetric key may
+     only need the public parts to be available, but for decryption and signing
+     the private parts are required also.
+
+     The parameter block pointed to by params contains a number of integer
+     values::
+
+	__s32		key_id;
+	__u32		in_len;
+	__u32		out_len;
+	__u32		in2_len;
+
+     ``key_id`` is the ID of the asymmetric key to be used.  ``in_len`` and
+     ``in2_len`` indicate the amount of data in the in and in2 buffers and
+     ``out_len`` indicates the size of the out buffer as appropriate for the
+     above operations.
+
+     For a given operation, the in and out buffers are used as follows::
+
+	Operation ID		in,in_len	out,out_len	in2,in2_len
+	=======================	===============	===============	===============
+	KEYCTL_PKEY_ENCRYPT	Raw data	Encrypted data	-
+	KEYCTL_PKEY_DECRYPT	Encrypted data	Raw data	-
+	KEYCTL_PKEY_SIGN	Raw data	Signature	-
+	KEYCTL_PKEY_VERIFY	Raw data	-		Signature
+
+     ``info`` is a string of key=value pairs that supply supplementary
+     information.  These include:
+
+	``enc=<encoding>`` The encoding of the encrypted/signature blob.  This
+			can be "pkcs1" for RSASSA-PKCS1-v1.5 or
+			RSAES-PKCS1-v1.5; "pss" for "RSASSA-PSS"; "oaep" for
+			"RSAES-OAEP".  If omitted or is "raw", the raw output
+			of the encryption function is specified.
+
+	``hash=<algo>``	If the data buffer contains the output of a hash
+			function and the encoding includes some indication of
+			which hash function was used, the hash function can be
+			specified with this, eg. "hash=sha256".
+
+     The ``__spare[]`` space in the parameter block must be set to 0.  This is
+     intended, amongst other things, to allow the passing of passphrases
+     required to unlock a key.
+
+     If successful, encrypt, decrypt and sign all return the amount of data
+     written into the output buffer.  Verification returns 0 on success.
 
 
 Kernel Services
