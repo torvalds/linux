@@ -48,6 +48,12 @@ struct nfp_mask_id_table {
 	u8 mask_id;
 };
 
+struct nfp_fl_flow_table_cmp_arg {
+	struct net_device *netdev;
+	unsigned long cookie;
+	__be32 host_ctx;
+};
+
 static int nfp_release_stats_entry(struct nfp_app *app, u32 stats_context_id)
 {
 	struct nfp_flower_priv *priv = app->priv;
@@ -102,18 +108,15 @@ struct nfp_fl_payload *
 nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
 			   struct net_device *netdev, __be32 host_ctx)
 {
+	struct nfp_fl_flow_table_cmp_arg flower_cmp_arg;
 	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_fl_payload *flower_entry;
 
-	hash_for_each_possible_rcu(priv->flow_table, flower_entry, link,
-				   tc_flower_cookie)
-		if (flower_entry->tc_flower_cookie == tc_flower_cookie &&
-		    (!netdev || flower_entry->ingress_dev == netdev) &&
-		    (host_ctx == NFP_FL_STATS_CTX_DONT_CARE ||
-		     flower_entry->meta.host_ctx_id == host_ctx))
-			return flower_entry;
+	flower_cmp_arg.netdev = netdev;
+	flower_cmp_arg.cookie = tc_flower_cookie;
+	flower_cmp_arg.host_ctx = host_ctx;
 
-	return NULL;
+	return rhashtable_lookup_fast(&priv->flow_table, &flower_cmp_arg,
+				      nfp_flower_table_params);
 }
 
 static void
@@ -389,12 +392,56 @@ int nfp_modify_flow_metadata(struct nfp_app *app,
 	return nfp_release_stats_entry(app, temp_ctx_id);
 }
 
+static int nfp_fl_obj_cmpfn(struct rhashtable_compare_arg *arg,
+			    const void *obj)
+{
+	const struct nfp_fl_flow_table_cmp_arg *cmp_arg = arg->key;
+	const struct nfp_fl_payload *flow_entry = obj;
+
+	if ((!cmp_arg->netdev || flow_entry->ingress_dev == cmp_arg->netdev) &&
+	    (cmp_arg->host_ctx == NFP_FL_STATS_CTX_DONT_CARE ||
+	     flow_entry->meta.host_ctx_id == cmp_arg->host_ctx))
+		return flow_entry->tc_flower_cookie != cmp_arg->cookie;
+
+	return 1;
+}
+
+static u32 nfp_fl_obj_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct nfp_fl_payload *flower_entry = data;
+
+	return jhash2((u32 *)&flower_entry->tc_flower_cookie,
+		      sizeof(flower_entry->tc_flower_cookie) / sizeof(u32),
+		      seed);
+}
+
+static u32 nfp_fl_key_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct nfp_fl_flow_table_cmp_arg *cmp_arg = data;
+
+	return jhash2((u32 *)&cmp_arg->cookie,
+		      sizeof(cmp_arg->cookie) / sizeof(u32), seed);
+}
+
+const struct rhashtable_params nfp_flower_table_params = {
+	.head_offset		= offsetof(struct nfp_fl_payload, fl_node),
+	.hashfn			= nfp_fl_key_hashfn,
+	.obj_cmpfn		= nfp_fl_obj_cmpfn,
+	.obj_hashfn		= nfp_fl_obj_hashfn,
+	.automatic_shrinking	= true,
+};
+
 int nfp_flower_metadata_init(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;
+	int err;
 
 	hash_init(priv->mask_table);
-	hash_init(priv->flow_table);
+
+	err = rhashtable_init(&priv->flow_table, &nfp_flower_table_params);
+	if (err)
+		return err;
+
 	get_random_bytes(&priv->mask_id_seed, sizeof(priv->mask_id_seed));
 
 	/* Init ring buffer and unallocated mask_ids. */
@@ -402,7 +449,7 @@ int nfp_flower_metadata_init(struct nfp_app *app)
 		kmalloc_array(NFP_FLOWER_MASK_ENTRY_RS,
 			      NFP_FLOWER_MASK_ELEMENT_RS, GFP_KERNEL);
 	if (!priv->mask_ids.mask_id_free_list.buf)
-		return -ENOMEM;
+		goto err_free_flow_table;
 
 	priv->mask_ids.init_unallocated = NFP_FLOWER_MASK_ENTRY_RS - 1;
 
@@ -428,6 +475,8 @@ err_free_last_used:
 	kfree(priv->mask_ids.last_used);
 err_free_mask_id:
 	kfree(priv->mask_ids.mask_id_free_list.buf);
+err_free_flow_table:
+	rhashtable_destroy(&priv->flow_table);
 	return -ENOMEM;
 }
 
@@ -438,6 +487,8 @@ void nfp_flower_metadata_cleanup(struct nfp_app *app)
 	if (!priv)
 		return;
 
+	rhashtable_free_and_destroy(&priv->flow_table,
+				    nfp_check_rhashtable_empty, NULL);
 	kfree(priv->mask_ids.mask_id_free_list.buf);
 	kfree(priv->mask_ids.last_used);
 	vfree(priv->stats_ids.free_list.buf);

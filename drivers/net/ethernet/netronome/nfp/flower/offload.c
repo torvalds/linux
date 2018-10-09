@@ -513,9 +513,12 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
-	INIT_HLIST_NODE(&flow_pay->link);
 	flow_pay->tc_flower_cookie = flow->cookie;
-	hash_add_rcu(priv->flow_table, &flow_pay->link, flow->cookie);
+	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_node,
+				     nfp_flower_table_params);
+	if (err)
+		goto err_destroy_flow;
+
 	port->tc_offload_cnt++;
 
 	/* Deallocate flow payload when flower rule has been destroyed. */
@@ -550,6 +553,7 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct tc_cls_flower_offload *flow, bool egress)
 {
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *nfp_flow;
 	struct net_device *ingr_dev;
 	int err;
@@ -573,11 +577,13 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_flow;
 
 err_free_flow:
-	hash_del_rcu(&nfp_flow->link);
 	port->tc_offload_cnt--;
 	kfree(nfp_flow->action_data);
 	kfree(nfp_flow->mask_data);
 	kfree(nfp_flow->unmasked_data);
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &nfp_flow->fl_node,
+					    nfp_flower_table_params));
 	kfree_rcu(nfp_flow, rcu);
 	return err;
 }

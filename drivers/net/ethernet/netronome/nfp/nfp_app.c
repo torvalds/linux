@@ -60,6 +60,11 @@ static const struct nfp_app_type *apps[] = {
 #endif
 };
 
+void nfp_check_rhashtable_empty(void *ptr, void *arg)
+{
+	WARN_ON_ONCE(1);
+}
+
 struct nfp_app *nfp_app_from_netdev(struct net_device *netdev)
 {
 	if (nfp_netdev_is_nfp_net(netdev)) {
