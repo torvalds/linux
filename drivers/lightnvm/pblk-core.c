@@ -1929,8 +1929,7 @@ void pblk_up_page(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas)
 	up(&rlun->wr_sem);
 }
 
-void pblk_up_rq(struct pblk *pblk, struct ppa_addr *ppa_list, int nr_ppas,
-		unsigned long *lun_bitmap)
+void pblk_up_rq(struct pblk *pblk, unsigned long *lun_bitmap)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
