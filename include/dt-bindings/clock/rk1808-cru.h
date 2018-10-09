@@ -147,7 +147,6 @@
 #define HCLK_VOPLITE		203
 #define HCLK_RGA		204
 #define HCLK_ISP		205
-#define HCLK_CIF		205
 #define LSCLK_PCIE		206
 #define HCLK_HOST		207
 #define LSCLK_PERI		208
@@ -165,6 +164,7 @@
 #define MSCLK_CORE_NIU		220
 #define HSCLK_IMEM		221
 #define HCLK_HOST_ARB		222
+#define HCLK_CIF		223
 
 /* pclk gates */
 #define PCLK_DDR		250
