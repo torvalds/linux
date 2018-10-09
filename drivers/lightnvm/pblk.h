@@ -1102,86 +1102,16 @@ static inline u64 pblk_dev_ppa_to_line_addr(struct pblk *pblk,
 
 static inline struct ppa_addr pblk_ppa32_to_ppa64(struct pblk *pblk, u32 ppa32)
 {
-	struct ppa_addr ppa64;
+	struct nvm_tgt_dev *dev = pblk->dev;
 
-	ppa64.ppa = 0;
-
-	if (ppa32 == -1) {
-		ppa64.ppa = ADDR_EMPTY;
-	} else if (ppa32 & (1U << 31)) {
-		ppa64.c.line = ppa32 & ((~0U) >> 1);
-		ppa64.c.is_cached = 1;
-	} else {
-		struct nvm_tgt_dev *dev = pblk->dev;
-		struct nvm_geo *geo = &dev->geo;
-
-		if (geo->version == NVM_OCSSD_SPEC_12) {
-			struct nvm_addrf_12 *ppaf =
-					(struct nvm_addrf_12 *)&pblk->addrf;
-
-			ppa64.g.ch = (ppa32 & ppaf->ch_mask) >>
-							ppaf->ch_offset;
-			ppa64.g.lun = (ppa32 & ppaf->lun_mask) >>
-							ppaf->lun_offset;
-			ppa64.g.blk = (ppa32 & ppaf->blk_mask) >>
-							ppaf->blk_offset;
-			ppa64.g.pg = (ppa32 & ppaf->pg_mask) >>
-							ppaf->pg_offset;
-			ppa64.g.pl = (ppa32 & ppaf->pln_mask) >>
-							ppaf->pln_offset;
-			ppa64.g.sec = (ppa32 & ppaf->sec_mask) >>
-							ppaf->sec_offset;
-		} else {
-			struct nvm_addrf *lbaf = &pblk->addrf;
-
-			ppa64.m.grp = (ppa32 & lbaf->ch_mask) >>
-							lbaf->ch_offset;
-			ppa64.m.pu = (ppa32 & lbaf->lun_mask) >>
-							lbaf->lun_offset;
-			ppa64.m.chk = (ppa32 & lbaf->chk_mask) >>
-							lbaf->chk_offset;
-			ppa64.m.sec = (ppa32 & lbaf->sec_mask) >>
-							lbaf->sec_offset;
-		}
-	}
-
-	return ppa64;
+	return nvm_ppa32_to_ppa64(dev->parent, &pblk->addrf, ppa32);
 }
 
 static inline u32 pblk_ppa64_to_ppa32(struct pblk *pblk, struct ppa_addr ppa64)
 {
-	u32 ppa32 = 0;
+	struct nvm_tgt_dev *dev = pblk->dev;
 
-	if (ppa64.ppa == ADDR_EMPTY) {
-		ppa32 = ~0U;
-	} else if (ppa64.c.is_cached) {
-		ppa32 |= ppa64.c.line;
-		ppa32 |= 1U << 31;
-	} else {
-		struct nvm_tgt_dev *dev = pblk->dev;
-		struct nvm_geo *geo = &dev->geo;
-
-		if (geo->version == NVM_OCSSD_SPEC_12) {
-			struct nvm_addrf_12 *ppaf =
-					(struct nvm_addrf_12 *)&pblk->addrf;
-
-			ppa32 |= ppa64.g.ch << ppaf->ch_offset;
-			ppa32 |= ppa64.g.lun << ppaf->lun_offset;
-			ppa32 |= ppa64.g.blk << ppaf->blk_offset;
-			ppa32 |= ppa64.g.pg << ppaf->pg_offset;
-			ppa32 |= ppa64.g.pl << ppaf->pln_offset;
-			ppa32 |= ppa64.g.sec << ppaf->sec_offset;
-		} else {
-			struct nvm_addrf *lbaf = &pblk->addrf;
-
-			ppa32 |= ppa64.m.grp << lbaf->ch_offset;
-			ppa32 |= ppa64.m.pu << lbaf->lun_offset;
-			ppa32 |= ppa64.m.chk << lbaf->chk_offset;
-			ppa32 |= ppa64.m.sec << lbaf->sec_offset;
-		}
-	}
-
-	return ppa32;
+	return nvm_ppa64_to_ppa32(dev->parent, &pblk->addrf, ppa64);
 }
 
 static inline struct ppa_addr pblk_trans_map_get(struct pblk *pblk,
