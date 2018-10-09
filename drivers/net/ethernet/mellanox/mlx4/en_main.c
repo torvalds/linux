@@ -167,8 +167,13 @@ static void mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[i].rx_ppp = pfcrx;
 		params->prof[i].tx_pause = !(pfcrx || pfctx);
 		params->prof[i].tx_ppp = pfctx;
-		params->prof[i].tx_ring_size = MLX4_EN_DEF_TX_RING_SIZE;
-		params->prof[i].rx_ring_size = MLX4_EN_DEF_RX_RING_SIZE;
+		if (mlx4_low_memory_profile()) {
+			params->prof[i].tx_ring_size = MLX4_EN_MIN_TX_SIZE;
+			params->prof[i].rx_ring_size = MLX4_EN_MIN_RX_SIZE;
+		} else {
+			params->prof[i].tx_ring_size = MLX4_EN_DEF_TX_RING_SIZE;
+			params->prof[i].rx_ring_size = MLX4_EN_DEF_RX_RING_SIZE;
+		}
 		params->prof[i].num_up = MLX4_EN_NUM_UP_LOW;
 		params->prof[i].num_tx_rings_p_up = params->max_num_tx_rings_p_up;
 		params->prof[i].tx_ring_num[TX] = params->max_num_tx_rings_p_up *
