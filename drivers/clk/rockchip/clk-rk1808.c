@@ -940,16 +940,16 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_CLKSEL_CON(64), 14, 2, MFLAGS, 8, 6, DFLAGS,
 			RK1808_CLKGATE_CON(14), 1, GFLAGS),
 
-	COMPOSITE(SCLK_GPIO1, "dbclk_gpio1", mux_xin24m_32k_p, 0,
+	COMPOSITE(DBCLK_GPIO1, "dbclk_gpio1", mux_xin24m_32k_p, 0,
 			RK1808_CLKSEL_CON(65), 15, 1, MFLAGS, 0, 11, DFLAGS,
 			RK1808_CLKGATE_CON(14), 2, GFLAGS),
-	COMPOSITE(SCLK_GPIO2, "dbclk_gpio2", mux_xin24m_32k_p, 0,
+	COMPOSITE(DBCLK_GPIO2, "dbclk_gpio2", mux_xin24m_32k_p, 0,
 			RK1808_CLKSEL_CON(66), 15, 1, MFLAGS, 0, 11, DFLAGS,
 			RK1808_CLKGATE_CON(14), 3, GFLAGS),
-	COMPOSITE(SCLK_GPIO3, "dbclk_gpio3", mux_xin24m_32k_p, 0,
+	COMPOSITE(DBCLK_GPIO3, "dbclk_gpio3", mux_xin24m_32k_p, 0,
 			RK1808_CLKSEL_CON(67), 15, 1, MFLAGS, 0, 11, DFLAGS,
 			RK1808_CLKGATE_CON(14), 4, GFLAGS),
-	COMPOSITE(SCLK_GPIO4, "dbclk_gpio4", mux_xin24m_32k_p, 0,
+	COMPOSITE(DBCLK_GPIO4, "dbclk_gpio4", mux_xin24m_32k_p, 0,
 			RK1808_CLKSEL_CON(68), 15, 1, MFLAGS, 0, 11, DFLAGS,
 			RK1808_CLKGATE_CON(14), 5, GFLAGS),
 
@@ -1102,7 +1102,7 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_PMU_CLKSEL_CON(7), 15, 1, MFLAGS, 8, 7, DFLAGS,
 			RK1808_PMU_CLKGATE_CON(1), 5, GFLAGS),
 
-	COMPOSITE(SCLK_PMU_GPIO0, "dbclk_gpio0", mux_xin24m_32k_p, 0,
+	COMPOSITE(DBCLK_PMU_GPIO0, "dbclk_gpio0", mux_xin24m_32k_p, 0,
 			RK1808_PMU_CLKSEL_CON(6), 15, 1, MFLAGS, 0, 11, DFLAGS,
 			RK1808_PMU_CLKGATE_CON(1), 6, GFLAGS),
 

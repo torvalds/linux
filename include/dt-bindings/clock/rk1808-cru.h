@@ -78,10 +78,10 @@
 #define SCLK_SARADC		77
 #define SCLK_EFUSE_S		78
 #define SCLK_EFUSE_NS		79
-#define SCLK_GPIO1		80
-#define SCLK_GPIO2		81
-#define SCLK_GPIO3		82
-#define SCLK_GPIO4		83
+#define DBCLK_GPIO1		80
+#define DBCLK_GPIO2		81
+#define DBCLK_GPIO3		82
+#define DBCLK_GPIO4		83
 #define SCLK_PWM0		84
 #define SCLK_PWM1		85
 #define SCLK_PWM2		86
@@ -105,7 +105,7 @@
 #define SCLK_UART0_PMU		104
 #define SCLK_PVTM_PMU		105
 #define SCLK_PMU_I2C0		106
-#define SCLK_PMU_GPIO0		107
+#define DBCLK_PMU_GPIO0		107
 #define SCLK_REF24M_PMU		108
 #define SCLK_USBPHY_REF		109
 #define SCLK_MIPIDSIPHY_REF	110
