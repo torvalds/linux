@@ -1728,6 +1728,11 @@ static void configure_requester_scat_cqe(struct mlx5_ib_dev *dev,
 		MLX5_SET(qpc, qpc, cs_req, MLX5_REQ_SCAT_DATA32_CQE);
 }
 
+static inline bool check_flags_mask(uint64_t input, uint64_t supported)
+{
+	return (input & ~supported) == 0;
+}
+
 static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata, struct mlx5_ib_qp *qp)
@@ -1824,6 +1829,15 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			mlx5_ib_dbg(dev, "copy failed\n");
 			return -EFAULT;
 		}
+
+		if (!check_flags_mask(ucmd.flags,
+				      MLX5_QP_FLAG_SIGNATURE |
+					      MLX5_QP_FLAG_SCATTER_CQE |
+					      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
+					      MLX5_QP_FLAG_BFREG_INDEX |
+					      MLX5_QP_FLAG_TYPE_DCT |
+					      MLX5_QP_FLAG_TYPE_DCI))
+			return -EINVAL;
 
 		err = get_qp_user_index(to_mucontext(pd->uobject->context),
 					&ucmd, udata->inlen, &uidx);
