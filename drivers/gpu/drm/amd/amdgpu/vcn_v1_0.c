@@ -784,24 +784,6 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN), 0,
 			~UVD_MASTINT_EN__VCPU_EN_MASK);
 
-	/* stall UMC and register bus before resetting VCPU */
-	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2),
-			UVD_LMI_CTRL2__STALL_ARB_UMC_MASK,
-			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
-	mdelay(1);
-
-	/* put LMI, VCPU, RBC etc... into reset */
-	WREG32_SOC15(UVD, 0, mmUVD_SOFT_RESET,
-		UVD_SOFT_RESET__LMI_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__LBSI_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__RBC_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__CSM_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__CXW_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__TAP_SOFT_RESET_MASK |
-		UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK);
-	mdelay(5);
-
 	/* initialize VCN memory controller */
 	tmp = RREG32_SOC15(UVD, 0, mmUVD_LMI_CTRL);
 	WREG32_SOC15(UVD, 0, mmUVD_LMI_CTRL, tmp		|
@@ -844,14 +826,8 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	WREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK,
 		RREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK) | 0x3);
 
-	/* take all subblocks out of reset, except VCPU */
-	WREG32_SOC15(UVD, 0, mmUVD_SOFT_RESET,
-			UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
-	mdelay(5);
-
 	/* enable VCPU clock */
-	WREG32_SOC15(UVD, 0, mmUVD_VCPU_CNTL,
-			UVD_VCPU_CNTL__CLK_EN_MASK);
+	WREG32_SOC15(UVD, 0, mmUVD_VCPU_CNTL, UVD_VCPU_CNTL__CLK_EN_MASK);
 
 	/* enable UMC */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2), 0,
@@ -891,8 +867,7 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	}
 	/* enable master interrupt */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN),
-		(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK),
-		~(UVD_MASTINT_EN__VCPU_EN_MASK|UVD_MASTINT_EN__SYS_EN_MASK));
+		UVD_MASTINT_EN__VCPU_EN_MASK, ~UVD_MASTINT_EN__VCPU_EN_MASK);
 
 	/* enable system interrupt for JRBC, TODO: move to set interrupt*/
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_SYS_INT_EN),
@@ -908,7 +883,6 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
-	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_WPTR_POLL_EN, 0);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
 	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
 	WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_CNTL, tmp);
