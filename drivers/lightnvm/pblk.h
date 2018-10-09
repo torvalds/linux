@@ -774,7 +774,7 @@ void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write);
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct pblk_c_ctx *c_ctx);
 void pblk_discard(struct pblk *pblk, struct bio *bio);
-struct nvm_chk_meta *pblk_chunk_get_info(struct pblk *pblk);
+struct nvm_chk_meta *pblk_get_chunk_meta(struct pblk *pblk);
 struct nvm_chk_meta *pblk_chunk_get_off(struct pblk *pblk,
 					      struct nvm_chk_meta *lp,
 					      struct ppa_addr ppa);

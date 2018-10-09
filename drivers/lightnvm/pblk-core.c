@@ -27,7 +27,7 @@ static void pblk_line_mark_bb(struct work_struct *work)
 	struct ppa_addr *ppa = line_ws->priv;
 	int ret;
 
-	ret = nvm_set_tgt_bb_tbl(dev, ppa, 1, NVM_BLK_T_GRWN_BAD);
+	ret = nvm_set_chunk_meta(dev, ppa, 1, NVM_BLK_T_GRWN_BAD);
 	if (ret) {
 		struct pblk_line *line;
 		int pos;
@@ -110,7 +110,7 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
  *
  * The caller is responsible for freeing the returned structure
  */
-struct nvm_chk_meta *pblk_chunk_get_info(struct pblk *pblk)
+struct nvm_chk_meta *pblk_get_chunk_meta(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
@@ -126,7 +126,7 @@ struct nvm_chk_meta *pblk_chunk_get_info(struct pblk *pblk)
 	if (!meta)
 		return ERR_PTR(-ENOMEM);
 
-	ret = nvm_get_chunk_meta(dev, meta, ppa, geo->all_chunks);
+	ret = nvm_get_chunk_meta(dev, ppa, geo->all_chunks, meta);
 	if (ret) {
 		kfree(meta);
 		return ERR_PTR(-EIO);

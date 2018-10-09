@@ -540,67 +540,6 @@ static void pblk_lines_free(struct pblk *pblk)
 	kfree(pblk->lines);
 }
 
-static int pblk_bb_get_tbl(struct nvm_tgt_dev *dev, struct pblk_lun *rlun,
-			   u8 *blks, int nr_blks)
-{
-	struct ppa_addr ppa;
-	int ret;
-
-	ppa.ppa = 0;
-	ppa.g.ch = rlun->bppa.g.ch;
-	ppa.g.lun = rlun->bppa.g.lun;
-
-	ret = nvm_get_tgt_bb_tbl(dev, ppa, blks);
-	if (ret)
-		return ret;
-
-	nr_blks = nvm_bb_tbl_fold(dev->parent, blks, nr_blks);
-	if (nr_blks < 0)
-		return -EIO;
-
-	return 0;
-}
-
-static void *pblk_bb_get_meta(struct pblk *pblk)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	u8 *meta;
-	int i, nr_blks, blk_per_lun;
-	int ret;
-
-	blk_per_lun = geo->num_chk * geo->pln_mode;
-	nr_blks = blk_per_lun * geo->all_luns;
-
-	meta = kmalloc(nr_blks, GFP_KERNEL);
-	if (!meta)
-		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < geo->all_luns; i++) {
-		struct pblk_lun *rlun = &pblk->luns[i];
-		u8 *meta_pos = meta + i * blk_per_lun;
-
-		ret = pblk_bb_get_tbl(dev, rlun, meta_pos, blk_per_lun);
-		if (ret) {
-			kfree(meta);
-			return ERR_PTR(-EIO);
-		}
-	}
-
-	return meta;
-}
-
-static void *pblk_chunk_get_meta(struct pblk *pblk)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-
-	if (geo->version == NVM_OCSSD_SPEC_12)
-		return pblk_bb_get_meta(pblk);
-	else
-		return pblk_chunk_get_info(pblk);
-}
-
 static int pblk_luns_init(struct pblk *pblk)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
@@ -699,51 +638,7 @@ static void pblk_set_provision(struct pblk *pblk, long nr_free_blks)
 	atomic_set(&pblk->rl.free_user_blocks, nr_free_blks);
 }
 
-static int pblk_setup_line_meta_12(struct pblk *pblk, struct pblk_line *line,
-				   void *chunk_meta)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-	struct pblk_line_meta *lm = &pblk->lm;
-	int i, chk_per_lun, nr_bad_chks = 0;
-
-	chk_per_lun = geo->num_chk * geo->pln_mode;
-
-	for (i = 0; i < lm->blk_per_line; i++) {
-		struct pblk_lun *rlun = &pblk->luns[i];
-		struct nvm_chk_meta *chunk;
-		int pos = pblk_ppa_to_pos(geo, rlun->bppa);
-		u8 *lun_bb_meta = chunk_meta + pos * chk_per_lun;
-
-		chunk = &line->chks[pos];
-
-		/*
-		 * In 1.2 spec. chunk state is not persisted by the device. Thus
-		 * some of the values are reset each time pblk is instantiated,
-		 * so we have to assume that the block is closed.
-		 */
-		if (lun_bb_meta[line->id] == NVM_BLK_T_FREE)
-			chunk->state =  NVM_CHK_ST_CLOSED;
-		else
-			chunk->state = NVM_CHK_ST_OFFLINE;
-
-		chunk->type = NVM_CHK_TP_W_SEQ;
-		chunk->wi = 0;
-		chunk->slba = -1;
-		chunk->cnlb = geo->clba;
-		chunk->wp = 0;
-
-		if (!(chunk->state & NVM_CHK_ST_OFFLINE))
-			continue;
-
-		set_bit(pos, line->blk_bitmap);
-		nr_bad_chks++;
-	}
-
-	return nr_bad_chks;
-}
-
-static int pblk_setup_line_meta_20(struct pblk *pblk, struct pblk_line *line,
+static int pblk_setup_line_meta_chk(struct pblk *pblk, struct pblk_line *line,
 				   struct nvm_chk_meta *meta)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
@@ -790,8 +685,6 @@ static int pblk_setup_line_meta_20(struct pblk *pblk, struct pblk_line *line,
 static long pblk_setup_line_meta(struct pblk *pblk, struct pblk_line *line,
 				 void *chunk_meta, int line_id)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct pblk_line_meta *lm = &pblk->lm;
 	long nr_bad_chks, chk_in_line;
@@ -804,10 +697,7 @@ static long pblk_setup_line_meta(struct pblk *pblk, struct pblk_line *line,
 	line->vsc = &l_mg->vsc_list[line_id];
 	spin_lock_init(&line->lock);
 
-	if (geo->version == NVM_OCSSD_SPEC_12)
-		nr_bad_chks = pblk_setup_line_meta_12(pblk, line, chunk_meta);
-	else
-		nr_bad_chks = pblk_setup_line_meta_20(pblk, line, chunk_meta);
+	nr_bad_chks = pblk_setup_line_meta_chk(pblk, line, chunk_meta);
 
 	chk_in_line = lm->blk_per_line - nr_bad_chks;
 	if (nr_bad_chks < 0 || nr_bad_chks > lm->blk_per_line ||
@@ -1058,7 +948,7 @@ static int pblk_lines_init(struct pblk *pblk)
 	if (ret)
 		goto fail_free_meta;
 
-	chunk_meta = pblk_chunk_get_meta(pblk);
+	chunk_meta = pblk_get_chunk_meta(pblk);
 	if (IS_ERR(chunk_meta)) {
 		ret = PTR_ERR(chunk_meta);
 		goto fail_free_luns;

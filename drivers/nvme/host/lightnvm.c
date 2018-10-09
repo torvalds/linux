@@ -567,8 +567,8 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr *ppas,
  * Expect the lba in device format
  */
 static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
-				 struct nvm_chk_meta *meta,
-				 sector_t slba, int nchks)
+				 sector_t slba, int nchks,
+				 struct nvm_chk_meta *meta)
 {
 	struct nvm_geo *geo = &ndev->geo;
 	struct nvme_ns *ns = ndev->q->queuedata;
