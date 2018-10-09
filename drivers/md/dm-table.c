@@ -2059,6 +2059,12 @@ struct mapped_device *dm_table_get_md(struct dm_table *t)
 }
 EXPORT_SYMBOL(dm_table_get_md);
 
+const char *dm_table_device_name(struct dm_table *t)
+{
+	return dm_device_name(t->md);
+}
+EXPORT_SYMBOL_GPL(dm_table_device_name);
+
 void dm_table_run_md_queue_async(struct dm_table *t)
 {
 	struct mapped_device *md;
