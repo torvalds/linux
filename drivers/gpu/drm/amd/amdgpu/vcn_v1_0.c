@@ -829,13 +829,18 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	/* enable VCPU clock */
 	WREG32_SOC15(UVD, 0, mmUVD_VCPU_CNTL, UVD_VCPU_CNTL__CLK_EN_MASK);
 
+	/* boot up the VCPU */
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_SOFT_RESET), 0,
+			~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
+
 	/* enable UMC */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2), 0,
 			~UVD_LMI_CTRL2__STALL_ARB_UMC_MASK);
 
-	/* boot up the VCPU */
-	WREG32_SOC15(UVD, 0, mmUVD_SOFT_RESET, 0);
-	mdelay(10);
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_SOFT_RESET);
+	tmp &= ~UVD_SOFT_RESET__LMI_SOFT_RESET_MASK;
+	tmp &= ~UVD_SOFT_RESET__LMI_UMC_SOFT_RESET_MASK;
+	WREG32_SOC15(UVD, 0, mmUVD_SOFT_RESET, tmp);
 
 	for (i = 0; i < 10; ++i) {
 		uint32_t status;
