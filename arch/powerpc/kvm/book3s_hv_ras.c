@@ -177,6 +177,7 @@ void kvmppc_subcore_enter_guest(void)
 
 	local_paca->sibling_subcore_state->in_guest[subcore_id] = 1;
 }
+EXPORT_SYMBOL_GPL(kvmppc_subcore_enter_guest);
 
 void kvmppc_subcore_exit_guest(void)
 {
@@ -187,6 +188,7 @@ void kvmppc_subcore_exit_guest(void)
 
 	local_paca->sibling_subcore_state->in_guest[subcore_id] = 0;
 }
+EXPORT_SYMBOL_GPL(kvmppc_subcore_exit_guest);
 
 static bool kvmppc_tb_resync_required(void)
 {
@@ -331,5 +333,13 @@ long kvmppc_realmode_hmi_handler(void)
 	} else {
 		wait_for_tb_resync();
 	}
+
+	/*
+	 * Reset tb_offset_applied so the guest exit code won't try
+	 * to subtract the previous timebase offset from the timebase.
+	 */
+	if (local_paca->kvm_hstate.kvm_vcore)
+		local_paca->kvm_hstate.kvm_vcore->tb_offset_applied = 0;
+
 	return 0;
 }

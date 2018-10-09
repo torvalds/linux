@@ -594,7 +594,8 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!(hv_enabled && radix_enabled());
 		break;
 	case KVM_CAP_PPC_MMU_HASH_V3:
-		r = !!(hv_enabled && cpu_has_feature(CPU_FTR_ARCH_300));
+		r = !!(hv_enabled && cpu_has_feature(CPU_FTR_ARCH_300) &&
+		       cpu_has_feature(CPU_FTR_HVMODE));
 		break;
 #endif
 	case KVM_CAP_SYNC_MMU:

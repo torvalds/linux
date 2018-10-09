@@ -833,6 +833,15 @@ EXPORT_SYMBOL_GPL(radix__flush_pwc_lpid);
 /*
  * Flush partition scoped translations from LPID (=LPIDR)
  */
+void radix__flush_tlb_lpid(unsigned int lpid)
+{
+	_tlbie_lpid(lpid, RIC_FLUSH_ALL);
+}
+EXPORT_SYMBOL_GPL(radix__flush_tlb_lpid);
+
+/*
+ * Flush partition scoped translations from LPID (=LPIDR)
+ */
 void radix__local_flush_tlb_lpid(unsigned int lpid)
 {
 	_tlbiel_lpid(lpid, RIC_FLUSH_ALL);

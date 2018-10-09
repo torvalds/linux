@@ -62,6 +62,69 @@
 #define XIVE_Q_GAP	2
 
 /*
+ * Push a vcpu's context to the XIVE on guest entry.
+ * This assumes we are in virtual mode (MMU on)
+ */
+void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu)
+{
+	void __iomem *tima = local_paca->kvm_hstate.xive_tima_virt;
+	u64 pq;
+
+	if (!tima)
+		return;
+	eieio();
+	__raw_writeq(vcpu->arch.xive_saved_state.w01, tima + TM_QW1_OS);
+	__raw_writel(vcpu->arch.xive_cam_word, tima + TM_QW1_OS + TM_WORD2);
+	vcpu->arch.xive_pushed = 1;
+	eieio();
+
+	/*
+	 * We clear the irq_pending flag. There is a small chance of a
+	 * race vs. the escalation interrupt happening on another
+	 * processor setting it again, but the only consequence is to
+	 * cause a spurious wakeup on the next H_CEDE, which is not an
+	 * issue.
+	 */
+	vcpu->arch.irq_pending = 0;
+
+	/*
+	 * In single escalation mode, if the escalation interrupt is
+	 * on, we mask it.
+	 */
+	if (vcpu->arch.xive_esc_on) {
+		pq = __raw_readq((void __iomem *)(vcpu->arch.xive_esc_vaddr +
+						  XIVE_ESB_SET_PQ_01));
+		mb();
+
+		/*
+		 * We have a possible subtle race here: The escalation
+		 * interrupt might have fired and be on its way to the
+		 * host queue while we mask it, and if we unmask it
+		 * early enough (re-cede right away), there is a
+		 * theorical possibility that it fires again, thus
+		 * landing in the target queue more than once which is
+		 * a big no-no.
+		 *
+		 * Fortunately, solving this is rather easy. If the
+		 * above load setting PQ to 01 returns a previous
+		 * value where P is set, then we know the escalation
+		 * interrupt is somewhere on its way to the host. In
+		 * that case we simply don't clear the xive_esc_on
+		 * flag below. It will be eventually cleared by the
+		 * handler for the escalation interrupt.
+		 *
+		 * Then, when doing a cede, we check that flag again
+		 * before re-enabling the escalation interrupt, and if
+		 * set, we abort the cede.
+		 */
+		if (!(pq & XIVE_ESB_VAL_P))
+			/* Now P is 0, we can clear the flag */
+			vcpu->arch.xive_esc_on = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(kvmppc_xive_push_vcpu);
+
+/*
  * This is a simple trigger for a generic XIVE IRQ. This must
  * only be called for interrupts that support a trigger page
  */
