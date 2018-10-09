@@ -341,7 +341,8 @@ static int tpm_key_query(const struct kernel_pkey_params *params,
 	info->max_enc_size = len;
 	info->max_dec_size = tk->key_len / 8;
 
-	info->supported_ops = KEYCTL_SUPPORTS_ENCRYPT;
+	info->supported_ops = KEYCTL_SUPPORTS_ENCRYPT |
+			      KEYCTL_SUPPORTS_DECRYPT;
 
 	ret = 0;
 error_free_tfm:
@@ -411,6 +412,58 @@ error_free_tfm:
 }
 
 /*
+ * Decryption operation is performed with the private key in the TPM.
+ */
+static int tpm_key_decrypt(struct tpm_key *tk,
+			   struct kernel_pkey_params *params,
+			   const void *in, void *out)
+{
+	struct tpm_buf *tb;
+	uint32_t keyhandle;
+	uint8_t srkauth[SHA1_DIGEST_SIZE];
+	uint8_t keyauth[SHA1_DIGEST_SIZE];
+	int r;
+
+	pr_devel("==>%s()\n", __func__);
+
+	if (params->hash_algo)
+		return -ENOPKG;
+
+	if (strcmp(params->encoding, "pkcs1"))
+		return -ENOPKG;
+
+	tb = kzalloc(sizeof(*tb), GFP_KERNEL);
+	if (!tb)
+		return -ENOMEM;
+
+	/* TODO: Handle a non-all zero SRK authorization */
+	memset(srkauth, 0, sizeof(srkauth));
+
+	r = tpm_loadkey2(tb, SRKHANDLE, srkauth,
+				tk->blob, tk->blob_len, &keyhandle);
+	if (r < 0) {
+		pr_devel("loadkey2 failed (%d)\n", r);
+		goto error;
+	}
+
+	/* TODO: Handle a non-all zero key authorization */
+	memset(keyauth, 0, sizeof(keyauth));
+
+	r = tpm_unbind(tb, keyhandle, keyauth,
+		       in, params->in_len, out, params->out_len);
+	if (r < 0)
+		pr_devel("tpm_unbind failed (%d)\n", r);
+
+	if (tpm_flushspecific(tb, keyhandle) < 0)
+		pr_devel("flushspecific failed (%d)\n", r);
+
+error:
+	kzfree(tb);
+	pr_devel("<==%s() = %d\n", __func__, r);
+	return r;
+}
+
+/*
  * Do encryption, decryption and signing ops.
  */
 static int tpm_key_eds_op(struct kernel_pkey_params *params,
@@ -423,6 +476,9 @@ static int tpm_key_eds_op(struct kernel_pkey_params *params,
 	switch (params->op) {
 	case kernel_pkey_encrypt:
 		ret = tpm_key_encrypt(tk, params, in, out);
+		break;
+	case kernel_pkey_decrypt:
+		ret = tpm_key_decrypt(tk, params, in, out);
 		break;
 	default:
 		BUG();
