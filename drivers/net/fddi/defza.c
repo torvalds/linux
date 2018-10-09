@@ -797,11 +797,40 @@ static void fza_tx_smt(struct net_device *dev)
 		smt_tx_ptr = fp->mmio + readl_u(&fp->ring_smt_tx[i].buffer);
 		len = readl_u(&fp->ring_smt_tx[i].rmc) & FZA_RING_PBC_MASK;
 
-		/* Queue the frame to the RMC transmit ring. */
-		if (!netif_queue_stopped(dev))
+		if (!netif_queue_stopped(dev)) {
+			if (dev_nit_active(dev)) {
+				struct sk_buff *skb;
+
+				/* Length must be a multiple of 4 as only word
+				 * reads are permitted!
+				 */
+				skb = fza_alloc_skb_irq(dev, (len + 3) & ~3);
+				if (!skb)
+					goto err_no_skb;	/* Drop. */
+
+				skb_data_ptr = (struct fza_buffer_tx *)
+					       skb->data;
+
+				fza_reads(smt_tx_ptr, skb_data_ptr,
+					  (len + 3) & ~3);
+				skb->dev = dev;
+				skb_reserve(skb, 3);	/* Skip over PRH. */
+				skb_put(skb, len - 3);
+				skb_reset_network_header(skb);
+
+				dev_queue_xmit_nit(skb, dev);
+
+				dev_kfree_skb_irq(skb);
+
+err_no_skb:
+				;
+			}
+
+			/* Queue the frame to the RMC transmit ring. */
 			fza_do_xmit((union fza_buffer_txp)
 				    { .mmio_ptr = smt_tx_ptr },
 				    len, dev, 1);
+		}
 
 		writel_o(FZA_RING_OWN_FZA, &fp->ring_smt_tx[i].own);
 		fp->ring_smt_tx_index =
