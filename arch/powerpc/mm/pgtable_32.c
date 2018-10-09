@@ -112,15 +112,17 @@ EXPORT_SYMBOL(ioremap_coherent);
 void __iomem *
 ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)
 {
+	pte_t pte = __pte(flags);
+
 	/* writeable implies dirty for kernel addresses */
-	if ((flags & (_PAGE_RW | _PAGE_RO)) != _PAGE_RO)
-		flags |= _PAGE_DIRTY | _PAGE_HWWRITE;
+	if (pte_write(pte))
+		pte = pte_mkdirty(pte);
 
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
-	flags &= ~(_PAGE_USER | _PAGE_EXEC);
-	flags |= _PAGE_PRIVILEGED;
+	pte = pte_exprotect(pte);
+	pte = pte_mkprivileged(pte);
 
-	return __ioremap_caller(addr, size, __pgprot(flags), __builtin_return_address(0));
+	return __ioremap_caller(addr, size, pte_pgprot(pte), __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_prot);
 
@@ -235,8 +237,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 		/* The PTE should never be already set nor present in the
 		 * hash table
 		 */
-		BUG_ON((pte_val(*pg) & (_PAGE_PRESENT | _PAGE_HASHPTE)) &&
-		       pgprot_val(prot));
+		BUG_ON((pte_present(*pg) | pte_hashpte(*pg)) && pgprot_val(prot));
 		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT, prot));
 	}
 	smp_wmb();
