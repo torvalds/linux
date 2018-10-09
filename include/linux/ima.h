@@ -32,17 +32,18 @@ extern void ima_add_kexec_buffer(struct kimage *image);
 
 #ifdef CONFIG_X86
 extern bool arch_ima_get_secureboot(void);
+extern const char * const *arch_get_ima_policy(void);
 #else
 static inline bool arch_ima_get_secureboot(void)
 {
 	return false;
 }
-#endif
 
 static inline const char * const *arch_get_ima_policy(void)
 {
 	return NULL;
 }
+#endif
 
 #else
 static inline int ima_bprm_check(struct linux_binprm *bprm)
