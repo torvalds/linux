@@ -9,7 +9,28 @@
 #ifndef __INCLUDE_UAPI_ABI_H__
 #define __INCLUDE_UAPI_ABI_H__
 
-#define SOF_ABI_VERSION		1
+#define SOF_ABI_VER(major, minor, micro) \
+	(((major) << 8) | ((minor) << 4) | (micro))
+#define SOF_ABI_VERSION_MAJOR(version)	(((version) >> 8) & 0xff)
+#define SOF_ABI_VERSION_MINOR(version)	(((version) >> 4) & 0xf)
+#define SOF_ABI_VERSION_MICRO(version)	((version) & 0xf)
+#define SOF_ABI_VERSION_INCOMPATIBLE(sof_ver, client_ver)		\
+	(SOF_ABI_VERSION_MAJOR((sof_ver)) !=				\
+		SOF_ABI_VERSION_MAJOR((client_ver)) ||			\
+		(							\
+			SOF_ABI_VERSION_MAJOR((sof_ver)) ==		\
+				SOF_ABI_VERSION_MAJOR((client_ver)) &&	\
+			SOF_ABI_VERSION_MINOR((sof_ver)) !=		\
+				SOF_ABI_VERSION_MINOR((client_ver))	\
+		)							\
+	)
+
+#define SOF_ABI_MAJOR 1
+#define SOF_ABI_MINOR 0
+#define SOF_ABI_MICRO 0
+
+#define SOF_ABI_VERSION SOF_ABI_VER(SOF_ABI_MAJOR, SOF_ABI_MINOR, SOF_ABI_MICRO)
+
 #define SOF_ABI_MAGIC		0x00464F53	/* "SOF\0" */
 
 /*
