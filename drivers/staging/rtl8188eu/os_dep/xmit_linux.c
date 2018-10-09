@@ -45,7 +45,7 @@ void rtw_os_xmit_resource_free(struct xmit_buf *pxmitbuf)
 	kfree(pxmitbuf->pallocated_buf);
 }
 
-#define WMM_XMIT_THRESHOLD	(NR_XMITFRAME*2/5)
+#define WMM_XMIT_THRESHOLD	(NR_XMITFRAME * 2 / 5)
 
 void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
 {
@@ -176,7 +176,7 @@ int rtw_xmit_entry(struct sk_buff *pkt, struct  net_device *pnetdev)
 	if (!rtw_mc2u_disable && check_fwstate(pmlmepriv, WIFI_AP_STATE) &&
 	    (IP_MCAST_MAC(pkt->data) || ICMPV6_MCAST_MAC(pkt->data)) &&
 	    (padapter->registrypriv.wifi_spec == 0)) {
-		if (pxmitpriv->free_xmitframe_cnt > (NR_XMITFRAME/4)) {
+		if (pxmitpriv->free_xmitframe_cnt > NR_XMITFRAME / 4) {
 			res = rtw_mlcst2unicst(padapter, pkt);
 			if (res)
 				goto exit;
