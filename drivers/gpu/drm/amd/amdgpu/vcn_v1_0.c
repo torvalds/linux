@@ -840,6 +840,10 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 
 	vcn_v1_0_mc_resume_spg_mode(adev);
 
+	WREG32_SOC15(UVD, 0, mmUVD_REG_XX_MASK, 0x10);
+	WREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK,
+		RREG32_SOC15(UVD, 0, mmUVD_RBC_XX_IB_REG_CHECK) | 0x3);
+
 	/* take all subblocks out of reset, except VCPU */
 	WREG32_SOC15(UVD, 0, mmUVD_SOFT_RESET,
 			UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
