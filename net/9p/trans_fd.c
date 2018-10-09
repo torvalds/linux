@@ -876,7 +876,15 @@ static void p9_conn_destroy(struct p9_conn *m)
 
 	p9_mux_poll_stop(m);
 	cancel_work_sync(&m->rq);
+	if (m->rreq) {
+		p9_req_put(m->rreq);
+		m->rreq = NULL;
+	}
 	cancel_work_sync(&m->wq);
+	if (m->wreq) {
+		p9_req_put(m->wreq);
+		m->wreq = NULL;
+	}
 
 	p9_conn_cancel(m, -ECONNRESET);
 
