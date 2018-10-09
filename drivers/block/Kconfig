@@ -461,7 +461,6 @@ config BLK_DEV_RBD
 	select LIBCRC32C
 	select CRYPTO_AES
 	select CRYPTO
-	default n
 	help
 	  Say Y here if you want include the Rados block device, which stripes
 	  a block device over objects stored in the Ceph distributed object
