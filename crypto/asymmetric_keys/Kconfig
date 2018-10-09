@@ -24,6 +24,7 @@ config ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 config ASYMMETRIC_TPM_KEY_SUBTYPE
 	tristate "Asymmetric TPM backed private key subtype"
 	depends on TCG_TPM
+	depends on TRUSTED_KEYS
 	select CRYPTO_HMAC
 	select CRYPTO_SHA1
 	select CRYPTO_HASH_INFO
