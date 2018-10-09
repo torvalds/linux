@@ -120,7 +120,7 @@ static void pblk_end_io_erase(struct nvm_rq *rqd)
 /*
  * Get information for all chunks from the device.
  *
- * The caller is responsible for freeing the returned structure
+ * The caller is responsible for freeing (vmalloc) the returned structure
  */
 struct nvm_chk_meta *pblk_get_chunk_meta(struct pblk *pblk)
 {
@@ -134,7 +134,7 @@ struct nvm_chk_meta *pblk_get_chunk_meta(struct pblk *pblk)
 	ppa.ppa = 0;
 
 	len = geo->all_chunks * sizeof(*meta);
-	meta = kzalloc(len, GFP_KERNEL);
+	meta = vzalloc(len);
 	if (!meta)
 		return ERR_PTR(-ENOMEM);
 

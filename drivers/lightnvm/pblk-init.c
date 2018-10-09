@@ -1039,7 +1039,7 @@ static int pblk_lines_init(struct pblk *pblk)
 
 	pblk_set_provision(pblk, nr_free_chks);
 
-	kfree(chunk_meta);
+	vfree(chunk_meta);
 	return 0;
 
 fail_free_lines:
