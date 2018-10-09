@@ -1332,6 +1332,7 @@ enum fw_params_param_dev_phyfw {
 enum fw_params_param_dev_diag {
 	FW_PARAM_DEV_DIAG_TMP		= 0x00,
 	FW_PARAM_DEV_DIAG_VDD		= 0x01,
+	FW_PARAM_DEV_DIAG_MAXTMPTHRESH	= 0x02,
 };
 
 enum fw_params_param_dev_fwcache {

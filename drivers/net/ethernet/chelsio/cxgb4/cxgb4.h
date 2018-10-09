@@ -52,6 +52,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/ptp_classify.h>
 #include <linux/crash_dump.h>
+#include <linux/thermal.h>
 #include <asm/io.h>
 #include "t4_chip_type.h"
 #include "cxgb4_uld.h"
@@ -890,6 +891,14 @@ struct mps_encap_entry {
 	atomic_t refcnt;
 };
 
+#ifdef CONFIG_THERMAL
+struct ch_thermal {
+	struct thermal_zone_device *tzdev;
+	int trip_temp;
+	int trip_type;
+};
+#endif
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -1008,6 +1017,9 @@ struct adapter {
 
 	/* Dump buffer for collecting logs in kdump kernel */
 	struct vmcoredd_data vmcoredd;
+#ifdef CONFIG_THERMAL
+	struct ch_thermal ch_thermal;
+#endif
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
@@ -1862,4 +1874,10 @@ void cxgb4_ring_tx_db(struct adapter *adap, struct sge_txq *q, int n);
 int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 		    u16 vlan);
 int cxgb4_dcb_enabled(const struct net_device *dev);
+
+#ifdef CONFIG_THERMAL
+int cxgb4_thermal_init(struct adapter *adap);
+int cxgb4_thermal_remove(struct adapter *adap);
+#endif /* CONFIG_THERMAL */
+
 #endif /* __CXGB4_H__ */
