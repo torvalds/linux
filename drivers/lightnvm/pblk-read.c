@@ -449,13 +449,6 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	DECLARE_BITMAP(read_bitmap, NVM_MAX_VLBA);
 	int ret = NVM_IO_ERR;
 
-	/* logic error: lba out-of-bounds. Ignore read request */
-	if (blba >= pblk->rl.nr_secs || nr_secs > NVM_MAX_VLBA) {
-		WARN(1, "pblk: read lba out of bounds (lba:%llu, nr:%d)\n",
-					(unsigned long long)blba, nr_secs);
-		return NVM_IO_ERR;
-	}
-
 	generic_start_io_acct(q, REQ_OP_READ, bio_sectors(bio),
 			      &pblk->disk->part0);
 
