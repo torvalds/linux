@@ -184,7 +184,7 @@ fore200e_chunk_alloc(struct fore200e* fore200e, struct chunk* chunk, int size, i
     chunk->alloc_size = size + alignment;
     chunk->direction  = direction;
 
-    chunk->alloc_addr = kzalloc(chunk->alloc_size, GFP_KERNEL | GFP_DMA);
+    chunk->alloc_addr = kzalloc(chunk->alloc_size, GFP_KERNEL);
     if (chunk->alloc_addr == NULL)
 	return -ENOMEM;
 
@@ -1527,7 +1527,7 @@ fore200e_send(struct atm_vcc *vcc, struct sk_buff *skb)
     }
     
     if (tx_copy) {
-	data = kmalloc(tx_len, GFP_ATOMIC | GFP_DMA);
+	data = kmalloc(tx_len, GFP_ATOMIC);
 	if (data == NULL) {
 	    if (vcc->pop) {
 		vcc->pop(vcc, skb);
@@ -1664,7 +1664,7 @@ fore200e_getstats(struct fore200e* fore200e)
     u32                     stats_dma_addr;
 
     if (fore200e->stats == NULL) {
-	fore200e->stats = kzalloc(sizeof(struct stats), GFP_KERNEL | GFP_DMA);
+	fore200e->stats = kzalloc(sizeof(struct stats), GFP_KERNEL);
 	if (fore200e->stats == NULL)
 	    return -ENOMEM;
     }
@@ -1966,7 +1966,7 @@ static int fore200e_irq_request(struct fore200e *fore200e)
 
 static int fore200e_get_esi(struct fore200e *fore200e)
 {
-    struct prom_data* prom = kzalloc(sizeof(struct prom_data), GFP_KERNEL | GFP_DMA);
+    struct prom_data* prom = kzalloc(sizeof(struct prom_data), GFP_KERNEL);
     int ok, i;
 
     if (!prom)
