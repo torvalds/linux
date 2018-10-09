@@ -160,7 +160,7 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 
 	fb_helper = &fbdev_cma->fb_helper;
 
-	ret = drm_client_new(dev, &fb_helper->client, "fbdev", NULL);
+	ret = drm_client_init(dev, &fb_helper->client, "fbdev", NULL);
 	if (ret)
 		goto err_free;
 
@@ -168,6 +168,8 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 					preferred_bpp, max_conn_count);
 	if (ret)
 		goto err_client_put;
+
+	drm_client_add(&fb_helper->client);
 
 	return fbdev_cma;
 

@@ -1553,6 +1553,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 
 /* Flags */
 #define   MID_WAIT_CANCELLED	 1 /* Cancelled while waiting for response */
+#define   MID_DELETED            2 /* Mid has been dequeued/deleted */
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */

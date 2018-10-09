@@ -641,6 +641,87 @@ amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 	return NULL;
 }
 
+static void emulated_link_detect(struct dc_link *link)
+{
+	struct dc_sink_init_data sink_init_data = { 0 };
+	struct display_sink_capability sink_caps = { 0 };
+	enum dc_edid_status edid_status;
+	struct dc_context *dc_ctx = link->ctx;
+	struct dc_sink *sink = NULL;
+	struct dc_sink *prev_sink = NULL;
+
+	link->type = dc_connection_none;
+	prev_sink = link->local_sink;
+
+	if (prev_sink != NULL)
+		dc_sink_retain(prev_sink);
+
+	switch (link->connector_signal) {
+	case SIGNAL_TYPE_HDMI_TYPE_A: {
+		sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
+		sink_caps.signal = SIGNAL_TYPE_HDMI_TYPE_A;
+		break;
+	}
+
+	case SIGNAL_TYPE_DVI_SINGLE_LINK: {
+		sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
+		sink_caps.signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		break;
+	}
+
+	case SIGNAL_TYPE_DVI_DUAL_LINK: {
+		sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
+		sink_caps.signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+		break;
+	}
+
+	case SIGNAL_TYPE_LVDS: {
+		sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
+		sink_caps.signal = SIGNAL_TYPE_LVDS;
+		break;
+	}
+
+	case SIGNAL_TYPE_EDP: {
+		sink_caps.transaction_type =
+			DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
+		sink_caps.signal = SIGNAL_TYPE_EDP;
+		break;
+	}
+
+	case SIGNAL_TYPE_DISPLAY_PORT: {
+		sink_caps.transaction_type =
+			DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
+		sink_caps.signal = SIGNAL_TYPE_VIRTUAL;
+		break;
+	}
+
+	default:
+		DC_ERROR("Invalid connector type! signal:%d\n",
+			link->connector_signal);
+		return;
+	}
+
+	sink_init_data.link = link;
+	sink_init_data.sink_signal = sink_caps.signal;
+
+	sink = dc_sink_create(&sink_init_data);
+	if (!sink) {
+		DC_ERROR("Failed to create sink!\n");
+		return;
+	}
+
+	link->local_sink = sink;
+
+	edid_status = dm_helpers_read_local_edid(
+			link->ctx,
+			link,
+			sink);
+
+	if (edid_status != EDID_OK)
+		DC_ERROR("Failed to read EDID");
+
+}
+
 static int dm_resume(void *handle)
 {
 	struct amdgpu_device *adev = handle;
@@ -654,6 +735,7 @@ static int dm_resume(void *handle)
 	struct drm_plane *plane;
 	struct drm_plane_state *new_plane_state;
 	struct dm_plane_state *dm_new_plane_state;
+	enum dc_connection_type new_connection_type = dc_connection_none;
 	int ret;
 	int i;
 
@@ -684,7 +766,13 @@ static int dm_resume(void *handle)
 			continue;
 
 		mutex_lock(&aconnector->hpd_lock);
-		dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+		if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type))
+			DRM_ERROR("KMS: Failed to detect connector\n");
+
+		if (aconnector->base.force && new_connection_type == dc_connection_none)
+			emulated_link_detect(aconnector->dc_link);
+		else
+			dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
 
 		if (aconnector->fake_enable && aconnector->dc_link->local_sink)
 			aconnector->fake_enable = false;
@@ -922,6 +1010,7 @@ static void handle_hpd_irq(void *param)
 	struct amdgpu_dm_connector *aconnector = (struct amdgpu_dm_connector *)param;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
+	enum dc_connection_type new_connection_type = dc_connection_none;
 
 	/* In case of failure or MST no need to update connector status or notify the OS
 	 * since (for MST case) MST does this in it's own context.
@@ -931,7 +1020,21 @@ static void handle_hpd_irq(void *param)
 	if (aconnector->fake_enable)
 		aconnector->fake_enable = false;
 
-	if (dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD)) {
+	if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type))
+		DRM_ERROR("KMS: Failed to detect connector\n");
+
+	if (aconnector->base.force && new_connection_type == dc_connection_none) {
+		emulated_link_detect(aconnector->dc_link);
+
+
+		drm_modeset_lock_all(dev);
+		dm_restore_drm_connector_state(dev, connector);
+		drm_modeset_unlock_all(dev);
+
+		if (aconnector->base.force == DRM_FORCE_UNSPECIFIED)
+			drm_kms_helper_hotplug_event(dev);
+
+	} else if (dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD)) {
 		amdgpu_dm_update_connector_after_detect(aconnector);
 
 
@@ -1031,6 +1134,7 @@ static void handle_hpd_rx_irq(void *param)
 	struct drm_device *dev = connector->dev;
 	struct dc_link *dc_link = aconnector->dc_link;
 	bool is_mst_root_connector = aconnector->mst_mgr.mst_state;
+	enum dc_connection_type new_connection_type = dc_connection_none;
 
 	/* TODO:Temporary add mutex to protect hpd interrupt not have a gpio
 	 * conflict, after implement i2c helper, this mutex should be
@@ -1042,7 +1146,24 @@ static void handle_hpd_rx_irq(void *param)
 	if (dc_link_handle_hpd_rx_irq(dc_link, NULL, NULL) &&
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
-		if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
+		if (!dc_link_detect_sink(dc_link, &new_connection_type))
+			DRM_ERROR("KMS: Failed to detect connector\n");
+
+		if (aconnector->base.force && new_connection_type == dc_connection_none) {
+			emulated_link_detect(dc_link);
+
+			if (aconnector->fake_enable)
+				aconnector->fake_enable = false;
+
+			amdgpu_dm_update_connector_after_detect(aconnector);
+
+
+			drm_modeset_lock_all(dev);
+			dm_restore_drm_connector_state(dev, connector);
+			drm_modeset_unlock_all(dev);
+
+			drm_kms_helper_hotplug_event(dev);
+		} else if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
 
 			if (aconnector->fake_enable)
 				aconnector->fake_enable = false;
@@ -1433,6 +1554,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
 	int32_t total_overlay_planes, total_primary_planes;
+	enum dc_connection_type new_connection_type = dc_connection_none;
 
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
@@ -1499,7 +1621,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 		link = dc_get_link_at_index(dm->dc, i);
 
-		if (dc_link_detect(link, DETECT_REASON_BOOT)) {
+		if (!dc_link_detect_sink(link, &new_connection_type))
+			DRM_ERROR("KMS: Failed to detect connector\n");
+
+		if (aconnector->base.force && new_connection_type == dc_connection_none) {
+			emulated_link_detect(link);
+			amdgpu_dm_update_connector_after_detect(aconnector);
+
+		} else if (dc_link_detect(link, DETECT_REASON_BOOT)) {
 			amdgpu_dm_update_connector_after_detect(aconnector);
 			register_backlight_device(dm, link);
 		}
@@ -2494,7 +2623,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	if (dm_state && dm_state->freesync_capable)
 		stream->ignore_msa_timing_param = true;
 finish:
-	if (sink && sink->sink_signal == SIGNAL_TYPE_VIRTUAL)
+	if (sink && sink->sink_signal == SIGNAL_TYPE_VIRTUAL && aconnector->base.force != DRM_FORCE_ON)
 		dc_sink_release(sink);
 
 	return stream;
@@ -4504,11 +4633,17 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 
-	/* Signal HW programming completion */
-	drm_atomic_helper_commit_hw_done(state);
 
 	if (wait_for_vblank)
 		drm_atomic_helper_wait_for_flip_done(dev, state);
+
+	/*
+	 * FIXME:
+	 * Delay hw_done() until flip_done() is signaled. This is to block
+	 * another commit from freeing the CRTC state while we're still
+	 * waiting on flip_done.
+	 */
+	drm_atomic_helper_commit_hw_done(state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 

@@ -352,6 +352,47 @@ xfs_reflink_convert_cow(
 	return error;
 }
 
+/*
+ * Find the extent that maps the given range in the COW fork. Even if the extent
+ * is not shared we might have a preallocation for it in the COW fork. If so we
+ * use it that rather than trigger a new allocation.
+ */
+static int
+xfs_find_trim_cow_extent(
+	struct xfs_inode	*ip,
+	struct xfs_bmbt_irec	*imap,
+	bool			*shared,
+	bool			*found)
+{
+	xfs_fileoff_t		offset_fsb = imap->br_startoff;
+	xfs_filblks_t		count_fsb = imap->br_blockcount;
+	struct xfs_iext_cursor	icur;
+	struct xfs_bmbt_irec	got;
+	bool			trimmed;
+
+	*found = false;
+
+	/*
+	 * If we don't find an overlapping extent, trim the range we need to
+	 * allocate to fit the hole we found.
+	 */
+	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got) ||
+	    got.br_startoff > offset_fsb)
+		return xfs_reflink_trim_around_shared(ip, imap, shared, &trimmed);
+
+	*shared = true;
+	if (isnullstartblock(got.br_startblock)) {
+		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
+		return 0;
+	}
+
+	/* real extent found - no need to allocate */
+	xfs_trim_extent(&got, offset_fsb, count_fsb);
+	*imap = got;
+	*found = true;
+	return 0;
+}
+
 /* Allocate all CoW reservations covering a range of blocks in a file. */
 int
 xfs_reflink_allocate_cow(
@@ -363,78 +404,64 @@ xfs_reflink_allocate_cow(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb = imap->br_startoff;
 	xfs_filblks_t		count_fsb = imap->br_blockcount;
-	struct xfs_bmbt_irec	got;
-	struct xfs_trans	*tp = NULL;
+	struct xfs_trans	*tp;
 	int			nimaps, error = 0;
-	bool			trimmed;
+	bool			found;
 	xfs_filblks_t		resaligned;
 	xfs_extlen_t		resblks = 0;
-	struct xfs_iext_cursor	icur;
 
-retry:
-	ASSERT(xfs_is_reflink_inode(ip));
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	ASSERT(xfs_is_reflink_inode(ip));
+
+	error = xfs_find_trim_cow_extent(ip, imap, shared, &found);
+	if (error || !*shared)
+		return error;
+	if (found)
+		goto convert;
+
+	resaligned = xfs_aligned_fsb_count(imap->br_startoff,
+		imap->br_blockcount, xfs_get_cowextsz_hint(ip));
+	resblks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
+
+	xfs_iunlock(ip, *lockmode);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
+	*lockmode = XFS_ILOCK_EXCL;
+	xfs_ilock(ip, *lockmode);
+
+	if (error)
+		return error;
+
+	error = xfs_qm_dqattach_locked(ip, false);
+	if (error)
+		goto out_trans_cancel;
 
 	/*
-	 * Even if the extent is not shared we might have a preallocation for
-	 * it in the COW fork.  If so use it.
+	 * Check for an overlapping extent again now that we dropped the ilock.
 	 */
-	if (xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got) &&
-	    got.br_startoff <= offset_fsb) {
-		*shared = true;
-
-		/* If we have a real allocation in the COW fork we're done. */
-		if (!isnullstartblock(got.br_startblock)) {
-			xfs_trim_extent(&got, offset_fsb, count_fsb);
-			*imap = got;
-			goto convert;
-		}
-
-		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
-	} else {
-		error = xfs_reflink_trim_around_shared(ip, imap, shared, &trimmed);
-		if (error || !*shared)
-			goto out;
-	}
-
-	if (!tp) {
-		resaligned = xfs_aligned_fsb_count(imap->br_startoff,
-			imap->br_blockcount, xfs_get_cowextsz_hint(ip));
-		resblks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
-
-		xfs_iunlock(ip, *lockmode);
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
-		*lockmode = XFS_ILOCK_EXCL;
-		xfs_ilock(ip, *lockmode);
-
-		if (error)
-			return error;
-
-		error = xfs_qm_dqattach_locked(ip, false);
-		if (error)
-			goto out;
-		goto retry;
+	error = xfs_find_trim_cow_extent(ip, imap, shared, &found);
+	if (error || !*shared)
+		goto out_trans_cancel;
+	if (found) {
+		xfs_trans_cancel(tp);
+		goto convert;
 	}
 
 	error = xfs_trans_reserve_quota_nblks(tp, ip, resblks, 0,
 			XFS_QMOPT_RES_REGBLKS);
 	if (error)
-		goto out;
+		goto out_trans_cancel;
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	nimaps = 1;
-
 	/* Allocate the entire reservation as unwritten blocks. */
+	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC,
 			resblks, imap, &nimaps);
 	if (error)
-		goto out_trans_cancel;
+		goto out_unreserve;
 
 	xfs_inode_set_cowblocks_tag(ip);
-
-	/* Finish up. */
 	error = xfs_trans_commit(tp);
 	if (error)
 		return error;
@@ -447,12 +474,12 @@ retry:
 		return -ENOSPC;
 convert:
 	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb);
-out_trans_cancel:
+
+out_unreserve:
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)resblks, 0,
 			XFS_QMOPT_RES_REGBLKS);
-out:
-	if (tp)
-		xfs_trans_cancel(tp);
+out_trans_cancel:
+	xfs_trans_cancel(tp);
 	return error;
 }
 
@@ -666,14 +693,12 @@ xfs_reflink_end_cow(
 		if (!del.br_blockcount)
 			goto prev_extent;
 
-		ASSERT(!isnullstartblock(got.br_startblock));
-
 		/*
-		 * Don't remap unwritten extents; these are
-		 * speculatively preallocated CoW extents that have been
-		 * allocated but have not yet been involved in a write.
+		 * Only remap real extent that contain data.  With AIO
+		 * speculatively preallocations can leak into the range we
+		 * are called upon, and we need to skip them.
 		 */
-		if (got.br_state == XFS_EXT_UNWRITTEN)
+		if (!xfs_bmap_is_real_extent(&got))
 			goto prev_extent;
 
 		/* Unmap the old blocks in the data fork. */
