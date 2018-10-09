@@ -182,7 +182,6 @@ fore200e_chunk_alloc(struct fore200e* fore200e, struct chunk* chunk, int size, i
 	alignment = 0;
 
     chunk->alloc_size = size + alignment;
-    chunk->align_size = size;
     chunk->direction  = direction;
 
     chunk->alloc_addr = kzalloc(chunk->alloc_size, GFP_KERNEL | GFP_DMA);
@@ -194,7 +193,7 @@ fore200e_chunk_alloc(struct fore200e* fore200e, struct chunk* chunk, int size, i
     
     chunk->align_addr = chunk->alloc_addr + offset;
 
-    chunk->dma_addr = fore200e->bus->dma_map(fore200e, chunk->align_addr, chunk->align_size, direction);
+    chunk->dma_addr = fore200e->bus->dma_map(fore200e, chunk->align_addr, size, direction);
     
     return 0;
 }
@@ -740,7 +739,7 @@ static void fore200e_sba_dma_sync_for_device(struct fore200e *fore200e, u32 dma_
 static int fore200e_sba_dma_chunk_alloc(struct fore200e *fore200e, struct chunk *chunk,
 					int size, int nbr, int alignment)
 {
-	chunk->alloc_size = chunk->align_size = size * nbr;
+	chunk->alloc_size = size * nbr;
 
 	/* returned chunks are page-aligned */
 	chunk->alloc_addr = dma_alloc_coherent(fore200e->dev, chunk->alloc_size,
