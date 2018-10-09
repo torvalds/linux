@@ -193,8 +193,9 @@ static int pblk_rwb_init(struct pblk *pblk)
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
 	unsigned long buffer_size;
-	int pgs_in_buffer;
+	int pgs_in_buffer, threshold;
 
+	threshold = geo->mw_cunits * geo->all_luns;
 	pgs_in_buffer = (max(geo->mw_cunits, geo->ws_opt) + geo->ws_opt)
 								* geo->all_luns;
 
@@ -203,7 +204,7 @@ static int pblk_rwb_init(struct pblk *pblk)
 	else
 		buffer_size = pgs_in_buffer;
 
-	return pblk_rb_init(&pblk->rwb, buffer_size, geo->csecs);
+	return pblk_rb_init(&pblk->rwb, buffer_size, threshold, geo->csecs);
 }
 
 /* Minimum pages needed within a lun */

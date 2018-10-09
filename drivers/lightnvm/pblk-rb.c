@@ -56,7 +56,8 @@ static unsigned int pblk_rb_calculate_size(unsigned int nr_entries)
  * allocated and their size must be a power of two
  * (Documentation/core-api/circular-buffers.rst)
  */
-int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int seg_size)
+int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int threshold,
+		 unsigned int seg_size)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_rb_entry *entries;
@@ -79,6 +80,7 @@ int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int seg_size)
 	rb->seg_size = (1 << power_seg_sz);
 	rb->nr_entries = (1 << power_size);
 	rb->mem = rb->subm = rb->sync = rb->l2p_update = 0;
+	rb->back_thres = threshold;
 	rb->flush_point = EMPTY_ENTRY;
 
 	spin_lock_init(&rb->w_lock);
@@ -404,11 +406,14 @@ static int __pblk_rb_may_write(struct pblk_rb *rb, unsigned int nr_entries,
 {
 	unsigned int mem;
 	unsigned int sync;
+	unsigned int threshold;
 
 	sync = READ_ONCE(rb->sync);
 	mem = READ_ONCE(rb->mem);
 
-	if (pblk_rb_ring_space(rb, mem, sync, rb->nr_entries) < nr_entries)
+	threshold = nr_entries + rb->back_thres;
+
+	if (pblk_rb_ring_space(rb, mem, sync, rb->nr_entries) < threshold)
 		return 0;
 
 	if (pblk_rb_update_l2p(rb, nr_entries, mem, sync))

@@ -203,6 +203,11 @@ struct pblk_rb {
 					 * will be 4KB
 					 */
 
+	unsigned int back_thres;	/* Threshold that shall be maintained by
+					 * the backpointer in order to respect
+					 * geo->mw_cunits on a per chunk basis
+					 */
+
 	struct list_head pages;		/* List of data pages */
 
 	spinlock_t w_lock;		/* Write lock */
@@ -734,7 +739,8 @@ struct pblk_line_ws {
 /*
  * pblk ring buffer operations
  */
-int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int seg_sz);
+int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int threshold,
+		 unsigned int seg_sz);
 int pblk_rb_may_write_user(struct pblk_rb *rb, struct bio *bio,
 			   unsigned int nr_entries, unsigned int *pos);
 int pblk_rb_may_write_gc(struct pblk_rb *rb, unsigned int nr_entries,
