@@ -11,7 +11,7 @@
 
 static const struct flag_info flag_array[] = {
 	{
-		.mask	= _PAGE_PRIVILEGED,
+		.mask	= _PAGE_SH,
 		.val	= 0,
 		.set	= "user",
 		.clear	= "    ",

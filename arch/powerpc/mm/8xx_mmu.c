@@ -67,7 +67,7 @@ void __init MMU_init_hw(void)
 	/* PIN up to the 3 first 8Mb after IMMR in DTLB table */
 #ifdef CONFIG_PIN_TLB_DATA
 	unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
-	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_PRIVILEGED | _PAGE_DIRTY;
+	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SH | _PAGE_DIRTY;
 #ifdef CONFIG_PIN_TLB_IMMR
 	int i = 29;
 #else

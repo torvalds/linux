@@ -29,10 +29,10 @@
  */
 
 /* Definitions for 8xx embedded chips. */
-#define _PAGE_PRESENT	0x0001	/* Page is valid */
-#define _PAGE_NO_CACHE	0x0002	/* I: cache inhibit */
-#define _PAGE_PRIVILEGED	0x0004	/* No ASID (context) compare */
-#define _PAGE_HUGE	0x0008	/* SPS: Small Page Size (1 if 16k, 512k or 8M)*/
+#define _PAGE_PRESENT	0x0001	/* V: Page is valid */
+#define _PAGE_NO_CACHE	0x0002	/* CI: cache inhibit */
+#define _PAGE_SH	0x0004	/* SH: No ASID (context) compare */
+#define _PAGE_SPS	0x0008	/* SPS: Small Page Size (1 if 16k, 512k or 8M)*/
 #define _PAGE_DIRTY	0x0100	/* C: page changed */
 
 /* These 4 software bits must be masked out when the L2 entry is loaded
@@ -50,15 +50,15 @@
 #define _PAGE_COHERENT	0
 #define _PAGE_WRITETHRU	0
 
-#define _PAGE_KERNEL_RO		(_PAGE_PRIVILEGED | _PAGE_RO)
-#define _PAGE_KERNEL_ROX	(_PAGE_PRIVILEGED | _PAGE_RO | _PAGE_EXEC)
-#define _PAGE_KERNEL_RW		(_PAGE_PRIVILEGED | _PAGE_DIRTY)
-#define _PAGE_KERNEL_RWX	(_PAGE_PRIVILEGED | _PAGE_DIRTY | _PAGE_EXEC)
+#define _PAGE_KERNEL_RO		(_PAGE_SH | _PAGE_RO)
+#define _PAGE_KERNEL_ROX	(_PAGE_SH | _PAGE_RO | _PAGE_EXEC)
+#define _PAGE_KERNEL_RW		(_PAGE_SH | _PAGE_DIRTY)
+#define _PAGE_KERNEL_RWX	(_PAGE_SH | _PAGE_DIRTY | _PAGE_EXEC)
 
 /* Mask of bits returned by pte_pgprot() */
 #define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
 			 _PAGE_ACCESSED | _PAGE_RO | _PAGE_NA | \
-			 _PAGE_PRIVILEGED | _PAGE_DIRTY | _PAGE_EXEC)
+			 _PAGE_SH | _PAGE_DIRTY | _PAGE_EXEC)
 
 #define _PMD_PRESENT	0x0001
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
@@ -74,7 +74,7 @@
 #define PTE_ATOMIC_UPDATES	1
 
 #ifdef CONFIG_PPC_16K_PAGES
-#define _PAGE_PSIZE	_PAGE_HUGE
+#define _PAGE_PSIZE	_PAGE_SPS
 #else
 #define _PAGE_PSIZE		0
 #endif
@@ -115,28 +115,28 @@ static inline pte_t pte_mkwrite(pte_t pte)
 
 static inline bool pte_user(pte_t pte)
 {
-	return !(pte_val(pte) & _PAGE_PRIVILEGED);
+	return !(pte_val(pte) & _PAGE_SH);
 }
 
 #define pte_user pte_user
 
 static inline pte_t pte_mkprivileged(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_PRIVILEGED);
+	return __pte(pte_val(pte) | _PAGE_SH);
 }
 
 #define pte_mkprivileged pte_mkprivileged
 
 static inline pte_t pte_mkuser(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_PRIVILEGED);
+	return __pte(pte_val(pte) & ~_PAGE_SH);
 }
 
 #define pte_mkuser pte_mkuser
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_HUGE);
+	return __pte(pte_val(pte) | _PAGE_SPS);
 }
 
 #define pte_mkhuge pte_mkhuge
