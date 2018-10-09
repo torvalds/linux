@@ -106,7 +106,6 @@
 
 
 static const struct atmdev_ops   fore200e_ops;
-static const struct fore200e_bus fore200e_bus[];
 
 static LIST_HEAD(fore200e_boards);
 
@@ -664,8 +663,30 @@ fore200e_pca_proc_read(struct fore200e* fore200e, char *page)
 		   pci_dev->bus->number, PCI_SLOT(pci_dev->devfn), PCI_FUNC(pci_dev->devfn));
 }
 
+static const struct fore200e_bus fore200e_pci_ops = {
+	.model_name		= "PCA-200E",
+	.proc_name		= "pca200e",
+	.descr_alignment	= 32,
+	.buffer_alignment	= 4,
+	.status_alignment	= 32,
+	.read			= fore200e_pca_read,
+	.write			= fore200e_pca_write,
+	.dma_map		= fore200e_pca_dma_map,
+	.dma_unmap		= fore200e_pca_dma_unmap,
+	.dma_sync_for_cpu	= fore200e_pca_dma_sync_for_cpu,
+	.dma_sync_for_device	= fore200e_pca_dma_sync_for_device,
+	.dma_chunk_alloc	= fore200e_pca_dma_chunk_alloc,
+	.dma_chunk_free		= fore200e_pca_dma_chunk_free,
+	.configure		= fore200e_pca_configure,
+	.map			= fore200e_pca_map,
+	.reset			= fore200e_pca_reset,
+	.prom_read		= fore200e_pca_prom_read,
+	.unmap			= fore200e_pca_unmap,
+	.irq_check		= fore200e_pca_irq_check,
+	.irq_ack		= fore200e_pca_irq_ack,
+	.proc_read		= fore200e_pca_proc_read,
+};
 #endif /* CONFIG_PCI */
-
 
 #ifdef CONFIG_SBUS
 
@@ -855,8 +876,32 @@ static int fore200e_sba_proc_read(struct fore200e *fore200e, char *page)
 	return sprintf(page, "   SBUS slot/device:\t\t%d/'%s'\n",
 		       (regs ? regs->which_io : 0), op->dev.of_node->name);
 }
-#endif /* CONFIG_SBUS */
 
+static const struct fore200e_bus fore200e_sbus_ops = {
+	.model_name		= "SBA-200E",
+	.proc_name		= "sba200e",
+	.descr_alignment	= 32,
+	.buffer_alignent	= 64,
+	.status_alignment	= 32,
+	.read			= fore200e_sba_read,
+	.write			= fore200e_sba_write,
+	.dma_map		= fore200e_sba_dma_map,
+	.dma_unap		= fore200e_sba_dma_unmap,
+	.dma_sync_for_cpu	= fore200e_sba_dma_sync_for_cpu,
+	.dma_sync_for_device	= fore200e_sba_dma_sync_for_device,
+	.dma_chunk_alloc	= fore200e_sba_dma_chunk_alloc,
+	.dma_chunk_free		= fore200e_sba_dma_chunk_free,
+	.configure		= fore200e_sba_configure,
+	.map			= fore200e_sba_map,
+	.reset			= fore200e_sba_reset,
+	.prom_read		= fore200e_sba_prom_read,
+	.unmap			= fore200e_sba_unmap,
+	.irq_enable		= fore200e_sba_irq_enable,
+	.irq_check		= fore200e_sba_irq_check,
+	.irq_ack		= fore200e_sba_irq_ack,
+	.proc_read		= fore200e_sba_proc_read,
+};
+#endif /* CONFIG_SBUS */
 
 static void
 fore200e_tx_irq(struct fore200e* fore200e)
@@ -2631,7 +2676,6 @@ static const struct of_device_id fore200e_sba_match[];
 static int fore200e_sba_probe(struct platform_device *op)
 {
 	const struct of_device_id *match;
-	const struct fore200e_bus *bus;
 	struct fore200e *fore200e;
 	static int index = 0;
 	int err;
@@ -2639,18 +2683,17 @@ static int fore200e_sba_probe(struct platform_device *op)
 	match = of_match_device(fore200e_sba_match, &op->dev);
 	if (!match)
 		return -EINVAL;
-	bus = match->data;
 
 	fore200e = kzalloc(sizeof(struct fore200e), GFP_KERNEL);
 	if (!fore200e)
 		return -ENOMEM;
 
-	fore200e->bus = bus;
+	fore200e->bus = &fore200e_sbus_ops;
 	fore200e->bus_dev = op;
 	fore200e->irq = op->archdata.irqs[0];
 	fore200e->phys_base = op->resource[0].start;
 
-	sprintf(fore200e->name, "%s-%d", bus->model_name, index);
+	sprintf(fore200e->name, "SBA-200E-%d", index);
 
 	err = fore200e_init(fore200e, &op->dev);
 	if (err < 0) {
@@ -2678,7 +2721,6 @@ static int fore200e_sba_remove(struct platform_device *op)
 static const struct of_device_id fore200e_sba_match[] = {
 	{
 		.name = SBA200E_PROM_NAME,
-		.data = (void *) &fore200e_bus[1],
 	},
 	{},
 };
@@ -2698,7 +2740,6 @@ static struct platform_driver fore200e_sba_driver = {
 static int fore200e_pca_detect(struct pci_dev *pci_dev,
 			       const struct pci_device_id *pci_ent)
 {
-    const struct fore200e_bus* bus = (struct fore200e_bus*) pci_ent->driver_data;
     struct fore200e* fore200e;
     int err = 0;
     static int index = 0;
@@ -2719,20 +2760,19 @@ static int fore200e_pca_detect(struct pci_dev *pci_dev,
 	goto out_disable;
     }
 
-    fore200e->bus       = bus;
+    fore200e->bus       = &fore200e_pci_ops;
     fore200e->bus_dev   = pci_dev;    
     fore200e->irq       = pci_dev->irq;
     fore200e->phys_base = pci_resource_start(pci_dev, 0);
 
-    sprintf(fore200e->name, "%s-%d", bus->model_name, index - 1);
+    sprintf(fore200e->name, "PCA-200E-%d", index - 1);
 
     pci_set_master(pci_dev);
 
-    printk(FORE200E "device %s found at 0x%lx, IRQ %s\n",
-	   fore200e->bus->model_name, 
+    printk(FORE200E "device PCA-200E found at 0x%lx, IRQ %s\n",
 	   fore200e->phys_base, fore200e_irq_itoa(fore200e->irq));
 
-    sprintf(fore200e->name, "%s-%d", bus->model_name, index);
+    sprintf(fore200e->name, "PCA-200E-%d", index);
 
     err = fore200e_init(fore200e, &pci_dev->dev);
     if (err < 0) {
@@ -2767,8 +2807,7 @@ static void fore200e_pca_remove_one(struct pci_dev *pci_dev)
 
 
 static const struct pci_device_id fore200e_pca_tbl[] = {
-    { PCI_VENDOR_ID_FORE, PCI_DEVICE_ID_FORE_PCA200E, PCI_ANY_ID, PCI_ANY_ID,
-      0, 0, (unsigned long) &fore200e_bus[0] },
+    { PCI_VENDOR_ID_FORE, PCI_DEVICE_ID_FORE_PCA200E, PCI_ANY_ID, PCI_ANY_ID },
     { 0, }
 };
 
@@ -3108,8 +3147,7 @@ module_init(fore200e_module_init);
 module_exit(fore200e_module_cleanup);
 
 
-static const struct atmdev_ops fore200e_ops =
-{
+static const struct atmdev_ops fore200e_ops = {
 	.open       = fore200e_open,
 	.close      = fore200e_close,
 	.ioctl      = fore200e_ioctl,
@@ -3119,53 +3157,6 @@ static const struct atmdev_ops fore200e_ops =
 	.change_qos = fore200e_change_qos,
 	.proc_read  = fore200e_proc_read,
 	.owner      = THIS_MODULE
-};
-
-
-static const struct fore200e_bus fore200e_bus[] = {
-#ifdef CONFIG_PCI
-    { "PCA-200E", "pca200e", 32, 4, 32, 
-      fore200e_pca_read,
-      fore200e_pca_write,
-      fore200e_pca_dma_map,
-      fore200e_pca_dma_unmap,
-      fore200e_pca_dma_sync_for_cpu,
-      fore200e_pca_dma_sync_for_device,
-      fore200e_pca_dma_chunk_alloc,
-      fore200e_pca_dma_chunk_free,
-      fore200e_pca_configure,
-      fore200e_pca_map,
-      fore200e_pca_reset,
-      fore200e_pca_prom_read,
-      fore200e_pca_unmap,
-      NULL,
-      fore200e_pca_irq_check,
-      fore200e_pca_irq_ack,
-      fore200e_pca_proc_read,
-    },
-#endif
-#ifdef CONFIG_SBUS
-    { "SBA-200E", "sba200e", 32, 64, 32,
-      fore200e_sba_read,
-      fore200e_sba_write,
-      fore200e_sba_dma_map,
-      fore200e_sba_dma_unmap,
-      fore200e_sba_dma_sync_for_cpu,
-      fore200e_sba_dma_sync_for_device,
-      fore200e_sba_dma_chunk_alloc,
-      fore200e_sba_dma_chunk_free,
-      fore200e_sba_configure,
-      fore200e_sba_map,
-      fore200e_sba_reset,
-      fore200e_sba_prom_read,
-      fore200e_sba_unmap,
-      fore200e_sba_irq_enable,
-      fore200e_sba_irq_check,
-      fore200e_sba_irq_ack,
-      fore200e_sba_proc_read,
-    },
-#endif
-    {}
 };
 
 MODULE_LICENSE("GPL");
