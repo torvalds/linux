@@ -530,7 +530,8 @@ static void rkisp1_init_stats_vdev(struct rkisp1_isp_stats_vdev *stats_vdev)
 	stats_vdev->vdev_fmt.fmt.meta.buffersize =
 		sizeof(struct rkisp1_stat_buffer);
 
-	if (stats_vdev->dev->isp_ver == ISP_V12) {
+	if (stats_vdev->dev->isp_ver == ISP_V12 ||
+	    stats_vdev->dev->isp_ver == ISP_V13) {
 		stats_vdev->ops = &rkisp1_v12_stats_ops;
 		stats_vdev->config = &rkisp1_v12_stats_config;
 	} else {

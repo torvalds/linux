@@ -109,6 +109,9 @@ void rkisp1_unregister_isp_subdev(struct rkisp1_device *isp_dev);
 
 void rkisp1_mipi_isr(unsigned int mipi_mis, struct rkisp1_device *dev);
 
+void rkisp1_mipi_v13_isr(unsigned int err1, unsigned int err2,
+			       unsigned int err3, struct rkisp1_device *dev);
+
 void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev);
 
 static inline

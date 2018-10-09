@@ -759,7 +759,9 @@ static u32 calc_burst_len(struct rkisp1_stream *stream)
 	int i;
 
 	/* MI128bit and MI64bit */
-	bus = (dev->isp_ver == ISP_V12) ? 16 : 8;
+	bus = 8;
+	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13)
+		bus = 16;
 
 	/* y/c base addr: burstN * bus alignment */
 	cb_offs = y_size;

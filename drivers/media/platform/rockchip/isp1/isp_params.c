@@ -1688,7 +1688,8 @@ void rkisp1_params_config_parameter(struct rkisp1_isp_params_vdev *params_vdev)
 
 	memset(hst.hist_weight, 0x01, sizeof(hst.hist_weight));
 	ops->hst_config(params_vdev, &hst);
-	if (params_vdev->dev->isp_ver == ISP_V12) {
+	if (params_vdev->dev->isp_ver == ISP_V12 ||
+	    params_vdev->dev->isp_ver == ISP_V13) {
 		isp_param_set_bits(params_vdev, CIF_ISP_HIST_CTRL_V12,
 			   ~CIF_ISP_HIST_CTRL_MODE_MASK_V12 |
 			   hst_params_default_config.mode);
@@ -1957,7 +1958,8 @@ static void rkisp1_init_params_vdev(struct rkisp1_isp_params_vdev *params_vdev)
 	params_vdev->vdev_fmt.fmt.meta.buffersize =
 		sizeof(struct rkisp1_isp_params_cfg);
 
-	if (params_vdev->dev->isp_ver == ISP_V12) {
+	if (params_vdev->dev->isp_ver == ISP_V12 ||
+	    params_vdev->dev->isp_ver == ISP_V13) {
 		params_vdev->ops = &rkisp1_v12_isp_params_ops;
 		params_vdev->config = &rkisp1_v12_isp_params_config;
 	} else {

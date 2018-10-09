@@ -59,7 +59,8 @@
 enum rkisp1_isp_ver {
 	ISP_V10 = 0,
 	ISP_V11,
-	ISP_V12
+	ISP_V12,
+	ISP_V13
 };
 
 /*

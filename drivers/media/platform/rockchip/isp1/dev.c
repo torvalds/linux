@@ -484,6 +484,13 @@ err_cleanup_ctx:
 	return ret;
 }
 
+static const char * const rk1808_isp_clks[] = {
+	"clk_isp",
+	"aclk_isp",
+	"hclk_isp",
+	"pclk_isp",
+};
+
 static const char * const rk3288_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
@@ -509,6 +516,11 @@ static const char * const rk3399_isp_clks[] = {
 };
 
 /* isp clock adjustment table (MHz) */
+static const unsigned int rk1808_isp_clk_rate[] = {
+	400, 500, 600
+};
+
+/* isp clock adjustment table (MHz) */
 static const unsigned int rk3288_isp_clk_rate[] = {
 	384, 500, 594
 };
@@ -521,6 +533,14 @@ static const unsigned int rk3326_isp_clk_rate[] = {
 /* isp clock adjustment table (MHz) */
 static const unsigned int rk3399_isp_clk_rate[] = {
 	300, 400, 600
+};
+
+static const struct isp_match_data rk1808_isp_match_data = {
+	.clks = rk1808_isp_clks,
+	.num_clks = ARRAY_SIZE(rk1808_isp_clks),
+	.isp_ver = ISP_V13,
+	.clk_rate_tbl = rk1808_isp_clk_rate,
+	.num_clk_rate_tbl = ARRAY_SIZE(rk1808_isp_clk_rate),
 };
 
 static const struct isp_match_data rk3288_isp_match_data = {
@@ -549,6 +569,9 @@ static const struct isp_match_data rk3399_isp_match_data = {
 
 static const struct of_device_id rkisp1_plat_of_match[] = {
 	{
+		.compatible = "rockchip,rk1808-rkisp1",
+		.data = &rk1808_isp_match_data,
+	}, {
 		.compatible = "rockchip,rk3288-rkisp1",
 		.data = &rk3288_isp_match_data,
 	}, {
@@ -566,14 +589,24 @@ static irqreturn_t rkisp1_irq_handler(int irq, void *ctx)
 	struct device *dev = ctx;
 	struct rkisp1_device *rkisp1_dev = dev_get_drvdata(dev);
 	unsigned int mis_val;
+	unsigned int err1, err2, err3;
 
 	mis_val = readl(rkisp1_dev->base_addr + CIF_ISP_MIS);
 	if (mis_val)
 		rkisp1_isp_isr(mis_val, rkisp1_dev);
 
-	mis_val = readl(rkisp1_dev->base_addr + CIF_MIPI_MIS);
-	if (mis_val)
-		rkisp1_mipi_isr(mis_val, rkisp1_dev);
+	if (rkisp1_dev->isp_ver == ISP_V13) {
+		err1 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR1);
+		err2 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR2);
+		err3 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR3);
+
+		if (err1 || err2 || err3)
+			rkisp1_mipi_v13_isr(err1, err2, err3, rkisp1_dev);
+	} else {
+		mis_val = readl(rkisp1_dev->base_addr + CIF_MIPI_MIS);
+		if (mis_val)
+			rkisp1_mipi_isr(mis_val, rkisp1_dev);
+	}
 
 	mis_val = readl(rkisp1_dev->base_addr + CIF_MI_MIS);
 	if (mis_val)
