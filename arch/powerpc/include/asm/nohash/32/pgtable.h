@@ -323,7 +323,7 @@ static inline int pte_young(pte_t pte)
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
 
-int map_kernel_page(unsigned long va, phys_addr_t pa, int flags);
+int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 
 #endif /* !__ASSEMBLY__ */
 

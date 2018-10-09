@@ -1030,17 +1030,16 @@ extern struct page *pgd_page(pgd_t pgd);
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
-static inline int map_kernel_page(unsigned long ea, unsigned long pa,
-				  unsigned long flags)
+static inline int map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
 {
 	if (radix_enabled()) {
 #if defined(CONFIG_PPC_RADIX_MMU) && defined(DEBUG_VM)
 		unsigned long page_size = 1 << mmu_psize_defs[mmu_io_psize].shift;
 		WARN((page_size != PAGE_SIZE), "I/O page size != PAGE_SIZE");
 #endif
-		return radix__map_kernel_page(ea, pa, __pgprot(flags), PAGE_SIZE);
+		return radix__map_kernel_page(ea, pa, prot, PAGE_SIZE);
 	}
-	return hash__map_kernel_page(ea, pa, flags);
+	return hash__map_kernel_page(ea, pa, prot);
 }
 
 static inline int __meminit vmemmap_create_mapping(unsigned long start,

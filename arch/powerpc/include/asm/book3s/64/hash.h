@@ -201,8 +201,7 @@ static inline void hpte_do_hugepage_flush(struct mm_struct *mm,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 
-extern int hash__map_kernel_page(unsigned long ea, unsigned long pa,
-			     unsigned long flags);
+int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot);
 extern int __meminit hash__vmemmap_create_mapping(unsigned long start,
 					      unsigned long page_size,
 					      unsigned long phys);

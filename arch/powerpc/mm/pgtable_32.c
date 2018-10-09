@@ -76,36 +76,36 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 void __iomem *
 ioremap(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_noncached(PAGE_KERNEL));
+	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
 
-	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap);
 
 void __iomem *
 ioremap_wc(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_noncached_wc(PAGE_KERNEL));
+	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
 
-	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_wc);
 
 void __iomem *
 ioremap_wt(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_cached_wthru(PAGE_KERNEL));
+	pgprot_t prot = pgprot_cached_wthru(PAGE_KERNEL);
 
-	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_wt);
 
 void __iomem *
 ioremap_coherent(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_cached(PAGE_KERNEL));
+	pgprot_t prot = pgprot_cached(PAGE_KERNEL);
 
-	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+	return __ioremap_caller(addr, size, prot, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_coherent);
 
@@ -120,19 +120,18 @@ ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)
 	flags &= ~(_PAGE_USER | _PAGE_EXEC);
 	flags |= _PAGE_PRIVILEGED;
 
-	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+	return __ioremap_caller(addr, size, __pgprot(flags), __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_prot);
 
 void __iomem *
 __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 {
-	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+	return __ioremap_caller(addr, size, __pgprot(flags), __builtin_return_address(0));
 }
 
 void __iomem *
-__ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
-		 void *caller)
+__ioremap_caller(phys_addr_t addr, unsigned long size, pgprot_t prot, void *caller)
 {
 	unsigned long v, i;
 	phys_addr_t p;
@@ -195,7 +194,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 
 	err = 0;
 	for (i = 0; i < size && err == 0; i += PAGE_SIZE)
-		err = map_kernel_page(v+i, p+i, flags);
+		err = map_kernel_page(v + i, p + i, prot);
 	if (err) {
 		if (slab_is_available())
 			vunmap((void *)v);
@@ -221,7 +220,7 @@ void iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(iounmap);
 
-int map_kernel_page(unsigned long va, phys_addr_t pa, int flags)
+int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 {
 	pmd_t *pd;
 	pte_t *pg;
@@ -237,9 +236,8 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, int flags)
 		 * hash table
 		 */
 		BUG_ON((pte_val(*pg) & (_PAGE_PRESENT | _PAGE_HASHPTE)) &&
-		       flags);
-		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT,
-						     __pgprot(flags)));
+		       pgprot_val(prot));
+		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT, prot));
 	}
 	smp_wmb();
 	return err;
@@ -250,7 +248,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, int flags)
  */
 static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 {
-	unsigned long v, s, f;
+	unsigned long v, s;
 	phys_addr_t p;
 	int ktext;
 
@@ -260,8 +258,7 @@ static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 	for (; s < top; s += PAGE_SIZE) {
 		ktext = ((char *)v >= _stext && (char *)v < etext) ||
 			((char *)v >= _sinittext && (char *)v < _einittext);
-		f = ktext ? pgprot_val(PAGE_KERNEL_TEXT) : pgprot_val(PAGE_KERNEL);
-		map_kernel_page(v, p, f);
+		map_kernel_page(v, p, ktext ? PAGE_KERNEL_TEXT : PAGE_KERNEL);
 #ifdef CONFIG_PPC_STD_MMU_32
 		if (ktext)
 			hash_preload(&init_mm, v, 0, 0x300);
