@@ -130,9 +130,88 @@ static int software_key_query(const struct kernel_pkey_params *params,
 	info->max_sig_size = len;
 	info->max_enc_size = len;
 	info->max_dec_size = len;
-	info->supported_ops = KEYCTL_SUPPORTS_VERIFY;
+	info->supported_ops = (KEYCTL_SUPPORTS_ENCRYPT |
+			       KEYCTL_SUPPORTS_VERIFY);
+	if (pkey->key_is_private)
+		info->supported_ops |= (KEYCTL_SUPPORTS_DECRYPT |
+					KEYCTL_SUPPORTS_SIGN);
 	ret = 0;
 
+error_free_tfm:
+	crypto_free_akcipher(tfm);
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
+}
+
+/*
+ * Do encryption, decryption and signing ops.
+ */
+static int software_key_eds_op(struct kernel_pkey_params *params,
+			       const void *in, void *out)
+{
+	const struct public_key *pkey = params->key->payload.data[asym_crypto];
+	struct akcipher_request *req;
+	struct crypto_akcipher *tfm;
+	struct crypto_wait cwait;
+	struct scatterlist in_sg, out_sg;
+	char alg_name[CRYPTO_MAX_ALG_NAME];
+	int ret;
+
+	pr_devel("==>%s()\n", __func__);
+
+	ret = software_key_determine_akcipher(params->encoding,
+					      params->hash_algo,
+					      pkey, alg_name);
+	if (ret < 0)
+		return ret;
+
+	tfm = crypto_alloc_akcipher(alg_name, 0, 0);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
+
+	req = akcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		goto error_free_tfm;
+
+	if (pkey->key_is_private)
+		ret = crypto_akcipher_set_priv_key(tfm,
+						   pkey->key, pkey->keylen);
+	else
+		ret = crypto_akcipher_set_pub_key(tfm,
+						  pkey->key, pkey->keylen);
+	if (ret)
+		goto error_free_req;
+
+	sg_init_one(&in_sg, in, params->in_len);
+	sg_init_one(&out_sg, out, params->out_len);
+	akcipher_request_set_crypt(req, &in_sg, &out_sg, params->in_len,
+				   params->out_len);
+	crypto_init_wait(&cwait);
+	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
+				      CRYPTO_TFM_REQ_MAY_SLEEP,
+				      crypto_req_done, &cwait);
+
+	/* Perform the encryption calculation. */
+	switch (params->op) {
+	case kernel_pkey_encrypt:
+		ret = crypto_akcipher_encrypt(req);
+		break;
+	case kernel_pkey_decrypt:
+		ret = crypto_akcipher_decrypt(req);
+		break;
+	case kernel_pkey_sign:
+		ret = crypto_akcipher_sign(req);
+		break;
+	default:
+		BUG();
+	}
+
+	ret = crypto_wait_req(ret, &cwait);
+	if (ret == 0)
+		ret = req->dst_len;
+
+error_free_req:
+	akcipher_request_free(req);
 error_free_tfm:
 	crypto_free_akcipher(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);
@@ -242,6 +321,7 @@ struct asymmetric_key_subtype public_key_subtype = {
 	.describe		= public_key_describe,
 	.destroy		= public_key_destroy,
 	.query			= software_key_query,
+	.eds_op			= software_key_eds_op,
 	.verify_signature	= public_key_verify_signature_2,
 };
 EXPORT_SYMBOL_GPL(public_key_subtype);
