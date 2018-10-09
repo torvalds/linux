@@ -1314,8 +1314,12 @@ unsigned long kvm_vcpu_gfn_to_hva(struct kvm_vcpu *vcpu, gfn_t gfn)
 EXPORT_SYMBOL_GPL(kvm_vcpu_gfn_to_hva);
 
 /*
- * If writable is set to false, the hva returned by this function is only
- * allowed to be read.
+ * Return the hva of a @gfn and the R/W attribute if possible.
+ *
+ * @slot: the kvm_memory_slot which contains @gfn
+ * @gfn: the gfn to be translated
+ * @writable: used to return the read/write attribute of the @slot if the hva
+ * is valid and @writable is not NULL
  */
 unsigned long gfn_to_hva_memslot_prot(struct kvm_memory_slot *slot,
 				      gfn_t gfn, bool *writable)
