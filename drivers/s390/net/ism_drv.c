@@ -515,7 +515,7 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err_unmap;
 
-	pci_set_dma_seg_boundary(pdev, SZ_1M - 1);
+	dma_set_seg_boundary(&pdev->dev, SZ_1M - 1);
 	pci_set_dma_max_seg_size(pdev, SZ_1M);
 	pci_set_master(pdev);
 
