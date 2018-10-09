@@ -836,7 +836,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 			continue;
 
 		/* Lines that cannot be read are assumed as not written here */
-		if (pblk_line_read_smeta(pblk, line))
+		if (pblk_line_smeta_read(pblk, line))
 			continue;
 
 		crc = pblk_calc_smeta_crc(pblk, smeta_buf);
@@ -906,7 +906,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		line->emeta = emeta;
 		memset(line->emeta->buf, 0, lm->emeta_len[0]);
 
-		if (pblk_line_read_emeta(pblk, line, line->emeta->buf)) {
+		if (pblk_line_emeta_read(pblk, line, line->emeta->buf)) {
 			pblk_recov_l2p_from_oob(pblk, line);
 			goto next;
 		}
