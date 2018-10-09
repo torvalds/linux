@@ -70,6 +70,11 @@
 #define APIC_BROADCAST			0xFF
 #define X2APIC_BROADCAST		0xFFFFFFFFul
 
+static bool lapic_timer_advance_adjust_done = false;
+#define LAPIC_TIMER_ADVANCE_ADJUST_DONE 100
+/* step-by-step approximation to mitigate fluctuation */
+#define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
+
 static inline int apic_test_vector(int vec, void *bitmap)
 {
 	return test_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
@@ -1472,7 +1477,7 @@ static bool lapic_timer_int_injected(struct kvm_vcpu *vcpu)
 void wait_lapic_expire(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	u64 guest_tsc, tsc_deadline;
+	u64 guest_tsc, tsc_deadline, ns;
 
 	if (!lapic_in_kernel(vcpu))
 		return;
@@ -1492,6 +1497,24 @@ void wait_lapic_expire(struct kvm_vcpu *vcpu)
 	if (guest_tsc < tsc_deadline)
 		__delay(min(tsc_deadline - guest_tsc,
 			nsec_to_cycles(vcpu, lapic_timer_advance_ns)));
+
+	if (!lapic_timer_advance_adjust_done) {
+		/* too early */
+		if (guest_tsc < tsc_deadline) {
+			ns = (tsc_deadline - guest_tsc) * 1000000ULL;
+			do_div(ns, vcpu->arch.virtual_tsc_khz);
+			lapic_timer_advance_ns -= min((unsigned int)ns,
+				lapic_timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+		} else {
+		/* too late */
+			ns = (guest_tsc - tsc_deadline) * 1000000ULL;
+			do_div(ns, vcpu->arch.virtual_tsc_khz);
+			lapic_timer_advance_ns += min((unsigned int)ns,
+				lapic_timer_advance_ns / LAPIC_TIMER_ADVANCE_ADJUST_STEP);
+		}
+		if (abs(guest_tsc - tsc_deadline) < LAPIC_TIMER_ADVANCE_ADJUST_DONE)
+			lapic_timer_advance_adjust_done = true;
+	}
 }
 
 static void start_sw_tscdeadline(struct kvm_lapic *apic)
