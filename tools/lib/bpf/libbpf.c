@@ -19,7 +19,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <perf-sys.h>
 #include <asm/unistd.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -27,6 +26,7 @@
 #include <linux/btf.h>
 #include <linux/list.h>
 #include <linux/limits.h>
+#include <linux/perf_event.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -169,7 +169,7 @@ static LIST_HEAD(bpf_objects_list);
 
 struct bpf_object {
 	char license[64];
-	u32 kern_version;
+	__u32 kern_version;
 
 	struct bpf_program *programs;
 	size_t nr_programs;
@@ -540,7 +540,7 @@ static int
 bpf_object__init_kversion(struct bpf_object *obj,
 			  void *data, size_t size)
 {
-	u32 kver;
+	__u32 kver;
 
 	if (size != sizeof(kver)) {
 		pr_warning("invalid kver section in %s\n", obj->path);
@@ -1295,7 +1295,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 static int
 load_program(enum bpf_prog_type type, enum bpf_attach_type expected_attach_type,
 	     const char *name, struct bpf_insn *insns, int insns_cnt,
-	     char *license, u32 kern_version, int *pfd, int prog_ifindex)
+	     char *license, __u32 kern_version, int *pfd, int prog_ifindex)
 {
 	struct bpf_load_program_attr load_attr;
 	char *cp, errmsg[STRERR_BUFSIZE];
