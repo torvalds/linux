@@ -284,6 +284,12 @@ static inline bool __should_decompress_synchronously(struct erofs_sb_info *sbi,
 	return nr <= sbi->max_sync_decompress_pages;
 }
 
+int __init z_erofs_init_zip_subsystem(void);
+void z_erofs_exit_zip_subsystem(void);
+#else
+/* dummy initializer/finalizer for the decompression subsystem */
+static inline int z_erofs_init_zip_subsystem(void) { return 0; }
+static inline void z_erofs_exit_zip_subsystem(void) {}
 #endif
 
 /* we strictly follow PAGE_SIZE and no buffer head yet */

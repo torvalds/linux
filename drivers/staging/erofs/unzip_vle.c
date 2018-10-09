@@ -42,7 +42,7 @@ static inline int init_unzip_workqueue(void)
 	return z_erofs_workqueue != NULL ? 0 : -ENOMEM;
 }
 
-int z_erofs_init_zip_subsystem(void)
+int __init z_erofs_init_zip_subsystem(void)
 {
 	z_erofs_workgroup_cachep =
 		kmem_cache_create("erofs_compress",

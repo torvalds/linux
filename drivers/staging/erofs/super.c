@@ -29,7 +29,7 @@ static void init_once(void *ptr)
 	inode_init_once(&vi->vfs_inode);
 }
 
-static int erofs_init_inode_cache(void)
+static int __init erofs_init_inode_cache(void)
 {
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
 		sizeof(struct erofs_vnode), 0,
@@ -559,11 +559,6 @@ static struct file_system_type erofs_fs_type = {
 };
 MODULE_ALIAS_FS("erofs");
 
-#ifdef CONFIG_EROFS_FS_ZIP
-extern int z_erofs_init_zip_subsystem(void);
-extern void z_erofs_exit_zip_subsystem(void);
-#endif
-
 static int __init erofs_module_init(void)
 {
 	int err;
@@ -579,11 +574,9 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto shrinker_err;
 
-#ifdef CONFIG_EROFS_FS_ZIP
 	err = z_erofs_init_zip_subsystem();
 	if (err)
 		goto zip_err;
-#endif
 
 	err = register_filesystem(&erofs_fs_type);
 	if (err)
@@ -593,10 +586,8 @@ static int __init erofs_module_init(void)
 	return 0;
 
 fs_err:
-#ifdef CONFIG_EROFS_FS_ZIP
 	z_erofs_exit_zip_subsystem();
 zip_err:
-#endif
 	unregister_shrinker(&erofs_shrinker_info);
 shrinker_err:
 	erofs_exit_inode_cache();
@@ -607,9 +598,7 @@ icache_err:
 static void __exit erofs_module_exit(void)
 {
 	unregister_filesystem(&erofs_fs_type);
-#ifdef CONFIG_EROFS_FS_ZIP
 	z_erofs_exit_zip_subsystem();
-#endif
 	unregister_shrinker(&erofs_shrinker_info);
 	erofs_exit_inode_cache();
 	infoln("successfully finalize erofs");
