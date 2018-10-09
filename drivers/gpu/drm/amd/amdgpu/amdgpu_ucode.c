@@ -490,22 +490,3 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	}
 	return 0;
 }
-
-int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
-{
-	int i;
-	struct amdgpu_firmware_info *ucode = NULL;
-
-	if (!adev->firmware.fw_size)
-		return 0;
-
-	for (i = 0; i < adev->firmware.max_ucodes; i++) {
-		ucode = &adev->firmware.ucode[i];
-		if (ucode->fw) {
-			ucode->mc_addr = 0;
-			ucode->kaddr = NULL;
-		}
-	}
-
-	return 0;
-}

@@ -109,9 +109,6 @@ static int pp_sw_fini(void *handle)
 
 	hwmgr_sw_fini(hwmgr);
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
-		amdgpu_ucode_fini_bo(adev);
-
 	release_firmware(adev->pm.fw);
 	adev->pm.fw = NULL;
 
