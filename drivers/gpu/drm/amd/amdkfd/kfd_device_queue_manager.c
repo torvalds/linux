@@ -1364,9 +1364,6 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 {
 	int retval;
 	struct mqd_manager *mqd_mgr;
-	bool preempt_all_queues;
-
-	preempt_all_queues = false;
 
 	retval = 0;
 
