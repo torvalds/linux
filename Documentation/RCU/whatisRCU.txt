@@ -266,7 +266,7 @@ rcu_dereference()
 	unnecessary overhead on Alpha CPUs.
 
 	Note that the value returned by rcu_dereference() is valid
-	only within the enclosing RCU read-side critical section.
+	only within the enclosing RCU read-side critical section [1].
 	For example, the following is -not- legal:
 
 		rcu_read_lock();
@@ -291,6 +291,19 @@ rcu_dereference()
 	And, again like rcu_assign_pointer(), rcu_dereference() is
 	typically used indirectly, via the _rcu list-manipulation
 	primitives, such as list_for_each_entry_rcu().
+
+	[1] The variant rcu_dereference_protected() can be used outside
+	of an RCU read-side critical section as long as the usage is
+	protected by locks acquired by the update-side code.  This variant
+	avoids the lockdep warning that would happen when using (for
+	example) rcu_dereference() without rcu_read_lock() protection.
+	Using rcu_dereference_protected() also has the advantage
+	of permitting compiler optimizations that rcu_dereference()
+	must prohibit.	The rcu_dereference_protected() variant takes
+	a lockdep expression to indicate which locks must be acquired
+	by the caller. If the indicated protection is not provided,
+	a lockdep splat is emitted.  See RCU/Design/Requirements.html
+	and the API's code comments for more details and example usage.
 
 The following diagram shows how each API communicates among the
 reader, updater, and reclaimer.
