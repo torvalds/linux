@@ -48,7 +48,7 @@
 
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	8
+#define MAX_NR_MAPS	13
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
 
@@ -65,6 +65,10 @@ struct bpf_test {
 	int fixup_map_hash_48b[MAX_FIXUPS];
 	int fixup_map_hash_16b[MAX_FIXUPS];
 	int fixup_map_array_48b[MAX_FIXUPS];
+	int fixup_map_sockmap[MAX_FIXUPS];
+	int fixup_map_sockhash[MAX_FIXUPS];
+	int fixup_map_xskmap[MAX_FIXUPS];
+	int fixup_map_stacktrace[MAX_FIXUPS];
 	int fixup_prog1[MAX_FIXUPS];
 	int fixup_prog2[MAX_FIXUPS];
 	int fixup_map_in_map[MAX_FIXUPS];
@@ -4540,6 +4544,85 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 		.errstr = "invalid access to packet",
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"prevent map lookup in sockmap",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map_sockmap = { 3 },
+		.result = REJECT,
+		.errstr = "cannot pass map_type 15 into func bpf_map_lookup_elem",
+		.prog_type = BPF_PROG_TYPE_SOCK_OPS,
+	},
+	{
+		"prevent map lookup in sockhash",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map_sockhash = { 3 },
+		.result = REJECT,
+		.errstr = "cannot pass map_type 18 into func bpf_map_lookup_elem",
+		.prog_type = BPF_PROG_TYPE_SOCK_OPS,
+	},
+	{
+		"prevent map lookup in xskmap",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map_xskmap = { 3 },
+		.result = REJECT,
+		.errstr = "cannot pass map_type 17 into func bpf_map_lookup_elem",
+		.prog_type = BPF_PROG_TYPE_XDP,
+	},
+	{
+		"prevent map lookup in stack trace",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map_stacktrace = { 3 },
+		.result = REJECT,
+		.errstr = "cannot pass map_type 7 into func bpf_map_lookup_elem",
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"prevent map lookup in prog array",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog2 = { 3 },
+		.result = REJECT,
+		.errstr = "cannot pass map_type 3 into func bpf_map_lookup_elem",
 	},
 	{
 		"valid map access into an array with a constant",
@@ -13515,6 +13598,10 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_map_type prog_type,
 	int *fixup_map_hash_48b = test->fixup_map_hash_48b;
 	int *fixup_map_hash_16b = test->fixup_map_hash_16b;
 	int *fixup_map_array_48b = test->fixup_map_array_48b;
+	int *fixup_map_sockmap = test->fixup_map_sockmap;
+	int *fixup_map_sockhash = test->fixup_map_sockhash;
+	int *fixup_map_xskmap = test->fixup_map_xskmap;
+	int *fixup_map_stacktrace = test->fixup_map_stacktrace;
 	int *fixup_prog1 = test->fixup_prog1;
 	int *fixup_prog2 = test->fixup_prog2;
 	int *fixup_map_in_map = test->fixup_map_in_map;
@@ -13602,6 +13689,38 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_map_type prog_type,
 			prog[*fixup_percpu_cgroup_storage].imm = map_fds[8];
 			fixup_percpu_cgroup_storage++;
 		} while (*fixup_percpu_cgroup_storage);
+	}
+	if (*fixup_map_sockmap) {
+		map_fds[9] = create_map(BPF_MAP_TYPE_SOCKMAP, sizeof(int),
+					sizeof(int), 1);
+		do {
+			prog[*fixup_map_sockmap].imm = map_fds[9];
+			fixup_map_sockmap++;
+		} while (*fixup_map_sockmap);
+	}
+	if (*fixup_map_sockhash) {
+		map_fds[10] = create_map(BPF_MAP_TYPE_SOCKHASH, sizeof(int),
+					sizeof(int), 1);
+		do {
+			prog[*fixup_map_sockhash].imm = map_fds[10];
+			fixup_map_sockhash++;
+		} while (*fixup_map_sockhash);
+	}
+	if (*fixup_map_xskmap) {
+		map_fds[11] = create_map(BPF_MAP_TYPE_XSKMAP, sizeof(int),
+					sizeof(int), 1);
+		do {
+			prog[*fixup_map_xskmap].imm = map_fds[11];
+			fixup_map_xskmap++;
+		} while (*fixup_map_xskmap);
+	}
+	if (*fixup_map_stacktrace) {
+		map_fds[12] = create_map(BPF_MAP_TYPE_STACK_TRACE, sizeof(u32),
+					 sizeof(u64), 1);
+		do {
+			prog[*fixup_map_stacktrace].imm = map_fds[12];
+			fixup_map_stacktrace++;
+		} while (fixup_map_stacktrace);
 	}
 }
 
