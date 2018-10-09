@@ -1210,13 +1210,6 @@ static void *pblk_init(struct nvm_tgt_dev *dev, struct gendisk *tdisk,
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (geo->version == NVM_OCSSD_SPEC_12 && geo->dom & NVM_RSP_L2P) {
-		pblk_err(pblk, "host-side L2P table not supported. (%x)\n",
-							geo->dom);
-		kfree(pblk);
-		return ERR_PTR(-EINVAL);
-	}
-
 	spin_lock_init(&pblk->resubmit_lock);
 	spin_lock_init(&pblk->trans_lock);
 	spin_lock_init(&pblk->lock);

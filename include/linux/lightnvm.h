@@ -495,9 +495,15 @@ typedef void (nvm_tgt_exit_fn)(void *, bool);
 typedef int (nvm_tgt_sysfs_init_fn)(struct gendisk *);
 typedef void (nvm_tgt_sysfs_exit_fn)(struct gendisk *);
 
+enum {
+	NVM_TGT_F_DEV_L2P = 0,
+	NVM_TGT_F_HOST_L2P = 1 << 0,
+};
+
 struct nvm_tgt_type {
 	const char *name;
 	unsigned int version[3];
+	int flags;
 
 	/* target entry points */
 	nvm_tgt_make_rq_fn *make_rq;
