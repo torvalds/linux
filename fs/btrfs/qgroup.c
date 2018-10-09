@@ -3106,6 +3106,10 @@ static int __btrfs_qgroup_release_data(struct inode *inode,
 	int trace_op = QGROUP_RELEASE;
 	int ret;
 
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED,
+		      &BTRFS_I(inode)->root->fs_info->flags))
+		return 0;
+
 	/* In release case, we shouldn't have @reserved */
 	WARN_ON(!free && reserved);
 	if (free && reserved)
