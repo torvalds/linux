@@ -1373,7 +1373,6 @@ static inline int pblk_check_io(struct pblk *pblk, struct nvm_rq *rqd)
 
 	if (rqd->opcode == NVM_OP_PWRITE) {
 		struct pblk_line *line;
-		struct ppa_addr ppa;
 		int i;
 
 		for (i = 0; i < rqd->nr_ppas; i++) {
