@@ -16330,6 +16330,12 @@ F:	include/linux/idr.h
 F:	include/linux/xarray.h
 F:	tools/testing/radix-tree
 
+XBOX DVD IR REMOTE
+M:	Benjamin Valentin <benpicco@googlemail.com>
+S:	Maintained
+F:	drivers/media/rc/xbox_remote.c
+F:	drivers/media/rc/keymaps/rc-xbox-dvd.c
+
 XC2028/3028 TUNER DRIVER
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
