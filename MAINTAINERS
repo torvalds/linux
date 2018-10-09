@@ -4170,6 +4170,11 @@ S:	Maintained
 F:	drivers/platform/x86/dell-smbios-wmi.c
 F:	tools/wmi/dell-smbios-example.c
 
+DEFZA FDDI NETWORK DRIVER
+M:	"Maciej W. Rozycki" <macro@linux-mips.org>
+S:	Maintained
+F:	drivers/net/fddi/defza.*
+
 DELL LAPTOP DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
 M:	Pali Rohár <pali.rohar@gmail.com>
