@@ -530,6 +530,10 @@ struct pblk_line_mgmt {
 	struct pblk_emeta *eline_meta[PBLK_DATA_LINES];
 	unsigned long meta_bitmap;
 
+	/* Cache and mempool for map/invalid bitmaps */
+	struct kmem_cache *bitmap_cache;
+	mempool_t *bitmap_pool;
+
 	/* Helpers for fast bitmap calculations */
 	unsigned long *bb_template;
 	unsigned long *bb_aux;

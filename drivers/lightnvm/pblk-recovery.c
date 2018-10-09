@@ -939,7 +939,7 @@ next:
 			list_move_tail(&line->list, move_list);
 			spin_unlock(&l_mg->gc_lock);
 
-			kfree(line->map_bitmap);
+			mempool_free(line->map_bitmap, l_mg->bitmap_pool);
 			line->map_bitmap = NULL;
 			line->smeta = NULL;
 			line->emeta = NULL;

@@ -1049,15 +1049,18 @@ static int pblk_line_init_metadata(struct pblk *pblk, struct pblk_line *line,
 static int pblk_line_alloc_bitmaps(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_meta *lm = &pblk->lm;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 
-	line->map_bitmap = kzalloc(lm->sec_bitmap_len, GFP_KERNEL);
+	line->map_bitmap = mempool_alloc(l_mg->bitmap_pool, GFP_KERNEL);
 	if (!line->map_bitmap)
 		return -ENOMEM;
 
+	memset(line->map_bitmap, 0, lm->sec_bitmap_len);
+
 	/* will be initialized using bb info from map_bitmap */
-	line->invalid_bitmap = kmalloc(lm->sec_bitmap_len, GFP_KERNEL);
+	line->invalid_bitmap = mempool_alloc(l_mg->bitmap_pool, GFP_KERNEL);
 	if (!line->invalid_bitmap) {
-		kfree(line->map_bitmap);
+		mempool_free(line->map_bitmap, l_mg->bitmap_pool);
 		line->map_bitmap = NULL;
 		return -ENOMEM;
 	}
@@ -1243,7 +1246,9 @@ int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line)
 
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line)
 {
-	kfree(line->map_bitmap);
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+
+	mempool_free(line->map_bitmap, l_mg->bitmap_pool);
 	line->map_bitmap = NULL;
 	line->smeta = NULL;
 	line->emeta = NULL;
@@ -1261,8 +1266,11 @@ static void pblk_line_reinit(struct pblk_line *line)
 
 void pblk_line_free(struct pblk_line *line)
 {
-	kfree(line->map_bitmap);
-	kfree(line->invalid_bitmap);
+	struct pblk *pblk = line->pblk;
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
+
+	mempool_free(line->map_bitmap, l_mg->bitmap_pool);
+	mempool_free(line->invalid_bitmap, l_mg->bitmap_pool);
 
 	pblk_line_reinit(line);
 }
@@ -1741,7 +1749,7 @@ void pblk_line_close(struct pblk *pblk, struct pblk_line *line)
 
 	list_add_tail(&line->list, move_list);
 
-	kfree(line->map_bitmap);
+	mempool_free(line->map_bitmap, l_mg->bitmap_pool);
 	line->map_bitmap = NULL;
 	line->smeta = NULL;
 	line->emeta = NULL;
