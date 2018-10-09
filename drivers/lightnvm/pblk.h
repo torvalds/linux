@@ -986,14 +986,6 @@ static inline int pblk_line_vsc(struct pblk_line *line)
 	return le32_to_cpu(*line->vsc);
 }
 
-static inline int pblk_pad_distance(struct pblk *pblk)
-{
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
-
-	return geo->mw_cunits * geo->all_luns * geo->ws_opt;
-}
-
 static inline int pblk_ppa_to_line_id(struct ppa_addr p)
 {
 	return p.a.blk;

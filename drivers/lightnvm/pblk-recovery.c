@@ -380,6 +380,15 @@ fail_free_pad:
 	return ret;
 }
 
+static int pblk_pad_distance(struct pblk *pblk, struct pblk_line *line)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+	struct nvm_geo *geo = &dev->geo;
+	int distance = geo->mw_cunits * geo->all_luns * geo->ws_opt;
+
+	return (distance > line->left_msecs) ? line->left_msecs : distance;
+}
+
 /* When this function is called, it means that not all upper pages have been
  * written in a page that contains valid data. In order to recover this data, we
  * first find the write pointer on the device, then we pad all necessary
@@ -495,9 +504,7 @@ next_rq:
 		line->left_msecs += nr_error_bits;
 		bitmap_clear(line->map_bitmap, line->cur_sec, nr_error_bits);
 
-		pad_secs = pblk_pad_distance(pblk);
-		if (pad_secs > line->left_msecs)
-			pad_secs = line->left_msecs;
+		pad_secs = pblk_pad_distance(pblk, line);
 
 		ret = pblk_recov_pad_oob(pblk, line, pad_secs);
 		if (ret)
