@@ -805,10 +805,6 @@ typedef struct fore200e_bus {
     int                  status_alignment;    /* status words DMA alignment requirement */
     u32                  (*read)(volatile u32 __iomem *);
     void                 (*write)(u32, volatile u32 __iomem *);
-    u32                  (*dma_map)(struct fore200e*, void*, int, int);
-    void                 (*dma_unmap)(struct fore200e*, u32, int, int);
-    void                 (*dma_sync_for_cpu)(struct fore200e*, u32, int, int);
-    void                 (*dma_sync_for_device)(struct fore200e*, u32, int, int);
     int                  (*dma_chunk_alloc)(struct fore200e*, struct chunk*, int, int, int);
     void                 (*dma_chunk_free)(struct fore200e*, struct chunk*);
     int                  (*configure)(struct fore200e*); 
