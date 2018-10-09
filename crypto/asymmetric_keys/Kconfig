@@ -52,6 +52,15 @@ config PKCS8_PRIVATE_KEY_PARSER
 	  private key data and provides the ability to instantiate a crypto key
 	  from that data.
 
+config TPM_KEY_PARSER
+	tristate "TPM private key parser"
+	depends on ASYMMETRIC_TPM_KEY_SUBTYPE
+	select ASN1
+	help
+	  This option provides support for parsing TPM format blobs for
+	  private key data and provides the ability to instantiate a crypto key
+	  from that data.
+
 config PKCS7_MESSAGE_PARSER
 	tristate "PKCS#7 message parser"
 	depends on X509_CERTIFICATE_PARSER
