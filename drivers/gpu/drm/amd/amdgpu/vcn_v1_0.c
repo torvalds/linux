@@ -883,9 +883,9 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 		UVD_SYS_INT_EN__UVD_JRBC_EN_MASK,
 		~UVD_SYS_INT_EN__UVD_JRBC_EN_MASK);
 
-	/* clear the bit 4 of VCN_STATUS */
-	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS), 0,
-			~(2 << UVD_STATUS__VCPU_REPORT__SHIFT));
+	/* clear the busy bit of UVD_STATUS */
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_STATUS) & ~UVD_STATUS__UVD_BUSY;
+	WREG32_SOC15(UVD, 0, mmUVD_STATUS, tmp);
 
 	/* force RBC into idle state */
 	rb_bufsz = order_base_2(ring->ring_size);
