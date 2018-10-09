@@ -118,10 +118,6 @@ void __iomem * __ioremap_at(phys_addr_t pa, void *ea, unsigned long size,
 {
 	unsigned long i;
 
-	/* Make sure we have the base flags */
-	if ((flags & _PAGE_PRESENT) == 0)
-		flags |= pgprot_val(PAGE_KERNEL);
-
 	/* We don't support the 4K PFN hack with ioremap */
 	if (flags & H_PAGE_4K_PFN)
 		return NULL;
@@ -204,7 +200,7 @@ void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
 
 void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_noncached(__pgprot(0)));
+	unsigned long flags = pgprot_val(pgprot_noncached(PAGE_KERNEL));
 	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
@@ -214,7 +210,7 @@ void __iomem * ioremap(phys_addr_t addr, unsigned long size)
 
 void __iomem * ioremap_wc(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_noncached_wc(__pgprot(0)));
+	unsigned long flags = pgprot_val(pgprot_noncached_wc(PAGE_KERNEL));
 	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
@@ -224,7 +220,7 @@ void __iomem * ioremap_wc(phys_addr_t addr, unsigned long size)
 
 void __iomem *ioremap_coherent(phys_addr_t addr, unsigned long size)
 {
-	unsigned long flags = pgprot_val(pgprot_cached(__pgprot(0)));
+	unsigned long flags = pgprot_val(pgprot_cached(PAGE_KERNEL));
 	void *caller = __builtin_return_address(0);
 
 	if (ppc_md.ioremap)
