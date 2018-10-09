@@ -355,11 +355,17 @@ static int xsk_release(struct socket *sock)
 	local_bh_enable();
 
 	if (xs->dev) {
+		struct net_device *dev = xs->dev;
+
 		/* Wait for driver to stop using the xdp socket. */
-		synchronize_net();
-		dev_put(xs->dev);
+		xdp_del_sk_umem(xs->umem, xs);
 		xs->dev = NULL;
+		synchronize_net();
+		dev_put(dev);
 	}
+
+	xskq_destroy(xs->rx);
+	xskq_destroy(xs->tx);
 
 	sock_orphan(sk);
 	sock->sk = NULL;
@@ -419,13 +425,6 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	}
 
 	qid = sxdp->sxdp_queue_id;
-
-	if ((xs->rx && qid >= dev->real_num_rx_queues) ||
-	    (xs->tx && qid >= dev->real_num_tx_queues)) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
-
 	flags = sxdp->sxdp_flags;
 
 	if (flags & XDP_SHARED_UMEM) {
@@ -721,9 +720,6 @@ static void xsk_destruct(struct sock *sk)
 	if (!sock_flag(sk, SOCK_DEAD))
 		return;
 
-	xskq_destroy(xs->rx);
-	xskq_destroy(xs->tx);
-	xdp_del_sk_umem(xs->umem, xs);
 	xdp_put_umem(xs->umem);
 
 	sk_refcnt_debug_dec(sk);

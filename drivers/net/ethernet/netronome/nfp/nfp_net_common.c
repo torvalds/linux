@@ -3884,10 +3884,20 @@ int nfp_net_init(struct nfp_net *nn)
 		return err;
 
 	/* Set default MTU and Freelist buffer size */
-	if (nn->max_mtu < NFP_NET_DEFAULT_MTU)
+	if (!nfp_net_is_data_vnic(nn) && nn->app->ctrl_mtu) {
+		if (nn->app->ctrl_mtu <= nn->max_mtu) {
+			nn->dp.mtu = nn->app->ctrl_mtu;
+		} else {
+			if (nn->app->ctrl_mtu != NFP_APP_CTRL_MTU_MAX)
+				nn_warn(nn, "app requested MTU above max supported %u > %u\n",
+					nn->app->ctrl_mtu, nn->max_mtu);
+			nn->dp.mtu = nn->max_mtu;
+		}
+	} else if (nn->max_mtu < NFP_NET_DEFAULT_MTU) {
 		nn->dp.mtu = nn->max_mtu;
-	else
+	} else {
 		nn->dp.mtu = NFP_NET_DEFAULT_MTU;
+	}
 	nn->dp.fl_bufsz = nfp_net_calc_fl_bufsz(&nn->dp);
 
 	if (nfp_app_ctrl_uses_data_vnics(nn->app))

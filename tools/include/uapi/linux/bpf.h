@@ -127,6 +127,7 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_SOCKHASH,
 	BPF_MAP_TYPE_CGROUP_STORAGE,
 	BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
+	BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
 };
 
 enum bpf_prog_type {
@@ -2143,6 +2144,77 @@ union bpf_attr {
  *		request in the skb.
  *	Return
  *		0 on success, or a negative error in case of failure.
+ *
+ * struct bpf_sock *bpf_sk_lookup_tcp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u32 netns, u64 flags)
+ *	Description
+ *		Look for TCP socket matching *tuple*, optionally in a child
+ *		network namespace *netns*. The return value must be checked,
+ *		and if non-NULL, released via **bpf_sk_release**\ ().
+ *
+ *		The *ctx* should point to the context of the program, such as
+ *		the skb or socket (depending on the hook in use). This is used
+ *		to determine the base network namespace for the lookup.
+ *
+ *		*tuple_size* must be one of:
+ *
+ *		**sizeof**\ (*tuple*\ **->ipv4**)
+ *			Look for an IPv4 socket.
+ *		**sizeof**\ (*tuple*\ **->ipv6**)
+ *			Look for an IPv6 socket.
+ *
+ *		If the *netns* is zero, then the socket lookup table in the
+ *		netns associated with the *ctx* will be used. For the TC hooks,
+ *		this in the netns of the device in the skb. For socket hooks,
+ *		this in the netns of the socket. If *netns* is non-zero, then
+ *		it specifies the ID of the netns relative to the netns
+ *		associated with the *ctx*.
+ *
+ *		All values for *flags* are reserved for future usage, and must
+ *		be left at zero.
+ *
+ *		This helper is available only if the kernel was compiled with
+ *		**CONFIG_NET** configuration option.
+ *	Return
+ *		Pointer to *struct bpf_sock*, or NULL in case of failure.
+ *
+ * struct bpf_sock *bpf_sk_lookup_udp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u32 netns, u64 flags)
+ *	Description
+ *		Look for UDP socket matching *tuple*, optionally in a child
+ *		network namespace *netns*. The return value must be checked,
+ *		and if non-NULL, released via **bpf_sk_release**\ ().
+ *
+ *		The *ctx* should point to the context of the program, such as
+ *		the skb or socket (depending on the hook in use). This is used
+ *		to determine the base network namespace for the lookup.
+ *
+ *		*tuple_size* must be one of:
+ *
+ *		**sizeof**\ (*tuple*\ **->ipv4**)
+ *			Look for an IPv4 socket.
+ *		**sizeof**\ (*tuple*\ **->ipv6**)
+ *			Look for an IPv6 socket.
+ *
+ *		If the *netns* is zero, then the socket lookup table in the
+ *		netns associated with the *ctx* will be used. For the TC hooks,
+ *		this in the netns of the device in the skb. For socket hooks,
+ *		this in the netns of the socket. If *netns* is non-zero, then
+ *		it specifies the ID of the netns relative to the netns
+ *		associated with the *ctx*.
+ *
+ *		All values for *flags* are reserved for future usage, and must
+ *		be left at zero.
+ *
+ *		This helper is available only if the kernel was compiled with
+ *		**CONFIG_NET** configuration option.
+ *	Return
+ *		Pointer to *struct bpf_sock*, or NULL in case of failure.
+ *
+ * int bpf_sk_release(struct bpf_sock *sk)
+ *	Description
+ *		Release the reference held by *sock*. *sock* must be a non-NULL
+ *		pointer that was returned from bpf_sk_lookup_xxx\ ().
+ *	Return
+ *		0 on success, or a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2228,7 +2300,10 @@ union bpf_attr {
 	FN(get_current_cgroup_id),	\
 	FN(get_local_storage),		\
 	FN(sk_select_reuseport),	\
-	FN(skb_ancestor_cgroup_id),
+	FN(skb_ancestor_cgroup_id),	\
+	FN(sk_lookup_tcp),		\
+	FN(sk_lookup_udp),		\
+	FN(sk_release),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2396,6 +2471,23 @@ struct bpf_sock {
 	__u32 src_port;		/* Allows 4-byte read.
 				 * Stored in host byte order
 				 */
+};
+
+struct bpf_sock_tuple {
+	union {
+		struct {
+			__be32 saddr;
+			__be32 daddr;
+			__be16 sport;
+			__be16 dport;
+		} ipv4;
+		struct {
+			__be32 saddr[4];
+			__be32 daddr[4];
+			__be16 sport;
+			__be16 dport;
+		} ipv6;
+	};
 };
 
 #define XDP_PACKET_HEADROOM 256

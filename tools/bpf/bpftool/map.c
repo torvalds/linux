@@ -72,13 +72,15 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_SOCKHASH]		= "sockhash",
 	[BPF_MAP_TYPE_CGROUP_STORAGE]	= "cgroup_storage",
 	[BPF_MAP_TYPE_REUSEPORT_SOCKARRAY] = "reuseport_sockarray",
+	[BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE]	= "percpu_cgroup_storage",
 };
 
 static bool map_is_per_cpu(__u32 type)
 {
 	return type == BPF_MAP_TYPE_PERCPU_HASH ||
 	       type == BPF_MAP_TYPE_PERCPU_ARRAY ||
-	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
+	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH ||
+	       type == BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE;
 }
 
 static bool map_is_map_of_maps(__u32 type)

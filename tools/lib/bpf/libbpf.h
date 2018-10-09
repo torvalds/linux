@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 */
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 
 /*
  * Common eBPF ELF object loading operations.
@@ -6,22 +6,9 @@
  * Copyright (C) 2013-2015 Alexei Starovoitov <ast@kernel.org>
  * Copyright (C) 2015 Wang Nan <wangnan0@huawei.com>
  * Copyright (C) 2015 Huawei Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
  */
-#ifndef __BPF_LIBBPF_H
-#define __BPF_LIBBPF_H
+#ifndef __LIBBPF_LIBBPF_H
+#define __LIBBPF_LIBBPF_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -104,6 +91,8 @@ void *bpf_object__priv(struct bpf_object *prog);
 
 int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			     enum bpf_attach_type *expected_attach_type);
+int libbpf_attach_type_by_name(const char *name,
+			       enum bpf_attach_type *attach_type);
 
 /* Accessors of bpf_program */
 struct bpf_program;
@@ -126,10 +115,13 @@ void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex);
 
 const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
+int bpf_program__load(struct bpf_program *prog, char *license,
+		      __u32 kern_version);
 int bpf_program__fd(struct bpf_program *prog);
 int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
 			      int instance);
 int bpf_program__pin(struct bpf_program *prog, const char *path);
+void bpf_program__unload(struct bpf_program *prog);
 
 struct bpf_insn;
 
@@ -299,18 +291,15 @@ int bpf_perf_event_read_simple(void *mem, unsigned long size,
 			       void **buf, size_t *buf_len,
 			       bpf_perf_event_print_t fn, void *priv);
 
-struct nlmsghdr;
 struct nlattr;
-typedef int (*dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
-typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, dump_nlmsg_t,
-			      void *cookie);
-int bpf_netlink_open(unsigned int *nl_pid);
-int nl_get_link(int sock, unsigned int nl_pid, dump_nlmsg_t dump_link_nlmsg,
-		void *cookie);
-int nl_get_class(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_class_nlmsg, void *cookie);
-int nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
-		 dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
-int nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
-		  dump_nlmsg_t dump_filter_nlmsg, void *cookie);
-#endif
+typedef int (*libbpf_dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
+int libbpf_netlink_open(unsigned int *nl_pid);
+int libbpf_nl_get_link(int sock, unsigned int nl_pid,
+		       libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie);
+int libbpf_nl_get_class(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_class_nlmsg, void *cookie);
+int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
+			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
+int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
+			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
+#endif /* __LIBBPF_LIBBPF_H */

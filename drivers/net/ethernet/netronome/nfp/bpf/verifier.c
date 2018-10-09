@@ -34,10 +34,12 @@
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
 #include <linux/kernel.h>
+#include <linux/netdevice.h>
 #include <linux/pkt_cls.h>
 
 #include "../nfp_app.h"
 #include "../nfp_main.h"
+#include "../nfp_net.h"
 #include "fw.h"
 #include "main.h"
 
@@ -155,8 +157,9 @@ nfp_bpf_map_call_ok(const char *fname, struct bpf_verifier_env *env,
 }
 
 static int
-nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
-		   struct nfp_insn_meta *meta)
+nfp_bpf_check_helper_call(struct nfp_prog *nfp_prog,
+			  struct bpf_verifier_env *env,
+			  struct nfp_insn_meta *meta)
 {
 	const struct bpf_reg_state *reg1 = cur_regs(env) + BPF_REG_1;
 	const struct bpf_reg_state *reg2 = cur_regs(env) + BPF_REG_2;
@@ -332,6 +335,9 @@ nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 			   struct bpf_verifier_env *env)
 {
 	s32 old_off, new_off;
+
+	if (reg->frameno != env->cur_state->curframe)
+		meta->flags |= FLAG_INSN_PTR_CALLER_STACK_FRAME;
 
 	if (!tnum_is_const(reg->var_off)) {
 		pr_vlog(env, "variable ptr stack access\n");
@@ -620,8 +626,8 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 		return -EINVAL;
 	}
 
-	if (meta->insn.code == (BPF_JMP | BPF_CALL))
-		return nfp_bpf_check_call(nfp_prog, env, meta);
+	if (is_mbpf_helper_call(meta))
+		return nfp_bpf_check_helper_call(nfp_prog, env, meta);
 	if (meta->insn.code == (BPF_JMP | BPF_EXIT))
 		return nfp_bpf_check_exit(nfp_prog, env);
 
@@ -640,6 +646,131 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	return 0;
 }
 
+static int
+nfp_assign_subprog_idx_and_regs(struct bpf_verifier_env *env,
+				struct nfp_prog *nfp_prog)
+{
+	struct nfp_insn_meta *meta;
+	int index = 0;
+
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		if (nfp_is_subprog_start(meta))
+			index++;
+		meta->subprog_idx = index;
+
+		if (meta->insn.dst_reg >= BPF_REG_6 &&
+		    meta->insn.dst_reg <= BPF_REG_9)
+			nfp_prog->subprog[index].needs_reg_push = 1;
+	}
+
+	if (index + 1 != nfp_prog->subprog_cnt) {
+		pr_vlog(env, "BUG: number of processed BPF functions is not consistent (processed %d, expected %d)\n",
+			index + 1, nfp_prog->subprog_cnt);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static unsigned int
+nfp_bpf_get_stack_usage(struct nfp_prog *nfp_prog, unsigned int cnt)
+{
+	struct nfp_insn_meta *meta = nfp_prog_first_meta(nfp_prog);
+	unsigned int max_depth = 0, depth = 0, frame = 0;
+	struct nfp_insn_meta *ret_insn[MAX_CALL_FRAMES];
+	unsigned short frame_depths[MAX_CALL_FRAMES];
+	unsigned short ret_prog[MAX_CALL_FRAMES];
+	unsigned short idx = meta->subprog_idx;
+
+	/* Inspired from check_max_stack_depth() from kernel verifier.
+	 * Starting from main subprogram, walk all instructions and recursively
+	 * walk all callees that given subprogram can call. Since recursion is
+	 * prevented by the kernel verifier, this algorithm only needs a local
+	 * stack of MAX_CALL_FRAMES to remember callsites.
+	 */
+process_subprog:
+	frame_depths[frame] = nfp_prog->subprog[idx].stack_depth;
+	frame_depths[frame] = round_up(frame_depths[frame], STACK_FRAME_ALIGN);
+	depth += frame_depths[frame];
+	max_depth = max(max_depth, depth);
+
+continue_subprog:
+	for (; meta != nfp_prog_last_meta(nfp_prog) && meta->subprog_idx == idx;
+	     meta = nfp_meta_next(meta)) {
+		if (!is_mbpf_pseudo_call(meta))
+			continue;
+
+		/* We found a call to a subprogram. Remember instruction to
+		 * return to and subprog id.
+		 */
+		ret_insn[frame] = nfp_meta_next(meta);
+		ret_prog[frame] = idx;
+
+		/* Find the callee and start processing it. */
+		meta = nfp_bpf_goto_meta(nfp_prog, meta,
+					 meta->n + 1 + meta->insn.imm, cnt);
+		idx = meta->subprog_idx;
+		frame++;
+		goto process_subprog;
+	}
+	/* End of for() loop means the last instruction of the subprog was
+	 * reached. If we popped all stack frames, return; otherwise, go on
+	 * processing remaining instructions from the caller.
+	 */
+	if (frame == 0)
+		return max_depth;
+
+	depth -= frame_depths[frame];
+	frame--;
+	meta = ret_insn[frame];
+	idx = ret_prog[frame];
+	goto continue_subprog;
+}
+
+static int nfp_bpf_finalize(struct bpf_verifier_env *env)
+{
+	unsigned int stack_size, stack_needed;
+	struct bpf_subprog_info *info;
+	struct nfp_prog *nfp_prog;
+	struct nfp_net *nn;
+	int i;
+
+	nfp_prog = env->prog->aux->offload->dev_priv;
+	nfp_prog->subprog_cnt = env->subprog_cnt;
+	nfp_prog->subprog = kcalloc(nfp_prog->subprog_cnt,
+				    sizeof(nfp_prog->subprog[0]), GFP_KERNEL);
+	if (!nfp_prog->subprog)
+		return -ENOMEM;
+
+	nfp_assign_subprog_idx_and_regs(env, nfp_prog);
+
+	info = env->subprog_info;
+	for (i = 0; i < nfp_prog->subprog_cnt; i++) {
+		nfp_prog->subprog[i].stack_depth = info[i].stack_depth;
+
+		if (i == 0)
+			continue;
+
+		/* Account for size of return address. */
+		nfp_prog->subprog[i].stack_depth += REG_WIDTH;
+		/* Account for size of saved registers, if necessary. */
+		if (nfp_prog->subprog[i].needs_reg_push)
+			nfp_prog->subprog[i].stack_depth += BPF_REG_SIZE * 4;
+	}
+
+	nn = netdev_priv(env->prog->aux->offload->netdev);
+	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
+	stack_needed = nfp_bpf_get_stack_usage(nfp_prog, env->prog->len);
+	if (stack_needed > stack_size) {
+		pr_vlog(env, "stack too large: program %dB > FW stack %dB\n",
+			stack_needed, stack_size);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops = {
-	.insn_hook = nfp_verify_insn,
+	.insn_hook	= nfp_verify_insn,
+	.finalize	= nfp_bpf_finalize,
 };

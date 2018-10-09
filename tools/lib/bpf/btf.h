@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: LGPL-2.1 */
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 /* Copyright (c) 2018 Facebook */
 
-#ifndef __BPF_BTF_H
-#define __BPF_BTF_H
+#ifndef __LIBBPF_BTF_H
+#define __LIBBPF_BTF_H
 
 #include <linux/types.h>
 
@@ -23,4 +23,4 @@ int btf__resolve_type(const struct btf *btf, __u32 type_id);
 int btf__fd(const struct btf *btf);
 const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 
-#endif
+#endif /* __LIBBPF_BTF_H */

@@ -154,6 +154,7 @@ enum bpf_arg_type {
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
+	ARG_PTR_TO_SOCKET,	/* pointer to bpf_sock */
 };
 
 /* type of values returned from helper functions */
@@ -162,6 +163,7 @@ enum bpf_return_type {
 	RET_VOID,			/* function doesn't return anything */
 	RET_PTR_TO_MAP_VALUE,		/* returns a pointer to map elem value */
 	RET_PTR_TO_MAP_VALUE_OR_NULL,	/* returns a pointer to map elem value or NULL */
+	RET_PTR_TO_SOCKET_OR_NULL,	/* returns a pointer to a socket or NULL */
 };
 
 /* eBPF function prototype used by verifier to allow BPF_CALLs from eBPF programs
@@ -213,6 +215,8 @@ enum bpf_reg_type {
 	PTR_TO_PACKET,		 /* reg points to skb->data */
 	PTR_TO_PACKET_END,	 /* skb->data + headlen */
 	PTR_TO_FLOW_KEYS,	 /* reg points to bpf_flow_keys */
+	PTR_TO_SOCKET,		 /* reg points to struct bpf_sock */
+	PTR_TO_SOCKET_OR_NULL,	 /* reg points to struct bpf_sock or NULL */
 };
 
 /* The information passed from prog-specific *_is_valid_access
@@ -259,6 +263,7 @@ struct bpf_verifier_ops {
 struct bpf_prog_offload_ops {
 	int (*insn_hook)(struct bpf_verifier_env *env,
 			 int insn_idx, int prev_insn_idx);
+	int (*finalize)(struct bpf_verifier_env *env);
 };
 
 struct bpf_prog_offload {
@@ -271,6 +276,14 @@ struct bpf_prog_offload {
 	void			*jited_image;
 	u32			jited_len;
 };
+
+enum bpf_cgroup_storage_type {
+	BPF_CGROUP_STORAGE_SHARED,
+	BPF_CGROUP_STORAGE_PERCPU,
+	__BPF_CGROUP_STORAGE_MAX
+};
+
+#define MAX_BPF_CGROUP_STORAGE_TYPE __BPF_CGROUP_STORAGE_MAX
 
 struct bpf_prog_aux {
 	atomic_t refcnt;
@@ -289,7 +302,7 @@ struct bpf_prog_aux {
 	struct bpf_prog *prog;
 	struct user_struct *user;
 	u64 load_time; /* ns since boottime */
-	struct bpf_map *cgroup_storage;
+	struct bpf_map *cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE];
 	char name[BPF_OBJ_NAME_LEN];
 #ifdef CONFIG_SECURITY
 	void *security;
@@ -335,6 +348,11 @@ const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
 
 typedef unsigned long (*bpf_ctx_copy_t)(void *dst, const void *src,
 					unsigned long off, unsigned long len);
+typedef u32 (*bpf_convert_ctx_access_t)(enum bpf_access_type type,
+					const struct bpf_insn *src,
+					struct bpf_insn *dst,
+					struct bpf_prog *prog,
+					u32 *target_size);
 
 u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 		     void *ctx, u64 ctx_size, bpf_ctx_copy_t ctx_copy);
@@ -358,7 +376,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
  */
 struct bpf_prog_array_item {
 	struct bpf_prog *prog;
-	struct bpf_cgroup_storage *cgroup_storage;
+	struct bpf_cgroup_storage *cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE];
 };
 
 struct bpf_prog_array {
@@ -827,5 +845,30 @@ extern const struct bpf_func_proto bpf_get_local_storage_proto;
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);
 u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
+
+#if defined(CONFIG_NET)
+bool bpf_sock_is_valid_access(int off, int size, enum bpf_access_type type,
+			      struct bpf_insn_access_aux *info);
+u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
+				const struct bpf_insn *si,
+				struct bpf_insn *insn_buf,
+				struct bpf_prog *prog,
+				u32 *target_size);
+#else
+static inline bool bpf_sock_is_valid_access(int off, int size,
+					    enum bpf_access_type type,
+					    struct bpf_insn_access_aux *info)
+{
+	return false;
+}
+static inline u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
+					      const struct bpf_insn *si,
+					      struct bpf_insn *insn_buf,
+					      struct bpf_prog *prog,
+					      u32 *target_size)
+{
+	return 0;
+}
+#endif
 
 #endif /* _LINUX_BPF_H */
