@@ -1095,8 +1095,6 @@ static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
 	if (err)
 		return err;
 
-	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
-
 	mutex_init(&priv->state_lock);
 
 	priv->channels.params.num_channels = profile->max_nch(mdev);

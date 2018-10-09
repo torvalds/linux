@@ -272,7 +272,7 @@ static void mlx5e_update_ndo_stats(struct mlx5e_priv *priv)
 			mlx5e_stats_grps[i].update_stats(priv);
 }
 
-void mlx5e_update_stats_work(struct work_struct *work)
+static void mlx5e_update_stats_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct mlx5e_priv *priv = container_of(dwork, struct mlx5e_priv,
@@ -4582,7 +4582,6 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
 	INIT_WORK(&priv->tx_timeout_work, mlx5e_tx_timeout_work);
-	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 
 	mlx5e_timestamp_init(priv);
 }
@@ -4954,6 +4953,8 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 int mlx5e_netdev_init(struct net_device *netdev, struct mlx5e_priv *priv)
 {
 	netif_carrier_off(netdev);
+
+	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 
 	priv->wq = create_singlethread_workqueue("mlx5e");
 	if (!priv->wq)

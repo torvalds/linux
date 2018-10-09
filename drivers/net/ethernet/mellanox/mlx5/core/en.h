@@ -926,7 +926,6 @@ int mlx5e_create_tises(struct mlx5e_priv *priv);
 void mlx5e_cleanup_nic_tx(struct mlx5e_priv *priv);
 int mlx5e_close(struct net_device *netdev);
 int mlx5e_open(struct net_device *netdev);
-void mlx5e_update_stats_work(struct work_struct *work);
 
 int mlx5e_bits_invert(unsigned long a, int size);
 
