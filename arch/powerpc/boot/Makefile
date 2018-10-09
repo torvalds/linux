@@ -197,9 +197,14 @@ $(obj)/empty.c:
 $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds : $(obj)/%: $(srctree)/$(src)/%.S
 	$(Q)cp $< $@
 
+$(obj)/serial.c: $(obj)/autoconf.h
+
+$(obj)/autoconf.h: $(obj)/%: $(objtree)/include/generated/%
+	$(Q)cp $< $@
+
 clean-files := $(zlib-) $(zlibheader-) $(zliblinuxheader-) \
 		$(zlib-decomp-) $(libfdt) $(libfdtheader) \
-		empty.c zImage.coff.lds zImage.ps3.lds zImage.lds
+		autoconf.h empty.c zImage.coff.lds zImage.ps3.lds zImage.lds
 
 quiet_cmd_bootcc = BOOTCC  $@
       cmd_bootcc = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
