@@ -336,6 +336,25 @@ static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
 	jsonw_end_object(json_wtr);
 }
 
+static void print_entry_error(struct bpf_map_info *info, unsigned char *key,
+			      const char *value)
+{
+	int value_size = strlen(value);
+	bool single_line, break_names;
+
+	break_names = info->key_size > 16 || value_size > 16;
+	single_line = info->key_size + value_size <= 24 && !break_names;
+
+	printf("key:%c", break_names ? '\n' : ' ');
+	fprint_hex(stdout, key, info->key_size, " ");
+
+	printf(single_line ? "  " : "\n");
+
+	printf("value:%c%s", break_names ? '\n' : ' ', value);
+
+	printf("\n");
+}
+
 static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 			      unsigned char *value)
 {
@@ -663,6 +682,7 @@ static int dump_map_elem(int fd, void *key, void *value,
 			 json_writer_t *btf_wtr)
 {
 	int num_elems = 0;
+	int lookup_errno;
 
 	if (!bpf_map_lookup_elem(fd, key, value)) {
 		if (json_output) {
@@ -685,6 +705,8 @@ static int dump_map_elem(int fd, void *key, void *value,
 	}
 
 	/* lookup error handling */
+	lookup_errno = errno;
+
 	if (map_is_map_of_maps(map_info->type) ||
 	    map_is_map_of_progs(map_info->type))
 		return 0;
@@ -694,13 +716,10 @@ static int dump_map_elem(int fd, void *key, void *value,
 		print_hex_data_json(key, map_info->key_size);
 		jsonw_name(json_wtr, "value");
 		jsonw_start_object(json_wtr);
-		jsonw_string_field(json_wtr, "error",
-				   "can't lookup element");
+		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
 		jsonw_end_object(json_wtr);
 	} else {
-		p_info("can't lookup element with key: ");
-		fprint_hex(stderr, key, map_info->key_size, " ");
-		fprintf(stderr, "\n");
+		print_entry_error(map_info, key, strerror(lookup_errno));
 	}
 
 	return 0;
