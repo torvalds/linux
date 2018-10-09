@@ -661,50 +661,6 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 	return 0;
 }
 
-static int copy_clock_limits_array(
-	struct pp_hwmgr *hwmgr,
-	uint32_t **pptable_info_array,
-	const uint32_t *pptable_array,
-	uint32_t power_saving_clock_count)
-{
-	uint32_t array_size, i;
-	uint32_t *table;
-
-	array_size = sizeof(uint32_t) * power_saving_clock_count;
-	table = kzalloc(array_size, GFP_KERNEL);
-	if (NULL == table)
-		return -ENOMEM;
-
-	for (i = 0; i < power_saving_clock_count; i++)
-		table[i] = le32_to_cpu(pptable_array[i]);
-
-	*pptable_info_array = table;
-
-	return 0;
-}
-
-static int copy_overdrive_settings_limits_array(
-		struct pp_hwmgr *hwmgr,
-		uint32_t **pptable_info_array,
-		const uint32_t *pptable_array,
-		uint32_t od_setting_count)
-{
-	uint32_t array_size, i;
-	uint32_t *table;
-
-	array_size = sizeof(uint32_t) * od_setting_count;
-	table = kzalloc(array_size, GFP_KERNEL);
-	if (NULL == table)
-		return -ENOMEM;
-
-	for (i = 0; i < od_setting_count; i++)
-		table[i] = le32_to_cpu(pptable_array[i]);
-
-	*pptable_info_array = table;
-
-	return 0;
-}
-
 static int copy_overdrive_feature_capabilities_array(
 		struct pp_hwmgr *hwmgr,
 		uint8_t **pptable_info_array,
@@ -859,11 +815,11 @@ static int init_powerplay_table_information(
 				&pptable_information->od_feature_capabilities,
 				powerplay_table->OverDrive8Table.ODFeatureCapabilities,
 				od_feature_count);
-		copy_overdrive_settings_limits_array(hwmgr,
+		phm_copy_overdrive_settings_limits_array(hwmgr,
 				&pptable_information->od_settings_max,
 				powerplay_table->OverDrive8Table.ODSettingsMax,
 				od_setting_count);
-		copy_overdrive_settings_limits_array(hwmgr,
+		phm_copy_overdrive_settings_limits_array(hwmgr,
 				&pptable_information->od_settings_min,
 				powerplay_table->OverDrive8Table.ODSettingsMin,
 				od_setting_count);
@@ -890,11 +846,11 @@ static int init_powerplay_table_information(
 			 ATOM_VEGA20_PPCLOCK_COUNT) ?
 			ATOM_VEGA20_PPCLOCK_COUNT :
 			le32_to_cpu(powerplay_table->PowerSavingClockTable.PowerSavingClockCount);
-		copy_clock_limits_array(hwmgr,
+		phm_copy_clock_limits_array(hwmgr,
 				&pptable_information->power_saving_clock_max,
 				powerplay_table->PowerSavingClockTable.PowerSavingClockMax,
 				power_saving_clock_count);
-		copy_clock_limits_array(hwmgr,
+		phm_copy_clock_limits_array(hwmgr,
 				&pptable_information->power_saving_clock_min,
 				powerplay_table->PowerSavingClockTable.PowerSavingClockMin,
 				power_saving_clock_count);
