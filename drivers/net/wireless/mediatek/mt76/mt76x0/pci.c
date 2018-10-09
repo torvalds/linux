@@ -111,17 +111,10 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 		u16 val;
 
 		mt76_clear(dev, MT_COEXCFG0, BIT(0));
-		val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_0);
-		if (val & MT_EE_NIC_CONF_0_PA_IO_CURRENT) {
-			u32 data;
 
-			/* set external PA I/O
-			 * current to 16mA
-			 */
-			data = mt76_rr(dev, 0x11c);
-			data |= 0xc03;
-			mt76_wr(dev, 0x11c, data);
-		}
+		val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_0);
+		if (!(val & MT_EE_NIC_CONF_0_PA_IO_CURRENT))
+			mt76_set(dev, MT_XO_CTRL7, 0xc03);
 	}
 
 	mt76_clear(dev, 0x110, BIT(9));
