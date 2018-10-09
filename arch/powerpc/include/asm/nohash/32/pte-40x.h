@@ -53,6 +53,9 @@
 /* No page size encoding in the linux PTE */
 #define _PAGE_PSIZE		0
 
+/* cache related flags non existing on 40x */
+#define _PAGE_COHERENT	0
+
 #define _PAGE_KERNEL_RO		0
 #define _PAGE_KERNEL_ROX	_PAGE_EXEC
 #define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW | _PAGE_HWWRITE)
