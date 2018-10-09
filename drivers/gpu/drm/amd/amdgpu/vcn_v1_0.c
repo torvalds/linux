@@ -777,6 +777,10 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	lmi_swap_cntl = 0;
 
 	vcn_1_0_disable_static_power_gating(adev);
+
+	tmp = RREG32_SOC15(UVD, 0, mmUVD_STATUS) | UVD_STATUS__UVD_BUSY;
+	WREG32_SOC15(UVD, 0, mmUVD_STATUS, tmp);
+
 	/* disable clock gating */
 	vcn_v1_0_disable_clock_gating(adev);
 
