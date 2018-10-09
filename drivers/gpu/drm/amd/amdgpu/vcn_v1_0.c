@@ -780,8 +780,6 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 	/* disable clock gating */
 	vcn_v1_0_disable_clock_gating(adev);
 
-	vcn_v1_0_mc_resume_spg_mode(adev);
-
 	/* disable interupt */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_MASTINT_EN), 0,
 			~UVD_MASTINT_EN__VCPU_EN_MASK);
@@ -839,6 +837,8 @@ static int vcn_v1_0_start_spg_mode(struct amdgpu_device *adev)
 		((0x0 << UVD_MPC_SET_MUX__SET_0__SHIFT) |
 		(0x1 << UVD_MPC_SET_MUX__SET_1__SHIFT) |
 		(0x2 << UVD_MPC_SET_MUX__SET_2__SHIFT)));
+
+	vcn_v1_0_mc_resume_spg_mode(adev);
 
 	/* take all subblocks out of reset, except VCPU */
 	WREG32_SOC15(UVD, 0, mmUVD_SOFT_RESET,
