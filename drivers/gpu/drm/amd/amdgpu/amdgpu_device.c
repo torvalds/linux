@@ -1581,6 +1581,9 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		}
 	}
 
+	r = amdgpu_ucode_create_bo(adev); /* create ucode bo when sw_init complete*/
+	if (r)
+		return r;
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.sw)
 			continue;
@@ -1803,6 +1806,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			continue;
 
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
+			amdgpu_ucode_free_bo(adev);
 			amdgpu_free_static_csa(adev);
 			amdgpu_device_wb_fini(adev);
 			amdgpu_device_vram_scratch_fini(adev);

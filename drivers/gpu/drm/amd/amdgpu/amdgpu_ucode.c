@@ -422,32 +422,42 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 	return 0;
 }
 
+int amdgpu_ucode_create_bo(struct amdgpu_device *adev)
+{
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_DIRECT) {
+		amdgpu_bo_create_kernel(adev, adev->firmware.fw_size, PAGE_SIZE,
+			amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+			&adev->firmware.fw_buf,
+			&adev->firmware.fw_buf_mc,
+			&adev->firmware.fw_buf_ptr);
+		if (!adev->firmware.fw_buf) {
+			dev_err(adev->dev, "failed to create kernel buffer for firmware.fw_buf\n");
+			return -ENOMEM;
+		} else if (amdgpu_sriov_vf(adev)) {
+			memset(adev->firmware.fw_buf_ptr, 0, adev->firmware.fw_size);
+		}
+	}
+	return 0;
+}
+
+void amdgpu_ucode_free_bo(struct amdgpu_device *adev)
+{
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_DIRECT)
+		amdgpu_bo_free_kernel(&adev->firmware.fw_buf,
+		&adev->firmware.fw_buf_mc,
+		&adev->firmware.fw_buf_ptr);
+}
+
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 {
 	uint64_t fw_offset = 0;
-	int i, err;
+	int i;
 	struct amdgpu_firmware_info *ucode = NULL;
 	const struct common_firmware_header *header = NULL;
 
-	if (!adev->firmware.fw_size) {
-		dev_warn(adev->dev, "No ip firmware need to load\n");
+ /* for baremetal, the ucode is allocated in gtt, so don't need to fill the bo when reset/suspend */
+	if (!amdgpu_sriov_vf(adev) && (adev->in_gpu_reset || adev->in_suspend))
 		return 0;
-	}
-
-	if (!adev->in_gpu_reset && !adev->in_suspend) {
-		err = amdgpu_bo_create_kernel(adev, adev->firmware.fw_size, PAGE_SIZE,
-					amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
-					&adev->firmware.fw_buf,
-					&adev->firmware.fw_buf_mc,
-					&adev->firmware.fw_buf_ptr);
-		if (err) {
-			dev_err(adev->dev, "failed to create kernel buffer for firmware.fw_buf\n");
-			goto failed;
-		}
-	}
-
-	memset(adev->firmware.fw_buf_ptr, 0, adev->firmware.fw_size);
-
 	/*
 	 * if SMU loaded firmware, it needn't add SMC, UVD, and VCE
 	 * ucode info here
@@ -479,12 +489,6 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 		}
 	}
 	return 0;
-
-failed:
-	if (err)
-		adev->firmware.load_type = AMDGPU_FW_LOAD_DIRECT;
-
-	return err;
 }
 
 int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
@@ -502,10 +506,6 @@ int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
 			ucode->kaddr = NULL;
 		}
 	}
-
-	amdgpu_bo_free_kernel(&adev->firmware.fw_buf,
-				&adev->firmware.fw_buf_mc,
-				&adev->firmware.fw_buf_ptr);
 
 	return 0;
 }

@@ -279,6 +279,9 @@ bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev);
 int amdgpu_ucode_fini_bo(struct amdgpu_device *adev);
 
+int amdgpu_ucode_create_bo(struct amdgpu_device *adev);
+void amdgpu_ucode_free_bo(struct amdgpu_device *adev);
+
 enum amdgpu_firmware_load_type
 amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type);
 
