@@ -507,6 +507,18 @@ static const struct resource_caps res_cap = {
 		.num_ddc = 4,
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+static const struct resource_caps rv2_res_cap = {
+		.num_timing_generator = 3,
+		.num_opp = 3,
+		.num_video_plane = 3,
+		.num_audio = 3,
+		.num_stream_encoder = 3,
+		.num_pll = 3,
+		.num_ddc = 3,
+};
+#endif
+
 static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
 		.disable_dmcu = true,
@@ -1172,7 +1184,12 @@ static bool construct(
 
 	ctx->dc_bios->regs = &bios_regs;
 
-	pool->base.res_cap = &res_cap;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+	if (ctx->dce_version == DCN_VERSION_1_01)
+		pool->base.res_cap = &rv2_res_cap;
+	else
+#endif
+		pool->base.res_cap = &res_cap;
 	pool->base.funcs = &dcn10_res_pool_funcs;
 
 	/*
