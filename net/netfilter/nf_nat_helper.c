@@ -37,7 +37,7 @@ static void mangle_contents(struct sk_buff *skb,
 {
 	unsigned char *data;
 
-	BUG_ON(skb_is_nonlinear(skb));
+	SKB_LINEAR_ASSERT(skb);
 	data = skb_network_header(skb) + dataoff;
 
 	/* move post-replacement */
@@ -109,8 +109,6 @@ bool __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 	    rep_len - match_len > skb_tailroom(skb) &&
 	    !enlarge_skb(skb, rep_len - match_len))
 		return false;
-
-	SKB_LINEAR_ASSERT(skb);
 
 	tcph = (void *)skb->data + protoff;
 
