@@ -658,6 +658,54 @@ static int do_show(int argc, char **argv)
 	return errno == ENOENT ? 0 : -1;
 }
 
+static int dump_map_elem(int fd, void *key, void *value,
+			 struct bpf_map_info *map_info, struct btf *btf,
+			 json_writer_t *btf_wtr)
+{
+	int num_elems = 0;
+
+	if (!bpf_map_lookup_elem(fd, key, value)) {
+		if (json_output) {
+			print_entry_json(map_info, key, value, btf);
+		} else {
+			if (btf) {
+				struct btf_dumper d = {
+					.btf = btf,
+					.jw = btf_wtr,
+					.is_plain_text = true,
+				};
+
+				do_dump_btf(&d, map_info, key, value);
+			} else {
+				print_entry_plain(map_info, key, value);
+			}
+			num_elems++;
+		}
+		return num_elems;
+	}
+
+	/* lookup error handling */
+	if (map_is_map_of_maps(map_info->type) ||
+	    map_is_map_of_progs(map_info->type))
+		return 0;
+
+	if (json_output) {
+		jsonw_name(json_wtr, "key");
+		print_hex_data_json(key, map_info->key_size);
+		jsonw_name(json_wtr, "value");
+		jsonw_start_object(json_wtr);
+		jsonw_string_field(json_wtr, "error",
+				   "can't lookup element");
+		jsonw_end_object(json_wtr);
+	} else {
+		p_info("can't lookup element with key: ");
+		fprint_hex(stderr, key, map_info->key_size, " ");
+		fprintf(stderr, "\n");
+	}
+
+	return 0;
+}
+
 static int do_dump(int argc, char **argv)
 {
 	struct bpf_map_info info = {};
@@ -713,40 +761,7 @@ static int do_dump(int argc, char **argv)
 				err = 0;
 			break;
 		}
-
-		if (!bpf_map_lookup_elem(fd, key, value)) {
-			if (json_output)
-				print_entry_json(&info, key, value, btf);
-			else
-				if (btf) {
-					struct btf_dumper d = {
-						.btf = btf,
-						.jw = btf_wtr,
-						.is_plain_text = true,
-					};
-
-					do_dump_btf(&d, &info, key, value);
-				} else {
-					print_entry_plain(&info, key, value);
-				}
-			num_elems++;
-		} else if (!map_is_map_of_maps(info.type) &&
-			   !map_is_map_of_progs(info.type)) {
-			if (json_output) {
-				jsonw_name(json_wtr, "key");
-				print_hex_data_json(key, info.key_size);
-				jsonw_name(json_wtr, "value");
-				jsonw_start_object(json_wtr);
-				jsonw_string_field(json_wtr, "error",
-						   "can't lookup element");
-				jsonw_end_object(json_wtr);
-			} else {
-				p_info("can't lookup element with key: ");
-				fprint_hex(stderr, key, info.key_size, " ");
-				fprintf(stderr, "\n");
-			}
-		}
-
+		num_elems += dump_map_elem(fd, key, value, &info, btf, btf_wtr);
 		prev_key = key;
 	}
 
