@@ -861,9 +861,21 @@ static bool has_cache_idc(const struct arm64_cpu_capabilities *entry,
 	if (scope == SCOPE_SYSTEM)
 		ctr = arm64_ftr_reg_ctrel0.sys_val;
 	else
-		ctr = read_cpuid_cachetype();
+		ctr = read_cpuid_effective_cachetype();
 
 	return ctr & BIT(CTR_IDC_SHIFT);
+}
+
+static void cpu_emulate_effective_ctr(const struct arm64_cpu_capabilities *__unused)
+{
+	/*
+	 * If the CPU exposes raw CTR_EL0.IDC = 0, while effectively
+	 * CTR_EL0.IDC = 1 (from CLIDR values), we need to trap accesses
+	 * to the CTR_EL0 on this CPU and emulate it with the real/safe
+	 * value.
+	 */
+	if (!(read_cpuid_cachetype() & BIT(CTR_IDC_SHIFT)))
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
 static bool has_cache_dic(const struct arm64_cpu_capabilities *entry,
@@ -1282,6 +1294,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_CACHE_IDC,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cache_idc,
+		.cpu_enable = cpu_emulate_effective_ctr,
 	},
 	{
 		.desc = "Instruction cache invalidation not required for I/D coherence",

@@ -68,11 +68,32 @@ static bool
 has_mismatched_cache_type(const struct arm64_cpu_capabilities *entry,
 			  int scope)
 {
-	u64 mask = arm64_ftr_reg_ctrel0.strict_mask;;
+	u64 mask = arm64_ftr_reg_ctrel0.strict_mask;
+	u64 sys = arm64_ftr_reg_ctrel0.sys_val & mask;
+	u64 ctr_raw, ctr_real;
 
 	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-	return (read_cpuid_cachetype() & mask) !=
-	       (arm64_ftr_reg_ctrel0.sys_val & mask);
+
+	/*
+	 * We want to make sure that all the CPUs in the system expose
+	 * a consistent CTR_EL0 to make sure that applications behaves
+	 * correctly with migration.
+	 *
+	 * If a CPU has CTR_EL0.IDC but does not advertise it via CTR_EL0 :
+	 *
+	 * 1) It is safe if the system doesn't support IDC, as CPU anyway
+	 *    reports IDC = 0, consistent with the rest.
+	 *
+	 * 2) If the system has IDC, it is still safe as we trap CTR_EL0
+	 *    access on this CPU via the ARM64_HAS_CACHE_IDC capability.
+	 *
+	 * So, we need to make sure either the raw CTR_EL0 or the effective
+	 * CTR_EL0 matches the system's copy to allow a secondary CPU to boot.
+	 */
+	ctr_raw = read_cpuid_cachetype() & mask;
+	ctr_real = read_cpuid_effective_cachetype() & mask;
+
+	return (ctr_real != sys) && (ctr_raw != sys);
 }
 
 static void
