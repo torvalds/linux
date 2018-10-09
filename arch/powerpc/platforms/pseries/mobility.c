@@ -360,6 +360,8 @@ static ssize_t migration_store(struct class *class,
 	if (rc)
 		return rc;
 
+	stop_topology_update();
+
 	do {
 		rc = rtas_ibm_suspend_me(streamid);
 		if (rc == -EAGAIN)
@@ -370,6 +372,9 @@ static ssize_t migration_store(struct class *class,
 		return rc;
 
 	post_mobility_fixup();
+
+	start_topology_update();
+
 	return count;
 }
 
