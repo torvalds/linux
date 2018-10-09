@@ -37,9 +37,6 @@ import os
 import sys
 import subprocess
 
-# Note that gcc uses unicode, which may depend on the locale.  TODO:
-# force LANG to be set to en_US.UTF-8 to get consistent warnings.
-
 allowed_warnings = set([
     "posix-cpu-timers.c:1268", # kernel/time/posix-cpu-timers.c:1268:13: warning: 'now' may be used uninitialized in this function
     "af_unix.c:1036", # net/unix/af_unix.c:1036:20: warning: 'hash' may be used uninitialized in this function
@@ -93,7 +90,9 @@ def run_gcc():
     compiler = sys.argv[0]
 
     try:
-        proc = subprocess.Popen(args, stderr=subprocess.PIPE)
+        env = os.environ.copy()
+        env['LC_ALL'] = 'C'
+        proc = subprocess.Popen(args, stderr=subprocess.PIPE, env=env)
         for line in proc.stderr:
             print (line.decode("utf-8"), end="")
             interpret_warning(line.decode("utf-8"))
