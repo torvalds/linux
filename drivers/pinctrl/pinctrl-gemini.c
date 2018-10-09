@@ -2179,9 +2179,9 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 		return -ENODEV;
 	}
 
-	dev_info(pmx->dev,
-		 "ACTIVATE function \"%s\" with group \"%s\"\n",
-		 func->name, grp->name);
+	dev_dbg(pmx->dev,
+		"ACTIVATE function \"%s\" with group \"%s\"\n",
+		func->name, grp->name);
 
 	regmap_read(pmx->map, GLOBAL_MISC_CTRL, &before);
 	regmap_update_bits(pmx->map, GLOBAL_MISC_CTRL,
@@ -2212,10 +2212,10 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 				"GLOBAL MISC CTRL before: %08x, after %08x, expected %08x\n",
 				before, after, expected);
 		} else {
-			dev_info(pmx->dev,
-				 "padgroup %s %s\n",
-				 gemini_padgroups[i],
-				 enabled ? "enabled" : "disabled");
+			dev_dbg(pmx->dev,
+				"padgroup %s %s\n",
+				gemini_padgroups[i],
+				enabled ? "enabled" : "disabled");
 		}
 	}
 
@@ -2234,10 +2234,10 @@ static int gemini_pmx_set_mux(struct pinctrl_dev *pctldev,
 				"GLOBAL MISC CTRL before: %08x, after %08x, expected %08x\n",
 				before, after, expected);
 		} else {
-			dev_info(pmx->dev,
-				 "padgroup %s %s\n",
-				 gemini_padgroups[i],
-				 enabled ? "enabled" : "disabled");
+			dev_dbg(pmx->dev,
+				"padgroup %s %s\n",
+				gemini_padgroups[i],
+				enabled ? "enabled" : "disabled");
 		}
 	}
 
@@ -2464,9 +2464,9 @@ static int gemini_pinconf_group_set(struct pinctrl_dev *pctldev,
 			regmap_update_bits(pmx->map, GLOBAL_IODRIVE,
 					   grp->driving_mask,
 					   val);
-			dev_info(pmx->dev,
-				 "set group %s to %d mA drive strength mask %08x val %08x\n",
-				 grp->name, arg, grp->driving_mask, val);
+			dev_dbg(pmx->dev,
+				"set group %s to %d mA drive strength mask %08x val %08x\n",
+				grp->name, arg, grp->driving_mask, val);
 			break;
 		default:
 			dev_err(pmx->dev, "invalid config param %04x\n", param);
@@ -2557,8 +2557,8 @@ static int gemini_pmx_probe(struct platform_device *pdev)
 	/* Print initial state */
 	tmp = val;
 	for_each_set_bit(i, &tmp, PADS_MAXBIT) {
-		dev_info(dev, "pad group %s %s\n", gemini_padgroups[i],
-			 (val & BIT(i)) ? "enabled" : "disabled");
+		dev_dbg(dev, "pad group %s %s\n", gemini_padgroups[i],
+			(val & BIT(i)) ? "enabled" : "disabled");
 	}
 
 	/* Check if flash pin is set */
