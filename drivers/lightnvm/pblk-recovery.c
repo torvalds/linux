@@ -241,13 +241,11 @@ static int pblk_recov_pad_oob(struct pblk *pblk, struct pblk_line *line,
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct ppa_addr *ppa_list;
 	struct pblk_sec_meta *meta_list;
 	struct pblk_pad_rq *pad_rq;
 	struct nvm_rq *rqd;
 	struct bio *bio;
 	void *data;
-	dma_addr_t dma_ppa_list, dma_meta_list;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	u64 w_ptr = line->cur_sec;
 	int left_line_ppas, rq_ppas, rq_len;
@@ -281,20 +279,11 @@ next_pad_rq:
 
 	rq_len = rq_ppas * geo->csecs;
 
-	meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL, &dma_meta_list);
-	if (!meta_list) {
-		ret = -ENOMEM;
-		goto fail_free_pad;
-	}
-
-	ppa_list = (void *)(meta_list) + pblk_dma_meta_size;
-	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
-
 	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len,
 						PBLK_VMALLOC_META, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		ret = PTR_ERR(bio);
-		goto fail_free_meta;
+		goto fail_free_pad;
 	}
 
 	bio->bi_iter.bi_sector = 0; /* internal bio */
@@ -302,16 +291,18 @@ next_pad_rq:
 
 	rqd = pblk_alloc_rqd(pblk, PBLK_WRITE_INT);
 
+	ret = pblk_alloc_rqd_meta(pblk, rqd);
+	if (ret)
+		goto fail_free_rqd;
+
 	rqd->bio = bio;
 	rqd->opcode = NVM_OP_PWRITE;
 	rqd->is_seq = 1;
-	rqd->meta_list = meta_list;
 	rqd->nr_ppas = rq_ppas;
-	rqd->ppa_list = ppa_list;
-	rqd->dma_ppa_list = dma_ppa_list;
-	rqd->dma_meta_list = dma_meta_list;
 	rqd->end_io = pblk_end_io_recov;
 	rqd->private = pad_rq;
+
+	meta_list = rqd->meta_list;
 
 	for (i = 0; i < rqd->nr_ppas; ) {
 		struct ppa_addr ppa;
@@ -346,7 +337,7 @@ next_pad_rq:
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		pblk_up_chunk(pblk, rqd->ppa_list[0]);
-		goto fail_free_bio;
+		goto fail_free_rqd;
 	}
 
 	left_line_ppas -= rq_ppas;
@@ -370,10 +361,9 @@ free_rq:
 	kfree(pad_rq);
 	return ret;
 
-fail_free_bio:
+fail_free_rqd:
+	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
 	bio_put(bio);
-fail_free_meta:
-	nvm_dev_dma_free(dev->parent, meta_list, dma_meta_list);
 fail_free_pad:
 	kfree(pad_rq);
 	vfree(data);

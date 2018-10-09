@@ -237,6 +237,33 @@ static void pblk_invalidate_range(struct pblk *pblk, sector_t slba,
 	spin_unlock(&pblk->trans_lock);
 }
 
+int pblk_alloc_rqd_meta(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+
+	rqd->meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
+							&rqd->dma_meta_list);
+	if (!rqd->meta_list)
+		return -ENOMEM;
+
+	if (rqd->nr_ppas == 1)
+		return 0;
+
+	rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size;
+	rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size;
+
+	return 0;
+}
+
+void pblk_free_rqd_meta(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	struct nvm_tgt_dev *dev = pblk->dev;
+
+	if (rqd->meta_list)
+		nvm_dev_dma_free(dev->parent, rqd->meta_list,
+				rqd->dma_meta_list);
+}
+
 /* Caller must guarantee that the request is a valid type */
 struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int type)
 {
@@ -268,7 +295,6 @@ struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int type)
 /* Typically used on completion path. Cannot guarantee request consistency */
 void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
 	mempool_t *pool;
 
 	switch (type) {
@@ -289,9 +315,7 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
 		return;
 	}
 
-	if (rqd->meta_list)
-		nvm_dev_dma_free(dev->parent, rqd->meta_list,
-				rqd->dma_meta_list);
+	pblk_free_rqd_meta(pblk, rqd);
 	mempool_free(rqd, pool);
 }
 
@@ -838,18 +862,14 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	rqd.meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
-							&rqd.dma_meta_list);
-	if (!rqd.meta_list)
-		return -ENOMEM;
-
-	rqd.ppa_list = rqd.meta_list + pblk_dma_meta_size;
-	rqd.dma_ppa_list = rqd.dma_meta_list + pblk_dma_meta_size;
+	ret = pblk_alloc_rqd_meta(pblk, &rqd);
+	if (ret)
+		return ret;
 
 	bio = bio_map_kern(dev->q, line->smeta, lm->smeta_len, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		ret = PTR_ERR(bio);
-		goto free_ppa_list;
+		goto clear_rqd;
 	}
 
 	bio->bi_iter.bi_sector = 0; /* internal bio */
@@ -881,7 +901,7 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 	if (ret) {
 		pblk_err(pblk, "smeta I/O submission failed: %d\n", ret);
 		bio_put(bio);
-		goto free_ppa_list;
+		goto clear_rqd;
 	}
 
 	atomic_dec(&pblk->inflight_io);
@@ -894,9 +914,8 @@ static int pblk_line_submit_smeta_io(struct pblk *pblk, struct pblk_line *line,
 			pblk_log_read_err(pblk, &rqd);
 	}
 
-free_ppa_list:
-	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
-
+clear_rqd:
+	pblk_free_rqd_meta(pblk, &rqd);
 	return ret;
 }
 

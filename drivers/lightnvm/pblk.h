@@ -778,6 +778,8 @@ ssize_t pblk_rb_sysfs(struct pblk_rb *rb, char *buf);
  */
 struct nvm_rq *pblk_alloc_rqd(struct pblk *pblk, int type);
 void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type);
+int pblk_alloc_rqd_meta(struct pblk *pblk, struct nvm_rq *rqd);
+void pblk_free_rqd_meta(struct pblk *pblk, struct nvm_rq *rqd);
 void pblk_set_sec_per_write(struct pblk *pblk, int sec_per_write);
 int pblk_setup_w_rec_rq(struct pblk *pblk, struct nvm_rq *rqd,
 			struct pblk_c_ctx *c_ctx);

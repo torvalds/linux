@@ -453,21 +453,13 @@ int pblk_submit_read(struct pblk *pblk, struct bio *bio)
 	 */
 	bio_init_idx = pblk_get_bi_idx(bio);
 
-	rqd->meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
-							&rqd->dma_meta_list);
-	if (!rqd->meta_list) {
-		pblk_err(pblk, "not able to allocate ppa list\n");
+	if (pblk_alloc_rqd_meta(pblk, rqd))
 		goto fail_rqd_free;
-	}
 
-	if (nr_secs > 1) {
-		rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size;
-		rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size;
-
+	if (nr_secs > 1)
 		pblk_read_ppalist_rq(pblk, rqd, bio, blba, read_bitmap);
-	} else {
+	else
 		pblk_read_rq(pblk, rqd, bio, blba, read_bitmap);
-	}
 
 	if (bitmap_full(read_bitmap, nr_secs)) {
 		atomic_inc(&pblk->inflight_io);
@@ -594,15 +586,11 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	rqd.meta_list = nvm_dev_dma_alloc(dev->parent, GFP_KERNEL,
-							&rqd.dma_meta_list);
-	if (!rqd.meta_list)
-		return -ENOMEM;
+	ret = pblk_alloc_rqd_meta(pblk, &rqd);
+	if (ret)
+		return ret;
 
 	if (gc_rq->nr_secs > 1) {
-		rqd.ppa_list = rqd.meta_list + pblk_dma_meta_size;
-		rqd.dma_ppa_list = rqd.dma_meta_list + pblk_dma_meta_size;
-
 		gc_rq->secs_to_gc = read_ppalist_rq_gc(pblk, &rqd, gc_rq->line,
 							gc_rq->lba_list,
 							gc_rq->paddr_list,
@@ -623,7 +611,8 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 						PBLK_VMALLOC_META, GFP_KERNEL);
 	if (IS_ERR(bio)) {
 		pblk_err(pblk, "could not allocate GC bio (%lu)\n",
-				PTR_ERR(bio));
+								PTR_ERR(bio));
+		ret = PTR_ERR(bio);
 		goto err_free_dma;
 	}
 
@@ -658,12 +647,12 @@ int pblk_submit_read_gc(struct pblk *pblk, struct pblk_gc_rq *gc_rq)
 #endif
 
 out:
-	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
+	pblk_free_rqd_meta(pblk, &rqd);
 	return ret;
 
 err_free_bio:
 	bio_put(bio);
 err_free_dma:
-	nvm_dev_dma_free(dev->parent, rqd.meta_list, rqd.dma_meta_list);
+	pblk_free_rqd_meta(pblk, &rqd);
 	return ret;
 }
