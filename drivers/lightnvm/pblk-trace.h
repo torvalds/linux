@@ -25,6 +25,13 @@ struct ppa_addr;
 	{ PBLK_LINESTATE_CORRUPT,	"CORRUPT"	})
 
 
+#define show_pblk_state(state) __print_symbolic(state,		\
+	{ PBLK_STATE_RUNNING,		"RUNNING",	},	\
+	{ PBLK_STATE_STOPPING,		"STOPPING",	},	\
+	{ PBLK_STATE_RECOVERING,	"RECOVERING",	},	\
+	{ PBLK_STATE_STOPPED,		"STOPPED"	})
+
+
 TRACE_EVENT(pblk_chunk_state,
 
 	TP_PROTO(const char *name, struct ppa_addr *ppa, int state),
@@ -72,6 +79,27 @@ TRACE_EVENT(pblk_line_state,
 	TP_printk("dev=%s line=%d state=%s", __get_str(name),
 			(int)__entry->line,
 			show_line_state((int)__entry->state))
+
+);
+
+TRACE_EVENT(pblk_state,
+
+	TP_PROTO(const char *name, int state),
+
+	TP_ARGS(name, state),
+
+	TP_STRUCT__entry(
+		__string(name, name)
+		__field(int, state);
+	),
+
+	TP_fast_assign(
+		__assign_str(name, name);
+		__entry->state = state;
+	),
+
+	TP_printk("dev=%s state=%s", __get_str(name),
+			show_pblk_state((int)__entry->state))
 
 );
 
