@@ -27,18 +27,12 @@ static void name_card(struct snd_ff *ff)
 		 dev_name(&ff->unit->device), 100 << fw_dev->max_speed);
 }
 
-static void ff_free(struct snd_ff *ff)
-{
-	snd_ff_stream_destroy_duplex(ff);
-	snd_ff_transaction_unregister(ff);
-
-	mutex_destroy(&ff->mutex);
-	fw_unit_put(ff->unit);
-}
-
 static void ff_card_free(struct snd_card *card)
 {
-	ff_free(card->private_data);
+	struct snd_ff *ff = card->private_data;
+
+	snd_ff_stream_destroy_duplex(ff);
+	snd_ff_transaction_unregister(ff);
 }
 
 static void do_registration(struct work_struct *work)
@@ -53,6 +47,8 @@ static void do_registration(struct work_struct *work)
 			   &ff->card);
 	if (err < 0)
 		return;
+	ff->card->private_free = ff_card_free;
+	ff->card->private_data = ff;
 
 	err = snd_ff_transaction_register(ff);
 	if (err < 0)
@@ -82,14 +78,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	ff->card->private_free = ff_card_free;
-	ff->card->private_data = ff;
 	ff->registered = true;
 
 	return;
 error:
-	snd_ff_transaction_unregister(ff);
-	snd_ff_stream_destroy_duplex(ff);
 	snd_card_free(ff->card);
 	dev_info(&ff->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -145,12 +137,12 @@ static void snd_ff_remove(struct fw_unit *unit)
 	cancel_work_sync(&ff->dwork.work);
 
 	if (ff->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(ff->card);
-	} else {
-		/* Don't forget this case. */
-		ff_free(ff);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(ff->card);
 	}
+
+	mutex_destroy(&ff->mutex);
+	fw_unit_put(ff->unit);
 }
 
 static const struct snd_ff_spec spec_ff400 = {
