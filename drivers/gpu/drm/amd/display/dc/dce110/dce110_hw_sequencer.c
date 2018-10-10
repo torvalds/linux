@@ -548,14 +548,14 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 
 	regamma_params->hw_points_num = hw_points;
 
-	i = 1;
-	for (k = 0; k < 16 && i < 16; k++) {
+	k = 0;
+	for (i = 1; i < 16; i++) {
 		if (seg_distr[k] != -1) {
 			regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
 			regamma_params->arr_curve_points[i].offset =
 					regamma_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
 		}
-		i++;
+		k++;
 	}
 
 	if (seg_distr[k] != -1)
