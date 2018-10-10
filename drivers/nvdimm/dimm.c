@@ -75,7 +75,7 @@ static int nvdimm_probe(struct device *dev)
 	 * DIMM capacity. We fail the dimm probe to prevent regions from
 	 * attempting to parse the label area.
 	 */
-	rc = nvdimm_init_config_data(ndd);
+	rc = nd_label_data_init(ndd);
 	if (rc == -EACCES)
 		nvdimm_set_locked(dev);
 	if (rc)

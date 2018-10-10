@@ -417,6 +417,44 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 	return 0;
 }
 
+int nd_label_data_init(struct nvdimm_drvdata *ndd)
+{
+	size_t config_size, read_size;
+	int rc = 0;
+
+	if (ndd->data)
+		return 0;
+
+	if (ndd->nsarea.status || ndd->nsarea.max_xfer == 0) {
+		dev_dbg(ndd->dev, "failed to init config data area: (%u:%u)\n",
+			ndd->nsarea.max_xfer, ndd->nsarea.config_size);
+		return -ENXIO;
+	}
+
+	/*
+	 * We need to determine the maximum index area as this is the section
+	 * we must read and validate before we can start processing labels.
+	 *
+	 * If the area is too small to contain the two indexes and 2 labels
+	 * then we abort.
+	 *
+	 * Start at a label size of 128 as this should result in the largest
+	 * possible namespace index size.
+	 */
+	ndd->nslabel_size = 128;
+	read_size = sizeof_namespace_index(ndd) * 2;
+	if (!read_size)
+		return -ENXIO;
+
+	/* Allocate config data */
+	config_size = ndd->nsarea.config_size;
+	ndd->data = kvzalloc(config_size, GFP_KERNEL);
+	if (!ndd->data)
+		return -ENOMEM;
+
+	return nvdimm_get_config_data(ndd, ndd->data, 0, config_size);
+}
+
 int nd_label_active_count(struct nvdimm_drvdata *ndd)
 {
 	struct nd_namespace_index *nsindex;
