@@ -110,6 +110,10 @@ struct rvu {
 						  * every cgx lmac port
 						  */
 	void			**cgx_idmap; /* cgx id to cgx data map table */
+	struct			work_struct cgx_evh_work;
+	struct			workqueue_struct *cgx_evh_wq;
+	spinlock_t		cgx_evq_lock; /* cgx event queue lock */
+	struct list_head	cgx_evq_head; /* cgx event queue head */
 };
 
 static inline void rvu_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)
@@ -150,4 +154,5 @@ int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
 /* CGX APIs */
 int rvu_cgx_probe(struct rvu *rvu);
+void rvu_cgx_wq_destroy(struct rvu *rvu);
 #endif /* RVU_H */

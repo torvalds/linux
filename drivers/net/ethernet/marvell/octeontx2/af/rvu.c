@@ -1564,10 +1564,11 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	err = rvu_register_interrupts(rvu);
 	if (err)
-		goto err_mbox;
+		goto err_cgx;
 
 	return 0;
-
+err_cgx:
+	rvu_cgx_wq_destroy(rvu);
 err_mbox:
 	rvu_mbox_destroy(rvu);
 err_hwsetup:
@@ -1589,6 +1590,7 @@ static void rvu_remove(struct pci_dev *pdev)
 	struct rvu *rvu = pci_get_drvdata(pdev);
 
 	rvu_unregister_interrupts(rvu);
+	rvu_cgx_wq_destroy(rvu);
 	rvu_mbox_destroy(rvu);
 	rvu_reset_all_blocks(rvu);
 	rvu_free_hw_resources(rvu);
