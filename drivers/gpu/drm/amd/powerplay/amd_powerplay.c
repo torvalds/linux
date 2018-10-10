@@ -894,9 +894,14 @@ static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
 		pr_info("%s was not implemented.\n", __func__);
 		return ret;
 	}
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
+		pr_info("power profile setting is for manual dpm mode only.\n");
+		return ret;
+	}
+
 	mutex_lock(&hwmgr->smu_lock);
-	if (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL)
-		ret = hwmgr->hwmgr_func->set_power_profile_mode(hwmgr, input, size);
+	ret = hwmgr->hwmgr_func->set_power_profile_mode(hwmgr, input, size);
 	mutex_unlock(&hwmgr->smu_lock);
 	return ret;
 }
