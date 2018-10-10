@@ -2,8 +2,12 @@
 # Marvell OcteonTX2 drivers configuration
 #
 
+config OCTEONTX2_MBOX
+	tristate
+
 config OCTEONTX2_AF
 	tristate "Marvell OcteonTX2 RVU Admin Function driver"
+	select OCTEONTX2_MBOX
 	depends on (64BIT && COMPILE_TEST) || ARM64
 	depends on PCI
 	help

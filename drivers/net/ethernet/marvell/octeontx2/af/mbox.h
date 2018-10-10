@@ -1,0 +1,142 @@
+/* SPDX-License-Identifier: GPL-2.0
+ * Marvell OcteonTx2 RVU Admin Function driver
+ *
+ * Copyright (C) 2018 Marvell International Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#ifndef MBOX_H
+#define MBOX_H
+
+#include <linux/etherdevice.h>
+#include <linux/sizes.h>
+
+#include "rvu_struct.h"
+
+#define MBOX_SIZE		SZ_64K
+
+/* AF/PF: PF initiated, PF/VF VF initiated */
+#define MBOX_DOWN_RX_START	0
+#define MBOX_DOWN_RX_SIZE	(46 * SZ_1K)
+#define MBOX_DOWN_TX_START	(MBOX_DOWN_RX_START + MBOX_DOWN_RX_SIZE)
+#define MBOX_DOWN_TX_SIZE	(16 * SZ_1K)
+/* AF/PF: AF initiated, PF/VF PF initiated */
+#define MBOX_UP_RX_START	(MBOX_DOWN_TX_START + MBOX_DOWN_TX_SIZE)
+#define MBOX_UP_RX_SIZE		SZ_1K
+#define MBOX_UP_TX_START	(MBOX_UP_RX_START + MBOX_UP_RX_SIZE)
+#define MBOX_UP_TX_SIZE		SZ_1K
+
+#if MBOX_UP_TX_SIZE + MBOX_UP_TX_START != MBOX_SIZE
+# error "incorrect mailbox area sizes"
+#endif
+
+#define MBOX_RSP_TIMEOUT	1000 /* in ms, Time to wait for mbox response */
+
+#define MBOX_MSG_ALIGN		16  /* Align mbox msg start to 16bytes */
+
+/* Mailbox directions */
+#define MBOX_DIR_AFPF		0  /* AF replies to PF */
+#define MBOX_DIR_PFAF		1  /* PF sends messages to AF */
+#define MBOX_DIR_PFVF		2  /* PF replies to VF */
+#define MBOX_DIR_VFPF		3  /* VF sends messages to PF */
+#define MBOX_DIR_AFPF_UP	4  /* AF sends messages to PF */
+#define MBOX_DIR_PFAF_UP	5  /* PF replies to AF */
+#define MBOX_DIR_PFVF_UP	6  /* PF sends messages to VF */
+#define MBOX_DIR_VFPF_UP	7  /* VF replies to PF */
+
+struct otx2_mbox_dev {
+	void	    *mbase;   /* This dev's mbox region */
+	spinlock_t  mbox_lock;
+	u16         msg_size; /* Total msg size to be sent */
+	u16         rsp_size; /* Total rsp size to be sure the reply is ok */
+	u16         num_msgs; /* No of msgs sent or waiting for response */
+	u16         msgs_acked; /* No of msgs for which response is received */
+};
+
+struct otx2_mbox {
+	struct pci_dev *pdev;
+	void   *hwbase;  /* Mbox region advertised by HW */
+	void   *reg_base;/* CSR base for this dev */
+	u64    trigger;  /* Trigger mbox notification */
+	u16    tr_shift; /* Mbox trigger shift */
+	u64    rx_start; /* Offset of Rx region in mbox memory */
+	u64    tx_start; /* Offset of Tx region in mbox memory */
+	u16    rx_size;  /* Size of Rx region */
+	u16    tx_size;  /* Size of Tx region */
+	u16    ndevs;    /* The number of peers */
+	struct otx2_mbox_dev *dev;
+};
+
+/* Header which preceeds all mbox messages */
+struct mbox_hdr {
+	u16  num_msgs;   /* No of msgs embedded */
+};
+
+/* Header which preceeds every msg and is also part of it */
+struct mbox_msghdr {
+	u16 pcifunc;     /* Who's sending this msg */
+	u16 id;          /* Mbox message ID */
+#define OTX2_MBOX_REQ_SIG (0xdead)
+#define OTX2_MBOX_RSP_SIG (0xbeef)
+	u16 sig;         /* Signature, for validating corrupted msgs */
+#define OTX2_MBOX_VERSION (0x0001)
+	u16 ver;         /* Version of msg's structure for this ID */
+	u16 next_msgoff; /* Offset of next msg within mailbox region */
+	int rc;          /* Msg process'ed response code */
+};
+
+void otx2_mbox_reset(struct otx2_mbox *mbox, int devid);
+void otx2_mbox_destroy(struct otx2_mbox *mbox);
+int otx2_mbox_init(struct otx2_mbox *mbox, void *hwbase, struct pci_dev *pdev,
+		   void *reg_base, int direction, int ndevs);
+void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid);
+int otx2_mbox_wait_for_rsp(struct otx2_mbox *mbox, int devid);
+int otx2_mbox_busy_poll_for_rsp(struct otx2_mbox *mbox, int devid);
+struct mbox_msghdr *otx2_mbox_alloc_msg_rsp(struct otx2_mbox *mbox, int devid,
+					    int size, int size_rsp);
+struct mbox_msghdr *otx2_mbox_get_rsp(struct otx2_mbox *mbox, int devid,
+				      struct mbox_msghdr *msg);
+int otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid,
+			   u16 pcifunc, u16 id);
+bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid);
+const char *otx2_mbox_id2name(u16 id);
+static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
+						      int devid, int size)
+{
+	return otx2_mbox_alloc_msg_rsp(mbox, devid, size, 0);
+}
+
+/* Mailbox message types */
+#define MBOX_MSG_MASK				0xFFFF
+#define MBOX_MSG_INVALID			0xFFFE
+#define MBOX_MSG_MAX				0xFFFF
+
+#define MBOX_MESSAGES							\
+M(READY,		0x001, msg_req, msg_rsp)
+
+enum {
+#define M(_name, _id, _1, _2) MBOX_MSG_ ## _name = _id,
+MBOX_MESSAGES
+#undef M
+};
+
+/* Mailbox message formats */
+
+/* Generic request msg used for those mbox messages which
+ * don't send any data in the request.
+ */
+struct msg_req {
+	struct mbox_msghdr hdr;
+};
+
+/* Generic rsponse msg used a ack or response for those mbox
+ * messages which doesn't have a specific rsp msg format.
+ */
+struct msg_rsp {
+	struct mbox_msghdr hdr;
+};
+
+#endif /* MBOX_H */

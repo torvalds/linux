@@ -101,6 +101,10 @@
 #define RVU_PF_MSIX_VECX_CTL(a)             (0x008 | (a) << 4)
 #define RVU_PF_MSIX_PBAX(a)                 (0xF0000 | (a) << 3)
 
+/* RVU VF registers */
+#define	RVU_VF_VFPF_MBOX0		    (0x00000)
+#define	RVU_VF_VFPF_MBOX1		    (0x00008)
+
 /* NPA block's admin function registers */
 #define NPA_AF_BLK_RST                  (0x0000)
 #define NPA_AF_CONST                    (0x0010)
