@@ -7352,6 +7352,7 @@ S:	Supported
 F:	Documentation/networking/e100.rst
 F:	Documentation/networking/e1000.rst
 F:	Documentation/networking/e1000e.txt
+F:	Documentation/networking/fm10k.rst
 F:	Documentation/networking/igb.txt
 F:	Documentation/networking/igbvf.txt
 F:	Documentation/networking/ixgb.txt
