@@ -42,9 +42,11 @@ struct rsrc_bmap {
 
 struct rvu_block {
 	struct rsrc_bmap lf;
+	u16  *fn_map; /* LF to pcifunc mapping */
 	bool multislot;
 	bool implemented;
 	u8   addr;  /* RVU_BLOCK_ADDR_E */
+	u8   type;  /* RVU_BLOCK_TYPE_E */
 	u8   lfshift;
 	u64  lookup_reg;
 	u64  pf_lfcnt_reg;
@@ -53,6 +55,16 @@ struct rvu_block {
 	u64  msixcfg_reg;
 	u64  lfreset_reg;
 	unsigned char name[NAME_SIZE];
+};
+
+/* Structure for per RVU func info ie PF/VF */
+struct rvu_pfvf {
+	bool		npalf; /* Only one NPALF per RVU_FUNC */
+	bool		nixlf; /* Only one NIXLF per RVU_FUNC */
+	u16		sso;
+	u16		ssow;
+	u16		cptlfs;
+	u16		timlfs;
 };
 
 struct rvu_hwinfo {
@@ -69,6 +81,8 @@ struct rvu {
 	struct pci_dev		*pdev;
 	struct device		*dev;
 	struct rvu_hwinfo       *hw;
+	struct rvu_pfvf		*pf;
+	struct rvu_pfvf		*hwvf;
 
 	/* Mbox */
 	struct otx2_mbox	mbox;
@@ -107,5 +121,7 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
+int rvu_get_pf(u16 pcifunc);
+struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
 
 #endif /* RVU_H */

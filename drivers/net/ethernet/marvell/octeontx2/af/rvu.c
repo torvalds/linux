@@ -22,6 +22,8 @@
 #define DRV_STRING      "Marvell OcteonTX2 RVU Admin Function Driver"
 #define DRV_VERSION	"1.0"
 
+static int rvu_get_hwvf(struct rvu *rvu, int pcifunc);
+
 /* Supported devices */
 static const struct pci_device_id rvu_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, PCI_DEVID_OCTEONTX2_RVU_AF) },
@@ -65,6 +67,91 @@ int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
 	return 0;
 }
 
+static void rvu_update_rsrc_map(struct rvu *rvu, struct rvu_pfvf *pfvf,
+				struct rvu_block *block, u16 pcifunc,
+				u16 lf, bool attach)
+{
+	int devnum, num_lfs = 0;
+	bool is_pf;
+	u64 reg;
+
+	if (lf >= block->lf.max) {
+		dev_err(&rvu->pdev->dev,
+			"%s: FATAL: LF %d is >= %s's max lfs i.e %d\n",
+			__func__, lf, block->name, block->lf.max);
+		return;
+	}
+
+	/* Check if this is for a RVU PF or VF */
+	if (pcifunc & RVU_PFVF_FUNC_MASK) {
+		is_pf = false;
+		devnum = rvu_get_hwvf(rvu, pcifunc);
+	} else {
+		is_pf = true;
+		devnum = rvu_get_pf(pcifunc);
+	}
+
+	block->fn_map[lf] = attach ? pcifunc : 0;
+
+	switch (block->type) {
+	case BLKTYPE_NPA:
+		pfvf->npalf = attach ? true : false;
+		num_lfs = pfvf->npalf;
+		break;
+	case BLKTYPE_NIX:
+		pfvf->nixlf = attach ? true : false;
+		num_lfs = pfvf->nixlf;
+		break;
+	case BLKTYPE_SSO:
+		attach ? pfvf->sso++ : pfvf->sso--;
+		num_lfs = pfvf->sso;
+		break;
+	case BLKTYPE_SSOW:
+		attach ? pfvf->ssow++ : pfvf->ssow--;
+		num_lfs = pfvf->ssow;
+		break;
+	case BLKTYPE_TIM:
+		attach ? pfvf->timlfs++ : pfvf->timlfs--;
+		num_lfs = pfvf->timlfs;
+		break;
+	case BLKTYPE_CPT:
+		attach ? pfvf->cptlfs++ : pfvf->cptlfs--;
+		num_lfs = pfvf->cptlfs;
+		break;
+	}
+
+	reg = is_pf ? block->pf_lfcnt_reg : block->vf_lfcnt_reg;
+	rvu_write64(rvu, BLKADDR_RVUM, reg | (devnum << 16), num_lfs);
+}
+
+inline int rvu_get_pf(u16 pcifunc)
+{
+	return (pcifunc >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+}
+
+static int rvu_get_hwvf(struct rvu *rvu, int pcifunc)
+{
+	int pf, func;
+	u64 cfg;
+
+	pf = rvu_get_pf(pcifunc);
+	func = pcifunc & RVU_PFVF_FUNC_MASK;
+
+	/* Get first HWVF attached to this PF */
+	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
+
+	return ((cfg & 0xFFF) + func - 1);
+}
+
+struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc)
+{
+	/* Check if it is a PF or VF */
+	if (pcifunc & RVU_PFVF_FUNC_MASK)
+		return &rvu->hwvf[rvu_get_hwvf(rvu, pcifunc)];
+	else
+		return &rvu->pf[rvu_get_pf(pcifunc)];
+}
+
 static void rvu_check_block_implemented(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -106,6 +193,28 @@ static void rvu_reset_all_blocks(struct rvu *rvu)
 	rvu_block_reset(rvu, BLKADDR_NDC2, NDC_AF_BLK_RST);
 }
 
+static void rvu_scan_block(struct rvu *rvu, struct rvu_block *block)
+{
+	struct rvu_pfvf *pfvf;
+	u64 cfg;
+	int lf;
+
+	for (lf = 0; lf < block->lf.max; lf++) {
+		cfg = rvu_read64(rvu, block->addr,
+				 block->lfcfg_reg | (lf << block->lfshift));
+		if (!(cfg & BIT_ULL(63)))
+			continue;
+
+		/* Set this resource as being used */
+		__set_bit(lf, block->lf.bmap);
+
+		/* Get, to whom this LF is attached */
+		pfvf = rvu_get_pfvf(rvu, (cfg >> 8) & 0xFFFF);
+		rvu_update_rsrc_map(rvu, pfvf, block,
+				    (cfg >> 8) & 0xFFFF, lf, true);
+	}
+}
+
 static void rvu_free_hw_resources(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -123,7 +232,7 @@ static int rvu_setup_hw_resources(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	struct rvu_block *block;
-	int err;
+	int blkid, err;
 	u64 cfg;
 
 	/* Get HW supported max RVU PF & VF count */
@@ -139,6 +248,7 @@ static int rvu_setup_hw_resources(struct rvu *rvu)
 	cfg = rvu_read64(rvu, BLKADDR_NPA, NPA_AF_CONST);
 	block->lf.max = (cfg >> 16) & 0xFFF;
 	block->addr = BLKADDR_NPA;
+	block->type = BLKTYPE_NPA;
 	block->lfshift = 8;
 	block->lookup_reg = NPA_AF_RVU_LF_CFG_DEBUG;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_NPA_CFG;
@@ -159,6 +269,7 @@ nix:
 	cfg = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_CONST2);
 	block->lf.max = cfg & 0xFFF;
 	block->addr = BLKADDR_NIX0;
+	block->type = BLKTYPE_NIX;
 	block->lfshift = 8;
 	block->lookup_reg = NIX_AF_RVU_LF_CFG_DEBUG;
 	block->pf_lfcnt_reg = RVU_PRIV_PFX_NIX_CFG;
@@ -179,6 +290,7 @@ sso:
 	cfg = rvu_read64(rvu, BLKADDR_SSO, SSO_AF_CONST);
 	block->lf.max = cfg & 0xFFFF;
 	block->addr = BLKADDR_SSO;
+	block->type = BLKTYPE_SSO;
 	block->multislot = true;
 	block->lfshift = 3;
 	block->lookup_reg = SSO_AF_RVU_LF_CFG_DEBUG;
@@ -199,6 +311,7 @@ ssow:
 		goto tim;
 	block->lf.max = (cfg >> 56) & 0xFF;
 	block->addr = BLKADDR_SSOW;
+	block->type = BLKTYPE_SSOW;
 	block->multislot = true;
 	block->lfshift = 3;
 	block->lookup_reg = SSOW_AF_RVU_LF_HWS_CFG_DEBUG;
@@ -220,6 +333,7 @@ tim:
 	cfg = rvu_read64(rvu, BLKADDR_TIM, TIM_AF_CONST);
 	block->lf.max = cfg & 0xFFFF;
 	block->addr = BLKADDR_TIM;
+	block->type = BLKTYPE_TIM;
 	block->multislot = true;
 	block->lfshift = 3;
 	block->lookup_reg = TIM_AF_RVU_LF_CFG_DEBUG;
@@ -237,10 +351,11 @@ cpt:
 	/* Init CPT LF's bitmap */
 	block = &hw->block[BLKADDR_CPT0];
 	if (!block->implemented)
-		return 0;
+		goto init;
 	cfg = rvu_read64(rvu, BLKADDR_CPT0, CPT_AF_CONSTANTS0);
 	block->lf.max = cfg & 0xFF;
 	block->addr = BLKADDR_CPT0;
+	block->type = BLKTYPE_CPT;
 	block->multislot = true;
 	block->lfshift = 3;
 	block->lookup_reg = CPT_AF_RVU_LF_CFG_DEBUG;
@@ -253,6 +368,35 @@ cpt:
 	err = rvu_alloc_bitmap(&block->lf);
 	if (err)
 		return err;
+
+init:
+	/* Allocate memory for PFVF data */
+	rvu->pf = devm_kcalloc(rvu->dev, hw->total_pfs,
+			       sizeof(struct rvu_pfvf), GFP_KERNEL);
+	if (!rvu->pf)
+		return -ENOMEM;
+
+	rvu->hwvf = devm_kcalloc(rvu->dev, hw->total_vfs,
+				 sizeof(struct rvu_pfvf), GFP_KERNEL);
+	if (!rvu->hwvf)
+		return -ENOMEM;
+
+	for (blkid = 0; blkid < BLK_COUNT; blkid++) {
+		block = &hw->block[blkid];
+		if (!block->lf.bmap)
+			continue;
+
+		/* Allocate memory for block LF/slot to pcifunc mapping info */
+		block->fn_map = devm_kcalloc(rvu->dev, block->lf.max,
+					     sizeof(u16), GFP_KERNEL);
+		if (!block->fn_map)
+			return -ENOMEM;
+
+		/* Scan all blocks to check if low level firmware has
+		 * already provisioned any of the resources to a PF/VF.
+		 */
+		rvu_scan_block(rvu, block);
+	}
 
 	return 0;
 }
