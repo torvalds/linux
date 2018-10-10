@@ -560,22 +560,16 @@ static int brcmf_fw_request_firmware(const struct firmware **fw,
 static void brcmf_fw_request_done(const struct firmware *fw, void *ctx)
 {
 	struct brcmf_fw *fwctx = ctx;
-	struct brcmf_fw_item *cur;
-	int ret = 0;
-
-	cur = &fwctx->req->items[fwctx->curpos];
+	int ret;
 
 	ret = brcmf_fw_complete_request(fw, fwctx);
 
 	while (ret == 0 && ++fwctx->curpos < fwctx->req->n_items) {
-		cur = &fwctx->req->items[fwctx->curpos];
 		brcmf_fw_request_firmware(&fw, fwctx);
 		ret = brcmf_fw_complete_request(fw, ctx);
 	}
 
 	if (ret) {
-		brcmf_dbg(TRACE, "failed err=%d: dev=%s, fw=%s\n", ret,
-			  dev_name(fwctx->dev), cur->path);
 		brcmf_fw_free_request(fwctx->req);
 		fwctx->req = NULL;
 	}
