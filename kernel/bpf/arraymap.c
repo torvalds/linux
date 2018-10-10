@@ -449,7 +449,7 @@ static void fd_array_map_free(struct bpf_map *map)
 
 static void *fd_array_map_lookup_elem(struct bpf_map *map, void *key)
 {
-	return NULL;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 
 /* only called from syscall */

@@ -719,10 +719,15 @@ static int map_lookup_elem(union bpf_attr *attr)
 	} else {
 		rcu_read_lock();
 		ptr = map->ops->map_lookup_elem(map, key);
-		if (ptr)
+		if (IS_ERR(ptr)) {
+			err = PTR_ERR(ptr);
+		} else if (!ptr) {
+			err = -ENOENT;
+		} else {
+			err = 0;
 			memcpy(value, ptr, value_size);
+		}
 		rcu_read_unlock();
-		err = ptr ? 0 : -ENOENT;
 	}
 
 	if (err)
