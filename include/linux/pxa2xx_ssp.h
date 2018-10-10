@@ -217,7 +217,7 @@ struct ssp_device {
 
 	const char	*label;
 	int		port_id;
-	int		type;
+	enum pxa_ssp_type type;
 	int		use_count;
 	int		irq;
 
