@@ -36,6 +36,8 @@
 
 #include "trace.h"
 
+#define KVM_HV_MAX_SPARSE_VCPU_SET_BITS DIV_ROUND_UP(KVM_MAX_VCPUS, 64)
+
 static inline u64 synic_read_sint(struct kvm_vcpu_hv_synic *synic, int sint)
 {
 	return atomic64_read(&synic->sint[sint]);
@@ -1277,37 +1279,47 @@ int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 		return kvm_hv_get_msr(vcpu, msr, pdata, host);
 }
 
-static __always_inline bool hv_vcpu_in_sparse_set(struct kvm_vcpu_hv *hv_vcpu,
-						  u64 sparse_banks[],
-						  u64 valid_bank_mask)
+static __always_inline unsigned long *sparse_set_to_vcpu_mask(
+	struct kvm *kvm, u64 *sparse_banks, u64 valid_bank_mask,
+	u64 *vp_bitmap, unsigned long *vcpu_bitmap)
 {
-	int bank = hv_vcpu->vp_index / 64, sbank;
+	struct kvm_hv *hv = &kvm->arch.hyperv;
+	struct kvm_vcpu *vcpu;
+	int i, bank, sbank = 0;
 
-	if (bank >= 64)
-		return false;
+	memset(vp_bitmap, 0,
+	       KVM_HV_MAX_SPARSE_VCPU_SET_BITS * sizeof(*vp_bitmap));
+	for_each_set_bit(bank, (unsigned long *)&valid_bank_mask,
+			 KVM_HV_MAX_SPARSE_VCPU_SET_BITS)
+		vp_bitmap[bank] = sparse_banks[sbank++];
 
-	if (!(valid_bank_mask & BIT_ULL(bank)))
-		return false;
+	if (likely(!atomic_read(&hv->num_mismatched_vp_indexes))) {
+		/* for all vcpus vp_index == vcpu_idx */
+		return (unsigned long *)vp_bitmap;
+	}
 
-	/* Sparse bank number equals to the number of set bits before it */
-	sbank = bitmap_weight((unsigned long *)&valid_bank_mask, bank);
-
-	return !!(sparse_banks[sbank] & BIT_ULL(hv_vcpu->vp_index % 64));
+	bitmap_zero(vcpu_bitmap, KVM_MAX_VCPUS);
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (test_bit(vcpu_to_hv_vcpu(vcpu)->vp_index,
+			     (unsigned long *)vp_bitmap))
+			__set_bit(i, vcpu_bitmap);
+	}
+	return vcpu_bitmap;
 }
 
 static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 			    u16 rep_cnt, bool ex)
 {
 	struct kvm *kvm = current_vcpu->kvm;
-	struct kvm_hv *hv = &kvm->arch.hyperv;
 	struct kvm_vcpu_hv *hv_vcpu = &current_vcpu->arch.hyperv;
 	struct hv_tlb_flush_ex flush_ex;
 	struct hv_tlb_flush flush;
-	struct kvm_vcpu *vcpu;
-	unsigned long vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)] = {0};
+	u64 vp_bitmap[KVM_HV_MAX_SPARSE_VCPU_SET_BITS];
+	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS);
+	unsigned long *vcpu_mask;
 	u64 valid_bank_mask;
 	u64 sparse_banks[64];
-	int sparse_banks_len, i, bank, sbank;
+	int sparse_banks_len;
 	bool all_cpus;
 
 	if (!ex) {
@@ -1350,54 +1362,19 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 	}
 
+	cpumask_clear(&hv_vcpu->tlb_flush);
+
+	vcpu_mask = all_cpus ? NULL :
+		sparse_set_to_vcpu_mask(kvm, sparse_banks, valid_bank_mask,
+					vp_bitmap, vcpu_bitmap);
+
 	/*
 	 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we can't
 	 * analyze it here, flush TLB regardless of the specified address space.
 	 */
-	cpumask_clear(&hv_vcpu->tlb_flush);
-
-	if (all_cpus) {
-		kvm_make_vcpus_request_mask(kvm,
-				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
-				    NULL, &hv_vcpu->tlb_flush);
-		goto ret_success;
-	}
-
-	if (atomic_read(&hv->num_mismatched_vp_indexes)) {
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			if (hv_vcpu_in_sparse_set(&vcpu->arch.hyperv,
-						  sparse_banks,
-						  valid_bank_mask))
-				__set_bit(i, vcpu_bitmap);
-		}
-		goto flush_request;
-	}
-
-	/*
-	 * num_mismatched_vp_indexes is zero so every vcpu has
-	 * vp_index == vcpu_idx.
-	 */
-	sbank = 0;
-	for_each_set_bit(bank, (unsigned long *)&valid_bank_mask,
-			 BITS_PER_LONG) {
-		for_each_set_bit(i,
-				 (unsigned long *)&sparse_banks[sbank],
-				 BITS_PER_LONG) {
-			u32 vp_index = bank * 64 + i;
-
-			/* A non-existent vCPU was specified */
-			if (vp_index >= KVM_MAX_VCPUS)
-				return HV_STATUS_INVALID_HYPERCALL_INPUT;
-
-			__set_bit(vp_index, vcpu_bitmap);
-		}
-		sbank++;
-	}
-
-flush_request:
 	kvm_make_vcpus_request_mask(kvm,
 				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
-				    vcpu_bitmap, &hv_vcpu->tlb_flush);
+				    vcpu_mask, &hv_vcpu->tlb_flush);
 
 ret_success:
 	/* We always do full TLB flush, set rep_done = rep_cnt. */
@@ -1405,18 +1382,38 @@ ret_success:
 		((u64)rep_cnt << HV_HYPERCALL_REP_COMP_OFFSET);
 }
 
+static void kvm_send_ipi_to_many(struct kvm *kvm, u32 vector,
+				 unsigned long *vcpu_bitmap)
+{
+	struct kvm_lapic_irq irq = {
+		.delivery_mode = APIC_DM_FIXED,
+		.vector = vector
+	};
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (vcpu_bitmap && !test_bit(i, vcpu_bitmap))
+			continue;
+
+		/* We fail only when APIC is disabled */
+		kvm_apic_set_irq(vcpu, &irq, NULL);
+	}
+}
+
 static u64 kvm_hv_send_ipi(struct kvm_vcpu *current_vcpu, u64 ingpa, u64 outgpa,
 			   bool ex, bool fast)
 {
 	struct kvm *kvm = current_vcpu->kvm;
-	struct kvm_hv *hv = &kvm->arch.hyperv;
 	struct hv_send_ipi_ex send_ipi_ex;
 	struct hv_send_ipi send_ipi;
-	struct kvm_vcpu *vcpu;
+	u64 vp_bitmap[KVM_HV_MAX_SPARSE_VCPU_SET_BITS];
+	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS);
+	unsigned long *vcpu_mask;
 	unsigned long valid_bank_mask;
 	u64 sparse_banks[64];
-	int sparse_banks_len, bank, i, sbank;
-	struct kvm_lapic_irq irq = {.delivery_mode = APIC_DM_FIXED};
+	int sparse_banks_len;
+	u32 vector;
 	bool all_cpus;
 
 	if (!ex) {
@@ -1425,18 +1422,18 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *current_vcpu, u64 ingpa, u64 outgpa,
 						    sizeof(send_ipi))))
 				return HV_STATUS_INVALID_HYPERCALL_INPUT;
 			sparse_banks[0] = send_ipi.cpu_mask;
-			irq.vector = send_ipi.vector;
+			vector = send_ipi.vector;
 		} else {
 			/* 'reserved' part of hv_send_ipi should be 0 */
 			if (unlikely(ingpa >> 32 != 0))
 				return HV_STATUS_INVALID_HYPERCALL_INPUT;
 			sparse_banks[0] = outgpa;
-			irq.vector = (u32)ingpa;
+			vector = (u32)ingpa;
 		}
 		all_cpus = false;
 		valid_bank_mask = BIT_ULL(0);
 
-		trace_kvm_hv_send_ipi(irq.vector, sparse_banks[0]);
+		trace_kvm_hv_send_ipi(vector, sparse_banks[0]);
 	} else {
 		if (unlikely(kvm_read_guest(kvm, ingpa, &send_ipi_ex,
 					    sizeof(send_ipi_ex))))
@@ -1446,7 +1443,7 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *current_vcpu, u64 ingpa, u64 outgpa,
 					 send_ipi_ex.vp_set.format,
 					 send_ipi_ex.vp_set.valid_bank_mask);
 
-		irq.vector = send_ipi_ex.vector;
+		vector = send_ipi_ex.vector;
 		valid_bank_mask = send_ipi_ex.vp_set.valid_bank_mask;
 		sparse_banks_len = bitmap_weight(&valid_bank_mask, 64) *
 			sizeof(sparse_banks[0]);
@@ -1465,42 +1462,14 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *current_vcpu, u64 ingpa, u64 outgpa,
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 	}
 
-	if ((irq.vector < HV_IPI_LOW_VECTOR) ||
-	    (irq.vector > HV_IPI_HIGH_VECTOR))
+	if ((vector < HV_IPI_LOW_VECTOR) || (vector > HV_IPI_HIGH_VECTOR))
 		return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
-	if (all_cpus || atomic_read(&hv->num_mismatched_vp_indexes)) {
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			if (all_cpus || hv_vcpu_in_sparse_set(
-				    &vcpu->arch.hyperv, sparse_banks,
-				    valid_bank_mask)) {
-				/* We fail only when APIC is disabled */
-				kvm_apic_set_irq(vcpu, &irq, NULL);
-			}
-		}
-		goto ret_success;
-	}
+	vcpu_mask = all_cpus ? NULL :
+		sparse_set_to_vcpu_mask(kvm, sparse_banks, valid_bank_mask,
+					vp_bitmap, vcpu_bitmap);
 
-	/*
-	 * num_mismatched_vp_indexes is zero so every vcpu has
-	 * vp_index == vcpu_idx.
-	 */
-	sbank = 0;
-	for_each_set_bit(bank, (unsigned long *)&valid_bank_mask, 64) {
-		for_each_set_bit(i, (unsigned long *)&sparse_banks[sbank], 64) {
-			u32 vp_index = bank * 64 + i;
-			struct kvm_vcpu *vcpu =
-				get_vcpu_by_vpidx(kvm, vp_index);
-
-			/* Unknown vCPU specified */
-			if (!vcpu)
-				continue;
-
-			/* We fail only when APIC is disabled */
-			kvm_apic_set_irq(vcpu, &irq, NULL);
-		}
-		sbank++;
-	}
+	kvm_send_ipi_to_many(kvm, vector, vcpu_mask);
 
 ret_success:
 	return HV_STATUS_SUCCESS;
