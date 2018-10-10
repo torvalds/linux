@@ -2754,7 +2754,7 @@ static void target_release_cmd_kref(struct kref *kref)
 	if (se_sess) {
 		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 		list_del_init(&se_cmd->se_cmd_list);
-		if (list_empty(&se_sess->sess_cmd_list))
+		if (se_sess->sess_tearing_down && list_empty(&se_sess->sess_cmd_list))
 			wake_up(&se_sess->cmd_list_wq);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 	}
@@ -2907,7 +2907,7 @@ void target_wait_for_sess_cmds(struct se_session *se_sess)
 
 	spin_lock_irq(&se_sess->sess_cmd_lock);
 	do {
-		ret = wait_event_interruptible_lock_irq_timeout(
+		ret = wait_event_lock_irq_timeout(
 				se_sess->cmd_list_wq,
 				list_empty(&se_sess->sess_cmd_list),
 				se_sess->sess_cmd_lock, 180 * HZ);
