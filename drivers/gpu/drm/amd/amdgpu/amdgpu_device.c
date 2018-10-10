@@ -1525,6 +1525,51 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int amdgpu_device_ip_hw_init_phase1(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.sw)
+			continue;
+		if (adev->ip_blocks[i].status.hw)
+			continue;
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH) {
+			r = adev->ip_blocks[i].version->funcs->hw_init(adev);
+			if (r) {
+				DRM_ERROR("hw_init of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+				return r;
+			}
+			adev->ip_blocks[i].status.hw = true;
+		}
+	}
+
+	return 0;
+}
+
+static int amdgpu_device_ip_hw_init_phase2(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.sw)
+			continue;
+		if (adev->ip_blocks[i].status.hw)
+			continue;
+		r = adev->ip_blocks[i].version->funcs->hw_init(adev);
+		if (r) {
+			DRM_ERROR("hw_init of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
+			return r;
+		}
+		adev->ip_blocks[i].status.hw = true;
+	}
+
+	return 0;
+}
+
 /**
  * amdgpu_device_ip_init - run init for hardware IPs
  *
@@ -1584,19 +1629,14 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 	r = amdgpu_ucode_create_bo(adev); /* create ucode bo when sw_init complete*/
 	if (r)
 		return r;
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.sw)
-			continue;
-		if (adev->ip_blocks[i].status.hw)
-			continue;
-		r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
-		if (r) {
-			DRM_ERROR("hw_init of IP block <%s> failed %d\n",
-				  adev->ip_blocks[i].version->funcs->name, r);
-			return r;
-		}
-		adev->ip_blocks[i].status.hw = true;
-	}
+
+	r = amdgpu_device_ip_hw_init_phase1(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_device_ip_hw_init_phase2(adev);
+	if (r)
+		return r;
 
 	amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
