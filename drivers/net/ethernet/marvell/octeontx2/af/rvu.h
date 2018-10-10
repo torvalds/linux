@@ -99,6 +99,7 @@ struct rvu {
 	u16			num_vec;
 	char			*irq_name;
 	bool			*irq_allocated;
+	dma_addr_t		msix_base_iova;
 };
 
 static inline void rvu_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)

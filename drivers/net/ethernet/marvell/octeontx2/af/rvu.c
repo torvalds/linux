@@ -441,9 +441,10 @@ static int rvu_setup_msix_resources(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	int pf, vf, numvfs, hwvf, err;
+	int nvecs, offset, max_msix;
 	struct rvu_pfvf *pfvf;
-	int nvecs, offset;
-	u64 cfg;
+	u64 cfg, phy_addr;
+	dma_addr_t iova;
 
 	for (pf = 0; pf < hw->total_pfs; pf++) {
 		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
@@ -522,6 +523,23 @@ setup_vfmsix:
 		}
 	}
 
+	/* HW interprets RVU_AF_MSIXTR_BASE address as an IOVA, hence
+	 * create a IOMMU mapping for the physcial address configured by
+	 * firmware and reconfig RVU_AF_MSIXTR_BASE with IOVA.
+	 */
+	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_CONST);
+	max_msix = cfg & 0xFFFFF;
+	phy_addr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_MSIXTR_BASE);
+	iova = dma_map_resource(rvu->dev, phy_addr,
+				max_msix * PCI_MSIX_ENTRY_SIZE,
+				DMA_BIDIRECTIONAL, 0);
+
+	if (dma_mapping_error(rvu->dev, iova))
+		return -ENOMEM;
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_AF_MSIXTR_BASE, (u64)iova);
+	rvu->msix_base_iova = iova;
+
 	return 0;
 }
 
@@ -530,7 +548,8 @@ static void rvu_free_hw_resources(struct rvu *rvu)
 	struct rvu_hwinfo *hw = rvu->hw;
 	struct rvu_block *block;
 	struct rvu_pfvf  *pfvf;
-	int id;
+	int id, max_msix;
+	u64 cfg;
 
 	/* Free block LF bitmaps */
 	for (id = 0; id < BLK_COUNT; id++) {
@@ -548,6 +567,15 @@ static void rvu_free_hw_resources(struct rvu *rvu)
 		pfvf = &rvu->hwvf[id];
 		kfree(pfvf->msix.bmap);
 	}
+
+	/* Unmap MSIX vector base IOVA mapping */
+	if (!rvu->msix_base_iova)
+		return;
+	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_CONST);
+	max_msix = cfg & 0xFFFFF;
+	dma_unmap_resource(rvu->dev, rvu->msix_base_iova,
+			   max_msix * PCI_MSIX_ENTRY_SIZE,
+			   DMA_BIDIRECTIONAL, 0);
 }
 
 static int rvu_setup_hw_resources(struct rvu *rvu)
