@@ -2761,13 +2761,33 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 			    auth_data->key_idx, tx_flags);
 }
 
+static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata,
+				    const u8 *bssid)
+{
+	struct sta_info *sta;
+
+	/* move station state to auth */
+	mutex_lock(&sdata->local->sta_mtx);
+	sta = sta_info_get(sdata, bssid);
+	if (!sta) {
+		WARN_ONCE(1, "%s: STA %pM not found", sdata->name, bssid);
+		return false;
+	}
+	if (sta_info_move_state(sta, IEEE80211_STA_AUTH)) {
+		sdata_info(sdata, "failed moving %pM to auth\n", bssid);
+		return false;
+	}
+	mutex_unlock(&sdata->local->sta_mtx);
+
+	return true;
+}
+
 static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 				   struct ieee80211_mgmt *mgmt, size_t len)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 bssid[ETH_ALEN];
 	u16 auth_alg, auth_transaction, status_code;
-	struct sta_info *sta;
 	struct ieee80211_event event = {
 		.type = MLME_EVENT,
 		.u.mlme.data = AUTH_EVENT,
@@ -2850,18 +2870,8 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	/* move station state to auth */
-	mutex_lock(&sdata->local->sta_mtx);
-	sta = sta_info_get(sdata, bssid);
-	if (!sta) {
-		WARN_ONCE(1, "%s: STA %pM not found", sdata->name, bssid);
+	if (!ieee80211_mark_sta_auth(sdata, bssid))
 		goto out_err;
-	}
-	if (sta_info_move_state(sta, IEEE80211_STA_AUTH)) {
-		sdata_info(sdata, "failed moving %pM to auth\n", bssid);
-		goto out_err;
-	}
-	mutex_unlock(&sdata->local->sta_mtx);
 
 	cfg80211_rx_mlme_mgmt(sdata->dev, (u8 *)mgmt, len);
 	return;
