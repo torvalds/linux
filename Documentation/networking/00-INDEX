@@ -70,12 +70,6 @@ driver.txt
 	- Softnet driver issues.
 ena.txt
 	- info on Amazon's Elastic Network Adapter (ENA)
-e100.txt
-	- info on Intel's EtherExpress PRO/100 line of 10/100 boards
-e1000.txt
-	- info on Intel's E1000 line of gigabit ethernet boards
-e1000e.txt
-	- README for the Intel Gigabit Ethernet Driver (e1000e).
 eql.txt
 	- serial IP load balancing
 fib_trie.txt
@@ -94,16 +88,8 @@ generic_netlink.txt
 	- info on Generic Netlink
 gianfar.txt
 	- Gianfar Ethernet Driver.
-i40e.txt
-	- README for the Intel Ethernet Controller XL710 Driver (i40e).
-iavf.txt
-	- README for the Intel Ethernet Adaptive Virtual Function Driver (iavf).
 ieee802154.txt
 	- Linux IEEE 802.15.4 implementation, API and drivers
-igb.txt
-	- README for the Intel Gigabit Ethernet Driver (igb).
-igbvf.txt
-	- README for the Intel Gigabit Ethernet Driver (igbvf).
 ip-sysctl.txt
 	- /proc/sys/net/ipv4/* variables
 ip_dynaddr.txt
@@ -120,12 +106,6 @@ ipvs-sysctl.txt
 	- Per-inode explanation of the /proc/sys/net/ipv4/vs interface.
 irda.txt
 	- where to get IrDA (infrared) utilities and info for Linux.
-ixgb.txt
-	- README for the Intel 10 Gigabit Ethernet Driver (ixgb).
-ixgbe.txt
-	- README for the Intel 10 Gigabit Ethernet Driver (ixgbe).
-ixgbevf.txt
-	- README for the Intel Virtual Function (VF) Driver (ixgbevf).
 l2tp.txt
 	- User guide to the L2TP tunnel protocol.
 lapb-module.txt

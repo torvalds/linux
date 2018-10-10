@@ -68,6 +68,9 @@ config E1000E
 
 	  <http://support.intel.com>
 
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/e1000e.rst>.
+
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
 
@@ -94,7 +97,7 @@ config IGB
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000.rst>.
+	  <file:Documentation/networking/igb.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called igb.
@@ -130,7 +133,7 @@ config IGBVF
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000.rst>.
+	  <file:Documentation/networking/igbvf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called igbvf.
@@ -147,7 +150,7 @@ config IXGB
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgb.txt>.
+	  <file:Documentation/networking/ixgb.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgb.
@@ -163,6 +166,9 @@ config IXGBE
 	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/ixgbe.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
@@ -205,7 +211,7 @@ config IXGBEVF
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgbevf.txt>.
+	  <file:Documentation/networking/ixgbevf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbevf.  MSI-X interrupt support is required
@@ -221,6 +227,9 @@ config I40E
 	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/i40e.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called i40e.
@@ -254,6 +263,9 @@ config I40EVF
 
 	  This driver was formerly named i40evf.
 
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/iavf.rst>.
+
 	  To compile this driver as a module, choose M here. The module
 	  will be called iavf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
@@ -268,6 +280,9 @@ config ICE
 	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/ice.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ice.
