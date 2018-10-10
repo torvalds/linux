@@ -21,6 +21,11 @@
 
 #include "tmio_mmc.h"
 
+/* Registers specific to this variant */
+#define CTL_SDIO_REGS		0x100
+#define CTL_CLK_AND_WAIT_CTL	0x138
+#define CTL_RESET_SDIO		0x1e0
+
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, CLK_CTL_SCLKEN |
@@ -152,8 +157,6 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto cell_disable;
 	}
-
-	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
 	host = tmio_mmc_host_alloc(pdev, pdata);
 	if (IS_ERR(host)) {
