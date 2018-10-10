@@ -156,10 +156,10 @@ static int armada_37xx_wdt_ping(struct watchdog_device *wdt)
 static unsigned int armada_37xx_wdt_get_timeleft(struct watchdog_device *wdt)
 {
 	struct armada_37xx_watchdog *dev = watchdog_get_drvdata(wdt);
-	unsigned int res;
+	u64 res;
 
-	res = get_counter_value(dev, CNTR_ID_WDOG) *
-	      CNTR_CTRL_PRESCALE_MIN / dev->clk_rate;
+	res = get_counter_value(dev, CNTR_ID_WDOG) * CNTR_CTRL_PRESCALE_MIN;
+	do_div(res, dev->clk_rate);
 
 	return res;
 }
@@ -176,7 +176,8 @@ static int armada_37xx_wdt_set_timeout(struct watchdog_device *wdt,
 	 * prescaler, which divides the clock rate by 2
 	 * (CNTR_CTRL_PRESCALE_MIN).
 	 */
-	dev->timeout = (u64)dev->clk_rate * timeout / CNTR_CTRL_PRESCALE_MIN;
+	dev->timeout = (u64)dev->clk_rate * timeout;
+	do_div(dev->timeout, CNTR_CTRL_PRESCALE_MIN);
 
 	return 0;
 }
