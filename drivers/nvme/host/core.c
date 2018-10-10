@@ -1132,7 +1132,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 
 	return nvme_submit_user_cmd(ns->queue, &c,
 			(void __user *)(uintptr_t)io.addr, length,
-			metadata, meta_len, io.slba, NULL, 0);
+			metadata, meta_len, lower_32_bits(io.slba), NULL, 0);
 }
 
 static u32 nvme_known_admin_effects(u8 opcode)
