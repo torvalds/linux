@@ -122,6 +122,7 @@ static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
 M(READY,		0x001, msg_req, ready_msg_rsp)			\
 M(ATTACH_RESOURCES,	0x002, rsrc_attach, msg_rsp)			\
 M(DETACH_RESOURCES,	0x003, rsrc_detach, msg_rsp)			\
+M(MSIX_OFFSET,		0x004, msg_req, msix_offset_rsp)		\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
@@ -188,6 +189,23 @@ struct rsrc_detach {
 	u8 ssow:1;
 	u8 timlfs:1;
 	u8 cptlfs:1;
+};
+
+#define MSIX_VECTOR_INVALID	0xFFFF
+#define MAX_RVU_BLKLF_CNT	256
+
+struct msix_offset_rsp {
+	struct mbox_msghdr hdr;
+	u16  npa_msixoff;
+	u16  nix_msixoff;
+	u8   sso;
+	u8   ssow;
+	u8   timlfs;
+	u8   cptlfs;
+	u16  sso_msixoff[MAX_RVU_BLKLF_CNT];
+	u16  ssow_msixoff[MAX_RVU_BLKLF_CNT];
+	u16  timlf_msixoff[MAX_RVU_BLKLF_CNT];
+	u16  cptlf_msixoff[MAX_RVU_BLKLF_CNT];
 };
 
 #endif /* MBOX_H */

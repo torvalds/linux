@@ -54,6 +54,7 @@ enum rvu_af_int_vec_e {
 	RVU_AF_INT_VEC_PFME   = 0x2,
 	RVU_AF_INT_VEC_GEN    = 0x3,
 	RVU_AF_INT_VEC_MBOX   = 0x4,
+	RVU_AF_INT_VEC_CNT    = 0x5,
 };
 
 /**
@@ -67,6 +68,7 @@ enum rvu_pf_int_vec_e {
 	RVU_PF_INT_VEC_VFPF_MBOX0 = 0x4,
 	RVU_PF_INT_VEC_VFPF_MBOX1 = 0x5,
 	RVU_PF_INT_VEC_AFPF_MBOX  = 0x6,
+	RVU_PF_INT_VEC_CNT	  = 0x7,
 };
 
 #endif /* RVU_STRUCT_H */
