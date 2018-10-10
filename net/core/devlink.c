@@ -2995,6 +2995,8 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 				  struct genl_info *info,
 				  union devlink_param_value *value)
 {
+	int len;
+
 	if (param->type != DEVLINK_PARAM_TYPE_BOOL &&
 	    !info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA])
 		return -EINVAL;
@@ -3010,10 +3012,13 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 		value->vu32 = nla_get_u32(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
-		if (nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]) >
-		    DEVLINK_PARAM_MAX_STRING_VALUE)
+		len = strnlen(nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]),
+			      nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]));
+		if (len == nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]) ||
+		    len >= DEVLINK_PARAM_MAX_STRING_VALUE)
 			return -EINVAL;
-		value->vstr = nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		strcpy(value->vstr,
+		       nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]));
 		break;
 	case DEVLINK_PARAM_TYPE_BOOL:
 		value->vbool = info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA] ?

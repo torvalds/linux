@@ -311,7 +311,7 @@ union devlink_param_value {
 	u8 vu8;
 	u16 vu16;
 	u32 vu32;
-	const char *vstr;
+	char vstr[DEVLINK_PARAM_MAX_STRING_VALUE];
 	bool vbool;
 };
 
