@@ -1648,13 +1648,18 @@ static void start_sw_tscdeadline(struct kvm_lapic *apic)
 	local_irq_restore(flags);
 }
 
+static inline u64 tmict_to_ns(struct kvm_lapic *apic, u32 tmict)
+{
+	return (u64)tmict * APIC_BUS_CYCLE_NS * (u64)apic->divide_count;
+}
+
 static void update_target_expiration(struct kvm_lapic *apic, uint32_t old_divisor)
 {
 	ktime_t now, remaining;
 	u64 ns_remaining_old, ns_remaining_new;
 
-	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
-		* APIC_BUS_CYCLE_NS * apic->divide_count;
+	apic->lapic_timer.period =
+			tmict_to_ns(apic, kvm_lapic_get_reg(apic, APIC_TMICT));
 	limit_periodic_timer_frequency(apic);
 
 	now = ktime_get();
@@ -1672,14 +1677,15 @@ static void update_target_expiration(struct kvm_lapic *apic, uint32_t old_diviso
 	apic->lapic_timer.target_expiration = ktime_add_ns(now, ns_remaining_new);
 }
 
-static bool set_target_expiration(struct kvm_lapic *apic)
+static bool set_target_expiration(struct kvm_lapic *apic, u32 count_reg)
 {
 	ktime_t now;
 	u64 tscl = rdtsc();
+	s64 deadline;
 
 	now = ktime_get();
-	apic->lapic_timer.period = (u64)kvm_lapic_get_reg(apic, APIC_TMICT)
-		* APIC_BUS_CYCLE_NS * apic->divide_count;
+	apic->lapic_timer.period =
+			tmict_to_ns(apic, kvm_lapic_get_reg(apic, APIC_TMICT));
 
 	if (!apic->lapic_timer.period) {
 		apic->lapic_timer.tscdeadline = 0;
@@ -1687,10 +1693,32 @@ static bool set_target_expiration(struct kvm_lapic *apic)
 	}
 
 	limit_periodic_timer_frequency(apic);
+	deadline = apic->lapic_timer.period;
+
+	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic)) {
+		if (unlikely(count_reg != APIC_TMICT)) {
+			deadline = tmict_to_ns(apic,
+				     kvm_lapic_get_reg(apic, count_reg));
+			if (unlikely(deadline <= 0))
+				deadline = apic->lapic_timer.period;
+			else if (unlikely(deadline > apic->lapic_timer.period)) {
+				pr_info_ratelimited(
+				    "kvm: vcpu %i: requested lapic timer restore with "
+				    "starting count register %#x=%u (%lld ns) > initial count (%lld ns). "
+				    "Using initial count to start timer.\n",
+				    apic->vcpu->vcpu_id,
+				    count_reg,
+				    kvm_lapic_get_reg(apic, count_reg),
+				    deadline, apic->lapic_timer.period);
+				kvm_lapic_set_reg(apic, count_reg, 0);
+				deadline = apic->lapic_timer.period;
+			}
+		}
+	}
 
 	apic->lapic_timer.tscdeadline = kvm_read_l1_tsc(apic->vcpu, tscl) +
-		nsec_to_cycles(apic->vcpu, apic->lapic_timer.period);
-	apic->lapic_timer.target_expiration = ktime_add_ns(now, apic->lapic_timer.period);
+		nsec_to_cycles(apic->vcpu, deadline);
+	apic->lapic_timer.target_expiration = ktime_add_ns(now, deadline);
 
 	return true;
 }
@@ -1872,15 +1900,20 @@ void kvm_lapic_restart_hv_timer(struct kvm_vcpu *vcpu)
 	restart_apic_timer(apic);
 }
 
-static void start_apic_timer(struct kvm_lapic *apic)
+static void __start_apic_timer(struct kvm_lapic *apic, u32 count_reg)
 {
 	atomic_set(&apic->lapic_timer.pending, 0);
 
 	if ((apic_lvtt_period(apic) || apic_lvtt_oneshot(apic))
-	    && !set_target_expiration(apic))
+	    && !set_target_expiration(apic, count_reg))
 		return;
 
 	restart_apic_timer(apic);
+}
+
+static void start_apic_timer(struct kvm_lapic *apic)
+{
+	__start_apic_timer(apic, APIC_TMICT);
 }
 
 static void apic_manage_nmi_watchdog(struct kvm_lapic *apic, u32 lvt0_val)
@@ -2493,6 +2526,14 @@ static int kvm_apic_state_fixup(struct kvm_vcpu *vcpu,
 int kvm_apic_get_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 {
 	memcpy(s->regs, vcpu->arch.apic->regs, sizeof(*s));
+
+	/*
+	 * Get calculated timer current count for remaining timer period (if
+	 * any) and store it in the returned register set.
+	 */
+	__kvm_lapic_set_reg(s->regs, APIC_TMCCT,
+			    __apic_read(vcpu->arch.apic, APIC_TMCCT));
+
 	return kvm_apic_state_fixup(vcpu, s, false);
 }
 
@@ -2520,7 +2561,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 	apic_update_lvtt(apic);
 	apic_manage_nmi_watchdog(apic, kvm_lapic_get_reg(apic, APIC_LVT0));
 	update_divide_count(apic);
-	start_apic_timer(apic);
+	__start_apic_timer(apic, APIC_TMCCT);
 	kvm_apic_update_apicv(vcpu);
 	apic->highest_isr_cache = -1;
 	if (vcpu->arch.apicv_active) {
