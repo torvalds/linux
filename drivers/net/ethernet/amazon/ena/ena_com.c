@@ -457,7 +457,7 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 	cqe = &admin_queue->cq.entries[head_masked];
 
 	/* Go over all the completions */
-	while ((cqe->acq_common_descriptor.flags &
+	while ((READ_ONCE(cqe->acq_common_descriptor.flags) &
 			ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
 		/* Do not read the rest of the completion entry before the
 		 * phase bit was validated
@@ -633,7 +633,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	writel(mmio_read_reg, ena_dev->reg_bar + ENA_REGS_MMIO_REG_READ_OFF);
 
 	for (i = 0; i < timeout; i++) {
-		if (read_resp->req_id == mmio_read->seq_num)
+		if (READ_ONCE(read_resp->req_id) == mmio_read->seq_num)
 			break;
 
 		udelay(1);
@@ -1790,8 +1790,8 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	aenq_common = &aenq_e->aenq_common_desc;
 
 	/* Go over all the events */
-	while ((aenq_common->flags & ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) ==
-	       phase) {
+	while ((READ_ONCE(aenq_common->flags) &
+		ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
 		pr_debug("AENQ! Group[%x] Syndrom[%x] timestamp: [%llus]\n",
 			 aenq_common->group, aenq_common->syndrom,
 			 (u64)aenq_common->timestamp_low +

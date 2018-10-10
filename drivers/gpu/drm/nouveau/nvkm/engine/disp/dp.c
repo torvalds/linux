@@ -412,13 +412,9 @@ nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
 }
 
 static void
-nvkm_dp_release(struct nvkm_outp *outp, struct nvkm_ior *ior)
+nvkm_dp_disable(struct nvkm_outp *outp, struct nvkm_ior *ior)
 {
 	struct nvkm_dp *dp = nvkm_dp(outp);
-
-	/* Prevent link from being retrained if sink sends an IRQ. */
-	atomic_set(&dp->lt.done, 0);
-	ior->dp.nr = 0;
 
 	/* Execute DisableLT script from DP Info Table. */
 	nvbios_init(&ior->disp->engine.subdev, dp->info.script[4],
@@ -426,6 +422,16 @@ nvkm_dp_release(struct nvkm_outp *outp, struct nvkm_ior *ior)
 		init.or   = ior->id;
 		init.link = ior->arm.link;
 	);
+}
+
+static void
+nvkm_dp_release(struct nvkm_outp *outp)
+{
+	struct nvkm_dp *dp = nvkm_dp(outp);
+
+	/* Prevent link from being retrained if sink sends an IRQ. */
+	atomic_set(&dp->lt.done, 0);
+	dp->outp.ior->dp.nr = 0;
 }
 
 static int
@@ -576,6 +582,7 @@ nvkm_dp_func = {
 	.fini = nvkm_dp_fini,
 	.acquire = nvkm_dp_acquire,
 	.release = nvkm_dp_release,
+	.disable = nvkm_dp_disable,
 };
 
 static int

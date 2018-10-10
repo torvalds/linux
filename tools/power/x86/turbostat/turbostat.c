@@ -1485,7 +1485,7 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 		if (get_msr(cpu, mp->msr_num, counterp))
 			return -1;
 	} else {
-		char path[128];
+		char path[128 + PATH_BYTES];
 
 		if (mp->flags & SYSFS_PERCPU) {
 			sprintf(path, "/sys/devices/system/cpu/cpu%d/%s",
