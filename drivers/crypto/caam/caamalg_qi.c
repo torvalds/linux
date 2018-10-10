@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale FSL CAAM support for crypto API over QI backend.
  * Based on caamalg.c

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* * CAAM control-plane driver backend
  * Controller-level driver, kernel property detection, initialization
  *
