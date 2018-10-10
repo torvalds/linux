@@ -116,7 +116,7 @@ A typical usage scenario is:
 This is not implying any temporal order on wait_for_completion() and the
 call to complete() - if the call to complete() happened before the call
 to wait_for_completion() then the waiting side simply will continue
-immediately as all dependencies are satisfied if not it will block until
+immediately as all dependencies are satisfied; if not, it will block until
 completion is signaled by complete().
 
 Note that wait_for_completion() is calling spin_lock_irq()/spin_unlock_irq(),
@@ -131,7 +131,7 @@ wait_for_completion():
 The default behavior is to wait without a timeout and to mark the task as
 uninterruptible. wait_for_completion() and its variants are only safe
 in process context (as they can sleep) but not in atomic context,
-interrupt context, with disabled irqs. or preemption is disabled - see also
+interrupt context, with disabled irqs, or preemption is disabled - see also
 try_wait_for_completion() below for handling completion in atomic/interrupt
 context.
 
@@ -224,7 +224,7 @@ queue spinlock. Any such concurrent calls to complete() or complete_all()
 probably are a design bug.
 
 Signaling completion from hard-irq context is fine as it will appropriately
-lock with spin_lock_irqsave/spin_unlock_irqrestore and it will never sleep.
+lock with spin_lock_irqsave()/spin_unlock_irqrestore() and it will never sleep.
 
 
 try_wait_for_completion()/completion_done():
