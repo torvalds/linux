@@ -297,8 +297,6 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
 	case CHIP_VEGAM:
-		if (load_type != AMDGPU_FW_LOAD_SMU)
-			pr_warning("%d is not supported on VI\n", load_type);
 		return AMDGPU_FW_LOAD_SMU;
 	case CHIP_VEGA10:
 	case CHIP_RAVEN:
