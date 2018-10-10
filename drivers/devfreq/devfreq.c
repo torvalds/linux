@@ -582,7 +582,7 @@ static void devfreq_dev_release(struct device *dev)
 		devfreq->profile->exit(devfreq->dev.parent);
 
 	mutex_destroy(&devfreq->lock);
-	mutex_destroy(&devfreq->sysfs_lock);
+	mutex_destroy(&devfreq->event_lock);
 	kfree(devfreq);
 }
 
@@ -625,7 +625,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	}
 
 	mutex_init(&devfreq->lock);
-	mutex_init(&devfreq->sysfs_lock);
+	mutex_init(&devfreq->event_lock);
 	mutex_lock(&devfreq->lock);
 	devfreq->dev.parent = dev;
 	devfreq->dev.class = devfreq_class;
@@ -862,14 +862,19 @@ EXPORT_SYMBOL(devm_devfreq_remove_device);
  */
 int devfreq_suspend_device(struct devfreq *devfreq)
 {
+	int ret;
+
 	if (!devfreq)
 		return -EINVAL;
 
 	if (!devfreq->governor)
 		return 0;
 
-	return devfreq->governor->event_handler(devfreq,
+	mutex_lock(&devfreq->event_lock);
+	ret = devfreq->governor->event_handler(devfreq,
 				DEVFREQ_GOV_SUSPEND, NULL);
+	mutex_unlock(&devfreq->event_lock);
+	return ret;
 }
 EXPORT_SYMBOL(devfreq_suspend_device);
 
@@ -883,14 +888,18 @@ EXPORT_SYMBOL(devfreq_suspend_device);
  */
 int devfreq_resume_device(struct devfreq *devfreq)
 {
+	int ret;
 	if (!devfreq)
 		return -EINVAL;
 
 	if (!devfreq->governor)
 		return 0;
 
-	return devfreq->governor->event_handler(devfreq,
+	mutex_lock(&devfreq->event_lock);
+	ret = devfreq->governor->event_handler(devfreq,
 				DEVFREQ_GOV_RESUME, NULL);
+	mutex_unlock(&devfreq->event_lock);
+	return ret;
 }
 EXPORT_SYMBOL(devfreq_resume_device);
 
@@ -1058,7 +1067,7 @@ static ssize_t governor_store(struct device *dev, struct device_attribute *attr,
 		goto out;
 	}
 
-	mutex_lock(&df->sysfs_lock);
+	mutex_lock(&df->event_lock);
 	if (df->governor) {
 		ret = df->governor->event_handler(df, DEVFREQ_GOV_STOP, NULL);
 		if (ret) {
@@ -1075,7 +1084,7 @@ static ssize_t governor_store(struct device *dev, struct device_attribute *attr,
 			 __func__, df->governor->name, ret);
 
 gov_stop_out:
-	mutex_unlock(&df->sysfs_lock);
+	mutex_unlock(&df->event_lock);
 out:
 	mutex_unlock(&devfreq_list_lock);
 
@@ -1170,10 +1179,10 @@ static ssize_t polling_interval_store(struct device *dev,
 	if (ret != 1)
 		return -EINVAL;
 
-	mutex_lock(&df->sysfs_lock);
+	mutex_lock(&df->event_lock);
 	df->governor->event_handler(df, DEVFREQ_GOV_INTERVAL, &value);
 	ret = count;
-	mutex_unlock(&df->sysfs_lock);
+	mutex_unlock(&df->event_lock);
 
 	return ret;
 }
@@ -1190,7 +1199,7 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret != 1)
 		return -EINVAL;
 
-	mutex_lock(&df->sysfs_lock);
+	mutex_lock(&df->event_lock);
 	mutex_lock(&df->lock);
 
 	if (value) {
@@ -1213,7 +1222,7 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 	ret = count;
 unlock:
 	mutex_unlock(&df->lock);
-	mutex_unlock(&df->sysfs_lock);
+	mutex_unlock(&df->event_lock);
 	return ret;
 }
 
@@ -1236,7 +1245,7 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret != 1)
 		return -EINVAL;
 
-	mutex_lock(&df->sysfs_lock);
+	mutex_lock(&df->event_lock);
 	mutex_lock(&df->lock);
 
 	if (value) {
@@ -1259,7 +1268,7 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 	ret = count;
 unlock:
 	mutex_unlock(&df->lock);
-	mutex_unlock(&df->sysfs_lock);
+	mutex_unlock(&df->event_lock);
 	return ret;
 }
 static DEVICE_ATTR_RW(min_freq);
