@@ -27,10 +27,19 @@ void brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		    struct brcmf_mp_device *settings)
 {
 	struct brcmfmac_sdio_pd *sdio = &settings->bus.sdio;
-	struct device_node *np = dev->of_node;
+	struct device_node *root, *np = dev->of_node;
+	struct property *prop;
 	int irq;
 	u32 irqf;
 	u32 val;
+
+	/* Set board-type to the first string of the machine compatible prop */
+	root = of_find_node_by_path("/");
+	if (root) {
+		prop = of_find_property(root, "compatible", NULL);
+		settings->board_type = of_prop_next_string(prop, NULL);
+		of_node_put(root);
+	}
 
 	if (!np || bus_type != BRCMF_BUSTYPE_SDIO ||
 	    !of_device_is_compatible(np, "brcm,bcm4329-fmac"))
