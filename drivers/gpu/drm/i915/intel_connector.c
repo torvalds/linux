@@ -107,8 +107,15 @@ int intel_connector_register(struct drm_connector *connector)
 	if (ret)
 		goto err;
 
+	if (i915_inject_load_failure()) {
+		ret = -EFAULT;
+		goto err_backlight;
+	}
+
 	return 0;
 
+err_backlight:
+	intel_backlight_device_unregister(intel_connector);
 err:
 	return ret;
 }
