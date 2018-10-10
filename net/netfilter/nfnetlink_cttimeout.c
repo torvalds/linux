@@ -350,7 +350,6 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 				 struct netlink_ext_ack *extack)
 {
 	const struct nf_conntrack_l4proto *l4proto;
-	__u16 l3num;
 	__u8 l4num;
 	int ret;
 
@@ -359,7 +358,6 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 	    !cda[CTA_TIMEOUT_DATA])
 		return -EINVAL;
 
-	l3num = ntohs(nla_get_be16(cda[CTA_TIMEOUT_L3PROTO]));
 	l4num = nla_get_u8(cda[CTA_TIMEOUT_L4PROTO]);
 	l4proto = nf_ct_l4proto_find_get(l4num);
 
