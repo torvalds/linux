@@ -128,6 +128,10 @@ end:
 
 static void bebob_free(struct snd_bebob *bebob)
 {
+	mutex_lock(&devices_mutex);
+	clear_bit(bebob->card_index, devices_used);
+	mutex_unlock(&devices_mutex);
+
 	snd_bebob_stream_destroy_duplex(bebob);
 }
 
@@ -140,12 +144,6 @@ static void bebob_free(struct snd_bebob *bebob)
 static void
 bebob_card_free(struct snd_card *card)
 {
-	struct snd_bebob *bebob = card->private_data;
-
-	mutex_lock(&devices_mutex);
-	clear_bit(bebob->card_index, devices_used);
-	mutex_unlock(&devices_mutex);
-
 	bebob_free(card->private_data);
 }
 
@@ -186,7 +184,6 @@ do_registration(struct work_struct *work)
 		return;
 
 	mutex_lock(&devices_mutex);
-
 	for (card_index = 0; card_index < SNDRV_CARDS; card_index++) {
 		if (!test_bit(card_index, devices_used) && enable[card_index])
 			break;
@@ -202,6 +199,8 @@ do_registration(struct work_struct *work)
 		mutex_unlock(&devices_mutex);
 		return;
 	}
+	set_bit(card_index, devices_used);
+	mutex_unlock(&devices_mutex);
 
 	err = name_device(bebob);
 	if (err < 0)
@@ -242,9 +241,6 @@ do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	set_bit(card_index, devices_used);
-	mutex_unlock(&devices_mutex);
-
 	/*
 	 * After registered, bebob instance can be released corresponding to
 	 * releasing the sound card instance.
@@ -255,7 +251,6 @@ do_registration(struct work_struct *work)
 
 	return;
 error:
-	mutex_unlock(&devices_mutex);
 	snd_bebob_stream_destroy_duplex(bebob);
 	snd_card_free(bebob->card);
 	dev_info(&bebob->unit->device,
