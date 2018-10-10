@@ -1668,6 +1668,14 @@ unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 
+/* intel_connector.c */
+int intel_connector_update_modes(struct drm_connector *connector,
+				 struct edid *edid);
+int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
+void intel_attach_force_audio_property(struct drm_connector *connector);
+void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
+void intel_attach_aspect_ratio_property(struct drm_connector *connector);
+
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);
 void intel_csr_load_program(struct drm_i915_private *);
@@ -1863,16 +1871,6 @@ bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
 void intel_lvds_init(struct drm_i915_private *dev_priv);
 struct intel_encoder *intel_get_lvds_encoder(struct drm_device *dev);
 bool intel_is_dual_link_lvds(struct drm_device *dev);
-
-
-/* intel_modes.c */
-int intel_connector_update_modes(struct drm_connector *connector,
-				 struct edid *edid);
-int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
-void intel_attach_force_audio_property(struct drm_connector *connector);
-void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
-void intel_attach_aspect_ratio_property(struct drm_connector *connector);
-
 
 /* intel_overlay.c */
 void intel_setup_overlay(struct drm_i915_private *dev_priv);

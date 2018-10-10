@@ -113,6 +113,7 @@ i915-y += intel_audio.o \
 	  intel_bios.o \
 	  intel_cdclk.o \
 	  intel_color.o \
+	  intel_connector.o \
 	  intel_display.o \
 	  intel_dpio_phy.o \
 	  intel_dpll_mgr.o \
@@ -121,7 +122,6 @@ i915-y += intel_audio.o \
 	  intel_frontbuffer.o \
 	  intel_hdcp.o \
 	  intel_hotplug.o \
-	  intel_modes.o \
 	  intel_overlay.o \
 	  intel_psr.o \
 	  intel_sideband.o \
