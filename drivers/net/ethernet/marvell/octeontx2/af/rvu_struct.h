@@ -31,4 +31,26 @@ enum rvu_block_addr_e {
 	BLK_COUNT	= 0xfULL,
 };
 
+/* RVU Admin function Interrupt Vector Enumeration */
+enum rvu_af_int_vec_e {
+	RVU_AF_INT_VEC_POISON = 0x0,
+	RVU_AF_INT_VEC_PFFLR  = 0x1,
+	RVU_AF_INT_VEC_PFME   = 0x2,
+	RVU_AF_INT_VEC_GEN    = 0x3,
+	RVU_AF_INT_VEC_MBOX   = 0x4,
+};
+
+/**
+ * RVU PF Interrupt Vector Enumeration
+ */
+enum rvu_pf_int_vec_e {
+	RVU_PF_INT_VEC_VFFLR0     = 0x0,
+	RVU_PF_INT_VEC_VFFLR1     = 0x1,
+	RVU_PF_INT_VEC_VFME0      = 0x2,
+	RVU_PF_INT_VEC_VFME1      = 0x3,
+	RVU_PF_INT_VEC_VFPF_MBOX0 = 0x4,
+	RVU_PF_INT_VEC_VFPF_MBOX1 = 0x5,
+	RVU_PF_INT_VEC_AFPF_MBOX  = 0x6,
+};
+
 #endif /* RVU_STRUCT_H */

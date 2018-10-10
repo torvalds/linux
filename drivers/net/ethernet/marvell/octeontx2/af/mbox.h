@@ -33,6 +33,8 @@
 # error "incorrect mailbox area sizes"
 #endif
 
+#define INTR_MASK(pfvfs) ((pfvfs < 64) ? (BIT_ULL(pfvfs) - 1) : (~0ull))
+
 #define MBOX_RSP_TIMEOUT	1000 /* in ms, Time to wait for mbox response */
 
 #define MBOX_MSG_ALIGN		16  /* Align mbox msg start to 16bytes */
@@ -90,8 +92,9 @@ struct mbox_msghdr {
 
 void otx2_mbox_reset(struct otx2_mbox *mbox, int devid);
 void otx2_mbox_destroy(struct otx2_mbox *mbox);
-int otx2_mbox_init(struct otx2_mbox *mbox, void *hwbase, struct pci_dev *pdev,
-		   void *reg_base, int direction, int ndevs);
+int otx2_mbox_init(struct otx2_mbox *mbox, void __force *hwbase,
+		   struct pci_dev *pdev, void __force *reg_base,
+		   int direction, int ndevs);
 void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid);
 int otx2_mbox_wait_for_rsp(struct otx2_mbox *mbox, int devid);
 int otx2_mbox_busy_poll_for_rsp(struct otx2_mbox *mbox, int devid);
@@ -115,7 +118,7 @@ static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
 #define MBOX_MSG_MAX				0xFFFF
 
 #define MBOX_MESSAGES							\
-M(READY,		0x001, msg_req, msg_rsp)
+M(READY,		0x001, msg_req, ready_msg_rsp)
 
 enum {
 #define M(_name, _id, _1, _2) MBOX_MSG_ ## _name = _id,
@@ -137,6 +140,11 @@ struct msg_req {
  */
 struct msg_rsp {
 	struct mbox_msghdr hdr;
+};
+
+struct ready_msg_rsp {
+	struct mbox_msghdr hdr;
+	u16    sclk_feq;	/* SCLK frequency */
 };
 
 #endif /* MBOX_H */

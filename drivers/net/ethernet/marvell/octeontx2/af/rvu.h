@@ -12,6 +12,7 @@
 #define RVU_H
 
 #include "rvu_struct.h"
+#include "mbox.h"
 
 /* PCI device IDs */
 #define	PCI_DEVID_OCTEONTX2_RVU_AF		0xA065
@@ -22,6 +23,17 @@
 #define	PCI_MBOX_BAR_NUM			4
 
 #define NAME_SIZE				32
+
+/* PF_FUNC */
+#define RVU_PFVF_PF_SHIFT	10
+#define RVU_PFVF_PF_MASK	0x3F
+#define RVU_PFVF_FUNC_SHIFT	0
+#define RVU_PFVF_FUNC_MASK	0x3FF
+
+struct rvu_work {
+	struct	work_struct work;
+	struct	rvu *rvu;
+};
 
 struct rsrc_bmap {
 	unsigned long *bmap;	/* Pointer to resource bitmap */
@@ -57,6 +69,16 @@ struct rvu {
 	struct pci_dev		*pdev;
 	struct device		*dev;
 	struct rvu_hwinfo       *hw;
+
+	/* Mbox */
+	struct otx2_mbox	mbox;
+	struct rvu_work		*mbox_wrk;
+	struct workqueue_struct *mbox_wq;
+
+	/* MSI-X */
+	u16			num_vec;
+	char			*irq_name;
+	bool			*irq_allocated;
 };
 
 static inline void rvu_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)
