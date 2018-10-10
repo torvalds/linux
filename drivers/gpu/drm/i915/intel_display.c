@@ -6324,84 +6324,6 @@ static void intel_connector_verify_state(struct drm_crtc_state *crtc_state,
 	}
 }
 
-int intel_connector_init(struct intel_connector *connector)
-{
-	struct intel_digital_connector_state *conn_state;
-
-	/*
-	 * Allocate enough memory to hold intel_digital_connector_state,
-	 * This might be a few bytes too many, but for connectors that don't
-	 * need it we'll free the state and allocate a smaller one on the first
-	 * succesful commit anyway.
-	 */
-	conn_state = kzalloc(sizeof(*conn_state), GFP_KERNEL);
-	if (!conn_state)
-		return -ENOMEM;
-
-	__drm_atomic_helper_connector_reset(&connector->base,
-					    &conn_state->base);
-
-	return 0;
-}
-
-struct intel_connector *intel_connector_alloc(void)
-{
-	struct intel_connector *connector;
-
-	connector = kzalloc(sizeof *connector, GFP_KERNEL);
-	if (!connector)
-		return NULL;
-
-	if (intel_connector_init(connector) < 0) {
-		kfree(connector);
-		return NULL;
-	}
-
-	return connector;
-}
-
-/*
- * Free the bits allocated by intel_connector_alloc.
- * This should only be used after intel_connector_alloc has returned
- * successfully, and before drm_connector_init returns successfully.
- * Otherwise the destroy callbacks for the connector and the state should
- * take care of proper cleanup/free (see intel_connector_destroy).
- */
-void intel_connector_free(struct intel_connector *connector)
-{
-	kfree(to_intel_digital_connector_state(connector->base.state));
-	kfree(connector);
-}
-
-/*
- * Connector type independent destroy hook for drm_connector_funcs.
- */
-void intel_connector_destroy(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-
-	kfree(intel_connector->detect_edid);
-
-	if (!IS_ERR_OR_NULL(intel_connector->edid))
-		kfree(intel_connector->edid);
-
-	intel_panel_fini(&intel_connector->panel);
-
-	drm_connector_cleanup(connector);
-	kfree(connector);
-}
-
-/* Simple connector->get_hw_state implementation for encoders that support only
- * one connector and no cloning and hence the encoder state determines the state
- * of the connector. */
-bool intel_connector_get_hw_state(struct intel_connector *connector)
-{
-	enum pipe pipe = 0;
-	struct intel_encoder *encoder = connector->encoder;
-
-	return encoder->get_hw_state(encoder, &pipe);
-}
-
 static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
 {
 	if (crtc_state->base.enable && crtc_state->has_pch_encoder)
@@ -15858,28 +15780,6 @@ void intel_display_resume(struct drm_device *dev)
 		drm_atomic_state_put(state);
 }
 
-int intel_connector_register(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	int ret;
-
-	ret = intel_backlight_device_register(intel_connector);
-	if (ret)
-		goto err;
-
-	return 0;
-
-err:
-	return ret;
-}
-
-void intel_connector_unregister(struct drm_connector *connector)
-{
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-
-	intel_backlight_device_unregister(intel_connector);
-}
-
 static void intel_hpd_poll_fini(struct drm_device *dev)
 {
 	struct intel_connector *connector;
@@ -15937,13 +15837,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_teardown_gmbus(dev_priv);
 
 	destroy_workqueue(dev_priv->modeset_wq);
-}
-
-void intel_connector_attach_encoder(struct intel_connector *connector,
-				    struct intel_encoder *encoder)
-{
-	connector->encoder = encoder;
-	drm_connector_attach_encoder(&connector->base, &encoder->base);
 }
 
 /*
