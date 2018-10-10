@@ -1307,10 +1307,6 @@ check_loop_fn(struct Qdisc *q, unsigned long cl, struct qdisc_walker *w)
 	return 0;
 }
 
-/*
- * Delete/get qdisc.
- */
-
 const struct nla_policy rtm_tca_policy[TCA_MAX + 1] = {
 	[TCA_KIND]		= { .type = NLA_STRING },
 	[TCA_OPTIONS]		= { .type = NLA_NESTED },
@@ -1322,6 +1318,10 @@ const struct nla_policy rtm_tca_policy[TCA_MAX + 1] = {
 	[TCA_INGRESS_BLOCK]	= { .type = NLA_U32 },
 	[TCA_EGRESS_BLOCK]	= { .type = NLA_U32 },
 };
+
+/*
+ * Delete/get qdisc.
+ */
 
 static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 			struct netlink_ext_ack *extack)
