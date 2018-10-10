@@ -223,7 +223,7 @@ struct gasket_coherent_buffer_desc {
 /* Coherent buffer structure. */
 struct gasket_coherent_buffer {
 	/* Virtual base address. */
-	u8 __iomem *virt_base;
+	u8 *virt_base;
 
 	/* Physical base address. */
 	ulong phys_base;
