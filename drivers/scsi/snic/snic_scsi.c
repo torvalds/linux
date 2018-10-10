@@ -146,10 +146,10 @@ snic_release_req_buf(struct snic *snic,
 		      CMD_FLAGS(sc));
 
 	if (req->u.icmnd.sense_addr)
-		pci_unmap_single(snic->pdev,
+		dma_unmap_single(&snic->pdev->dev,
 				 le64_to_cpu(req->u.icmnd.sense_addr),
 				 SCSI_SENSE_BUFFERSIZE,
-				 PCI_DMA_FROMDEVICE);
+				 DMA_FROM_DEVICE);
 
 	scsi_dma_unmap(sc);
 
@@ -185,12 +185,11 @@ snic_queue_icmnd_req(struct snic *snic,
 		}
 	}
 
-	pa = pci_map_single(snic->pdev,
+	pa = dma_map_single(&snic->pdev->dev,
 			    sc->sense_buffer,
 			    SCSI_SENSE_BUFFERSIZE,
-			    PCI_DMA_FROMDEVICE);
-
-	if (pci_dma_mapping_error(snic->pdev, pa)) {
+			    DMA_FROM_DEVICE);
+	if (dma_mapping_error(&snic->pdev->dev, pa)) {
 		SNIC_HOST_ERR(snic->shost,
 			      "QIcmnd:PCI Map Failed for sns buf %p tag %x\n",
 			      sc->sense_buffer, snic_cmd_tag(sc));
