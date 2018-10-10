@@ -183,6 +183,13 @@ static int __nd_label_validate(struct nvdimm_drvdata *ndd)
 					__le64_to_cpu(nsindex[i]->otheroff));
 			continue;
 		}
+		if (__le64_to_cpu(nsindex[i]->labeloff)
+				!= 2 * sizeof_namespace_index(ndd)) {
+			dev_dbg(dev, "nsindex%d labeloff: %#llx invalid\n",
+					i, (unsigned long long)
+					__le64_to_cpu(nsindex[i]->labeloff));
+			continue;
+		}
 
 		size = __le64_to_cpu(nsindex[i]->mysize);
 		if (size > sizeof_namespace_index(ndd)
