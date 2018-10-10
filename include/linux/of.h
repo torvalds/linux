@@ -550,6 +550,10 @@ bool of_console_check(struct device_node *dn, char *name, int index);
 
 extern int of_cpu_node_to_id(struct device_node *np);
 
+int of_map_rid(struct device_node *np, u32 rid,
+	       const char *map_name, const char *map_mask_name,
+	       struct device_node **target, u32 *id_out);
+
 #else /* CONFIG_OF */
 
 static inline void of_core_init(void)
@@ -950,6 +954,13 @@ static inline void of_property_clear_flag(struct property *p, unsigned long flag
 static inline int of_cpu_node_to_id(struct device_node *np)
 {
 	return -ENODEV;
+}
+
+static inline int of_map_rid(struct device_node *np, u32 rid,
+			     const char *map_name, const char *map_mask_name,
+			     struct device_node **target, u32 *id_out)
+{
+	return -EINVAL;
 }
 
 #define of_match_ptr(_ptr)	NULL
