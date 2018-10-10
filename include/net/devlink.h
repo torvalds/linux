@@ -298,7 +298,7 @@ struct devlink_resource {
 
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
 
-#define DEVLINK_PARAM_MAX_STRING_VALUE 32
+#define __DEVLINK_PARAM_MAX_STRING_VALUE 32
 enum devlink_param_type {
 	DEVLINK_PARAM_TYPE_U8,
 	DEVLINK_PARAM_TYPE_U16,
@@ -311,7 +311,7 @@ union devlink_param_value {
 	u8 vu8;
 	u16 vu16;
 	u32 vu32;
-	const char *vstr;
+	char vstr[__DEVLINK_PARAM_MAX_STRING_VALUE];
 	bool vbool;
 };
 
@@ -553,6 +553,8 @@ int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value init_val);
 void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
+void devlink_param_value_str_fill(union devlink_param_value *dst_val,
+				  const char *src);
 struct devlink_region *devlink_region_create(struct devlink *devlink,
 					     const char *region_name,
 					     u32 region_max_snapshots,
@@ -786,6 +788,12 @@ devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 
 static inline void
 devlink_param_value_changed(struct devlink *devlink, u32 param_id)
+{
+}
+
+static inline void
+devlink_param_value_str_fill(union devlink_param_value *dst_val,
+			     const char *src)
 {
 }
 
