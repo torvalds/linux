@@ -1,0 +1,28 @@
+Rockchip HW Spinlock Device Binding
+===================================
+
+Required properties :
+- compatible : shall contain only one of the following:
+	"rockchip,hwspinlock"
+
+- reg : the register address of hwspinlock
+
+- #hwlock-cells : hwlock users only use the hwlock id to represent a specific
+	hwlock, so the number of cells should be <1> here.
+
+Please look at the generic hwlock binding for usage information for consumers,
+"Documentation/devicetree/bindings/hwlock/hwlock.txt"
+
+Example of hwlock provider:
+	hwlock: hwspinlock@ff040000 {
+		compatible = "rockchip,hwspinlock";
+		reg = <0 0xff040000 0 0x10000>;
+		#hwlock-cells = <1>;
+	};
+
+Example of hwlock users:
+	node {
+		...
+		hwlocks = <&hwlock 0>;
+		...
+	};
