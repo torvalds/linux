@@ -261,9 +261,8 @@ int nd_label_validate(struct nvdimm_drvdata *ndd)
 void nd_label_copy(struct nvdimm_drvdata *ndd, struct nd_namespace_index *dst,
 		struct nd_namespace_index *src)
 {
-	if (dst && src)
-		/* pass */;
-	else
+	/* just exit if either destination or source is NULL */
+	if (!dst || !src)
 		return;
 
 	memcpy(dst, src, sizeof_namespace_index(ndd));
