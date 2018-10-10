@@ -36,7 +36,6 @@
 #define OP_31_XOP_MTSR		210
 #define OP_31_XOP_MTSRIN	242
 #define OP_31_XOP_TLBIEL	274
-#define OP_31_XOP_TLBIE		306
 /* Opcode is officially reserved, reuse it as sc 1 when sc 1 doesn't trap */
 #define OP_31_XOP_FAKE_SC1	308
 #define OP_31_XOP_SLBMTE	402
@@ -110,7 +109,7 @@ static inline void kvmppc_copyto_vcpu_tm(struct kvm_vcpu *vcpu)
 	vcpu->arch.ctr_tm = vcpu->arch.regs.ctr;
 	vcpu->arch.tar_tm = vcpu->arch.tar;
 	vcpu->arch.lr_tm = vcpu->arch.regs.link;
-	vcpu->arch.cr_tm = vcpu->arch.cr;
+	vcpu->arch.cr_tm = vcpu->arch.regs.ccr;
 	vcpu->arch.xer_tm = vcpu->arch.regs.xer;
 	vcpu->arch.vrsave_tm = vcpu->arch.vrsave;
 }
@@ -129,7 +128,7 @@ static inline void kvmppc_copyfrom_vcpu_tm(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs.ctr = vcpu->arch.ctr_tm;
 	vcpu->arch.tar = vcpu->arch.tar_tm;
 	vcpu->arch.regs.link = vcpu->arch.lr_tm;
-	vcpu->arch.cr = vcpu->arch.cr_tm;
+	vcpu->arch.regs.ccr = vcpu->arch.cr_tm;
 	vcpu->arch.regs.xer = vcpu->arch.xer_tm;
 	vcpu->arch.vrsave = vcpu->arch.vrsave_tm;
 }
@@ -141,7 +140,7 @@ static void kvmppc_emulate_treclaim(struct kvm_vcpu *vcpu, int ra_val)
 	uint64_t texasr;
 
 	/* CR0 = 0 | MSR[TS] | 0 */
-	vcpu->arch.cr = (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)) |
+	vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & ~(CR0_MASK << CR0_SHIFT)) |
 		(((guest_msr & MSR_TS_MASK) >> (MSR_TS_S_LG - 1))
 		 << CR0_SHIFT);
 
@@ -220,7 +219,7 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 	tm_abort(ra_val);
 
 	/* CR0 = 0 | MSR[TS] | 0 */
-	vcpu->arch.cr = (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)) |
+	vcpu->arch.regs.ccr = (vcpu->arch.regs.ccr & ~(CR0_MASK << CR0_SHIFT)) |
 		(((guest_msr & MSR_TS_MASK) >> (MSR_TS_S_LG - 1))
 		 << CR0_SHIFT);
 
@@ -494,8 +493,8 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 			if (!(kvmppc_get_msr(vcpu) & MSR_PR)) {
 				preempt_disable();
-				vcpu->arch.cr = (CR0_TBEGIN_FAILURE |
-				  (vcpu->arch.cr & ~(CR0_MASK << CR0_SHIFT)));
+				vcpu->arch.regs.ccr = (CR0_TBEGIN_FAILURE |
+				  (vcpu->arch.regs.ccr & ~(CR0_MASK << CR0_SHIFT)));
 
 				vcpu->arch.texasr = (TEXASR_FS | TEXASR_EXACT |
 					(((u64)(TM_CAUSE_EMULATE | TM_CAUSE_PERSISTENT))

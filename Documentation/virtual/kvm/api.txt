@@ -1922,6 +1922,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TIDR              | 64
   PPC   | KVM_REG_PPC_PSSCR             | 64
   PPC   | KVM_REG_PPC_DEC_EXPIRY        | 64
+  PPC   | KVM_REG_PPC_PTCR              | 64
   PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31          | 64
@@ -2268,6 +2269,10 @@ The supported flags are:
     - KVM_PPC_1T_SEGMENTS
         The emulated MMU supports 1T segments in addition to the
         standard 256M ones.
+
+    - KVM_PPC_NO_HASH
+	This flag indicates that HPT guests are not supported by KVM,
+	thus all guests must use radix MMU mode.
 
 The "slb_size" field indicates how many SLB entries are supported
 
@@ -4530,6 +4535,20 @@ Parameters: args[0] whether feature should be enabled or not
 With this capability, a guest may read the MSR_PLATFORM_INFO MSR. Otherwise,
 a #GP would be raised when the guest tries to access. Currently, this
 capability does not enable write permissions of this MSR for the guest.
+
+7.16 KVM_CAP_PPC_NESTED_HV
+
+Architectures: ppc
+Parameters: none
+Returns: 0 on success, -EINVAL when the implementation doesn't support
+	 nested-HV virtualization.
+
+HV-KVM on POWER9 and later systems allows for "nested-HV"
+virtualization, which provides a way for a guest VM to run guests that
+can run using the CPU's supervisor mode (privileged non-hypervisor
+state).  Enabling this capability on a VM depends on the CPU having
+the necessary functionality and on the facility being enabled with a
+kvm-hv module parameter.
 
 8. Other capabilities.
 ----------------------
