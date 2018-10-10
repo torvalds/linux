@@ -110,6 +110,7 @@
 #define SCLK_USBPHY_REF		109
 #define SCLK_MIPIDSIPHY_REF	110
 #define SCLK_PCIEPHY_REF	111
+#define SCLK_RTC32K_FRAC	112
 
 /* aclk gates */
 #define ACLK_GIC_PRE		145
