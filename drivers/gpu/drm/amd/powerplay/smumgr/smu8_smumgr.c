@@ -661,9 +661,6 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	uint32_t fw_to_check = 0;
 	int ret;
 
-	if (!hwmgr->reload_fw)
-		return 0;
-
 	amdgpu_ucode_init_bo(hwmgr->adev);
 
 	smu8_smu_populate_firmware_entries(hwmgr);
@@ -718,8 +715,6 @@ static int smu8_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 		pr_err("Mec Firmware load failed\n");
 		return ret;
 	}
-
-	hwmgr->reload_fw = 0;
 
 	return 0;
 }

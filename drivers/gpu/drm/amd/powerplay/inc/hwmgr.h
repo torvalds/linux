@@ -734,7 +734,6 @@ struct pp_hwmgr {
 	void *smu_backend;
 	const struct pp_smumgr_func *smumgr_funcs;
 	bool is_kicker;
-	bool reload_fw;
 
 	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;

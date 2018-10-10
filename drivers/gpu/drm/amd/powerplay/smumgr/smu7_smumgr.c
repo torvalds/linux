@@ -343,9 +343,6 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	uint32_t fw_to_load;
 	int r = 0;
 
-	if (!hwmgr->reload_fw)
-		return 0;
-
 	amdgpu_ucode_init_bo(hwmgr->adev);
 
 	if (smu_data->soft_regs_start)
@@ -432,10 +429,9 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load);
 
 	r = smu7_check_fw_load_finish(hwmgr, fw_to_load);
-	if (!r) {
-		hwmgr->reload_fw = 0;
+	if (!r)
 		return 0;
-	}
+
 	pr_err("SMU load firmware failed\n");
 
 failed:

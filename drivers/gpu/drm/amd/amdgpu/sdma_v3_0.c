@@ -788,14 +788,6 @@ static int sdma_v3_0_start(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->powerplay.pp_funcs->load_firmware) {
-		r = adev->powerplay.pp_funcs->load_firmware(adev->powerplay.pp_handle);
-		if (r) {
-			pr_err("firmware loading failed\n");
-			return r;
-		}
-	}
-
 	/* disable sdma engine before programing it */
 	sdma_v3_0_ctx_switch_enable(adev, false);
 	sdma_v3_0_enable(adev, false);
