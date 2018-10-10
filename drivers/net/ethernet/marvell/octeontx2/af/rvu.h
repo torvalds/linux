@@ -100,6 +100,16 @@ struct rvu {
 	char			*irq_name;
 	bool			*irq_allocated;
 	dma_addr_t		msix_base_iova;
+
+	/* CGX */
+#define PF_CGXMAP_BASE		1 /* PF 0 is reserved for RVU PF */
+	u8			cgx_mapped_pfs;
+	u8			cgx_cnt; /* available cgx ports */
+	u8			*pf2cgxlmac_map; /* pf to cgx_lmac map */
+	u16			*cgxlmac2pf_map; /* bitmap of mapped pfs for
+						  * every cgx lmac port
+						  */
+	void			**cgx_idmap; /* cgx id to cgx data map table */
 };
 
 static inline void rvu_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)
@@ -138,4 +148,6 @@ int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot);
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
+/* CGX APIs */
+int rvu_cgx_probe(struct rvu *rvu);
 #endif /* RVU_H */

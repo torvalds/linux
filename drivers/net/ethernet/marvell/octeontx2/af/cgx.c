@@ -28,7 +28,11 @@ struct cgx {
 	void __iomem		*reg_base;
 	struct pci_dev		*pdev;
 	u8			cgx_id;
+	u8			lmac_count;
+	struct list_head	cgx_list;
 };
+
+static LIST_HEAD(cgx_list);
 
 /* Supported devices */
 static const struct pci_device_id cgx_id_table[] = {
@@ -37,6 +41,53 @@ static const struct pci_device_id cgx_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, cgx_id_table);
+
+static u64 cgx_read(struct cgx *cgx, u64 lmac, u64 offset)
+{
+	return readq(cgx->reg_base + (lmac << 18) + offset);
+}
+
+int cgx_get_cgx_cnt(void)
+{
+	struct cgx *cgx_dev;
+	int count = 0;
+
+	list_for_each_entry(cgx_dev, &cgx_list, cgx_list)
+		count++;
+
+	return count;
+}
+EXPORT_SYMBOL(cgx_get_cgx_cnt);
+
+int cgx_get_lmac_cnt(void *cgxd)
+{
+	struct cgx *cgx = cgxd;
+
+	if (!cgx)
+		return -ENODEV;
+
+	return cgx->lmac_count;
+}
+EXPORT_SYMBOL(cgx_get_lmac_cnt);
+
+void *cgx_get_pdata(int cgx_id)
+{
+	struct cgx *cgx_dev;
+
+	list_for_each_entry(cgx_dev, &cgx_list, cgx_list) {
+		if (cgx_dev->cgx_id == cgx_id)
+			return cgx_dev;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(cgx_get_pdata);
+
+static void cgx_lmac_init(struct cgx *cgx)
+{
+	cgx->lmac_count = cgx_read(cgx, 0, CGXX_CMRX_RX_LMACS) & 0x7;
+	if (cgx->lmac_count > MAX_LMAC_PER_CGX)
+		cgx->lmac_count = MAX_LMAC_PER_CGX;
+}
 
 static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -72,9 +123,14 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_release_regions;
 	}
 
+	list_add(&cgx->cgx_list, &cgx_list);
+	cgx->cgx_id = cgx_get_cgx_cnt() - 1;
+	cgx_lmac_init(cgx);
+
 	return 0;
 
 err_release_regions:
+	list_del(&cgx->cgx_list);
 	pci_release_regions(pdev);
 err_disable_device:
 	pci_disable_device(pdev);
@@ -84,6 +140,9 @@ err_disable_device:
 
 static void cgx_remove(struct pci_dev *pdev)
 {
+	struct cgx *cgx = pci_get_drvdata(pdev);
+
+	list_del(&cgx->cgx_list);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);

@@ -1558,6 +1558,10 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_hwsetup;
 
+	err = rvu_cgx_probe(rvu);
+	if (err)
+		goto err_mbox;
+
 	err = rvu_register_interrupts(rvu);
 	if (err)
 		goto err_mbox;
