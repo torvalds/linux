@@ -17,13 +17,9 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/compat.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-contiguous.h>
-#include <linux/memblock.h>
-#include <linux/of_fdt.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/rockchip_ion.h>
 
@@ -53,127 +49,6 @@ static struct ion_heap_desc ion_heap_meta[] = {
 		.name	= "cma-heap",
 	},
 };
-
-#ifdef CONFIG_COMPAT
-struct compat_ion_phys_data {
-	compat_int_t handle;
-	compat_ulong_t phys;
-	compat_ulong_t size;
-};
-
-#define COMPAT_ION_IOC_GET_PHYS _IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
-				struct compat_ion_phys_data)
-
-static int compat_get_ion_phys_data(
-		struct compat_ion_phys_data __user *data32,
-		struct ion_phys_data __user *data)
-{
-	compat_ulong_t l;
-	compat_int_t i;
-	int err;
-
-	err = get_user(i, &data32->handle);
-	err |= put_user(i, &data->handle);
-	err |= get_user(l, &data32->phys);
-	err |= put_user(l, &data->phys);
-	err |= get_user(l, &data32->size);
-	err |= put_user(l, &data->size);
-
-	return err;
-};
-
-static int compat_put_ion_phys_data(
-		struct compat_ion_phys_data __user *data32,
-		struct ion_phys_data __user *data)
-{
-	compat_ulong_t l;
-	compat_int_t i;
-	int err;
-
-	err = get_user(i, &data->handle);
-	err |= put_user(i, &data32->handle);
-	err |= get_user(l, &data->phys);
-	err |= put_user(l, &data32->phys);
-	err |= get_user(l, &data->size);
-	err |= put_user(l, &data32->size);
-
-	return err;
-};
-#endif
-
-static int rk_ion_get_phys(struct ion_client *client,
-			   unsigned long arg)
-{
-	struct ion_phys_data data;
-	struct ion_handle *handle;
-	int ret;
-
-	if (copy_from_user(&data, (void __user *)arg,
-			   sizeof(struct ion_phys_data)))
-		return -EFAULT;
-
-	handle = ion_handle_get_by_id(client, data.handle);
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
-
-	ret = ion_phys(client, handle, &data.phys,
-		       (size_t *)&data.size);
-	ion_handle_put(handle);
-	if (ret < 0)
-		return ret;
-	if (copy_to_user((void __user *)arg, &data,
-			 sizeof(struct ion_phys_data)))
-		return -EFAULT;
-
-	return 0;
-}
-
-#ifdef CONFIG_COMPAT
-static int compat_rk_ion_get_phys(struct ion_client *client,
-				  unsigned long arg)
-{
-	struct compat_ion_phys_data __user *data32;
-	struct ion_phys_data __user *data;
-	int err;
-	long ret;
-
-	data32 = compat_ptr(arg);
-	data = compat_alloc_user_space(sizeof(*data));
-	if (!data)
-		return -EFAULT;
-
-	err = compat_get_ion_phys_data(data32, data);
-	if (err)
-		return err;
-
-	ret = rk_ion_get_phys(client, (unsigned long)data);
-	err = compat_put_ion_phys_data(data32, data);
-
-	return ret ? ret : err;
-}
-#endif
-
-static long rk_custom_ioctl(struct ion_client *client,
-			    unsigned int cmd,
-			    unsigned long arg)
-{
-	int ret = 0;
-
-	switch (cmd) {
-#ifdef CONFIG_COMPAT
-	case COMPAT_ION_IOC_GET_PHYS:
-		ret = compat_rk_ion_get_phys(client, arg);
-		break;
-#endif
-	case ION_IOC_GET_PHYS:
-		ret = rk_ion_get_phys(client, arg);
-		break;
-	default:
-		return -ENOTTY;
-	}
-
-	return ret;
-}
 
 /* Return result of step for heap array. */
 static int rk_ion_of_heap(struct ion_platform_heap *myheap,
@@ -254,7 +129,7 @@ static int rk_ion_probe(struct platform_device *pdev)
 
 	heaps = kcalloc(pdata->nr, sizeof(*heaps), GFP_KERNEL);
 
-	idev = ion_device_create(rk_custom_ioctl);
+	idev = ion_device_create(NULL);
 	if (IS_ERR_OR_NULL(idev)) {
 		kfree(heaps);
 		return PTR_ERR(idev);
