@@ -257,8 +257,8 @@ static int serdes_probe(struct platform_device *pdev)
 
 	ctrl->dev = &pdev->dev;
 	ctrl->regs = syscon_node_to_regmap(pdev->dev.parent->of_node);
-	if (!ctrl->regs)
-		return -ENODEV;
+	if (IS_ERR(ctrl->regs))
+		return PTR_ERR(ctrl->regs);
 
 	for (i = 0; i <= SERDES_MAX; i++) {
 		ret = serdes_phy_create(ctrl, i, &ctrl->phys[i]);
