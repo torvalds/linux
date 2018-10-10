@@ -126,17 +126,17 @@ static void fnic_release_ioreq_buf(struct fnic *fnic,
 				   struct scsi_cmnd *sc)
 {
 	if (io_req->sgl_list_pa)
-		pci_unmap_single(fnic->pdev, io_req->sgl_list_pa,
+		dma_unmap_single(&fnic->pdev->dev, io_req->sgl_list_pa,
 				 sizeof(io_req->sgl_list[0]) * io_req->sgl_cnt,
-				 PCI_DMA_TODEVICE);
+				 DMA_TO_DEVICE);
 	scsi_dma_unmap(sc);
 
 	if (io_req->sgl_cnt)
 		mempool_free(io_req->sgl_list_alloc,
 			     fnic->io_sgl_pool[io_req->sgl_type]);
 	if (io_req->sense_buf_pa)
-		pci_unmap_single(fnic->pdev, io_req->sense_buf_pa,
-				 SCSI_SENSE_BUFFERSIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&fnic->pdev->dev, io_req->sense_buf_pa,
+				 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 }
 
 /* Free up Copy Wq descriptors. Called with copy_wq lock held */
@@ -330,7 +330,6 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 	int flags;
 	u8 exch_flags;
 	struct scsi_lun fc_lun;
-	int r;
 
 	if (sg_count) {
 		/* For each SGE, create a device desc entry */
@@ -342,30 +341,25 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 			desc++;
 		}
 
-		io_req->sgl_list_pa = pci_map_single
-			(fnic->pdev,
-			 io_req->sgl_list,
-			 sizeof(io_req->sgl_list[0]) * sg_count,
-			 PCI_DMA_TODEVICE);
-
-		r = pci_dma_mapping_error(fnic->pdev, io_req->sgl_list_pa);
-		if (r) {
-			printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+		io_req->sgl_list_pa = dma_map_single(&fnic->pdev->dev,
+				io_req->sgl_list,
+				sizeof(io_req->sgl_list[0]) * sg_count,
+				DMA_TO_DEVICE);
+		if (dma_mapping_error(&fnic->pdev->dev, io_req->sgl_list_pa)) {
+			printk(KERN_ERR "DMA mapping failed\n");
 			return SCSI_MLQUEUE_HOST_BUSY;
 		}
 	}
 
-	io_req->sense_buf_pa = pci_map_single(fnic->pdev,
+	io_req->sense_buf_pa = dma_map_single(&fnic->pdev->dev,
 					      sc->sense_buffer,
 					      SCSI_SENSE_BUFFERSIZE,
-					      PCI_DMA_FROMDEVICE);
-
-	r = pci_dma_mapping_error(fnic->pdev, io_req->sense_buf_pa);
-	if (r) {
-		pci_unmap_single(fnic->pdev, io_req->sgl_list_pa,
+					      DMA_FROM_DEVICE);
+	if (dma_mapping_error(&fnic->pdev->dev, io_req->sense_buf_pa)) {
+		dma_unmap_single(&fnic->pdev->dev, io_req->sgl_list_pa,
 				sizeof(io_req->sgl_list[0]) * sg_count,
-				PCI_DMA_TODEVICE);
-		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
+				DMA_TO_DEVICE);
+		printk(KERN_ERR "DMA mapping failed\n");
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
