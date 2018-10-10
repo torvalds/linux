@@ -306,8 +306,8 @@ static void vbox_primary_atomic_update(struct drm_plane *plane,
 				    plane->state->src_y >> 16);
 }
 
-void vbox_primary_atomic_disable(struct drm_plane *plane,
-				 struct drm_plane_state *old_state)
+static void vbox_primary_atomic_disable(struct drm_plane *plane,
+					struct drm_plane_state *old_state)
 {
 	struct drm_crtc *crtc = old_state->crtc;
 
@@ -450,8 +450,8 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	mutex_unlock(&vbox->hw_mutex);
 }
 
-void vbox_cursor_atomic_disable(struct drm_plane *plane,
-				struct drm_plane_state *old_state)
+static void vbox_cursor_atomic_disable(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
 {
 	struct vbox_private *vbox =
 		container_of(plane->dev, struct vbox_private, ddev);
