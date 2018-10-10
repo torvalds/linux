@@ -295,12 +295,8 @@ static int adsp_init_clock(struct qcom_adsp *adsp)
 	adsp->num_clks = ARRAY_SIZE(adsp_clk_id);
 	adsp->clks = devm_kcalloc(adsp->dev, adsp->num_clks,
 				sizeof(*adsp->clks), GFP_KERNEL);
-	if (IS_ERR(adsp->clks)) {
-		ret = PTR_ERR(adsp->clks);
-		if (ret != -EPROBE_DEFER)
-			dev_err(adsp->dev, "failed to get adsp clock");
-		return ret;
-	}
+	if (!adsp->clks)
+		return -ENOMEM;
 
 	for (i = 0; i < adsp->num_clks; i++)
 		adsp->clks[i].id = adsp_clk_id[i];
@@ -337,9 +333,9 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	adsp->qdsp6ss_base = devm_ioremap(&pdev->dev, res->start,
 			resource_size(res));
-	if (IS_ERR(adsp->qdsp6ss_base)) {
+	if (!adsp->qdsp6ss_base) {
 		dev_err(adsp->dev, "failed to map QDSP6SS registers\n");
-		return PTR_ERR(adsp->qdsp6ss_base);
+		return -ENOMEM;
 	}
 
 	syscon = of_parse_phandle(pdev->dev.of_node, "qcom,halt-regs", 0);
