@@ -224,6 +224,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 	if (spi_imx->slave_mode)
 		return false;
 
+	if (transfer->len < spi_imx->devtype_data->fifo_size)
+		return false;
+
 	spi_imx->dynamic_burst = 0;
 
 	return true;
