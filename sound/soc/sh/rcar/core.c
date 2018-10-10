@@ -744,8 +744,8 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 32:
 		break;
 	default:
-		dev_err(dev, "unsupported slot width value: %d\n", slot_width);
-		return -EINVAL;
+		/* use default */
+		slot_width = 32;
 	}
 
 	switch (slots) {
