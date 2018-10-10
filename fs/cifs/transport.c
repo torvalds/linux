@@ -786,7 +786,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	int i, j, rc = 0;
 	int timeout, optype;
 	struct mid_q_entry *midQ[MAX_COMPOUND];
-	unsigned int credits = 1;
+	unsigned int credits = 0;
 	char *buf;
 
 	timeout = flags & CIFS_TIMEOUT_MASK;
@@ -851,17 +851,20 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	mutex_unlock(&ses->server->srv_mutex);
 
+	if (rc < 0)
+		goto out;
+
+	/*
+	 * Compounding is never used during session establish.
+	 */
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
+		smb311_update_preauth_hash(ses, rqst[0].rq_iov,
+					   rqst[0].rq_nvec);
+
+	if (timeout == CIFS_ASYNC_OP)
+		goto out;
+
 	for (i = 0; i < num_rqst; i++) {
-		if (rc < 0)
-			goto out;
-
-		if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
-			smb311_update_preauth_hash(ses, rqst[i].rq_iov,
-						   rqst[i].rq_nvec);
-
-		if (timeout == CIFS_ASYNC_OP)
-			goto out;
-
 		rc = wait_for_response(ses->server, midQ[i]);
 		if (rc != 0) {
 			cifs_dbg(FYI, "Cancelling wait for mid %llu\n",
@@ -877,10 +880,21 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			}
 			spin_unlock(&GlobalMid_Lock);
 		}
+	}
+
+	for (i = 0; i < num_rqst; i++)
+		if (midQ[i]->resp_buf)
+			credits += ses->server->ops->get_credits(midQ[i]);
+	if (!credits)
+		credits = 1;
+
+	for (i = 0; i < num_rqst; i++) {
+		if (rc < 0)
+			goto out;
 
 		rc = cifs_sync_mid_result(midQ[i], ses->server);
 		if (rc != 0) {
-			add_credits(ses->server, 1, optype);
+			add_credits(ses->server, credits, optype);
 			return rc;
 		}
 
@@ -901,23 +915,26 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		else
 			resp_buf_type[i] = CIFS_SMALL_BUFFER;
 
-		if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
-			struct kvec iov = {
-				.iov_base = resp_iov[i].iov_base,
-				.iov_len = resp_iov[i].iov_len
-			};
-			smb311_update_preauth_hash(ses, &iov, 1);
-		}
-
-		credits = ses->server->ops->get_credits(midQ[i]);
-
 		rc = ses->server->ops->check_receive(midQ[i], ses->server,
 						     flags & CIFS_LOG_ERROR);
 
 		/* mark it so buf will not be freed by cifs_delete_mid */
 		if ((flags & CIFS_NO_RESP) == 0)
 			midQ[i]->resp_buf = NULL;
+
 	}
+
+	/*
+	 * Compounding is never used during session establish.
+	 */
+	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP)) {
+		struct kvec iov = {
+			.iov_base = resp_iov[0].iov_base,
+			.iov_len = resp_iov[0].iov_len
+		};
+		smb311_update_preauth_hash(ses, &iov, 1);
+	}
+
 out:
 	/*
 	 * This will dequeue all mids. After this it is important that the
