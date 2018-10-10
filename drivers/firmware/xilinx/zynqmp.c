@@ -428,6 +428,47 @@ static int zynqmp_pm_clock_getparent(u32 clock_id, u32 *parent_id)
 	return ret;
 }
 
+/**
+ * zynqmp_is_valid_ioctl() - Check whether IOCTL ID is valid or not
+ * @ioctl_id:	IOCTL ID
+ *
+ * Return: 1 if IOCTL is valid else 0
+ */
+static inline int zynqmp_is_valid_ioctl(u32 ioctl_id)
+{
+	switch (ioctl_id) {
+	case IOCTL_SET_PLL_FRAC_MODE:
+	case IOCTL_GET_PLL_FRAC_MODE:
+	case IOCTL_SET_PLL_FRAC_DATA:
+	case IOCTL_GET_PLL_FRAC_DATA:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+/**
+ * zynqmp_pm_ioctl() - PM IOCTL API for device control and configs
+ * @node_id:	Node ID of the device
+ * @ioctl_id:	ID of the requested IOCTL
+ * @arg1:	Argument 1 to requested IOCTL call
+ * @arg2:	Argument 2 to requested IOCTL call
+ * @out:	Returned output value
+ *
+ * This function calls IOCTL to firmware for device control and configuration.
+ *
+ * Return: Returns status, either success or error+reason
+ */
+static int zynqmp_pm_ioctl(u32 node_id, u32 ioctl_id, u32 arg1, u32 arg2,
+			   u32 *out)
+{
+	if (!zynqmp_is_valid_ioctl(ioctl_id))
+		return -EINVAL;
+
+	return zynqmp_pm_invoke_fn(PM_IOCTL, node_id, ioctl_id,
+				   arg1, arg2, out);
+}
+
 static const struct zynqmp_eemi_ops eemi_ops = {
 	.get_api_version = zynqmp_pm_get_api_version,
 	.query_data = zynqmp_pm_query_data,
@@ -440,6 +481,7 @@ static const struct zynqmp_eemi_ops eemi_ops = {
 	.clock_getrate = zynqmp_pm_clock_getrate,
 	.clock_setparent = zynqmp_pm_clock_setparent,
 	.clock_getparent = zynqmp_pm_clock_getparent,
+	.ioctl = zynqmp_pm_ioctl,
 };
 
 /**
