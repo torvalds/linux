@@ -551,7 +551,7 @@ static void __init setup_memory_end(void)
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
-	VMALLOC_START = vmax - vmalloc_size;
+	VMALLOC_START = VMALLOC_END - vmalloc_size;
 
 	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
 	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
@@ -563,7 +563,7 @@ static void __init setup_memory_end(void)
 	vmemmap = (struct page *) tmp;
 
 	/* Take care that memory_end is set and <= vmemmap */
-	memory_end = min(memory_end ?: max_physmem_end, tmp);
+	memory_end = min(memory_end ?: max_physmem_end, (unsigned long)vmemmap);
 #ifdef CONFIG_KASAN
 	/* fit in kasan shadow memory region between 1:1 and vmemmap */
 	memory_end = min(memory_end, KASAN_SHADOW_START);
