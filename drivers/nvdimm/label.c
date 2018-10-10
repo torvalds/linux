@@ -75,7 +75,8 @@ size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd)
 	/*
 	 * Per UEFI 2.7, the minimum size of the Label Storage Area is large
 	 * enough to hold 2 index blocks and 2 labels.  The minimum index
-	 * block size is 256 bytes, and the minimum label size is 256 bytes.
+	 * block size is 256 bytes. The label size is 128 for namespaces
+	 * prior to version 1.2 and at minimum 256 for version 1.2 and later.
 	 */
 	nslot = nvdimm_num_label_slots(ndd);
 	space = ndd->nsarea.config_size - nslot * sizeof_namespace_label(ndd);
