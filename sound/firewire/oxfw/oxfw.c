@@ -113,22 +113,13 @@ end:
 	return err;
 }
 
-static void oxfw_free(struct snd_oxfw *oxfw)
+static void oxfw_card_free(struct snd_card *card)
 {
+	struct snd_oxfw *oxfw = card->private_data;
+
 	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
 	if (oxfw->has_output)
 		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
-}
-
-/*
- * This module releases the FireWire unit data after all ALSA character devices
- * are released by applications. This is for releasing stream data or finishing
- * transactions safely. Thus at returning from .remove(), this module still keep
- * references for the unit.
- */
-static void oxfw_card_free(struct snd_card *card)
-{
-	oxfw_free(card->private_data);
 }
 
 static int detect_quirks(struct snd_oxfw *oxfw)
@@ -204,6 +195,8 @@ static void do_registration(struct work_struct *work)
 			   &oxfw->card);
 	if (err < 0)
 		return;
+	oxfw->card->private_free = oxfw_card_free;
+	oxfw->card->private_data = oxfw;
 
 	err = name_card(oxfw);
 	if (err < 0)
@@ -244,19 +237,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	/*
-	 * After registered, oxfw instance can be released corresponding to
-	 * releasing the sound card instance.
-	 */
-	oxfw->card->private_free = oxfw_card_free;
-	oxfw->card->private_data = oxfw;
 	oxfw->registered = true;
 
 	return;
 error:
-	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
-	if (oxfw->has_output)
-		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
 	snd_card_free(oxfw->card);
 	dev_info(&oxfw->unit->device,
 		 "Sound card registration failed: %d\n", err);

@@ -126,25 +126,16 @@ end:
 	return err;
 }
 
-static void bebob_free(struct snd_bebob *bebob)
+static void
+bebob_card_free(struct snd_card *card)
 {
+	struct snd_bebob *bebob = card->private_data;
+
 	mutex_lock(&devices_mutex);
 	clear_bit(bebob->card_index, devices_used);
 	mutex_unlock(&devices_mutex);
 
 	snd_bebob_stream_destroy_duplex(bebob);
-}
-
-/*
- * This module releases the FireWire unit data after all ALSA character devices
- * are released by applications. This is for releasing stream data or finishing
- * transactions safely. Thus at returning from .remove(), this module still keep
- * references for the unit.
- */
-static void
-bebob_card_free(struct snd_card *card)
-{
-	bebob_free(card->private_data);
 }
 
 static const struct snd_bebob_spec *
@@ -202,6 +193,9 @@ do_registration(struct work_struct *work)
 	set_bit(card_index, devices_used);
 	mutex_unlock(&devices_mutex);
 
+	bebob->card->private_free = bebob_card_free;
+	bebob->card->private_data = bebob;
+
 	err = name_device(bebob);
 	if (err < 0)
 		goto error;
@@ -241,17 +235,10 @@ do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	/*
-	 * After registered, bebob instance can be released corresponding to
-	 * releasing the sound card instance.
-	 */
-	bebob->card->private_free = bebob_card_free;
-	bebob->card->private_data = bebob;
 	bebob->registered = true;
 
 	return;
 error:
-	snd_bebob_stream_destroy_duplex(bebob);
 	snd_card_free(bebob->card);
 	dev_info(&bebob->unit->device,
 		 "Sound card registration failed: %d\n", err);
