@@ -314,6 +314,12 @@
 		};
 	};
 
+	hwlock: hwspinlock@ff040000 {
+		compatible = "rockchip,hwspinlock";
+		reg = <0 0xff040000 0 0x10000>;
+		#hwlock-cells = <1>;
+	};
+
 	gic: interrupt-controller@ff100000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
