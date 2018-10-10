@@ -235,7 +235,7 @@ static int __nd_label_validate(struct nvdimm_drvdata *ndd)
 	return -1;
 }
 
-int nd_label_validate(struct nvdimm_drvdata *ndd)
+static int nd_label_validate(struct nvdimm_drvdata *ndd)
 {
 	/*
 	 * In order to probe for and validate namespace index blocks we
@@ -258,8 +258,9 @@ int nd_label_validate(struct nvdimm_drvdata *ndd)
 	return -1;
 }
 
-void nd_label_copy(struct nvdimm_drvdata *ndd, struct nd_namespace_index *dst,
-		struct nd_namespace_index *src)
+static void nd_label_copy(struct nvdimm_drvdata *ndd,
+			  struct nd_namespace_index *dst,
+			  struct nd_namespace_index *src)
 {
 	/* just exit if either destination or source is NULL */
 	if (!dst || !src)
@@ -419,7 +420,9 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 
 int nd_label_data_init(struct nvdimm_drvdata *ndd)
 {
-	size_t config_size, read_size;
+	size_t config_size, read_size, max_xfer, offset;
+	struct nd_namespace_index *nsindex;
+	unsigned int i;
 	int rc = 0;
 
 	if (ndd->data)
@@ -452,7 +455,87 @@ int nd_label_data_init(struct nvdimm_drvdata *ndd)
 	if (!ndd->data)
 		return -ENOMEM;
 
-	return nvdimm_get_config_data(ndd, ndd->data, 0, config_size);
+	/*
+	 * We want to guarantee as few reads as possible while conserving
+	 * memory. To do that we figure out how much unused space will be left
+	 * in the last read, divide that by the total number of reads it is
+	 * going to take given our maximum transfer size, and then reduce our
+	 * maximum transfer size based on that result.
+	 */
+	max_xfer = min_t(size_t, ndd->nsarea.max_xfer, config_size);
+	if (read_size < max_xfer) {
+		/* trim waste */
+		max_xfer -= ((max_xfer - 1) - (config_size - 1) % max_xfer) /
+			    DIV_ROUND_UP(config_size, max_xfer);
+		/* make certain we read indexes in exactly 1 read */
+		if (max_xfer < read_size)
+			max_xfer = read_size;
+	}
+
+	/* Make our initial read size a multiple of max_xfer size */
+	read_size = min(DIV_ROUND_UP(read_size, max_xfer) * max_xfer,
+			config_size);
+
+	/* Read the index data */
+	rc = nvdimm_get_config_data(ndd, ndd->data, 0, read_size);
+	if (rc)
+		goto out_err;
+
+	/* Validate index data, if not valid assume all labels are invalid */
+	ndd->ns_current = nd_label_validate(ndd);
+	if (ndd->ns_current < 0)
+		return 0;
+
+	/* Record our index values */
+	ndd->ns_next = nd_label_next_nsindex(ndd->ns_current);
+
+	/* Copy "current" index on top of the "next" index */
+	nsindex = to_current_namespace_index(ndd);
+	nd_label_copy(ndd, to_next_namespace_index(ndd), nsindex);
+
+	/* Determine starting offset for label data */
+	offset = __le64_to_cpu(nsindex->labeloff);
+
+	/* Loop through the free list pulling in any active labels */
+	for (i = 0; i < nsindex->nslot; i++, offset += ndd->nslabel_size) {
+		size_t label_read_size;
+
+		/* zero out the unused labels */
+		if (test_bit_le(i, nsindex->free)) {
+			memset(ndd->data + offset, 0, ndd->nslabel_size);
+			continue;
+		}
+
+		/* if we already read past here then just continue */
+		if (offset + ndd->nslabel_size <= read_size)
+			continue;
+
+		/* if we haven't read in a while reset our read_size offset */
+		if (read_size < offset)
+			read_size = offset;
+
+		/* determine how much more will be read after this next call. */
+		label_read_size = offset + ndd->nslabel_size - read_size;
+		label_read_size = DIV_ROUND_UP(label_read_size, max_xfer) *
+				  max_xfer;
+
+		/* truncate last read if needed */
+		if (read_size + label_read_size > config_size)
+			label_read_size = config_size - read_size;
+
+		/* Read the label data */
+		rc = nvdimm_get_config_data(ndd, ndd->data + read_size,
+					    read_size, label_read_size);
+		if (rc)
+			goto out_err;
+
+		/* push read_size to next read offset */
+		read_size += label_read_size;
+	}
+
+	dev_dbg(ndd->dev, "len: %zu rc: %d\n", offset, rc);
+out_err:
+	return rc;
 }
 
 int nd_label_active_count(struct nvdimm_drvdata *ndd)
