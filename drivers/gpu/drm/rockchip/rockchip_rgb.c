@@ -334,7 +334,7 @@ static void rk1808_rgb_enable(struct rockchip_rgb *rgb)
 
 static void rk1808_rgb_disable(struct rockchip_rgb *rgb)
 {
-	regmap_write(rgb->grf, PX30_GRF_PD_VO_CON1,
+	regmap_write(rgb->grf, RK1808_GRF_PD_VO_CON1,
 		     RK1808_RGB_DATA_SYNC_BYPASS(0));
 }
 
