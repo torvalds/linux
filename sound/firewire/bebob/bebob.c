@@ -129,9 +129,6 @@ end:
 static void bebob_free(struct snd_bebob *bebob)
 {
 	snd_bebob_stream_destroy_duplex(bebob);
-
-	mutex_destroy(&bebob->mutex);
-	fw_unit_put(bebob->unit);
 }
 
 /*
@@ -376,10 +373,10 @@ static void bebob_remove(struct fw_unit *unit)
 	if (bebob->registered) {
 		// Block till all of ALSA character devices are released.
 		snd_card_free(bebob->card);
-	} else {
-		/* Don't forget this case. */
-		bebob_free(bebob);
 	}
+
+	mutex_destroy(&bebob->mutex);
+	fw_unit_put(bebob->unit);
 }
 
 static const struct snd_bebob_rate_spec normal_rate_spec = {

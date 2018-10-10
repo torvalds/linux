@@ -126,9 +126,6 @@ static void dice_free(struct snd_dice *dice)
 {
 	snd_dice_stream_destroy_duplex(dice);
 	snd_dice_transaction_destroy(dice);
-
-	mutex_destroy(&dice->mutex);
-	fw_unit_put(dice->unit);
 }
 
 /*
@@ -261,10 +258,10 @@ static void dice_remove(struct fw_unit *unit)
 	if (dice->registered) {
 		/* No need to wait for releasing card object in this context. */
 		snd_card_free_when_closed(dice->card);
-	} else {
-		/* Don't forget this case. */
-		dice_free(dice);
 	}
+
+	mutex_destroy(&dice->mutex);
+	fw_unit_put(dice->unit);
 }
 
 static void dice_bus_reset(struct fw_unit *unit)

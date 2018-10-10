@@ -188,9 +188,6 @@ static void efw_free(struct snd_efw *efw)
 {
 	snd_efw_stream_destroy_duplex(efw);
 	snd_efw_transaction_remove_instance(efw);
-
-	mutex_destroy(&efw->mutex);
-	fw_unit_put(efw->unit);
 }
 
 /*
@@ -360,10 +357,10 @@ static void efw_remove(struct fw_unit *unit)
 	if (efw->registered) {
 		// Block till all of ALSA character devices are released.
 		snd_card_free(efw->card);
-	} else {
-		/* Don't forget this case. */
-		efw_free(efw);
 	}
+
+	mutex_destroy(&efw->mutex);
+	fw_unit_put(efw->unit);
 }
 
 static const struct ieee1394_device_id efw_id_table[] = {

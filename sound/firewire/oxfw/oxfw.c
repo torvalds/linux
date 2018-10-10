@@ -118,9 +118,6 @@ static void oxfw_free(struct snd_oxfw *oxfw)
 	snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->rx_stream);
 	if (oxfw->has_output)
 		snd_oxfw_stream_destroy_simplex(oxfw, &oxfw->tx_stream);
-
-	mutex_destroy(&oxfw->mutex);
-	fw_unit_put(oxfw->unit);
 }
 
 /*
@@ -329,10 +326,10 @@ static void oxfw_remove(struct fw_unit *unit)
 	if (oxfw->registered) {
 		// Block till all of ALSA character devices are released.
 		snd_card_free(oxfw->card);
-	} else {
-		/* Don't forget this case. */
-		oxfw_free(oxfw);
 	}
+
+	mutex_destroy(&oxfw->mutex);
+	fw_unit_put(oxfw->unit);
 }
 
 static const struct compat_info griffin_firewave = {

@@ -602,8 +602,6 @@ static void isight_card_free(struct snd_card *card)
 	struct isight *isight = card->private_data;
 
 	fw_iso_resources_destroy(&isight->resources);
-	fw_unit_put(isight->unit);
-	mutex_destroy(&isight->mutex);
 }
 
 static u64 get_unit_base(struct fw_unit *unit)
@@ -705,6 +703,9 @@ static void isight_remove(struct fw_unit *unit)
 
 	// Block till all of ALSA character devices are released.
 	snd_card_free(isight->card);
+
+	mutex_destroy(&isight->mutex);
+	fw_unit_put(isight->unit);
 }
 
 static const struct ieee1394_device_id isight_id_table[] = {

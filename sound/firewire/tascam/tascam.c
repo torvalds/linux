@@ -89,9 +89,6 @@ static void tscm_free(struct snd_tscm *tscm)
 {
 	snd_tscm_transaction_unregister(tscm);
 	snd_tscm_stream_destroy_duplex(tscm);
-
-	mutex_destroy(&tscm->mutex);
-	fw_unit_put(tscm->unit);
 }
 
 static void tscm_card_free(struct snd_card *card)
@@ -214,10 +211,10 @@ static void snd_tscm_remove(struct fw_unit *unit)
 	if (tscm->registered) {
 		// Block till all of ALSA character devices are released.
 		snd_card_free(tscm->card);
-	} else {
-		/* Don't forget this case. */
-		tscm_free(tscm);
 	}
+
+	mutex_destroy(&tscm->mutex);
+	fw_unit_put(tscm->unit);
 }
 
 static const struct ieee1394_device_id snd_tscm_id_table[] = {

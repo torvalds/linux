@@ -45,9 +45,6 @@ static void dg00x_free(struct snd_dg00x *dg00x)
 {
 	snd_dg00x_stream_destroy_duplex(dg00x);
 	snd_dg00x_transaction_unregister(dg00x);
-
-	mutex_destroy(&dg00x->mutex);
-	fw_unit_put(dg00x->unit);
 }
 
 static void dg00x_card_free(struct snd_card *card)
@@ -174,10 +171,10 @@ static void snd_dg00x_remove(struct fw_unit *unit)
 	if (dg00x->registered) {
 		// Block till all of ALSA character devices are released.
 		snd_card_free(dg00x->card);
-	} else {
-		/* Don't forget this case. */
-		dg00x_free(dg00x);
 	}
+
+	mutex_destroy(&dg00x->mutex);
+	fw_unit_put(dg00x->unit);
 }
 
 static const struct ieee1394_device_id snd_dg00x_id_table[] = {

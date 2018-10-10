@@ -31,9 +31,6 @@ static void ff_free(struct snd_ff *ff)
 {
 	snd_ff_stream_destroy_duplex(ff);
 	snd_ff_transaction_unregister(ff);
-
-	mutex_destroy(&ff->mutex);
-	fw_unit_put(ff->unit);
 }
 
 static void ff_card_free(struct snd_card *card)
@@ -147,10 +144,10 @@ static void snd_ff_remove(struct fw_unit *unit)
 	if (ff->registered) {
 		// Block till all of ALSA character devices are released.
 		snd_card_free(ff->card);
-	} else {
-		/* Don't forget this case. */
-		ff_free(ff);
 	}
+
+	mutex_destroy(&ff->mutex);
+	fw_unit_put(ff->unit);
 }
 
 static const struct snd_ff_spec spec_ff400 = {

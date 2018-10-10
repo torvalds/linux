@@ -57,9 +57,6 @@ static void motu_free(struct snd_motu *motu)
 	snd_motu_transaction_unregister(motu);
 
 	snd_motu_stream_destroy_duplex(motu);
-
-	mutex_destroy(&motu->mutex);
-	fw_unit_put(motu->unit);
 }
 
 /*
@@ -174,10 +171,10 @@ static void motu_remove(struct fw_unit *unit)
 	if (motu->registered) {
 		// Block till all of ALSA character devices are released.
 		snd_card_free(motu->card);
-	} else {
-		/* Don't forget this case. */
-		motu_free(motu);
 	}
+
+	mutex_destroy(&motu->mutex);
+	fw_unit_put(motu->unit);
 }
 
 static void motu_bus_update(struct fw_unit *unit)
