@@ -150,8 +150,10 @@ static void printk_log_rtas(char *buf, int len)
 	} else {
 		struct rtas_error_log *errlog = (struct rtas_error_log *)buf;
 
-		printk(RTAS_DEBUG "event: %d, Type: %s, Severity: %d\n",
-		       error_log_cnt, rtas_event_type(rtas_error_type(errlog)),
+		printk(RTAS_DEBUG "event: %d, Type: %s (%d), Severity: %d\n",
+		       error_log_cnt,
+		       rtas_event_type(rtas_error_type(errlog)),
+		       rtas_error_type(errlog),
 		       rtas_error_severity(errlog));
 	}
 }
