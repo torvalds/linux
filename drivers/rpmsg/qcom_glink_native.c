@@ -780,9 +780,11 @@ static void qcom_glink_handle_rx_done(struct qcom_glink *glink,
 static void qcom_glink_handle_intent_req(struct qcom_glink *glink,
 					 u32 cid, size_t size)
 {
-	struct glink_core_rx_intent *intent;
+	struct glink_core_rx_intent *intent = NULL;
+	struct glink_core_rx_intent *tmp;
 	struct glink_channel *channel;
 	unsigned long flags;
+	int iid;
 
 	spin_lock_irqsave(&glink->idr_lock, flags);
 	channel = idr_find(&glink->rcids, cid);
@@ -790,6 +792,19 @@ static void qcom_glink_handle_intent_req(struct qcom_glink *glink,
 
 	if (!channel) {
 		pr_err("%s channel not found for cid %d\n", __func__, cid);
+		return;
+	}
+
+	spin_lock_irqsave(&channel->intent_lock, flags);
+	idr_for_each_entry(&channel->liids, tmp, iid) {
+		if (tmp->size >= size && tmp->reuse) {
+			intent = tmp;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&channel->intent_lock, flags);
+	if (intent) {
+		qcom_glink_send_intent_req_ack(glink, channel, !!intent);
 		return;
 	}
 
