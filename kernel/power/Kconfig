@@ -119,6 +119,7 @@ config PM_SLEEP
 	def_bool y
 	depends on SUSPEND || HIBERNATE_CALLBACKS
 	select PM
+	select SRCU
 
 config PM_SLEEP_SMP
 	def_bool y

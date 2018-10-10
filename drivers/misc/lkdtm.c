@@ -47,10 +47,17 @@
 #include <linux/vmalloc.h>
 #include <linux/mman.h>
 #include <asm/cacheflush.h>
+#include <linux/list.h>
+#include <linux/sched.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_IDE
 #include <linux/ide.h>
 #endif
+
+struct lkdtm_list {
+	struct list_head node;
+};
 
 /*
  * Make sure our attempts to over run the kernel stack doesn't trigger
@@ -88,6 +95,9 @@ enum ctype {
 	CT_EXCEPTION,
 	CT_LOOP,
 	CT_OVERFLOW,
+	CT_CORRUPT_LIST_ADD,
+	CT_CORRUPT_LIST_DEL,
+	CT_CORRUPT_USER_DS,
 	CT_CORRUPT_STACK,
 	CT_UNALIGNED_LOAD_STORE_WRITE,
 	CT_OVERWRITE_ALLOCATION,
@@ -126,6 +136,9 @@ static char* cp_type[] = {
 	"EXCEPTION",
 	"LOOP",
 	"OVERFLOW",
+	"CORRUPT_LIST_ADD",
+	"CORRUPT_LIST_DEL",
+	"CORRUPT_USER_DS",
 	"CORRUPT_STACK",
 	"UNALIGNED_LOAD_STORE_WRITE",
 	"OVERWRITE_ALLOCATION",
@@ -546,6 +559,75 @@ static void lkdtm_do_action(enum ctype which)
 				   (unsigned long)(ptr + size));
 
 		do_overwritten();
+		break;
+	}
+	case CT_CORRUPT_LIST_ADD: {
+		/*
+		 * Initially, an empty list via LIST_HEAD:
+		 *	test_head.next = &test_head
+		 *	test_head.prev = &test_head
+		 */
+		LIST_HEAD(test_head);
+		struct lkdtm_list good, bad;
+		void *target[2] = { };
+		void *redirection = &target;
+
+		pr_info("attempting good list addition\n");
+
+		/*
+		 * Adding to the list performs these actions:
+		 *	test_head.next->prev = &good.node
+		 *	good.node.next = test_head.next
+		 *	good.node.prev = test_head
+		 *	test_head.next = good.node
+		 */
+		list_add(&good.node, &test_head);
+
+		pr_info("attempting corrupted list addition\n");
+		/*
+		 * In simulating this "write what where" primitive, the "what" is
+		 * the address of &bad.node, and the "where" is the address held
+		 * by "redirection".
+		 */
+		test_head.next = redirection;
+		list_add(&bad.node, &test_head);
+
+		if (target[0] == NULL && target[1] == NULL)
+			pr_err("Overwrite did not happen, but no BUG?!\n");
+		else
+			pr_err("list_add() corruption not detected!\n");
+		break;
+	}
+	case CT_CORRUPT_LIST_DEL: {
+		LIST_HEAD(test_head);
+		struct lkdtm_list item;
+		void *target[2] = { };
+		void *redirection = &target;
+
+		list_add(&item.node, &test_head);
+
+		pr_info("attempting good list removal\n");
+		list_del(&item.node);
+
+		pr_info("attempting corrupted list removal\n");
+		list_add(&item.node, &test_head);
+
+		/* As with the list_add() test above, this corrupts "next". */
+		item.node.next = redirection;
+		list_del(&item.node);
+
+		if (target[0] == NULL && target[1] == NULL)
+			pr_err("Overwrite did not happen, but no BUG?!\n");
+		else
+			pr_err("list_del() corruption not detected!\n");
+		break;
+	}
+	case CT_CORRUPT_USER_DS: {
+		pr_info("setting bad task size limit\n");
+		set_fs(KERNEL_DS);
+
+		/* Make sure we do not keep running with a KERNEL_DS! */
+		force_sig(SIGKILL, current);
 		break;
 	}
 	case CT_NONE:

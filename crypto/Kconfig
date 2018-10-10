@@ -1577,6 +1577,15 @@ config CRYPTO_LZ4HC
 	help
 	  This is the LZ4 high compression mode algorithm.
 
+config CRYPTO_ZSTD
+	tristate "Zstd compression algorithm"
+	select CRYPTO_ALGAPI
+	select CRYPTO_ACOMP2
+	select ZSTD_COMPRESS
+	select ZSTD_DECOMPRESS
+	help
+	  This is the zstd algorithm.
+
 comment "Random Number Generation"
 
 config CRYPTO_ANSI_CPRNG

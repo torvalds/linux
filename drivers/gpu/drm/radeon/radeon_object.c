@@ -447,6 +447,10 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 
 int radeon_bo_init(struct radeon_device *rdev)
 {
+	/* reserve PAT memory space to WC for VRAM */
+	arch_io_reserve_memtype_wc(rdev->mc.aper_base,
+				   rdev->mc.aper_size);
+
 	/* Add an MTRR for the VRAM */
 	if (!rdev->fastfb_working) {
 		rdev->mc.vram_mtrr = arch_phys_wc_add(rdev->mc.aper_base,
@@ -464,6 +468,7 @@ void radeon_bo_fini(struct radeon_device *rdev)
 {
 	radeon_ttm_fini(rdev);
 	arch_phys_wc_del(rdev->mc.vram_mtrr);
+	arch_io_free_memtype_wc(rdev->mc.aper_base, rdev->mc.aper_size);
 }
 
 /* Returns how many bytes TTM can move per IB.

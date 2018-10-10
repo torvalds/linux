@@ -1079,7 +1079,7 @@ static int populate_pud(struct cpa_data *cpa, unsigned long start, pgd_t *pgd,
 	 * Map everything starting from the Gb boundary, possibly with 1G pages
 	 */
 	while (end - start >= PUD_SIZE) {
-		set_pud(pud, pud_mkhuge(pfn_pud(cpa->pfn,
+		set_pud(pud, pud_mkhuge(pfn_pud(cpa->pfn >> PAGE_SHIFT,
 				   canon_pgprot(pud_pgprot))));
 
 		start	  += PUD_SIZE;

@@ -1,8 +1,7 @@
 config ZRAM
 	tristate "Compressed RAM block device support"
-	depends on BLOCK && SYSFS && ZSMALLOC
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
+	depends on BLOCK && SYSFS && ZSMALLOC && CRYPTO
+	select CRYPTO_LZO
 	default n
 	help
 	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
@@ -13,14 +12,26 @@ config ZRAM
 	  It has several use cases, for example: /tmp storage, use as swap
 	  disks and maybe many more.
 
-	  See zram.txt for more information.
+	  See Documentation/blockdev/zram.txt for more information.
 
-config ZRAM_LZ4_COMPRESS
-	bool "Enable LZ4 algorithm support"
-	depends on ZRAM
-	select LZ4_COMPRESS
-	select LZ4_DECOMPRESS
-	default n
+config ZRAM_WRITEBACK
+       bool "Write back incompressible page to backing device"
+       depends on ZRAM
+       default n
+       help
+	 With incompressible page, there is no memory saving to keep it
+	 in memory. Instead, write it out to backing device.
+	 For this feature, admin should set up backing device via
+	 /sys/block/zramX/backing_dev.
+
+	 See Documentation/blockdev/zram.txt for more information.
+
+config ZRAM_MEMORY_TRACKING
+	bool "Track zRam block status"
+	depends on ZRAM && DEBUG_FS
 	help
-	  This option enables LZ4 compression algorithm support. Compression
-	  algorithm can be changed using `comp_algorithm' device attribute.
+	  With this feature, admin can track the state of allocated blocks
+	  of zRAM. Admin could see the information via
+	  /sys/kernel/debug/zram/zramX/block_state.
+
+	  See Documentation/blockdev/zram.txt for more information.

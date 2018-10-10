@@ -902,6 +902,8 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		ret = lan78xx_update_flowcontrol(dev, ecmd.duplex, ladv, radv);
 		netif_carrier_on(dev->net);
+
+		tasklet_schedule(&dev->bh);
 	}
 
 	return ret;
@@ -1361,8 +1363,6 @@ static void lan78xx_init_mac_address(struct lan78xx_net *dev)
 			netif_dbg(dev, ifup, dev->net,
 				  "MAC address set to random addr");
 		}
-
-		tasklet_schedule(&dev->bh);
 	}
 
 	ret = lan78xx_write_reg(dev, MAF_LO(0), addr_lo);

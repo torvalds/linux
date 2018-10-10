@@ -842,6 +842,9 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 			    I915_USERPTR_UNSYNCHRONIZED))
 		return -EINVAL;
 
+	if (!args->user_size)
+		return -EINVAL;
+
 	if (offset_in_page(args->user_ptr | args->user_size))
 		return -EINVAL;
 

@@ -2108,6 +2108,7 @@ static int davinci_emac_remove(struct platform_device *pdev)
 	cpdma_ctlr_destroy(priv->dma);
 
 	unregister_netdev(ndev);
+	of_node_put(priv->phy_node);
 	free_netdev(ndev);
 
 	return 0;
