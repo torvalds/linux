@@ -16,6 +16,7 @@
 #include <linux/sysfs.h>
 
 #include "rvu.h"
+#include "rvu_reg.h"
 
 #define DRV_NAME	"octeontx2-af"
 #define DRV_STRING      "Marvell OcteonTX2 RVU Admin Function Driver"
@@ -33,6 +34,69 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, rvu_id_table);
 
+/* Poll a RVU block's register 'offset', for a 'zero'
+ * or 'nonzero' at bits specified by 'mask'
+ */
+int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
+{
+	void __iomem *reg;
+	int timeout = 100;
+	u64 reg_val;
+
+	reg = rvu->afreg_base + ((block << 28) | offset);
+	while (timeout) {
+		reg_val = readq(reg);
+		if (zero && !(reg_val & mask))
+			return 0;
+		if (!zero && (reg_val & mask))
+			return 0;
+		usleep_range(1, 2);
+		timeout--;
+	}
+	return -EBUSY;
+}
+
+static void rvu_check_block_implemented(struct rvu *rvu)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int blkid;
+	u64 cfg;
+
+	/* For each block check if 'implemented' bit is set */
+	for (blkid = 0; blkid < BLK_COUNT; blkid++) {
+		block = &hw->block[blkid];
+		cfg = rvupf_read64(rvu, RVU_PF_BLOCK_ADDRX_DISC(blkid));
+		if (cfg & BIT_ULL(11))
+			block->implemented = true;
+	}
+}
+
+static void rvu_block_reset(struct rvu *rvu, int blkaddr, u64 rst_reg)
+{
+	struct rvu_block *block = &rvu->hw->block[blkaddr];
+
+	if (!block->implemented)
+		return;
+
+	rvu_write64(rvu, blkaddr, rst_reg, BIT_ULL(0));
+	rvu_poll_reg(rvu, blkaddr, rst_reg, BIT_ULL(63), true);
+}
+
+static void rvu_reset_all_blocks(struct rvu *rvu)
+{
+	/* Do a HW reset of all RVU blocks */
+	rvu_block_reset(rvu, BLKADDR_NPA, NPA_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_NIX0, NIX_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_NPC, NPC_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_SSO, SSO_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_TIM, TIM_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_CPT0, CPT_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_NDC0, NDC_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_NDC1, NDC_AF_BLK_RST);
+	rvu_block_reset(rvu, BLKADDR_NDC2, NDC_AF_BLK_RST);
+}
+
 static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
@@ -42,6 +106,12 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rvu = devm_kzalloc(dev, sizeof(*rvu), GFP_KERNEL);
 	if (!rvu)
 		return -ENOMEM;
+
+	rvu->hw = devm_kzalloc(dev, sizeof(struct rvu_hwinfo), GFP_KERNEL);
+	if (!rvu->hw) {
+		devm_kfree(dev, rvu);
+		return -ENOMEM;
+	}
 
 	pci_set_drvdata(pdev, rvu);
 	rvu->pdev = pdev;
@@ -80,6 +150,11 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_release_regions;
 	}
 
+	/* Check which blocks the HW supports */
+	rvu_check_block_implemented(rvu);
+
+	rvu_reset_all_blocks(rvu);
+
 	return 0;
 
 err_release_regions:
@@ -88,6 +163,7 @@ err_disable_device:
 	pci_disable_device(pdev);
 err_freemem:
 	pci_set_drvdata(pdev, NULL);
+	devm_kfree(&pdev->dev, rvu->hw);
 	devm_kfree(dev, rvu);
 	return err;
 }
@@ -100,6 +176,7 @@ static void rvu_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
+	devm_kfree(&pdev->dev, rvu->hw);
 	devm_kfree(&pdev->dev, rvu);
 }
 
