@@ -2773,6 +2773,22 @@ static int hclge_set_rss_tc_mode(struct hclge_dev *hdev, u16 *tc_valid,
 	return ret;
 }
 
+static void hclge_get_rss_type(struct hclge_vport *vport)
+{
+	if (vport->rss_tuple_sets.ipv4_tcp_en ||
+	    vport->rss_tuple_sets.ipv4_udp_en ||
+	    vport->rss_tuple_sets.ipv4_sctp_en ||
+	    vport->rss_tuple_sets.ipv6_tcp_en ||
+	    vport->rss_tuple_sets.ipv6_udp_en ||
+	    vport->rss_tuple_sets.ipv6_sctp_en)
+		vport->nic.kinfo.rss_type = PKT_HASH_TYPE_L4;
+	else if (vport->rss_tuple_sets.ipv4_fragment_en ||
+		 vport->rss_tuple_sets.ipv6_fragment_en)
+		vport->nic.kinfo.rss_type = PKT_HASH_TYPE_L3;
+	else
+		vport->nic.kinfo.rss_type = PKT_HASH_TYPE_NONE;
+}
+
 static int hclge_set_rss_input_tuple(struct hclge_dev *hdev)
 {
 	struct hclge_rss_input_tuple_cmd *req;
@@ -2792,6 +2808,7 @@ static int hclge_set_rss_input_tuple(struct hclge_dev *hdev)
 	req->ipv6_udp_en = hdev->vport[0].rss_tuple_sets.ipv6_udp_en;
 	req->ipv6_sctp_en = hdev->vport[0].rss_tuple_sets.ipv6_sctp_en;
 	req->ipv6_fragment_en = hdev->vport[0].rss_tuple_sets.ipv6_fragment_en;
+	hclge_get_rss_type(&hdev->vport[0]);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
@@ -2973,6 +2990,7 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 	vport->rss_tuple_sets.ipv6_udp_en = req->ipv6_udp_en;
 	vport->rss_tuple_sets.ipv6_sctp_en = req->ipv6_sctp_en;
 	vport->rss_tuple_sets.ipv6_fragment_en = req->ipv6_fragment_en;
+	hclge_get_rss_type(vport);
 	return 0;
 }
 

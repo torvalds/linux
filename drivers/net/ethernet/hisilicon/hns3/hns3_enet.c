@@ -2230,6 +2230,21 @@ static bool hns3_parse_vlan_tag(struct hns3_enet_ring *ring,
 	}
 }
 
+static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
+				     struct sk_buff *skb)
+{
+	struct hns3_desc *desc = &ring->desc[ring->next_to_clean];
+	struct hnae3_handle *handle = ring->tqp->handle;
+	enum pkt_hash_types rss_type;
+
+	if (le32_to_cpu(desc->rx.rss_hash))
+		rss_type = handle->kinfo.rss_type;
+	else
+		rss_type = PKT_HASH_TYPE_NONE;
+
+	skb_set_hash(skb, le32_to_cpu(desc->rx.rss_hash), rss_type);
+}
+
 static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 			     struct sk_buff **out_skb, int *out_bnum)
 {
@@ -2371,6 +2386,8 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	ring->tqp_vector->rx_group.total_bytes += skb->len;
 
 	hns3_rx_checksum(ring, skb, desc);
+	hns3_set_rx_skb_rss_type(ring, skb);
+
 	return 0;
 }
 
