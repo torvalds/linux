@@ -171,6 +171,31 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 	return NULL;
 }
 
+int ib_device_rename(struct ib_device *ibdev, const char *name)
+{
+	struct ib_device *device;
+	int ret = 0;
+
+	if (!strcmp(name, dev_name(&ibdev->dev)))
+		return ret;
+
+	mutex_lock(&device_mutex);
+	list_for_each_entry(device, &device_list, core_list) {
+		if (!strcmp(name, dev_name(&device->dev))) {
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+
+	ret = device_rename(&ibdev->dev, name);
+	if (ret)
+		goto out;
+	strlcpy(ibdev->name, name, IB_DEVICE_NAME_MAX);
+out:
+	mutex_unlock(&device_mutex);
+	return ret;
+}
+
 static int alloc_name(struct ib_device *ibdev, const char *name)
 {
 	unsigned long *inuse;
