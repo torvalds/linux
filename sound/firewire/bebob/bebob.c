@@ -374,8 +374,8 @@ static void bebob_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&bebob->dwork);
 
 	if (bebob->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(bebob->card);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(bebob->card);
 	} else {
 		/* Don't forget this case. */
 		bebob_free(bebob);

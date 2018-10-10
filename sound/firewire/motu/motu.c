@@ -172,8 +172,8 @@ static void motu_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&motu->dwork);
 
 	if (motu->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(motu->card);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(motu->card);
 	} else {
 		/* Don't forget this case. */
 		motu_free(motu);

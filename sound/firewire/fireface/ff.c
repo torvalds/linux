@@ -145,8 +145,8 @@ static void snd_ff_remove(struct fw_unit *unit)
 	cancel_work_sync(&ff->dwork.work);
 
 	if (ff->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(ff->card);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(ff->card);
 	} else {
 		/* Don't forget this case. */
 		ff_free(ff);

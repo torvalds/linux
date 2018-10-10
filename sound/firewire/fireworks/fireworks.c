@@ -358,8 +358,8 @@ static void efw_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&efw->dwork);
 
 	if (efw->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(efw->card);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(efw->card);
 	} else {
 		/* Don't forget this case. */
 		efw_free(efw);

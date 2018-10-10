@@ -212,8 +212,8 @@ static void snd_tscm_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&tscm->dwork);
 
 	if (tscm->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(tscm->card);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(tscm->card);
 	} else {
 		/* Don't forget this case. */
 		tscm_free(tscm);

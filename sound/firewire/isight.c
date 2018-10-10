@@ -703,7 +703,8 @@ static void isight_remove(struct fw_unit *unit)
 	isight_stop_streaming(isight);
 	mutex_unlock(&isight->mutex);
 
-	snd_card_free_when_closed(isight->card);
+	// Block till all of ALSA character devices are released.
+	snd_card_free(isight->card);
 }
 
 static const struct ieee1394_device_id isight_id_table[] = {

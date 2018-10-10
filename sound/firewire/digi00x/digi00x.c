@@ -172,8 +172,8 @@ static void snd_dg00x_remove(struct fw_unit *unit)
 	cancel_delayed_work_sync(&dg00x->dwork);
 
 	if (dg00x->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(dg00x->card);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(dg00x->card);
 	} else {
 		/* Don't forget this case. */
 		dg00x_free(dg00x);
