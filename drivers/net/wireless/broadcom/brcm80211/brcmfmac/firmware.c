@@ -504,6 +504,34 @@ fail:
 	return -ENOENT;
 }
 
+static int brcmf_fw_complete_request(const struct firmware *fw,
+				     struct brcmf_fw *fwctx)
+{
+	struct brcmf_fw_item *cur = &fwctx->req->items[fwctx->curpos];
+	int ret = 0;
+
+	brcmf_dbg(TRACE, "firmware %s %sfound\n", cur->path, fw ? "" : "not ");
+
+	switch (cur->type) {
+	case BRCMF_FW_TYPE_NVRAM:
+		ret = brcmf_fw_request_nvram_done(fw, fwctx);
+		break;
+	case BRCMF_FW_TYPE_BINARY:
+		if (fw)
+			cur->binary = fw;
+		else
+			ret = -ENOENT;
+		break;
+	default:
+		/* something fishy here so bail out early */
+		brcmf_err("unknown fw type: %d\n", cur->type);
+		release_firmware(fw);
+		ret = -EINVAL;
+	}
+
+	return (cur->flags & BRCMF_FW_REQF_OPTIONAL) ? 0 : ret;
+}
+
 static int brcmf_fw_request_next_item(struct brcmf_fw *fwctx, bool async)
 {
 	struct brcmf_fw_item *cur;
@@ -525,15 +553,7 @@ static int brcmf_fw_request_next_item(struct brcmf_fw *fwctx, bool async)
 	if (ret < 0) {
 		brcmf_fw_request_done(NULL, fwctx);
 	} else if (!async && fw) {
-		brcmf_dbg(TRACE, "firmware %s %sfound\n", cur->path,
-			  fw ? "" : "not ");
-		if (cur->type == BRCMF_FW_TYPE_BINARY)
-			cur->binary = fw;
-		else if (cur->type == BRCMF_FW_TYPE_NVRAM)
-			brcmf_fw_request_nvram_done(fw, fwctx);
-		else
-			release_firmware(fw);
-
+		brcmf_fw_complete_request(fw, fwctx);
 		return -EAGAIN;
 	}
 	return 0;
@@ -547,28 +567,8 @@ static void brcmf_fw_request_done(const struct firmware *fw, void *ctx)
 
 	cur = &fwctx->req->items[fwctx->curpos];
 
-	brcmf_dbg(TRACE, "enter: firmware %s %sfound\n", cur->path,
-		  fw ? "" : "not ");
-
-	if (!fw)
-		ret = -ENOENT;
-
-	switch (cur->type) {
-	case BRCMF_FW_TYPE_NVRAM:
-		ret = brcmf_fw_request_nvram_done(fw, fwctx);
-		break;
-	case BRCMF_FW_TYPE_BINARY:
-		cur->binary = fw;
-		break;
-	default:
-		/* something fishy here so bail out early */
-		brcmf_err("unknown fw type: %d\n", cur->type);
-		release_firmware(fw);
-		ret = -EINVAL;
-		goto fail;
-	}
-
-	if (ret < 0 && !(cur->flags & BRCMF_FW_REQF_OPTIONAL))
+	ret = brcmf_fw_complete_request(fw, fwctx);
+	if (ret < 0)
 		goto fail;
 
 	do {
