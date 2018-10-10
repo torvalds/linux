@@ -113,7 +113,8 @@ struct _vcs_dpi_soc_bounding_box_st {
 	int use_urgent_burst_bw;
 	double max_hscl_ratio;
 	double max_vscl_ratio;
-	struct _vcs_dpi_voltage_scaling_st clock_limits[7];
+	unsigned int num_states;
+	struct _vcs_dpi_voltage_scaling_st clock_limits[8];
 };
 
 struct _vcs_dpi_ip_params_st {
