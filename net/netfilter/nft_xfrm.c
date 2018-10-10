@@ -118,12 +118,13 @@ static bool xfrm_state_addr_ok(enum nft_xfrm_keys k, u8 family, u8 mode)
 
 static void nft_xfrm_state_get_key(const struct nft_xfrm *priv,
 				   struct nft_regs *regs,
-				   const struct xfrm_state *state,
-				   u8 family)
+				   const struct xfrm_state *state)
 {
 	u32 *dest = &regs->data[priv->dreg];
 
-	if (!xfrm_state_addr_ok(priv->key, family, state->props.mode)) {
+	if (!xfrm_state_addr_ok(priv->key,
+				state->props.family,
+				state->props.mode)) {
 		regs->verdict.code = NFT_BREAK;
 		return;
 	}
@@ -169,7 +170,7 @@ static void nft_xfrm_get_eval_in(const struct nft_xfrm *priv,
 	}
 
 	state = sp->xvec[priv->spnum];
-	nft_xfrm_state_get_key(priv, regs, state, nft_pf(pkt));
+	nft_xfrm_state_get_key(priv, regs, state);
 }
 
 static void nft_xfrm_get_eval_out(const struct nft_xfrm *priv,
@@ -184,7 +185,7 @@ static void nft_xfrm_get_eval_out(const struct nft_xfrm *priv,
 		if (i < priv->spnum)
 			continue;
 
-		nft_xfrm_state_get_key(priv, regs, dst->xfrm, nft_pf(pkt));
+		nft_xfrm_state_get_key(priv, regs, dst->xfrm);
 		return;
 	}
 
