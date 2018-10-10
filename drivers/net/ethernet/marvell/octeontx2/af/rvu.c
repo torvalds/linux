@@ -58,6 +58,41 @@ int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 	return -EBUSY;
 }
 
+int rvu_alloc_rsrc(struct rsrc_bmap *rsrc)
+{
+	int id;
+
+	if (!rsrc->bmap)
+		return -EINVAL;
+
+	id = find_first_zero_bit(rsrc->bmap, rsrc->max);
+	if (id >= rsrc->max)
+		return -ENOSPC;
+
+	__set_bit(id, rsrc->bmap);
+
+	return id;
+}
+
+void rvu_free_rsrc(struct rsrc_bmap *rsrc, int id)
+{
+	if (!rsrc->bmap)
+		return;
+
+	__clear_bit(id, rsrc->bmap);
+}
+
+int rvu_rsrc_free_count(struct rsrc_bmap *rsrc)
+{
+	int used;
+
+	if (!rsrc->bmap)
+		return 0;
+
+	used = bitmap_weight(rsrc->bmap, rsrc->max);
+	return (rsrc->max - used);
+}
+
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
 {
 	rsrc->bmap = kcalloc(BITS_TO_LONGS(rsrc->max),
@@ -65,6 +100,78 @@ int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
 	if (!rsrc->bmap)
 		return -ENOMEM;
 	return 0;
+}
+
+/* Convert BLOCK_TYPE_E to a BLOCK_ADDR_E.
+ * Some silicon variants of OcteonTX2 supports
+ * multiple blocks of same type.
+ *
+ * @pcifunc has to be zero when no LF is yet attached.
+ */
+int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc)
+{
+	int devnum, blkaddr = -ENODEV;
+	u64 cfg, reg;
+	bool is_pf;
+
+	switch (blktype) {
+	case BLKTYPE_NPA:
+		blkaddr = BLKADDR_NPA;
+		goto exit;
+	case BLKTYPE_NIX:
+		/* For now assume NIX0 */
+		if (!pcifunc) {
+			blkaddr = BLKADDR_NIX0;
+			goto exit;
+		}
+		break;
+	case BLKTYPE_SSO:
+		blkaddr = BLKADDR_SSO;
+		goto exit;
+	case BLKTYPE_SSOW:
+		blkaddr = BLKADDR_SSOW;
+		goto exit;
+	case BLKTYPE_TIM:
+		blkaddr = BLKADDR_TIM;
+		goto exit;
+	case BLKTYPE_CPT:
+		/* For now assume CPT0 */
+		if (!pcifunc) {
+			blkaddr = BLKADDR_CPT0;
+			goto exit;
+		}
+		break;
+	}
+
+	/* Check if this is a RVU PF or VF */
+	if (pcifunc & RVU_PFVF_FUNC_MASK) {
+		is_pf = false;
+		devnum = rvu_get_hwvf(rvu, pcifunc);
+	} else {
+		is_pf = true;
+		devnum = rvu_get_pf(pcifunc);
+	}
+
+	/* Check if the 'pcifunc' has a NIX LF from 'BLKADDR_NIX0' */
+	if (blktype == BLKTYPE_NIX) {
+		reg = is_pf ? RVU_PRIV_PFX_NIX0_CFG : RVU_PRIV_HWVFX_NIX0_CFG;
+		cfg = rvu_read64(rvu, BLKADDR_RVUM, reg | (devnum << 16));
+		if (cfg)
+			blkaddr = BLKADDR_NIX0;
+	}
+
+	/* Check if the 'pcifunc' has a CPT LF from 'BLKADDR_CPT0' */
+	if (blktype == BLKTYPE_CPT) {
+		reg = is_pf ? RVU_PRIV_PFX_CPT0_CFG : RVU_PRIV_HWVFX_CPT0_CFG;
+		cfg = rvu_read64(rvu, BLKADDR_RVUM, reg | (devnum << 16));
+		if (cfg)
+			blkaddr = BLKADDR_CPT0;
+	}
+
+exit:
+	if (is_block_implemented(rvu->hw, blkaddr))
+		return blkaddr;
+	return -ENODEV;
 }
 
 static void rvu_update_rsrc_map(struct rvu *rvu, struct rvu_pfvf *pfvf,
@@ -150,6 +257,17 @@ struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc)
 		return &rvu->hwvf[rvu_get_hwvf(rvu, pcifunc)];
 	else
 		return &rvu->pf[rvu_get_pf(pcifunc)];
+}
+
+bool is_block_implemented(struct rvu_hwinfo *hw, int blkaddr)
+{
+	struct rvu_block *block;
+
+	if (blkaddr < BLKADDR_RVUM || blkaddr >= BLK_COUNT)
+		return false;
+
+	block = &hw->block[blkaddr];
+	return block->implemented;
 }
 
 static void rvu_check_block_implemented(struct rvu *rvu)
@@ -272,8 +390,8 @@ nix:
 	block->type = BLKTYPE_NIX;
 	block->lfshift = 8;
 	block->lookup_reg = NIX_AF_RVU_LF_CFG_DEBUG;
-	block->pf_lfcnt_reg = RVU_PRIV_PFX_NIX_CFG;
-	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_NIX_CFG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_NIX0_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_NIX0_CFG;
 	block->lfcfg_reg = NIX_PRIV_LFX_CFG;
 	block->msixcfg_reg = NIX_PRIV_LFX_INT_CFG;
 	block->lfreset_reg = NIX_AF_LF_RST;
@@ -359,8 +477,8 @@ cpt:
 	block->multislot = true;
 	block->lfshift = 3;
 	block->lookup_reg = CPT_AF_RVU_LF_CFG_DEBUG;
-	block->pf_lfcnt_reg = RVU_PRIV_PFX_CPT_CFG;
-	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_CPT_CFG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_CPT0_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_CPT0_CFG;
 	block->lfcfg_reg = CPT_PRIV_LFX_CFG;
 	block->msixcfg_reg = CPT_PRIV_LFX_INT_CFG;
 	block->lfreset_reg = CPT_AF_LF_RST;
@@ -398,6 +516,8 @@ init:
 		rvu_scan_block(rvu, block);
 	}
 
+	spin_lock_init(&rvu->rsrc_lock);
+
 	return 0;
 }
 
@@ -405,6 +525,350 @@ static int rvu_mbox_handler_READY(struct rvu *rvu, struct msg_req *req,
 				  struct ready_msg_rsp *rsp)
 {
 	return 0;
+}
+
+/* Get current count of a RVU block's LF/slots
+ * provisioned to a given RVU func.
+ */
+static u16 rvu_get_rsrc_mapcount(struct rvu_pfvf *pfvf, int blktype)
+{
+	switch (blktype) {
+	case BLKTYPE_NPA:
+		return pfvf->npalf ? 1 : 0;
+	case BLKTYPE_NIX:
+		return pfvf->nixlf ? 1 : 0;
+	case BLKTYPE_SSO:
+		return pfvf->sso;
+	case BLKTYPE_SSOW:
+		return pfvf->ssow;
+	case BLKTYPE_TIM:
+		return pfvf->timlfs;
+	case BLKTYPE_CPT:
+		return pfvf->cptlfs;
+	}
+	return 0;
+}
+
+static int rvu_lookup_rsrc(struct rvu *rvu, struct rvu_block *block,
+			   int pcifunc, int slot)
+{
+	u64 val;
+
+	val = ((u64)pcifunc << 24) | (slot << 16) | (1ULL << 13);
+	rvu_write64(rvu, block->addr, block->lookup_reg, val);
+	/* Wait for the lookup to finish */
+	/* TODO: put some timeout here */
+	while (rvu_read64(rvu, block->addr, block->lookup_reg) & (1ULL << 13))
+		;
+
+	val = rvu_read64(rvu, block->addr, block->lookup_reg);
+
+	/* Check LF valid bit */
+	if (!(val & (1ULL << 12)))
+		return -1;
+
+	return (val & 0xFFF);
+}
+
+static void rvu_detach_block(struct rvu *rvu, int pcifunc, int blktype)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int slot, lf, num_lfs;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, blktype, pcifunc);
+	if (blkaddr < 0)
+		return;
+
+	block = &hw->block[blkaddr];
+
+	num_lfs = rvu_get_rsrc_mapcount(pfvf, block->type);
+	if (!num_lfs)
+		return;
+
+	for (slot = 0; slot < num_lfs; slot++) {
+		lf = rvu_lookup_rsrc(rvu, block, pcifunc, slot);
+		if (lf < 0) /* This should never happen */
+			continue;
+
+		/* Disable the LF */
+		rvu_write64(rvu, blkaddr, block->lfcfg_reg |
+			    (lf << block->lfshift), 0x00ULL);
+
+		/* Update SW maintained mapping info as well */
+		rvu_update_rsrc_map(rvu, pfvf, block,
+				    pcifunc, lf, false);
+
+		/* Free the resource */
+		rvu_free_rsrc(&block->lf, lf);
+	}
+}
+
+static int rvu_detach_rsrcs(struct rvu *rvu, struct rsrc_detach *detach,
+			    u16 pcifunc)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	bool is_pf, detach_all = true;
+	struct rvu_block *block;
+	int devnum, blkid;
+
+	/* Check if this is for a RVU PF or VF */
+	if (pcifunc & RVU_PFVF_FUNC_MASK) {
+		is_pf = false;
+		devnum = rvu_get_hwvf(rvu, pcifunc);
+	} else {
+		is_pf = true;
+		devnum = rvu_get_pf(pcifunc);
+	}
+
+	spin_lock(&rvu->rsrc_lock);
+
+	/* Check for partial resource detach */
+	if (detach && detach->partial)
+		detach_all = false;
+
+	/* Check for RVU block's LFs attached to this func,
+	 * if so, detach them.
+	 */
+	for (blkid = 0; blkid < BLK_COUNT; blkid++) {
+		block = &hw->block[blkid];
+		if (!block->lf.bmap)
+			continue;
+		if (!detach_all && detach) {
+			if (blkid == BLKADDR_NPA && !detach->npalf)
+				continue;
+			else if ((blkid == BLKADDR_NIX0) && !detach->nixlf)
+				continue;
+			else if ((blkid == BLKADDR_SSO) && !detach->sso)
+				continue;
+			else if ((blkid == BLKADDR_SSOW) && !detach->ssow)
+				continue;
+			else if ((blkid == BLKADDR_TIM) && !detach->timlfs)
+				continue;
+			else if ((blkid == BLKADDR_CPT0) && !detach->cptlfs)
+				continue;
+		}
+		rvu_detach_block(rvu, pcifunc, block->type);
+	}
+
+	spin_unlock(&rvu->rsrc_lock);
+	return 0;
+}
+
+static int rvu_mbox_handler_DETACH_RESOURCES(struct rvu *rvu,
+					     struct rsrc_detach *detach,
+					     struct msg_rsp *rsp)
+{
+	return rvu_detach_rsrcs(rvu, detach, detach->hdr.pcifunc);
+}
+
+static void rvu_attach_block(struct rvu *rvu, int pcifunc,
+			     int blktype, int num_lfs)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int slot, lf;
+	int blkaddr;
+	u64 cfg;
+
+	if (!num_lfs)
+		return;
+
+	blkaddr = rvu_get_blkaddr(rvu, blktype, 0);
+	if (blkaddr < 0)
+		return;
+
+	block = &hw->block[blkaddr];
+	if (!block->lf.bmap)
+		return;
+
+	for (slot = 0; slot < num_lfs; slot++) {
+		/* Allocate the resource */
+		lf = rvu_alloc_rsrc(&block->lf);
+		if (lf < 0)
+			return;
+
+		cfg = (1ULL << 63) | (pcifunc << 8) | slot;
+		rvu_write64(rvu, blkaddr, block->lfcfg_reg |
+			    (lf << block->lfshift), cfg);
+		rvu_update_rsrc_map(rvu, pfvf, block,
+				    pcifunc, lf, true);
+	}
+}
+
+static int rvu_check_rsrc_availability(struct rvu *rvu,
+				       struct rsrc_attach *req, u16 pcifunc)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int free_lfs, mappedlfs;
+
+	/* Only one NPA LF can be attached */
+	if (req->npalf && !rvu_get_rsrc_mapcount(pfvf, BLKTYPE_NPA)) {
+		block = &hw->block[BLKADDR_NPA];
+		free_lfs = rvu_rsrc_free_count(&block->lf);
+		if (!free_lfs)
+			goto fail;
+	} else if (req->npalf) {
+		dev_err(&rvu->pdev->dev,
+			"Func 0x%x: Invalid req, already has NPA\n",
+			 pcifunc);
+		return -EINVAL;
+	}
+
+	/* Only one NIX LF can be attached */
+	if (req->nixlf && !rvu_get_rsrc_mapcount(pfvf, BLKTYPE_NIX)) {
+		block = &hw->block[BLKADDR_NIX0];
+		free_lfs = rvu_rsrc_free_count(&block->lf);
+		if (!free_lfs)
+			goto fail;
+	} else if (req->nixlf) {
+		dev_err(&rvu->pdev->dev,
+			"Func 0x%x: Invalid req, already has NIX\n",
+			pcifunc);
+		return -EINVAL;
+	}
+
+	if (req->sso) {
+		block = &hw->block[BLKADDR_SSO];
+		/* Is request within limits ? */
+		if (req->sso > block->lf.max) {
+			dev_err(&rvu->pdev->dev,
+				"Func 0x%x: Invalid SSO req, %d > max %d\n",
+				 pcifunc, req->sso, block->lf.max);
+			return -EINVAL;
+		}
+		mappedlfs = rvu_get_rsrc_mapcount(pfvf, block->type);
+		free_lfs = rvu_rsrc_free_count(&block->lf);
+		/* Check if additional resources are available */
+		if (req->sso > mappedlfs &&
+		    ((req->sso - mappedlfs) > free_lfs))
+			goto fail;
+	}
+
+	if (req->ssow) {
+		block = &hw->block[BLKADDR_SSOW];
+		if (req->ssow > block->lf.max) {
+			dev_err(&rvu->pdev->dev,
+				"Func 0x%x: Invalid SSOW req, %d > max %d\n",
+				 pcifunc, req->sso, block->lf.max);
+			return -EINVAL;
+		}
+		mappedlfs = rvu_get_rsrc_mapcount(pfvf, block->type);
+		free_lfs = rvu_rsrc_free_count(&block->lf);
+		if (req->ssow > mappedlfs &&
+		    ((req->ssow - mappedlfs) > free_lfs))
+			goto fail;
+	}
+
+	if (req->timlfs) {
+		block = &hw->block[BLKADDR_TIM];
+		if (req->timlfs > block->lf.max) {
+			dev_err(&rvu->pdev->dev,
+				"Func 0x%x: Invalid TIMLF req, %d > max %d\n",
+				 pcifunc, req->timlfs, block->lf.max);
+			return -EINVAL;
+		}
+		mappedlfs = rvu_get_rsrc_mapcount(pfvf, block->type);
+		free_lfs = rvu_rsrc_free_count(&block->lf);
+		if (req->timlfs > mappedlfs &&
+		    ((req->timlfs - mappedlfs) > free_lfs))
+			goto fail;
+	}
+
+	if (req->cptlfs) {
+		block = &hw->block[BLKADDR_CPT0];
+		if (req->cptlfs > block->lf.max) {
+			dev_err(&rvu->pdev->dev,
+				"Func 0x%x: Invalid CPTLF req, %d > max %d\n",
+				 pcifunc, req->cptlfs, block->lf.max);
+			return -EINVAL;
+		}
+		mappedlfs = rvu_get_rsrc_mapcount(pfvf, block->type);
+		free_lfs = rvu_rsrc_free_count(&block->lf);
+		if (req->cptlfs > mappedlfs &&
+		    ((req->cptlfs - mappedlfs) > free_lfs))
+			goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_info(rvu->dev, "Request for %s failed\n", block->name);
+	return -ENOSPC;
+}
+
+static int rvu_mbox_handler_ATTACH_RESOURCES(struct rvu *rvu,
+					     struct rsrc_attach *attach,
+					     struct msg_rsp *rsp)
+{
+	u16 pcifunc = attach->hdr.pcifunc;
+	int devnum, err;
+	bool is_pf;
+
+	/* If first request, detach all existing attached resources */
+	if (!attach->modify)
+		rvu_detach_rsrcs(rvu, NULL, pcifunc);
+
+	/* Check if this is for a RVU PF or VF */
+	if (pcifunc & RVU_PFVF_FUNC_MASK) {
+		is_pf = false;
+		devnum = rvu_get_hwvf(rvu, pcifunc);
+	} else {
+		is_pf = true;
+		devnum = rvu_get_pf(pcifunc);
+	}
+
+	spin_lock(&rvu->rsrc_lock);
+
+	/* Check if the request can be accommodated */
+	err = rvu_check_rsrc_availability(rvu, attach, pcifunc);
+	if (err)
+		goto exit;
+
+	/* Now attach the requested resources */
+	if (attach->npalf)
+		rvu_attach_block(rvu, pcifunc, BLKTYPE_NPA, 1);
+
+	if (attach->nixlf)
+		rvu_attach_block(rvu, pcifunc, BLKTYPE_NIX, 1);
+
+	if (attach->sso) {
+		/* RVU func doesn't know which exact LF or slot is attached
+		 * to it, it always sees as slot 0,1,2. So for a 'modify'
+		 * request, simply detach all existing attached LFs/slots
+		 * and attach a fresh.
+		 */
+		if (attach->modify)
+			rvu_detach_block(rvu, pcifunc, BLKTYPE_SSO);
+		rvu_attach_block(rvu, pcifunc, BLKTYPE_SSO, attach->sso);
+	}
+
+	if (attach->ssow) {
+		if (attach->modify)
+			rvu_detach_block(rvu, pcifunc, BLKTYPE_SSOW);
+		rvu_attach_block(rvu, pcifunc, BLKTYPE_SSOW, attach->ssow);
+	}
+
+	if (attach->timlfs) {
+		if (attach->modify)
+			rvu_detach_block(rvu, pcifunc, BLKTYPE_TIM);
+		rvu_attach_block(rvu, pcifunc, BLKTYPE_TIM, attach->timlfs);
+	}
+
+	if (attach->cptlfs) {
+		if (attach->modify)
+			rvu_detach_block(rvu, pcifunc, BLKTYPE_CPT);
+		rvu_attach_block(rvu, pcifunc, BLKTYPE_CPT, attach->cptlfs);
+	}
+
+exit:
+	spin_unlock(&rvu->rsrc_lock);
+	return err;
 }
 
 static int rvu_process_mbox_msg(struct rvu *rvu, int devid,

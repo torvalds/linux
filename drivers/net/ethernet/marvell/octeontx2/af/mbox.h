@@ -118,7 +118,17 @@ static inline struct mbox_msghdr *otx2_mbox_alloc_msg(struct otx2_mbox *mbox,
 #define MBOX_MSG_MAX				0xFFFF
 
 #define MBOX_MESSAGES							\
-M(READY,		0x001, msg_req, ready_msg_rsp)
+/* Generic mbox IDs (range 0x000 - 0x1FF) */				\
+M(READY,		0x001, msg_req, ready_msg_rsp)			\
+M(ATTACH_RESOURCES,	0x002, rsrc_attach, msg_rsp)			\
+M(DETACH_RESOURCES,	0x003, rsrc_detach, msg_rsp)			\
+/* CGX mbox IDs (range 0x200 - 0x3FF) */				\
+/* NPA mbox IDs (range 0x400 - 0x5FF) */				\
+/* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
+/* TIM mbox IDs (range 0x800 - 0x9FF) */				\
+/* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
+/* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
+/* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 
 enum {
 #define M(_name, _id, _1, _2) MBOX_MSG_ ## _name = _id,
@@ -145,6 +155,39 @@ struct msg_rsp {
 struct ready_msg_rsp {
 	struct mbox_msghdr hdr;
 	u16    sclk_feq;	/* SCLK frequency */
+};
+
+/* Structure for requesting resource provisioning.
+ * 'modify' flag to be used when either requesting more
+ * or to detach partial of a cetain resource type.
+ * Rest of the fields specify how many of what type to
+ * be attached.
+ */
+struct rsrc_attach {
+	struct mbox_msghdr hdr;
+	u8   modify:1;
+	u8   npalf:1;
+	u8   nixlf:1;
+	u16  sso;
+	u16  ssow;
+	u16  timlfs;
+	u16  cptlfs;
+};
+
+/* Structure for relinquishing resources.
+ * 'partial' flag to be used when relinquishing all resources
+ * but only of a certain type. If not set, all resources of all
+ * types provisioned to the RVU function will be detached.
+ */
+struct rsrc_detach {
+	struct mbox_msghdr hdr;
+	u8 partial:1;
+	u8 npalf:1;
+	u8 nixlf:1;
+	u8 sso:1;
+	u8 ssow:1;
+	u8 timlfs:1;
+	u8 cptlfs:1;
 };
 
 #endif /* MBOX_H */

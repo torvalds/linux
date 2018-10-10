@@ -83,6 +83,7 @@ struct rvu {
 	struct rvu_hwinfo       *hw;
 	struct rvu_pfvf		*pf;
 	struct rvu_pfvf		*hwvf;
+	spinlock_t		rsrc_lock; /* Serialize resource alloc/free */
 
 	/* Mbox */
 	struct otx2_mbox	mbox;
@@ -120,8 +121,13 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
  */
 
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);
-int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
+int rvu_alloc_rsrc(struct rsrc_bmap *rsrc);
+void rvu_free_rsrc(struct rsrc_bmap *rsrc, int id);
+int rvu_rsrc_free_count(struct rsrc_bmap *rsrc);
 int rvu_get_pf(u16 pcifunc);
 struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
+bool is_block_implemented(struct rvu_hwinfo *hw, int blkaddr);
+int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
+int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
 #endif /* RVU_H */
