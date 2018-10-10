@@ -3,8 +3,6 @@
 # Makefile for the linux ppc-specific parts of the memory manager.
 #
 
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
-
 ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
 
 CFLAGS_REMOVE_slb.o = $(CC_FLAGS_FTRACE)

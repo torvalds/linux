@@ -3,8 +3,6 @@
 # Makefile for the powerpc trace subsystem
 #
 
-subdir-ccflags-$(CONFIG_PPC_WERROR)	:= -Werror
-
 ifdef CONFIG_FUNCTION_TRACER
 # do not trace tracer code
 CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
