@@ -9657,7 +9657,8 @@ MIPS/LOONGSON2 ARCHITECTURE
 M:	Jiaxun Yang <jiaxun.yang@flygoat.com>
 L:	linux-mips@linux-mips.org
 S:	Maintained
-F:	arch/mips/loongson64/*{2e/2f}*
+F:	arch/mips/loongson64/fuloong-2e/
+F:	arch/mips/loongson64/lemote-2f/
 F:	arch/mips/include/asm/mach-loongson64/
 F:	drivers/*/*loongson2*
 F:	drivers/*/*/*loongson2*
