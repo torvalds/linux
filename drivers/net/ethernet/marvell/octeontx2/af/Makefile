@@ -7,4 +7,4 @@ obj-$(CONFIG_OCTEONTX2_MBOX) += octeontx2_mbox.o
 obj-$(CONFIG_OCTEONTX2_AF) += octeontx2_af.o
 
 octeontx2_mbox-y := mbox.o
-octeontx2_af-y := rvu.o
+octeontx2_af-y := cgx.o rvu.o

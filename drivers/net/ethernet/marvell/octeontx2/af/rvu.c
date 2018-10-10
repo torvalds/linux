@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/sysfs.h>
 
+#include "cgx.h"
 #include "rvu.h"
 #include "rvu_reg.h"
 
@@ -1605,14 +1606,25 @@ static struct pci_driver rvu_driver = {
 
 static int __init rvu_init_module(void)
 {
+	int err;
+
 	pr_info("%s: %s\n", DRV_NAME, DRV_STRING);
 
-	return pci_register_driver(&rvu_driver);
+	err = pci_register_driver(&cgx_driver);
+	if (err < 0)
+		return err;
+
+	err =  pci_register_driver(&rvu_driver);
+	if (err < 0)
+		pci_unregister_driver(&cgx_driver);
+
+	return err;
 }
 
 static void __exit rvu_cleanup_module(void)
 {
 	pci_unregister_driver(&rvu_driver);
+	pci_unregister_driver(&cgx_driver);
 }
 
 module_init(rvu_init_module);
