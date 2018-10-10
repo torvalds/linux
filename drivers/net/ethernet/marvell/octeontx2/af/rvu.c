@@ -56,6 +56,15 @@ int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 	return -EBUSY;
 }
 
+int rvu_alloc_bitmap(struct rsrc_bmap *rsrc)
+{
+	rsrc->bmap = kcalloc(BITS_TO_LONGS(rsrc->max),
+			     sizeof(long), GFP_KERNEL);
+	if (!rsrc->bmap)
+		return -ENOMEM;
+	return 0;
+}
+
 static void rvu_check_block_implemented(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -95,6 +104,157 @@ static void rvu_reset_all_blocks(struct rvu *rvu)
 	rvu_block_reset(rvu, BLKADDR_NDC0, NDC_AF_BLK_RST);
 	rvu_block_reset(rvu, BLKADDR_NDC1, NDC_AF_BLK_RST);
 	rvu_block_reset(rvu, BLKADDR_NDC2, NDC_AF_BLK_RST);
+}
+
+static void rvu_free_hw_resources(struct rvu *rvu)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int id;
+
+	/* Free all bitmaps */
+	for (id = 0; id < BLK_COUNT; id++) {
+		block = &hw->block[id];
+		kfree(block->lf.bmap);
+	}
+}
+
+static int rvu_setup_hw_resources(struct rvu *rvu)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct rvu_block *block;
+	int err;
+	u64 cfg;
+
+	/* Get HW supported max RVU PF & VF count */
+	cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_CONST);
+	hw->total_pfs = (cfg >> 32) & 0xFF;
+	hw->total_vfs = (cfg >> 20) & 0xFFF;
+	hw->max_vfs_per_pf = (cfg >> 40) & 0xFF;
+
+	/* Init NPA LF's bitmap */
+	block = &hw->block[BLKADDR_NPA];
+	if (!block->implemented)
+		goto nix;
+	cfg = rvu_read64(rvu, BLKADDR_NPA, NPA_AF_CONST);
+	block->lf.max = (cfg >> 16) & 0xFFF;
+	block->addr = BLKADDR_NPA;
+	block->lfshift = 8;
+	block->lookup_reg = NPA_AF_RVU_LF_CFG_DEBUG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_NPA_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_NPA_CFG;
+	block->lfcfg_reg = NPA_PRIV_LFX_CFG;
+	block->msixcfg_reg = NPA_PRIV_LFX_INT_CFG;
+	block->lfreset_reg = NPA_AF_LF_RST;
+	sprintf(block->name, "NPA");
+	err = rvu_alloc_bitmap(&block->lf);
+	if (err)
+		return err;
+
+nix:
+	/* Init NIX LF's bitmap */
+	block = &hw->block[BLKADDR_NIX0];
+	if (!block->implemented)
+		goto sso;
+	cfg = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_CONST2);
+	block->lf.max = cfg & 0xFFF;
+	block->addr = BLKADDR_NIX0;
+	block->lfshift = 8;
+	block->lookup_reg = NIX_AF_RVU_LF_CFG_DEBUG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_NIX_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_NIX_CFG;
+	block->lfcfg_reg = NIX_PRIV_LFX_CFG;
+	block->msixcfg_reg = NIX_PRIV_LFX_INT_CFG;
+	block->lfreset_reg = NIX_AF_LF_RST;
+	sprintf(block->name, "NIX");
+	err = rvu_alloc_bitmap(&block->lf);
+	if (err)
+		return err;
+
+sso:
+	/* Init SSO group's bitmap */
+	block = &hw->block[BLKADDR_SSO];
+	if (!block->implemented)
+		goto ssow;
+	cfg = rvu_read64(rvu, BLKADDR_SSO, SSO_AF_CONST);
+	block->lf.max = cfg & 0xFFFF;
+	block->addr = BLKADDR_SSO;
+	block->multislot = true;
+	block->lfshift = 3;
+	block->lookup_reg = SSO_AF_RVU_LF_CFG_DEBUG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_SSO_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_SSO_CFG;
+	block->lfcfg_reg = SSO_PRIV_LFX_HWGRP_CFG;
+	block->msixcfg_reg = SSO_PRIV_LFX_HWGRP_INT_CFG;
+	block->lfreset_reg = SSO_AF_LF_HWGRP_RST;
+	sprintf(block->name, "SSO GROUP");
+	err = rvu_alloc_bitmap(&block->lf);
+	if (err)
+		return err;
+
+ssow:
+	/* Init SSO workslot's bitmap */
+	block = &hw->block[BLKADDR_SSOW];
+	if (!block->implemented)
+		goto tim;
+	block->lf.max = (cfg >> 56) & 0xFF;
+	block->addr = BLKADDR_SSOW;
+	block->multislot = true;
+	block->lfshift = 3;
+	block->lookup_reg = SSOW_AF_RVU_LF_HWS_CFG_DEBUG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_SSOW_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_SSOW_CFG;
+	block->lfcfg_reg = SSOW_PRIV_LFX_HWS_CFG;
+	block->msixcfg_reg = SSOW_PRIV_LFX_HWS_INT_CFG;
+	block->lfreset_reg = SSOW_AF_LF_HWS_RST;
+	sprintf(block->name, "SSOWS");
+	err = rvu_alloc_bitmap(&block->lf);
+	if (err)
+		return err;
+
+tim:
+	/* Init TIM LF's bitmap */
+	block = &hw->block[BLKADDR_TIM];
+	if (!block->implemented)
+		goto cpt;
+	cfg = rvu_read64(rvu, BLKADDR_TIM, TIM_AF_CONST);
+	block->lf.max = cfg & 0xFFFF;
+	block->addr = BLKADDR_TIM;
+	block->multislot = true;
+	block->lfshift = 3;
+	block->lookup_reg = TIM_AF_RVU_LF_CFG_DEBUG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_TIM_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_TIM_CFG;
+	block->lfcfg_reg = TIM_PRIV_LFX_CFG;
+	block->msixcfg_reg = TIM_PRIV_LFX_INT_CFG;
+	block->lfreset_reg = TIM_AF_LF_RST;
+	sprintf(block->name, "TIM");
+	err = rvu_alloc_bitmap(&block->lf);
+	if (err)
+		return err;
+
+cpt:
+	/* Init CPT LF's bitmap */
+	block = &hw->block[BLKADDR_CPT0];
+	if (!block->implemented)
+		return 0;
+	cfg = rvu_read64(rvu, BLKADDR_CPT0, CPT_AF_CONSTANTS0);
+	block->lf.max = cfg & 0xFF;
+	block->addr = BLKADDR_CPT0;
+	block->multislot = true;
+	block->lfshift = 3;
+	block->lookup_reg = CPT_AF_RVU_LF_CFG_DEBUG;
+	block->pf_lfcnt_reg = RVU_PRIV_PFX_CPT_CFG;
+	block->vf_lfcnt_reg = RVU_PRIV_HWVFX_CPT_CFG;
+	block->lfcfg_reg = CPT_PRIV_LFX_CFG;
+	block->msixcfg_reg = CPT_PRIV_LFX_INT_CFG;
+	block->lfreset_reg = CPT_AF_LF_RST;
+	sprintf(block->name, "CPT");
+	err = rvu_alloc_bitmap(&block->lf);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -155,6 +315,10 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rvu_reset_all_blocks(rvu);
 
+	err = rvu_setup_hw_resources(rvu);
+	if (err)
+		goto err_release_regions;
+
 	return 0;
 
 err_release_regions:
@@ -171,6 +335,9 @@ err_freemem:
 static void rvu_remove(struct pci_dev *pdev)
 {
 	struct rvu *rvu = pci_get_drvdata(pdev);
+
+	rvu_reset_all_blocks(rvu);
+	rvu_free_hw_resources(rvu);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

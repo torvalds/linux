@@ -23,11 +23,31 @@
 
 #define NAME_SIZE				32
 
+struct rsrc_bmap {
+	unsigned long *bmap;	/* Pointer to resource bitmap */
+	u16  max;		/* Max resource id or count */
+};
+
 struct rvu_block {
+	struct rsrc_bmap lf;
+	bool multislot;
 	bool implemented;
+	u8   addr;  /* RVU_BLOCK_ADDR_E */
+	u8   lfshift;
+	u64  lookup_reg;
+	u64  pf_lfcnt_reg;
+	u64  vf_lfcnt_reg;
+	u64  lfcfg_reg;
+	u64  msixcfg_reg;
+	u64  lfreset_reg;
+	unsigned char name[NAME_SIZE];
 };
 
 struct rvu_hwinfo {
+	u8	total_pfs;   /* MAX RVU PFs HW supports */
+	u16	total_vfs;   /* Max RVU VFs HW supports */
+	u16	max_vfs_per_pf; /* Max VFs that can be attached to a PF */
+
 	struct rvu_block block[BLK_COUNT]; /* Block info */
 };
 
@@ -63,6 +83,7 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
  * RVU
  */
 
+int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
 #endif /* RVU_H */
