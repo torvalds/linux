@@ -529,7 +529,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 }
 
 static void
-mt76x0_phy_set_chan_bbp_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_band)
+mt76x0_phy_set_chan_bbp_params(struct mt76x02_dev *dev, u16 rf_bw_band)
 {
 	int i;
 
@@ -705,7 +705,7 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 		val &= ~0x20;
 	mt76_wr(dev, MT_BBP(CORE, 1), val);
 
-	mt76x0_phy_set_chan_bbp_params(dev, channel, rf_bw_band);
+	mt76x0_phy_set_chan_bbp_params(dev, rf_bw_band);
 
 	/* Vendor driver don't do it */
 	/* mt76x0_phy_set_tx_power(dev, channel, rf_bw_band); */
