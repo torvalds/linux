@@ -130,6 +130,8 @@
 		clock-frequency = <32768>;
 		clock-output-names = "xin32k";
 		#clock-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&clkin_32k>;
 	};
 
 	usbdrd3: usb {
@@ -1334,6 +1336,11 @@
 			input-enable;
 		};
 
+		pcfg_input_smt: pcfg-input-smt {
+			input-enable;
+			input-schmitt-enable;
+		};
+
 		emmc {
 			emmc_clk: emmc-clk {
 				rockchip,pins =
@@ -2264,6 +2271,18 @@
 			tsadc_otp_out: tsadc-otp-out {
 				rockchip,pins =
 					<0 RK_PA6 2 &pcfg_pull_none>;
+			};
+		};
+
+		xin32k {
+			clkin_32k: clkin-32k {
+				rockchip,pins =
+					<0 RK_PC2 1 &pcfg_input_smt>;
+			};
+
+			clkout_32k: clkout-32k {
+				rockchip,pins =
+					<0 RK_PC2 1 &pcfg_output_high>;
 			};
 		};
 	};
