@@ -727,7 +727,7 @@ static int fsmc_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 	uint8_t *p = buf;
 	uint8_t *ecc_calc = chip->ecc.calc_buf;
 	uint8_t *ecc_code = chip->ecc.code_buf;
-	int off, len, group = 0;
+	int off, len, ret, group = 0;
 	/*
 	 * ecc_oob is intentionally taken as uint16_t. In 16bit devices, we
 	 * end up reading 14 bytes (7 words) from oob. The local array is
@@ -740,11 +740,12 @@ static int fsmc_read_page_hwecc(struct nand_chip *chip, uint8_t *buf,
 	for (i = 0, s = 0; s < eccsteps; s++, i += eccbytes, p += eccsize) {
 		nand_read_page_op(chip, page, s * eccsize, NULL, 0);
 		chip->ecc.hwctl(chip, NAND_ECC_READ);
-		nand_read_data_op(chip, p, eccsize, false);
+		ret = nand_read_data_op(chip, p, eccsize, false);
+		if (ret)
+			return ret;
 
 		for (j = 0; j < eccbytes;) {
 			struct mtd_oob_region oobregion;
-			int ret;
 
 			ret = mtd_ooblayout_ecc(mtd, group++, &oobregion);
 			if (ret)
