@@ -1247,6 +1247,52 @@ static void qed_mcp_read_eee_config(struct qed_hwfn *p_hwfn,
 		p_link->eee_lp_adv_caps |= QED_EEE_10G_ADV;
 }
 
+static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
+				  struct qed_ptt *p_ptt,
+				  struct public_func *p_data, int pfid)
+{
+	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+					PUBLIC_FUNC);
+	u32 mfw_path_offsize = qed_rd(p_hwfn, p_ptt, addr);
+	u32 func_addr;
+	u32 i, size;
+
+	func_addr = SECTION_ADDR(mfw_path_offsize, pfid);
+	memset(p_data, 0, sizeof(*p_data));
+
+	size = min_t(u32, sizeof(*p_data), QED_SECTION_SIZE(mfw_path_offsize));
+	for (i = 0; i < size / sizeof(u32); i++)
+		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
+					    func_addr + (i << 2));
+	return size;
+}
+
+static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
+				  struct public_func *p_shmem_info)
+{
+	struct qed_mcp_function_info *p_info;
+
+	p_info = &p_hwfn->mcp_info->func_info;
+
+	p_info->bandwidth_min = QED_MFW_GET_FIELD(p_shmem_info->config,
+						  FUNC_MF_CFG_MIN_BW);
+	if (p_info->bandwidth_min < 1 || p_info->bandwidth_min > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth minimum out of bounds [%02x]. Set to 1\n",
+			p_info->bandwidth_min);
+		p_info->bandwidth_min = 1;
+	}
+
+	p_info->bandwidth_max = QED_MFW_GET_FIELD(p_shmem_info->config,
+						  FUNC_MF_CFG_MAX_BW);
+	if (p_info->bandwidth_max < 1 || p_info->bandwidth_max > 100) {
+		DP_INFO(p_hwfn,
+			"bandwidth maximum out of bounds [%02x]. Set to 100\n",
+			p_info->bandwidth_max);
+		p_info->bandwidth_max = 100;
+	}
+}
+
 static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt, bool b_reset)
 {
@@ -1274,10 +1320,29 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 
-	if (p_hwfn->b_drv_link_init)
-		p_link->link_up = !!(status & LINK_STATUS_LINK_UP);
-	else
+	if (p_hwfn->b_drv_link_init) {
+		/* Link indication with modern MFW arrives as per-PF
+		 * indication.
+		 */
+		if (p_hwfn->mcp_info->capabilities &
+		    FW_MB_PARAM_FEATURE_SUPPORT_VLINK) {
+			struct public_func shmem_info;
+
+			qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
+					       MCP_PF_ID(p_hwfn));
+			p_link->link_up = !!(shmem_info.status &
+					     FUNC_STATUS_VIRTUAL_LINK_UP);
+			qed_read_pf_bandwidth(p_hwfn, &shmem_info);
+			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+				   "Virtual link_up = %d\n", p_link->link_up);
+		} else {
+			p_link->link_up = !!(status & LINK_STATUS_LINK_UP);
+			DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
+				   "Physical link_up = %d\n", p_link->link_up);
+		}
+	} else {
 		p_link->link_up = false;
+	}
 
 	p_link->full_duplex = true;
 	switch ((status & LINK_STATUS_SPEED_AND_DUPLEX_MASK)) {
@@ -1502,53 +1567,6 @@ static void qed_mcp_send_protocol_stats(struct qed_hwfn *p_hwfn,
 	mb_params.p_data_src = &stats;
 	mb_params.data_src_size = sizeof(stats);
 	qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
-}
-
-static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
-				  struct public_func *p_shmem_info)
-{
-	struct qed_mcp_function_info *p_info;
-
-	p_info = &p_hwfn->mcp_info->func_info;
-
-	p_info->bandwidth_min = (p_shmem_info->config &
-				 FUNC_MF_CFG_MIN_BW_MASK) >>
-					FUNC_MF_CFG_MIN_BW_SHIFT;
-	if (p_info->bandwidth_min < 1 || p_info->bandwidth_min > 100) {
-		DP_INFO(p_hwfn,
-			"bandwidth minimum out of bounds [%02x]. Set to 1\n",
-			p_info->bandwidth_min);
-		p_info->bandwidth_min = 1;
-	}
-
-	p_info->bandwidth_max = (p_shmem_info->config &
-				 FUNC_MF_CFG_MAX_BW_MASK) >>
-					FUNC_MF_CFG_MAX_BW_SHIFT;
-	if (p_info->bandwidth_max < 1 || p_info->bandwidth_max > 100) {
-		DP_INFO(p_hwfn,
-			"bandwidth maximum out of bounds [%02x]. Set to 100\n",
-			p_info->bandwidth_max);
-		p_info->bandwidth_max = 100;
-	}
-}
-
-static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
-				  struct qed_ptt *p_ptt,
-				  struct public_func *p_data, int pfid)
-{
-	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
-					PUBLIC_FUNC);
-	u32 mfw_path_offsize = qed_rd(p_hwfn, p_ptt, addr);
-	u32 func_addr = SECTION_ADDR(mfw_path_offsize, pfid);
-	u32 i, size;
-
-	memset(p_data, 0, sizeof(*p_data));
-
-	size = min_t(u32, sizeof(*p_data), QED_SECTION_SIZE(mfw_path_offsize));
-	for (i = 0; i < size / sizeof(u32); i++)
-		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
-					    func_addr + (i << 2));
-	return size;
 }
 
 static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -3351,7 +3369,8 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 mcp_resp, mcp_param, features;
 
-	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE;
+	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE |
+		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK;
 
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);
