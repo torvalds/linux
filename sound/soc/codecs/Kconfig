@@ -641,6 +641,7 @@ config SND_SOC_LM49453
 
 config SND_SOC_MAX98088
 	tristate "Maxim MAX98088/9 Low-Power, Stereo Audio Codec"
+	depends on I2C
 
 config SND_SOC_MAX98090
        tristate
