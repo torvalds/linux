@@ -276,9 +276,11 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	: "+r" (err), "=&r" (x)						\
 	: "r" (addr), "i" (-EFAULT))
 
-#define __get_user_err_unsafe(x, ptr, err)				\
+#define __get_user_err(x, ptr, err)					\
 do {									\
 	unsigned long __gu_val;						\
+	__chk_user_ptr(ptr);						\
+	uaccess_enable_not_uao();					\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__get_user_asm("ldrb", "ldtrb", "%w", __gu_val, (ptr),  \
@@ -299,24 +301,17 @@ do {									\
 	default:							\
 		BUILD_BUG();						\
 	}								\
+	uaccess_disable_not_uao();					\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
-#define __get_user_err_check(x, ptr, err)				\
-do {									\
-	__chk_user_ptr(ptr);						\
-	uaccess_enable_not_uao();					\
-	__get_user_err_unsafe((x), (ptr), (err));			\
-	uaccess_disable_not_uao();					\
-} while (0)
-
-#define __get_user_err(x, ptr, err, accessor)				\
+#define __get_user_check(x, ptr, err)					\
 ({									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
 	might_fault();							\
 	if (access_ok(VERIFY_READ, __p, sizeof(*__p))) {		\
 		__p = uaccess_mask_ptr(__p);				\
-		accessor((x), __p, (err));				\
+		__get_user_err((x), __p, (err));			\
 	} else {							\
 		(x) = 0; (err) = -EFAULT;				\
 	}								\
@@ -324,14 +319,14 @@ do {									\
 
 #define __get_user_error(x, ptr, err)					\
 ({									\
-	__get_user_err((x), (ptr), (err), __get_user_err_check);	\
+	__get_user_check((x), (ptr), (err));				\
 	(void)0;							\
 })
 
 #define __get_user(x, ptr)						\
 ({									\
 	int __gu_err = 0;						\
-	__get_user_err((x), (ptr), __gu_err, __get_user_err_check);	\
+	__get_user_check((x), (ptr), __gu_err);				\
 	__gu_err;							\
 })
 
@@ -351,9 +346,11 @@ do {									\
 	: "+r" (err)							\
 	: "r" (x), "r" (addr), "i" (-EFAULT))
 
-#define __put_user_err_unsafe(x, ptr, err)				\
+#define __put_user_err(x, ptr, err)					\
 do {									\
 	__typeof__(*(ptr)) __pu_val = (x);				\
+	__chk_user_ptr(ptr);						\
+	uaccess_enable_not_uao();					\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__put_user_asm("strb", "sttrb", "%w", __pu_val, (ptr),	\
@@ -374,24 +371,16 @@ do {									\
 	default:							\
 		BUILD_BUG();						\
 	}								\
-} while (0)
-
-
-#define __put_user_err_check(x, ptr, err)				\
-do {									\
-	__chk_user_ptr(ptr);						\
-	uaccess_enable_not_uao();					\
-	__put_user_err_unsafe((x), (ptr), (err));			\
 	uaccess_disable_not_uao();					\
 } while (0)
 
-#define __put_user_err(x, ptr, err, accessor)				\
+#define __put_user_check(x, ptr, err)					\
 ({									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
 	might_fault();							\
 	if (access_ok(VERIFY_WRITE, __p, sizeof(*__p))) {		\
 		__p = uaccess_mask_ptr(__p);				\
-		accessor((x), __p, (err));				\
+		__put_user_err((x), __p, (err));			\
 	} else	{							\
 		(err) = -EFAULT;					\
 	}								\
@@ -399,38 +388,18 @@ do {									\
 
 #define __put_user_error(x, ptr, err)					\
 ({									\
-	__put_user_err((x), (ptr), (err), __put_user_err_check);	\
+	__put_user_check((x), (ptr), (err));				\
 	(void)0;							\
 })
 
 #define __put_user(x, ptr)						\
 ({									\
 	int __pu_err = 0;						\
-	__put_user_err((x), (ptr), __pu_err, __put_user_err_check);	\
+	__put_user_check((x), (ptr), __pu_err);				\
 	__pu_err;							\
 })
 
 #define put_user	__put_user
-
-
-#define user_access_begin()	uaccess_enable_not_uao()
-#define user_access_end()	uaccess_disable_not_uao()
-
-#define unsafe_get_user(x, ptr, err)					\
-do {									\
-	int __gu_err = 0;						\
-	__get_user_err((x), (ptr), __gu_err, __get_user_err_unsafe);	\
-	if (__gu_err != 0)						\
-		goto err;						\
-} while (0)
-
-#define unsafe_put_user(x, ptr, err)					\
-do {									\
-	int __pu_err = 0;						\
-	__put_user_err((x), (ptr), __pu_err, __put_user_err_unsafe);	\
-	if (__pu_err != 0)						\
-		goto err;						\
-} while (0)
 
 extern unsigned long __must_check __arch_copy_from_user(void *to, const void __user *from, unsigned long n);
 #define raw_copy_from_user(to, from, n)					\
