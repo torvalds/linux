@@ -153,6 +153,16 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 				   arr_flow_actions[i]->object);
 	}
 
+	ret = uverbs_copy_from(&flow_act.flow_tag, attrs,
+			       MLX5_IB_ATTR_CREATE_FLOW_TAG);
+	if (!ret) {
+		if (flow_act.flow_tag >= BIT(24)) {
+			ret = -EINVAL;
+			goto err_out;
+		}
+		flow_act.has_flow_tag = true;
+	}
+
 	flow_handler = mlx5_ib_raw_fs_rule_add(dev, fs_matcher, &flow_act,
 					       cmd_in, inlen,
 					       dest_id, dest_type);
@@ -513,7 +523,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 			     UVERBS_OBJECT_FLOW_ACTION,
 			     UVERBS_ACCESS_READ, 1,
 			     MLX5_IB_CREATE_FLOW_MAX_FLOW_ACTIONS,
-			     UA_OPTIONAL));
+			     UA_OPTIONAL),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_CREATE_FLOW_TAG,
+			   UVERBS_ATTR_TYPE(u32),
+			   UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_DESTROY_FLOW,

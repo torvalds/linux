@@ -157,6 +157,7 @@ enum mlx5_ib_create_flow_attrs {
 	MLX5_IB_ATTR_CREATE_FLOW_DEST_DEVX,
 	MLX5_IB_ATTR_CREATE_FLOW_MATCHER,
 	MLX5_IB_ATTR_CREATE_FLOW_ARR_FLOW_ACTIONS,
+	MLX5_IB_ATTR_CREATE_FLOW_TAG,
 };
 
 enum mlx5_ib_destoy_flow_attrs {
