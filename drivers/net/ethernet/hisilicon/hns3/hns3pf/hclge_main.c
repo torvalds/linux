@@ -2806,8 +2806,19 @@ static int hclge_get_rss(struct hnae3_handle *handle, u32 *indir,
 	int i;
 
 	/* Get hash algorithm */
-	if (hfunc)
-		*hfunc = vport->rss_algo;
+	if (hfunc) {
+		switch (vport->rss_algo) {
+		case HCLGE_RSS_HASH_ALGO_TOEPLITZ:
+			*hfunc = ETH_RSS_HASH_TOP;
+			break;
+		case HCLGE_RSS_HASH_ALGO_SIMPLE:
+			*hfunc = ETH_RSS_HASH_XOR;
+			break;
+		default:
+			*hfunc = ETH_RSS_HASH_UNKNOWN;
+			break;
+		}
+	}
 
 	/* Get the RSS Key required by the user */
 	if (key)
@@ -2831,12 +2842,20 @@ static int hclge_set_rss(struct hnae3_handle *handle, const u32 *indir,
 
 	/* Set the RSS Hash Key if specififed by the user */
 	if (key) {
-
-		if (hfunc == ETH_RSS_HASH_TOP ||
-		    hfunc == ETH_RSS_HASH_NO_CHANGE)
+		switch (hfunc) {
+		case ETH_RSS_HASH_TOP:
 			hash_algo = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
-		else
+			break;
+		case ETH_RSS_HASH_XOR:
+			hash_algo = HCLGE_RSS_HASH_ALGO_SIMPLE;
+			break;
+		case ETH_RSS_HASH_NO_CHANGE:
+			hash_algo = vport->rss_algo;
+			break;
+		default:
 			return -EINVAL;
+		}
+
 		ret = hclge_set_rss_algo_key(hdev, hash_algo, key);
 		if (ret)
 			return ret;
