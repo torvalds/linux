@@ -30,6 +30,18 @@ config HWSPINLOCK_QCOM
 
 	  If unsure, say N.
 
+config HWSPINLOCK_ROCKCHIP
+	tristate "Rockchip Hardware Spinlock device"
+	depends on ARCH_ROCKCHIP
+	select HWSPINLOCK
+	help
+	  Say y here to support the Rockchip Hardware Spinlock device, which
+	  provides a synchronisation mechanism for the various processors
+	  on the SoC.
+
+	  It's safe to say n here if you're not interested in Rockchip hardware
+	  spinlock or just want a bare minimum kernel.
+
 config HWSPINLOCK_SIRF
 	tristate "SIRF Hardware Spinlock device"
 	depends on ARCH_SIRF
