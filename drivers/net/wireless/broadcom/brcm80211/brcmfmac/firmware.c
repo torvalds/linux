@@ -532,33 +532,6 @@ static int brcmf_fw_complete_request(const struct firmware *fw,
 	return (cur->flags & BRCMF_FW_REQF_OPTIONAL) ? 0 : ret;
 }
 
-static int brcmf_fw_request_next_item(struct brcmf_fw *fwctx, bool async)
-{
-	struct brcmf_fw_item *cur;
-	const struct firmware *fw = NULL;
-	int ret;
-
-	cur = &fwctx->req->items[fwctx->curpos];
-
-	brcmf_dbg(TRACE, "%srequest for %s\n", async ? "async " : "",
-		  cur->path);
-
-	if (async)
-		ret = request_firmware_nowait(THIS_MODULE, true, cur->path,
-					      fwctx->dev, GFP_KERNEL, fwctx,
-					      brcmf_fw_request_done);
-	else
-		ret = request_firmware(&fw, cur->path, fwctx->dev);
-
-	if (ret < 0) {
-		brcmf_fw_request_done(NULL, fwctx);
-	} else if (!async && fw) {
-		brcmf_fw_complete_request(fw, fwctx);
-		return -EAGAIN;
-	}
-	return 0;
-}
-
 static void brcmf_fw_request_done(const struct firmware *fw, void *ctx)
 {
 	struct brcmf_fw *fwctx = ctx;
@@ -568,26 +541,19 @@ static void brcmf_fw_request_done(const struct firmware *fw, void *ctx)
 	cur = &fwctx->req->items[fwctx->curpos];
 
 	ret = brcmf_fw_complete_request(fw, fwctx);
-	if (ret < 0)
-		goto fail;
 
-	do {
-		if (++fwctx->curpos == fwctx->req->n_items) {
-			ret = 0;
-			goto done;
-		}
+	while (ret == 0 && ++fwctx->curpos < fwctx->req->n_items) {
+		cur = &fwctx->req->items[fwctx->curpos];
+		request_firmware(&fw, cur->path, fwctx->dev);
+		ret = brcmf_fw_complete_request(fw, ctx);
+	}
 
-		ret = brcmf_fw_request_next_item(fwctx, false);
-	} while (ret == -EAGAIN);
-
-	return;
-
-fail:
-	brcmf_dbg(TRACE, "failed err=%d: dev=%s, fw=%s\n", ret,
-		  dev_name(fwctx->dev), cur->path);
-	brcmf_fw_free_request(fwctx->req);
-	fwctx->req = NULL;
-done:
+	if (ret) {
+		brcmf_dbg(TRACE, "failed err=%d: dev=%s, fw=%s\n", ret,
+			  dev_name(fwctx->dev), cur->path);
+		brcmf_fw_free_request(fwctx->req);
+		fwctx->req = NULL;
+	}
 	fwctx->done(fwctx->dev, ret, fwctx->req);
 	kfree(fwctx);
 }
@@ -611,7 +577,9 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 			   void (*fw_cb)(struct device *dev, int err,
 					 struct brcmf_fw_request *req))
 {
+	struct brcmf_fw_item *first = &req->items[0];
 	struct brcmf_fw *fwctx;
+	int ret;
 
 	brcmf_dbg(TRACE, "enter: dev=%s\n", dev_name(dev));
 	if (!fw_cb)
@@ -628,7 +596,12 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 	fwctx->req = req;
 	fwctx->done = fw_cb;
 
-	brcmf_fw_request_next_item(fwctx, true);
+	ret = request_firmware_nowait(THIS_MODULE, true, first->path,
+				      fwctx->dev, GFP_KERNEL, fwctx,
+				      brcmf_fw_request_done);
+	if (ret < 0)
+		brcmf_fw_request_done(NULL, fwctx);
+
 	return 0;
 }
 
