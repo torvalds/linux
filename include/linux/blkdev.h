@@ -108,7 +108,7 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_QUIET		((__force req_flags_t)(1 << 11))
 /* elevator private data attached */
 #define RQF_ELVPRIV		((__force req_flags_t)(1 << 12))
-/* account I/O stat */
+/* account into disk and partition IO statistics */
 #define RQF_IO_STAT		((__force req_flags_t)(1 << 13))
 /* request came from our alloc pool */
 #define RQF_ALLOCED		((__force req_flags_t)(1 << 14))
@@ -116,7 +116,7 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_PM			((__force req_flags_t)(1 << 15))
 /* on IO scheduler merge hash */
 #define RQF_HASHED		((__force req_flags_t)(1 << 16))
-/* IO stats tracking on */
+/* track IO completion time */
 #define RQF_STATS		((__force req_flags_t)(1 << 17))
 /* Look at ->special_vec for the actual data payload instead of the
    bio chain. */
@@ -685,7 +685,7 @@ struct request_queue {
 #define QUEUE_FLAG_FAIL_IO	7	/* fake timeout */
 #define QUEUE_FLAG_NONROT	9	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
-#define QUEUE_FLAG_IO_STAT     10	/* do IO stats */
+#define QUEUE_FLAG_IO_STAT     10	/* do disk/partitions IO accounting */
 #define QUEUE_FLAG_DISCARD     11	/* supports DISCARD */
 #define QUEUE_FLAG_NOXMERGES   12	/* No extended merges */
 #define QUEUE_FLAG_ADD_RANDOM  13	/* Contributes to random pool */
@@ -699,7 +699,7 @@ struct request_queue {
 #define QUEUE_FLAG_FUA	       21	/* device supports FUA writes */
 #define QUEUE_FLAG_FLUSH_NQ    22	/* flush not queueuable */
 #define QUEUE_FLAG_DAX         23	/* device supports DAX */
-#define QUEUE_FLAG_STATS       24	/* track rq completion times */
+#define QUEUE_FLAG_STATS       24	/* track IO start and completion times */
 #define QUEUE_FLAG_POLL_STATS  25	/* collecting stats for hybrid polling */
 #define QUEUE_FLAG_REGISTERED  26	/* queue has been registered to a disk */
 #define QUEUE_FLAG_SCSI_PASSTHROUGH 27	/* queue supports SCSI commands */
