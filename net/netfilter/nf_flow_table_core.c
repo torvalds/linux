@@ -483,7 +483,7 @@ static void nf_flow_table_iterate_cleanup(struct nf_flowtable *flowtable,
 	flush_delayed_work(&flowtable->gc_work);
 }
 
-void nf_flow_table_cleanup(struct net *net, struct net_device *dev)
+void nf_flow_table_cleanup(struct net_device *dev)
 {
 	struct nf_flowtable *flowtable;
 
