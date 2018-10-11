@@ -1416,13 +1416,14 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid)
 	if (!qgroup) {
 		ret = -ENOENT;
 		goto out;
-	} else {
-		/* check if there are no children of this qgroup */
-		if (!list_empty(&qgroup->members)) {
-			ret = -EBUSY;
-			goto out;
-		}
 	}
+
+	/* Check if there are no children of this qgroup */
+	if (!list_empty(&qgroup->members)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	ret = del_qgroup_item(trans, qgroupid);
 	if (ret && ret != -ENOENT)
 		goto out;
