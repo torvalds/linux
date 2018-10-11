@@ -37,11 +37,19 @@
 #define VETH_XDP_TX		BIT(0)
 #define VETH_XDP_REDIR		BIT(1)
 
+struct veth_rq_stats {
+	u64			xdp_packets;
+	u64			xdp_bytes;
+	u64			xdp_drops;
+	struct u64_stats_sync	syncp;
+};
+
 struct veth_rq {
 	struct napi_struct	xdp_napi;
 	struct net_device	*dev;
 	struct bpf_prog __rcu	*xdp_prog;
 	struct xdp_mem_info	xdp_mem;
+	struct veth_rq_stats	stats;
 	bool			rx_notify_masked;
 	struct ptr_ring		xdp_ring;
 	struct xdp_rxq_info	xdp_rxq;
@@ -211,12 +219,14 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 	if (likely(veth_forward_skb(rcv, skb, rq, rcv_xdp) == NET_RX_SUCCESS)) {
-		struct pcpu_lstats *stats = this_cpu_ptr(dev->lstats);
+		if (!rcv_xdp) {
+			struct pcpu_lstats *stats = this_cpu_ptr(dev->lstats);
 
-		u64_stats_update_begin(&stats->syncp);
-		stats->bytes += length;
-		stats->packets++;
-		u64_stats_update_end(&stats->syncp);
+			u64_stats_update_begin(&stats->syncp);
+			stats->bytes += length;
+			stats->packets++;
+			u64_stats_update_end(&stats->syncp);
+		}
 	} else {
 drop:
 		atomic64_inc(&priv->dropped);
@@ -230,7 +240,7 @@ drop:
 	return NETDEV_TX_OK;
 }
 
-static u64 veth_stats_one(struct pcpu_lstats *result, struct net_device *dev)
+static u64 veth_stats_tx(struct pcpu_lstats *result, struct net_device *dev)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	int cpu;
@@ -253,23 +263,58 @@ static u64 veth_stats_one(struct pcpu_lstats *result, struct net_device *dev)
 	return atomic64_read(&priv->dropped);
 }
 
+static void veth_stats_rx(struct veth_rq_stats *result, struct net_device *dev)
+{
+	struct veth_priv *priv = netdev_priv(dev);
+	int i;
+
+	result->xdp_packets = 0;
+	result->xdp_bytes = 0;
+	result->xdp_drops = 0;
+	for (i = 0; i < dev->num_rx_queues; i++) {
+		struct veth_rq_stats *stats = &priv->rq[i].stats;
+		u64 packets, bytes, drops;
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&stats->syncp);
+			packets = stats->xdp_packets;
+			bytes = stats->xdp_bytes;
+			drops = stats->xdp_drops;
+		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+		result->xdp_packets += packets;
+		result->xdp_bytes += bytes;
+		result->xdp_drops += drops;
+	}
+}
+
 static void veth_get_stats64(struct net_device *dev,
 			     struct rtnl_link_stats64 *tot)
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	struct net_device *peer;
-	struct pcpu_lstats one;
+	struct veth_rq_stats rx;
+	struct pcpu_lstats tx;
 
-	tot->tx_dropped = veth_stats_one(&one, dev);
-	tot->tx_bytes = one.bytes;
-	tot->tx_packets = one.packets;
+	tot->tx_dropped = veth_stats_tx(&tx, dev);
+	tot->tx_bytes = tx.bytes;
+	tot->tx_packets = tx.packets;
+
+	veth_stats_rx(&rx, dev);
+	tot->rx_dropped = rx.xdp_drops;
+	tot->rx_bytes = rx.xdp_bytes;
+	tot->rx_packets = rx.xdp_packets;
 
 	rcu_read_lock();
 	peer = rcu_dereference(priv->peer);
 	if (peer) {
-		tot->rx_dropped = veth_stats_one(&one, peer);
-		tot->rx_bytes = one.bytes;
-		tot->rx_packets = one.packets;
+		tot->rx_dropped += veth_stats_tx(&tx, peer);
+		tot->rx_bytes += tx.bytes;
+		tot->rx_packets += tx.packets;
+
+		veth_stats_rx(&rx, peer);
+		tot->tx_bytes += rx.xdp_bytes;
+		tot->tx_packets += rx.xdp_packets;
 	}
 	rcu_read_unlock();
 }
@@ -609,27 +654,41 @@ xdp_xmit:
 
 static int veth_xdp_rcv(struct veth_rq *rq, int budget, unsigned int *xdp_xmit)
 {
-	int i, done = 0;
+	int i, done = 0, drops = 0, bytes = 0;
 
 	for (i = 0; i < budget; i++) {
 		void *ptr = __ptr_ring_consume(&rq->xdp_ring);
+		unsigned int xdp_xmit_one = 0;
 		struct sk_buff *skb;
 
 		if (!ptr)
 			break;
 
 		if (veth_is_xdp_frame(ptr)) {
-			skb = veth_xdp_rcv_one(rq, veth_ptr_to_xdp(ptr),
-					       xdp_xmit);
+			struct xdp_frame *frame = veth_ptr_to_xdp(ptr);
+
+			bytes += frame->len;
+			skb = veth_xdp_rcv_one(rq, frame, &xdp_xmit_one);
 		} else {
-			skb = veth_xdp_rcv_skb(rq, ptr, xdp_xmit);
+			skb = ptr;
+			bytes += skb->len;
+			skb = veth_xdp_rcv_skb(rq, skb, &xdp_xmit_one);
 		}
+		*xdp_xmit |= xdp_xmit_one;
 
 		if (skb)
 			napi_gro_receive(&rq->xdp_napi, skb);
+		else if (!xdp_xmit_one)
+			drops++;
 
 		done++;
 	}
+
+	u64_stats_update_begin(&rq->stats.syncp);
+	rq->stats.xdp_packets += done;
+	rq->stats.xdp_bytes += bytes;
+	rq->stats.xdp_drops += drops;
+	u64_stats_update_end(&rq->stats.syncp);
 
 	return done;
 }
@@ -821,8 +880,10 @@ static int veth_alloc_queues(struct net_device *dev)
 	if (!priv->rq)
 		return -ENOMEM;
 
-	for (i = 0; i < dev->num_rx_queues; i++)
+	for (i = 0; i < dev->num_rx_queues; i++) {
 		priv->rq[i].dev = dev;
+		u64_stats_init(&priv->rq[i].stats.syncp);
+	}
 
 	return 0;
 }
