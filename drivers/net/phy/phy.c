@@ -1059,40 +1059,25 @@ void phy_state_machine(struct work_struct *work)
 	case PHY_RESUMING:
 		if (AUTONEG_ENABLE == phydev->autoneg) {
 			err = phy_aneg_done(phydev);
-			if (err < 0)
+			if (err < 0) {
 				break;
-
-			/* err > 0 if AN is done.
-			 * Otherwise, it's 0, and we're  still waiting for AN
-			 */
-			if (err > 0) {
-				err = phy_read_status(phydev);
-				if (err)
-					break;
-
-				if (phydev->link) {
-					phydev->state = PHY_RUNNING;
-					phy_link_up(phydev);
-				} else	{
-					phydev->state = PHY_NOLINK;
-					phy_link_down(phydev, false);
-				}
-			} else {
+			} else if (!err) {
 				phydev->state = PHY_AN;
 				phydev->link_timeout = PHY_AN_TIMEOUT;
-			}
-		} else {
-			err = phy_read_status(phydev);
-			if (err)
 				break;
-
-			if (phydev->link) {
-				phydev->state = PHY_RUNNING;
-				phy_link_up(phydev);
-			} else	{
-				phydev->state = PHY_NOLINK;
-				phy_link_down(phydev, false);
 			}
+		}
+
+		err = phy_read_status(phydev);
+		if (err)
+			break;
+
+		if (phydev->link) {
+			phydev->state = PHY_RUNNING;
+			phy_link_up(phydev);
+		} else	{
+			phydev->state = PHY_NOLINK;
+			phy_link_down(phydev, false);
 		}
 		break;
 	}
