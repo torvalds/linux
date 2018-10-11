@@ -8591,6 +8591,35 @@ static inline void mlxsw_reg_tnqcr_pack(char *payload)
 	mlxsw_reg_tnqcr_enc_set_dscp_set(payload, 0);
 }
 
+/* TNQDR - Tunneling NVE QoS Default Register
+ * ------------------------------------------
+ * The TNQDR register configures the default QoS settings for NVE
+ * encapsulation.
+ */
+#define MLXSW_REG_TNQDR_ID 0xA011
+#define MLXSW_REG_TNQDR_LEN 0x08
+
+MLXSW_REG_DEFINE(tnqdr, MLXSW_REG_TNQDR_ID, MLXSW_REG_TNQDR_LEN);
+
+/* reg_tnqdr_local_port
+ * Local port number (receive port). CPU port is supported.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tnqdr, local_port, 0x00, 16, 8);
+
+/* reg_tnqdr_dscp
+ * For encapsulation, the default DSCP.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnqdr, dscp, 0x04, 0, 6);
+
+static inline void mlxsw_reg_tnqdr_pack(char *payload, u8 local_port)
+{
+	MLXSW_REG_ZERO(tnqdr, payload);
+	mlxsw_reg_tnqdr_local_port_set(payload, local_port);
+	mlxsw_reg_tnqdr_dscp_set(payload, 0);
+}
+
 /* TNEEM - Tunneling NVE Encapsulation ECN Mapping Register
  * --------------------------------------------------------
  * The TNEEM register maps ECN of the IP header at the ingress to the
@@ -9274,6 +9303,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
 	MLXSW_REG(tnqcr),
+	MLXSW_REG(tnqdr),
 	MLXSW_REG(tneem),
 	MLXSW_REG(tndem),
 	MLXSW_REG(tnpc),
