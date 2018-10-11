@@ -295,6 +295,7 @@ enum mlxsw_reg_sfd_rec_type {
 	MLXSW_REG_SFD_REC_TYPE_UNICAST = 0x0,
 	MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG = 0x1,
 	MLXSW_REG_SFD_REC_TYPE_MULTICAST = 0x2,
+	MLXSW_REG_SFD_REC_TYPE_UNICAST_TUNNEL = 0xC,
 };
 
 /* reg_sfd_rec_type
@@ -523,6 +524,61 @@ mlxsw_reg_sfd_mc_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_mc_pgi_set(payload, rec_index, 0x1FFF);
 	mlxsw_reg_sfd_mc_fid_vid_set(payload, rec_index, fid_vid);
 	mlxsw_reg_sfd_mc_mid_set(payload, rec_index, mid);
+}
+
+/* reg_sfd_uc_tunnel_uip_msb
+ * When protocol is IPv4, the most significant byte of the underlay IPv4
+ * destination IP.
+ * When protocol is IPv6, reserved.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_uip_msb, MLXSW_REG_SFD_BASE_LEN, 24,
+		     8, MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+/* reg_sfd_uc_tunnel_fid
+ * Filtering ID.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_fid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
+		     MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+enum mlxsw_reg_sfd_uc_tunnel_protocol {
+	MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV4,
+	MLXSW_REG_SFD_UC_TUNNEL_PROTOCOL_IPV6,
+};
+
+/* reg_sfd_uc_tunnel_protocol
+ * IP protocol.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_protocol, MLXSW_REG_SFD_BASE_LEN, 27,
+		     1, MLXSW_REG_SFD_REC_LEN, 0x0C, false);
+
+/* reg_sfd_uc_tunnel_uip_lsb
+ * When protocol is IPv4, the least significant bytes of the underlay
+ * IPv4 destination IP.
+ * When protocol is IPv6, pointer to the underlay IPv6 destination IP
+ * which is configured by RIPS.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_tunnel_uip_lsb, MLXSW_REG_SFD_BASE_LEN, 0,
+		     24, MLXSW_REG_SFD_REC_LEN, 0x0C, false);
+
+static inline void
+mlxsw_reg_sfd_uc_tunnel_pack(char *payload, int rec_index,
+			     enum mlxsw_reg_sfd_rec_policy policy,
+			     const char *mac, u16 fid,
+			     enum mlxsw_reg_sfd_rec_action action, u32 uip,
+			     enum mlxsw_reg_sfd_uc_tunnel_protocol proto)
+{
+	mlxsw_reg_sfd_rec_pack(payload, rec_index,
+			       MLXSW_REG_SFD_REC_TYPE_UNICAST_TUNNEL, mac,
+			       action);
+	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
+	mlxsw_reg_sfd_uc_tunnel_uip_msb_set(payload, rec_index, uip >> 24);
+	mlxsw_reg_sfd_uc_tunnel_uip_lsb_set(payload, rec_index, uip);
+	mlxsw_reg_sfd_uc_tunnel_fid_set(payload, rec_index, fid);
+	mlxsw_reg_sfd_uc_tunnel_protocol_set(payload, rec_index, proto);
 }
 
 /* SFN - Switch FDB Notification Register
