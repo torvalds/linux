@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
+#include <linux/io.h>
 #include <linux/sched.h>
 #include <linux/sizes.h>
 #include <linux/spinlock.h>
@@ -973,6 +974,16 @@ void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
 				       enum ena_intr_moder_level level,
 				       struct ena_intr_moder_entry *entry);
 
+/* ena_com_config_dev_mode - Configure the placement policy of the device.
+ * @ena_dev: ENA communication layer struct
+ * @llq_features: LLQ feature descriptor, retrieve via
+ *                ena_com_get_dev_attr_feat.
+ * @ena_llq_config: The default driver LLQ parameters configurations
+ */
+int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
+			    struct ena_admin_feature_llq_desc *llq_features,
+			    struct ena_llq_configurations *llq_default_config);
+
 static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->adaptive_coalescing;
@@ -1080,6 +1091,23 @@ static inline void ena_com_update_intr_reg(struct ena_eth_io_intr_reg *intr_reg,
 
 	if (unmask)
 		intr_reg->intr_control |= ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK;
+}
+
+static inline u8 *ena_com_get_next_bounce_buffer(struct ena_com_io_bounce_buffer_control *bounce_buf_ctrl)
+{
+	u16 size, buffers_num;
+	u8 *buf;
+
+	size = bounce_buf_ctrl->buffer_size;
+	buffers_num = bounce_buf_ctrl->buffers_num;
+
+	buf = bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use++ & (buffers_num - 1)) * size;
+
+	prefetchw(bounce_buf_ctrl->base_buffer +
+		(bounce_buf_ctrl->next_to_use & (buffers_num - 1)) * size);
+
+	return buf;
 }
 
 #endif /* !(ENA_COM) */

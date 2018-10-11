@@ -804,12 +804,13 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 	 */
 	smp_mb();
 
-	above_thresh = ena_com_sq_empty_space(tx_ring->ena_com_io_sq) >
-		ENA_TX_WAKEUP_THRESH;
+	above_thresh = ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+						    ENA_TX_WAKEUP_THRESH);
 	if (unlikely(netif_tx_queue_stopped(txq) && above_thresh)) {
 		__netif_tx_lock(txq, smp_processor_id());
-		above_thresh = ena_com_sq_empty_space(tx_ring->ena_com_io_sq) >
-			ENA_TX_WAKEUP_THRESH;
+		above_thresh =
+			ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+						     ENA_TX_WAKEUP_THRESH);
 		if (netif_tx_queue_stopped(txq) && above_thresh) {
 			netif_tx_wake_queue(txq);
 			u64_stats_update_begin(&tx_ring->syncp);
@@ -1101,7 +1102,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 	rx_ring->next_to_clean = next_to_clean;
 
-	refill_required = ena_com_sq_empty_space(rx_ring->ena_com_io_sq);
+	refill_required = ena_com_free_desc(rx_ring->ena_com_io_sq);
 	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER;
 
 	/* Optimization, try to batch new rx buffers */
@@ -2110,8 +2111,8 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * to sgl_size + 2. one for the meta descriptor and one for header
 	 * (if the header is larger than tx_max_header_size).
 	 */
-	if (unlikely(ena_com_sq_empty_space(tx_ring->ena_com_io_sq) <
-		     (tx_ring->sgl_size + 2))) {
+	if (unlikely(!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+						   tx_ring->sgl_size + 2))) {
 		netif_dbg(adapter, tx_queued, dev, "%s stop queue %d\n",
 			  __func__, qid);
 
@@ -2130,8 +2131,8 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		smp_mb();
 
-		if (ena_com_sq_empty_space(tx_ring->ena_com_io_sq)
-				> ENA_TX_WAKEUP_THRESH) {
+		if (ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
+						 ENA_TX_WAKEUP_THRESH)) {
 			netif_tx_wake_queue(txq);
 			u64_stats_update_begin(&tx_ring->syncp);
 			tx_ring->tx_stats.queue_wakeup++;
@@ -2804,7 +2805,7 @@ static void check_for_empty_rx_ring(struct ena_adapter *adapter)
 		rx_ring = &adapter->rx_ring[i];
 
 		refill_required =
-			ena_com_sq_empty_space(rx_ring->ena_com_io_sq);
+			ena_com_free_desc(rx_ring->ena_com_io_sq);
 		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {
 			rx_ring->empty_rx_queue++;
 

@@ -94,7 +94,7 @@ static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
 	writel(intr_reg->intr_control, io_cq->unmask_reg);
 }
 
-static inline int ena_com_sq_empty_space(struct ena_com_io_sq *io_sq)
+static inline int ena_com_free_desc(struct ena_com_io_sq *io_sq)
 {
 	u16 tail, next_to_comp, cnt;
 
@@ -105,11 +105,28 @@ static inline int ena_com_sq_empty_space(struct ena_com_io_sq *io_sq)
 	return io_sq->q_depth - 1 - cnt;
 }
 
+/* Check if the submission queue has enough space to hold required_buffers */
+static inline bool ena_com_sq_have_enough_space(struct ena_com_io_sq *io_sq,
+						u16 required_buffers)
+{
+	int temp;
+
+	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
+		return ena_com_free_desc(io_sq) >= required_buffers;
+
+	/* This calculation doesn't need to be 100% accurate. So to reduce
+	 * the calculation overhead just Subtract 2 lines from the free descs
+	 * (one for the header line and one to compensate the devision
+	 * down calculation.
+	 */
+	temp = required_buffers / io_sq->llq_info.descs_per_entry + 2;
+
+	return ena_com_free_desc(io_sq) > temp;
+}
+
 static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 {
-	u16 tail;
-
-	tail = io_sq->tail;
+	u16 tail = io_sq->tail;
 
 	pr_debug("write submission queue doorbell for queue: %d tail: %d\n",
 		 io_sq->qid, tail);
