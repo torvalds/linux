@@ -994,8 +994,19 @@ static inline void ena_rx_checksum(struct ena_ring *rx_ring,
 			return;
 		}
 
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if (likely(ena_rx_ctx->l4_csum_checked)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		} else {
+			u64_stats_update_begin(&rx_ring->syncp);
+			rx_ring->rx_stats.csum_unchecked++;
+			u64_stats_update_end(&rx_ring->syncp);
+			skb->ip_summed = CHECKSUM_NONE;
+		}
+	} else {
+		skb->ip_summed = CHECKSUM_NONE;
+		return;
 	}
+
 }
 
 static void ena_set_rx_hash(struct ena_ring *rx_ring,

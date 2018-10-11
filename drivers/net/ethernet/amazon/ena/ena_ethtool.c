@@ -97,6 +97,7 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
 	ENA_STAT_RX_ENTRY(bad_req_id),
 	ENA_STAT_RX_ENTRY(empty_rx_ring),
+	ENA_STAT_RX_ENTRY(csum_unchecked),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {

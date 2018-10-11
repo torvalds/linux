@@ -242,9 +242,13 @@ struct ena_eth_io_rx_cdesc_base {
 	 *    checksum error detected, or, the controller didn't
 	 *    validate the checksum. This bit is valid only when
 	 *    l4_proto_idx indicates TCP/UDP packet, and,
-	 *    ipv4_frag is not set
+	 *    ipv4_frag is not set. This bit is valid only when
+	 *    l4_csum_checked below is set.
 	 * 15 : ipv4_frag - Indicates IPv4 fragmented packet
-	 * 23:16 : reserved16
+	 * 16 : l4_csum_checked - L4 checksum was verified
+	 *    (could be OK or error), when cleared the status of
+	 *    checksum is unknown
+	 * 23:17 : reserved17 - MBZ
 	 * 24 : phase
 	 * 25 : l3_csum2 - second checksum engine result
 	 * 26 : first - Indicates first descriptor in
@@ -390,6 +394,8 @@ struct ena_eth_io_numa_node_cfg_reg {
 #define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK BIT(14)
 #define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT 15
 #define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK BIT(15)
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_SHIFT 16
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_MASK BIT(16)
 #define ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT 24
 #define ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK BIT(24)
 #define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM2_SHIFT 25

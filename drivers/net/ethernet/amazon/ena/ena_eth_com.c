@@ -354,6 +354,9 @@ static inline void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 	ena_rx_ctx->l4_csum_err =
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT;
+	ena_rx_ctx->l4_csum_checked =
+		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_MASK) >>
+		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_SHIFT);
 	ena_rx_ctx->hash = cdesc->hash;
 	ena_rx_ctx->frag =
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>

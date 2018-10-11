@@ -67,6 +67,7 @@ struct ena_com_rx_ctx {
 	enum ena_eth_io_l4_proto_index l4_proto;
 	bool l3_csum_err;
 	bool l4_csum_err;
+	u8 l4_csum_checked;
 	/* fragmented packet */
 	bool frag;
 	u32 hash;

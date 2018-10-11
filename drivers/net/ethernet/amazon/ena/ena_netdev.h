@@ -205,6 +205,7 @@ struct ena_stats_rx {
 	u64 rx_copybreak_pkt;
 	u64 bad_req_id;
 	u64 empty_rx_ring;
+	u64 csum_unchecked;
 };
 
 struct ena_ring {
