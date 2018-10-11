@@ -173,6 +173,13 @@
 			status = "disabled";
 		};
 
+		npu_pvtm: npu-pvtm {
+			compatible = "rockchip,rk1808-npu-pvtm";
+			clocks = <&cru SCLK_PVTM_NPU>;
+			clock-names = "npu";
+			status = "okay";
+		};
+
 		rgb: rgb {
 			compatible = "rockchip,rk1808-rgb";
 			status = "disabled";
@@ -240,6 +247,13 @@
 			status = "disabled";
 		};
 
+		pmu_pvtm: pmu-pvtm {
+			compatible = "rockchip,rk1808-pmu-pvtm";
+			clocks = <&cru SCLK_PVTM_PMU>;
+			clock-names = "pmu";
+			status = "okay";
+		};
+
 		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x200>;
@@ -250,6 +264,20 @@
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-ums = <BOOT_UMS>;
+		};
+	};
+
+	coregrf: syscon@fe050000 {
+		compatible = "rockchip,rk1808-coregrf", "syscon", "simple-mfd";
+		reg = <0x0 0xfe050000 0x0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		pvtm: pvtm {
+			compatible = "rockchip,rk1808-pvtm";
+			clocks = <&cru SCLK_PVTM_CORE>;
+			clock-names = "core";
+			status = "okay";
 		};
 	};
 
