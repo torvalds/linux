@@ -975,6 +975,18 @@
 		status = "disabled";
 	};
 
+	rk_rga: rk_rga@ffaf0000 {
+		compatible = "rockchip,rga2";
+		dev_mode = <0>;
+		reg = <0x0 0xffaf0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
+		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+		power-domains = <&power RK1808_PD_VIO>;
+		dma-coherent;
+		status = "disabled";
+	};
+
 	vop_lite: vop@ffb00000 {
 		compatible = "rockchip,rk1808-vop-lit";
 		reg = <0x0 0xffb00000 0x0 0x200>;
