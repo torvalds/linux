@@ -4445,10 +4445,11 @@ void lpt_disable_iclkip(struct drm_i915_private *dev_priv)
 }
 
 /* Program iCLKIP clock to the desired frequency */
-static void lpt_program_iclkip(struct intel_crtc *crtc)
+static void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int clock = crtc->config->base.adjusted_mode.crtc_clock;
+	int clock = crtc_state->base.adjusted_mode.crtc_clock;
 	u32 divsel, phaseinc, auxdiv, phasedir = 0;
 	u32 temp;
 
@@ -4757,7 +4758,7 @@ static void lpt_pch_enable(const struct intel_atomic_state *state,
 
 	assert_pch_transcoder_disabled(dev_priv, PIPE_A);
 
-	lpt_program_iclkip(crtc);
+	lpt_program_iclkip(crtc_state);
 
 	/* Set transcoder timing. */
 	ironlake_pch_transcoder_set_timings(crtc_state, PIPE_A);
