@@ -61,7 +61,7 @@ struct ceph_msg *ceph_msgpool_get(struct ceph_msgpool *pool,
 	if (front_len > pool->front_len) {
 		dout("msgpool_get %s need front %d, pool size is %d\n",
 		       pool->name, front_len, pool->front_len);
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 
 		/* try to alloc a fresh message */
 		return ceph_msg_new(pool->type, front_len, GFP_NOFS, false);

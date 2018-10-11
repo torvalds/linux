@@ -641,7 +641,7 @@ int ceph_osdc_alloc_messages(struct ceph_osd_request *req, gfp_t gfp)
 	msg_size += 4 + 8; /* retry_attempt, features */
 
 	if (req->r_mempool)
-		msg = ceph_msgpool_get(&osdc->msgpool_op, 0);
+		msg = ceph_msgpool_get(&osdc->msgpool_op, msg_size);
 	else
 		msg = ceph_msg_new(CEPH_MSG_OSD_OP, msg_size, gfp, true);
 	if (!msg)
@@ -656,7 +656,7 @@ int ceph_osdc_alloc_messages(struct ceph_osd_request *req, gfp_t gfp)
 	msg_size += req->r_num_ops * sizeof(struct ceph_osd_op);
 
 	if (req->r_mempool)
-		msg = ceph_msgpool_get(&osdc->msgpool_op_reply, 0);
+		msg = ceph_msgpool_get(&osdc->msgpool_op_reply, msg_size);
 	else
 		msg = ceph_msg_new(CEPH_MSG_OSD_OPREPLY, msg_size, gfp, true);
 	if (!msg)
