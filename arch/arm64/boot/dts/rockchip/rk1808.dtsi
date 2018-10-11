@@ -862,6 +862,14 @@
 		status = "disabled";
 	};
 
+	wdt: watchdog@ff720000 {
+		compatible = "snps,dw-wdt";
+		reg = <0x0 0xff720000 0x0 0x100>;
+		clocks = <&cru PCLK_WDT>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+	};
+
 	i2s0: i2s@ff7e0000 {
 		compatible = "rockchip,rk1808-i2s-tdm";
 		reg = <0x0 0xff7e0000 0x0 0x1000>;
