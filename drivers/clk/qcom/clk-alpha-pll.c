@@ -1439,7 +1439,12 @@ void clk_trion_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 	}
 
 	clk_alpha_pll_write_config(regmap, PLL_L_VAL(pll), config->l);
-	regmap_write(regmap, PLL_CAL_L_VAL(pll), TRION_PLL_CAL_VAL);
+
+	if (config->cal_l)
+		regmap_write(regmap, PLL_CAL_L_VAL(pll), config->cal_l);
+	else
+		regmap_write(regmap, PLL_CAL_L_VAL(pll), TRION_PLL_CAL_VAL);
+
 	clk_alpha_pll_write_config(regmap, PLL_ALPHA_VAL(pll), config->alpha);
 	clk_alpha_pll_write_config(regmap, PLL_CONFIG_CTL(pll),
 				     config->config_ctl_val);
