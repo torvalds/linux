@@ -436,8 +436,6 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
 /* ena_com_admin_init - Init the admin and the async queues
  * @ena_dev: ENA communication layer struct
  * @aenq_handlers: Those handlers to be called upon event.
- * @init_spinlock: Indicate if this method should init the admin spinlock or
- * the spinlock was init before (for example, in a case of FLR).
  *
  * Initialize the admin submission and completion queues.
  * Initialize the asynchronous events notification queues.
@@ -445,8 +443,7 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
  * @return - 0 on success, negative value on failure.
  */
 int ena_com_admin_init(struct ena_com_dev *ena_dev,
-		       struct ena_aenq_handlers *aenq_handlers,
-		       bool init_spinlock);
+		       struct ena_aenq_handlers *aenq_handlers);
 
 /* ena_com_admin_destroy - Destroy the admin and the async events queues.
  * @ena_dev: ENA communication layer struct

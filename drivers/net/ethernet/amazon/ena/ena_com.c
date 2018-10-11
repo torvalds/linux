@@ -1701,8 +1701,7 @@ void ena_com_mmio_reg_read_request_write_dev_addr(struct ena_com_dev *ena_dev)
 }
 
 int ena_com_admin_init(struct ena_com_dev *ena_dev,
-		       struct ena_aenq_handlers *aenq_handlers,
-		       bool init_spinlock)
+		       struct ena_aenq_handlers *aenq_handlers)
 {
 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
 	u32 aq_caps, acq_caps, dev_sts, addr_low, addr_high;
@@ -1728,8 +1727,7 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 
 	atomic_set(&admin_queue->outstanding_cmds, 0);
 
-	if (init_spinlock)
-		spin_lock_init(&admin_queue->q_lock);
+	spin_lock_init(&admin_queue->q_lock);
 
 	ret = ena_com_init_comp_ctxt(admin_queue);
 	if (ret)

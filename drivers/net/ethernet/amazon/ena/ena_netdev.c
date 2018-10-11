@@ -2503,7 +2503,7 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 	}
 
 	/* ENA admin level init */
-	rc = ena_com_admin_init(ena_dev, &aenq_handlers, true);
+	rc = ena_com_admin_init(ena_dev, &aenq_handlers);
 	if (rc) {
 		dev_err(dev,
 			"Can not initialize ena admin queue with device\n");
