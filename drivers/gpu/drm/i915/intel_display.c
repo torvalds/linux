@@ -15739,6 +15739,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
 	struct intel_encoder *encoder;
 	int i;
 
@@ -15757,7 +15758,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		drm_crtc_vblank_reset(&crtc->base);
 
-		if (crtc->active)
+		if (crtc->base.state->active)
 			drm_crtc_vblank_on(&crtc->base);
 	}
 
@@ -15767,8 +15768,9 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 		intel_sanitize_encoder(encoder);
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		crtc_state = to_intel_crtc_state(crtc->base.state);
 		intel_sanitize_crtc(crtc, ctx);
-		intel_dump_pipe_config(crtc, crtc->config,
+		intel_dump_pipe_config(crtc, crtc_state,
 				       "[setup_hw_state]");
 	}
 
@@ -15802,7 +15804,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	for_each_intel_crtc(dev, crtc) {
 		u64 put_domains;
 
-		put_domains = modeset_get_crtc_power_domains(&crtc->base, crtc->config);
+		crtc_state = to_intel_crtc_state(crtc->base.state);
+		put_domains = modeset_get_crtc_power_domains(&crtc->base, crtc_state);
 		if (WARN_ON(put_domains))
 			modeset_put_power_domains(dev_priv, put_domains);
 	}
