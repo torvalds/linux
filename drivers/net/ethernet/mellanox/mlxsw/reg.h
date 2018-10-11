@@ -8348,6 +8348,49 @@ static inline void mlxsw_reg_mgpc_pack(char *payload, u32 counter_index,
 	mlxsw_reg_mgpc_opcode_set(payload, opcode);
 }
 
+/* MPRS - Monitoring Parsing State Register
+ * ----------------------------------------
+ * The MPRS register is used for setting up the parsing for hash,
+ * policy-engine and routing.
+ */
+#define MLXSW_REG_MPRS_ID 0x9083
+#define MLXSW_REG_MPRS_LEN 0x14
+
+MLXSW_REG_DEFINE(mprs, MLXSW_REG_MPRS_ID, MLXSW_REG_MPRS_LEN);
+
+/* reg_mprs_parsing_depth
+ * Minimum parsing depth.
+ * Need to enlarge parsing depth according to L3, MPLS, tunnels, ACL
+ * rules, traps, hash, etc. Default is 96 bytes. Reserved when SwitchX-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mprs, parsing_depth, 0x00, 0, 16);
+
+/* reg_mprs_parsing_en
+ * Parsing enable.
+ * Bit 0 - Enable parsing of NVE of types VxLAN, VxLAN-GPE, GENEVE and
+ * NVGRE. Default is enabled. Reserved when SwitchX-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mprs, parsing_en, 0x04, 0, 16);
+
+/* reg_mprs_vxlan_udp_dport
+ * VxLAN UDP destination port.
+ * Used for identifying VxLAN packets and for dport field in
+ * encapsulation. Default is 4789.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mprs, vxlan_udp_dport, 0x10, 0, 16);
+
+static inline void mlxsw_reg_mprs_pack(char *payload, u16 parsing_depth,
+				       u16 vxlan_udp_dport)
+{
+	MLXSW_REG_ZERO(mprs, payload);
+	mlxsw_reg_mprs_parsing_depth_set(payload, parsing_depth);
+	mlxsw_reg_mprs_parsing_en_set(payload, true);
+	mlxsw_reg_mprs_vxlan_udp_dport_set(payload, vxlan_udp_dport);
+}
+
 /* TNGCR - Tunneling NVE General Configuration Register
  * ----------------------------------------------------
  * The TNGCR register is used for setting up the NVE Tunneling configuration.
@@ -9356,6 +9399,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcc),
 	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
+	MLXSW_REG(mprs),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
 	MLXSW_REG(tnqcr),
