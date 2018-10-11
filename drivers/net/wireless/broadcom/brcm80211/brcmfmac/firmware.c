@@ -447,6 +447,29 @@ struct brcmf_fw {
 static void brcmf_fw_request_done(const struct firmware *fw, void *ctx);
 
 #ifdef CONFIG_EFI
+/* In some cases the EFI-var stored nvram contains "ccode=ALL" or "ccode=XV"
+ * to specify "worldwide" compatible settings, but these 2 ccode-s do not work
+ * properly. "ccode=ALL" causes channels 12 and 13 to not be available,
+ * "ccode=XV" causes all 5GHz channels to not be available. So we replace both
+ * with "ccode=X2" which allows channels 12+13 and 5Ghz channels in
+ * no-Initiate-Radiation mode. This means that we will never send on these
+ * channels without first having received valid wifi traffic on the channel.
+ */
+static void brcmf_fw_fix_efi_nvram_ccode(char *data, unsigned long data_len)
+{
+	char *ccode;
+
+	ccode = strnstr((char *)data, "ccode=ALL", data_len);
+	if (!ccode)
+		ccode = strnstr((char *)data, "ccode=XV\r", data_len);
+	if (!ccode)
+		return;
+
+	ccode[6] = 'X';
+	ccode[7] = '2';
+	ccode[8] = '\r';
+}
+
 static u8 *brcmf_fw_nvram_from_efi(size_t *data_len_ret)
 {
 	const u16 name[] = { 'n', 'v', 'r', 'a', 'm', 0 };
@@ -476,6 +499,7 @@ static u8 *brcmf_fw_nvram_from_efi(size_t *data_len_ret)
 	if (err)
 		goto fail;
 
+	brcmf_fw_fix_efi_nvram_ccode(data, data_len);
 	brcmf_info("Using nvram EFI variable\n");
 
 	kfree(nvram_efivar);
