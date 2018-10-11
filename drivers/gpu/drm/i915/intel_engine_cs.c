@@ -337,6 +337,9 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 	WARN_ON(ring_mask &
 		GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
 
+	if (i915_inject_load_failure())
+		return -ENODEV;
+
 	for (i = 0; i < ARRAY_SIZE(intel_engines); i++) {
 		if (!HAS_ENGINE(dev_priv, i))
 			continue;
