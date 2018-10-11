@@ -3457,7 +3457,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 		KEY_UNKNOWN,
 
-		KEY_FAVORITES,       /* Favorite app, 0x311 */
+		KEY_BOOKMARKS,       /* Favorite app, 0x311 */
 		KEY_RESERVED,        /* Clipping tool */
 		KEY_CALC,            /* Calculator (above numpad, P52) */
 		KEY_BLUETOOTH,       /* Bluetooth */
