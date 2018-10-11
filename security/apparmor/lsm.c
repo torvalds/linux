@@ -1607,5 +1607,6 @@ alloc_out:
 }
 
 DEFINE_LSM(apparmor) = {
+	.name = "apparmor",
 	.init = apparmor_init,
 };
