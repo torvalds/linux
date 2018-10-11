@@ -303,32 +303,13 @@ out:
 	return 0;
 }
 
-static int find_aer_device_iter(struct device *device, void *data)
-{
-	struct pcie_device **result = data;
-	struct pcie_device *pcie_dev;
-
-	if (device->bus == &pcie_port_bus_type) {
-		pcie_dev = to_pcie_device(device);
-		if (pcie_dev->service & PCIE_PORT_SERVICE_AER) {
-			*result = pcie_dev;
-			return 1;
-		}
-	}
-	return 0;
-}
-
-static int find_aer_device(struct pci_dev *dev, struct pcie_device **result)
-{
-	return device_for_each_child(&dev->dev, result, find_aer_device_iter);
-}
-
 static int aer_inject(struct aer_error_inj *einj)
 {
 	struct aer_error *err, *rperr;
 	struct aer_error *err_alloc = NULL, *rperr_alloc = NULL;
 	struct pci_dev *dev, *rpdev;
 	struct pcie_device *edev;
+	struct device *device;
 	unsigned long flags;
 	unsigned int devfn = PCI_DEVFN(einj->dev, einj->fn);
 	int pos_cap_err, rp_pos_cap_err;
@@ -464,7 +445,9 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (ret)
 		goto out_put;
 
-	if (find_aer_device(rpdev, &edev)) {
+	device = pcie_port_find_device(rpdev, PCIE_PORT_SERVICE_AER);
+	if (device) {
+		edev = to_pcie_device(device);
 		if (!get_service_data(edev)) {
 			dev_warn(&edev->device,
 				 "aer_inject: AER service is not initialized\n");

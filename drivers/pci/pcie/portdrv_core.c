@@ -486,6 +486,7 @@ struct device *pcie_port_find_device(struct pci_dev *dev,
 	device = pdrvs.dev;
 	return device;
 }
+EXPORT_SYMBOL_GPL(pcie_port_find_device);
 
 /**
  * pcie_port_device_remove - unregister PCI Express port service devices
