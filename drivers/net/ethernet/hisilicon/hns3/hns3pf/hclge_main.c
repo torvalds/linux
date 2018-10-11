@@ -2773,6 +2773,22 @@ static int hclge_set_rss_tc_mode(struct hclge_dev *hdev, u16 *tc_valid,
 	return ret;
 }
 
+static void hclge_get_rss_type(struct hclge_vport *vport)
+{
+	if (vport->rss_tuple_sets.ipv4_tcp_en ||
+	    vport->rss_tuple_sets.ipv4_udp_en ||
+	    vport->rss_tuple_sets.ipv4_sctp_en ||
+	    vport->rss_tuple_sets.ipv6_tcp_en ||
+	    vport->rss_tuple_sets.ipv6_udp_en ||
+	    vport->rss_tuple_sets.ipv6_sctp_en)
+		vport->nic.kinfo.rss_type = PKT_HASH_TYPE_L4;
+	else if (vport->rss_tuple_sets.ipv4_fragment_en ||
+		 vport->rss_tuple_sets.ipv6_fragment_en)
+		vport->nic.kinfo.rss_type = PKT_HASH_TYPE_L3;
+	else
+		vport->nic.kinfo.rss_type = PKT_HASH_TYPE_NONE;
+}
+
 static int hclge_set_rss_input_tuple(struct hclge_dev *hdev)
 {
 	struct hclge_rss_input_tuple_cmd *req;
@@ -2792,6 +2808,7 @@ static int hclge_set_rss_input_tuple(struct hclge_dev *hdev)
 	req->ipv6_udp_en = hdev->vport[0].rss_tuple_sets.ipv6_udp_en;
 	req->ipv6_sctp_en = hdev->vport[0].rss_tuple_sets.ipv6_sctp_en;
 	req->ipv6_fragment_en = hdev->vport[0].rss_tuple_sets.ipv6_fragment_en;
+	hclge_get_rss_type(&hdev->vport[0]);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
@@ -2806,8 +2823,19 @@ static int hclge_get_rss(struct hnae3_handle *handle, u32 *indir,
 	int i;
 
 	/* Get hash algorithm */
-	if (hfunc)
-		*hfunc = vport->rss_algo;
+	if (hfunc) {
+		switch (vport->rss_algo) {
+		case HCLGE_RSS_HASH_ALGO_TOEPLITZ:
+			*hfunc = ETH_RSS_HASH_TOP;
+			break;
+		case HCLGE_RSS_HASH_ALGO_SIMPLE:
+			*hfunc = ETH_RSS_HASH_XOR;
+			break;
+		default:
+			*hfunc = ETH_RSS_HASH_UNKNOWN;
+			break;
+		}
+	}
 
 	/* Get the RSS Key required by the user */
 	if (key)
@@ -2831,12 +2859,20 @@ static int hclge_set_rss(struct hnae3_handle *handle, const u32 *indir,
 
 	/* Set the RSS Hash Key if specififed by the user */
 	if (key) {
-
-		if (hfunc == ETH_RSS_HASH_TOP ||
-		    hfunc == ETH_RSS_HASH_NO_CHANGE)
+		switch (hfunc) {
+		case ETH_RSS_HASH_TOP:
 			hash_algo = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
-		else
+			break;
+		case ETH_RSS_HASH_XOR:
+			hash_algo = HCLGE_RSS_HASH_ALGO_SIMPLE;
+			break;
+		case ETH_RSS_HASH_NO_CHANGE:
+			hash_algo = vport->rss_algo;
+			break;
+		default:
 			return -EINVAL;
+		}
+
 		ret = hclge_set_rss_algo_key(hdev, hash_algo, key);
 		if (ret)
 			return ret;
@@ -2954,6 +2990,7 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 	vport->rss_tuple_sets.ipv6_udp_en = req->ipv6_udp_en;
 	vport->rss_tuple_sets.ipv6_sctp_en = req->ipv6_sctp_en;
 	vport->rss_tuple_sets.ipv6_fragment_en = req->ipv6_fragment_en;
+	hclge_get_rss_type(vport);
 	return 0;
 }
 

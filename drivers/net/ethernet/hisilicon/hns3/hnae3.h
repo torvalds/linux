@@ -479,6 +479,7 @@ struct hnae3_knic_private_info {
 	const struct hnae3_dcb_ops *dcb_ops;
 
 	u16 int_rl_setting;
+	enum pkt_hash_types rss_type;
 };
 
 struct hnae3_roce_private_info {
