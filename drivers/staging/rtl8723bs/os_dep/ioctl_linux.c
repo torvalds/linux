@@ -337,7 +337,7 @@ static char *translate_scan(struct adapter *padapter,
 
 
 	#ifdef CONFIG_SIGNAL_DISPLAY_DBM
-	iwe.u.qual.level = (u8) translate_percentage_to_dbm(ss);/* dbm */
+	iwe.u.qual.level = (u8)translate_percentage_to_dbm(ss);/* dbm */
 	#else
 	#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
 	{
@@ -392,7 +392,7 @@ exit:
 
 static int wpa_set_auth_algs(struct net_device *dev, u32 value)
 {
-	struct adapter *padapter = (struct adapter *) rtw_netdev_priv(dev);
+	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	int ret = 0;
 
 	if ((value & WLAN_AUTH_SHARED_KEY) && (value & WLAN_AUTH_OPEN)) {
@@ -436,7 +436,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	param->u.crypt.err = 0;
 	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
 
-	if (param_len < (u32) ((u8 *) param->u.crypt.key - (u8 *) param) + param->u.crypt.key_len) {
+	if (param_len < (u32)((u8 *)param->u.crypt.key - (u8 *)param) + param->u.crypt.key_len) {
 		ret =  -EINVAL;
 		goto exit;
 	}
@@ -946,7 +946,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 	u8          j, blInserted = false;
 	int         intReturn = false;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-        struct iw_pmksa*  pPMK = (struct iw_pmksa*) extra;
+        struct iw_pmksa*  pPMK = (struct iw_pmksa*)extra;
         u8     strZeroMacAddress[ ETH_ALEN ] = { 0x00 };
         u8     strIssueBssid[ ETH_ALEN ] = { 0x00 };
 
@@ -1236,7 +1236,7 @@ static int rtw_wx_set_mlme(struct net_device *dev,
 	int ret = 0;
 	u16 reason;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	struct iw_mlme *mlme = (struct iw_mlme *) extra;
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 
 
 	if (mlme == NULL)
@@ -2390,7 +2390,7 @@ static int rtw_wx_set_channel_plan(struct net_device *dev,
                                union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
-	u8 channel_plan_req = (u8) (*((int *)wrqu));
+	u8 channel_plan_req = (u8)(*((int *)wrqu));
 
 	if (_SUCCESS == rtw_set_chplan_cmd(padapter, channel_plan_req, 1, 1))
 		DBG_871X("%s set channel_plan = 0x%02X\n", __func__, channel_plan_req);
@@ -2584,7 +2584,7 @@ static int rtw_wps_start(struct net_device *dev,
 		goto exit;
 	}
 
-	uintRet = copy_from_user((void*) &u32wps_start, pdata->pointer, 4);
+	uintRet = copy_from_user((void*)&u32wps_start, pdata->pointer, 4);
 	if (u32wps_start == 0)
 		u32wps_start = *extra;
 
