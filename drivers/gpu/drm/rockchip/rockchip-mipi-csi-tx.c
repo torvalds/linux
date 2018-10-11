@@ -144,6 +144,35 @@ enum {
 	BIASEXTR_127_7,
 };
 
+static const char * const csi_tx_intr[] = {
+	"RX frame start interrupt status!",
+	"RX frame end interrupt status!",
+	"RX line end interrupt status!",
+	"TX frame start interrupt status!",
+	"TX frame end interrupt status!",
+	"TX line end interrupt status!",
+	"Line flag0 interrupt status!",
+	"Line flag1 interrupt status!",
+	"PHY stopstate interrupt status!",
+	"PHY PLL lock interrupt status!",
+	"CSITX idle interrupt status!"
+};
+
+static const char * const csi_tx_err_intr[] = {
+	"IDI header fifo overflow raw interrupt!",
+	"IDI header fifo underflow raw interrupt!",
+	"IDI payload fifo overflow raw interrupt!",
+	"IDI payload fifo underflow raw interrupt!",
+	"Header fifo overflow raw interrupt!",
+	"Header fifo underflow raw interrupt!",
+	"Payload fifo overflow raw interrupt!",
+	"Payload fifo underflow raw interrupt!",
+	"Output fifo overflow raw interrupt!",
+	"Output fifo underflow raw interrupt!",
+	"Txreadyhs error0 raw interrupt!",
+	"Txreadyhs error1 raw interrupt!"
+};
+
 static void
 grf_field_write(struct rockchip_mipi_csi *csi, enum grf_reg_fields index,
 		unsigned int val)
@@ -243,7 +272,7 @@ rockchip_mipi_csi_phy_read(struct rockchip_mipi_csi *csi, u8 test_code)
 	       csi->test_code_regs + FPGA_DSI_PHY_TST_CTRL0);
 	writel(0x01000000, csi->test_code_regs + FPGA_DSI_PHY_TST_CTRL0);
 
-	val = readl(csi->test_code_regs + FPGA_DSI_PHY_TST_READ) && 0xff;
+	val = readl(csi->test_code_regs + FPGA_DSI_PHY_TST_READ) & 0xff;
 	writel(0x03000100, csi->test_code_regs + FPGA_DSI_PHY_TST_CTRL0);
 
 	return val;
@@ -265,6 +294,24 @@ static void rockchip_bidir4l_board_phy_enable(struct rockchip_mipi_csi *csi)
 	writel(0x02000000, csi->test_code_regs + FPGA_DSI_PHY_TST_CTRL0);
 	writel(0x08000800, csi->test_code_regs + FPGA_DSI_PHY_TST_CTRL0);
 	writel(0x04000400, csi->test_code_regs + FPGA_DSI_PHY_TST_CTRL0);
+}
+
+static void rockchip_mipi_csi_irq_init(struct rockchip_mipi_csi *csi)
+{
+	/* enable csi err irq */
+	writel(m_ERR_INTR_EN | m_ERR_INTR_MASK, csi->regs + CSITX_ERR_INTR_EN);
+
+	/* disable csi frame end tx irq */
+	writel(m_FRM_END_TX | v_FRM_END_TX(0), csi->regs + CSITX_INTR_EN);
+}
+
+static void rockchip_mipi_csi_irq_disable(struct rockchip_mipi_csi *csi)
+{
+	/* disable csi err irq */
+	writel(m_ERR_INTR_MASK, csi->regs + CSITX_ERR_INTR_EN);
+
+	/* disable csi tx irq */
+	writel(m_INTR_MASK, csi->regs + CSITX_INTR_EN);
 }
 
 static int rockchip_mipi_dphy_power_on(struct rockchip_mipi_csi *csi)
@@ -318,6 +365,7 @@ static void rockchip_mipi_csi_host_power_on(struct rockchip_mipi_csi *csi)
 	u32 mask, val;
 
 	rockchip_mipi_csi_tx_en(csi);
+	rockchip_mipi_csi_irq_init(csi);
 
 	mask = m_CONFIG_DONE | m_CONFIG_DONE_IMD | m_CONFIG_DONE_MODE;
 	val = v_CONFIG_DONE(0) | v_CONFIG_DONE_IMD(1) | v_CONFIG_DONE_MODE(0);
@@ -327,6 +375,8 @@ static void rockchip_mipi_csi_host_power_on(struct rockchip_mipi_csi *csi)
 static void rockchip_mipi_csi_host_power_off(struct rockchip_mipi_csi *csi)
 {
 	u32 mask, val;
+
+	rockchip_mipi_csi_irq_disable(csi);
 
 	/* disable csi tx, dphy and config lane num */
 	mask = m_CSITX_EN | m_DPHY_EN;
@@ -458,8 +508,11 @@ rockchip_mipi_csi_calc_bandwidth(struct rockchip_mipi_csi *csi)
 
 	mpclk = DIV_ROUND_UP(csi->mode.clock, MSEC_PER_SEC);
 	if (mpclk) {
-		/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
-		tmp = mpclk * (bpp / lanes) * 10 / 9;
+		/*
+		 * take 1 / 0.9, since mbps must big than bandwidth of RGB,
+		 * and vop raw 1 cycle pclk can process 4 pixel, so multiply 4.
+		 */
+		tmp = mpclk * (bpp / lanes) * 10 / 9 * 4;
 		if (tmp < max_mbps)
 			target_mbps = tmp;
 		else
@@ -1101,6 +1154,31 @@ static const struct component_ops rockchip_mipi_csi_ops = {
 	.unbind	= rockchip_mipi_csi_unbind,
 };
 
+static irqreturn_t rockchip_mipi_csi_irq_handler(int irq, void *data)
+{
+	struct rockchip_mipi_csi *csi = data;
+	u32 int_status, err_int_status;
+	unsigned int i;
+
+	int_status = csi_readl(csi, CSITX_INTR_STATUS);
+	err_int_status = csi_readl(csi, CSITX_ERR_INTR_STATUS);
+
+	for (i = 0; i < ARRAY_SIZE(csi_tx_intr); i++)
+		if (int_status & BIT(i))
+			DRM_DEV_ERROR_RATELIMITED(csi->dev, "%s\n",
+						  csi_tx_intr[i]);
+
+	for (i = 0; i < ARRAY_SIZE(csi_tx_err_intr); i++)
+		if (err_int_status & BIT(i))
+			DRM_DEV_ERROR_RATELIMITED(csi->dev, "%s\n",
+						  csi_tx_err_intr[i]);
+	writel(int_status | m_INTR_MASK, csi->regs + CSITX_INTR_CLR);
+	writel(err_int_status | m_ERR_INTR_MASK,
+	       csi->regs + CSITX_ERR_INTR_CLR);
+
+	return IRQ_HANDLED;
+}
+
 static int rockchip_mipi_dphy_attach(struct rockchip_mipi_csi *csi)
 {
 	struct device *dev = csi->dev;
@@ -1193,6 +1271,12 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 			dev_err(dev, "Unable to get test_code_regs\n");
 	}
 
+	csi->irq = platform_get_irq(pdev, 0);
+	if (csi->irq < 0) {
+		dev_err(dev, "Failed to ger csi tx irq\n");
+		return -EINVAL;
+	}
+
 	csi->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(csi->pclk)) {
 		ret = PTR_ERR(csi->pclk);
@@ -1215,6 +1299,13 @@ static int rockchip_mipi_csi_probe(struct platform_device *pdev)
 	ret = rockchip_mipi_dphy_attach(csi);
 	if (ret)
 		return ret;
+
+	ret = devm_request_irq(dev, csi->irq, rockchip_mipi_csi_irq_handler,
+			       IRQF_SHARED, dev_name(dev), csi);
+	if (ret) {
+		dev_err(dev, "failed to request irq: %d\n", ret);
+		return ret;
+	}
 
 	csi->dsi_host.ops = &rockchip_mipi_csi_host_ops;
 	csi->dsi_host.dev = dev;

@@ -131,10 +131,50 @@ enum CONFIG_DONE_MODE {
 #define CSITX_STATUS2			0x0078
 #define CSITX_LINE_FLAG_NUM		0x007c
 #define CSITX_INTR_EN			0x0080
+#define m_INTR_MASK			GENMASK(26, 16)
+#define m_FRM_ST_RX			BIT(0 + 16)
+#define m_FRM_END_RX			BIT(1 + 16)
+#define m_LINE_END_TX			BIT(2 + 16)
+#define m_FRM_ST_TX			BIT(3 + 16)
+#define m_FRM_END_TX			BIT(4 + 16)
+#define m_LINE_END_RX			BIT(5 + 16)
+#define m_LINE_FLAG0			BIT(6 + 16)
+#define m_LINE_FLAG1			BIT(7 + 16)
+#define m_STOP_STATE			BIT(8 + 16)
+#define m_PLL_LOCK			BIT(9 + 16)
+#define m_CSITX_IDLE			BIT(10 + 16)
+#define v_FRM_ST_RX(x)			(((x) & 0x1) << 0)
+#define v_FRM_END_RX(x)			(((x) & 0x1) << 1)
+#define v_LINE_END_TX(x)		(((x) & 0x1) << 2)
+#define v_FRM_ST_TX(x)			(((x) & 0x1) << 3)
+#define v_FRM_END_TX(x)			(((x) & 0x1) << 4)
+#define v_LINE_END_RX(x)		(((x) & 0x1) << 5)
+#define v_LINE_FLAG0(x)			(((x) & 0x1) << 6)
+#define v_LINE_FLAG1(x)			(((x) & 0x1) << 7)
+#define v_STOP_STATE(x)			(((x) & 0x1) << 8)
+#define v_PLL_LOCK(x)			(((x) & 0x1) << 9)
+#define v_CSITX_IDLE(x)			(((x) & 0x1) << 10)
+
 #define CSITX_INTR_CLR			0x0084
 #define CSITX_INTR_STATUS		0x0088
 #define CSITX_INTR_RAW_STATUS		0x008c
+
 #define CSITX_ERR_INTR_EN		0x0090
+#define m_ERR_INTR_EN			GENMASK(11, 0)
+#define m_ERR_INTR_MASK			GENMASK(27, 16)
+#define m_IDI_HDR_FIFO_OVERFLOW		BIT(0 + 16)
+#define m_IDI_HDR_FIFO_UNDERFLOW	BIT(1 + 16)
+#define m_IDI_PLD_FIFO_OVERFLOW		BIT(2 + 16)
+#define m_IDI_PLD_FIFO_UNDERFLOW	BIT(3 + 16)
+#define m_HDR_FIFO_OVERFLOW		BIT(4 + 16)
+#define m_HDR_FIFO_UNDERFLOW		BIT(5 + 16)
+#define m_PLD_FIFO_OVERFLOW		BIT(6 + 16)
+#define m_PLD_FIFO_UNDERFLOW		BIT(7 + 16)
+#define m_OUTBUFFER_OVERFLOW		BIT(8 + 16)
+#define m_OUTBUFFER_UNDERFLOW		BIT(9 + 16)
+#define m_TX_TXREADYHS_OVERFLOW		BIT(10 + 16)
+#define m_TX_TXREADYHS_UNDERFLOW	BIT(11 + 16)
+
 #define CSITX_ERR_INTR_CLR		0x0094
 #define CSITX_ERR_INTR_STATUS		0x0098
 #define CSITX_ERR_INTR_RAW_STATUS	0x009c
@@ -223,6 +263,7 @@ struct rockchip_mipi_csi {
 	u32 regs_len;
 	struct clk *pclk;
 	struct clk *ref_clk;
+	int irq;
 
 	unsigned long mode_flags;
 	unsigned int lane_mbps; /* per lane */
