@@ -225,7 +225,9 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	up_write(&dev->res.rwsem);
 
 out:
-	if (res->task)
+	if (res->task) {
 		put_task_struct(res->task);
+		res->task = NULL;
+	}
 }
 EXPORT_SYMBOL(rdma_restrack_del);
