@@ -2539,8 +2539,11 @@ struct ib_device {
 
 	struct module               *owner;
 	struct device                dev;
-	/* First group for device attributes, NULL terminated array */
-	const struct attribute_group	*groups[2];
+	/* First group for device attributes,
+	 * Second group for driver provided attributes (optional).
+	 * It is NULL terminated array.
+	 */
+	const struct attribute_group	*groups[3];
 
 	struct kobject			*ports_kobj;
 	struct list_head             port_list;
@@ -4191,4 +4194,27 @@ struct ib_ucontext *ib_uverbs_get_ucontext(struct ib_uverbs_file *ufile);
 
 int uverbs_destroy_def_handler(struct ib_uverbs_file *file,
 			       struct uverbs_attr_bundle *attrs);
+
+/**
+ * rdma_set_device_sysfs_group - Set device attributes group to have
+ *				 driver specific sysfs entries at
+ *				 for infiniband class.
+ *
+ * @device:	device pointer for which attributes to be created
+ * @group:	Pointer to group which should be added when device
+ *		is registered with sysfs.
+ * rdma_set_device_sysfs_group() allows existing drivers to expose one
+ * group per device to have sysfs attributes.
+ *
+ * NOTE: New drivers should not make use of this API; instead new device
+ * parameter should be exposed via netlink command. This API and mechanism
+ * exist only for existing drivers.
+ */
+static inline void
+rdma_set_device_sysfs_group(struct ib_device *dev,
+			    const struct attribute_group *group)
+{
+	dev->groups[1] = group;
+}
+
 #endif /* IB_VERBS_H */
