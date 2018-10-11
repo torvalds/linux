@@ -250,10 +250,12 @@ static void update_attrib_vcs_info(struct adapter *padapter, struct xmit_frame *
 	else /* no frag */
 		sz = pattrib->last_txcmdsz;
 
-	/*  (1) RTS_Threshold is compared to the MPDU, not MSDU. */
-	/*  (2) If there are more than one frag in  this MSDU, only the first frag uses protection frame. */
-	/* 		Other fragments are protected by previous fragment. */
-	/* 		So we only need to check the length of first fragment. */
+	/* (1) RTS_Threshold is compared to the MPDU, not MSDU.
+	 * (2) If there are more than one frag in this MSDU,
+	 *     only the first frag uses protection frame.
+	 * Other fragments are protected by previous fragment.
+	 * So we only need to check the length of first fragment.
+	 */
 	if (pmlmeext->cur_wireless_mode < WIRELESS_11_24N  || padapter->registrypriv.wifi_spec) {
 		if (sz > padapter->registrypriv.rts_thresh) {
 			pattrib->vcs_mode = RTS_CTS;
@@ -373,8 +375,10 @@ static void set_qos(struct sk_buff *skb, struct pkt_attrib *pattrib)
 		skb_copy_bits(skb, ETH_HLEN, &ip_hdr, sizeof(ip_hdr));
 		pattrib->priority = ip_hdr.tos >> 5;
 	} else if (pattrib->ether_type == ETH_P_PAE) {
-		/*  "When priority processing of data frames is supported, */
-		/*  a STA's SME should send EAPOL-Key frames at the highest priority." */
+		/* When priority processing of data frames is supported,
+		 * a STA's SME should send EAPOL-Key frames at the highest
+		 * priority.
+		 */
 		pattrib->priority = 7;
 	} else {
 		pattrib->priority = 0;
@@ -420,8 +424,10 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	pattrib->pktlen = pkt->len - ETH_HLEN;
 
 	if (pattrib->ether_type == ETH_P_IP) {
-		/*  The following is for DHCP and ARP packet, we use cck1M to tx these packets and let LPS awake some time */
-		/*  to prevent DHCP protocol fail */
+		/* The following is for DHCP and ARP packet, we use
+		 * cck1M to tx these packets and let LPS awake some
+		 * time to prevent DHCP protocol fail.
+		 */
 		u8 tmp[24];
 
 		skb_copy_bits(pkt, ETH_HLEN, tmp, 24);
