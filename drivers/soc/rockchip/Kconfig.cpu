@@ -44,7 +44,6 @@ config CPU_PX30
 
 config CPU_RK1808
 	bool "RK1808"
-	default y if ARM64
 
 config CPU_RK3308
 	bool "RK3308"
