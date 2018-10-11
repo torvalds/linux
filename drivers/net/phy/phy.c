@@ -654,7 +654,7 @@ static void phy_queue_state_machine(struct phy_device *phydev,
  */
 void phy_start_machine(struct phy_device *phydev)
 {
-	phy_queue_state_machine(phydev, 1);
+	phy_trigger_machine(phydev);
 }
 EXPORT_SYMBOL_GPL(phy_start_machine);
 
