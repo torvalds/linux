@@ -59,6 +59,7 @@ struct igc_mac_info {
 
 	bool autoneg;
 	bool autoneg_failed;
+	bool get_link_status;
 };
 
 struct igc_bus_info {

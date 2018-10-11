@@ -4,9 +4,21 @@
 #ifndef _IGC_DEFINES_H_
 #define _IGC_DEFINES_H_
 
+#define IGC_CTRL_EXT_DRV_LOAD	0x10000000 /* Drv loaded bit for FW */
+
 /* PCI Bus Info */
 #define PCIE_DEVICE_CONTROL2		0x28
 #define PCIE_DEVICE_CONTROL2_16ms	0x0005
+
+/* Receive Address
+ * Number of high/low register pairs in the RAR. The RAR (Receive Address
+ * Registers) holds the directed and multicast addresses that we monitor.
+ * Technically, we have 16 spots.  However, we reserve one of these spots
+ * (RAR[15]) for our directed address used by controllers with
+ * manageability enabled, allowing us room for 15 multicast addresses.
+ */
+#define IGC_RAH_AV		0x80000000 /* Receive descriptor valid */
+#define IGC_RAH_POOL_1		0x00040000
 
 /* Error Codes */
 #define IGC_SUCCESS			0
@@ -16,6 +28,9 @@
 #define IGC_ERR_PARAM			4
 #define IGC_ERR_MAC_INIT		5
 #define IGC_ERR_RESET			9
+
+/* PBA constants */
+#define IGC_PBA_34K		0x0022
 
 /* Device Status */
 #define IGC_STATUS_FD		0x00000001      /* Full duplex.0=half,1=full */
