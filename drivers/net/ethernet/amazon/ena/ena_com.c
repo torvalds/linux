@@ -235,7 +235,7 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 	tail_masked = admin_queue->sq.tail & queue_size_mask;
 
 	/* In case of queue FULL */
-	cnt = atomic_read(&admin_queue->outstanding_cmds);
+	cnt = (u16)atomic_read(&admin_queue->outstanding_cmds);
 	if (cnt >= admin_queue->q_depth) {
 		pr_debug("admin queue is full.\n");
 		admin_queue->stats.out_of_space++;
@@ -304,7 +304,7 @@ static struct ena_comp_ctx *ena_com_submit_admin_cmd(struct ena_com_admin_queue 
 						     struct ena_admin_acq_entry *comp,
 						     size_t comp_size_in_bytes)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	struct ena_comp_ctx *comp_ctx;
 
 	spin_lock_irqsave(&admin_queue->q_lock, flags);
@@ -332,7 +332,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 
 	memset(&io_sq->desc_addr, 0x0, sizeof(io_sq->desc_addr));
 
-	io_sq->dma_addr_bits = ena_dev->dma_addr_bits;
+	io_sq->dma_addr_bits = (u8)ena_dev->dma_addr_bits;
 	io_sq->desc_entry_size =
 		(io_sq->direction == ENA_COM_IO_QUEUE_DIRECTION_TX) ?
 		sizeof(struct ena_eth_io_tx_desc) :
@@ -486,7 +486,7 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 
 	/* Go over all the completions */
 	while ((READ_ONCE(cqe->acq_common_descriptor.flags) &
-			ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
+		ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
 		/* Do not read the rest of the completion entry before the
 		 * phase bit was validated
 		 */
@@ -537,7 +537,8 @@ static int ena_com_comp_status_to_errno(u8 comp_status)
 static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_ctx,
 						     struct ena_com_admin_queue *admin_queue)
 {
-	unsigned long flags, timeout;
+	unsigned long flags = 0;
+	unsigned long timeout;
 	int ret;
 
 	timeout = jiffies + usecs_to_jiffies(admin_queue->completion_timeout);
@@ -736,7 +737,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *comp_ctx,
 							struct ena_com_admin_queue *admin_queue)
 {
-	unsigned long flags;
+	unsigned long flags = 0;
 	int ret;
 
 	wait_for_completion_timeout(&comp_ctx->wait_event,
@@ -782,7 +783,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	volatile struct ena_admin_ena_mmio_req_read_less_resp *read_resp =
 		mmio_read->read_resp;
 	u32 mmio_read_reg, ret, i;
-	unsigned long flags;
+	unsigned long flags = 0;
 	u32 timeout = mmio_read->reg_read_to;
 
 	might_sleep();
@@ -1426,7 +1427,7 @@ void ena_com_abort_admin_commands(struct ena_com_dev *ena_dev)
 void ena_com_wait_for_abort_completion(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	spin_lock_irqsave(&admin_queue->q_lock, flags);
 	while (atomic_read(&admin_queue->outstanding_cmds) != 0) {
@@ -1470,7 +1471,7 @@ bool ena_com_get_admin_running_state(struct ena_com_dev *ena_dev)
 void ena_com_set_admin_running_state(struct ena_com_dev *ena_dev, bool state)
 {
 	struct ena_com_admin_queue *admin_queue = &ena_dev->admin_queue;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	spin_lock_irqsave(&admin_queue->q_lock, flags);
 	ena_dev->admin_queue.running_state = state;
@@ -1504,7 +1505,7 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 	}
 
 	if ((get_resp.u.aenq.supported_groups & groups_flag) != groups_flag) {
-		pr_warn("Trying to set unsupported aenq events. supported flag: %x asked flag: %x\n",
+		pr_warn("Trying to set unsupported aenq events. supported flag: 0x%x asked flag: 0x%x\n",
 			get_resp.u.aenq.supported_groups, groups_flag);
 		return -EOPNOTSUPP;
 	}
@@ -1652,7 +1653,7 @@ int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 				    sizeof(*mmio_read->read_resp),
 				    &mmio_read->read_resp_dma_addr, GFP_KERNEL);
 	if (unlikely(!mmio_read->read_resp))
-		return -ENOMEM;
+		goto err;
 
 	ena_com_mmio_reg_read_request_write_dev_addr(ena_dev);
 
@@ -1661,6 +1662,10 @@ int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 	mmio_read->readless_supported = true;
 
 	return 0;
+
+err:
+
+	return -ENOMEM;
 }
 
 void ena_com_set_mmio_read_mode(struct ena_com_dev *ena_dev, bool readless_supported)
@@ -1961,6 +1966,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 	struct ena_admin_aenq_entry *aenq_e;
 	struct ena_admin_aenq_common_desc *aenq_common;
 	struct ena_com_aenq *aenq  = &dev->aenq;
+	unsigned long long timestamp;
 	ena_aenq_handler handler_cb;
 	u16 masked_head, processed = 0;
 	u8 phase;
@@ -1978,10 +1984,11 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 		 */
 		dma_rmb();
 
+		timestamp =
+			(unsigned long long)aenq_common->timestamp_low |
+			((unsigned long long)aenq_common->timestamp_high << 32);
 		pr_debug("AENQ! Group[%x] Syndrom[%x] timestamp: [%llus]\n",
-			 aenq_common->group, aenq_common->syndrom,
-			 (u64)aenq_common->timestamp_low +
-				 ((u64)aenq_common->timestamp_high << 32));
+			 aenq_common->group, aenq_common->syndrom, timestamp);
 
 		/* Handle specific event*/
 		handler_cb = ena_com_get_specific_aenq_cb(dev,
@@ -2623,8 +2630,8 @@ int ena_com_allocate_host_info(struct ena_com_dev *ena_dev)
 	if (unlikely(!host_attr->host_info))
 		return -ENOMEM;
 
-	host_attr->host_info->ena_spec_version =
-		((ENA_COMMON_SPEC_VERSION_MAJOR << ENA_REGS_VERSION_MAJOR_VERSION_SHIFT) |
+	host_attr->host_info->ena_spec_version = ((ENA_COMMON_SPEC_VERSION_MAJOR <<
+		ENA_REGS_VERSION_MAJOR_VERSION_SHIFT) |
 		(ENA_COMMON_SPEC_VERSION_MINOR));
 
 	return 0;

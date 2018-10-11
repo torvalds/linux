@@ -2599,15 +2599,14 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 	adapter->dev_up_before_reset = dev_up;
-
 	if (!graceful)
 		ena_com_set_admin_running_state(ena_dev, false);
 
 	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		ena_down(adapter);
 
-	/* Before releasing the ENA resources, a device reset is required.
-	 * (to prevent the device from accessing them).
+	/* Stop the device from sending AENQ events (in case reset flag is set
+	 *  and device is up, ena_close already reset the device
 	 * In case the reset flag is set and the device is up, ena_down()
 	 * already perform the reset, so it can be skipped.
 	 */
