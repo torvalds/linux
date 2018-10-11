@@ -87,7 +87,7 @@ static int __net_init afs_net_init(struct net *net_ns)
 	timer_setup(&net->cells_timer, afs_cells_timer, 0);
 
 	mutex_init(&net->proc_cells_lock);
-	INIT_LIST_HEAD(&net->proc_cells);
+	INIT_HLIST_HEAD(&net->proc_cells);
 
 	seqlock_init(&net->fs_lock);
 	net->fs_servers = RB_ROOT;
