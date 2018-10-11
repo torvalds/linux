@@ -189,6 +189,13 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
+	vcc_phy: vcc-phy-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_phy";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		uart_rts_gpios = <&gpio4 RK_PB7 GPIO_ACTIVE_LOW>;
@@ -226,6 +233,20 @@
 	supports-emmc;
 	non-removable;
 	num-slots = <1>;
+	status = "okay";
+};
+
+&gmac {
+	phy-supply = <&vcc_phy>;
+	phy-mode = "rgmii";
+	clock_in_out = "input";
+	snps,reset-gpio = <&gpio0 10 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 10000 50000>;
+	assigned-clocks = <&cru SCLK_GMAC>;
+	assigned-clock-parents = <&gmac_clkin>;
+	tx_delay = <0x50>;
+	rx_delay = <0x3a>;
 	status = "okay";
 };
 
