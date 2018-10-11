@@ -4660,20 +4660,45 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *intel_crtc;
-	struct intel_encoder *encoder;
-	struct intel_dp *intel_dp;
+	struct intel_crtc *crtc;
 
 	if (INTEL_GEN(dev_priv) < 7)
 		return -ENODEV;
 
-	drm_modeset_lock_all(dev);
-	for_each_intel_crtc(dev, intel_crtc) {
-		if (!intel_crtc->base.state->active ||
-					!intel_crtc->config->has_drrs)
-			continue;
+	for_each_intel_crtc(dev, crtc) {
+		struct drm_connector_list_iter conn_iter;
+		struct intel_crtc_state *crtc_state;
+		struct drm_connector *connector;
+		struct drm_crtc_commit *commit;
+		int ret;
 
-		for_each_encoder_on_crtc(dev, &intel_crtc->base, encoder) {
+		ret = drm_modeset_lock_single_interruptible(&crtc->base.mutex);
+		if (ret)
+			return ret;
+
+		crtc_state = to_intel_crtc_state(crtc->base.state);
+
+		if (!crtc_state->base.active ||
+		    !crtc_state->has_drrs)
+			goto out;
+
+		commit = crtc_state->base.commit;
+		if (commit) {
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (ret)
+				goto out;
+		}
+
+		drm_connector_list_iter_begin(dev, &conn_iter);
+		drm_for_each_connector_iter(connector, &conn_iter) {
+			struct intel_encoder *encoder;
+			struct intel_dp *intel_dp;
+
+			if (!(crtc_state->base.connector_mask &
+			      drm_connector_mask(connector)))
+				continue;
+
+			encoder = intel_attached_encoder(connector);
 			if (encoder->type != INTEL_OUTPUT_EDP)
 				continue;
 
@@ -4683,13 +4708,18 @@ static int i915_drrs_ctl_set(void *data, u64 val)
 			intel_dp = enc_to_intel_dp(&encoder->base);
 			if (val)
 				intel_edp_drrs_enable(intel_dp,
-							intel_crtc->config);
+						      crtc_state);
 			else
 				intel_edp_drrs_disable(intel_dp,
-							intel_crtc->config);
+						       crtc_state);
 		}
+		drm_connector_list_iter_end(&conn_iter);
+
+out:
+		drm_modeset_unlock(&crtc->base.mutex);
+		if (ret)
+			return ret;
 	}
-	drm_modeset_unlock_all(dev);
 
 	return 0;
 }
