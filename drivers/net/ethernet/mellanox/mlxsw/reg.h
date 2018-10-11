@@ -8476,6 +8476,51 @@ static inline void mlxsw_reg_tngcr_pack(char *payload,
 	mlxsw_reg_tngcr_nve_group_size_flood_set(payload, 1);
 }
 
+/* TNPC - Tunnel Port Configuration Register
+ * -----------------------------------------
+ * The TNPC register is used for tunnel port configuration.
+ * Reserved when Spectrum.
+ */
+#define MLXSW_REG_TNPC_ID 0xA020
+#define MLXSW_REG_TNPC_LEN 0x18
+
+MLXSW_REG_DEFINE(tnpc, MLXSW_REG_TNPC_ID, MLXSW_REG_TNPC_LEN);
+
+enum mlxsw_reg_tnpc_tunnel_port {
+	MLXSW_REG_TNPC_TUNNEL_PORT_NVE,
+	MLXSW_REG_TNPC_TUNNEL_PORT_VPLS,
+	MLXSW_REG_TNPC_TUNNEL_FLEX_TUNNEL0,
+	MLXSW_REG_TNPC_TUNNEL_FLEX_TUNNEL1,
+};
+
+/* reg_tnpc_tunnel_port
+ * Tunnel port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tnpc, tunnel_port, 0x00, 0, 4);
+
+/* reg_tnpc_learn_enable_v6
+ * During IPv6 underlay decapsulation, whether to learn from tunnel port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnpc, learn_enable_v6, 0x04, 1, 1);
+
+/* reg_tnpc_learn_enable_v4
+ * During IPv4 underlay decapsulation, whether to learn from tunnel port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnpc, learn_enable_v4, 0x04, 0, 1);
+
+static inline void mlxsw_reg_tnpc_pack(char *payload,
+				       enum mlxsw_reg_tnpc_tunnel_port tport,
+				       bool learn_enable)
+{
+	MLXSW_REG_ZERO(tnpc, payload);
+	mlxsw_reg_tnpc_tunnel_port_set(payload, tport);
+	mlxsw_reg_tnpc_learn_enable_v4_set(payload, learn_enable);
+	mlxsw_reg_tnpc_learn_enable_v6_set(payload, learn_enable);
+}
+
 /* TIGCR - Tunneling IPinIP General Configuration Register
  * -------------------------------------------------------
  * The TIGCR register is used for setting up the IPinIP Tunnel configuration.
@@ -9026,6 +9071,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
 	MLXSW_REG(tngcr),
+	MLXSW_REG(tnpc),
 	MLXSW_REG(tigcr),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
