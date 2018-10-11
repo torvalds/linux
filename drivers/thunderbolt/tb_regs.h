@@ -211,6 +211,9 @@ struct tb_regs_port_header {
 
 } __packed;
 
+/* DWORD 4 */
+#define TB_PORT_NFC_CREDITS_MASK	GENMASK(19, 0)
+
 /* PCIe adapter registers */
 
 #define TB_PCI_EN			BIT(31)

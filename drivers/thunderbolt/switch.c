@@ -537,14 +537,20 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
  */
 int tb_port_add_nfc_credits(struct tb_port *port, int credits)
 {
-	if (credits == 0)
+	u32 nfc_credits;
+
+	if (credits == 0 || port->sw->is_unplugged)
 		return 0;
-	tb_port_info(port,
-		     "adding %#x NFC credits (%#x -> %#x)",
-		     credits,
-		     port->config.nfc_credits,
-		     port->config.nfc_credits + credits);
-	port->config.nfc_credits += credits;
+
+	nfc_credits = port->config.nfc_credits & TB_PORT_NFC_CREDITS_MASK;
+	nfc_credits += credits;
+
+	tb_port_dbg(port, "adding %d NFC credits to %lu",
+		    credits, port->config.nfc_credits & TB_PORT_NFC_CREDITS_MASK);
+
+	port->config.nfc_credits &= ~TB_PORT_NFC_CREDITS_MASK;
+	port->config.nfc_credits |= nfc_credits;
+
 	return tb_port_write(port, &port->config.nfc_credits,
 			     TB_CFG_PORT, 4, 1);
 }
