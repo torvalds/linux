@@ -131,6 +131,10 @@ enum igc_tx_flags {
 	IGC_TX_FLAGS_CSUM	= 0x20,
 };
 
+enum igc_boards {
+	board_base,
+};
+
 /* The largest size we can write to the descriptor is 65535.  In order to
  * maintain a power of two alignment we have to limit ourselves to 32K.
  */
@@ -342,6 +346,8 @@ struct igc_adapter {
 	spinlock_t nfc_lock;
 
 	struct igc_mac_addr *mac_table;
+
+	struct igc_info ei;
 };
 
 /* igc_desc_unused - calculate if we have unused descriptors */

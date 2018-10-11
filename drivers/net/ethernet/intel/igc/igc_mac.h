@@ -13,10 +13,16 @@
 
 /* forward declaration */
 s32 igc_disable_pcie_master(struct igc_hw *hw);
+s32 igc_check_for_copper_link(struct igc_hw *hw);
 void igc_init_rx_addrs(struct igc_hw *hw, u16 rar_count);
 s32 igc_setup_link(struct igc_hw *hw);
 void igc_clear_hw_cntrs_base(struct igc_hw *hw);
 s32 igc_get_auto_rd_done(struct igc_hw *hw);
 void igc_put_hw_semaphore(struct igc_hw *hw);
+void igc_rar_set(struct igc_hw *hw, u8 *addr, u32 index);
+void igc_config_collision_dist(struct igc_hw *hw);
+
+s32 igc_get_speed_and_duplex_copper(struct igc_hw *hw, u16 *speed,
+				    u16 *duplex);
 
 #endif

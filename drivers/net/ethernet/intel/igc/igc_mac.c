@@ -275,6 +275,129 @@ void igc_clear_hw_cntrs_base(struct igc_hw *hw)
 }
 
 /**
+ * igc_rar_set - Set receive address register
+ * @hw: pointer to the HW structure
+ * @addr: pointer to the receive address
+ * @index: receive address array register
+ *
+ * Sets the receive address array register at index to the address passed
+ * in by addr.
+ */
+void igc_rar_set(struct igc_hw *hw, u8 *addr, u32 index)
+{
+	u32 rar_low, rar_high;
+
+	/* HW expects these in little endian so we reverse the byte order
+	 * from network order (big endian) to little endian
+	 */
+	rar_low = ((u32)addr[0] |
+		   ((u32)addr[1] << 8) |
+		   ((u32)addr[2] << 16) | ((u32)addr[3] << 24));
+
+	rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
+
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high)
+		rar_high |= IGC_RAH_AV;
+
+	/* Some bridges will combine consecutive 32-bit writes into
+	 * a single burst write, which will malfunction on some parts.
+	 * The flushes avoid this.
+	 */
+	wr32(IGC_RAL(index), rar_low);
+	wrfl();
+	wr32(IGC_RAH(index), rar_high);
+	wrfl();
+}
+
+/**
+ * igc_check_for_copper_link - Check for link (Copper)
+ * @hw: pointer to the HW structure
+ *
+ * Checks to see of the link status of the hardware has changed.  If a
+ * change in link status has been detected, then we read the PHY registers
+ * to get the current speed/duplex if link exists.
+ */
+s32 igc_check_for_copper_link(struct igc_hw *hw)
+{
+	struct igc_mac_info *mac = &hw->mac;
+	s32 ret_val;
+	bool link;
+
+	/* We only want to go out to the PHY registers to see if Auto-Neg
+	 * has completed and/or if our link status has changed.  The
+	 * get_link_status flag is set upon receiving a Link Status
+	 * Change or Rx Sequence Error interrupt.
+	 */
+	if (!mac->get_link_status) {
+		ret_val = 0;
+		goto out;
+	}
+
+	/* First we want to see if the MII Status Register reports
+	 * link.  If so, then we want to get the current speed/duplex
+	 * of the PHY.
+	 */
+	if (ret_val)
+		goto out;
+
+	if (!link)
+		goto out; /* No link detected */
+
+	mac->get_link_status = false;
+
+	/* Check if there was DownShift, must be checked
+	 * immediately after link-up
+	 */
+
+	/* If we are forcing speed/duplex, then we simply return since
+	 * we have already determined whether we have link or not.
+	 */
+	if (!mac->autoneg) {
+		ret_val = -IGC_ERR_CONFIG;
+		goto out;
+	}
+
+	/* Auto-Neg is enabled.  Auto Speed Detection takes care
+	 * of MAC speed/duplex configuration.  So we only need to
+	 * configure Collision Distance in the MAC.
+	 */
+	igc_config_collision_dist(hw);
+
+	/* Configure Flow Control now that Auto-Neg has completed.
+	 * First, we need to restore the desired flow control
+	 * settings because we may have had to re-autoneg with a
+	 * different link partner.
+	 */
+	if (ret_val)
+		hw_dbg("Error configuring flow control\n");
+
+out:
+	return ret_val;
+}
+
+/**
+ * igc_config_collision_dist - Configure collision distance
+ * @hw: pointer to the HW structure
+ *
+ * Configures the collision distance to the default value and is used
+ * during link setup. Currently no func pointer exists and all
+ * implementations are handled in the generic version of this function.
+ */
+void igc_config_collision_dist(struct igc_hw *hw)
+{
+	u32 tctl;
+
+	tctl = rd32(IGC_TCTL);
+
+	tctl &= ~IGC_TCTL_COLD;
+	tctl |= IGC_COLLISION_DISTANCE << IGC_COLD_SHIFT;
+
+	wr32(IGC_TCTL, tctl);
+	wrfl();
+}
+
+/**
  * igc_get_auto_rd_done - Check for auto read completion
  * @hw: pointer to the HW structure
  *
@@ -300,6 +423,53 @@ s32 igc_get_auto_rd_done(struct igc_hw *hw)
 
 out:
 	return ret_val;
+}
+
+/**
+ * igc_get_speed_and_duplex_copper - Retrieve current speed/duplex
+ * @hw: pointer to the HW structure
+ * @speed: stores the current speed
+ * @duplex: stores the current duplex
+ *
+ * Read the status register for the current speed/duplex and store the current
+ * speed and duplex for copper connections.
+ */
+s32 igc_get_speed_and_duplex_copper(struct igc_hw *hw, u16 *speed,
+				    u16 *duplex)
+{
+	u32 status;
+
+	status = rd32(IGC_STATUS);
+	if (status & IGC_STATUS_SPEED_1000) {
+		/* For I225, STATUS will indicate 1G speed in both 1 Gbps
+		 * and 2.5 Gbps link modes. An additional bit is used
+		 * to differentiate between 1 Gbps and 2.5 Gbps.
+		 */
+		if (hw->mac.type == igc_i225 &&
+		    (status & IGC_STATUS_SPEED_2500)) {
+			*speed = SPEED_2500;
+			hw_dbg("2500 Mbs, ");
+		} else {
+			*speed = SPEED_1000;
+			hw_dbg("1000 Mbs, ");
+		}
+	} else if (status & IGC_STATUS_SPEED_100) {
+		*speed = SPEED_100;
+		hw_dbg("100 Mbs, ");
+	} else {
+		*speed = SPEED_10;
+		hw_dbg("10 Mbs, ");
+	}
+
+	if (status & IGC_STATUS_FD) {
+		*duplex = FULL_DUPLEX;
+		hw_dbg("Full Duplex\n");
+	} else {
+		*duplex = HALF_DUPLEX;
+		hw_dbg("Half Duplex\n");
+	}
+
+	return 0;
 }
 
 /**

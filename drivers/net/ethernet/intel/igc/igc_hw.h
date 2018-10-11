@@ -11,6 +11,7 @@
 #include "igc_regs.h"
 #include "igc_defines.h"
 #include "igc_mac.h"
+#include "igc_nvm.h"
 #include "igc_i225.h"
 #include "igc_base.h"
 
@@ -55,6 +56,8 @@ struct igc_info {
 	const struct igc_phy_operations *phy_ops;
 	struct igc_nvm_operations *nvm_ops;
 };
+
+extern const struct igc_info igc_base_info;
 
 struct igc_mac_info {
 	struct igc_mac_operations ops;

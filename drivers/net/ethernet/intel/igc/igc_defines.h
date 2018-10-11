@@ -35,6 +35,8 @@
  */
 #define IGC_RAH_AV		0x80000000 /* Receive descriptor valid */
 #define IGC_RAH_POOL_1		0x00040000
+#define IGC_RAL_MAC_ADDR_LEN	4
+#define IGC_RAH_MAC_ADDR_LEN	2
 
 /* Error Codes */
 #define IGC_SUCCESS			0
@@ -57,9 +59,51 @@
 #define IGC_SWSM_SMBI		0x00000001 /* Driver Semaphore bit */
 #define IGC_SWSM_SWESMBI	0x00000002 /* FW Semaphore bit */
 
+/* SWFW_SYNC Definitions */
+#define IGC_SWFW_EEP_SM		0x1
+#define IGC_SWFW_PHY0_SM	0x2
+
+/* NVM Control */
 /* Number of milliseconds for NVM auto read done after MAC reset. */
 #define AUTO_READ_DONE_TIMEOUT		10
 #define IGC_EECD_AUTO_RD		0x00000200  /* NVM Auto Read done */
+#define IGC_EECD_REQ		0x00000040 /* NVM Access Request */
+#define IGC_EECD_GNT		0x00000080 /* NVM Access Grant */
+/* NVM Addressing bits based on type 0=small, 1=large */
+#define IGC_EECD_ADDR_BITS		0x00000400
+#define IGC_NVM_GRANT_ATTEMPTS		1000 /* NVM # attempts to gain grant */
+#define IGC_EECD_SIZE_EX_MASK		0x00007800  /* NVM Size */
+#define IGC_EECD_SIZE_EX_SHIFT		11
+#define IGC_EECD_FLUPD_I225		0x00800000 /* Update FLASH */
+#define IGC_EECD_FLUDONE_I225		0x04000000 /* Update FLASH done*/
+#define IGC_EECD_FLASH_DETECTED_I225	0x00080000 /* FLASH detected */
+#define IGC_FLUDONE_ATTEMPTS		20000
+#define IGC_EERD_EEWR_MAX_COUNT		512 /* buffered EEPROM words rw */
+
+/* Offset to data in NVM read/write registers */
+#define IGC_NVM_RW_REG_DATA	16
+#define IGC_NVM_RW_REG_DONE	2    /* Offset to READ/WRITE done bit */
+#define IGC_NVM_RW_REG_START	1    /* Start operation */
+#define IGC_NVM_RW_ADDR_SHIFT	2    /* Shift to the address bits */
+#define IGC_NVM_POLL_READ	0    /* Flag for polling for read complete */
+
+/* NVM Word Offsets */
+#define NVM_CHECKSUM_REG		0x003F
+
+/* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
+#define NVM_SUM				0xBABA
+
+#define NVM_PBA_OFFSET_0		8
+#define NVM_PBA_OFFSET_1		9
+#define NVM_RESERVED_WORD		0xFFFF
+#define NVM_PBA_PTR_GUARD		0xFAFA
+#define NVM_WORD_SIZE_BASE_SHIFT	6
+
+/* Collision related configuration parameters */
+#define IGC_COLLISION_THRESHOLD		15
+#define IGC_CT_SHIFT			4
+#define IGC_COLLISION_DISTANCE		63
+#define IGC_COLD_SHIFT			12
 
 /* Device Status */
 #define IGC_STATUS_FD		0x00000001      /* Full duplex.0=half,1=full */
@@ -70,6 +114,14 @@
 #define IGC_STATUS_TXOFF	0x00000010      /* transmission paused */
 #define IGC_STATUS_SPEED_100	0x00000040      /* Speed 100Mb/s */
 #define IGC_STATUS_SPEED_1000	0x00000080      /* Speed 1000Mb/s */
+#define IGC_STATUS_SPEED_2500	0x00400000	/* Speed 2.5Gb/s */
+
+#define SPEED_10		10
+#define SPEED_100		100
+#define SPEED_1000		1000
+#define SPEED_2500		2500
+#define HALF_DUPLEX		1
+#define FULL_DUPLEX		2
 
 /* Interrupt Cause Read */
 #define IGC_ICR_TXDW		BIT(0)	/* Transmit desc written back */
