@@ -383,6 +383,17 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 #endif
 
 /* spectrum_router.c */
+enum mlxsw_sp_l3proto {
+	MLXSW_SP_L3_PROTO_IPV4,
+	MLXSW_SP_L3_PROTO_IPV6,
+#define MLXSW_SP_L3_PROTO_MAX	(MLXSW_SP_L3_PROTO_IPV6 + 1)
+};
+
+union mlxsw_sp_l3addr {
+	__be32 addr4;
+	struct in6_addr addr6;
+};
+
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
