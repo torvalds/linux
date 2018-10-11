@@ -106,10 +106,11 @@
  */
 #define ENA_TX_POLL_BUDGET_DIVIDER	4
 
-/* Refill Rx queue when number of available descriptors is below
- * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER
+/* Refill Rx queue when number of required descriptors is above
+ * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER or ENA_RX_REFILL_THRESH_PACKET
  */
 #define ENA_RX_REFILL_THRESH_DIVIDER	8
+#define ENA_RX_REFILL_THRESH_PACKET	256
 
 /* Number of queues to check for missing queues per timer service */
 #define ENA_MONITORED_TX_QUEUES	4

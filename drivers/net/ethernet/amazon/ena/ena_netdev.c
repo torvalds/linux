@@ -1122,7 +1122,9 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	rx_ring->next_to_clean = next_to_clean;
 
 	refill_required = ena_com_free_desc(rx_ring->ena_com_io_sq);
-	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER;
+	refill_threshold =
+		min_t(int, rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER,
+		      ENA_RX_REFILL_THRESH_PACKET);
 
 	/* Optimization, try to batch new rx buffers */
 	if (refill_required > refill_threshold) {
