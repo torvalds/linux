@@ -308,16 +308,20 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
 	struct net_device *rcv;
+	int i, ret, drops = n;
 	unsigned int max_len;
 	struct veth_rq *rq;
-	int i, drops = 0;
 
-	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
-		return -EINVAL;
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK)) {
+		ret = -EINVAL;
+		goto drop;
+	}
 
 	rcv = rcu_dereference(priv->peer);
-	if (unlikely(!rcv))
-		return -ENXIO;
+	if (unlikely(!rcv)) {
+		ret = -ENXIO;
+		goto drop;
+	}
 
 	rcv_priv = netdev_priv(rcv);
 	rq = &rcv_priv->rq[veth_select_rxq(rcv)];
@@ -325,9 +329,12 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 	 * side. This means an XDP program is loaded on the peer and the peer
 	 * device is up.
 	 */
-	if (!rcu_access_pointer(rq->xdp_prog))
-		return -ENXIO;
+	if (!rcu_access_pointer(rq->xdp_prog)) {
+		ret = -ENXIO;
+		goto drop;
+	}
 
+	drops = 0;
 	max_len = rcv->mtu + rcv->hard_header_len + VLAN_HLEN;
 
 	spin_lock(&rq->xdp_ring.producer_lock);
@@ -346,7 +353,14 @@ static int veth_xdp_xmit(struct net_device *dev, int n,
 	if (flags & XDP_XMIT_FLUSH)
 		__veth_xdp_flush(rq);
 
-	return n - drops;
+	if (likely(!drops))
+		return n;
+
+	ret = n - drops;
+drop:
+	atomic64_add(drops, &priv->dropped);
+
+	return ret;
 }
 
 static void veth_xdp_flush(struct net_device *dev)
