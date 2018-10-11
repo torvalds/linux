@@ -114,7 +114,8 @@
  *    returns the smallest TLB entry size unmapped in this range.
  *
  * If an architecture does not provide tlb_flush() a default implementation
- * based on flush_tlb_range() will be used.
+ * based on flush_tlb_range() will be used, unless MMU_GATHER_NO_RANGE is
+ * specified, in which case we'll default to flush_tlb_mm().
  *
  * Additionally there are a few opt-in features:
  *
@@ -140,6 +141,9 @@
  *  the page-table pages. Required if you use HAVE_RCU_TABLE_FREE and your
  *  architecture uses the Linux page-tables natively.
  *
+ *  MMU_GATHER_NO_RANGE
+ *
+ *  Use this if your architecture lacks an efficient flush_tlb_range().
  */
 #define HAVE_GENERIC_MMU_GATHER
 
@@ -302,12 +306,45 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
 	 */
 }
 
+#ifdef CONFIG_MMU_GATHER_NO_RANGE
+
+#if defined(tlb_flush) || defined(tlb_start_vma) || defined(tlb_end_vma)
+#error MMU_GATHER_NO_RANGE relies on default tlb_flush(), tlb_start_vma() and tlb_end_vma()
+#endif
+
+/*
+ * When an architecture does not have efficient means of range flushing TLBs
+ * there is no point in doing intermediate flushes on tlb_end_vma() to keep the
+ * range small. We equally don't have to worry about page granularity or other
+ * things.
+ *
+ * All we need to do is issue a full flush for any !0 range.
+ */
+static inline void tlb_flush(struct mmu_gather *tlb)
+{
+	if (tlb->end)
+		flush_tlb_mm(tlb->mm);
+}
+
+static inline void
+tlb_update_vma_flags(struct mmu_gather *tlb, struct vm_area_struct *vma) { }
+
+#define tlb_end_vma tlb_end_vma
+static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma) { }
+
+#else /* CONFIG_MMU_GATHER_NO_RANGE */
+
 #ifndef tlb_flush
 
 #if defined(tlb_start_vma) || defined(tlb_end_vma)
 #error Default tlb_flush() relies on default tlb_start_vma() and tlb_end_vma()
 #endif
 
+/*
+ * When an architecture does not provide its own tlb_flush() implementation
+ * but does have a reasonably efficient flush_vma_range() implementation
+ * use that.
+ */
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (tlb->fullmm || tlb->need_flush_all) {
@@ -347,6 +384,8 @@ static inline void
 tlb_update_vma_flags(struct mmu_gather *tlb, struct vm_area_struct *vma) { }
 
 #endif
+
+#endif /* CONFIG_MMU_GATHER_NO_RANGE */
 
 static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
 {
