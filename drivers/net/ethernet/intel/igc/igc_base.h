@@ -6,6 +6,7 @@
 
 /* forward declaration */
 void igc_rx_fifo_flush_base(struct igc_hw *hw);
+void igc_power_down_phy_copper_base(struct igc_hw *hw);
 
 /* Transmit Descriptor - Advanced */
 union igc_adv_tx_desc {

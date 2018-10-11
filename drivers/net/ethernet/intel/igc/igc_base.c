@@ -124,6 +124,22 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 }
 
 /**
+ * igc_get_phy_id_base - Retrieve PHY addr and id
+ * @hw: pointer to the HW structure
+ *
+ * Retrieves the PHY address and ID for both PHY's which do and do not use
+ * sgmi interface.
+ */
+static s32 igc_get_phy_id_base(struct igc_hw *hw)
+{
+	s32  ret_val = 0;
+
+	ret_val = igc_get_phy_id(hw);
+
+	return ret_val;
+}
+
+/**
  * igc_init_nvm_params_base - Init NVM func ptrs.
  * @hw: pointer to the HW structure
  */
@@ -187,6 +203,59 @@ static s32 igc_init_mac_params_base(struct igc_hw *hw)
 	return 0;
 }
 
+/**
+ * igc_init_phy_params_base - Init PHY func ptrs.
+ * @hw: pointer to the HW structure
+ */
+static s32 igc_init_phy_params_base(struct igc_hw *hw)
+{
+	struct igc_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u32 ctrl_ext;
+
+	if (hw->phy.media_type != igc_media_type_copper) {
+		phy->type = igc_phy_none;
+		goto out;
+	}
+
+	phy->autoneg_mask	= AUTONEG_ADVERTISE_SPEED_DEFAULT_2500;
+	phy->reset_delay_us	= 100;
+
+	ctrl_ext = rd32(IGC_CTRL_EXT);
+
+	/* set lan id */
+	hw->bus.func = (rd32(IGC_STATUS) & IGC_STATUS_FUNC_MASK) >>
+			IGC_STATUS_FUNC_SHIFT;
+
+	/* Make sure the PHY is in a good state. Several people have reported
+	 * firmware leaving the PHY's page select register set to something
+	 * other than the default of zero, which causes the PHY ID read to
+	 * access something other than the intended register.
+	 */
+	ret_val = hw->phy.ops.reset(hw);
+	if (ret_val) {
+		hw_dbg("Error resetting the PHY.\n");
+		goto out;
+	}
+
+	ret_val = igc_get_phy_id_base(hw);
+	if (ret_val)
+		return ret_val;
+
+	/* Verify phy id and set remaining function pointers */
+	switch (phy->id) {
+	case I225_I_PHY_ID:
+		phy->type	= igc_phy_i225;
+		break;
+	default:
+		ret_val = -IGC_ERR_PHY;
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
+
 static s32 igc_get_invariants_base(struct igc_hw *hw)
 {
 	u32 link_mode = 0;
@@ -211,11 +280,41 @@ static s32 igc_get_invariants_base(struct igc_hw *hw)
 		break;
 	}
 
+	/* setup PHY parameters */
+	ret_val = igc_init_phy_params_base(hw);
 	if (ret_val)
 		goto out;
 
 out:
 	return ret_val;
+}
+
+/**
+ * igc_acquire_phy_base - Acquire rights to access PHY
+ * @hw: pointer to the HW structure
+ *
+ * Acquire access rights to the correct PHY.  This is a
+ * function pointer entry point called by the api module.
+ */
+static s32 igc_acquire_phy_base(struct igc_hw *hw)
+{
+	u16 mask = IGC_SWFW_PHY0_SM;
+
+	return hw->mac.ops.acquire_swfw_sync(hw, mask);
+}
+
+/**
+ * igc_release_phy_base - Release rights to access PHY
+ * @hw: pointer to the HW structure
+ *
+ * A wrapper to release access rights to the correct PHY.  This is a
+ * function pointer entry point called by the api module.
+ */
+static void igc_release_phy_base(struct igc_hw *hw)
+{
+	u16 mask = IGC_SWFW_PHY0_SM;
+
+	hw->mac.ops.release_swfw_sync(hw, mask);
 }
 
 /**
@@ -287,6 +386,20 @@ static s32 igc_read_mac_addr_base(struct igc_hw *hw)
 	ret_val = igc_read_mac_addr(hw);
 
 	return ret_val;
+}
+
+/**
+ * igc_power_down_phy_copper_base - Remove link during PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, or wake on lan is not enabled, remove the link.
+ */
+void igc_power_down_phy_copper_base(struct igc_hw *hw)
+{
+	/* If the management interface is not enabled, then power down */
+	if (!(igc_enable_mng_pass_thru(hw) || igc_check_reset_block(hw)))
+		igc_power_down_phy_copper(hw);
 }
 
 /**
@@ -373,7 +486,16 @@ static struct igc_mac_operations igc_mac_ops_base = {
 	.get_speed_and_duplex	= igc_get_link_up_info_base,
 };
 
+static const struct igc_phy_operations igc_phy_ops_base = {
+	.acquire		= igc_acquire_phy_base,
+	.release		= igc_release_phy_base,
+	.reset			= igc_phy_hw_reset,
+	.read_reg		= igc_read_phy_reg_gpy,
+	.write_reg		= igc_write_phy_reg_gpy,
+};
+
 const struct igc_info igc_base_info = {
 	.get_invariants		= igc_get_invariants_base,
 	.mac_ops		= &igc_mac_ops_base,
+	.phy_ops		= &igc_phy_ops_base,
 };

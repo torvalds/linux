@@ -47,10 +47,13 @@
 #define IGC_ERR_MAC_INIT		5
 #define IGC_ERR_RESET			9
 #define IGC_ERR_MASTER_REQUESTS_PENDING	10
+#define IGC_ERR_BLK_PHY_RESET		12
 #define IGC_ERR_SWFW_SYNC		13
 
 /* Device Control */
 #define IGC_CTRL_RST		0x04000000  /* Global reset */
+
+#define IGC_CTRL_PHY_RST	0x80000000  /* PHY Reset */
 
 /* PBA constants */
 #define IGC_PBA_34K		0x0022
@@ -122,6 +125,22 @@
 #define SPEED_2500		2500
 #define HALF_DUPLEX		1
 #define FULL_DUPLEX		2
+
+/* 1Gbps and 2.5Gbps half duplex is not supported, nor spec-compliant. */
+#define ADVERTISE_10_HALF		0x0001
+#define ADVERTISE_10_FULL		0x0002
+#define ADVERTISE_100_HALF		0x0004
+#define ADVERTISE_100_FULL		0x0008
+#define ADVERTISE_1000_HALF		0x0010 /* Not used, just FYI */
+#define ADVERTISE_1000_FULL		0x0020
+#define ADVERTISE_2500_HALF		0x0040 /* Not used, just FYI */
+#define ADVERTISE_2500_FULL		0x0080
+
+#define IGC_ALL_SPEED_DUPLEX_2500 ( \
+	ADVERTISE_10_HALF | ADVERTISE_10_FULL | ADVERTISE_100_HALF | \
+	ADVERTISE_100_FULL | ADVERTISE_1000_FULL | ADVERTISE_2500_FULL)
+
+#define AUTONEG_ADVERTISE_SPEED_DEFAULT_2500	IGC_ALL_SPEED_DUPLEX_2500
 
 /* Interrupt Cause Read */
 #define IGC_ICR_TXDW		BIT(0)	/* Transmit desc written back */
@@ -208,6 +227,7 @@
 
 /* Management Control */
 #define IGC_MANC_RCV_TCO_EN	0x00020000 /* Receive TCO Packets Enabled */
+#define IGC_MANC_BLK_PHY_RST_ON_IDE	0x00040000 /* Block phy resets */
 
 /* Receive Control */
 #define IGC_RCTL_RST		0x00000001 /* Software reset */
@@ -255,6 +275,65 @@
 
 #define I225_RXPBSIZE_DEFAULT	0x000000A2 /* RXPBSIZE default */
 #define I225_TXPBSIZE_DEFAULT	0x04000014 /* TXPBSIZE default */
+
+/* GPY211 - I225 defines */
+#define GPY_MMD_MASK		0xFFFF0000
+#define GPY_MMD_SHIFT		16
+#define GPY_REG_MASK		0x0000FFFF
+
+#define IGC_MMDAC_FUNC_DATA	0x4000 /* Data, no post increment */
+
+/* MAC definitions */
+#define IGC_FACTPS_MNGCG	0x20000000
+#define IGC_FWSM_MODE_MASK	0xE
+#define IGC_FWSM_MODE_SHIFT	1
+
+/* Management Control */
+#define IGC_MANC_SMBUS_EN	0x00000001 /* SMBus Enabled - RO */
+#define IGC_MANC_ASF_EN		0x00000002 /* ASF Enabled - RO */
+
+/* PHY */
+#define PHY_REVISION_MASK	0xFFFFFFF0
+#define MAX_PHY_REG_ADDRESS	0x1F  /* 5 bit address bus (0-0x1F) */
+#define IGC_GEN_POLL_TIMEOUT	1920
+
+/* PHY Control Register */
+#define MII_CR_FULL_DUPLEX	0x0100  /* FDX =1, half duplex =0 */
+#define MII_CR_RESTART_AUTO_NEG	0x0200  /* Restart auto negotiation */
+#define MII_CR_POWER_DOWN	0x0800  /* Power down */
+#define MII_CR_AUTO_NEG_EN	0x1000  /* Auto Neg Enable */
+#define MII_CR_LOOPBACK		0x4000  /* 0 = normal, 1 = loopback */
+#define MII_CR_RESET		0x8000  /* 0 = normal, 1 = PHY reset */
+#define MII_CR_SPEED_1000	0x0040
+#define MII_CR_SPEED_100	0x2000
+#define MII_CR_SPEED_10		0x0000
+
+/* PHY Status Register */
+#define MII_SR_LINK_STATUS	0x0004 /* Link Status 1 = link */
+#define MII_SR_AUTONEG_COMPLETE	0x0020 /* Auto Neg Complete */
+
+/* PHY 1000 MII Register/Bit Definitions */
+/* PHY Registers defined by IEEE */
+#define PHY_CONTROL		0x00 /* Control Register */
+#define PHY_STATUS		0x01 /* Status Register */
+#define PHY_ID1			0x02 /* Phy Id Reg (word 1) */
+#define PHY_ID2			0x03 /* Phy Id Reg (word 2) */
+
+/* Bit definitions for valid PHY IDs. I = Integrated E = External */
+#define I225_I_PHY_ID		0x67C9DC00
+
+/* MDI Control */
+#define IGC_MDIC_DATA_MASK	0x0000FFFF
+#define IGC_MDIC_REG_MASK	0x001F0000
+#define IGC_MDIC_REG_SHIFT	16
+#define IGC_MDIC_PHY_MASK	0x03E00000
+#define IGC_MDIC_PHY_SHIFT	21
+#define IGC_MDIC_OP_WRITE	0x04000000
+#define IGC_MDIC_OP_READ	0x08000000
+#define IGC_MDIC_READY		0x10000000
+#define IGC_MDIC_INT_EN		0x20000000
+#define IGC_MDIC_ERROR		0x40000000
+#define IGC_MDIC_DEST		0x80000000
 
 #define IGC_N0_QUEUE -1
 

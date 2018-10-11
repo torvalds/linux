@@ -338,6 +338,7 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 	 * link.  If so, then we want to get the current speed/duplex
 	 * of the PHY.
 	 */
+	ret_val = igc_phy_has_link(hw, 1, 0, &link);
 	if (ret_val)
 		goto out;
 
@@ -349,6 +350,7 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 	/* Check if there was DownShift, must be checked
 	 * immediately after link-up
 	 */
+	igc_check_downshift(hw);
 
 	/* If we are forcing speed/duplex, then we simply return since
 	 * we have already determined whether we have link or not.
@@ -487,4 +489,47 @@ void igc_put_hw_semaphore(struct igc_hw *hw)
 	swsm &= ~(IGC_SWSM_SMBI | IGC_SWSM_SWESMBI);
 
 	wr32(IGC_SWSM, swsm);
+}
+
+/**
+ * igc_enable_mng_pass_thru - Enable processing of ARP's
+ * @hw: pointer to the HW structure
+ *
+ * Verifies the hardware needs to leave interface enabled so that frames can
+ * be directed to and from the management interface.
+ */
+bool igc_enable_mng_pass_thru(struct igc_hw *hw)
+{
+	bool ret_val = false;
+	u32 fwsm, factps;
+	u32 manc;
+
+	if (!hw->mac.asf_firmware_present)
+		goto out;
+
+	manc = rd32(IGC_MANC);
+
+	if (!(manc & IGC_MANC_RCV_TCO_EN))
+		goto out;
+
+	if (hw->mac.arc_subsystem_valid) {
+		fwsm = rd32(IGC_FWSM);
+		factps = rd32(IGC_FACTPS);
+
+		if (!(factps & IGC_FACTPS_MNGCG) &&
+		    ((fwsm & IGC_FWSM_MODE_MASK) ==
+		    (igc_mng_mode_pt << IGC_FWSM_MODE_SHIFT))) {
+			ret_val = true;
+			goto out;
+		}
+	} else {
+		if ((manc & IGC_MANC_SMBUS_EN) &&
+		    !(manc & IGC_MANC_ASF_EN)) {
+			ret_val = true;
+			goto out;
+		}
+	}
+
+out:
+	return ret_val;
 }

@@ -359,6 +359,22 @@ static inline u16 igc_desc_unused(const struct igc_ring *ring)
 	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - 1;
 }
 
+static inline s32 igc_get_phy_info(struct igc_hw *hw)
+{
+	if (hw->phy.ops.get_phy_info)
+		return hw->phy.ops.get_phy_info(hw);
+
+	return 0;
+}
+
+static inline s32 igc_reset_phy(struct igc_hw *hw)
+{
+	if (hw->phy.ops.reset)
+		return hw->phy.ops.reset(hw);
+
+	return 0;
+}
+
 static inline struct netdev_queue *txring_txq(const struct igc_ring *tx_ring)
 {
 	return netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);

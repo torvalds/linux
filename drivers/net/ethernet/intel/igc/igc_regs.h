@@ -39,6 +39,9 @@
 #define IGC_SWSM		0x05B50  /* SW Semaphore */
 #define IGC_FWSM		0x05B54  /* FW Semaphore */
 
+/* Function Active and Power State to MNG */
+#define IGC_FACTPS		0x05B30
+
 /* Interrupt Register Description */
 #define IGC_EICS		0x01520  /* Ext. Interrupt Cause Set - W0 */
 #define IGC_EIMS		0x01524  /* Ext. Interrupt Mask Set/Read - RW */

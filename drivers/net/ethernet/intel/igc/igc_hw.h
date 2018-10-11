@@ -11,12 +11,15 @@
 #include "igc_regs.h"
 #include "igc_defines.h"
 #include "igc_mac.h"
+#include "igc_phy.h"
 #include "igc_nvm.h"
 #include "igc_i225.h"
 #include "igc_base.h"
 
 #define IGC_DEV_ID_I225_LM			0x15F2
 #define IGC_DEV_ID_I225_V			0x15F3
+
+#define IGC_FUNC_0				0
 
 /* Function pointers for the MAC. */
 struct igc_mac_operations {
@@ -42,6 +45,12 @@ enum igc_phy_type {
 	igc_phy_unknown = 0,
 	igc_phy_none,
 	igc_phy_i225,
+};
+
+enum igc_media_type {
+	igc_media_type_unknown = 0,
+	igc_media_type_copper = 1,
+	igc_num_media_types
 };
 
 enum igc_nvm_type {
@@ -84,6 +93,7 @@ struct igc_mac_info {
 
 	bool adaptive_ifs;
 	bool has_fwsm;
+	bool asf_firmware_present;
 	bool arc_subsystem_valid;
 
 	bool autoneg;
@@ -101,6 +111,20 @@ struct igc_nvm_operations {
 	s32 (*valid_led_default)(struct igc_hw *hw, u16 *data);
 };
 
+struct igc_phy_operations {
+	s32 (*acquire)(struct igc_hw *hw);
+	s32 (*check_polarity)(struct igc_hw *hw);
+	s32 (*check_reset_block)(struct igc_hw *hw);
+	s32 (*force_speed_duplex)(struct igc_hw *hw);
+	s32 (*get_cfg_done)(struct igc_hw *hw);
+	s32 (*get_cable_length)(struct igc_hw *hw);
+	s32 (*get_phy_info)(struct igc_hw *hw);
+	s32 (*read_reg)(struct igc_hw *hw, u32 address, u16 *data);
+	void (*release)(struct igc_hw *hw);
+	s32 (*reset)(struct igc_hw *hw);
+	s32 (*write_reg)(struct igc_hw *hw, u32 address, u16 data);
+};
+
 struct igc_nvm_info {
 	struct igc_nvm_operations ops;
 	enum igc_nvm_type type;
@@ -113,6 +137,35 @@ struct igc_nvm_info {
 	u16 address_bits;
 	u16 opcode_bits;
 	u16 page_size;
+};
+
+struct igc_phy_info {
+	struct igc_phy_operations ops;
+
+	enum igc_phy_type type;
+
+	u32 addr;
+	u32 id;
+	u32 reset_delay_us; /* in usec */
+	u32 revision;
+
+	enum igc_media_type media_type;
+
+	u16 autoneg_advertised;
+	u16 autoneg_mask;
+	u16 cable_length;
+	u16 max_cable_length;
+	u16 min_cable_length;
+	u16 pair_length[4];
+
+	u8 mdix;
+
+	bool disable_polarity_correction;
+	bool is_mdix;
+	bool polarity_correction;
+	bool reset_disable;
+	bool speed_downgraded;
+	bool autoneg_wait_to_complete;
 };
 
 struct igc_bus_info {
@@ -155,6 +208,7 @@ struct igc_hw {
 	struct igc_mac_info  mac;
 	struct igc_fc_info   fc;
 	struct igc_nvm_info  nvm;
+	struct igc_phy_info  phy;
 
 	struct igc_bus_info bus;
 

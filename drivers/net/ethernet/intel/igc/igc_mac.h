@@ -5,6 +5,7 @@
 #define _IGC_MAC_H_
 
 #include "igc_hw.h"
+#include "igc_phy.h"
 #include "igc_defines.h"
 
 #ifndef IGC_REMOVED
@@ -24,5 +25,15 @@ void igc_config_collision_dist(struct igc_hw *hw);
 
 s32 igc_get_speed_and_duplex_copper(struct igc_hw *hw, u16 *speed,
 				    u16 *duplex);
+
+bool igc_enable_mng_pass_thru(struct igc_hw *hw);
+
+enum igc_mng_mode {
+	igc_mng_mode_none = 0,
+	igc_mng_mode_asf,
+	igc_mng_mode_pt,
+	igc_mng_mode_ipmi,
+	igc_mng_mode_host_if_only
+};
 
 #endif
