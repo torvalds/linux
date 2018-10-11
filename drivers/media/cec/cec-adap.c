@@ -807,7 +807,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 	if (adap->transmit_queue_sz >= CEC_MAX_MSG_TX_QUEUE_SZ) {
-		dprintk(1, "%s: transmit queue full\n", __func__);
+		dprintk(2, "%s: transmit queue full\n", __func__);
 		return -EBUSY;
 	}
 
