@@ -424,8 +424,6 @@ void drm_dp_cec_register_connector(struct drm_dp_aux *aux, const char *name,
 	aux->cec.parent = parent;
 	INIT_DELAYED_WORK(&aux->cec.unregister_work,
 			  drm_dp_cec_unregister_work);
-
-	drm_dp_cec_set_edid(aux, NULL);
 }
 EXPORT_SYMBOL(drm_dp_cec_register_connector);
 
