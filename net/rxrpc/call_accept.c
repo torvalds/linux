@@ -337,7 +337,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_connection *conn;
-	struct rxrpc_peer *peer;
+	struct rxrpc_peer *peer = NULL;
 	struct rxrpc_call *call;
 
 	_enter("");
