@@ -10,6 +10,7 @@
 #include "igc_defines.h"
 #include "igc_mac.h"
 #include "igc_i225.h"
+#include "igc_base.h"
 
 #define IGC_DEV_ID_I225_LM			0x15F2
 #define IGC_DEV_ID_I225_V			0x15F3

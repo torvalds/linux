@@ -46,11 +46,77 @@ extern char igc_driver_version[];
 #define MAX_Q_VECTORS			8
 #define MAX_STD_JUMBO_FRAME_SIZE	9216
 
+/* Supported Rx Buffer Sizes */
+#define IGC_RXBUFFER_256		256
+#define IGC_RXBUFFER_2048		2048
+#define IGC_RXBUFFER_3072		3072
+
+#define IGC_RX_HDR_LEN			IGC_RXBUFFER_256
+
+/* RX and TX descriptor control thresholds.
+ * PTHRESH - MAC will consider prefetch if it has fewer than this number of
+ *           descriptors available in its onboard memory.
+ *           Setting this to 0 disables RX descriptor prefetch.
+ * HTHRESH - MAC will only prefetch if there are at least this many descriptors
+ *           available in host memory.
+ *           If PTHRESH is 0, this should also be 0.
+ * WTHRESH - RX descriptor writeback threshold - MAC will delay writing back
+ *           descriptors until either it has this many to write back, or the
+ *           ITR timer expires.
+ */
+#define IGC_RX_PTHRESH			8
+#define IGC_RX_HTHRESH			8
+#define IGC_TX_PTHRESH			8
+#define IGC_TX_HTHRESH			1
+#define IGC_RX_WTHRESH			4
+#define IGC_TX_WTHRESH			16
+
+#define IGC_RX_DMA_ATTR \
+	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
+
+#define IGC_TS_HDR_LEN			16
+
+#define IGC_SKB_PAD			(NET_SKB_PAD + NET_IP_ALIGN)
+
+#if (PAGE_SIZE < 8192)
+#define IGC_MAX_FRAME_BUILD_SKB \
+	(SKB_WITH_OVERHEAD(IGC_RXBUFFER_2048) - IGC_SKB_PAD - IGC_TS_HDR_LEN)
+#else
+#define IGC_MAX_FRAME_BUILD_SKB (IGC_RXBUFFER_2048 - IGC_TS_HDR_LEN)
+#endif
+
 enum igc_state_t {
 	__IGC_TESTING,
 	__IGC_RESETTING,
 	__IGC_DOWN,
 	__IGC_PTP_TX_IN_PROGRESS,
+};
+
+/* wrapper around a pointer to a socket buffer,
+ * so a DMA handle can be stored along with the buffer
+ */
+struct igc_tx_buffer {
+	union igc_adv_tx_desc *next_to_watch;
+	unsigned long time_stamp;
+	struct sk_buff *skb;
+	unsigned int bytecount;
+	u16 gso_segs;
+	__be16 protocol;
+
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
+	u32 tx_flags;
+};
+
+struct igc_rx_buffer {
+	dma_addr_t dma;
+	struct page *page;
+#if (BITS_PER_LONG > 32) || (PAGE_SIZE >= 65536)
+	__u32 page_offset;
+#else
+	__u16 page_offset;
+#endif
+	__u16 pagecnt_bias;
 };
 
 struct igc_tx_queue_stats {
@@ -213,5 +279,64 @@ struct igc_adapter {
 
 	struct igc_mac_addr *mac_table;
 };
+
+/* igc_desc_unused - calculate if we have unused descriptors */
+static inline u16 igc_desc_unused(const struct igc_ring *ring)
+{
+	u16 ntc = ring->next_to_clean;
+	u16 ntu = ring->next_to_use;
+
+	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - 1;
+}
+
+static inline struct netdev_queue *txring_txq(const struct igc_ring *tx_ring)
+{
+	return netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
+}
+
+enum igc_ring_flags_t {
+	IGC_RING_FLAG_RX_3K_BUFFER,
+	IGC_RING_FLAG_RX_BUILD_SKB_ENABLED,
+	IGC_RING_FLAG_RX_SCTP_CSUM,
+	IGC_RING_FLAG_RX_LB_VLAN_BSWAP,
+	IGC_RING_FLAG_TX_CTX_IDX,
+	IGC_RING_FLAG_TX_DETECT_HANG
+};
+
+#define ring_uses_large_buffer(ring) \
+	test_bit(IGC_RING_FLAG_RX_3K_BUFFER, &(ring)->flags)
+
+#define ring_uses_build_skb(ring) \
+	test_bit(IGC_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
+
+static inline unsigned int igc_rx_bufsz(struct igc_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring_uses_large_buffer(ring))
+		return IGC_RXBUFFER_3072;
+
+	if (ring_uses_build_skb(ring))
+		return IGC_MAX_FRAME_BUILD_SKB + IGC_TS_HDR_LEN;
+#endif
+	return IGC_RXBUFFER_2048;
+}
+
+static inline unsigned int igc_rx_pg_order(struct igc_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring_uses_large_buffer(ring))
+		return 1;
+#endif
+	return 0;
+}
+
+#define igc_rx_pg_size(_ring) (PAGE_SIZE << igc_rx_pg_order(_ring))
+
+#define IGC_RX_DESC(R, i)       \
+	(&(((union igc_adv_rx_desc *)((R)->desc))[i]))
+#define IGC_TX_DESC(R, i)       \
+	(&(((union igc_adv_tx_desc *)((R)->desc))[i]))
+#define IGC_TX_CTXTDESC(R, i)   \
+	(&(((struct igc_adv_tx_context_desc *)((R)->desc))[i]))
 
 #endif /* _IGC_H_ */

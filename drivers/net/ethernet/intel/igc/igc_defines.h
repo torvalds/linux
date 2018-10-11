@@ -51,6 +51,10 @@
 #define IGC_ICR_RXO		BIT(6)	/* Rx overrun */
 #define IGC_ICR_RXT0		BIT(7)	/* Rx timer intr (ring 0) */
 #define IGC_ICR_DRSTA		BIT(30)	/* Device Reset Asserted */
+
+/* If this bit asserted, the driver should claim the interrupt */
+#define IGC_ICR_INT_ASSERTED	BIT(31)
+
 #define IGC_ICS_RXT0		IGC_ICR_RXT0 /* Rx timer intr */
 
 #define IMS_ENABLE_MASK ( \
@@ -79,6 +83,45 @@
 #define IGC_GPIE_MSIX_MODE	0x00000010
 #define IGC_GPIE_EIAME		0x40000000
 #define IGC_GPIE_PBA		0x80000000
+
+/* Transmit Control */
+#define IGC_TCTL_EN		0x00000002 /* enable Tx */
+#define IGC_TCTL_PSP		0x00000008 /* pad short packets */
+#define IGC_TCTL_CT		0x00000ff0 /* collision threshold */
+#define IGC_TCTL_COLD		0x003ff000 /* collision distance */
+#define IGC_TCTL_RTLC		0x01000000 /* Re-transmit on late collision */
+#define IGC_TCTL_MULR		0x10000000 /* Multiple request support */
+
+#define IGC_CT_SHIFT			4
+#define IGC_COLLISION_THRESHOLD		15
+
+/* Management Control */
+#define IGC_MANC_RCV_TCO_EN	0x00020000 /* Receive TCO Packets Enabled */
+
+/* Receive Control */
+#define IGC_RCTL_RST		0x00000001 /* Software reset */
+#define IGC_RCTL_EN		0x00000002 /* enable */
+#define IGC_RCTL_SBP		0x00000004 /* store bad packet */
+#define IGC_RCTL_UPE		0x00000008 /* unicast promisc enable */
+#define IGC_RCTL_MPE		0x00000010 /* multicast promisc enable */
+#define IGC_RCTL_LPE		0x00000020 /* long packet enable */
+#define IGC_RCTL_LBM_MAC	0x00000040 /* MAC loopback mode */
+#define IGC_RCTL_LBM_TCVR	0x000000C0 /* tcvr loopback mode */
+
+#define IGC_RCTL_RDMTS_HALF	0x00000000 /* Rx desc min thresh size */
+#define IGC_RCTL_BAM		0x00008000 /* broadcast enable */
+
+/* Header split receive */
+#define IGC_RFCTL_IPV6_EX_DIS	0x00010000
+#define IGC_RFCTL_LEF		0x00040000
+
+#define IGC_RCTL_SZ_256		0x00030000 /* Rx buffer size 256 */
+
+#define IGC_RCTL_MO_SHIFT	12 /* multicast offset shift */
+#define IGC_RCTL_CFIEN		0x00080000 /* canonical form enable */
+#define IGC_RCTL_DPF		0x00400000 /* discard pause frames */
+#define IGC_RCTL_PMCF		0x00800000 /* pass MAC control frames */
+#define IGC_RCTL_SECRC		0x04000000 /* Strip Ethernet CRC */
 
 #define IGC_N0_QUEUE -1
 

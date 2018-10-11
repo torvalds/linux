@@ -168,6 +168,9 @@
 #define IGC_SCVPC	0x04228  /* SerDes/SGMII Code Violation Pkt Count */
 #define IGC_HRMPC	0x0A018  /* Header Redirection Missed Packet Count */
 
+/* Management registers */
+#define IGC_MANC	0x05820  /* Management Control - RW */
+
 /* forward declaration */
 struct igc_hw;
 u32 igc_rd32(struct igc_hw *hw, u32 reg);
