@@ -254,7 +254,6 @@ static inline bool cgx_event_is_linkevent(u64 event)
 static irqreturn_t cgx_fwi_event_handler(int irq, void *data)
 {
 	struct lmac *lmac = data;
-	struct device *dev;
 	struct cgx *cgx;
 	u64 event;
 
@@ -264,8 +263,6 @@ static irqreturn_t cgx_fwi_event_handler(int irq, void *data)
 
 	if (!FIELD_GET(EVTREG_ACK, event))
 		return IRQ_NONE;
-
-	dev = &cgx->pdev->dev;
 
 	switch (FIELD_GET(EVTREG_EVT_TYPE, event)) {
 	case CGX_EVT_CMD_RESP:
