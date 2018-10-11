@@ -86,8 +86,6 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 			       struct ena_com_buf *ena_buf,
 			       u16 req_id);
 
-int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id);
-
 bool ena_com_cq_empty(struct ena_com_io_cq *io_cq);
 
 static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
@@ -157,6 +155,50 @@ static inline void ena_com_update_numa_node(struct ena_com_io_cq *io_cq,
 static inline void ena_com_comp_ack(struct ena_com_io_sq *io_sq, u16 elem)
 {
 	io_sq->next_to_comp += elem;
+}
+
+static inline void ena_com_cq_inc_head(struct ena_com_io_cq *io_cq)
+{
+	io_cq->head++;
+
+	/* Switch phase bit in case of wrap around */
+	if (unlikely((io_cq->head & (io_cq->q_depth - 1)) == 0))
+		io_cq->phase ^= 1;
+}
+
+static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
+					     u16 *req_id)
+{
+	u8 expected_phase, cdesc_phase;
+	struct ena_eth_io_tx_cdesc *cdesc;
+	u16 masked_head;
+
+	masked_head = io_cq->head & (io_cq->q_depth - 1);
+	expected_phase = io_cq->phase;
+
+	cdesc = (struct ena_eth_io_tx_cdesc *)
+		((uintptr_t)io_cq->cdesc_addr.virt_addr +
+		(masked_head * io_cq->cdesc_entry_size_in_bytes));
+
+	/* When the current completion descriptor phase isn't the same as the
+	 * expected, it mean that the device still didn't update
+	 * this completion.
+	 */
+	cdesc_phase = READ_ONCE(cdesc->flags) & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
+	if (cdesc_phase != expected_phase)
+		return -EAGAIN;
+
+	dma_rmb();
+
+	*req_id = READ_ONCE(cdesc->req_id);
+	if (unlikely(*req_id >= io_cq->q_depth)) {
+		pr_err("Invalid req id %d\n", cdesc->req_id);
+		return -EINVAL;
+	}
+
+	ena_com_cq_inc_head(io_cq);
+
+	return 0;
 }
 
 #endif /* ENA_ETH_COM_H_ */

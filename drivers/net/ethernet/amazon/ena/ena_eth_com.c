@@ -59,15 +59,6 @@ static inline struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	return cdesc;
 }
 
-static inline void ena_com_cq_inc_head(struct ena_com_io_cq *io_cq)
-{
-	io_cq->head++;
-
-	/* Switch phase bit in case of wrap around */
-	if (unlikely((io_cq->head & (io_cq->q_depth - 1)) == 0))
-		io_cq->phase ^= 1;
-}
-
 static inline void *get_sq_desc(struct ena_com_io_sq *io_sq)
 {
 	u16 tail_masked;
@@ -473,40 +464,6 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 		((ena_buf->paddr & GENMASK_ULL(io_sq->dma_addr_bits - 1, 32)) >> 32);
 
 	ena_com_sq_update_tail(io_sq);
-
-	return 0;
-}
-
-int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
-{
-	u8 expected_phase, cdesc_phase;
-	struct ena_eth_io_tx_cdesc *cdesc;
-	u16 masked_head;
-
-	masked_head = io_cq->head & (io_cq->q_depth - 1);
-	expected_phase = io_cq->phase;
-
-	cdesc = (struct ena_eth_io_tx_cdesc *)
-		((uintptr_t)io_cq->cdesc_addr.virt_addr +
-		(masked_head * io_cq->cdesc_entry_size_in_bytes));
-
-	/* When the current completion descriptor phase isn't the same as the
-	 * expected, it mean that the device still didn't update
-	 * this completion.
-	 */
-	cdesc_phase = READ_ONCE(cdesc->flags) & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
-	if (cdesc_phase != expected_phase)
-		return -EAGAIN;
-
-	dma_rmb();
-	if (unlikely(cdesc->req_id >= io_cq->q_depth)) {
-		pr_err("Invalid req id %d\n", cdesc->req_id);
-		return -EINVAL;
-	}
-
-	ena_com_cq_inc_head(io_cq);
-
-	*req_id = READ_ONCE(cdesc->req_id);
 
 	return 0;
 }
