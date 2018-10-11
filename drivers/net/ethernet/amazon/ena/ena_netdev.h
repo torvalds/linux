@@ -81,7 +81,7 @@
 #define ENA_DEFAULT_RING_SIZE	(1024)
 
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
-#define ENA_DEFAULT_RX_COPYBREAK	(128 - NET_IP_ALIGN)
+#define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
 
 /* limit the buffer size to 600 bytes to handle MTU changes from very
  * small to very large, in which case the number of buffers per packet
