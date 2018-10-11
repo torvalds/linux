@@ -1070,8 +1070,10 @@ int ni_tio_set_gate_src(struct ni_gpct *counter,
 		case ni_gpct_variant_e_series:
 		case ni_gpct_variant_m_series:
 			ret = ni_m_set_gate(counter, chan);
+			break;
 		case ni_gpct_variant_660x:
 			ret = ni_660x_set_gate(counter, chan);
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -1090,8 +1092,10 @@ int ni_tio_set_gate_src(struct ni_gpct *counter,
 		switch (counter_dev->variant) {
 		case ni_gpct_variant_m_series:
 			ret = ni_m_set_gate2(counter, chan);
+			break;
 		case ni_gpct_variant_660x:
 			ret = ni_660x_set_gate2(counter, chan);
+			break;
 		default:
 			return -EINVAL;
 		}
