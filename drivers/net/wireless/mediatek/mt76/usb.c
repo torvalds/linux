@@ -258,7 +258,7 @@ int mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf,
 	if (!buf->urb)
 		return -ENOMEM;
 
-	buf->urb->sg = devm_kzalloc(dev->dev, nsgs * sizeof(*buf->urb->sg),
+	buf->urb->sg = devm_kcalloc(dev->dev, nsgs, sizeof(*buf->urb->sg),
 				    gfp);
 	if (!buf->urb->sg)
 		return -ENOMEM;
@@ -464,8 +464,8 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 	int i, err, nsgs;
 
 	spin_lock_init(&q->lock);
-	q->entry = devm_kzalloc(dev->dev,
-				MT_NUM_RX_ENTRIES * sizeof(*q->entry),
+	q->entry = devm_kcalloc(dev->dev,
+				MT_NUM_RX_ENTRIES, sizeof(*q->entry),
 				GFP_KERNEL);
 	if (!q->entry)
 		return -ENOMEM;
@@ -717,8 +717,8 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 		INIT_LIST_HEAD(&q->swq);
 		q->hw_idx = q2hwq(i);
 
-		q->entry = devm_kzalloc(dev->dev,
-					MT_NUM_TX_ENTRIES * sizeof(*q->entry),
+		q->entry = devm_kcalloc(dev->dev,
+					MT_NUM_TX_ENTRIES, sizeof(*q->entry),
 					GFP_KERNEL);
 		if (!q->entry)
 			return -ENOMEM;
