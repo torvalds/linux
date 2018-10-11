@@ -8566,6 +8566,31 @@ static inline void mlxsw_reg_tnumt_pack(char *payload,
 	mlxsw_reg_tnumt_record_size_set(payload, record_size);
 }
 
+/* TNQCR - Tunneling NVE QoS Configuration Register
+ * ------------------------------------------------
+ * The TNQCR register configures how QoS is set in encapsulation into the
+ * underlay network.
+ */
+#define MLXSW_REG_TNQCR_ID 0xA010
+#define MLXSW_REG_TNQCR_LEN 0x0C
+
+MLXSW_REG_DEFINE(tnqcr, MLXSW_REG_TNQCR_ID, MLXSW_REG_TNQCR_LEN);
+
+/* reg_tnqcr_enc_set_dscp
+ * For encapsulation: How to set DSCP field:
+ * 0 - Copy the DSCP from the overlay (inner) IP header to the underlay
+ * (outer) IP header. If there is no IP header, use TNQDR.dscp
+ * 1 - Set the DSCP field as TNQDR.dscp
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnqcr, enc_set_dscp, 0x04, 28, 1);
+
+static inline void mlxsw_reg_tnqcr_pack(char *payload)
+{
+	MLXSW_REG_ZERO(tnqcr, payload);
+	mlxsw_reg_tnqcr_enc_set_dscp_set(payload, 0);
+}
+
 /* TNEEM - Tunneling NVE Encapsulation ECN Mapping Register
  * --------------------------------------------------------
  * The TNEEM register maps ECN of the IP header at the ingress to the
@@ -9248,6 +9273,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mgpc),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
+	MLXSW_REG(tnqcr),
 	MLXSW_REG(tneem),
 	MLXSW_REG(tndem),
 	MLXSW_REG(tnpc),
