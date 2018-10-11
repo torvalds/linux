@@ -125,31 +125,6 @@ struct gfs2_rgrpd {
 	struct rb_root rd_rstree;       /* multi-block reservation tree */
 };
 
-struct gfs2_rbm {
-	struct gfs2_rgrpd *rgd;
-	u32 offset;		/* The offset is bitmap relative */
-	int bii;		/* Bitmap index */
-};
-
-static inline struct gfs2_bitmap *rbm_bi(const struct gfs2_rbm *rbm)
-{
-	return rbm->rgd->rd_bits + rbm->bii;
-}
-
-static inline u64 gfs2_rbm_to_block(const struct gfs2_rbm *rbm)
-{
-	BUG_ON(rbm->offset >= rbm->rgd->rd_data);
-	return rbm->rgd->rd_data0 + (rbm_bi(rbm)->bi_start * GFS2_NBBY) +
-		rbm->offset;
-}
-
-static inline bool gfs2_rbm_eq(const struct gfs2_rbm *rbm1,
-			       const struct gfs2_rbm *rbm2)
-{
-	return (rbm1->rgd == rbm2->rgd) && (rbm1->bii == rbm2->bii) &&
-	       (rbm1->offset == rbm2->offset);
-}
-
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
 	BH_Escaped = BH_PrivateStart + 1,
@@ -313,8 +288,9 @@ struct gfs2_qadata { /* quota allocation data */
 */
 
 struct gfs2_blkreserv {
-	struct rb_node rs_node;       /* link to other block reservations */
-	struct gfs2_rbm rs_rbm;       /* Start of reservation */
+	struct rb_node rs_node;       /* node within rd_rstree */
+	struct gfs2_rgrpd *rs_rgd;
+	u64 rs_start;		      /* start of reservation */
 	u32 rs_free;                  /* how many blocks are still free */
 };
 

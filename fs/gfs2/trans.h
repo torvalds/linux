@@ -27,7 +27,7 @@ struct gfs2_glock;
  * block, or all of the blocks in the rg, whichever is smaller */
 static inline unsigned int gfs2_rg_blocks(const struct gfs2_inode *ip, unsigned requested)
 {
-	struct gfs2_rgrpd *rgd = ip->i_res.rs_rbm.rgd;
+	struct gfs2_rgrpd *rgd = ip->i_res.rs_rgd;
 
 	if (requested < rgd->rd_length)
 		return requested + 1;

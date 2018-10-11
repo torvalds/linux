@@ -603,13 +603,13 @@ TRACE_EVENT(gfs2_rs,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= rs->rs_rbm.rgd->rd_sbd->sd_vfs->s_dev;
-		__entry->rd_addr	= rs->rs_rbm.rgd->rd_addr;
-		__entry->rd_free_clone	= rs->rs_rbm.rgd->rd_free_clone;
-		__entry->rd_reserved	= rs->rs_rbm.rgd->rd_reserved;
+		__entry->dev		= rs->rs_rgd->rd_sbd->sd_vfs->s_dev;
+		__entry->rd_addr	= rs->rs_rgd->rd_addr;
+		__entry->rd_free_clone	= rs->rs_rgd->rd_free_clone;
+		__entry->rd_reserved	= rs->rs_rgd->rd_reserved;
 		__entry->inum		= container_of(rs, struct gfs2_inode,
 						       i_res)->i_no_addr;
-		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
+		__entry->start		= rs->rs_start;
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;
 	),

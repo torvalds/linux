@@ -36,6 +36,24 @@
 #define BFITNOENT ((u32)~0)
 #define NO_BLOCK ((u64)~0)
 
+struct gfs2_rbm {
+	struct gfs2_rgrpd *rgd;
+	u32 offset;		/* The offset is bitmap relative */
+	int bii;		/* Bitmap index */
+};
+
+static inline struct gfs2_bitmap *rbm_bi(const struct gfs2_rbm *rbm)
+{
+	return rbm->rgd->rd_bits + rbm->bii;
+}
+
+static inline u64 gfs2_rbm_to_block(const struct gfs2_rbm *rbm)
+{
+	BUG_ON(rbm->offset >= rbm->rgd->rd_data);
+	return rbm->rgd->rd_data0 + (rbm_bi(rbm)->bi_start * GFS2_NBBY) +
+		rbm->offset;
+}
+
 /*
  * These routines are used by the resource group routines (rgrp.c)
  * to keep track of block allocation.  Each block is represented by two
@@ -175,7 +193,7 @@ static inline u64 gfs2_bit_search(const __le64 *ptr, u64 mask, u8 state)
 
 /**
  * rs_cmp - multi-block reservation range compare
- * @blk: absolute file system block number of the new reservation
+ * @start: start of the new reservation
  * @len: number of blocks in the new reservation
  * @rs: existing reservation to compare against
  *
@@ -183,13 +201,11 @@ static inline u64 gfs2_bit_search(const __le64 *ptr, u64 mask, u8 state)
  *         -1 if the block range is before the start of the reservation
  *          0 if the block range overlaps with the reservation
  */
-static inline int rs_cmp(u64 blk, u32 len, struct gfs2_blkreserv *rs)
+static inline int rs_cmp(u64 start, u32 len, struct gfs2_blkreserv *rs)
 {
-	u64 startblk = gfs2_rbm_to_block(&rs->rs_rbm);
-
-	if (blk >= startblk + rs->rs_free)
+	if (start >= rs->rs_start + rs->rs_free)
 		return 1;
-	if (blk + len - 1 < startblk)
+	if (rs->rs_start >= start + len)
 		return -1;
 	return 0;
 }
@@ -311,13 +327,28 @@ static bool gfs2_rbm_add(struct gfs2_rbm *rbm, u32 blocks)
 	}
 }
 
+static struct gfs2_bitmap *gfs2_block_to_bitmap(struct gfs2_rgrpd *rgd,
+						u64 block)
+{
+	unsigned int delta = (sizeof(struct gfs2_rgrp) -
+			      sizeof(struct gfs2_meta_header)) * GFS2_NBBY;
+	unsigned int rblock, bii;
+
+	if (!rgrp_contains_block(rgd, block))
+		return NULL;
+	rblock = block - rgd->rd_data0;
+	bii = (rblock + delta) / rgd->rd_sbd->sd_blocks_per_bitmap;
+	return rgd->rd_bits + bii;
+}
+
 /**
  * gfs2_unaligned_extlen - Look for free blocks which are not byte aligned
  * @rbm: Position to search (value/result)
  * @n_unaligned: Number of unaligned blocks to check
  * @len: Decremented for each block found (terminate on zero)
  *
- * Returns: true if a non-free block is encountered
+ * Returns: true if a non-free block is encountered or the end of the resource
+ *	    group is reached.
  */
 
 static bool gfs2_unaligned_extlen(struct gfs2_rbm *rbm, u32 n_unaligned, u32 *len)
@@ -604,10 +635,11 @@ static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs,
 {
 	struct gfs2_inode *ip = container_of(rs, struct gfs2_inode, i_res);
 
-	gfs2_print_dbg(seq, "%s  B: n:%llu s:%llu b:%u f:%u\n", fs_id_buf,
+	gfs2_print_dbg(seq, "%s  B: n:%llu s:%llu f:%u\n",
+		       fs_id_buf,
 		       (unsigned long long)ip->i_no_addr,
-		       (unsigned long long)gfs2_rbm_to_block(&rs->rs_rbm),
-		       rs->rs_rbm.offset, rs->rs_free);
+		       (unsigned long long)rs->rs_start,
+		       rs->rs_free);
 }
 
 /**
@@ -622,30 +654,28 @@ static void __rs_deltree(struct gfs2_blkreserv *rs)
 	if (!gfs2_rs_active(rs))
 		return;
 
-	rgd = rs->rs_rbm.rgd;
+	rgd = rs->rs_rgd;
 	trace_gfs2_rs(rs, TRACE_RS_TREEDEL);
 	rb_erase(&rs->rs_node, &rgd->rd_rstree);
 	RB_CLEAR_NODE(&rs->rs_node);
 
 	if (rs->rs_free) {
-		u64 last_block = gfs2_rbm_to_block(&rs->rs_rbm) +
-				 rs->rs_free - 1;
-		struct gfs2_rbm last_rbm = { .rgd = rs->rs_rbm.rgd, };
+		u64 last_block = rs->rs_start + rs->rs_free - 1;
 		struct gfs2_bitmap *start, *last;
 
 		/* return reserved blocks to the rgrp */
-		BUG_ON(rs->rs_rbm.rgd->rd_reserved < rs->rs_free);
-		rs->rs_rbm.rgd->rd_reserved -= rs->rs_free;
+		BUG_ON(rs->rs_rgd->rd_reserved < rs->rs_free);
+		rs->rs_rgd->rd_reserved -= rs->rs_free;
 		/* The rgrp extent failure point is likely not to increase;
 		   it will only do so if the freed blocks are somehow
 		   contiguous with a span of free blocks that follows. Still,
 		   it will force the number to be recalculated later. */
 		rgd->rd_extfail_pt += rs->rs_free;
 		rs->rs_free = 0;
-		if (gfs2_rbm_from_block(&last_rbm, last_block))
+		start = gfs2_block_to_bitmap(rgd, rs->rs_start);
+		last = gfs2_block_to_bitmap(rgd, last_block);
+		if (!start || !last)
 			return;
-		start = rbm_bi(&rs->rs_rbm);
-		last = rbm_bi(&last_rbm);
 		do
 			clear_bit(GBF_FULL, &start->bi_flags);
 		while (start++ != last);
@@ -661,7 +691,7 @@ void gfs2_rs_deltree(struct gfs2_blkreserv *rs)
 {
 	struct gfs2_rgrpd *rgd;
 
-	rgd = rs->rs_rbm.rgd;
+	rgd = rs->rs_rgd;
 	if (rgd) {
 		spin_lock(&rgd->rd_rsspin);
 		__rs_deltree(rs);
@@ -1467,8 +1497,7 @@ static void rs_insert(struct gfs2_inode *ip)
 	struct rb_node **newn, *parent = NULL;
 	int rc;
 	struct gfs2_blkreserv *rs = &ip->i_res;
-	struct gfs2_rgrpd *rgd = rs->rs_rbm.rgd;
-	u64 fsblock = gfs2_rbm_to_block(&rs->rs_rbm);
+	struct gfs2_rgrpd *rgd = rs->rs_rgd;
 
 	BUG_ON(gfs2_rs_active(rs));
 
@@ -1479,7 +1508,7 @@ static void rs_insert(struct gfs2_inode *ip)
 			rb_entry(*newn, struct gfs2_blkreserv, rs_node);
 
 		parent = *newn;
-		rc = rs_cmp(fsblock, rs->rs_free, cur);
+		rc = rs_cmp(rs->rs_start, rs->rs_free, cur);
 		if (rc > 0)
 			newn = &((*newn)->rb_right);
 		else if (rc < 0)
@@ -1567,7 +1596,7 @@ static void rg_mblk_search(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip,
 
 	ret = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, &extlen, ip, true);
 	if (ret == 0) {
-		rs->rs_rbm = rbm;
+		rs->rs_start = gfs2_rbm_to_block(&rbm);
 		rs->rs_free = extlen;
 		rs_insert(ip);
 	} else {
@@ -1612,7 +1641,7 @@ static u64 gfs2_next_unreserved_block(struct gfs2_rgrpd *rgd, u64 block,
 
 	if (n) {
 		while ((rs_cmp(block, length, rs) == 0) && (&ip->i_res != rs)) {
-			block = gfs2_rbm_to_block(&rs->rs_rbm) + rs->rs_free;
+			block = rs->rs_start + rs->rs_free;
 			n = n->rb_right;
 			if (n == NULL)
 				break;
@@ -1949,7 +1978,7 @@ static bool gfs2_rgrp_used_recently(const struct gfs2_blkreserv *rs,
 	u64 tdiff;
 
 	tdiff = ktime_to_ns(ktime_sub(ktime_get_real(),
-                            rs->rs_rbm.rgd->rd_gl->gl_dstamp));
+                            rs->rs_rgd->rd_gl->gl_dstamp));
 
 	return tdiff > (msecs * 1000 * 1000);
 }
@@ -2027,45 +2056,45 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 	if (gfs2_assert_warn(sdp, ap->target))
 		return -EINVAL;
 	if (gfs2_rs_active(rs)) {
-		begin = rs->rs_rbm.rgd;
-	} else if (rs->rs_rbm.rgd &&
-		   rgrp_contains_block(rs->rs_rbm.rgd, ip->i_goal)) {
-		begin = rs->rs_rbm.rgd;
+		begin = rs->rs_rgd;
+	} else if (rs->rs_rgd &&
+		   rgrp_contains_block(rs->rs_rgd, ip->i_goal)) {
+		begin = rs->rs_rgd;
 	} else {
 		check_and_update_goal(ip);
-		rs->rs_rbm.rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal, 1);
+		rs->rs_rgd = begin = gfs2_blk2rgrpd(sdp, ip->i_goal, 1);
 	}
 	if (S_ISDIR(ip->i_inode.i_mode) && (ap->aflags & GFS2_AF_ORLOV))
 		skip = gfs2_orlov_skip(ip);
-	if (rs->rs_rbm.rgd == NULL)
+	if (rs->rs_rgd == NULL)
 		return -EBADSLT;
 
 	while (loops < 3) {
 		rg_locked = 1;
 
-		if (!gfs2_glock_is_locked_by_me(rs->rs_rbm.rgd->rd_gl)) {
+		if (!gfs2_glock_is_locked_by_me(rs->rs_rgd->rd_gl)) {
 			rg_locked = 0;
 			if (skip && skip--)
 				goto next_rgrp;
 			if (!gfs2_rs_active(rs)) {
 				if (loops == 0 &&
-				    !fast_to_acquire(rs->rs_rbm.rgd))
+				    !fast_to_acquire(rs->rs_rgd))
 					goto next_rgrp;
 				if ((loops < 2) &&
 				    gfs2_rgrp_used_recently(rs, 1000) &&
-				    gfs2_rgrp_congested(rs->rs_rbm.rgd, loops))
+				    gfs2_rgrp_congested(rs->rs_rgd, loops))
 					goto next_rgrp;
 			}
-			error = gfs2_glock_nq_init(rs->rs_rbm.rgd->rd_gl,
+			error = gfs2_glock_nq_init(rs->rs_rgd->rd_gl,
 						   LM_ST_EXCLUSIVE, flags,
 						   &ip->i_rgd_gh);
 			if (unlikely(error))
 				return error;
 			if (!gfs2_rs_active(rs) && (loops < 2) &&
-			    gfs2_rgrp_congested(rs->rs_rbm.rgd, loops))
+			    gfs2_rgrp_congested(rs->rs_rgd, loops))
 				goto skip_rgrp;
 			if (sdp->sd_args.ar_rgrplvb) {
-				error = update_rgrp_lvb(rs->rs_rbm.rgd);
+				error = update_rgrp_lvb(rs->rs_rgd);
 				if (unlikely(error)) {
 					gfs2_glock_dq_uninit(&ip->i_rgd_gh);
 					return error;
@@ -2074,24 +2103,24 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 		}
 
 		/* Skip unusable resource groups */
-		if ((rs->rs_rbm.rgd->rd_flags & (GFS2_RGF_NOALLOC |
+		if ((rs->rs_rgd->rd_flags & (GFS2_RGF_NOALLOC |
 						 GFS2_RDF_ERROR)) ||
-		    (loops == 0 && ap->target > rs->rs_rbm.rgd->rd_extfail_pt))
+		    (loops == 0 && ap->target > rs->rs_rgd->rd_extfail_pt))
 			goto skip_rgrp;
 
 		if (sdp->sd_args.ar_rgrplvb)
-			gfs2_rgrp_bh_get(rs->rs_rbm.rgd);
+			gfs2_rgrp_bh_get(rs->rs_rgd);
 
 		/* Get a reservation if we don't already have one */
 		if (!gfs2_rs_active(rs))
-			rg_mblk_search(rs->rs_rbm.rgd, ip, ap);
+			rg_mblk_search(rs->rs_rgd, ip, ap);
 
 		/* Skip rgrps when we can't get a reservation on first pass */
 		if (!gfs2_rs_active(rs) && (loops < 1))
 			goto check_rgrp;
 
 		/* If rgrp has enough free space, use it */
-		free_blocks = rgd_free(rs->rs_rbm.rgd, rs);
+		free_blocks = rgd_free(rs->rs_rgd, rs);
 		if (free_blocks >= ap->target ||
 		    (loops == 2 && ap->min_target &&
 		     free_blocks >= ap->min_target)) {
@@ -2100,8 +2129,8 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 		}
 check_rgrp:
 		/* Check for unlinked inodes which can be reclaimed */
-		if (rs->rs_rbm.rgd->rd_flags & GFS2_RDF_CHECK)
-			try_rgrp_unlink(rs->rs_rbm.rgd, &last_unlinked,
+		if (rs->rs_rgd->rd_flags & GFS2_RDF_CHECK)
+			try_rgrp_unlink(rs->rs_rgd, &last_unlinked,
 					ip->i_no_addr);
 skip_rgrp:
 		/* Drop reservation, if we couldn't use reserved rgrp */
@@ -2113,7 +2142,7 @@ skip_rgrp:
 			gfs2_glock_dq_uninit(&ip->i_rgd_gh);
 next_rgrp:
 		/* Find the next rgrp, and continue looking */
-		if (gfs2_select_rgrp(&rs->rs_rbm.rgd, begin))
+		if (gfs2_select_rgrp(&rs->rs_rgd, begin))
 			continue;
 		if (skip)
 			continue;
@@ -2284,20 +2313,21 @@ static void gfs2_adjust_reservation(struct gfs2_inode *ip,
 {
 	struct gfs2_blkreserv *rs = &ip->i_res;
 	struct gfs2_rgrpd *rgd = rbm->rgd;
-	unsigned rlen;
-	u64 block;
-	int ret;
 
 	spin_lock(&rgd->rd_rsspin);
 	if (gfs2_rs_active(rs)) {
-		if (gfs2_rbm_eq(&rs->rs_rbm, rbm)) {
-			block = gfs2_rbm_to_block(rbm);
-			ret = gfs2_rbm_from_block(&rs->rs_rbm, block + len);
+		u64 start = gfs2_rbm_to_block(rbm);
+
+		if (rs->rs_start == start) {
+			unsigned int rlen;
+
+			rs->rs_start += len;
 			rlen = min(rs->rs_free, len);
 			rs->rs_free -= rlen;
 			rgd->rd_reserved -= rlen;
 			trace_gfs2_rs(rs, TRACE_RS_CLAIM);
-			if (rs->rs_free && !ret)
+			if (rs->rs_start < rgd->rd_data0 + rgd->rd_data &&
+			    rs->rs_free)
 				goto out;
 			/* We used up our block reservation, so we should
 			   reserve more blocks next time. */
@@ -2326,15 +2356,13 @@ static void gfs2_set_alloc_start(struct gfs2_rbm *rbm,
 	u64 goal;
 
 	if (gfs2_rs_active(&ip->i_res)) {
-		*rbm = ip->i_res.rs_rbm;
-		return;
+		goal = ip->i_res.rs_start;
+	} else {
+		if (!dinode && rgrp_contains_block(rbm->rgd, ip->i_goal))
+			goal = ip->i_goal;
+		else
+			goal = rbm->rgd->rd_last_alloc + rbm->rgd->rd_data0;
 	}
-
-	if (!dinode && rgrp_contains_block(rbm->rgd, ip->i_goal))
-		goal = ip->i_goal;
-	else
-		goal = rbm->rgd->rd_last_alloc + rbm->rgd->rd_data0;
-
 	if (WARN_ON_ONCE(gfs2_rbm_from_block(rbm, goal))) {
 		rbm->bii = 0;
 		rbm->offset = 0;
@@ -2357,7 +2385,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
-	struct gfs2_rbm rbm = { .rgd = ip->i_res.rs_rbm.rgd, };
+	struct gfs2_rbm rbm = { .rgd = ip->i_res.rs_rgd, };
 	unsigned int ndata;
 	u64 block; /* block, within the file system scope */
 	int error;
@@ -2589,7 +2617,7 @@ void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 			return;
 		rgd = gfs2_blk2rgrpd(sdp, block, 1);
 	} else {
-		rgd = ip->i_res.rs_rbm.rgd;
+		rgd = ip->i_res.rs_rgd;
 		if (!rgd || !rgrp_contains_block(rgd, block))
 			rgd = gfs2_blk2rgrpd(sdp, block, 1);
 	}

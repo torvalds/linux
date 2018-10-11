@@ -1544,7 +1544,7 @@ more_rgrps:
 
 			/* Must be done with the rgrp glock held: */
 			if (gfs2_rs_active(&ip->i_res) &&
-			    rgd == ip->i_res.rs_rbm.rgd)
+			    rgd == ip->i_res.rs_rgd)
 				gfs2_rs_deltree(&ip->i_res);
 		}
 
