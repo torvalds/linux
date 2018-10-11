@@ -1643,7 +1643,8 @@ void gen9_enable_dc5(struct drm_i915_private *dev_priv);
 unsigned int skl_cdclk_get_vco(unsigned int freq);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
-void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n);
+void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
+		      enum link_m_n_set m_n);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
 			struct dpll *best_clock);

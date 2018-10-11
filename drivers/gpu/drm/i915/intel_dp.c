@@ -6096,10 +6096,10 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 8 && !IS_CHERRYVIEW(dev_priv)) {
 		switch (index) {
 		case DRRS_HIGH_RR:
-			intel_dp_set_m_n(intel_crtc, M1_N1);
+			intel_dp_set_m_n(crtc_state, M1_N1);
 			break;
 		case DRRS_LOW_RR:
-			intel_dp_set_m_n(intel_crtc, M2_N2);
+			intel_dp_set_m_n(crtc_state, M2_N2);
 			break;
 		case DRRS_MAX_RR:
 		default:

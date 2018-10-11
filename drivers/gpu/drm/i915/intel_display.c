@@ -94,9 +94,9 @@ static int intel_framebuffer_init(struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd2 *mode_cmd);
 static void intel_set_pipe_timings(const struct intel_crtc_state *crtc_state);
 static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state);
-static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
-					 struct intel_link_m_n *m_n,
-					 struct intel_link_m_n *m2_n2);
+static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
+					 const struct intel_link_m_n *m_n,
+					 const struct intel_link_m_n *m2_n2);
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void ironlake_set_pipeconf(const struct intel_crtc_state *crtc_state);
 static void haswell_set_pipeconf(const struct intel_crtc_state *crtc_state);
@@ -5557,14 +5557,14 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 		intel_prepare_shared_dpll(pipe_config);
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(intel_crtc, M1_N1);
+		intel_dp_set_m_n(pipe_config, M1_N1);
 
 	intel_set_pipe_timings(pipe_config);
 	intel_set_pipe_src_size(pipe_config);
 
 	if (pipe_config->has_pch_encoder) {
-		intel_cpu_transcoder_set_m_n(intel_crtc,
-				     &pipe_config->fdi_m_n, NULL);
+		intel_cpu_transcoder_set_m_n(pipe_config,
+					     &pipe_config->fdi_m_n, NULL);
 	}
 
 	ironlake_set_pipeconf(pipe_config);
@@ -5680,7 +5680,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(intel_crtc, M1_N1);
+		intel_dp_set_m_n(pipe_config, M1_N1);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_set_pipe_timings(pipe_config);
@@ -5694,8 +5694,8 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	}
 
 	if (pipe_config->has_pch_encoder) {
-		intel_cpu_transcoder_set_m_n(intel_crtc,
-				     &pipe_config->fdi_m_n, NULL);
+		intel_cpu_transcoder_set_m_n(pipe_config,
+					     &pipe_config->fdi_m_n, NULL);
 	}
 
 	if (!transcoder_is_dsi(cpu_transcoder))
@@ -6022,7 +6022,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 		return;
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(intel_crtc, M1_N1);
+		intel_dp_set_m_n(pipe_config, M1_N1);
 
 	intel_set_pipe_timings(pipe_config);
 	intel_set_pipe_src_size(pipe_config);
@@ -6092,7 +6092,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 	i9xx_set_pll_dividers(pipe_config);
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
-		intel_dp_set_m_n(intel_crtc, M1_N1);
+		intel_dp_set_m_n(pipe_config, M1_N1);
 
 	intel_set_pipe_timings(pipe_config);
 	intel_set_pipe_src_size(pipe_config);
@@ -6759,12 +6759,12 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv, enum pipe
 	vlv_dpio_write(dev_priv, pipe, VLV_REF_DW13, reg_val);
 }
 
-static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
-					 struct intel_link_m_n *m_n)
+static void intel_pch_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
+					 const struct intel_link_m_n *m_n)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	int pipe = crtc->pipe;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 
 	I915_WRITE(PCH_TRANS_DATA_M1(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
 	I915_WRITE(PCH_TRANS_DATA_N1(pipe), m_n->gmch_n);
@@ -6772,13 +6772,14 @@ static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
 	I915_WRITE(PCH_TRANS_LINK_N1(pipe), m_n->link_n);
 }
 
-static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
-					 struct intel_link_m_n *m_n,
-					 struct intel_link_m_n *m2_n2)
+static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
+					 const struct intel_link_m_n *m_n,
+					 const struct intel_link_m_n *m2_n2)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int pipe = crtc->pipe;
-	enum transcoder transcoder = crtc->config->cpu_transcoder;
+	enum pipe pipe = crtc->pipe;
+	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
 	if (INTEL_GEN(dev_priv) >= 5) {
 		I915_WRITE(PIPE_DATA_M1(transcoder), TU_SIZE(m_n->tu) | m_n->gmch_m);
@@ -6790,7 +6791,7 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 		 * registers are not unnecessarily accessed).
 		 */
 		if (m2_n2 && (IS_CHERRYVIEW(dev_priv) ||
-		    INTEL_GEN(dev_priv) < 8) && crtc->config->has_drrs) {
+		    INTEL_GEN(dev_priv) < 8) && crtc_state->has_drrs) {
 			I915_WRITE(PIPE_DATA_M2(transcoder),
 					TU_SIZE(m2_n2->tu) | m2_n2->gmch_m);
 			I915_WRITE(PIPE_DATA_N2(transcoder), m2_n2->gmch_n);
@@ -6805,29 +6806,29 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 	}
 }
 
-void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n)
+void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state, enum link_m_n_set m_n)
 {
-	struct intel_link_m_n *dp_m_n, *dp_m2_n2 = NULL;
+	const struct intel_link_m_n *dp_m_n, *dp_m2_n2 = NULL;
 
 	if (m_n == M1_N1) {
-		dp_m_n = &crtc->config->dp_m_n;
-		dp_m2_n2 = &crtc->config->dp_m2_n2;
+		dp_m_n = &crtc_state->dp_m_n;
+		dp_m2_n2 = &crtc_state->dp_m2_n2;
 	} else if (m_n == M2_N2) {
 
 		/*
 		 * M2_N2 registers are not supported. Hence m2_n2 divider value
 		 * needs to be programmed into M1_N1.
 		 */
-		dp_m_n = &crtc->config->dp_m2_n2;
+		dp_m_n = &crtc_state->dp_m2_n2;
 	} else {
 		DRM_ERROR("Unsupported divider value\n");
 		return;
 	}
 
-	if (crtc->config->has_pch_encoder)
-		intel_pch_transcoder_set_m_n(crtc, &crtc->config->dp_m_n);
+	if (crtc_state->has_pch_encoder)
+		intel_pch_transcoder_set_m_n(crtc_state, &crtc_state->dp_m_n);
 	else
-		intel_cpu_transcoder_set_m_n(crtc, dp_m_n, dp_m2_n2);
+		intel_cpu_transcoder_set_m_n(crtc_state, dp_m_n, dp_m2_n2);
 }
 
 static void vlv_compute_dpll(struct intel_crtc *crtc,
