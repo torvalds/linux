@@ -34,6 +34,7 @@
 #include "nbio/nbio_7_4_offset.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
+MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -98,7 +99,8 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	const char *chip_name;
 	char fw_name[30];
 	int err = 0;
-	const struct psp_firmware_header_v1_0 *hdr;
+	const struct psp_firmware_header_v1_0 *sos_hdr;
+	const struct ta_firmware_header_v1_0 *ta_hdr;
 
 	DRM_DEBUG("\n");
 
@@ -119,16 +121,32 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	if (err)
 		goto out;
 
-	hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
-	adev->psp.sos_fw_version = le32_to_cpu(hdr->header.ucode_version);
-	adev->psp.sos_feature_version = le32_to_cpu(hdr->ucode_feature_version);
-	adev->psp.sos_bin_size = le32_to_cpu(hdr->sos_size_bytes);
-	adev->psp.sys_bin_size = le32_to_cpu(hdr->header.ucode_size_bytes) -
-					le32_to_cpu(hdr->sos_size_bytes);
-	adev->psp.sys_start_addr = (uint8_t *)hdr +
-				le32_to_cpu(hdr->header.ucode_array_offset_bytes);
+	sos_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
+	adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
+	adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
+	adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
+	adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->header.ucode_size_bytes) -
+					le32_to_cpu(sos_hdr->sos_size_bytes);
+	adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
+				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 	adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(hdr->sos_offset_bytes);
+				le32_to_cpu(sos_hdr->sos_offset_bytes);
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
+	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
+	if (err)
+		goto out;
+
+	err = amdgpu_ucode_validate(adev->psp.ta_fw);
+	if (err)
+		goto out;
+
+	ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
+	adev->psp.ta_xgmi_ucode_version = le32_to_cpu(ta_hdr->ta_xgmi_ucode_version);
+	adev->psp.ta_xgmi_ucode_size = le32_to_cpu(ta_hdr->ta_xgmi_size_bytes);
+	adev->psp.ta_xgmi_start_addr = (uint8_t *)ta_hdr +
+		le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+
 	return 0;
 out:
 	if (err) {

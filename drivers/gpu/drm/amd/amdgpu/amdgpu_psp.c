@@ -90,6 +90,8 @@ static int psp_sw_fini(void *handle)
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);
 	adev->psp.asd_fw = NULL;
+	release_firmware(adev->psp.ta_fw);
+	adev->psp.ta_fw = NULL;
 	return 0;
 }
 
