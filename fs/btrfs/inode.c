@@ -5319,7 +5319,7 @@ static struct btrfs_trans_handle *evict_refill_and_join(struct btrfs_root *root,
 		 * Try to steal from the global reserve if there is space for
 		 * it.
 		 */
-		if (!btrfs_check_space_for_delayed_refs(trans, fs_info) &&
+		if (!btrfs_check_space_for_delayed_refs(trans) &&
 		    !btrfs_block_rsv_migrate(global_rsv, rsv, rsv->size, false))
 			return trans;
 
