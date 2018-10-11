@@ -32,12 +32,30 @@ extern char igc_driver_version[];
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_FLAG_HAS_MSI		BIT(0)
 #define IGC_FLAG_QUEUE_PAIRS		BIT(4)
+#define IGC_FLAG_NEED_LINK_UPDATE	BIT(9)
 #define IGC_FLAG_HAS_MSIX		BIT(13)
+#define IGC_FLAG_VLAN_PROMISC		BIT(15)
 
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_4K_ITR			980
 #define IGC_20K_ITR			196
 #define IGC_70K_ITR			56
+
+#define IGC_DEFAULT_ITR		3 /* dynamic */
+#define IGC_MAX_ITR_USECS	10000
+#define IGC_MIN_ITR_USECS	10
+#define NON_Q_VECTORS		1
+#define MAX_MSIX_ENTRIES	10
+
+/* TX/RX descriptor defines */
+#define IGC_DEFAULT_TXD		256
+#define IGC_DEFAULT_TX_WORK	128
+#define IGC_MIN_TXD		80
+#define IGC_MAX_TXD		4096
+
+#define IGC_DEFAULT_RXD		256
+#define IGC_MIN_RXD		80
+#define IGC_MAX_RXD		4096
 
 /* Transmit and receive queues */
 #define IGC_MAX_RX_QUEUES		4
@@ -85,12 +103,43 @@ extern char igc_driver_version[];
 #define IGC_MAX_FRAME_BUILD_SKB (IGC_RXBUFFER_2048 - IGC_TS_HDR_LEN)
 #endif
 
+/* How many Rx Buffers do we bundle into one write to the hardware ? */
+#define IGC_RX_BUFFER_WRITE	16 /* Must be power of 2 */
+
+/* igc_test_staterr - tests bits within Rx descriptor status and error fields */
+static inline __le32 igc_test_staterr(union igc_adv_rx_desc *rx_desc,
+				      const u32 stat_err_bits)
+{
+	return rx_desc->wb.upper.status_error & cpu_to_le32(stat_err_bits);
+}
+
 enum igc_state_t {
 	__IGC_TESTING,
 	__IGC_RESETTING,
 	__IGC_DOWN,
 	__IGC_PTP_TX_IN_PROGRESS,
 };
+
+enum igc_tx_flags {
+	/* cmd_type flags */
+	IGC_TX_FLAGS_VLAN	= 0x01,
+	IGC_TX_FLAGS_TSO	= 0x02,
+	IGC_TX_FLAGS_TSTAMP	= 0x04,
+
+	/* olinfo flags */
+	IGC_TX_FLAGS_IPV4	= 0x10,
+	IGC_TX_FLAGS_CSUM	= 0x20,
+};
+
+/* The largest size we can write to the descriptor is 65535.  In order to
+ * maintain a power of two alignment we have to limit ourselves to 32K.
+ */
+#define IGC_MAX_TXD_PWR		15
+#define IGC_MAX_DATA_PER_TXD	BIT(IGC_MAX_TXD_PWR)
+
+/* Tx Descriptors needed, worst case */
+#define TXD_USE_COUNT(S)	DIV_ROUND_UP((S), IGC_MAX_DATA_PER_TXD)
+#define DESC_NEEDED	(MAX_SKB_FRAGS + 4)
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
@@ -123,6 +172,7 @@ struct igc_tx_queue_stats {
 	u64 packets;
 	u64 bytes;
 	u64 restart_queue;
+	u64 restart_queue2;
 };
 
 struct igc_rx_queue_stats {
@@ -181,11 +231,14 @@ struct igc_ring {
 		/* TX */
 		struct {
 			struct igc_tx_queue_stats tx_stats;
+			struct u64_stats_sync tx_syncp;
+			struct u64_stats_sync tx_syncp2;
 		};
 		/* RX */
 		struct {
 			struct igc_rx_queue_stats rx_stats;
 			struct igc_rx_packet_stats pkt_stats;
+			struct u64_stats_sync rx_syncp;
 			struct sk_buff *skb;
 		};
 	};
@@ -258,11 +311,17 @@ struct igc_adapter {
 	struct work_struct watchdog_task;
 	struct work_struct dma_err_task;
 
+	u8 tx_timeout_factor;
+
 	int msg_enable;
 	u32 max_frame_size;
+	u32 min_frame_size;
 
 	/* OS defined structs */
 	struct pci_dev *pdev;
+	/* lock for statistics */
+	spinlock_t stats64_lock;
+	struct rtnl_link_stats64 stats64;
 
 	/* structs defined in igc_hw.h */
 	struct igc_hw hw;
@@ -275,7 +334,12 @@ struct igc_adapter {
 	u16 tx_ring_count;
 	u16 rx_ring_count;
 
+	u32 *shadow_vfta;
+
 	u32 rss_queues;
+
+	/* lock for RX network flow classification filter */
+	spinlock_t nfc_lock;
 
 	struct igc_mac_addr *mac_table;
 };
@@ -331,6 +395,8 @@ static inline unsigned int igc_rx_pg_order(struct igc_ring *ring)
 }
 
 #define igc_rx_pg_size(_ring) (PAGE_SIZE << igc_rx_pg_order(_ring))
+
+#define IGC_TXD_DCMD	(IGC_ADVTXD_DCMD_EOP | IGC_ADVTXD_DCMD_RS)
 
 #define IGC_RX_DESC(R, i)       \
 	(&(((union igc_adv_rx_desc *)((R)->desc))[i]))
