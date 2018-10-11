@@ -353,15 +353,12 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info, u64 seq)
 	return ret;
 }
 
-struct btrfs_delayed_ref_head *
-btrfs_select_ref_head(struct btrfs_trans_handle *trans)
+struct btrfs_delayed_ref_head *btrfs_select_ref_head(
+		struct btrfs_delayed_ref_root *delayed_refs)
 {
-	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_delayed_ref_head *head;
 	u64 start;
 	bool loop = false;
-
-	delayed_refs = &trans->transaction->delayed_refs;
 
 again:
 	start = delayed_refs->run_delayed_start;

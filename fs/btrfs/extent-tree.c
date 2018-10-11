@@ -2511,7 +2511,7 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 	int ret;
 
 	spin_lock(&delayed_refs->lock);
-	head = btrfs_select_ref_head(trans);
+	head = btrfs_select_ref_head(delayed_refs);
 	if (!head) {
 		spin_unlock(&delayed_refs->lock);
 		return head;
