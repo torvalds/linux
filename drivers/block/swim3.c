@@ -1202,47 +1202,59 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 static int swim3_attach(struct macio_dev *mdev,
 			const struct of_device_id *match)
 {
+	struct floppy_state *fs;
 	struct gendisk *disk;
-	int index, rc;
+	int rc;
 
-	index = floppy_count++;
-	if (index >= MAX_FLOPPIES)
+	if (floppy_count >= MAX_FLOPPIES)
 		return -ENXIO;
 
-	/* Add the drive */
-	rc = swim3_add_device(mdev, index);
-	if (rc)
-		return rc;
-	/* Now register that disk. Same comment about failure handling */
-	disk = disks[index] = alloc_disk(1);
-	if (disk == NULL)
-		return -ENOMEM;
+	if (floppy_count == 0) {
+		rc = register_blkdev(FLOPPY_MAJOR, "fd");
+		if (rc)
+			return rc;
+	}
+
+	fs = &floppy_states[floppy_count];
+
+	disk = alloc_disk(1);
+	if (disk == NULL) {
+		rc = -ENOMEM;
+		goto out_unregister;
+	}
 	disk->queue = blk_init_queue(do_fd_request, &swim3_lock);
 	if (disk->queue == NULL) {
-		put_disk(disk);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out_put_disk;
 	}
 	blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
-	disk->queue->queuedata = &floppy_states[index];
+	disk->queue->queuedata = fs;
 
-	if (index == 0) {
-		/* If we failed, there isn't much we can do as the driver is still
-		 * too dumb to remove the device, just bail out
-		 */
-		if (register_blkdev(FLOPPY_MAJOR, "fd"))
-			return 0;
-	}
+	rc = swim3_add_device(mdev, floppy_count);
+	if (rc)
+		goto out_cleanup_queue;
 
 	disk->major = FLOPPY_MAJOR;
-	disk->first_minor = index;
+	disk->first_minor = floppy_count;
 	disk->fops = &floppy_fops;
-	disk->private_data = &floppy_states[index];
+	disk->private_data = fs;
 	disk->flags |= GENHD_FL_REMOVABLE;
-	sprintf(disk->disk_name, "fd%d", index);
+	sprintf(disk->disk_name, "fd%d", floppy_count);
 	set_capacity(disk, 2880);
 	add_disk(disk);
 
+	disks[floppy_count++] = disk;
 	return 0;
+
+out_cleanup_queue:
+	blk_cleanup_queue(disk->queue);
+	disk->queue = NULL;
+out_put_disk:
+	put_disk(disk);
+out_unregister:
+	if (floppy_count == 0)
+		unregister_blkdev(FLOPPY_MAJOR, "fd");
+	return rc;
 }
 
 static const struct of_device_id swim3_match[] =
