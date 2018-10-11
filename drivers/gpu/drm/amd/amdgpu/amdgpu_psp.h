@@ -30,7 +30,8 @@
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
-#define PSP_ASD_SHARED_MEM_SIZE	0x4000
+#define PSP_ASD_SHARED_MEM_SIZE 0x4000
+#define PSP_XGMI_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE	0x400000
 
@@ -88,6 +89,14 @@ struct psp_funcs
 			struct psp_xgmi_topology_info *topology);
 };
 
+struct psp_xgmi_context {
+	uint8_t				initialized;
+	uint32_t			session_id;
+	struct amdgpu_bo                *xgmi_shared_bo;
+	uint64_t                        xgmi_shared_mc_addr;
+	void                            *xgmi_shared_buf;
+};
+
 struct psp_context
 {
 	struct amdgpu_device            *adev;
@@ -137,6 +146,13 @@ struct psp_context
 
 	/* fence value associated with cmd buffer */
 	atomic_t			fence_value;
+
+	/* xgmi ta firmware and buffer */
+	const struct firmware		*ta_fw;
+	uint32_t			ta_xgmi_ucode_version;
+	uint32_t			ta_xgmi_ucode_size;
+	uint8_t				*ta_xgmi_start_addr;
+	struct psp_xgmi_context		xgmi_context;
 };
 
 struct amdgpu_psp_funcs {
