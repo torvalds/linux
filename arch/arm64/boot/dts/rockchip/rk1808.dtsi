@@ -1395,11 +1395,11 @@
 			rgmii_pins: rgmii-pins {
 				rockchip,pins =
 					/* rgmii_txen */
-					<2 RK_PA1 2 &pcfg_pull_none_12ma>,
+					<2 RK_PA1 2 &pcfg_pull_none_8ma>,
 					/* rgmii_txd1 */
-					<2 RK_PA2 2 &pcfg_pull_none_12ma>,
+					<2 RK_PA2 2 &pcfg_pull_none_8ma>,
 					/* rgmii_txd0 */
-					<2 RK_PA3 2 &pcfg_pull_none_12ma>,
+					<2 RK_PA3 2 &pcfg_pull_none_8ma>,
 					/* rgmii_rxd0 */
 					<2 RK_PA4 2 &pcfg_pull_none>,
 					/* rgmii_rxd1 */
@@ -1411,9 +1411,9 @@
 					/* rgmii_mdc */
 					<2 RK_PB2 2 &pcfg_pull_none>,
 					/* rgmii_txd3 */
-					<2 RK_PB3 2 &pcfg_pull_none_12ma>,
+					<2 RK_PB3 2 &pcfg_pull_none_8ma>,
 					/* rgmii_txd2 */
-					<2 RK_PB4 2 &pcfg_pull_none_12ma>,
+					<2 RK_PB4 2 &pcfg_pull_none_8ma>,
 					/* rgmii_rxd2 */
 					<2 RK_PB5 2 &pcfg_pull_none>,
 					/* rgmii_rxd3 */
@@ -1421,7 +1421,7 @@
 					/* rgmii_clk */
 					<2 RK_PB7 2 &pcfg_pull_none>,
 					/* rgmii_txclk */
-					<2 RK_PC1 2 &pcfg_pull_none_12ma>,
+					<2 RK_PC1 2 &pcfg_pull_none_8ma>,
 					/* rgmii_rxclk */
 					<2 RK_PC2 2 &pcfg_pull_none>;
 			};
@@ -1429,11 +1429,11 @@
 			rmii_pins: rmii-pins {
 				rockchip,pins =
 					/* rmii_txen */
-					<2 RK_PA1 2 &pcfg_pull_none_12ma>,
+					<2 RK_PA1 2 &pcfg_pull_none_8ma>,
 					/* rmii_txd1 */
-					<2 RK_PA2 2 &pcfg_pull_none_12ma>,
+					<2 RK_PA2 2 &pcfg_pull_none_8ma>,
 					/* rmii_txd0 */
-					<2 RK_PA3 2 &pcfg_pull_none_12ma>,
+					<2 RK_PA3 2 &pcfg_pull_none_8ma>,
 					/* rmii_rxd0 */
 					<2 RK_PA4 2 &pcfg_pull_none>,
 					/* rmii_rxd1 */
