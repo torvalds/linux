@@ -2343,7 +2343,8 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 	struct mlxsw_sp_switchdev_event_work *switchdev_work;
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_notifier_info *info = ptr;
 	struct net_device *br_dev;
 
 	/* Tunnel devices are not our uppers, so check their master instead */
@@ -2367,6 +2368,9 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 	case SWITCHDEV_FDB_DEL_TO_DEVICE: /* fall through */
 	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
 	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
+		fdb_info = container_of(info,
+					struct switchdev_notifier_fdb_info,
+					info);
 		INIT_WORK(&switchdev_work->work,
 			  mlxsw_sp_switchdev_bridge_fdb_event_work);
 		memcpy(&switchdev_work->fdb_info, ptr,
