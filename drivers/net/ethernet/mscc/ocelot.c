@@ -1620,7 +1620,7 @@ int ocelot_probe_port(struct ocelot *ocelot, u8 port,
 	dev->ethtool_ops = &ocelot_ethtool_ops;
 	dev->switchdev_ops = &ocelot_port_switchdev_ops;
 
-	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXFCS;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	memcpy(dev->dev_addr, ocelot->base_mac, ETH_ALEN);

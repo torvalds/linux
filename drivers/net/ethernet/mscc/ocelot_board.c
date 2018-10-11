@@ -128,10 +128,15 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 			len += sz;
 		} while (len < buf_len);
 
-		/* Read the FCS and discard it */
+		/* Read the FCS */
 		sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
 		/* Update the statistics if part of the FCS was read before */
 		len -= ETH_FCS_LEN - sz;
+
+		if (unlikely(dev->features & NETIF_F_RXFCS)) {
+			buf = (u32 *)skb_put(skb, ETH_FCS_LEN);
+			*buf = val;
+		}
 
 		if (sz < 0) {
 			err = sz;
