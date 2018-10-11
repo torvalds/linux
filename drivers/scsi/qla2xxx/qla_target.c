@@ -2425,7 +2425,7 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 	BUG_ON(cmd->sg_cnt == 0);
 
 	prm->sg = (struct scatterlist *)cmd->sg;
-	prm->seg_cnt = pci_map_sg(cmd->qpair->pdev, cmd->sg,
+	prm->seg_cnt = dma_map_sg(&cmd->qpair->pdev->dev, cmd->sg,
 	    cmd->sg_cnt, cmd->dma_data_direction);
 	if (unlikely(prm->seg_cnt == 0))
 		goto out_err;
@@ -2452,7 +2452,7 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 
 		if (cmd->prot_sg_cnt) {
 			prm->prot_sg      = cmd->prot_sg;
-			prm->prot_seg_cnt = pci_map_sg(cmd->qpair->pdev,
+			prm->prot_seg_cnt = dma_map_sg(&cmd->qpair->pdev->dev,
 				cmd->prot_sg, cmd->prot_sg_cnt,
 				cmd->dma_data_direction);
 			if (unlikely(prm->prot_seg_cnt == 0))
@@ -2487,12 +2487,12 @@ static void qlt_unmap_sg(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 
 	qpair = cmd->qpair;
 
-	pci_unmap_sg(qpair->pdev, cmd->sg, cmd->sg_cnt,
+	dma_unmap_sg(&qpair->pdev->dev, cmd->sg, cmd->sg_cnt,
 	    cmd->dma_data_direction);
 	cmd->sg_mapped = 0;
 
 	if (cmd->prot_sg_cnt)
-		pci_unmap_sg(qpair->pdev, cmd->prot_sg, cmd->prot_sg_cnt,
+		dma_unmap_sg(&qpair->pdev->dev, cmd->prot_sg, cmd->prot_sg_cnt,
 			cmd->dma_data_direction);
 
 	if (!cmd->ctx)

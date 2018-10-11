@@ -424,7 +424,7 @@ static int tcm_qla2xxx_write_pending(struct se_cmd *se_cmd)
 	se_cmd->pi_err = 0;
 
 	/*
-	 * qla_target.c:qlt_rdy_to_xfer() will call pci_map_sg() to setup
+	 * qla_target.c:qlt_rdy_to_xfer() will call dma_map_sg() to setup
 	 * the SGL mappings into PCIe memory for incoming FCP WRITE data.
 	 */
 	return qlt_rdy_to_xfer(cmd);
