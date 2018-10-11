@@ -941,7 +941,6 @@ void phy_state_machine(struct work_struct *work)
 	bool needs_aneg = false, do_suspend = false;
 	enum phy_state old_state;
 	int err = 0;
-	int old_link;
 
 	mutex_lock(&phydev->lock);
 
@@ -1025,26 +1024,16 @@ void phy_state_machine(struct work_struct *work)
 		}
 		break;
 	case PHY_RUNNING:
-		/* Only register a CHANGE if we are polling and link changed
-		 * since latest checking.
-		 */
-		if (phy_polling_mode(phydev)) {
-			old_link = phydev->link;
-			err = phy_read_status(phydev);
-			if (err)
-				break;
+		if (!phy_polling_mode(phydev))
+			break;
 
-			if (old_link != phydev->link)
-				phydev->state = PHY_CHANGELINK;
-		}
-		/*
-		 * Failsafe: check that nobody set phydev->link=0 between two
-		 * poll cycles, otherwise we won't leave RUNNING state as long
-		 * as link remains down.
-		 */
-		if (!phydev->link && phydev->state == PHY_RUNNING) {
-			phydev->state = PHY_CHANGELINK;
-			phydev_err(phydev, "no link in PHY_RUNNING\n");
+		err = phy_read_status(phydev);
+		if (err)
+			break;
+
+		if (!phydev->link) {
+			phydev->state = PHY_NOLINK;
+			phy_link_down(phydev, true);
 		}
 		break;
 	case PHY_CHANGELINK:
