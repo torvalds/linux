@@ -209,9 +209,9 @@ static char *translate_scan(struct adapter *padapter,
 		i++;
 	}
 
-	if (vht_cap == true) {
+	if (vht_cap) {
 		max_rate = vht_data_rate;
-	} else if (ht_cap == true) {
+	} else if (ht_cap) {
 		if (mcs_rate&0x8000) { /* MCS15 */
 			max_rate = (bw_40MHz) ? ((short_GI)?300:270):((short_GI)?144:130);
 		} else if (mcs_rate&0x0080) { /* MCS7 */
@@ -862,7 +862,7 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 		goto exit;
 	}
 
-	if (padapter->hw_init_completed ==false) {
+	if (!padapter->hw_init_completed) {
 		ret = -EPERM;
 		goto exit;
 	}
@@ -1295,7 +1295,7 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		goto exit;
 	}
 
-	if (padapter->hw_init_completed ==false) {
+	if (!padapter->hw_init_completed ) {
 		ret = -1;
 		goto exit;
 	}
@@ -1303,7 +1303,7 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	/*  When Busy Traffic, driver do not site survey. So driver return success. */
 	/*  wpa_supplicant will not issue SIOCSIWSCAN cmd again after scan timeout. */
 	/*  modify by thomas 2011-02-22. */
-	if (pmlmepriv->LinkDetectInfo.bBusyTraffic == true) {
+	if (pmlmepriv->LinkDetectInfo.bBusyTraffic) {
 		indicate_wx_scan_complete_event(padapter);
 		goto exit;
 	}
@@ -4229,7 +4229,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	* so, we just check hw_init_completed
 	*/
 
-	if (padapter->hw_init_completed ==false) {
+	if (!padapter->hw_init_completed) {
 		ret = -EPERM;
 		goto out;
 	}
