@@ -369,6 +369,7 @@ struct snd_sof_dev {
 
 	/* PM */
 	bool restore_kcontrols; /* restore kcontrols upon resume */
+	bool first_boot;
 
 	void *private;			/* core does not touch this */
 };

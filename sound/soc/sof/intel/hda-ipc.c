@@ -389,7 +389,8 @@ int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 	snd_sof_fw_parse_ext_data(sdev, HDA_DSP_MBOX_UPLINK_OFFSET +
 				  sizeof(struct sof_ipc_fw_ready));
 
-	ipc_get_windows(sdev);
+	if (sdev->first_boot)
+		ipc_get_windows(sdev);
 
 	return 0;
 }

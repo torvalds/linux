@@ -269,6 +269,8 @@ int snd_sof_load_firmware(struct snd_sof_dev *sdev,
 {
 	dev_dbg(sdev->dev, "loading firmware\n");
 
+	sdev->first_boot = first_boot;
+
 	if (sdev->ops->load_firmware)
 		return sdev->ops->load_firmware(sdev, first_boot);
 	return 0;
