@@ -2879,7 +2879,7 @@ static bool known_siginfo_layout(unsigned sig, int si_code)
 	return false;
 }
 
-enum siginfo_layout siginfo_layout(int sig, int si_code)
+enum siginfo_layout siginfo_layout(unsigned sig, int si_code)
 {
 	enum siginfo_layout layout = SIL_KILL;
 	if ((si_code > SI_USER) && (si_code < SI_KERNEL)) {
