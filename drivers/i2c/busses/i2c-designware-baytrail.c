@@ -12,16 +12,6 @@
 
 #include "i2c-designware-core.h"
 
-static int baytrail_i2c_acquire(struct dw_i2c_dev *dev)
-{
-	return iosf_mbi_block_punit_i2c_access();
-}
-
-static void baytrail_i2c_release(struct dw_i2c_dev *dev)
-{
-	iosf_mbi_unblock_punit_i2c_access();
-}
-
 int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 {
 	acpi_status status;
@@ -46,13 +36,9 @@ int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 		return -EPROBE_DEFER;
 
 	dev_info(dev->dev, "I2C bus managed by PUNIT\n");
-	dev->acquire_lock = baytrail_i2c_acquire;
-	dev->release_lock = baytrail_i2c_release;
+	dev->acquire_lock = iosf_mbi_block_punit_i2c_access;
+	dev->release_lock = iosf_mbi_unblock_punit_i2c_access;
 	dev->pm_disabled = true;
 
 	return 0;
-}
-
-void i2c_dw_remove_lock_support(struct dw_i2c_dev *dev)
-{
 }
