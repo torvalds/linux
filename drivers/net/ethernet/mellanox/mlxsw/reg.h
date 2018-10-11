@@ -8476,6 +8476,96 @@ static inline void mlxsw_reg_tngcr_pack(char *payload,
 	mlxsw_reg_tngcr_nve_group_size_flood_set(payload, 1);
 }
 
+/* TNUMT - Tunneling NVE Underlay Multicast Table Register
+ * -------------------------------------------------------
+ * The TNUMT register is for building the underlay MC table. It is used
+ * for MC, flooding and BC traffic into the NVE tunnel.
+ */
+#define MLXSW_REG_TNUMT_ID 0xA003
+#define MLXSW_REG_TNUMT_LEN 0x20
+
+MLXSW_REG_DEFINE(tnumt, MLXSW_REG_TNUMT_ID, MLXSW_REG_TNUMT_LEN);
+
+enum mlxsw_reg_tnumt_record_type {
+	MLXSW_REG_TNUMT_RECORD_TYPE_IPV4,
+	MLXSW_REG_TNUMT_RECORD_TYPE_IPV6,
+	MLXSW_REG_TNUMT_RECORD_TYPE_LABEL,
+};
+
+/* reg_tnumt_record_type
+ * Record type.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, record_type, 0x00, 28, 4);
+
+enum mlxsw_reg_tnumt_tunnel_port {
+	MLXSW_REG_TNUMT_TUNNEL_PORT_NVE,
+	MLXSW_REG_TNUMT_TUNNEL_PORT_VPLS,
+	MLXSW_REG_TNUMT_TUNNEL_FLEX_TUNNEL0,
+	MLXSW_REG_TNUMT_TUNNEL_FLEX_TUNNEL1,
+};
+
+/* reg_tnumt_tunnel_port
+ * Tunnel port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, tunnel_port, 0x00, 24, 4);
+
+/* reg_tnumt_underlay_mc_ptr
+ * Index to the underlay multicast table.
+ * For Spectrum the index is to the KVD linear.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tnumt, underlay_mc_ptr, 0x00, 0, 24);
+
+/* reg_tnumt_vnext
+ * The next_underlay_mc_ptr is valid.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, vnext, 0x04, 31, 1);
+
+/* reg_tnumt_next_underlay_mc_ptr
+ * The next index to the underlay multicast table.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, next_underlay_mc_ptr, 0x04, 0, 24);
+
+/* reg_tnumt_record_size
+ * Number of IP addresses in the record.
+ * Range is 1..cap_max_nve_mc_entries_ipv{4,6}
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tnumt, record_size, 0x08, 0, 3);
+
+/* reg_tnumt_udip
+ * The underlay IPv4 addresses. udip[i] is reserved if i >= size
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, tnumt, udip, 0x0C, 0, 32, 0x04, 0x00, false);
+
+/* reg_tnumt_udip_ptr
+ * The pointer to the underlay IPv6 addresses. udip_ptr[i] is reserved if
+ * i >= size. The IPv6 addresses are configured by RIPS.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, tnumt, udip_ptr, 0x0C, 0, 24, 0x04, 0x00, false);
+
+static inline void mlxsw_reg_tnumt_pack(char *payload,
+					enum mlxsw_reg_tnumt_record_type type,
+					enum mlxsw_reg_tnumt_tunnel_port tport,
+					u32 underlay_mc_ptr, bool vnext,
+					u32 next_underlay_mc_ptr,
+					u8 record_size)
+{
+	MLXSW_REG_ZERO(tnumt, payload);
+	mlxsw_reg_tnumt_record_type_set(payload, type);
+	mlxsw_reg_tnumt_tunnel_port_set(payload, tport);
+	mlxsw_reg_tnumt_underlay_mc_ptr_set(payload, underlay_mc_ptr);
+	mlxsw_reg_tnumt_vnext_set(payload, vnext);
+	mlxsw_reg_tnumt_next_underlay_mc_ptr_set(payload, next_underlay_mc_ptr);
+	mlxsw_reg_tnumt_record_size_set(payload, record_size);
+}
+
 /* TNPC - Tunnel Port Configuration Register
  * -----------------------------------------
  * The TNPC register is used for tunnel port configuration.
@@ -9071,6 +9161,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
 	MLXSW_REG(tngcr),
+	MLXSW_REG(tnumt),
 	MLXSW_REG(tnpc),
 	MLXSW_REG(tigcr),
 	MLXSW_REG(sbpr),
