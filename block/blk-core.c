@@ -58,11 +58,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(block_unplug);
 DEFINE_IDA(blk_queue_ida);
 
 /*
- * For the allocated request tables
- */
-struct kmem_cache *request_cachep;
-
-/*
  * For queue allocation
  */
 struct kmem_cache *blk_requestq_cachep;
@@ -1970,9 +1965,6 @@ int __init blk_dev_init(void)
 					    WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
 	if (!kblockd_workqueue)
 		panic("Failed to create kblockd\n");
-
-	request_cachep = kmem_cache_create("blkdev_requests",
-			sizeof(struct request), 0, SLAB_PANIC, NULL);
 
 	blk_requestq_cachep = kmem_cache_create("request_queue",
 			sizeof(struct request_queue), 0, SLAB_PANIC, NULL);
