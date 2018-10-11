@@ -519,7 +519,8 @@ static void __cap_set_timeouts(struct ceph_mds_client *mdsc,
  *    -> we take mdsc->cap_delay_lock
  */
 static void __cap_delay_requeue(struct ceph_mds_client *mdsc,
-				struct ceph_inode_info *ci)
+				struct ceph_inode_info *ci,
+				bool set_timeout)
 {
 	dout("__cap_delay_requeue %p flags %d at %lu\n", &ci->vfs_inode,
 	     ci->i_ceph_flags, ci->i_hold_caps_max);
@@ -530,7 +531,8 @@ static void __cap_delay_requeue(struct ceph_mds_client *mdsc,
 				goto no_change;
 			list_del_init(&ci->i_cap_delay_list);
 		}
-		__cap_set_timeouts(mdsc, ci);
+		if (set_timeout)
+			__cap_set_timeouts(mdsc, ci);
 		list_add_tail(&ci->i_cap_delay_list, &mdsc->cap_delay_list);
 no_change:
 		spin_unlock(&mdsc->cap_delay_lock);
@@ -720,7 +722,7 @@ void ceph_add_cap(struct inode *inode,
 		dout(" issued %s, mds wanted %s, actual %s, queueing\n",
 		     ceph_cap_string(issued), ceph_cap_string(wanted),
 		     ceph_cap_string(actual_wanted));
-		__cap_delay_requeue(mdsc, ci);
+		__cap_delay_requeue(mdsc, ci, true);
 	}
 
 	if (flags & CEPH_CAP_FLAG_AUTH) {
@@ -1647,7 +1649,7 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask,
 	if (((was | ci->i_flushing_caps) & CEPH_CAP_FILE_BUFFER) &&
 	    (mask & CEPH_CAP_FILE_BUFFER))
 		dirty |= I_DIRTY_DATASYNC;
-	__cap_delay_requeue(mdsc, ci);
+	__cap_delay_requeue(mdsc, ci, true);
 	return dirty;
 }
 
@@ -2065,7 +2067,7 @@ ack:
 
 	/* Reschedule delayed caps release if we delayed anything */
 	if (delayed)
-		__cap_delay_requeue(mdsc, ci);
+		__cap_delay_requeue(mdsc, ci, false);
 
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -2125,7 +2127,7 @@ retry:
 
 		if (delayed) {
 			spin_lock(&ci->i_ceph_lock);
-			__cap_delay_requeue(mdsc, ci);
+			__cap_delay_requeue(mdsc, ci, true);
 			spin_unlock(&ci->i_ceph_lock);
 		}
 	} else {
