@@ -176,14 +176,48 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 	return target;
 }
 
+static int aer_inj_read(struct pci_bus *bus, unsigned int devfn, int where,
+			int size, u32 *val)
+{
+	struct pci_ops *ops, *my_ops;
+	int rv;
+
+	ops = __find_pci_bus_ops(bus);
+	if (!ops)
+		return -1;
+
+	my_ops = bus->ops;
+	bus->ops = ops;
+	rv = ops->read(bus, devfn, where, size, val);
+	bus->ops = my_ops;
+
+	return rv;
+}
+
+static int aer_inj_write(struct pci_bus *bus, unsigned int devfn, int where,
+			 int size, u32 val)
+{
+	struct pci_ops *ops, *my_ops;
+	int rv;
+
+	ops = __find_pci_bus_ops(bus);
+	if (!ops)
+		return -1;
+
+	my_ops = bus->ops;
+	bus->ops = ops;
+	rv = ops->write(bus, devfn, where, size, val);
+	bus->ops = my_ops;
+
+	return rv;
+}
+
 static int aer_inj_read_config(struct pci_bus *bus, unsigned int devfn,
 			       int where, int size, u32 *val)
 {
 	u32 *sim;
 	struct aer_error *err;
 	unsigned long flags;
-	struct pci_ops *ops;
-	struct pci_ops *my_ops;
 	int domain;
 	int rv;
 
@@ -204,18 +238,7 @@ static int aer_inj_read_config(struct pci_bus *bus, unsigned int devfn,
 		return 0;
 	}
 out:
-	ops = __find_pci_bus_ops(bus);
-	/*
-	 * pci_lock must already be held, so we can directly
-	 * manipulate bus->ops.  Many config access functions,
-	 * including pci_generic_config_read() require the original
-	 * bus->ops be installed to function, so temporarily put them
-	 * back.
-	 */
-	my_ops = bus->ops;
-	bus->ops = ops;
-	rv = ops->read(bus, devfn, where, size, val);
-	bus->ops = my_ops;
+	rv = aer_inj_read(bus, devfn, where, size, val);
 	spin_unlock_irqrestore(&inject_lock, flags);
 	return rv;
 }
@@ -227,8 +250,6 @@ static int aer_inj_write_config(struct pci_bus *bus, unsigned int devfn,
 	struct aer_error *err;
 	unsigned long flags;
 	int rw1cs;
-	struct pci_ops *ops;
-	struct pci_ops *my_ops;
 	int domain;
 	int rv;
 
@@ -252,18 +273,7 @@ static int aer_inj_write_config(struct pci_bus *bus, unsigned int devfn,
 		return 0;
 	}
 out:
-	ops = __find_pci_bus_ops(bus);
-	/*
-	 * pci_lock must already be held, so we can directly
-	 * manipulate bus->ops.  Many config access functions,
-	 * including pci_generic_config_write() require the original
-	 * bus->ops be installed to function, so temporarily put them
-	 * back.
-	 */
-	my_ops = bus->ops;
-	bus->ops = ops;
-	rv = ops->write(bus, devfn, where, size, val);
-	bus->ops = my_ops;
+	rv = aer_inj_write(bus, devfn, where, size, val);
 	spin_unlock_irqrestore(&inject_lock, flags);
 	return rv;
 }
