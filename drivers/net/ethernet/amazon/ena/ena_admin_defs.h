@@ -74,6 +74,8 @@ enum ena_admin_aq_feature_id {
 
 	ENA_ADMIN_HW_HINTS			= 3,
 
+	ENA_ADMIN_LLQ                           = 4,
+
 	ENA_ADMIN_RSS_HASH_FUNCTION		= 10,
 
 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG	= 11,
@@ -485,8 +487,85 @@ struct ena_admin_device_attr_feature_desc {
 	u32 max_mtu;
 };
 
+enum ena_admin_llq_header_location {
+	/* header is in descriptor list */
+	ENA_ADMIN_INLINE_HEADER                     = 1,
+	/* header in a separate ring, implies 16B descriptor list entry */
+	ENA_ADMIN_HEADER_RING                       = 2,
+};
+
+enum ena_admin_llq_ring_entry_size {
+	ENA_ADMIN_LIST_ENTRY_SIZE_128B              = 1,
+	ENA_ADMIN_LIST_ENTRY_SIZE_192B              = 2,
+	ENA_ADMIN_LIST_ENTRY_SIZE_256B              = 4,
+};
+
+enum ena_admin_llq_num_descs_before_header {
+	ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_0     = 0,
+	ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_1     = 1,
+	ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2     = 2,
+	ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_4     = 4,
+	ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_8     = 8,
+};
+
+/* packet descriptor list entry always starts with one or more descriptors,
+ * followed by a header. The rest of the descriptors are located in the
+ * beginning of the subsequent entry. Stride refers to how the rest of the
+ * descriptors are placed. This field is relevant only for inline header
+ * mode
+ */
+enum ena_admin_llq_stride_ctrl {
+	ENA_ADMIN_SINGLE_DESC_PER_ENTRY             = 1,
+	ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY          = 2,
+};
+
+struct ena_admin_feature_llq_desc {
+	u32 max_llq_num;
+
+	u32 max_llq_depth;
+
+	/*  specify the header locations the device supports. bitfield of
+	 *    enum ena_admin_llq_header_location.
+	 */
+	u16 header_location_ctrl_supported;
+
+	/* the header location the driver selected to use. */
+	u16 header_location_ctrl_enabled;
+
+	/* if inline header is specified - this is the size of descriptor
+	 *    list entry. If header in a separate ring is specified - this is
+	 *    the size of header ring entry. bitfield of enum
+	 *    ena_admin_llq_ring_entry_size. specify the entry sizes the device
+	 *    supports
+	 */
+	u16 entry_size_ctrl_supported;
+
+	/* the entry size the driver selected to use. */
+	u16 entry_size_ctrl_enabled;
+
+	/* valid only if inline header is specified. First entry associated
+	 *    with the packet includes descriptors and header. Rest of the
+	 *    entries occupied by descriptors. This parameter defines the max
+	 *    number of descriptors precedding the header in the first entry.
+	 *    The field is bitfield of enum
+	 *    ena_admin_llq_num_descs_before_header and specify the values the
+	 *    device supports
+	 */
+	u16 desc_num_before_header_supported;
+
+	/* the desire field the driver selected to use */
+	u16 desc_num_before_header_enabled;
+
+	/* valid only if inline was chosen. bitfield of enum
+	 *    ena_admin_llq_stride_ctrl
+	 */
+	u16 descriptors_stride_ctrl_supported;
+
+	/* the stride control the driver selected to use */
+	u16 descriptors_stride_ctrl_enabled;
+};
+
 struct ena_admin_queue_feature_desc {
-	/* including LLQs */
 	u32 max_sq_num;
 
 	u32 max_sq_depth;
@@ -495,9 +574,9 @@ struct ena_admin_queue_feature_desc {
 
 	u32 max_cq_depth;
 
-	u32 max_llq_num;
+	u32 max_legacy_llq_num;
 
-	u32 max_llq_depth;
+	u32 max_legacy_llq_depth;
 
 	u32 max_header_size;
 
@@ -822,6 +901,8 @@ struct ena_admin_get_feat_resp {
 
 		struct ena_admin_device_attr_feature_desc dev_attr;
 
+		struct ena_admin_feature_llq_desc llq;
+
 		struct ena_admin_queue_feature_desc max_queue;
 
 		struct ena_admin_feature_aenq_desc aenq;
@@ -869,6 +950,9 @@ struct ena_admin_set_feat_cmd {
 
 		/* rss indirection table */
 		struct ena_admin_feature_rss_ind_table ind_table;
+
+		/* LLQ configuration */
+		struct ena_admin_feature_llq_desc llq;
 	} u;
 };
 

@@ -2950,7 +2950,7 @@ static int ena_calc_io_queue_num(struct pci_dev *pdev,
 
 	/* In case of LLQ use the llq number in the get feature cmd */
 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		io_sq_num = get_feat_ctx->max_queues.max_llq_num;
+		io_sq_num = get_feat_ctx->max_queues.max_legacy_llq_num;
 
 		if (io_sq_num == 0) {
 			dev_err(&pdev->dev,
@@ -2986,7 +2986,7 @@ static void ena_set_push_mode(struct pci_dev *pdev, struct ena_com_dev *ena_dev,
 	has_mem_bar = pci_select_bars(pdev, IORESOURCE_MEM) & BIT(ENA_MEM_BAR);
 
 	/* Enable push mode if device supports LLQ */
-	if (has_mem_bar && (get_feat_ctx->max_queues.max_llq_num > 0))
+	if (has_mem_bar && get_feat_ctx->max_queues.max_legacy_llq_num > 0)
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_DEV;
 	else
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
@@ -3129,7 +3129,7 @@ static int ena_calc_queue_size(struct pci_dev *pdev,
 
 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
 		queue_size = min_t(u32, queue_size,
-				   get_feat_ctx->max_queues.max_llq_depth);
+				   get_feat_ctx->max_queues.max_legacy_llq_depth);
 
 	queue_size = rounddown_pow_of_two(queue_size);
 

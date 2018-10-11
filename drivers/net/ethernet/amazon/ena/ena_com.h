@@ -108,6 +108,14 @@ enum ena_intr_moder_level {
 	ENA_INTR_MAX_NUM_OF_LEVELS,
 };
 
+struct ena_llq_configurations {
+	enum ena_admin_llq_header_location llq_header_location;
+	enum ena_admin_llq_ring_entry_size llq_ring_entry_size;
+	enum ena_admin_llq_stride_ctrl  llq_stride_ctrl;
+	enum ena_admin_llq_num_descs_before_header llq_num_decs_before_header;
+	u16 llq_ring_entry_size_value;
+};
+
 struct ena_intr_moder_entry {
 	unsigned int intr_moder_interval;
 	unsigned int pkts_per_interval;
@@ -140,6 +148,15 @@ struct ena_com_tx_meta {
 	u16 l3_hdr_len;
 	u16 l3_hdr_offset;
 	u16 l4_hdr_len; /* In words */
+};
+
+struct ena_com_llq_info {
+	u16 header_location_ctrl;
+	u16 desc_stride_ctrl;
+	u16 desc_list_entry_size_ctrl;
+	u16 desc_list_entry_size;
+	u16 descs_num_before_header;
+	u16 descs_per_entry;
 };
 
 struct ena_com_io_cq {
@@ -179,6 +196,20 @@ struct ena_com_io_cq {
 
 } ____cacheline_aligned;
 
+struct ena_com_io_bounce_buffer_control {
+	u8 *base_buffer;
+	u16 next_to_use;
+	u16 buffer_size;
+	u16 buffers_num;  /* Must be a power of 2 */
+};
+
+/* This struct is to keep tracking the current location of the next llq entry */
+struct ena_com_llq_pkt_ctrl {
+	u8 *curr_bounce_buf;
+	u16 idx;
+	u16 descs_left_in_line;
+};
+
 struct ena_com_io_sq {
 	struct ena_com_io_desc_addr desc_addr;
 
@@ -190,6 +221,9 @@ struct ena_com_io_sq {
 
 	u32 msix_vector;
 	struct ena_com_tx_meta cached_tx_meta;
+	struct ena_com_llq_info llq_info;
+	struct ena_com_llq_pkt_ctrl llq_buf_ctrl;
+	struct ena_com_io_bounce_buffer_control bounce_buf_ctrl;
 
 	u16 q_depth;
 	u16 qid;
@@ -197,6 +231,7 @@ struct ena_com_io_sq {
 	u16 idx;
 	u16 tail;
 	u16 next_to_comp;
+	u16 llq_last_copy_tail;
 	u32 tx_max_header_size;
 	u8 phase;
 	u8 desc_entry_size;
@@ -334,6 +369,8 @@ struct ena_com_dev {
 	u16 intr_delay_resolution;
 	u32 intr_moder_tx_interval;
 	struct ena_intr_moder_entry *intr_moder_tbl;
+
+	struct ena_com_llq_info llq_info;
 };
 
 struct ena_com_dev_get_features_ctx {
@@ -342,6 +379,7 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
 	struct ena_admin_ena_hw_hints hw_hints;
+	struct ena_admin_feature_llq_desc llq;
 };
 
 struct ena_com_create_io_ctx {
