@@ -2860,7 +2860,7 @@ static const struct {
 	[SIGSYS]  = { NSIGSYS,  SIL_SYS },
 };
 
-static bool known_siginfo_layout(int sig, int si_code)
+static bool known_siginfo_layout(unsigned sig, int si_code)
 {
 	if (si_code == SI_KERNEL)
 		return true;
