@@ -285,7 +285,7 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 	of_id = of_match_device(ns_pinctrl_of_match_table, dev);
 	if (!of_id)
 		return -EINVAL;
-	ns_pinctrl->chipset_flag = (unsigned int)of_id->data;
+	ns_pinctrl->chipset_flag = (uintptr_t)of_id->data;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "cru_gpio_control");
@@ -307,7 +307,7 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0, pin = (struct pinctrl_pin_desc *)&pctldesc->pins[0];
 	     i < ARRAY_SIZE(ns_pinctrl_pins); i++) {
 		const struct pinctrl_pin_desc *src = &ns_pinctrl_pins[i];
-		unsigned int chipsets = (unsigned int)src->drv_data;
+		unsigned int chipsets = (uintptr_t)src->drv_data;
 
 		if (chipsets & ns_pinctrl->chipset_flag) {
 			memcpy(pin++, src, sizeof(*src));
