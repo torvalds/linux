@@ -424,6 +424,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	/* pinning is done in prepare/cleanup framebuffer */
 	src = vbox_bo_kmap(bo);
 	if (IS_ERR(src)) {
+		mutex_unlock(&vbox->hw_mutex);
 		DRM_WARN("Could not kmap cursor bo, skipping update\n");
 		return;
 	}
