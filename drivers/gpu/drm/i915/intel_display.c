@@ -6927,8 +6927,8 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 
 	/* Set HBR and RBR LPF coefficients */
 	if (pipe_config->port_clock == 162000 ||
-	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_ANALOG) ||
-	    intel_crtc_has_type(crtc->config, INTEL_OUTPUT_HDMI))
+	    intel_crtc_has_type(pipe_config, INTEL_OUTPUT_ANALOG) ||
+	    intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
 		vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW10(pipe),
 				 0x009f0003);
 	else
@@ -6955,7 +6955,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 
 	coreclk = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW7(pipe));
 	coreclk = (coreclk & 0x0000ff00) | 0x01c00000;
-	if (intel_crtc_has_dp_encoder(crtc->config))
+	if (intel_crtc_has_dp_encoder(pipe_config))
 		coreclk |= 0x01000000;
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW7(pipe), coreclk);
 
