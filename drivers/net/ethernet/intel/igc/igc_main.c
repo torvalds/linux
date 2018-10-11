@@ -30,6 +30,69 @@ static const struct pci_device_id igc_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
 
+/* forward declaration */
+static int igc_sw_init(struct igc_adapter *);
+
+/* PCIe configuration access */
+void igc_read_pci_cfg(struct igc_hw *hw, u32 reg, u16 *value)
+{
+	struct igc_adapter *adapter = hw->back;
+
+	pci_read_config_word(adapter->pdev, reg, value);
+}
+
+void igc_write_pci_cfg(struct igc_hw *hw, u32 reg, u16 *value)
+{
+	struct igc_adapter *adapter = hw->back;
+
+	pci_write_config_word(adapter->pdev, reg, *value);
+}
+
+s32 igc_read_pcie_cap_reg(struct igc_hw *hw, u32 reg, u16 *value)
+{
+	struct igc_adapter *adapter = hw->back;
+	u16 cap_offset;
+
+	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	if (!cap_offset)
+		return -IGC_ERR_CONFIG;
+
+	pci_read_config_word(adapter->pdev, cap_offset + reg, value);
+
+	return IGC_SUCCESS;
+}
+
+s32 igc_write_pcie_cap_reg(struct igc_hw *hw, u32 reg, u16 *value)
+{
+	struct igc_adapter *adapter = hw->back;
+	u16 cap_offset;
+
+	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	if (!cap_offset)
+		return -IGC_ERR_CONFIG;
+
+	pci_write_config_word(adapter->pdev, cap_offset + reg, *value);
+
+	return IGC_SUCCESS;
+}
+
+u32 igc_rd32(struct igc_hw *hw, u32 reg)
+{
+	u8 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
+	u32 value = 0;
+
+	if (IGC_REMOVED(hw_addr))
+		return ~value;
+
+	value = readl(&hw_addr[reg]);
+
+	/* reads should not return all F's */
+	if (!(~value) && (!reg || !(~readl(hw_addr))))
+		hw->hw_addr = NULL;
+
+	return value;
+}
+
 /**
  * igc_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -44,6 +107,7 @@ MODULE_DEVICE_TABLE(pci, igc_pci_tbl);
 static int igc_probe(struct pci_dev *pdev,
 		     const struct pci_device_id *ent)
 {
+	struct igc_adapter *adapter;
 	int err, pci_using_dac;
 
 	err = pci_enable_device_mem(pdev);
@@ -78,8 +142,15 @@ static int igc_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 	err = pci_save_state(pdev);
+
+	/* setup the private structure */
+	err = igc_sw_init(adapter);
+	if (err)
+		goto err_sw_init;
+
 	return 0;
 
+err_sw_init:
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -109,6 +180,33 @@ static struct pci_driver igc_driver = {
 	.probe    = igc_probe,
 	.remove   = igc_remove,
 };
+
+/**
+ * igc_sw_init - Initialize general software structures (struct igc_adapter)
+ * @adapter: board private structure to initialize
+ *
+ * igc_sw_init initializes the Adapter private data structure.
+ * Fields are initialized based on PCI device information and
+ * OS network device settings (MTU size).
+ */
+static int igc_sw_init(struct igc_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct igc_hw *hw = &adapter->hw;
+
+	/* PCI config space info */
+
+	hw->vendor_id = pdev->vendor;
+	hw->device_id = pdev->device;
+	hw->subsystem_vendor_id = pdev->subsystem_vendor;
+	hw->subsystem_device_id = pdev->subsystem_device;
+
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &hw->revision_id);
+
+	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
+
+	return 0;
+}
 
 /**
  * igc_init_module - Driver Registration Routine

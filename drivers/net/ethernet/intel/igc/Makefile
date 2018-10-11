@@ -7,4 +7,4 @@
 
 obj-$(CONFIG_IGC) += igc.o
 
-igc-objs := igc_main.o
+igc-objs := igc_main.o igc_mac.o
