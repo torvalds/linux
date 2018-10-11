@@ -510,9 +510,6 @@ void blk_mq_free_request(struct request *rq)
 
 	rq_qos_done(q, rq);
 
-	if (blk_rq_rl(rq))
-		blk_put_rl(blk_rq_rl(rq));
-
 	WRITE_ONCE(rq->state, MQ_RQ_IDLE);
 	if (refcount_dec_and_test(&rq->ref))
 		__blk_mq_free_request(rq);
@@ -1674,8 +1671,6 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 {
 	blk_init_request_from_bio(rq, bio);
-
-	blk_rq_set_rl(rq, blk_get_rl(rq->q, bio));
 
 	blk_account_io_start(rq, true);
 }
