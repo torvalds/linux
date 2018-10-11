@@ -8596,6 +8596,62 @@ static inline void mlxsw_reg_tneem_pack(char *payload, u8 overlay_ecn,
 	mlxsw_reg_tneem_underlay_ecn_set(payload, underlay_ecn);
 }
 
+/* TNDEM - Tunneling NVE Decapsulation ECN Mapping Register
+ * --------------------------------------------------------
+ * The TNDEM register configures the actions that are done in the
+ * decapsulation.
+ */
+#define MLXSW_REG_TNDEM_ID 0xA013
+#define MLXSW_REG_TNDEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tndem, MLXSW_REG_TNDEM_ID, MLXSW_REG_TNDEM_LEN);
+
+/* reg_tndem_underlay_ecn
+ * ECN field of the IP header in the underlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tndem, underlay_ecn, 0x04, 24, 2);
+
+/* reg_tndem_overlay_ecn
+ * ECN field of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tndem, overlay_ecn, 0x04, 16, 2);
+
+/* reg_tndem_eip_ecn
+ * Egress IP ECN. ECN field of the IP header of the packet which goes out
+ * from the decapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tndem, eip_ecn, 0x04, 8, 2);
+
+/* reg_tndem_trap_en
+ * Trap enable:
+ * 0 - No trap due to decap ECN
+ * 1 - Trap enable with trap_id
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tndem, trap_en, 0x08, 28, 4);
+
+/* reg_tndem_trap_id
+ * Trap ID. Either DECAP_ECN0 or DECAP_ECN1.
+ * Reserved when trap_en is '0'.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tndem, trap_id, 0x08, 0, 9);
+
+static inline void mlxsw_reg_tndem_pack(char *payload, u8 underlay_ecn,
+					u8 overlay_ecn, u8 ecn, bool trap_en,
+					u16 trap_id)
+{
+	MLXSW_REG_ZERO(tndem, payload);
+	mlxsw_reg_tndem_underlay_ecn_set(payload, underlay_ecn);
+	mlxsw_reg_tndem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tndem_eip_ecn_set(payload, ecn);
+	mlxsw_reg_tndem_trap_en_set(payload, trap_en);
+	mlxsw_reg_tndem_trap_id_set(payload, trap_id);
+}
+
 /* TNPC - Tunnel Port Configuration Register
  * -----------------------------------------
  * The TNPC register is used for tunnel port configuration.
@@ -9193,6 +9249,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
 	MLXSW_REG(tneem),
+	MLXSW_REG(tndem),
 	MLXSW_REG(tnpc),
 	MLXSW_REG(tigcr),
 	MLXSW_REG(sbpr),
