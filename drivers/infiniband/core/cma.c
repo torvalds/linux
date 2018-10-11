@@ -2751,7 +2751,7 @@ err:
 }
 EXPORT_SYMBOL(rdma_set_ib_path);
 
-static int cma_resolve_iw_route(struct rdma_id_private *id_priv, int timeout_ms)
+static int cma_resolve_iw_route(struct rdma_id_private *id_priv)
 {
 	struct cma_work *work;
 
@@ -2867,7 +2867,7 @@ int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms)
 	else if (rdma_protocol_roce(id->device, id->port_num))
 		ret = cma_resolve_iboe_route(id_priv);
 	else if (rdma_protocol_iwarp(id->device, id->port_num))
-		ret = cma_resolve_iw_route(id_priv, timeout_ms);
+		ret = cma_resolve_iw_route(id_priv);
 	else
 		ret = -ENOSYS;
 
