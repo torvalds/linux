@@ -67,6 +67,21 @@ struct veth_priv {
  * ethtool interface
  */
 
+struct veth_q_stat_desc {
+	char	desc[ETH_GSTRING_LEN];
+	size_t	offset;
+};
+
+#define VETH_RQ_STAT(m)	offsetof(struct veth_rq_stats, m)
+
+static const struct veth_q_stat_desc veth_rq_stats_desc[] = {
+	{ "xdp_packets",	VETH_RQ_STAT(xdp_packets) },
+	{ "xdp_bytes",		VETH_RQ_STAT(xdp_bytes) },
+	{ "xdp_drops",		VETH_RQ_STAT(xdp_drops) },
+};
+
+#define VETH_RQ_STATS_LEN	ARRAY_SIZE(veth_rq_stats_desc)
+
 static struct {
 	const char string[ETH_GSTRING_LEN];
 } ethtool_stats_keys[] = {
@@ -91,9 +106,20 @@ static void veth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *inf
 
 static void veth_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
+	char *p = (char *)buf;
+	int i, j;
+
 	switch(stringset) {
 	case ETH_SS_STATS:
-		memcpy(buf, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
+		memcpy(p, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
+		p += sizeof(ethtool_stats_keys);
+		for (i = 0; i < dev->real_num_rx_queues; i++) {
+			for (j = 0; j < VETH_RQ_STATS_LEN; j++) {
+				snprintf(p, ETH_GSTRING_LEN, "rx_queue_%u_%s",
+					 i, veth_rq_stats_desc[j].desc);
+				p += ETH_GSTRING_LEN;
+			}
+		}
 		break;
 	}
 }
@@ -102,7 +128,8 @@ static int veth_get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(ethtool_stats_keys);
+		return ARRAY_SIZE(ethtool_stats_keys) +
+		       VETH_RQ_STATS_LEN * dev->real_num_rx_queues;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -113,8 +140,25 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 {
 	struct veth_priv *priv = netdev_priv(dev);
 	struct net_device *peer = rtnl_dereference(priv->peer);
+	int i, j, idx;
 
 	data[0] = peer ? peer->ifindex : 0;
+	idx = 1;
+	for (i = 0; i < dev->real_num_rx_queues; i++) {
+		const struct veth_rq_stats *rq_stats = &priv->rq[i].stats;
+		const void *stats_base = (void *)rq_stats;
+		unsigned int start;
+		size_t offset;
+
+		do {
+			start = u64_stats_fetch_begin_irq(&rq_stats->syncp);
+			for (j = 0; j < VETH_RQ_STATS_LEN; j++) {
+				offset = veth_rq_stats_desc[j].offset;
+				data[idx + j] = *(u64 *)(stats_base + offset);
+			}
+		} while (u64_stats_fetch_retry_irq(&rq_stats->syncp, start));
+		idx += VETH_RQ_STATS_LEN;
+	}
 }
 
 static int veth_get_ts_info(struct net_device *dev,
