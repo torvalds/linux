@@ -33,6 +33,8 @@ extern char igc_driver_version[];
 #define IGC_FLAG_HAS_MSI		BIT(0)
 #define IGC_FLAG_QUEUE_PAIRS		BIT(4)
 #define IGC_FLAG_NEED_LINK_UPDATE	BIT(9)
+#define IGC_FLAG_MEDIA_RESET		BIT(10)
+#define IGC_FLAG_MAS_ENABLE		BIT(12)
 #define IGC_FLAG_HAS_MSIX		BIT(13)
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
 
@@ -290,6 +292,7 @@ struct igc_adapter {
 
 	/* TX */
 	u16 tx_work_limit;
+	u32 tx_timeout_count;
 	int num_tx_queues;
 	struct igc_ring *tx_ring[IGC_MAX_TX_QUEUES];
 
@@ -348,6 +351,7 @@ struct igc_adapter {
 
 	struct igc_mac_addr *mac_table;
 
+	unsigned long link_check_timeout;
 	struct igc_info ei;
 };
 
@@ -414,6 +418,14 @@ static inline unsigned int igc_rx_pg_order(struct igc_ring *ring)
 	if (ring_uses_large_buffer(ring))
 		return 1;
 #endif
+	return 0;
+}
+
+static inline s32 igc_read_phy_reg(struct igc_hw *hw, u32 offset, u16 *data)
+{
+	if (hw->phy.ops.read_reg)
+		return hw->phy.ops.read_reg(hw, offset, data);
+
 	return 0;
 }
 

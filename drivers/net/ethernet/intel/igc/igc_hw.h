@@ -197,6 +197,7 @@ struct igc_dev_spec_base {
 	bool clear_semaphore_once;
 	bool module_plugged;
 	u8 media_port;
+	bool mas_capable;
 };
 
 struct igc_hw {

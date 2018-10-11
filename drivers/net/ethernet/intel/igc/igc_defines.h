@@ -66,6 +66,8 @@
 #define IGC_CTRL_RFCE		0x08000000  /* Receive Flow Control enable */
 #define IGC_CTRL_TFCE		0x10000000  /* Transmit flow control enable */
 
+#define IGC_CONNSW_AUTOSENSE_EN	0x1
+
 /* PBA constants */
 #define IGC_PBA_34K		0x0022
 
@@ -93,6 +95,10 @@
 #define CR_1000T_ASYM_PAUSE	0x0080 /* Advertise asymmetric pause bit */
 #define CR_1000T_HD_CAPS	0x0100 /* Advertise 1000T HD capability */
 #define CR_1000T_FD_CAPS	0x0200 /* Advertise 1000T FD capability  */
+
+/* 1000BASE-T Status Register */
+#define SR_1000T_REMOTE_RX_STATUS	0x1000 /* Remote receiver OK */
+#define SR_1000T_LOCAL_RX_STATUS	0x2000 /* Local receiver OK */
 
 /* PHY GPY 211 registers */
 #define STANDARD_AN_REG_MASK	0x0007 /* MMD */
@@ -209,6 +215,11 @@
 
 #define IGC_QVECTOR_MASK	0x7FFC		/* Q-vector mask */
 #define IGC_ITR_VAL_MASK	0x04		/* ITR value mask */
+
+/* Interrupt Cause Set */
+#define IGC_ICS_LSC		IGC_ICR_LSC       /* Link Status Change */
+#define IGC_ICS_RXDMT0		IGC_ICR_RXDMT0    /* rx desc min. threshold */
+#define IGC_ICS_DRSTA		IGC_ICR_DRSTA     /* Device Reset Aserted */
 
 #define IGC_ICR_DOUTSYNC	0x10000000 /* NIC DMA out of sync */
 #define IGC_EITR_CNT_IGNR	0x80000000 /* Don't reset counters on write */
