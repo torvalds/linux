@@ -1069,6 +1069,8 @@ enum mlxsw_reg_sfdf_flush_type {
 	MLXSW_REG_SFDF_FLUSH_PER_PORT_AND_FID,
 	MLXSW_REG_SFDF_FLUSH_PER_LAG,
 	MLXSW_REG_SFDF_FLUSH_PER_LAG_AND_FID,
+	MLXSW_REG_SFDF_FLUSH_PER_NVE,
+	MLXSW_REG_SFDF_FLUSH_PER_NVE_AND_FID,
 };
 
 /* reg_sfdf_flush_type
@@ -1079,6 +1081,10 @@ enum mlxsw_reg_sfdf_flush_type {
  * 3 - All FID dynamic entries pointing to port are flushed.
  * 4 - All dynamic entries pointing to LAG are flushed.
  * 5 - All FID dynamic entries pointing to LAG are flushed.
+ * 6 - All entries of type "Unicast Tunnel" or "Multicast Tunnel" are
+ *     flushed.
+ * 7 - All entries of type "Unicast Tunnel" or "Multicast Tunnel" are
+ *     flushed, per FID.
  * Access: RW
  */
 MLXSW_ITEM32(reg, sfdf, flush_type, 0x04, 28, 4);
