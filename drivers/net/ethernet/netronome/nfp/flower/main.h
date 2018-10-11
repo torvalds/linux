@@ -38,6 +38,7 @@
 
 #include <linux/circ_buf.h>
 #include <linux/hashtable.h>
+#include <linux/rhashtable.h>
 #include <linux/time64.h>
 #include <linux/types.h>
 #include <net/pkt_cls.h>
@@ -50,10 +51,8 @@ struct net_device;
 struct nfp_app;
 
 #define NFP_FL_STATS_CTX_DONT_CARE	cpu_to_be32(0xffffffff)
-#define NFP_FL_STATS_ENTRY_RS		BIT(20)
-#define NFP_FL_STATS_ELEM_RS		4
-#define NFP_FL_REPEATED_HASH_MAX	BIT(17)
-#define NFP_FLOWER_HASH_BITS		19
+#define NFP_FL_STATS_ELEM_RS		FIELD_SIZEOF(struct nfp_fl_stats_id, \
+						     init_unalloc)
 #define NFP_FLOWER_MASK_ENTRY_RS	256
 #define NFP_FLOWER_MASK_ELEMENT_RS	1
 #define NFP_FLOWER_MASK_HASH_BITS	10
@@ -138,7 +137,10 @@ struct nfp_fl_lag {
  * @stats_ids:		List of free stats ids
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
+ * @stats_ring_size:	Maximum number of allowed stats ids
  * @flow_table:		Hash table used to store flower rules
+ * @stats:		Stored stats updates for flower rules
+ * @stats_lock:		Lock for flower rule stats updates
  * @cmsg_work:		Workqueue for control messages processing
  * @cmsg_skbs_high:	List of higher priority skbs for control message
  *			processing
@@ -171,7 +173,10 @@ struct nfp_flower_priv {
 	struct nfp_fl_stats_id stats_ids;
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
-	DECLARE_HASHTABLE(flow_table, NFP_FLOWER_HASH_BITS);
+	u32 stats_ring_size;
+	struct rhashtable flow_table;
+	struct nfp_fl_stats *stats;
+	spinlock_t stats_lock; /* lock stats */
 	struct work_struct cmsg_work;
 	struct sk_buff_head cmsg_skbs_high;
 	struct sk_buff_head cmsg_skbs_low;
@@ -227,10 +232,8 @@ struct nfp_fl_stats {
 struct nfp_fl_payload {
 	struct nfp_fl_rule_metadata meta;
 	unsigned long tc_flower_cookie;
-	struct hlist_node link;
+	struct rhash_head fl_node;
 	struct rcu_head rcu;
-	spinlock_t lock; /* lock stats */
-	struct nfp_fl_stats stats;
 	__be32 nfp_tun_ipv4_addr;
 	struct net_device *ingress_dev;
 	char *unmasked_data;
@@ -239,6 +242,8 @@ struct nfp_fl_payload {
 	bool ingress_offload;
 };
 
+extern const struct rhashtable_params nfp_flower_table_params;
+
 struct nfp_fl_stats_frame {
 	__be32 stats_con_id;
 	__be32 pkt_count;
@@ -246,7 +251,7 @@ struct nfp_fl_stats_frame {
 	__be64 stats_cookie;
 };
 
-int nfp_flower_metadata_init(struct nfp_app *app);
+int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,

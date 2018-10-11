@@ -509,11 +509,6 @@ err_free_bpf:
 	return err;
 }
 
-static void nfp_check_rhashtable_empty(void *ptr, void *arg)
-{
-	WARN_ON_ONCE(1);
-}
-
 static void nfp_bpf_clean(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf = app->priv;
