@@ -41,9 +41,6 @@
 #define ENA_ASYNC_QUEUE_DEPTH 16
 #define ENA_ADMIN_QUEUE_DEPTH 32
 
-#define MIN_ENA_VER (((ENA_COMMON_SPEC_VERSION_MAJOR) << \
-		ENA_REGS_VERSION_MAJOR_VERSION_SHIFT) \
-		| (ENA_COMMON_SPEC_VERSION_MINOR))
 
 #define ENA_CTRL_MAJOR		0
 #define ENA_CTRL_MINOR		0
@@ -1400,11 +1397,6 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev)
 			ENA_REGS_VERSION_MAJOR_VERSION_SHIFT,
 		ver & ENA_REGS_VERSION_MINOR_VERSION_MASK);
 
-	if (ver < MIN_ENA_VER) {
-		pr_err("ENA version is lower than the minimal version the driver supports\n");
-		return -1;
-	}
-
 	pr_info("ena controller version: %d.%d.%d implementation version %d\n",
 		(ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK) >>
 			ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT,
@@ -2440,6 +2432,10 @@ int ena_com_allocate_host_info(struct ena_com_dev *ena_dev)
 				    &host_attr->host_info_dma_addr, GFP_KERNEL);
 	if (unlikely(!host_attr->host_info))
 		return -ENOMEM;
+
+	host_attr->host_info->ena_spec_version =
+		((ENA_COMMON_SPEC_VERSION_MAJOR << ENA_REGS_VERSION_MAJOR_VERSION_SHIFT) |
+		(ENA_COMMON_SPEC_VERSION_MINOR));
 
 	return 0;
 }

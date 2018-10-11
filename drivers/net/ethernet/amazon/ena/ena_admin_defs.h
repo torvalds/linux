@@ -63,6 +63,8 @@ enum ena_admin_aq_completion_status {
 	ENA_ADMIN_ILLEGAL_PARAMETER		= 5,
 
 	ENA_ADMIN_UNKNOWN_ERROR			= 6,
+
+	ENA_ADMIN_RESOURCE_BUSY                 = 7,
 };
 
 enum ena_admin_aq_feature_id {
@@ -702,6 +704,10 @@ enum ena_admin_os_type {
 	ENA_ADMIN_OS_FREEBSD	= 4,
 
 	ENA_ADMIN_OS_IPXE	= 5,
+
+	ENA_ADMIN_OS_ESXI       = 6,
+
+	ENA_ADMIN_OS_GROUPS_NUM = 6,
 };
 
 struct ena_admin_host_info {
@@ -723,11 +729,27 @@ struct ena_admin_host_info {
 	/* 7:0 : major
 	 * 15:8 : minor
 	 * 23:16 : sub_minor
+	 * 31:24 : module_type
 	 */
 	u32 driver_version;
 
 	/* features bitmap */
-	u32 supported_network_features[4];
+	u32 supported_network_features[2];
+
+	/* ENA spec version of driver */
+	u16 ena_spec_version;
+
+	/* ENA device's Bus, Device and Function
+	 * 2:0 : function
+	 * 7:3 : device
+	 * 15:8 : bus
+	 */
+	u16 bdf;
+
+	/* Number of CPUs */
+	u16 num_cpus;
+
+	u16 reserved;
 };
 
 struct ena_admin_rss_ind_table_entry {
@@ -1008,6 +1030,13 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_HOST_INFO_MINOR_MASK GENMASK(15, 8)
 #define ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT 16
 #define ENA_ADMIN_HOST_INFO_SUB_MINOR_MASK GENMASK(23, 16)
+#define ENA_ADMIN_HOST_INFO_MODULE_TYPE_SHIFT 24
+#define ENA_ADMIN_HOST_INFO_MODULE_TYPE_MASK GENMASK(31, 24)
+#define ENA_ADMIN_HOST_INFO_FUNCTION_MASK GENMASK(2, 0)
+#define ENA_ADMIN_HOST_INFO_DEVICE_SHIFT 3
+#define ENA_ADMIN_HOST_INFO_DEVICE_MASK GENMASK(7, 3)
+#define ENA_ADMIN_HOST_INFO_BUS_SHIFT 8
+#define ENA_ADMIN_HOST_INFO_BUS_MASK GENMASK(15, 8)
 
 /* aenq_common_desc */
 #define ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK BIT(0)
