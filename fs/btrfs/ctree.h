@@ -2598,8 +2598,7 @@ static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_fs_info *fs_info,
 	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;
 }
 
-int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
-				       struct btrfs_fs_info *fs_info);
+int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans);
 int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans);
 void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
 					 const u64 start);
