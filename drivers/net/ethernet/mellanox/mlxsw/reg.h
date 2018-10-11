@@ -1321,12 +1321,19 @@ MLXSW_ITEM32(reg, slcr, type, 0x00, 0, 4);
  */
 MLXSW_ITEM32(reg, slcr, lag_hash, 0x04, 0, 20);
 
-static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash)
+/* reg_slcr_seed
+ * LAG seed value. The seed is the same for all ports.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcr, seed, 0x08, 0, 32);
+
+static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash, u32 seed)
 {
 	MLXSW_REG_ZERO(slcr, payload);
 	mlxsw_reg_slcr_pp_set(payload, MLXSW_REG_SLCR_PP_GLOBAL);
 	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_CRC);
 	mlxsw_reg_slcr_lag_hash_set(payload, lag_hash);
+	mlxsw_reg_slcr_seed_set(payload, seed);
 }
 
 /* SLCOR - Switch LAG Collector Register
