@@ -2288,7 +2288,7 @@ struct mlxsw_sp_switchdev_event_work {
 	unsigned long event;
 };
 
-static void mlxsw_sp_switchdev_event_work(struct work_struct *work)
+static void mlxsw_sp_switchdev_bridge_fdb_event_work(struct work_struct *work)
 {
 	struct mlxsw_sp_switchdev_event_work *switchdev_work =
 		container_of(work, struct mlxsw_sp_switchdev_event_work, work);
@@ -2352,7 +2352,6 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 	if (!switchdev_work)
 		return NOTIFY_BAD;
 
-	INIT_WORK(&switchdev_work->work, mlxsw_sp_switchdev_event_work);
 	switchdev_work->dev = dev;
 	switchdev_work->event = event;
 
@@ -2361,6 +2360,8 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 	case SWITCHDEV_FDB_DEL_TO_DEVICE: /* fall through */
 	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
 	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
+		INIT_WORK(&switchdev_work->work,
+			  mlxsw_sp_switchdev_bridge_fdb_event_work);
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
