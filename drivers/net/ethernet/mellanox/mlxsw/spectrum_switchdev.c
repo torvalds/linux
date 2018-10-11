@@ -17,7 +17,6 @@
 #include <net/switchdev.h>
 
 #include "spectrum_span.h"
-#include "spectrum_router.h"
 #include "spectrum_switchdev.h"
 #include "spectrum.h"
 #include "core.h"
