@@ -56,7 +56,6 @@ config CPU_RK3328
 
 config CPU_RK3366
 	bool "RK3366"
-	default y if ARM64
 
 config CPU_RK3368
 	bool "RK3368"
