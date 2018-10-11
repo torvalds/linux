@@ -301,6 +301,8 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 	if (rtt < 0)
 		return;
 
+	spin_lock(&peer->rtt_input_lock);
+
 	/* Replace the oldest datum in the RTT buffer */
 	sum -= peer->rtt_cache[cursor];
 	sum += rtt;
@@ -312,6 +314,8 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		peer->rtt_usage = usage;
 	}
 
+	spin_unlock(&peer->rtt_input_lock);
+
 	/* Now recalculate the average */
 	if (usage == RXRPC_RTT_CACHE_SIZE) {
 		avg = sum / RXRPC_RTT_CACHE_SIZE;
@@ -320,6 +324,7 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		do_div(avg, usage);
 	}
 
+	/* Don't need to update this under lock */
 	peer->rtt = avg;
 	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
 			   usage, avg);
