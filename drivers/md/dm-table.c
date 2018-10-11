@@ -47,7 +47,6 @@ struct dm_table {
 
 	bool integrity_supported:1;
 	bool singleton:1;
-	bool all_blk_mq:1;
 	unsigned integrity_added:1;
 
 	/*
@@ -910,21 +909,10 @@ static bool dm_table_supports_dax(struct dm_table *t)
 
 static bool dm_table_does_not_support_partial_completion(struct dm_table *t);
 
-struct verify_rq_based_data {
-	unsigned sq_count;
-	unsigned mq_count;
-};
-
 static int device_is_rq_based(struct dm_target *ti, struct dm_dev *dev,
 			      sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
-	struct verify_rq_based_data *v = data;
-
-	if (q->mq_ops)
-		v->mq_count++;
-	else
-		v->sq_count++;
 
 	return queue_is_rq_based(q);
 }
@@ -933,7 +921,6 @@ static int dm_table_determine_type(struct dm_table *t)
 {
 	unsigned i;
 	unsigned bio_based = 0, request_based = 0, hybrid = 0;
-	struct verify_rq_based_data v = {.sq_count = 0, .mq_count = 0};
 	struct dm_target *tgt;
 	struct list_head *devices = dm_table_get_devices(t);
 	enum dm_queue_mode live_md_type = dm_get_md_type(t->md);
@@ -1022,11 +1009,9 @@ verify_rq_based:
 		int srcu_idx;
 		struct dm_table *live_table = dm_get_live_table(t->md, &srcu_idx);
 
-		/* inherit live table's type and all_blk_mq */
-		if (live_table) {
+		/* inherit live table's type */
+		if (live_table)
 			t->type = live_table->type;
-			t->all_blk_mq = live_table->all_blk_mq;
-		}
 		dm_put_live_table(t->md, srcu_idx);
 		return 0;
 	}
@@ -1042,19 +1027,8 @@ verify_rq_based:
 
 	/* Non-request-stackable devices can't be used for request-based dm */
 	if (!tgt->type->iterate_devices ||
-	    !tgt->type->iterate_devices(tgt, device_is_rq_based, &v)) {
+	    !tgt->type->iterate_devices(tgt, device_is_rq_based, NULL)) {
 		DMERR("table load rejected: including non-request-stackable devices");
-		return -EINVAL;
-	}
-	if (v.sq_count && v.mq_count) {
-		DMERR("table load rejected: not all devices are blk-mq request-stackable");
-		return -EINVAL;
-	}
-	t->all_blk_mq = v.mq_count > 0;
-
-	if (!t->all_blk_mq &&
-	    (t->type == DM_TYPE_MQ_REQUEST_BASED || t->type == DM_TYPE_NVME_BIO_BASED)) {
-		DMERR("table load rejected: all devices are not blk-mq request-stackable");
 		return -EINVAL;
 	}
 
@@ -1103,11 +1077,6 @@ bool dm_table_bio_based(struct dm_table *t)
 bool dm_table_request_based(struct dm_table *t)
 {
 	return __table_type_request_based(dm_table_get_type(t));
-}
-
-bool dm_table_all_blk_mq_devices(struct dm_table *t)
-{
-	return t->all_blk_mq;
 }
 
 static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
@@ -2083,22 +2052,14 @@ void dm_table_run_md_queue_async(struct dm_table *t)
 {
 	struct mapped_device *md;
 	struct request_queue *queue;
-	unsigned long flags;
 
 	if (!dm_table_request_based(t))
 		return;
 
 	md = dm_table_get_md(t);
 	queue = dm_get_md_queue(md);
-	if (queue) {
-		if (queue->mq_ops)
-			blk_mq_run_hw_queues(queue, true);
-		else {
-			spin_lock_irqsave(queue->queue_lock, flags);
-			blk_run_queue_async(queue);
-			spin_unlock_irqrestore(queue->queue_lock, flags);
-		}
-	}
+	if (queue)
+		blk_mq_run_hw_queues(queue, true);
 }
 EXPORT_SYMBOL(dm_table_run_md_queue_async);
 

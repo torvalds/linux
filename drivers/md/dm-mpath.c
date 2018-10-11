@@ -203,14 +203,7 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 static int alloc_multipath_stage2(struct dm_target *ti, struct multipath *m)
 {
 	if (m->queue_mode == DM_TYPE_NONE) {
-		/*
-		 * Default to request-based.
-		 */
-		if (dm_use_blk_mq(dm_table_get_md(ti->table)))
-			m->queue_mode = DM_TYPE_MQ_REQUEST_BASED;
-		else
-			m->queue_mode = DM_TYPE_REQUEST_BASED;
-
+		m->queue_mode = DM_TYPE_MQ_REQUEST_BASED;
 	} else if (m->queue_mode == DM_TYPE_BIO_BASED) {
 		INIT_WORK(&m->process_queued_bios, process_queued_bios);
 		/*
@@ -537,10 +530,7 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 		 * get the queue busy feedback (via BLK_STS_RESOURCE),
 		 * otherwise I/O merging can suffer.
 		 */
-		if (q->mq_ops)
-			return DM_MAPIO_REQUEUE;
-		else
-			return DM_MAPIO_DELAY_REQUEUE;
+		return DM_MAPIO_REQUEUE;
 	}
 	clone->bio = clone->biotail = NULL;
 	clone->rq_disk = bdev->bd_disk;
