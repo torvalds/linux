@@ -7,6 +7,7 @@
 /* General Register Descriptions */
 #define IGC_CTRL		0x00000  /* Device Control - RW */
 #define IGC_STATUS		0x00008  /* Device Status - RO */
+#define IGC_EECD		0x00010  /* EEPROM/Flash Control - RW */
 #define IGC_CTRL_EXT		0x00018  /* Extended Device Control - RW */
 #define IGC_MDIC		0x00020  /* MDI Control - RW */
 #define IGC_MDICNFG		0x00E04  /* MDC/MDIO Configuration - RW */
@@ -56,6 +57,23 @@
 #define IGC_IVAR_MISC		0x01740  /* IVAR for "other" causes - RW */
 #define IGC_GPIE		0x01514  /* General Purpose Intr Enable - RW */
 
+/* Interrupt Cause */
+#define IGC_ICRXPTC		0x04104  /* Rx Packet Timer Expire Count */
+#define IGC_ICRXATC		0x04108  /* Rx Absolute Timer Expire Count */
+#define IGC_ICTXPTC		0x0410C  /* Tx Packet Timer Expire Count */
+#define IGC_ICTXATC		0x04110  /* Tx Absolute Timer Expire Count */
+#define IGC_ICTXQEC		0x04118  /* Tx Queue Empty Count */
+#define IGC_ICTXQMTC		0x0411C  /* Tx Queue Min Threshold Count */
+#define IGC_ICRXDMTC		0x04120  /* Rx Descriptor Min Threshold Count */
+#define IGC_ICRXOC		0x04124  /* Receiver Overrun Count */
+
+#define IGC_CBTMPC		0x0402C  /* Circuit Breaker TX Packet Count */
+#define IGC_HTDPMC		0x0403C  /* Host Transmit Discarded Packets */
+#define IGC_CBRMPC		0x040FC  /* Circuit Breaker RX Packet Count */
+#define IGC_RPTHC		0x04104  /* Rx Packets To Host */
+#define IGC_HGPTC		0x04118  /* Host Good Packets TX Count */
+#define IGC_HTCBDPC		0x04124  /* Host TX Circ.Breaker Drop Count */
+
 /* MSI-X Table Register Descriptions */
 #define IGC_PBACL		0x05B68  /* MSIx PBA Clear - R/W 1 to clear */
 
@@ -73,6 +91,8 @@
 #define IGC_RXCSUM		0x05000  /* Rx Checksum Control - RW */
 #define IGC_RLPML		0x05004  /* Rx Long Packet Max Length */
 #define IGC_RFCTL		0x05008  /* Receive Filter Control*/
+#define IGC_MTA			0x05200  /* Multicast Table Array - RW Array */
+#define IGC_UTA			0x0A000  /* Unicast Table Array - RW */
 #define IGC_RAL(_n)		(0x05400 + ((_n) * 0x08))
 #define IGC_RAH(_n)		(0x05404 + ((_n) * 0x08))
 

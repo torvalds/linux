@@ -10,6 +10,22 @@
 #define PCIE_DEVICE_CONTROL2		0x28
 #define PCIE_DEVICE_CONTROL2_16ms	0x0005
 
+/* Physical Func Reset Done Indication */
+#define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
+
+/* Number of 100 microseconds we wait for PCI Express master disable */
+#define MASTER_DISABLE_TIMEOUT		800
+/*Blocks new Master requests */
+#define IGC_CTRL_GIO_MASTER_DISABLE	0x00000004
+/* Status of Master requests. */
+#define IGC_STATUS_GIO_MASTER_ENABLE	0x00080000
+
+/* PCI Express Control */
+#define IGC_GCR_CMPL_TMOUT_MASK		0x0000F000
+#define IGC_GCR_CMPL_TMOUT_10ms		0x00001000
+#define IGC_GCR_CMPL_TMOUT_RESEND	0x00010000
+#define IGC_GCR_CAP_VER2		0x00040000
+
 /* Receive Address
  * Number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
@@ -28,9 +44,22 @@
 #define IGC_ERR_PARAM			4
 #define IGC_ERR_MAC_INIT		5
 #define IGC_ERR_RESET			9
+#define IGC_ERR_MASTER_REQUESTS_PENDING	10
+#define IGC_ERR_SWFW_SYNC		13
+
+/* Device Control */
+#define IGC_CTRL_RST		0x04000000  /* Global reset */
 
 /* PBA constants */
 #define IGC_PBA_34K		0x0022
+
+/* SW Semaphore Register */
+#define IGC_SWSM_SMBI		0x00000001 /* Driver Semaphore bit */
+#define IGC_SWSM_SWESMBI	0x00000002 /* FW Semaphore bit */
+
+/* Number of milliseconds for NVM auto read done after MAC reset. */
+#define AUTO_READ_DONE_TIMEOUT		10
+#define IGC_EECD_AUTO_RD		0x00000200  /* NVM Auto Read done */
 
 /* Device Status */
 #define IGC_STATUS_FD		0x00000001      /* Full duplex.0=half,1=full */
@@ -117,6 +146,13 @@
 
 #define IGC_CT_SHIFT			4
 #define IGC_COLLISION_THRESHOLD		15
+
+/* Flow Control Constants */
+#define FLOW_CONTROL_ADDRESS_LOW	0x00C28001
+#define FLOW_CONTROL_ADDRESS_HIGH	0x00000100
+#define FLOW_CONTROL_TYPE		0x8808
+/* Enable XON frame transmission */
+#define IGC_FCRTL_XONE			0x80000000
 
 /* Management Control */
 #define IGC_MANC_RCV_TCO_EN	0x00020000 /* Receive TCO Packets Enabled */

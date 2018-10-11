@@ -33,6 +33,8 @@ union igc_adv_tx_desc {
 #define IGC_ADVTXD_DCMD_TSE	0x80000000 /* TCP Seg enable */
 #define IGC_ADVTXD_PAYLEN_SHIFT	14 /* Adv desc PAYLEN shift */
 
+#define IGC_RAR_ENTRIES		16
+
 struct igc_adv_data_desc {
 	__le64 buffer_addr;    /* Address of the descriptor's data buffer */
 	union {

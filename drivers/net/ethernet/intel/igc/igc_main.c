@@ -64,6 +64,14 @@ enum latency_range {
 
 static void igc_reset(struct igc_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
+	struct igc_hw *hw = &adapter->hw;
+
+	hw->mac.ops.reset_hw(hw);
+
+	if (hw->mac.ops.init_hw(hw))
+		dev_err(&pdev->dev, "Hardware Error\n");
+
 	if (!netif_running(adapter->netdev))
 		igc_power_down_link(adapter);
 }
@@ -3553,6 +3561,19 @@ static int igc_sw_init(struct igc_adapter *adapter)
 	set_bit(__IGC_DOWN, &adapter->state);
 
 	return 0;
+}
+
+/**
+ * igc_get_hw_dev - return device
+ * @hw: pointer to hardware structure
+ *
+ * used by hardware layer to print debugging information
+ */
+struct net_device *igc_get_hw_dev(struct igc_hw *hw)
+{
+	struct igc_adapter *adapter = hw->back;
+
+	return adapter->netdev;
 }
 
 /**

@@ -5,6 +5,184 @@
 
 #include "igc_hw.h"
 #include "igc_i225.h"
+#include "igc_mac.h"
+#include "igc_base.h"
+#include "igc.h"
+
+/**
+ * igc_set_pcie_completion_timeout - set pci-e completion timeout
+ * @hw: pointer to the HW structure
+ */
+static s32 igc_set_pcie_completion_timeout(struct igc_hw *hw)
+{
+	u32 gcr = rd32(IGC_GCR);
+	u16 pcie_devctl2;
+	s32 ret_val = 0;
+
+	/* only take action if timeout value is defaulted to 0 */
+	if (gcr & IGC_GCR_CMPL_TMOUT_MASK)
+		goto out;
+
+	/* if capabilities version is type 1 we can write the
+	 * timeout of 10ms to 200ms through the GCR register
+	 */
+	if (!(gcr & IGC_GCR_CAP_VER2)) {
+		gcr |= IGC_GCR_CMPL_TMOUT_10ms;
+		goto out;
+	}
+
+	/* for version 2 capabilities we need to write the config space
+	 * directly in order to set the completion timeout value for
+	 * 16ms to 55ms
+	 */
+	ret_val = igc_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+					&pcie_devctl2);
+	if (ret_val)
+		goto out;
+
+	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
+
+	ret_val = igc_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+					 &pcie_devctl2);
+out:
+	/* disable completion timeout resend */
+	gcr &= ~IGC_GCR_CMPL_TMOUT_RESEND;
+
+	wr32(IGC_GCR, gcr);
+
+	return ret_val;
+}
+
+/**
+ * igc_reset_hw_base - Reset hardware
+ * @hw: pointer to the HW structure
+ *
+ * This resets the hardware into a known state.  This is a
+ * function pointer entry point called by the api module.
+ */
+static s32 igc_reset_hw_base(struct igc_hw *hw)
+{
+	s32 ret_val;
+	u32 ctrl;
+
+	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	 * on the last TLP read/write transaction when MAC is reset.
+	 */
+	ret_val = igc_disable_pcie_master(hw);
+	if (ret_val)
+		hw_dbg("PCI-E Master disable polling has failed.\n");
+
+	/* set the completion timeout for interface */
+	ret_val = igc_set_pcie_completion_timeout(hw);
+	if (ret_val)
+		hw_dbg("PCI-E Set completion timeout has failed.\n");
+
+	hw_dbg("Masking off all interrupts\n");
+	wr32(IGC_IMC, 0xffffffff);
+
+	wr32(IGC_RCTL, 0);
+	wr32(IGC_TCTL, IGC_TCTL_PSP);
+	wrfl();
+
+	usleep_range(10000, 20000);
+
+	ctrl = rd32(IGC_CTRL);
+
+	hw_dbg("Issuing a global reset to MAC\n");
+	wr32(IGC_CTRL, ctrl | IGC_CTRL_RST);
+
+	ret_val = igc_get_auto_rd_done(hw);
+	if (ret_val) {
+		/* When auto config read does not complete, do not
+		 * return with an error. This can happen in situations
+		 * where there is no eeprom and prevents getting link.
+		 */
+		hw_dbg("Auto Read Done did not complete\n");
+	}
+
+	/* Clear any pending interrupt events. */
+	wr32(IGC_IMC, 0xffffffff);
+	rd32(IGC_ICR);
+
+	return ret_val;
+}
+
+/**
+ * igc_init_mac_params_base - Init MAC func ptrs.
+ * @hw: pointer to the HW structure
+ */
+static s32 igc_init_mac_params_base(struct igc_hw *hw)
+{
+	struct igc_mac_info *mac = &hw->mac;
+
+	/* Set mta register count */
+	mac->mta_reg_count = 128;
+	mac->rar_entry_count = IGC_RAR_ENTRIES;
+
+	/* reset */
+	mac->ops.reset_hw = igc_reset_hw_base;
+
+	mac->ops.acquire_swfw_sync = igc_acquire_swfw_sync_i225;
+	mac->ops.release_swfw_sync = igc_release_swfw_sync_i225;
+
+	return 0;
+}
+
+static s32 igc_get_invariants_base(struct igc_hw *hw)
+{
+	u32 link_mode = 0;
+	u32 ctrl_ext = 0;
+	s32 ret_val = 0;
+
+	ctrl_ext = rd32(IGC_CTRL_EXT);
+	link_mode = ctrl_ext & IGC_CTRL_EXT_LINK_MODE_MASK;
+
+	/* mac initialization and operations */
+	ret_val = igc_init_mac_params_base(hw);
+	if (ret_val)
+		goto out;
+
+out:
+	return ret_val;
+}
+
+/**
+ * igc_init_hw_base - Initialize hardware
+ * @hw: pointer to the HW structure
+ *
+ * This inits the hardware readying it for operation.
+ */
+static s32 igc_init_hw_base(struct igc_hw *hw)
+{
+	struct igc_mac_info *mac = &hw->mac;
+	u16 i, rar_count = mac->rar_entry_count;
+	s32 ret_val = 0;
+
+	/* Setup the receive address */
+	igc_init_rx_addrs(hw, rar_count);
+
+	/* Zero out the Multicast HASH table */
+	hw_dbg("Zeroing the MTA\n");
+	for (i = 0; i < mac->mta_reg_count; i++)
+		array_wr32(IGC_MTA, i, 0);
+
+	/* Zero out the Unicast HASH table */
+	hw_dbg("Zeroing the UTA\n");
+	for (i = 0; i < mac->uta_reg_count; i++)
+		array_wr32(IGC_UTA, i, 0);
+
+	/* Setup link and flow control */
+	ret_val = igc_setup_link(hw);
+
+	/* Clear all of the statistics registers (clear on read).  It is
+	 * important that we do this after we have tried to establish link
+	 * because the symbol error count will increment wildly if there
+	 * is no link.
+	 */
+	igc_clear_hw_cntrs_base(hw);
+
+	return ret_val;
+}
 
 /**
  * igc_rx_fifo_flush_base - Clean rx fifo after Rx enable
@@ -81,3 +259,12 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
 	rd32(IGC_RNBC);
 	rd32(IGC_MPC);
 }
+
+static struct igc_mac_operations igc_mac_ops_base = {
+	.init_hw		= igc_init_hw_base,
+};
+
+const struct igc_info igc_base_info = {
+	.get_invariants		= igc_get_invariants_base,
+	.mac_ops		= &igc_mac_ops_base,
+};
