@@ -33,6 +33,10 @@
 #define PX30_PVTM_CORE		0
 #define PX30_PVTM_PMU		1
 
+#define RK1808_PVTM_CORE	0
+#define RK1808_PVTM_PMU		1
+#define RK1808_PVTM_NPU		2
+
 #define RK3288_PVTM_CORE	0
 #define RK3288_PVTM_GPU		1
 
@@ -258,6 +262,15 @@ static void px30_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
 		     wr_mask_bit(sub_ch, (ch * 0x4 + 0x2), 0x3));
 }
 
+static void rk1808_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
+				     unsigned int sub_ch)
+{
+	unsigned int ch = pvtm->channel->ch;
+
+	regmap_write(pvtm->grf, pvtm->con,
+		     wr_mask_bit(sub_ch, (ch * 0x4 + 0x2), 0x7));
+}
+
 static void rk3399_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
 				     unsigned int sub_ch)
 {
@@ -369,6 +382,44 @@ static const struct rockchip_pvtm_info px30_pmupvtm = {
 	.get_value = rockchip_pvtm_get_value,
 };
 
+static const struct rockchip_pvtm_channel rk1808_pvtm_channels[] = {
+	PVTM(RK1808_PVTM_CORE, "core", 5, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_info rk1808_pvtm = {
+	.con = 0x80,
+	.sta = 0x88,
+	.num_channels = ARRAY_SIZE(rk1808_pvtm_channels),
+	.channels = rk1808_pvtm_channels,
+	.get_value = rockchip_pvtm_get_value,
+	.set_ring_sel = rk1808_pvtm_set_ring_sel,
+};
+
+static const struct rockchip_pvtm_channel rk1808_pmupvtm_channels[] = {
+	PVTM(RK1808_PVTM_PMU, "pmu", 1, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_info rk1808_pmupvtm = {
+	.con = 0x180,
+	.sta = 0x190,
+	.num_channels = ARRAY_SIZE(rk1808_pmupvtm_channels),
+	.channels = rk1808_pmupvtm_channels,
+	.get_value = rockchip_pvtm_get_value,
+};
+
+static const struct rockchip_pvtm_channel rk1808_npupvtm_channels[] = {
+	PVTM(RK1808_PVTM_NPU, "npu", 5, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_info rk1808_npupvtm = {
+	.con = 0x780,
+	.sta = 0x788,
+	.num_channels = ARRAY_SIZE(rk1808_npupvtm_channels),
+	.channels = rk1808_npupvtm_channels,
+	.get_value = rockchip_pvtm_get_value,
+	.set_ring_sel = rk1808_pvtm_set_ring_sel,
+};
+
 static const struct rockchip_pvtm_channel rk3288_pvtm_channels[] = {
 	PVTM(RK3288_PVTM_CORE, "core", 1, 0, 1, 0x4, 1, 0x4),
 	PVTM(RK3288_PVTM_GPU, "gpu", 1, 8, 9, 0x8, 0, 0x8),
@@ -451,6 +502,18 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 	{
 		.compatible = "rockchip,px30-pmu-pvtm",
 		.data = (void *)&px30_pmupvtm,
+	},
+	{
+		.compatible = "rockchip,rk1808-pvtm",
+		.data = (void *)&rk1808_pvtm,
+	},
+	{
+		.compatible = "rockchip,rk1808-pmu-pvtm",
+		.data = (void *)&rk1808_pmupvtm,
+	},
+	{
+		.compatible = "rockchip,rk1808-npu-pvtm",
+		.data = (void *)&rk1808_npupvtm,
 	},
 	{
 		.compatible = "rockchip,rk3288-pvtm",
