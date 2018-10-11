@@ -936,6 +936,20 @@ static struct rockchip_mux_route_data rk1808_mux_route_data[] = {
 		.route_offset = 0x190,
 		.route_val = BIT(16 + 3) | BIT(3),
 	}, {
+		/* uart1_rxm0 */
+		.bank_num = 4,
+		.pin = 8,
+		.func = 2,
+		.route_offset = 0x190,
+		.route_val = BIT(16 + 13),
+	}, {
+		/* uart1_rxm1 */
+		.bank_num = 1,
+		.pin = 12,
+		.func = 3,
+		.route_offset = 0x190,
+		.route_val = BIT(16 + 13) | BIT(13),
+	}, {
 		/* uart2_rxm0 */
 		.bank_num = 4,
 		.pin = 3,
@@ -948,7 +962,7 @@ static struct rockchip_mux_route_data rk1808_mux_route_data[] = {
 		.pin = 25,
 		.func = 2,
 		.route_offset = 0x190,
-		.route_val = BIT(16 + 14) | BIT(14) | BIT(16 + 15),
+		.route_val = BIT(16 + 14) | BIT(16 + 15) | BIT(14),
 	}, {
 		/* uart2_rxm2 */
 		.bank_num = 3,
