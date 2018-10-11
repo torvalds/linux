@@ -946,10 +946,8 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 			sgp->length++;
 		}
 
-		srb->sg_bus_addr = pci_map_single(dcb->acb->dev,
-						srb->segment_x,
-				            	SEGMENTX_LEN,
-				            	PCI_DMA_TODEVICE);
+		srb->sg_bus_addr = dma_map_single(&dcb->acb->dev->dev,
+				srb->segment_x, SEGMENTX_LEN, DMA_TO_DEVICE);
 
 		dprintkdbg(DBG_SG, "build_srb: [n] map sg %p->%08x(%05x)\n",
 			srb->segment_x, srb->sg_bus_addr, SEGMENTX_LEN);
@@ -1871,19 +1869,15 @@ static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 			xferred -= psge->length;
 		} else {
 			/* Partial SG entry done */
-			pci_dma_sync_single_for_cpu(srb->dcb->
-					    acb->dev,
-					    srb->sg_bus_addr,
-					    SEGMENTX_LEN,
-					    PCI_DMA_TODEVICE);
+			dma_sync_single_for_cpu(&srb->dcb->acb->dev->dev,
+					srb->sg_bus_addr, SEGMENTX_LEN,
+					DMA_TO_DEVICE);
 			psge->length -= xferred;
 			psge->address += xferred;
 			srb->sg_index = idx;
-			pci_dma_sync_single_for_device(srb->dcb->
-					    acb->dev,
-					    srb->sg_bus_addr,
-					    SEGMENTX_LEN,
-					    PCI_DMA_TODEVICE);
+			dma_sync_single_for_device(&srb->dcb->acb->dev->dev,
+					srb->sg_bus_addr, SEGMENTX_LEN,
+					DMA_TO_DEVICE);
 			break;
 		}
 		psge++;
@@ -3178,9 +3172,8 @@ static void pci_unmap_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 		/* unmap DC395x SG list */
 		dprintkdbg(DBG_SG, "pci_unmap_srb: list=%08x(%05x)\n",
 			srb->sg_bus_addr, SEGMENTX_LEN);
-		pci_unmap_single(acb->dev, srb->sg_bus_addr,
-				 SEGMENTX_LEN,
-				 PCI_DMA_TODEVICE);
+		dma_unmap_single(&acb->dev->dev, srb->sg_bus_addr, SEGMENTX_LEN,
+				DMA_TO_DEVICE);
 		dprintkdbg(DBG_SG, "pci_unmap_srb: segs=%i buffer=%p\n",
 			   scsi_sg_count(cmd), scsi_bufflen(cmd));
 		/* unmap the sg segments */
@@ -3198,8 +3191,8 @@ static void pci_unmap_srb_sense(struct AdapterCtlBlk *acb,
 	/* Unmap sense buffer */
 	dprintkdbg(DBG_SG, "pci_unmap_srb_sense: buffer=%08x\n",
 	       srb->segment_x[0].address);
-	pci_unmap_single(acb->dev, srb->segment_x[0].address,
-			 srb->segment_x[0].length, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(&acb->dev->dev, srb->segment_x[0].address,
+			 srb->segment_x[0].length, DMA_FROM_DEVICE);
 	/* Restore SG stuff */
 	srb->total_xfer_length = srb->xferred;
 	srb->segment_x[0].address =
@@ -3594,9 +3587,9 @@ static void request_sense(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 	srb->total_xfer_length = SCSI_SENSE_BUFFERSIZE;
 	srb->segment_x[0].length = SCSI_SENSE_BUFFERSIZE;
 	/* Map sense buffer */
-	srb->segment_x[0].address =
-	    pci_map_single(acb->dev, cmd->sense_buffer,
-			   SCSI_SENSE_BUFFERSIZE, PCI_DMA_FROMDEVICE);
+	srb->segment_x[0].address = dma_map_single(&acb->dev->dev,
+			cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
+			DMA_FROM_DEVICE);
 	dprintkdbg(DBG_SG, "request_sense: map buffer %p->%08x(%05x)\n",
 	       cmd->sense_buffer, srb->segment_x[0].address,
 	       SCSI_SENSE_BUFFERSIZE);
