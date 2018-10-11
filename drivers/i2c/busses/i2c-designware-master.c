@@ -34,11 +34,11 @@ static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
 
 static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 {
-	u32 ic_clk = i2c_dw_clk_rate(dev);
 	const char *mode_str, *fp_str = "";
 	u32 comp_param1;
 	u32 sda_falling_time, scl_falling_time;
 	struct i2c_timings *t = &dev->timings;
+	u32 ic_clk;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);
@@ -53,6 +53,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 
 	/* Calculate SCL timing parameters for standard mode if not set */
 	if (!dev->ss_hcnt || !dev->ss_lcnt) {
+		ic_clk = i2c_dw_clk_rate(dev);
 		dev->ss_hcnt =
 			i2c_dw_scl_hcnt(ic_clk,
 					4000,	/* tHD;STA = tHIGH = 4.0 us */
@@ -89,6 +90,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	 * needed also in high speed mode.
 	 */
 	if (!dev->fs_hcnt || !dev->fs_lcnt) {
+		ic_clk = i2c_dw_clk_rate(dev);
 		dev->fs_hcnt =
 			i2c_dw_scl_hcnt(ic_clk,
 					600,	/* tHD;STA = tHIGH = 0.6 us */

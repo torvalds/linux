@@ -15,7 +15,8 @@ than x86.  Check the v86d documentation for a list of currently supported
 arches.
 
 v86d source code can be downloaded from the following website:
-  http://dev.gentoo.org/~spock/projects/uvesafb
+
+  https://github.com/mjanusz/v86d
 
 Please refer to the v86d documentation for detailed configuration and
 installation instructions.
@@ -177,7 +178,7 @@ from the Video BIOS if you set pixclock to 0 in fb_var_screeninfo.
 
 --
  Michal Januszewski <spock@gentoo.org>
- Last updated: 2009-03-30
+ Last updated: 2017-10-10
 
  Documentation of the uvesafb options is loosely based on vesafb.txt.
 

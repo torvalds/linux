@@ -98,13 +98,13 @@ static int bnxt_hwrm_queue_cos2bw_cfg(struct bnxt *bp, struct ieee_ets *ets,
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_QUEUE_COS2BW_CFG, -1, -1);
 	for (i = 0; i < max_tc; i++) {
-		u8 qidx;
+		u8 qidx = bp->tc_to_qidx[i];
 
 		req.enables |= cpu_to_le32(
-			QUEUE_COS2BW_CFG_REQ_ENABLES_COS_QUEUE_ID0_VALID << i);
+			QUEUE_COS2BW_CFG_REQ_ENABLES_COS_QUEUE_ID0_VALID <<
+			qidx);
 
 		memset(&cos2bw, 0, sizeof(cos2bw));
-		qidx = bp->tc_to_qidx[i];
 		cos2bw.queue_id = bp->q_info[qidx].queue_id;
 		if (ets->tc_tsa[i] == IEEE_8021QAZ_TSA_STRICT) {
 			cos2bw.tsa =

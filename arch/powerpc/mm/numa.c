@@ -1217,9 +1217,10 @@ int find_and_online_cpu_nid(int cpu)
 		 * Need to ensure that NODE_DATA is initialized for a node from
 		 * available memory (see memblock_alloc_try_nid). If unable to
 		 * init the node, then default to nearest node that has memory
-		 * installed.
+		 * installed. Skip onlining a node if the subsystems are not
+		 * yet initialized.
 		 */
-		if (try_online_node(new_nid))
+		if (!topology_inited || try_online_node(new_nid))
 			new_nid = first_online_node;
 #else
 		/*
