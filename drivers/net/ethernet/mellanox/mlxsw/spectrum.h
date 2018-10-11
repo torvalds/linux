@@ -438,6 +438,7 @@ enum mlxsw_sp_kvdl_entry_type {
 	MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
 	MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
 	MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+	MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT,
 };
 
 static inline unsigned int
@@ -448,6 +449,7 @@ mlxsw_sp_kvdl_entry_size(enum mlxsw_sp_kvdl_entry_type type)
 	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET: /* fall through */
 	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS: /* fall through */
 	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR: /* fall through */
+	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT: /* fall through */
 	default:
 		return 1;
 	}
