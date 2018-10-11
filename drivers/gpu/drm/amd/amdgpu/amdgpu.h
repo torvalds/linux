@@ -81,6 +81,23 @@
 #include "amdgpu_bo_list.h"
 #include "amdgpu_gem.h"
 
+#define MAX_GPU_INSTANCE		16
+
+struct amdgpu_gpu_instance
+{
+	struct amdgpu_device		*adev;
+	int				mgpu_fan_enabled;
+};
+
+struct amdgpu_mgpu_info
+{
+	struct amdgpu_gpu_instance	gpu_ins[MAX_GPU_INSTANCE];
+	struct mutex			mutex;
+	uint32_t			num_gpu;
+	uint32_t			num_dgpu;
+	uint32_t			num_apu;
+};
+
 /*
  * Modules parameters.
  */
@@ -134,6 +151,7 @@ extern int amdgpu_compute_multipipe;
 extern int amdgpu_gpu_recovery;
 extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
+extern struct amdgpu_mgpu_info mgpu_info;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
@@ -598,31 +616,6 @@ void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
  */
 void amdgpu_test_moves(struct amdgpu_device *adev);
 
-
-/*
- * amdgpu smumgr functions
- */
-struct amdgpu_smumgr_funcs {
-	int (*check_fw_load_finish)(struct amdgpu_device *adev, uint32_t fwtype);
-	int (*request_smu_load_fw)(struct amdgpu_device *adev);
-	int (*request_smu_specific_fw)(struct amdgpu_device *adev, uint32_t fwtype);
-};
-
-/*
- * amdgpu smumgr
- */
-struct amdgpu_smumgr {
-	struct amdgpu_bo *toc_buf;
-	struct amdgpu_bo *smu_buf;
-	/* asic priv smu data */
-	void *priv;
-	spinlock_t smu_lock;
-	/* smumgr functions */
-	const struct amdgpu_smumgr_funcs *smumgr_funcs;
-	/* ucode loading complete flag */
-	uint32_t fw_flags;
-};
-
 /*
  * ASIC specific register table accessible by UMD
  */
@@ -958,9 +951,6 @@ struct amdgpu_device {
 	u32				cg_flags;
 	u32				pg_flags;
 
-	/* amdgpu smumgr */
-	struct amdgpu_smumgr smu;
-
 	/* gfx */
 	struct amdgpu_gfx		gfx;
 
@@ -1024,6 +1014,9 @@ struct amdgpu_device {
 	/* record hw reset is performed */
 	bool has_hw_reset;
 	u8				reset_magic[AMDGPU_RESET_MAGIC_NUM];
+
+	/* s3/s4 mask */
+	bool                            in_suspend;
 
 	/* record last mm index being written through WREG32*/
 	unsigned long last_mm_index;

@@ -127,6 +127,9 @@ int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
 int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
+struct amdgpu_mgpu_info mgpu_info = {
+	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
+};
 
 /**
  * DOC: vramlimit (int)

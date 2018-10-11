@@ -818,7 +818,7 @@ sdma_v4_1_update_power_gating(struct amdgpu_device *adev, bool enable)
 	uint32_t def, data;
 
 	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_SDMA)) {
-		/* disable idle interrupt */
+		/* enable idle interrupt */
 		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL));
 		data |= SDMA0_CNTL__CTXEMPTY_INT_ENABLE_MASK;
 
@@ -1364,6 +1364,9 @@ static int sdma_v4_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs->set_powergating_by_smu)
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, false);
+
 	sdma_v4_0_init_golden_registers(adev);
 
 	r = sdma_v4_0_start(adev);
@@ -1380,6 +1383,9 @@ static int sdma_v4_0_hw_fini(void *handle)
 
 	sdma_v4_0_ctx_switch_enable(adev, false);
 	sdma_v4_0_enable(adev, false);
+
+	if (adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs->set_powergating_by_smu)
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, true);
 
 	return 0;
 }

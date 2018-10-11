@@ -664,6 +664,11 @@ static void dce_update_clocks(struct dccg *dccg,
 			bool safe_to_lower)
 {
 	struct dm_pp_power_level_change_request level_change_req;
+	struct dce_dccg *clk_dce = TO_DCE_CLOCKS(dccg);
+
+	/* TODO: Investigate why this is needed to fix display corruption. */
+	if (!clk_dce->dfs_bypass_active)
+		new_clocks->dispclk_khz = new_clocks->dispclk_khz * 115 / 100;
 
 	level_change_req.power_level = dce_get_required_clocks_state(dccg, new_clocks);
 	/* get max clock state from PPLIB */

@@ -114,6 +114,8 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK,
 	AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK,
+	AMDGPU_PP_SENSOR_MIN_FAN_RPM,
+	AMDGPU_PP_SENSOR_MAX_FAN_RPM,
 };
 
 enum amd_pp_task {
@@ -228,6 +230,7 @@ struct amd_pm_funcs {
 	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
 	enum amd_pm_state_type (*get_current_power_state)(void *handle);
 	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
+	int (*set_fan_speed_rpm)(void *handle, uint32_t rpm);
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
@@ -272,6 +275,7 @@ struct amd_pm_funcs {
 	int (*get_display_mode_validation_clocks)(void *handle,
 		struct amd_pp_simple_clock_info *clocks);
 	int (*notify_smu_enable_pwe)(void *handle);
+	int (*enable_mgpu_fan_boost)(void *handle);
 };
 
 #endif

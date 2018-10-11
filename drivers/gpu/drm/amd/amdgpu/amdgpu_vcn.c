@@ -121,8 +121,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			version_major, version_minor, family_id);
 	}
 
-	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_HEAP_SIZE
-		  +  AMDGPU_VCN_SESSION_SIZE * 40;
+	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
 		bo_size += AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 	r = amdgpu_bo_create_kernel(adev, bo_size, PAGE_SIZE,
@@ -263,7 +262,7 @@ static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
 
 				ring = &adev->vcn.ring_dec;
 				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
-					     lower_32_bits(ring->wptr) | 0x80000000);
+						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2));
 				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
 						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
 						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
@@ -309,18 +308,21 @@ static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
 				/* Restore */
 				ring = &adev->vcn.ring_jpeg;
 				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000001L | 0x00000002L);
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
+							UVD_JRBC_RB_CNTL__RB_NO_FETCH_MASK |
+							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
 				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
-					     lower_32_bits(ring->gpu_addr));
+							lower_32_bits(ring->gpu_addr));
 				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
-					     upper_32_bits(ring->gpu_addr));
+							upper_32_bits(ring->gpu_addr));
 				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR, ring->wptr);
 				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, ring->wptr);
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL, 0x00000002L);
+				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
+							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
 
 				ring = &adev->vcn.ring_dec;
 				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
-					     lower_32_bits(ring->wptr) | 0x80000000);
+						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2));
 				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
 						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
 						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);

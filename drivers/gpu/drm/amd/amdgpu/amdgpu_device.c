@@ -1525,6 +1525,92 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int amdgpu_device_ip_hw_init_phase1(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.sw)
+			continue;
+		if (adev->ip_blocks[i].status.hw)
+			continue;
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH) {
+			r = adev->ip_blocks[i].version->funcs->hw_init(adev);
+			if (r) {
+				DRM_ERROR("hw_init of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+				return r;
+			}
+			adev->ip_blocks[i].status.hw = true;
+		}
+	}
+
+	return 0;
+}
+
+static int amdgpu_device_ip_hw_init_phase2(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.sw)
+			continue;
+		if (adev->ip_blocks[i].status.hw)
+			continue;
+		r = adev->ip_blocks[i].version->funcs->hw_init(adev);
+		if (r) {
+			DRM_ERROR("hw_init of IP block <%s> failed %d\n",
+				  adev->ip_blocks[i].version->funcs->name, r);
+			return r;
+		}
+		adev->ip_blocks[i].status.hw = true;
+	}
+
+	return 0;
+}
+
+static int amdgpu_device_fw_loading(struct amdgpu_device *adev)
+{
+	int r = 0;
+	int i;
+
+	if (adev->asic_type >= CHIP_VEGA10) {
+		for (i = 0; i < adev->num_ip_blocks; i++) {
+			if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP) {
+				if (adev->in_gpu_reset || adev->in_suspend) {
+					if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset)
+						break; /* sriov gpu reset, psp need to do hw_init before IH because of hw limit */
+					r = adev->ip_blocks[i].version->funcs->resume(adev);
+					if (r) {
+						DRM_ERROR("resume of IP block <%s> failed %d\n",
+							  adev->ip_blocks[i].version->funcs->name, r);
+						return r;
+					}
+				} else {
+					r = adev->ip_blocks[i].version->funcs->hw_init(adev);
+					if (r) {
+						DRM_ERROR("hw_init of IP block <%s> failed %d\n",
+						  adev->ip_blocks[i].version->funcs->name, r);
+						return r;
+					}
+				}
+				adev->ip_blocks[i].status.hw = true;
+			}
+		}
+	}
+
+	if (adev->powerplay.pp_funcs->load_firmware) {
+		r = adev->powerplay.pp_funcs->load_firmware(adev->powerplay.pp_handle);
+		if (r) {
+			pr_err("firmware loading failed\n");
+			return r;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * amdgpu_device_ip_init - run init for hardware IPs
  *
@@ -1581,19 +1667,21 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		}
 	}
 
-	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.sw)
-			continue;
-		if (adev->ip_blocks[i].status.hw)
-			continue;
-		r = adev->ip_blocks[i].version->funcs->hw_init((void *)adev);
-		if (r) {
-			DRM_ERROR("hw_init of IP block <%s> failed %d\n",
-				  adev->ip_blocks[i].version->funcs->name, r);
-			return r;
-		}
-		adev->ip_blocks[i].status.hw = true;
-	}
+	r = amdgpu_ucode_create_bo(adev); /* create ucode bo when sw_init complete*/
+	if (r)
+		return r;
+
+	r = amdgpu_device_ip_hw_init_phase1(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_device_fw_loading(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_device_ip_hw_init_phase2(adev);
+	if (r)
+		return r;
 
 	amdgpu_xgmi_add_device(adev);
 	amdgpu_amdkfd_device_init(adev);
@@ -1656,7 +1744,7 @@ static int amdgpu_device_set_cg_state(struct amdgpu_device *adev,
 
 	for (j = 0; j < adev->num_ip_blocks; j++) {
 		i = state == AMD_CG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
-		if (!adev->ip_blocks[i].status.valid)
+		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
@@ -1686,7 +1774,7 @@ static int amdgpu_device_set_pg_state(struct amdgpu_device *adev, enum amd_power
 
 	for (j = 0; j < adev->num_ip_blocks; j++) {
 		i = state == AMD_PG_STATE_GATE ? j : adev->num_ip_blocks - j - 1;
-		if (!adev->ip_blocks[i].status.valid)
+		if (!adev->ip_blocks[i].status.late_initialized)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
@@ -1723,7 +1811,7 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	int i = 0, r;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
-		if (!adev->ip_blocks[i].status.valid)
+		if (!adev->ip_blocks[i].status.hw)
 			continue;
 		if (adev->ip_blocks[i].version->funcs->late_init) {
 			r = adev->ip_blocks[i].version->funcs->late_init((void *)adev);
@@ -1732,8 +1820,8 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 					  adev->ip_blocks[i].version->funcs->name, r);
 				return r;
 			}
-			adev->ip_blocks[i].status.late_initialized = true;
 		}
+		adev->ip_blocks[i].status.late_initialized = true;
 	}
 
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
@@ -1803,6 +1891,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			continue;
 
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
+			amdgpu_ucode_free_bo(adev);
 			amdgpu_free_static_csa(adev);
 			amdgpu_device_wb_fini(adev);
 			amdgpu_device_vram_scratch_fini(adev);
@@ -1833,6 +1922,43 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int amdgpu_device_enable_mgpu_fan_boost(void)
+{
+	struct amdgpu_gpu_instance *gpu_ins;
+	struct amdgpu_device *adev;
+	int i, ret = 0;
+
+	mutex_lock(&mgpu_info.mutex);
+
+	/*
+	 * MGPU fan boost feature should be enabled
+	 * only when there are two or more dGPUs in
+	 * the system
+	 */
+	if (mgpu_info.num_dgpu < 2)
+		goto out;
+
+	for (i = 0; i < mgpu_info.num_dgpu; i++) {
+		gpu_ins = &(mgpu_info.gpu_ins[i]);
+		adev = gpu_ins->adev;
+		if (!(adev->flags & AMD_IS_APU) &&
+		    !gpu_ins->mgpu_fan_enabled &&
+		    adev->powerplay.pp_funcs &&
+		    adev->powerplay.pp_funcs->enable_mgpu_fan_boost) {
+			ret = amdgpu_dpm_enable_mgpu_fan_boost(adev);
+			if (ret)
+				break;
+
+			gpu_ins->mgpu_fan_enabled = 1;
+		}
+	}
+
+out:
+	mutex_unlock(&mgpu_info.mutex);
+
+	return ret;
+}
+
 /**
  * amdgpu_device_ip_late_init_func_handler - work handler for ib test
  *
@@ -1847,6 +1973,10 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
+
+	r = amdgpu_device_enable_mgpu_fan_boost();
+	if (r)
+		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
 }
 
 static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
@@ -2082,7 +2212,8 @@ static int amdgpu_device_ip_resume_phase2(struct amdgpu_device *adev)
 			continue;
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON ||
 		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC ||
-		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH)
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_IH ||
+		    adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP)
 			continue;
 		r = adev->ip_blocks[i].version->funcs->resume(adev);
 		if (r) {
@@ -2114,6 +2245,11 @@ static int amdgpu_device_ip_resume(struct amdgpu_device *adev)
 	r = amdgpu_device_ip_resume_phase1(adev);
 	if (r)
 		return r;
+
+	r = amdgpu_device_fw_loading(adev);
+	if (r)
+		return r;
+
 	r = amdgpu_device_ip_resume_phase2(adev);
 
 	return r;
@@ -2608,6 +2744,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
+	adev->in_suspend = true;
 	drm_kms_helper_poll_disable(dev);
 
 	if (fbcon)
@@ -2793,6 +2930,8 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 #ifdef CONFIG_PM
 	dev->dev->power.disable_depth--;
 #endif
+	adev->in_suspend = false;
+
 	return 0;
 }
 
@@ -3061,6 +3200,10 @@ retry:
 			if (r)
 				goto out;
 
+			r = amdgpu_device_fw_loading(adev);
+			if (r)
+				return r;
+
 			r = amdgpu_device_ip_resume_phase2(adev);
 			if (r)
 				goto out;
@@ -3116,6 +3259,10 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 
 	/* we need recover gart prior to run SMC/CP/SDMA resume */
 	amdgpu_gtt_mgr_recover(&adev->mman.bdev.man[TTM_PL_TT]);
+
+	r = amdgpu_device_fw_loading(adev);
+	if (r)
+		return r;
 
 	/* now we are okay to resume SMC/CP/SDMA */
 	r = amdgpu_device_ip_reinit_late_sriov(adev);

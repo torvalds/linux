@@ -467,8 +467,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 	struct dma_fence *fence;
 	struct drm_sched_rq *rq;
 
-	if (!spsc_queue_count(&entity->job_queue) == 0 ||
-	    entity->num_rq_list <= 1)
+	if (spsc_queue_count(&entity->job_queue) || entity->num_rq_list <= 1)
 		return;
 
 	fence = READ_ONCE(entity->last_scheduled);
