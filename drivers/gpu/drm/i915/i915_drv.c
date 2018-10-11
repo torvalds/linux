@@ -1030,6 +1030,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 
 err_uncore:
 	intel_uncore_fini(dev_priv);
+	i915_mmio_cleanup(dev_priv);
 err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 
