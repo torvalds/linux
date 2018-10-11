@@ -420,9 +420,8 @@ struct clk
 	%pC	pll1
 	%pCn	pll1
 
-For printing struct clk structures. %pC and %pCn print the name
-(Common Clock Framework) or address (legacy clock framework) of the
-structure.
+For printing struct clk structures. %pC and %pCn print the name of the clock
+(Common Clock Framework) or a unique 32-bit ID (legacy clock framework).
 
 Passed by reference.
 
