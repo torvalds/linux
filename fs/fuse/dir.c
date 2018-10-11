@@ -1160,38 +1160,78 @@ static int fuse_permission(struct inode *inode, int mask)
 	return err;
 }
 
-static const char *fuse_get_link(struct dentry *dentry,
-				 struct inode *inode,
-				 struct delayed_call *done)
+static int fuse_readlink_page(struct inode *inode, struct page *page)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	FUSE_ARGS(args);
-	char *link;
-	ssize_t ret;
+	struct fuse_req *req;
+	int err;
 
-	if (!dentry)
-		return ERR_PTR(-ECHILD);
+	req = fuse_get_req(fc, 1);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
-	link = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!link)
-		return ERR_PTR(-ENOMEM);
+	req->out.page_zeroing = 1;
+	req->out.argpages = 1;
+	req->num_pages = 1;
+	req->pages[0] = page;
+	req->page_descs[0].length = PAGE_SIZE - 1;
+	req->in.h.opcode = FUSE_READLINK;
+	req->in.h.nodeid = get_node_id(inode);
+	req->out.argvar = 1;
+	req->out.numargs = 1;
+	req->out.args[0].size = PAGE_SIZE - 1;
+	fuse_request_send(fc, req);
+	err = req->out.h.error;
 
-	args.in.h.opcode = FUSE_READLINK;
-	args.in.h.nodeid = get_node_id(inode);
-	args.out.argvar = 1;
-	args.out.numargs = 1;
-	args.out.args[0].size = PAGE_SIZE - 1;
-	args.out.args[0].value = link;
-	ret = fuse_simple_request(fc, &args);
-	if (ret < 0) {
-		kfree(link);
-		link = ERR_PTR(ret);
-	} else {
-		link[ret] = '\0';
-		set_delayed_call(done, kfree_link, link);
+	if (!err) {
+		char *link = page_address(page);
+		size_t len = req->out.args[0].size;
+
+		BUG_ON(len >= PAGE_SIZE);
+		link[len] = '\0';
 	}
+
+	fuse_put_request(fc, req);
 	fuse_invalidate_atime(inode);
-	return link;
+
+	return err;
+}
+
+static const char *fuse_get_link(struct dentry *dentry, struct inode *inode,
+				 struct delayed_call *callback)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct page *page;
+	int err;
+
+	err = -EIO;
+	if (is_bad_inode(inode))
+		goto out_err;
+
+	if (fc->cache_symlinks)
+		return page_get_link(dentry, inode, callback);
+
+	err = -ECHILD;
+	if (!dentry)
+		goto out_err;
+
+	page = alloc_page(GFP_KERNEL);
+	err = -ENOMEM;
+	if (!page)
+		goto out_err;
+
+	err = fuse_readlink_page(inode, page);
+	if (err) {
+		__free_page(page);
+		goto out_err;
+	}
+
+	set_delayed_call(callback, page_put_link, page);
+
+	return page_address(page);
+
+out_err:
+	return ERR_PTR(err);
 }
 
 static int fuse_dir_open(struct inode *inode, struct file *file)
@@ -1644,7 +1684,25 @@ void fuse_init_dir(struct inode *inode)
 	fi->rdc.version = 0;
 }
 
+static int fuse_symlink_readpage(struct file *null, struct page *page)
+{
+	int err = fuse_readlink_page(page->mapping->host, page);
+
+	if (!err)
+		SetPageUptodate(page);
+
+	unlock_page(page);
+
+	return err;
+}
+
+static const struct address_space_operations fuse_symlink_aops = {
+	.readpage	= fuse_symlink_readpage,
+};
+
 void fuse_init_symlink(struct inode *inode)
 {
 	inode->i_op = &fuse_symlink_inode_operations;
+	inode->i_data.a_ops = &fuse_symlink_aops;
+	inode_nohighmem(inode);
 }
