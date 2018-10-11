@@ -32,7 +32,7 @@ Core utilities
    gfp_mask-from-fs-io
    timekeeping
    boot-time-mm
-   memory-hotplug-notifier
+   memory-hotplug
 
 
 Interfaces for kernel debugging

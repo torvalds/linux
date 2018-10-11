@@ -1,6 +1,9 @@
-.. _memory_hotplug_notifier:
+.. _memory_hotplug:
 
-=============================
+==============
+Memory hotplug
+==============
+
 Memory hotplug event notifier
 =============================
 
