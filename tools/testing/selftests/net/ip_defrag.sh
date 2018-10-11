@@ -11,10 +11,10 @@ readonly NETNS="ns-$(mktemp -u XXXXXX)"
 setup() {
 	ip netns add "${NETNS}"
 	ip -netns "${NETNS}" link set lo up
-	ip netns exec "${NETNS}" sysctl -w net.ipv4.ipfrag_high_thresh=9000000 &> /dev/null
-	ip netns exec "${NETNS}" sysctl -w net.ipv4.ipfrag_low_thresh=7000000 &> /dev/null
-	ip netns exec "${NETNS}" sysctl -w net.ipv6.ip6frag_high_thresh=9000000 &> /dev/null
-	ip netns exec "${NETNS}" sysctl -w net.ipv6.ip6frag_low_thresh=7000000 &> /dev/null
+	ip netns exec "${NETNS}" sysctl -w net.ipv4.ipfrag_high_thresh=9000000 >/dev/null 2>&1
+	ip netns exec "${NETNS}" sysctl -w net.ipv4.ipfrag_low_thresh=7000000 >/dev/null 2>&1
+	ip netns exec "${NETNS}" sysctl -w net.ipv6.ip6frag_high_thresh=9000000 >/dev/null 2>&1
+	ip netns exec "${NETNS}" sysctl -w net.ipv6.ip6frag_low_thresh=7000000 >/dev/null 2>&1
 }
 
 cleanup() {
