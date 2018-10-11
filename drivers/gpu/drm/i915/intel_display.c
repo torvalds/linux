@@ -4584,9 +4584,8 @@ static void ironlake_pch_transcoder_set_timings(const struct intel_crtc_state *c
 		   I915_READ(VSYNCSHIFT(cpu_transcoder)));
 }
 
-static void cpt_set_fdi_bc_bifurcation(struct drm_device *dev, bool enable)
+static void cpt_set_fdi_bc_bifurcation(struct drm_i915_private *dev_priv, bool enable)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	uint32_t temp;
 
 	temp = I915_READ(SOUTH_CHICKEN1);
@@ -4605,22 +4604,23 @@ static void cpt_set_fdi_bc_bifurcation(struct drm_device *dev, bool enable)
 	POSTING_READ(SOUTH_CHICKEN1);
 }
 
-static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
+static void ivybridge_update_fdi_bc_bifurcation(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = intel_crtc->base.dev;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	switch (intel_crtc->pipe) {
+	switch (crtc->pipe) {
 	case PIPE_A:
 		break;
 	case PIPE_B:
-		if (intel_crtc->config->fdi_lanes > 2)
-			cpt_set_fdi_bc_bifurcation(dev, false);
+		if (crtc_state->fdi_lanes > 2)
+			cpt_set_fdi_bc_bifurcation(dev_priv, false);
 		else
-			cpt_set_fdi_bc_bifurcation(dev, true);
+			cpt_set_fdi_bc_bifurcation(dev_priv, true);
 
 		break;
 	case PIPE_C:
-		cpt_set_fdi_bc_bifurcation(dev, true);
+		cpt_set_fdi_bc_bifurcation(dev_priv, true);
 
 		break;
 	default:
@@ -4677,7 +4677,7 @@ static void ironlake_pch_enable(const struct intel_atomic_state *state,
 	assert_pch_transcoder_disabled(dev_priv, pipe);
 
 	if (IS_IVYBRIDGE(dev_priv))
-		ivybridge_update_fdi_bc_bifurcation(crtc);
+		ivybridge_update_fdi_bc_bifurcation(crtc_state);
 
 	/* Write the TU size bits before fdi link training, so that error
 	 * detection works. */
