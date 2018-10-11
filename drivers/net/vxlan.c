@@ -697,6 +697,7 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			    __be16 port, __be32 src_vni, __be32 vni,
 			    __u32 ifindex, __u8 ndm_flags)
 {
+	__u8 fdb_flags = (ndm_flags & ~NTF_USE);
 	struct vxlan_rdst *rd = NULL;
 	struct vxlan_fdb *f;
 	int notify = 0;
@@ -714,8 +715,8 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			f->updated = jiffies;
 			notify = 1;
 		}
-		if (f->flags != ndm_flags) {
-			f->flags = ndm_flags;
+		if (f->flags != fdb_flags) {
+			f->flags = fdb_flags;
 			f->updated = jiffies;
 			notify = 1;
 		}
@@ -737,6 +738,9 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 				return rc;
 			notify |= rc;
 		}
+
+		if (ndm_flags & NTF_USE)
+			f->used = jiffies;
 	} else {
 		if (!(flags & NLM_F_CREATE))
 			return -ENOENT;
@@ -748,7 +752,7 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 
 		netdev_dbg(vxlan->dev, "add %pM -> %pIS\n", mac, ip);
 		rc = vxlan_fdb_create(vxlan, mac, ip, state, port, src_vni,
-				      vni, ifindex, ndm_flags, &f);
+				      vni, ifindex, fdb_flags, &f);
 		if (rc < 0)
 			return rc;
 		notify = 1;
