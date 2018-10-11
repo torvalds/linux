@@ -1883,8 +1883,8 @@ static const struct vop_win_data rk1808_vop_raw_win_data[] = {
 
 static const struct vop_data rk1808_vop_raw = {
 	.version = VOP_VERSION(1, 0),
-	.max_input = {1920, 8192},
-	.max_output = {1920, 1080},
+	.max_input = {5120, 2880},
+	.max_output = {5120, 2880},
 	.ctrl = &rk1808_vop_raw_ctrl_data,
 	.intr = &rk1808_vop_raw_intr,
 	.win = rk1808_vop_raw_win_data,
