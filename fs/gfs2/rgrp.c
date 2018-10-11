@@ -273,15 +273,10 @@ static u32 gfs2_bitfit(const u8 *buf, const unsigned int len,
 
 static int gfs2_rbm_from_block(struct gfs2_rbm *rbm, u64 block)
 {
-	u64 rblock = block - rbm->rgd->rd_data0;
-
-	if (WARN_ON_ONCE(rblock > UINT_MAX))
-		return -EINVAL;
-	if (block >= rbm->rgd->rd_data0 + rbm->rgd->rd_data)
+	if (!rgrp_contains_block(rbm->rgd, block))
 		return -E2BIG;
-
 	rbm->bii = 0;
-	rbm->offset = (u32)(rblock);
+	rbm->offset = block - rbm->rgd->rd_data0;
 	/* Check if the block is within the first block */
 	if (rbm->offset < rbm_bi(rbm)->bi_blocks)
 		return 0;
