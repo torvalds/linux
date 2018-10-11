@@ -2521,7 +2521,7 @@ static struct btrfs_delayed_ref_head *btrfs_obtain_ref_head(
 	 * Grab the lock that says we are going to process all the refs for
 	 * this head
 	 */
-	ret = btrfs_delayed_ref_lock(trans, head);
+	ret = btrfs_delayed_ref_lock(delayed_refs, head);
 	spin_unlock(&delayed_refs->lock);
 
 	/*
