@@ -2039,39 +2039,43 @@ out:
 	return err;
 }
 
-static ssize_t show_hca(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
 	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
+static DEVICE_ATTR_RO(hca_type);
 
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
+static ssize_t hw_rev_show(struct device *device,
+			   struct device_attribute *attr, char *buf)
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
 	return sprintf(buf, "%x\n", dev->dev->rev_id);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
-static ssize_t show_board(struct device *device, struct device_attribute *attr,
-			  char *buf)
+static ssize_t board_id_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
 	return sprintf(buf, "%.*s\n", MLX4_BOARD_ID_LEN,
 		       dev->dev->board_id);
 }
+static DEVICE_ATTR_RO(board_id);
 
-static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
+static struct attribute *mlx4_class_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
+};
 
-static struct device_attribute *mlx4_class_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static const struct attribute_group mlx4_attr_group = {
+	.attrs = mlx4_class_attributes,
 };
 
 struct diag_counter {
@@ -2803,6 +2807,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_ib_alloc_diag_counters(ibdev))
 		goto err_steer_free_bitmap;
 
+	rdma_set_device_sysfs_group(&ibdev->ib_dev, &mlx4_attr_group);
 	ibdev->ib_dev.driver_id = RDMA_DRIVER_MLX4;
 	if (ib_register_device(&ibdev->ib_dev, "mlx4_%d", NULL))
 		goto err_diag_counters;
@@ -2824,12 +2829,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
 		err = mlx4_config_roce_v2_port(dev, ROCE_V2_UDP_DPORT);
 		if (err)
-			goto err_notif;
-	}
-
-	for (j = 0; j < ARRAY_SIZE(mlx4_class_attributes); ++j) {
-		if (device_create_file(&ibdev->ib_dev.dev,
-				       mlx4_class_attributes[j]))
 			goto err_notif;
 	}
 

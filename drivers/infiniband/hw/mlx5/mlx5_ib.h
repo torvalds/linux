@@ -1201,7 +1201,6 @@ void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev);
 void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev);
-int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev);
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 		      const struct mlx5_ib_profile *profile,
 		      int stage);

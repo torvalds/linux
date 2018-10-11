@@ -535,6 +535,34 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 	return en_dev;
 }
 
+static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
+			   char *buf)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
+}
+static DEVICE_ATTR_RO(hw_rev);
+
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
+}
+static DEVICE_ATTR_RO(hca_type);
+
+static struct attribute *bnxt_re_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	NULL
+};
+
+static const struct attribute_group bnxt_re_dev_attr_group = {
+	.attrs = bnxt_re_attributes,
+};
+
 static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 {
 	ib_unregister_device(&rdev->ibdev);
@@ -638,33 +666,10 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->get_hw_stats             = bnxt_re_ib_get_hw_stats;
 	ibdev->alloc_hw_stats           = bnxt_re_ib_alloc_hw_stats;
 
+	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
 	return ib_register_device(ibdev, "bnxt_re%d", NULL);
 }
-
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
-
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
-}
-
-static ssize_t show_hca(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
-}
-
-static DEVICE_ATTR(hw_rev, 0444, show_rev, NULL);
-static DEVICE_ATTR(hca_type, 0444, show_hca, NULL);
-
-static struct device_attribute *bnxt_re_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type
-};
 
 static void bnxt_re_dev_remove(struct bnxt_re_dev *rdev)
 {
@@ -1200,12 +1205,9 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 {
-	int i, rc;
+	int rc;
 
 	if (test_and_clear_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags)) {
-		for (i = 0; i < ARRAY_SIZE(bnxt_re_attributes); i++)
-			device_remove_file(&rdev->ibdev.dev,
-					   bnxt_re_attributes[i]);
 		/* Cleanup ib dev */
 		bnxt_re_unregister_ib(rdev);
 	}
@@ -1255,7 +1257,7 @@ static void bnxt_re_worker(struct work_struct *work)
 
 static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 {
-	int i, j, rc;
+	int rc;
 
 	bool locked;
 
@@ -1375,20 +1377,6 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	}
 	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
 	dev_info(rdev_to_dev(rdev), "Device registered successfully");
-	for (i = 0; i < ARRAY_SIZE(bnxt_re_attributes); i++) {
-		rc = device_create_file(&rdev->ibdev.dev,
-					bnxt_re_attributes[i]);
-		if (rc) {
-			dev_err(rdev_to_dev(rdev),
-				"Failed to create IB sysfs: %#x", rc);
-			/* Must clean up all created device files */
-			for (j = 0; j < i; j++)
-				device_remove_file(&rdev->ibdev.dev,
-						   bnxt_re_attributes[j]);
-			bnxt_re_unregister_ib(rdev);
-			goto fail;
-		}
-	}
 	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
 			 &rdev->active_width);
 	set_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS, &rdev->flags);

@@ -1968,6 +1968,7 @@ static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
  */
 
 extern const char ib_hfi1_version[];
+extern const struct attribute_group ib_hfi1_attr_group;
 
 int hfi1_device_create(struct hfi1_devdata *dd);
 void hfi1_device_remove(struct hfi1_devdata *dd);

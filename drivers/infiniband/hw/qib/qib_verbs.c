@@ -1625,19 +1625,14 @@ int qib_register_ib_device(struct qib_devdata *dd)
 			      i,
 			      dd->rcd[ctxt]->pkeys);
 	}
+	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev, &qib_attr_group);
 
 	ret = rvt_register_device(&dd->verbs_dev.rdi, RDMA_DRIVER_QIB);
 	if (ret)
 		goto err_tx;
 
-	ret = qib_verbs_register_sysfs(dd);
-	if (ret)
-		goto err_class;
-
 	return ret;
 
-err_class:
-	rvt_unregister_device(&dd->verbs_dev.rdi);
 err_tx:
 	while (!list_empty(&dev->txreq_free)) {
 		struct list_head *l = dev->txreq_free.next;
