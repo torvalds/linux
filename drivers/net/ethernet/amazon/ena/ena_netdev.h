@@ -43,9 +43,9 @@
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
-#define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	5
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_MAJOR	2
+#define DRV_MODULE_VER_MINOR	0
+#define DRV_MODULE_VER_SUBMINOR 1
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
