@@ -151,6 +151,9 @@ struct ena_tx_buffer {
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
 
+	/* Indicate if bufs[0] map the linear data of the skb. */
+	u8 map_linear_data;
+
 	/* Used for detect missing tx packets to limit the number of prints */
 	u32 print_once;
 	/* Save the last jiffies to detect missing tx packets
@@ -186,6 +189,7 @@ struct ena_stats_tx {
 	u64 tx_poll;
 	u64 doorbells;
 	u64 bad_req_id;
+	u64 llq_buffer_copy;
 	u64 missed_tx;
 };
 
@@ -257,6 +261,8 @@ struct ena_ring {
 		struct ena_stats_tx tx_stats;
 		struct ena_stats_rx rx_stats;
 	};
+
+	u8 *push_buf_intermediate_buf;
 	int empty_rx_queue;
 } ____cacheline_aligned;
 

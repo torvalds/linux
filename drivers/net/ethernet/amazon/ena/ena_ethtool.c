@@ -81,6 +81,7 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(prepare_ctx_err),
 	ENA_STAT_TX_ENTRY(bad_req_id),
+	ENA_STAT_TX_ENTRY(llq_buffer_copy),
 	ENA_STAT_TX_ENTRY(missed_tx),
 };
 
