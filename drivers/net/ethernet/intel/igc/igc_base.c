@@ -178,6 +178,29 @@ static s32 igc_init_nvm_params_base(struct igc_hw *hw)
 }
 
 /**
+ * igc_setup_copper_link_base - Configure copper link settings
+ * @hw: pointer to the HW structure
+ *
+ * Configures the link for auto-neg or forced speed and duplex.  Then we check
+ * for link, once link is established calls to configure collision distance
+ * and flow control are called.
+ */
+static s32 igc_setup_copper_link_base(struct igc_hw *hw)
+{
+	s32  ret_val = 0;
+	u32 ctrl;
+
+	ctrl = rd32(IGC_CTRL);
+	ctrl |= IGC_CTRL_SLU;
+	ctrl &= ~(IGC_CTRL_FRCSPD | IGC_CTRL_FRCDPX);
+	wr32(IGC_CTRL, ctrl);
+
+	ret_val = igc_setup_copper_link(hw);
+
+	return ret_val;
+}
+
+/**
  * igc_init_mac_params_base - Init MAC func ptrs.
  * @hw: pointer to the HW structure
  */
@@ -199,6 +222,9 @@ static s32 igc_init_mac_params_base(struct igc_hw *hw)
 	/* Allow a single clear of the SW semaphore on I225 */
 	if (mac->type == igc_i225)
 		dev_spec->clear_semaphore_once = true;
+
+	/* physical interface link setup */
+	mac->ops.setup_physical_interface = igc_setup_copper_link_base;
 
 	return 0;
 }
@@ -242,6 +268,8 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 	if (ret_val)
 		return ret_val;
 
+	igc_check_for_link_base(hw);
+
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
 	case I225_I_PHY_ID:
@@ -258,9 +286,21 @@ out:
 
 static s32 igc_get_invariants_base(struct igc_hw *hw)
 {
+	struct igc_mac_info *mac = &hw->mac;
 	u32 link_mode = 0;
 	u32 ctrl_ext = 0;
 	s32 ret_val = 0;
+
+	switch (hw->device_id) {
+	case IGC_DEV_ID_I225_LM:
+	case IGC_DEV_ID_I225_V:
+		mac->type = igc_i225;
+		break;
+	default:
+		return -IGC_ERR_MAC_INIT;
+	}
+
+	hw->phy.media_type = igc_media_type_copper;
 
 	ctrl_ext = rd32(IGC_CTRL_EXT);
 	link_mode = ctrl_ext & IGC_CTRL_EXT_LINK_MODE_MASK;

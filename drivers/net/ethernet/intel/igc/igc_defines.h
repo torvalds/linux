@@ -13,6 +13,11 @@
 /* Physical Func Reset Done Indication */
 #define IGC_CTRL_EXT_LINK_MODE_MASK	0x00C00000
 
+/* Loop limit on how long we wait for auto-negotiation to complete */
+#define COPPER_LINK_UP_LIMIT		10
+#define PHY_AUTO_NEG_LIMIT		45
+#define PHY_FORCE_LIMIT			20
+
 /* Number of 100 microseconds we wait for PCI Express master disable */
 #define MASTER_DISABLE_TIMEOUT		800
 /*Blocks new Master requests */
@@ -54,6 +59,12 @@
 #define IGC_CTRL_RST		0x04000000  /* Global reset */
 
 #define IGC_CTRL_PHY_RST	0x80000000  /* PHY Reset */
+#define IGC_CTRL_SLU		0x00000040  /* Set link up (Force Link) */
+#define IGC_CTRL_FRCSPD		0x00000800  /* Force Speed */
+#define IGC_CTRL_FRCDPX		0x00001000  /* Force Duplex */
+
+#define IGC_CTRL_RFCE		0x08000000  /* Receive Flow Control enable */
+#define IGC_CTRL_TFCE		0x10000000  /* Transmit flow control enable */
 
 /* PBA constants */
 #define IGC_PBA_34K		0x0022
@@ -65,6 +76,29 @@
 /* SWFW_SYNC Definitions */
 #define IGC_SWFW_EEP_SM		0x1
 #define IGC_SWFW_PHY0_SM	0x2
+
+/* Autoneg Advertisement Register */
+#define NWAY_AR_10T_HD_CAPS	0x0020   /* 10T   Half Duplex Capable */
+#define NWAY_AR_10T_FD_CAPS	0x0040   /* 10T   Full Duplex Capable */
+#define NWAY_AR_100TX_HD_CAPS	0x0080   /* 100TX Half Duplex Capable */
+#define NWAY_AR_100TX_FD_CAPS	0x0100   /* 100TX Full Duplex Capable */
+#define NWAY_AR_PAUSE		0x0400   /* Pause operation desired */
+#define NWAY_AR_ASM_DIR		0x0800   /* Asymmetric Pause Direction bit */
+
+/* Link Partner Ability Register (Base Page) */
+#define NWAY_LPAR_PAUSE		0x0400 /* LP Pause operation desired */
+#define NWAY_LPAR_ASM_DIR	0x0800 /* LP Asymmetric Pause Direction bit */
+
+/* 1000BASE-T Control Register */
+#define CR_1000T_ASYM_PAUSE	0x0080 /* Advertise asymmetric pause bit */
+#define CR_1000T_HD_CAPS	0x0100 /* Advertise 1000T HD capability */
+#define CR_1000T_FD_CAPS	0x0200 /* Advertise 1000T FD capability  */
+
+/* PHY GPY 211 registers */
+#define STANDARD_AN_REG_MASK	0x0007 /* MMD */
+#define ANEG_MULTIGBT_AN_CTRL	0x0020 /* MULTI GBT AN Control Register */
+#define MMD_DEVADDR_SHIFT	16     /* Shift MMD to higher bits */
+#define CR_2500T_FD_CAPS	0x0080 /* Advertise 2500T FD capability */
 
 /* NVM Control */
 /* Number of milliseconds for NVM auto read done after MAC reset. */
@@ -318,6 +352,10 @@
 #define PHY_STATUS		0x01 /* Status Register */
 #define PHY_ID1			0x02 /* Phy Id Reg (word 1) */
 #define PHY_ID2			0x03 /* Phy Id Reg (word 2) */
+#define PHY_AUTONEG_ADV		0x04 /* Autoneg Advertisement */
+#define PHY_LP_ABILITY		0x05 /* Link Partner Ability (Base Page) */
+#define PHY_1000T_CTRL		0x09 /* 1000Base-T Control Reg */
+#define PHY_1000T_STATUS	0x0A /* 1000Base-T Status Reg */
 
 /* Bit definitions for valid PHY IDs. I = Integrated E = External */
 #define I225_I_PHY_ID		0x67C9DC00

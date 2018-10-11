@@ -3,6 +3,10 @@
 
 #include "igc_phy.h"
 
+/* forward declaration */
+static s32 igc_phy_setup_autoneg(struct igc_hw *hw);
+static s32 igc_wait_autoneg(struct igc_hw *hw);
+
 /**
  * igc_check_reset_block - Check if PHY reset is blocked
  * @hw: pointer to the HW structure
@@ -206,6 +210,336 @@ s32 igc_phy_hw_reset(struct igc_hw *hw)
 	usleep_range(1500, 2000);
 
 	phy->ops.release(hw);
+
+out:
+	return ret_val;
+}
+
+/**
+ * igc_copper_link_autoneg - Setup/Enable autoneg for copper link
+ * @hw: pointer to the HW structure
+ *
+ * Performs initial bounds checking on autoneg advertisement parameter, then
+ * configure to advertise the full capability.  Setup the PHY to autoneg
+ * and restart the negotiation process between the link partner.  If
+ * autoneg_wait_to_complete, then wait for autoneg to complete before exiting.
+ */
+static s32 igc_copper_link_autoneg(struct igc_hw *hw)
+{
+	struct igc_phy_info *phy = &hw->phy;
+	u16 phy_ctrl;
+	s32 ret_val;
+
+	/* Perform some bounds checking on the autoneg advertisement
+	 * parameter.
+	 */
+	phy->autoneg_advertised &= phy->autoneg_mask;
+
+	/* If autoneg_advertised is zero, we assume it was not defaulted
+	 * by the calling code so we set to advertise full capability.
+	 */
+	if (phy->autoneg_advertised == 0)
+		phy->autoneg_advertised = phy->autoneg_mask;
+
+	hw_dbg("Reconfiguring auto-neg advertisement params\n");
+	ret_val = igc_phy_setup_autoneg(hw);
+	if (ret_val) {
+		hw_dbg("Error Setting up Auto-Negotiation\n");
+		goto out;
+	}
+	hw_dbg("Restarting Auto-Neg\n");
+
+	/* Restart auto-negotiation by setting the Auto Neg Enable bit and
+	 * the Auto Neg Restart bit in the PHY control register.
+	 */
+	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_ctrl);
+	if (ret_val)
+		goto out;
+
+	phy_ctrl |= (MII_CR_AUTO_NEG_EN | MII_CR_RESTART_AUTO_NEG);
+	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_ctrl);
+	if (ret_val)
+		goto out;
+
+	/* Does the user want to wait for Auto-Neg to complete here, or
+	 * check at a later time (for example, callback routine).
+	 */
+	if (phy->autoneg_wait_to_complete) {
+		ret_val = igc_wait_autoneg(hw);
+		if (ret_val) {
+			hw_dbg("Error while waiting for autoneg to complete\n");
+			goto out;
+		}
+	}
+
+	hw->mac.get_link_status = true;
+
+out:
+	return ret_val;
+}
+
+/**
+ * igc_wait_autoneg - Wait for auto-neg completion
+ * @hw: pointer to the HW structure
+ *
+ * Waits for auto-negotiation to complete or for the auto-negotiation time
+ * limit to expire, which ever happens first.
+ */
+static s32 igc_wait_autoneg(struct igc_hw *hw)
+{
+	u16 i, phy_status;
+	s32 ret_val = 0;
+
+	/* Break after autoneg completes or PHY_AUTO_NEG_LIMIT expires. */
+	for (i = PHY_AUTO_NEG_LIMIT; i > 0; i--) {
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
+		if (ret_val)
+			break;
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
+		if (ret_val)
+			break;
+		if (phy_status & MII_SR_AUTONEG_COMPLETE)
+			break;
+		msleep(100);
+	}
+
+	/* PHY_AUTO_NEG_TIME expiration doesn't guarantee auto-negotiation
+	 * has completed.
+	 */
+	return ret_val;
+}
+
+/**
+ * igc_phy_setup_autoneg - Configure PHY for auto-negotiation
+ * @hw: pointer to the HW structure
+ *
+ * Reads the MII auto-neg advertisement register and/or the 1000T control
+ * register and if the PHY is already setup for auto-negotiation, then
+ * return successful.  Otherwise, setup advertisement and flow control to
+ * the appropriate values for the wanted auto-negotiation.
+ */
+static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
+{
+	struct igc_phy_info *phy = &hw->phy;
+	u16 aneg_multigbt_an_ctrl = 0;
+	u16 mii_1000t_ctrl_reg = 0;
+	u16 mii_autoneg_adv_reg;
+	s32 ret_val;
+
+	phy->autoneg_advertised &= phy->autoneg_mask;
+
+	/* Read the MII Auto-Neg Advertisement Register (Address 4). */
+	ret_val = phy->ops.read_reg(hw, PHY_AUTONEG_ADV, &mii_autoneg_adv_reg);
+	if (ret_val)
+		return ret_val;
+
+	if (phy->autoneg_mask & ADVERTISE_1000_FULL) {
+		/* Read the MII 1000Base-T Control Register (Address 9). */
+		ret_val = phy->ops.read_reg(hw, PHY_1000T_CTRL,
+					    &mii_1000t_ctrl_reg);
+		if (ret_val)
+			return ret_val;
+	}
+
+	if ((phy->autoneg_mask & ADVERTISE_2500_FULL) &&
+	    hw->phy.id == I225_I_PHY_ID) {
+		/* Read the MULTI GBT AN Control Register - reg 7.32 */
+		ret_val = phy->ops.read_reg(hw, (STANDARD_AN_REG_MASK <<
+					    MMD_DEVADDR_SHIFT) |
+					    ANEG_MULTIGBT_AN_CTRL,
+					    &aneg_multigbt_an_ctrl);
+
+		if (ret_val)
+			return ret_val;
+	}
+
+	/* Need to parse both autoneg_advertised and fc and set up
+	 * the appropriate PHY registers.  First we will parse for
+	 * autoneg_advertised software override.  Since we can advertise
+	 * a plethora of combinations, we need to check each bit
+	 * individually.
+	 */
+
+	/* First we clear all the 10/100 mb speed bits in the Auto-Neg
+	 * Advertisement Register (Address 4) and the 1000 mb speed bits in
+	 * the  1000Base-T Control Register (Address 9).
+	 */
+	mii_autoneg_adv_reg &= ~(NWAY_AR_100TX_FD_CAPS |
+				 NWAY_AR_100TX_HD_CAPS |
+				 NWAY_AR_10T_FD_CAPS   |
+				 NWAY_AR_10T_HD_CAPS);
+	mii_1000t_ctrl_reg &= ~(CR_1000T_HD_CAPS | CR_1000T_FD_CAPS);
+
+	hw_dbg("autoneg_advertised %x\n", phy->autoneg_advertised);
+
+	/* Do we want to advertise 10 Mb Half Duplex? */
+	if (phy->autoneg_advertised & ADVERTISE_10_HALF) {
+		hw_dbg("Advertise 10mb Half duplex\n");
+		mii_autoneg_adv_reg |= NWAY_AR_10T_HD_CAPS;
+	}
+
+	/* Do we want to advertise 10 Mb Full Duplex? */
+	if (phy->autoneg_advertised & ADVERTISE_10_FULL) {
+		hw_dbg("Advertise 10mb Full duplex\n");
+		mii_autoneg_adv_reg |= NWAY_AR_10T_FD_CAPS;
+	}
+
+	/* Do we want to advertise 100 Mb Half Duplex? */
+	if (phy->autoneg_advertised & ADVERTISE_100_HALF) {
+		hw_dbg("Advertise 100mb Half duplex\n");
+		mii_autoneg_adv_reg |= NWAY_AR_100TX_HD_CAPS;
+	}
+
+	/* Do we want to advertise 100 Mb Full Duplex? */
+	if (phy->autoneg_advertised & ADVERTISE_100_FULL) {
+		hw_dbg("Advertise 100mb Full duplex\n");
+		mii_autoneg_adv_reg |= NWAY_AR_100TX_FD_CAPS;
+	}
+
+	/* We do not allow the Phy to advertise 1000 Mb Half Duplex */
+	if (phy->autoneg_advertised & ADVERTISE_1000_HALF)
+		hw_dbg("Advertise 1000mb Half duplex request denied!\n");
+
+	/* Do we want to advertise 1000 Mb Full Duplex? */
+	if (phy->autoneg_advertised & ADVERTISE_1000_FULL) {
+		hw_dbg("Advertise 1000mb Full duplex\n");
+		mii_1000t_ctrl_reg |= CR_1000T_FD_CAPS;
+	}
+
+	/* We do not allow the Phy to advertise 2500 Mb Half Duplex */
+	if (phy->autoneg_advertised & ADVERTISE_2500_HALF)
+		hw_dbg("Advertise 2500mb Half duplex request denied!\n");
+
+	/* Do we want to advertise 2500 Mb Full Duplex? */
+	if (phy->autoneg_advertised & ADVERTISE_2500_FULL) {
+		hw_dbg("Advertise 2500mb Full duplex\n");
+		aneg_multigbt_an_ctrl |= CR_2500T_FD_CAPS;
+	} else {
+		aneg_multigbt_an_ctrl &= ~CR_2500T_FD_CAPS;
+	}
+
+	/* Check for a software override of the flow control settings, and
+	 * setup the PHY advertisement registers accordingly.  If
+	 * auto-negotiation is enabled, then software will have to set the
+	 * "PAUSE" bits to the correct value in the Auto-Negotiation
+	 * Advertisement Register (PHY_AUTONEG_ADV) and re-start auto-
+	 * negotiation.
+	 *
+	 * The possible values of the "fc" parameter are:
+	 *      0:  Flow control is completely disabled
+	 *      1:  Rx flow control is enabled (we can receive pause frames
+	 *          but not send pause frames).
+	 *      2:  Tx flow control is enabled (we can send pause frames
+	 *          but we do not support receiving pause frames).
+	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
+	 *  other:  No software override.  The flow control configuration
+	 *          in the EEPROM is used.
+	 */
+	switch (hw->fc.current_mode) {
+	case igc_fc_none:
+		/* Flow control (Rx & Tx) is completely disabled by a
+		 * software over-ride.
+		 */
+		mii_autoneg_adv_reg &= ~(NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
+		break;
+	case igc_fc_rx_pause:
+		/* Rx Flow control is enabled, and Tx Flow control is
+		 * disabled, by a software over-ride.
+		 *
+		 * Since there really isn't a way to advertise that we are
+		 * capable of Rx Pause ONLY, we will advertise that we
+		 * support both symmetric and asymmetric Rx PAUSE.  Later
+		 * (in igc_config_fc_after_link_up) we will disable the
+		 * hw's ability to send PAUSE frames.
+		 */
+		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
+		break;
+	case igc_fc_tx_pause:
+		/* Tx Flow control is enabled, and Rx Flow control is
+		 * disabled, by a software over-ride.
+		 */
+		mii_autoneg_adv_reg |= NWAY_AR_ASM_DIR;
+		mii_autoneg_adv_reg &= ~NWAY_AR_PAUSE;
+		break;
+	case igc_fc_full:
+		/* Flow control (both Rx and Tx) is enabled by a software
+		 * over-ride.
+		 */
+		mii_autoneg_adv_reg |= (NWAY_AR_ASM_DIR | NWAY_AR_PAUSE);
+		break;
+	default:
+		hw_dbg("Flow control param set incorrectly\n");
+		return -IGC_ERR_CONFIG;
+	}
+
+	ret_val = phy->ops.write_reg(hw, PHY_AUTONEG_ADV, mii_autoneg_adv_reg);
+	if (ret_val)
+		return ret_val;
+
+	hw_dbg("Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
+
+	if (phy->autoneg_mask & ADVERTISE_1000_FULL)
+		ret_val = phy->ops.write_reg(hw, PHY_1000T_CTRL,
+					     mii_1000t_ctrl_reg);
+
+	if ((phy->autoneg_mask & ADVERTISE_2500_FULL) &&
+	    hw->phy.id == I225_I_PHY_ID)
+		ret_val = phy->ops.write_reg(hw,
+					     (STANDARD_AN_REG_MASK <<
+					     MMD_DEVADDR_SHIFT) |
+					     ANEG_MULTIGBT_AN_CTRL,
+					     aneg_multigbt_an_ctrl);
+
+	return ret_val;
+}
+
+/**
+ * igc_setup_copper_link - Configure copper link settings
+ * @hw: pointer to the HW structure
+ *
+ * Calls the appropriate function to configure the link for auto-neg or forced
+ * speed and duplex.  Then we check for link, once link is established calls
+ * to configure collision distance and flow control are called.  If link is
+ * not established, we return -IGC_ERR_PHY (-2).
+ */
+s32 igc_setup_copper_link(struct igc_hw *hw)
+{
+	s32 ret_val = 0;
+	bool link;
+
+	if (hw->mac.autoneg) {
+		/* Setup autoneg and flow control advertisement and perform
+		 * autonegotiation.
+		 */
+		ret_val = igc_copper_link_autoneg(hw);
+		if (ret_val)
+			goto out;
+	} else {
+		/* PHY will be set to 10H, 10F, 100H or 100F
+		 * depending on user settings.
+		 */
+		hw_dbg("Forcing Speed and Duplex\n");
+		ret_val = hw->phy.ops.force_speed_duplex(hw);
+		if (ret_val) {
+			hw_dbg("Error Forcing Speed and Duplex\n");
+			goto out;
+		}
+	}
+
+	/* Check link status. Wait up to 100 microseconds for link to become
+	 * valid.
+	 */
+	ret_val = igc_phy_has_link(hw, COPPER_LINK_UP_LIMIT, 10, &link);
+	if (ret_val)
+		goto out;
+
+	if (link) {
+		hw_dbg("Valid link established!!!\n");
+		igc_config_collision_dist(hw);
+		ret_val = igc_config_fc_after_link_up(hw);
+	} else {
+		hw_dbg("Unable to establish link!!!\n");
+	}
 
 out:
 	return ret_val;
