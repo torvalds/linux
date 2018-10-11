@@ -1426,7 +1426,8 @@ exit:
 	return pxmitframe;
 }
 
-struct tx_servq *rtw_get_sta_pending(struct adapter *padapter, struct sta_info *psta, int up, u8 *ac)
+struct tx_servq *rtw_get_sta_pending(struct adapter *padapter,
+				     struct sta_info *psta, int up, u8 *ac)
 {
 	struct tx_servq *ptxservq;
 
@@ -1435,26 +1436,30 @@ struct tx_servq *rtw_get_sta_pending(struct adapter *padapter, struct sta_info *
 	case 2:
 		ptxservq = &psta->sta_xmitpriv.bk_q;
 		*(ac) = 3;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("%s : BK\n", __func__));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+			 ("%s : BK\n", __func__));
 		break;
 	case 4:
 	case 5:
 		ptxservq = &psta->sta_xmitpriv.vi_q;
 		*(ac) = 1;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("%s : VI\n", __func__));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+			 ("%s : VI\n", __func__));
 		break;
 	case 6:
 	case 7:
 		ptxservq = &psta->sta_xmitpriv.vo_q;
 		*(ac) = 0;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("%s : VO\n", __func__));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+			 ("%s : VO\n", __func__));
 		break;
 	case 0:
 	case 3:
 	default:
 		ptxservq = &psta->sta_xmitpriv.be_q;
 		*(ac) = 2;
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("%s : BE\n", __func__));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+			 ("%s : BE\n", __func__));
 	break;
 	}
 
