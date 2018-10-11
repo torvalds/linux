@@ -908,10 +908,21 @@ static bool dm_table_supports_dax(struct dm_table *t)
 
 static bool dm_table_does_not_support_partial_completion(struct dm_table *t);
 
+struct verify_rq_based_data {
+	unsigned sq_count;
+	unsigned mq_count;
+};
+
 static int device_is_rq_based(struct dm_target *ti, struct dm_dev *dev,
 			      sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
+	struct verify_rq_based_data *v = data;
+
+	if (q->mq_ops)
+		v->mq_count++;
+	else
+		v->sq_count++;
 
 	return queue_is_rq_based(q);
 }
@@ -920,6 +931,7 @@ static int dm_table_determine_type(struct dm_table *t)
 {
 	unsigned i;
 	unsigned bio_based = 0, request_based = 0, hybrid = 0;
+	struct verify_rq_based_data v = {.sq_count = 0, .mq_count = 0};
 	struct dm_target *tgt;
 	struct list_head *devices = dm_table_get_devices(t);
 	enum dm_queue_mode live_md_type = dm_get_md_type(t->md);
@@ -1022,8 +1034,12 @@ verify_rq_based:
 
 	/* Non-request-stackable devices can't be used for request-based dm */
 	if (!tgt->type->iterate_devices ||
-	    !tgt->type->iterate_devices(tgt, device_is_rq_based, NULL)) {
+	    !tgt->type->iterate_devices(tgt, device_is_rq_based, &v)) {
 		DMERR("table load rejected: including non-request-stackable devices");
+		return -EINVAL;
+	}
+	if (v.sq_count > 0) {
+		DMERR("table load rejected: not all devices are blk-mq request-stackable");
 		return -EINVAL;
 	}
 
