@@ -350,9 +350,8 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 
 	data_out_sz = sizeof(struct rep_manu_request);
 	data_in_sz = sizeof(struct rep_manu_reply);
-	data_out = pci_alloc_consistent(ioc->pdev, data_out_sz + data_in_sz,
-	    &data_out_dma);
-
+	data_out = dma_alloc_coherent(&ioc->pdev->dev, data_out_sz + data_in_sz,
+			&data_out_dma, GFP_KERNEL);
 	if (!data_out) {
 		pr_err("failure at %s:%d/%s()!\n", __FILE__,
 		    __LINE__, __func__);
@@ -437,7 +436,7 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
  out:
 	ioc->transport_cmds.status = MPT3_CMD_NOT_USED;
 	if (data_out)
-		pci_free_consistent(ioc->pdev, data_out_sz + data_in_sz,
+		dma_free_coherent(&ioc->pdev->dev, data_out_sz + data_in_sz,
 		    data_out, data_out_dma);
 
 	mutex_unlock(&ioc->transport_cmds.mutex);
@@ -1128,7 +1127,8 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
 
 	sz = sizeof(struct phy_error_log_request) +
 	    sizeof(struct phy_error_log_reply);
-	data_out = pci_alloc_consistent(ioc->pdev, sz, &data_out_dma);
+	data_out = dma_alloc_coherent(&ioc->pdev->dev, sz, &data_out_dma,
+			GFP_KERNEL);
 	if (!data_out) {
 		pr_err("failure at %s:%d/%s()!\n", __FILE__,
 		    __LINE__, __func__);
@@ -1218,7 +1218,7 @@ _transport_get_expander_phy_error_log(struct MPT3SAS_ADAPTER *ioc,
  out:
 	ioc->transport_cmds.status = MPT3_CMD_NOT_USED;
 	if (data_out)
-		pci_free_consistent(ioc->pdev, sz, data_out, data_out_dma);
+		dma_free_coherent(&ioc->pdev->dev, sz, data_out, data_out_dma);
 
 	mutex_unlock(&ioc->transport_cmds.mutex);
 	return rc;
@@ -1432,7 +1432,8 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
 
 	sz = sizeof(struct phy_control_request) +
 	    sizeof(struct phy_control_reply);
-	data_out = pci_alloc_consistent(ioc->pdev, sz, &data_out_dma);
+	data_out = dma_alloc_coherent(&ioc->pdev->dev, sz, &data_out_dma,
+			GFP_KERNEL);
 	if (!data_out) {
 		pr_err("failure at %s:%d/%s()!\n", __FILE__,
 		    __LINE__, __func__);
@@ -1519,7 +1520,8 @@ _transport_expander_phy_control(struct MPT3SAS_ADAPTER *ioc,
  out:
 	ioc->transport_cmds.status = MPT3_CMD_NOT_USED;
 	if (data_out)
-		pci_free_consistent(ioc->pdev, sz, data_out, data_out_dma);
+		dma_free_coherent(&ioc->pdev->dev, sz, data_out,
+				data_out_dma);
 
 	mutex_unlock(&ioc->transport_cmds.mutex);
 	return rc;

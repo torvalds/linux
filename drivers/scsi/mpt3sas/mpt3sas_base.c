@@ -2259,7 +2259,7 @@ _base_build_sg_scmd(struct MPT3SAS_ADAPTER *ioc,
 	sges_left = scsi_dma_map(scmd);
 	if (sges_left < 0) {
 		sdev_printk(KERN_ERR, scmd->device,
-		 "pci_map_sg failed: request for %d bytes!\n",
+		 "scsi_dma_map failed: request for %d bytes!\n",
 		 scsi_bufflen(scmd));
 		return -ENOMEM;
 	}
@@ -2407,7 +2407,7 @@ _base_build_sg_scmd_ieee(struct MPT3SAS_ADAPTER *ioc,
 	sges_left = scsi_dma_map(scmd);
 	if (sges_left < 0) {
 		sdev_printk(KERN_ERR, scmd->device,
-			"pci_map_sg failed: request for %d bytes!\n",
+			"scsi_dma_map failed: request for %d bytes!\n",
 			scsi_bufflen(scmd));
 		return -ENOMEM;
 	}
@@ -2552,39 +2552,37 @@ _base_build_sg_ieee(struct MPT3SAS_ADAPTER *ioc, void *psge,
 static int
 _base_config_dma_addressing(struct MPT3SAS_ADAPTER *ioc, struct pci_dev *pdev)
 {
+	u64 required_mask, coherent_mask;
 	struct sysinfo s;
-	u64 consistent_dma_mask;
 
 	if (ioc->is_mcpu_endpoint)
 		goto try_32bit;
 
-	if (ioc->dma_mask)
-		consistent_dma_mask = DMA_BIT_MASK(64);
-	else
-		consistent_dma_mask = DMA_BIT_MASK(32);
+	required_mask = dma_get_required_mask(&pdev->dev);
+	if (sizeof(dma_addr_t) == 4 || required_mask == 32)
+		goto try_32bit;
 
-	if (sizeof(dma_addr_t) > 4) {
-		const uint64_t required_mask =
-		    dma_get_required_mask(&pdev->dev);
-		if ((required_mask > DMA_BIT_MASK(32)) &&
-		    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) &&
-		    !pci_set_consistent_dma_mask(pdev, consistent_dma_mask)) {
-			ioc->base_add_sg_single = &_base_add_sg_single_64;
-			ioc->sge_size = sizeof(Mpi2SGESimple64_t);
-			ioc->dma_mask = 64;
-			goto out;
-		}
-	}
+	if (ioc->dma_mask)
+		coherent_mask = DMA_BIT_MASK(64);
+	else
+		coherent_mask = DMA_BIT_MASK(32);
+
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)) ||
+	    dma_set_coherent_mask(&pdev->dev, coherent_mask))
+		goto try_32bit;
+
+	ioc->base_add_sg_single = &_base_add_sg_single_64;
+	ioc->sge_size = sizeof(Mpi2SGESimple64_t);
+	ioc->dma_mask = 64;
+	goto out;
 
  try_32bit:
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
-	    && !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		ioc->base_add_sg_single = &_base_add_sg_single_32;
-		ioc->sge_size = sizeof(Mpi2SGESimple32_t);
-		ioc->dma_mask = 32;
-	} else
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)))
 		return -ENODEV;
 
+	ioc->base_add_sg_single = &_base_add_sg_single_32;
+	ioc->sge_size = sizeof(Mpi2SGESimple32_t);
+	ioc->dma_mask = 32;
  out:
 	si_meminfo(&s);
 	ioc_info(ioc, "%d BIT PCI BUS DMA ADDRESSING SUPPORTED, total mem (%ld kB)\n",
@@ -3777,8 +3775,8 @@ _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	data_length = sizeof(Mpi2FWImageHeader_t);
-	fwpkg_data = pci_alloc_consistent(ioc->pdev, data_length,
-			&fwpkg_data_dma);
+	fwpkg_data = dma_alloc_coherent(&ioc->pdev->dev, data_length,
+			&fwpkg_data_dma, GFP_KERNEL);
 	if (!fwpkg_data) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -3837,7 +3835,7 @@ _base_display_fwpkg_version(struct MPT3SAS_ADAPTER *ioc)
 	ioc->base_cmds.status = MPT3_CMD_NOT_USED;
 out:
 	if (fwpkg_data)
-		pci_free_consistent(ioc->pdev, data_length, fwpkg_data,
+		dma_free_coherent(&ioc->pdev->dev, data_length, fwpkg_data,
 				fwpkg_data_dma);
 	return r;
 }
@@ -4146,7 +4144,7 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	dexitprintk(ioc, ioc_info(ioc, "%s\n", __func__));
 
 	if (ioc->request) {
-		pci_free_consistent(ioc->pdev, ioc->request_dma_sz,
+		dma_free_coherent(&ioc->pdev->dev, ioc->request_dma_sz,
 		    ioc->request,  ioc->request_dma);
 		dexitprintk(ioc,
 			    ioc_info(ioc, "request_pool(0x%p): free\n",
@@ -4223,7 +4221,7 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		dexitprintk(ioc,
 			    ioc_info(ioc, "config_page(0x%p): free\n",
 				     ioc->config_page));
-		pci_free_consistent(ioc->pdev, ioc->config_page_sz,
+		dma_free_coherent(&ioc->pdev->dev, ioc->config_page_sz,
 		    ioc->config_page, ioc->config_page_dma);
 	}
 
@@ -4514,9 +4512,10 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	sz += (ioc->internal_depth * ioc->request_sz);
 
 	ioc->request_dma_sz = sz;
-	ioc->request = pci_alloc_consistent(ioc->pdev, sz, &ioc->request_dma);
+	ioc->request = dma_alloc_coherent(&ioc->pdev->dev, sz,
+			&ioc->request_dma, GFP_KERNEL);
 	if (!ioc->request) {
-		ioc_err(ioc, "request pool: pci_alloc_consistent failed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kB)\n",
+		ioc_err(ioc, "request pool: dma_alloc_coherent failed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kB)\n",
 			ioc->hba_queue_depth, ioc->chains_needed_per_io,
 			ioc->request_sz, sz / 1024);
 		if (ioc->scsiio_depth < MPT3SAS_SAS_QUEUE_DEPTH)
@@ -4528,7 +4527,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	if (retry_sz)
-		ioc_err(ioc, "request pool: pci_alloc_consistent succeed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kb)\n",
+		ioc_err(ioc, "request pool: dma_alloc_coherent succeed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kb)\n",
 			ioc->hba_queue_depth, ioc->chains_needed_per_io,
 			ioc->request_sz, sz / 1024);
 
@@ -4816,8 +4815,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		}
 	}
 	ioc->config_page_sz = 512;
-	ioc->config_page = pci_alloc_consistent(ioc->pdev,
-	    ioc->config_page_sz, &ioc->config_page_dma);
+	ioc->config_page = dma_alloc_coherent(&ioc->pdev->dev,
+			ioc->config_page_sz, &ioc->config_page_dma, GFP_KERNEL);
 	if (!ioc->config_page) {
 		ioc_err(ioc, "config page: dma_pool_alloc failed\n");
 		goto out;
