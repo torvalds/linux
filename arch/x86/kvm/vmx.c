@@ -2079,9 +2079,8 @@ static inline void __invvpid(unsigned long ext, u16 vpid, gva_t gva)
     } operand = { vpid, 0, gva };
     bool error;
 
-    asm volatile (__ex(ASM_VMX_INVVPID) CC_SET(na)
-		  : CC_OUT(na) (error) : "a"(&operand), "c"(ext)
-		  : "memory");
+    asm volatile (__ex("invvpid %2, %1") CC_SET(na)
+		  : CC_OUT(na) (error) : "r"(ext), "m"(operand));
     BUG_ON(error);
 }
 
@@ -2092,9 +2091,8 @@ static inline void __invept(unsigned long ext, u64 eptp, gpa_t gpa)
 	} operand = {eptp, gpa};
 	bool error;
 
-	asm volatile (__ex(ASM_VMX_INVEPT) CC_SET(na)
-		      : CC_OUT(na) (error) : "a" (&operand), "c" (ext)
-		      : "memory");
+	asm volatile (__ex("invept %2, %1") CC_SET(na)
+		      : CC_OUT(na) (error) : "r"(ext), "m"(operand));
 	BUG_ON(error);
 }
 
@@ -2113,9 +2111,8 @@ static void vmcs_clear(struct vmcs *vmcs)
 	u64 phys_addr = __pa(vmcs);
 	bool error;
 
-	asm volatile (__ex(ASM_VMX_VMCLEAR_RAX) CC_SET(na)
-		      : CC_OUT(na) (error) : "a"(&phys_addr), "m"(phys_addr)
-		      : "memory");
+	asm volatile (__ex("vmclear %1") CC_SET(na)
+		      : CC_OUT(na) (error) : "m"(phys_addr));
 	if (unlikely(error))
 		printk(KERN_ERR "kvm: vmclear fail: %p/%llx\n",
 		       vmcs, phys_addr);
@@ -2138,9 +2135,8 @@ static void vmcs_load(struct vmcs *vmcs)
 	if (static_branch_unlikely(&enable_evmcs))
 		return evmcs_load(phys_addr);
 
-	asm volatile (__ex(ASM_VMX_VMPTRLD_RAX) CC_SET(na)
-		      : CC_OUT(na) (error) : "a"(&phys_addr), "m"(phys_addr)
-		      : "memory");
+	asm volatile (__ex("vmptrld %1") CC_SET(na)
+		      : CC_OUT(na) (error) : "m"(phys_addr));
 	if (unlikely(error))
 		printk(KERN_ERR "kvm: vmptrld %p/%llx failed\n",
 		       vmcs, phys_addr);
@@ -2316,8 +2312,8 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
-	asm volatile (__ex_clear(ASM_VMX_VMREAD_RDX_RAX, "%0")
-		      : "=a"(value) : "d"(field) : "cc");
+	asm volatile (__ex_clear("vmread %1, %0", "%0")
+		      : "=r"(value) : "r"(field));
 	return value;
 }
 
@@ -2368,8 +2364,8 @@ static __always_inline void __vmcs_writel(unsigned long field, unsigned long val
 {
 	bool error;
 
-	asm volatile (__ex(ASM_VMX_VMWRITE_RAX_RDX) CC_SET(na)
-		      : CC_OUT(na) (error) : "a"(value), "d"(field));
+	asm volatile (__ex("vmwrite %2, %1") CC_SET(na)
+		      : CC_OUT(na) (error) : "r"(field), "rm"(value));
 	if (unlikely(error))
 		vmwrite_error(field, value);
 }
@@ -4396,9 +4392,7 @@ static void kvm_cpu_vmxon(u64 addr)
 	cr4_set_bits(X86_CR4_VMXE);
 	intel_pt_handle_vmx(1);
 
-	asm volatile (ASM_VMX_VMXON_RAX
-			: : "a"(&addr), "m"(addr)
-			: "memory", "cc");
+	asm volatile ("vmxon %0" : : "m"(addr));
 }
 
 static int hardware_enable(void)
@@ -4467,7 +4461,7 @@ static void vmclear_local_loaded_vmcss(void)
  */
 static void kvm_cpu_vmxoff(void)
 {
-	asm volatile (__ex(ASM_VMX_VMXOFF) : : : "cc");
+	asm volatile (__ex("vmxoff"));
 
 	intel_pt_handle_vmx(0);
 	cr4_clear_bits(X86_CR4_VMXE);
@@ -10712,7 +10706,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%" _ASM_SP ", (%%" _ASM_SI ") \n\t"
 		"jmp 1f \n\t"
 		"2: \n\t"
-		__ex(ASM_VMX_VMWRITE_RSP_RDX) "\n\t"
+		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
 		"1: \n\t"
 		/* Reload cr2 if changed */
 		"mov %c[cr2](%0), %%" _ASM_AX " \n\t"
@@ -10744,9 +10738,9 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 		/* Enter guest mode */
 		"jne 1f \n\t"
-		__ex(ASM_VMX_VMLAUNCH) "\n\t"
+		__ex("vmlaunch") "\n\t"
 		"jmp 2f \n\t"
-		"1: " __ex(ASM_VMX_VMRESUME) "\n\t"
+		"1: " __ex("vmresume") "\n\t"
 		"2: "
 		/* Save guest registers, load host registers, keep flags */
 		"mov %0, %c[wordsize](%%" _ASM_SP ") \n\t"
@@ -12702,15 +12696,15 @@ static int __noclone nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 
 	asm(
 		/* Set HOST_RSP */
-		__ex(ASM_VMX_VMWRITE_RSP_RDX) "\n\t"
+		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
 		"mov %%" _ASM_SP ", %c[host_rsp](%0)\n\t"
 
 		/* Check if vmlaunch of vmresume is needed */
 		"cmpl $0, %c[launched](%0)\n\t"
 		"je 1f\n\t"
-		__ex(ASM_VMX_VMRESUME) "\n\t"
+		__ex("vmresume") "\n\t"
 		"jmp 2f\n\t"
-		"1: " __ex(ASM_VMX_VMLAUNCH) "\n\t"
+		"1: " __ex("vmlaunch") "\n\t"
 		"jmp 2f\n\t"
 		"2: "
 
