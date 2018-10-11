@@ -1218,5 +1218,7 @@ void ath10k_core_stop(struct ath10k *ar);
 int ath10k_core_register(struct ath10k *ar,
 			 const struct ath10k_bus_params *bus_params);
 void ath10k_core_unregister(struct ath10k *ar);
+int ath10k_core_fetch_board_file(struct ath10k *ar, int bd_ie_type);
+void ath10k_core_free_board_files(struct ath10k *ar);
 
 #endif /* _CORE_H_ */
