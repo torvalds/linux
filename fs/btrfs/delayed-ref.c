@@ -168,11 +168,12 @@ static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
  * find an head entry based on bytenr. This returns the delayed ref
  * head if it was able to find one, or NULL if nothing was in that spot.
  * If return_bigger is given, the next bigger entry is returned if no exact
- * match is found.
+ * match is found. But if no bigger one is found then the first node of the
+ * ref head tree will be returned.
  */
 static struct btrfs_delayed_ref_head* find_ref_head(
 		struct btrfs_delayed_ref_root *dr, u64 bytenr,
-		int return_bigger)
+		bool return_bigger)
 {
 	struct rb_root *root = &dr->href_root.rb_root;
 	struct rb_node *n;
@@ -359,12 +360,12 @@ struct btrfs_delayed_ref_head *btrfs_select_ref_head(
 
 again:
 	start = delayed_refs->run_delayed_start;
-	head = find_ref_head(delayed_refs, start, 1);
+	head = find_ref_head(delayed_refs, start, true);
 	if (!head && !loop) {
 		delayed_refs->run_delayed_start = 0;
 		start = 0;
 		loop = true;
-		head = find_ref_head(delayed_refs, start, 1);
+		head = find_ref_head(delayed_refs, start, true);
 		if (!head)
 			return NULL;
 	} else if (!head && loop) {
@@ -905,7 +906,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
 struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 bytenr)
 {
-	return find_ref_head(delayed_refs, bytenr, 0);
+	return find_ref_head(delayed_refs, bytenr, false);
 }
 
 void __cold btrfs_delayed_ref_exit(void)
