@@ -9,6 +9,8 @@ From RK3368 SoCs, the GRF is divided into two sections,
 
 Required Properties:
 
+- compatible: COREGRF should be one of the following
+   - "rockchip,rk1808-coregrf", "syscon": for rk1808
 - compatible: GRF should be one of the followings
    - "rockchip,rk1808-grf", "syscon": for rk1808
    - "rockchip,rk3066-grf", "syscon": for rk3066
