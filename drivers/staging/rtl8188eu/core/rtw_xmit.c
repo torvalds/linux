@@ -368,7 +368,8 @@ u8	qos_acm(u8 acm_mask, u8 priority)
 			change_priority = 5;
 		break;
 	default:
-		DBG_88E("qos_acm(): invalid pattrib->priority: %d!!!\n", priority);
+		DBG_88E("%s(): invalid pattrib->priority: %d!!!\n",
+			__func__, priority);
 		break;
 	}
 
