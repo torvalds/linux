@@ -76,17 +76,17 @@ enum msdc_dbg {
 };
 
 /* Debug message event */
-#define DBG_EVT_NONE        (0)       /* No event */
-#define DBG_EVT_DMA         (1 << 0)  /* DMA related event */
-#define DBG_EVT_CMD         (1 << 1)  /* MSDC CMD related event */
-#define DBG_EVT_RSP         (1 << 2)  /* MSDC CMD RSP related event */
-#define DBG_EVT_INT         (1 << 3)  /* MSDC INT event */
-#define DBG_EVT_CFG         (1 << 4)  /* MSDC CFG event */
-#define DBG_EVT_FUC         (1 << 5)  /* Function event */
-#define DBG_EVT_OPS         (1 << 6)  /* Read/Write operation event */
-#define DBG_EVT_FIO         (1 << 7)  /* FIFO operation event */
-#define DBG_EVT_WRN         (1 << 8)  /* Warning event */
-#define DBG_EVT_PWR         (1 << 9)  /* Power event */
+#define DBG_EVT_NONE        (0)     /* No event */
+#define DBG_EVT_DMA         BIT(0)  /* DMA related event */
+#define DBG_EVT_CMD         BIT(1)  /* MSDC CMD related event */
+#define DBG_EVT_RSP         BIT(2)  /* MSDC CMD RSP related event */
+#define DBG_EVT_INT         BIT(3)  /* MSDC INT event */
+#define DBG_EVT_CFG         BIT(4)  /* MSDC CFG event */
+#define DBG_EVT_FUC         BIT(5)  /* Function event */
+#define DBG_EVT_OPS         BIT(6)  /* Read/Write operation event */
+#define DBG_EVT_FIO         BIT(7)  /* FIFO operation event */
+#define DBG_EVT_WRN         BIT(8)  /* Warning event */
+#define DBG_EVT_PWR         BIT(9)  /* Power event */
 #define DBG_EVT_ALL         (0xffffffff)
 
 #define DBG_EVT_MASK        (DBG_EVT_ALL)
