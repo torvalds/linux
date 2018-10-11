@@ -282,6 +282,8 @@ struct dce_hwseq_registers {
 	uint32_t D2VGA_CONTROL;
 	uint32_t D3VGA_CONTROL;
 	uint32_t D4VGA_CONTROL;
+	uint32_t D5VGA_CONTROL;
+	uint32_t D6VGA_CONTROL;
 	uint32_t VGA_TEST_CONTROL;
 	/* MMHUB registers. read only. temporary hack */
 	uint32_t VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32;
