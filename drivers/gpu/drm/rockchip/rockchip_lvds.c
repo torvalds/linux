@@ -21,6 +21,7 @@
 
 #include <linux/component.h>
 #include <linux/clk.h>
+#include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
@@ -144,6 +145,9 @@ static inline int lvds_name_to_output(const char *s)
 
 static int innov2_lvds_power_on(struct rockchip_lvds *lvds)
 {
+	u32 status;
+	int ret;
+
 	if (lvds->output == DISPLAY_OUTPUT_RGB) {
 		lvds_writel(lvds, RK3288_LVDS_CH0_REG0,
 			    RK3288_LVDS_CH0_REG0_TTL_EN |
@@ -213,6 +217,13 @@ static int innov2_lvds_power_on(struct rockchip_lvds *lvds)
 
 	writel(RK3288_LVDS_CFG_REGC_PLL_ENABLE,
 	       lvds->regs + RK3288_LVDS_CFG_REGC);
+	ret = readl_poll_timeout(lvds->regs + RK3288_LVDS_CH0_REGF, status,
+				 status & RK3288_LVDS_CH0_PLL_LOCK, 500, 10000);
+	if (ret) {
+		dev_err(lvds->dev, "PLL is not lock\n");
+		return ret;
+	}
+
 	writel(RK3288_LVDS_CFG_REG21_TX_ENABLE,
 	       lvds->regs + RK3288_LVDS_CFG_REG21);
 
