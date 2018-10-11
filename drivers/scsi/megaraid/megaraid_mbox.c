@@ -1428,12 +1428,6 @@ mbox_post_cmd(adapter_t *adapter, scb_t *scb)
 
 	adapter->outstanding_cmds++;
 
-	if (scb->dma_direction == PCI_DMA_TODEVICE)
-		pci_dma_sync_sg_for_device(adapter->pdev,
-					   scsi_sglist(scb->scp),
-					   scsi_sg_count(scb->scp),
-					   PCI_DMA_TODEVICE);
-
 	mbox->busy	= 1;	// Set busy
 	mbox->poll	= 0;
 	mbox->ack	= 0;
@@ -2181,31 +2175,6 @@ megaraid_isr(int irq, void *devp)
 
 
 /**
- * megaraid_mbox_sync_scb - sync kernel buffers
- * @adapter	: controller's soft state
- * @scb		: pointer to the resource packet
- *
- * DMA sync if required.
- */
-static void
-megaraid_mbox_sync_scb(adapter_t *adapter, scb_t *scb)
-{
-	mbox_ccb_t	*ccb;
-
-	ccb	= (mbox_ccb_t *)scb->ccb;
-
-	if (scb->dma_direction == PCI_DMA_FROMDEVICE)
-		pci_dma_sync_sg_for_cpu(adapter->pdev,
-					scsi_sglist(scb->scp),
-					scsi_sg_count(scb->scp),
-					PCI_DMA_FROMDEVICE);
-
-	scsi_dma_unmap(scb->scp);
-	return;
-}
-
-
-/**
  * megaraid_mbox_dpc - the tasklet to complete the commands from completed list
  * @devp	: pointer to HBA soft state
  *
@@ -2403,9 +2372,7 @@ megaraid_mbox_dpc(unsigned long devp)
 			megaraid_mbox_display_scb(adapter, scb);
 		}
 
-		// Free our internal resources and call the mid-layer callback
-		// routine
-		megaraid_mbox_sync_scb(adapter, scb);
+		scsi_dma_unmap(scp);
 
 		// remove from local clist
 		list_del_init(&scb->list);
