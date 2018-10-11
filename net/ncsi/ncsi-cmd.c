@@ -17,6 +17,7 @@
 #include <net/ncsi.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/genetlink.h>
 
 #include "internal.h"
 #include "ncsi-pkt.h"
@@ -345,6 +346,13 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 	nr = ncsi_alloc_command(nca);
 	if (!nr)
 		return -ENOMEM;
+
+	/* track netlink information */
+	if (nca->req_flags == NCSI_REQ_FLAG_NETLINK_DRIVEN) {
+		nr->snd_seq = nca->info->snd_seq;
+		nr->snd_portid = nca->info->snd_portid;
+		nr->nlhdr = *nca->info->nlhdr;
+	}
 
 	/* Prepare the packet */
 	nca->id = nr->id;

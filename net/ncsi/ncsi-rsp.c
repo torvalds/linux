@@ -16,9 +16,11 @@
 #include <net/ncsi.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/genetlink.h>
 
 #include "internal.h"
 #include "ncsi-pkt.h"
+#include "ncsi-netlink.h"
 
 static int ncsi_validate_rsp_pkt(struct ncsi_request *nr,
 				 unsigned short payload)
@@ -32,15 +34,25 @@ static int ncsi_validate_rsp_pkt(struct ncsi_request *nr,
 	 * before calling this function.
 	 */
 	h = (struct ncsi_rsp_pkt_hdr *)skb_network_header(nr->rsp);
-	if (h->common.revision != NCSI_PKT_REVISION)
+
+	if (h->common.revision != NCSI_PKT_REVISION) {
+		netdev_dbg(nr->ndp->ndev.dev,
+			   "NCSI: unsupported header revision\n");
 		return -EINVAL;
-	if (ntohs(h->common.length) != payload)
+	}
+	if (ntohs(h->common.length) != payload) {
+		netdev_dbg(nr->ndp->ndev.dev,
+			   "NCSI: payload length mismatched\n");
 		return -EINVAL;
+	}
 
 	/* Check on code and reason */
 	if (ntohs(h->code) != NCSI_PKT_RSP_C_COMPLETED ||
-	    ntohs(h->reason) != NCSI_PKT_RSP_R_NO_ERROR)
-		return -EINVAL;
+	    ntohs(h->reason) != NCSI_PKT_RSP_R_NO_ERROR) {
+		netdev_dbg(nr->ndp->ndev.dev,
+			   "NCSI: non zero response/reason code\n");
+		return -EPERM;
+	}
 
 	/* Validate checksum, which might be zeroes if the
 	 * sender doesn't support checksum according to NCSI
@@ -52,8 +64,11 @@ static int ncsi_validate_rsp_pkt(struct ncsi_request *nr,
 
 	checksum = ncsi_calculate_checksum((unsigned char *)h,
 					   sizeof(*h) + payload - 4);
-	if (*pchecksum != htonl(checksum))
+
+	if (*pchecksum != htonl(checksum)) {
+		netdev_dbg(nr->ndp->ndev.dev, "NCSI: checksum mismatched\n");
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -941,6 +956,26 @@ static int ncsi_rsp_handler_gpuuid(struct ncsi_request *nr)
 	return 0;
 }
 
+static int ncsi_rsp_handler_netlink(struct ncsi_request *nr)
+{
+	struct ncsi_dev_priv *ndp = nr->ndp;
+	struct ncsi_rsp_pkt *rsp;
+	struct ncsi_package *np;
+	struct ncsi_channel *nc;
+	int ret;
+
+	/* Find the package */
+	rsp = (struct ncsi_rsp_pkt *)skb_network_header(nr->rsp);
+	ncsi_find_package_and_channel(ndp, rsp->rsp.common.channel,
+				      &np, &nc);
+	if (!np)
+		return -ENODEV;
+
+	ret = ncsi_send_netlink_rsp(nr, np, nc);
+
+	return ret;
+}
+
 static struct ncsi_rsp_handler {
 	unsigned char	type;
 	int             payload;
@@ -1043,6 +1078,17 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 		netdev_warn(ndp->ndev.dev,
 			    "NCSI: 'bad' packet ignored for type 0x%x\n",
 			    hdr->type);
+
+		if (nr->flags == NCSI_REQ_FLAG_NETLINK_DRIVEN) {
+			if (ret == -EPERM)
+				goto out_netlink;
+			else
+				ncsi_send_netlink_err(ndp->ndev.dev,
+						      nr->snd_seq,
+						      nr->snd_portid,
+						      &nr->nlhdr,
+						      ret);
+		}
 		goto out;
 	}
 
@@ -1052,6 +1098,17 @@ int ncsi_rcv_rsp(struct sk_buff *skb, struct net_device *dev,
 		netdev_err(ndp->ndev.dev,
 			   "NCSI: Handler for packet type 0x%x returned %d\n",
 			   hdr->type, ret);
+
+out_netlink:
+	if (nr->flags == NCSI_REQ_FLAG_NETLINK_DRIVEN) {
+		ret = ncsi_rsp_handler_netlink(nr);
+		if (ret) {
+			netdev_err(ndp->ndev.dev,
+				   "NCSI: Netlink handler for packet type 0x%x returned %d\n",
+				   hdr->type, ret);
+		}
+	}
+
 out:
 	ncsi_free_request(nr);
 	return ret;
