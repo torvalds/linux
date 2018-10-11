@@ -9,6 +9,9 @@ Required properties:
 - compatible: Should be one of the following.
  - "rockchip,px30-pvtm" - for PX30 SoCs.
  - "rockchip,px30-pmu-pvtm" - for PX30 SoCs.
+ - "rockchip,rk1808-pvtm" - for RK1808 SoCs.
+ - "rockchip,rk1808-pmu-pvtm" - for RK1808 SoCs.
+ - "rockchip,rk1808-npu-pvtm" - for RK1808 SoCs.
  - "rockchip,rk3288-pvtm" - for RK3288 SoCs.
  - "rockchip,rk3308-pvtm" - for RK3308 SoCs.
  - "rockchip,rk3308-pmu-pvtm" - for RK3308 SoCs.
