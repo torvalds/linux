@@ -61,7 +61,7 @@
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
-	____kvm_handle_fault_on_reboot(x, "xor " reg " , " reg)
+	____kvm_handle_fault_on_reboot(x, "xorl " reg " , " reg)
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -2312,7 +2312,7 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
-	asm volatile (__ex_clear("vmread %1, %0", "%0")
+	asm volatile (__ex_clear("vmread %1, %0", "%k0")
 		      : "=r"(value) : "r"(field));
 	return value;
 }
