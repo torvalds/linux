@@ -8566,6 +8566,36 @@ static inline void mlxsw_reg_tnumt_pack(char *payload,
 	mlxsw_reg_tnumt_record_size_set(payload, record_size);
 }
 
+/* TNEEM - Tunneling NVE Encapsulation ECN Mapping Register
+ * --------------------------------------------------------
+ * The TNEEM register maps ECN of the IP header at the ingress to the
+ * encapsulation to the ECN of the underlay network.
+ */
+#define MLXSW_REG_TNEEM_ID 0xA012
+#define MLXSW_REG_TNEEM_LEN 0x0C
+
+MLXSW_REG_DEFINE(tneem, MLXSW_REG_TNEEM_ID, MLXSW_REG_TNEEM_LEN);
+
+/* reg_tneem_overlay_ecn
+ * ECN of the IP header in the overlay network.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, tneem, overlay_ecn, 0x04, 24, 2);
+
+/* reg_tneem_underlay_ecn
+ * ECN of the IP header in the underlay network.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tneem, underlay_ecn, 0x04, 16, 2);
+
+static inline void mlxsw_reg_tneem_pack(char *payload, u8 overlay_ecn,
+					u8 underlay_ecn)
+{
+	MLXSW_REG_ZERO(tneem, payload);
+	mlxsw_reg_tneem_overlay_ecn_set(payload, overlay_ecn);
+	mlxsw_reg_tneem_underlay_ecn_set(payload, underlay_ecn);
+}
+
 /* TNPC - Tunnel Port Configuration Register
  * -----------------------------------------
  * The TNPC register is used for tunnel port configuration.
@@ -9162,6 +9192,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mgpc),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
+	MLXSW_REG(tneem),
 	MLXSW_REG(tnpc),
 	MLXSW_REG(tigcr),
 	MLXSW_REG(sbpr),
