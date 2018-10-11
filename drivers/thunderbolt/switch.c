@@ -1276,6 +1276,10 @@ int tb_switch_configure(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
+	ret = tb_lc_configure_link(sw);
+	if (ret)
+		return ret;
+
 	return tb_plug_events_active(sw, true);
 }
 
@@ -1486,6 +1490,7 @@ void tb_switch_remove(struct tb_switch *sw)
 
 	if (!sw->is_unplugged)
 		tb_plug_events_active(sw, false);
+	tb_lc_unconfigure_link(sw);
 
 	tb_switch_nvm_remove(sw);
 
@@ -1542,6 +1547,10 @@ int tb_switch_resume(struct tb_switch *sw)
 
 	/* upload configuration */
 	err = tb_sw_write(sw, 1 + (u32 *) &sw->config, TB_CFG_SWITCH, 1, 3);
+	if (err)
+		return err;
+
+	err = tb_lc_configure_link(sw);
 	if (err)
 		return err;
 
