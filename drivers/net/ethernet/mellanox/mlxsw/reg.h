@@ -8292,6 +8292,190 @@ static inline void mlxsw_reg_mgpc_pack(char *payload, u32 counter_index,
 	mlxsw_reg_mgpc_opcode_set(payload, opcode);
 }
 
+/* TNGCR - Tunneling NVE General Configuration Register
+ * ----------------------------------------------------
+ * The TNGCR register is used for setting up the NVE Tunneling configuration.
+ */
+#define MLXSW_REG_TNGCR_ID 0xA001
+#define MLXSW_REG_TNGCR_LEN 0x44
+
+MLXSW_REG_DEFINE(tngcr, MLXSW_REG_TNGCR_ID, MLXSW_REG_TNGCR_LEN);
+
+enum mlxsw_reg_tngcr_type {
+	MLXSW_REG_TNGCR_TYPE_VXLAN,
+	MLXSW_REG_TNGCR_TYPE_VXLAN_GPE,
+	MLXSW_REG_TNGCR_TYPE_GENEVE,
+	MLXSW_REG_TNGCR_TYPE_NVGRE,
+};
+
+/* reg_tngcr_type
+ * Tunnel type for encapsulation and decapsulation. The types are mutually
+ * exclusive.
+ * Note: For Spectrum the NVE parsing must be enabled in MPRS.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, type, 0x00, 0, 4);
+
+/* reg_tngcr_nve_valid
+ * The VTEP is valid. Allows adding FDB entries for tunnel encapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_valid, 0x04, 31, 1);
+
+/* reg_tngcr_nve_ttl_uc
+ * The TTL for NVE tunnel encapsulation underlay unicast packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_ttl_uc, 0x04, 0, 8);
+
+/* reg_tngcr_nve_ttl_mc
+ * The TTL for NVE tunnel encapsulation underlay multicast packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_ttl_mc, 0x08, 0, 8);
+
+enum {
+	/* Do not copy flow label. Calculate flow label using nve_flh. */
+	MLXSW_REG_TNGCR_FL_NO_COPY,
+	/* Copy flow label from inner packet if packet is IPv6 and
+	 * encapsulation is by IPv6. Otherwise, calculate flow label using
+	 * nve_flh.
+	 */
+	MLXSW_REG_TNGCR_FL_COPY,
+};
+
+/* reg_tngcr_nve_flc
+ * For NVE tunnel encapsulation: Flow label copy from inner packet.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_flc, 0x0C, 25, 1);
+
+enum {
+	/* Flow label is static. In Spectrum this means '0'. Spectrum-2
+	 * uses {nve_fl_prefix, nve_fl_suffix}.
+	 */
+	MLXSW_REG_TNGCR_FL_NO_HASH,
+	/* 8 LSBs of the flow label are calculated from ECMP hash of the
+	 * inner packet. 12 MSBs are configured by nve_fl_prefix.
+	 */
+	MLXSW_REG_TNGCR_FL_HASH,
+};
+
+/* reg_tngcr_nve_flh
+ * NVE flow label hash.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_flh, 0x0C, 24, 1);
+
+/* reg_tngcr_nve_fl_prefix
+ * NVE flow label prefix. Constant 12 MSBs of the flow label.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_fl_prefix, 0x0C, 8, 12);
+
+/* reg_tngcr_nve_fl_suffix
+ * NVE flow label suffix. Constant 8 LSBs of the flow label.
+ * Reserved when nve_flh=1 and for Spectrum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_fl_suffix, 0x0C, 0, 8);
+
+enum {
+	/* Source UDP port is fixed (default '0') */
+	MLXSW_REG_TNGCR_UDP_SPORT_NO_HASH,
+	/* Source UDP port is calculated based on hash */
+	MLXSW_REG_TNGCR_UDP_SPORT_HASH,
+};
+
+/* reg_tngcr_nve_udp_sport_type
+ * NVE UDP source port type.
+ * Spectrum uses LAG hash (SLCRv2). Spectrum-2 uses ECMP hash (RECRv2).
+ * When the source UDP port is calculated based on hash, then the 8 LSBs
+ * are calculated from hash the 8 MSBs are configured by
+ * nve_udp_sport_prefix.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_udp_sport_type, 0x10, 24, 1);
+
+/* reg_tngcr_nve_udp_sport_prefix
+ * NVE UDP source port prefix. Constant 8 MSBs of the UDP source port.
+ * Reserved when NVE type is NVGRE.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_udp_sport_prefix, 0x10, 8, 8);
+
+/* reg_tngcr_nve_group_size_mc
+ * The amount of sequential linked lists of MC entries. The first linked
+ * list is configured by SFD.underlay_mc_ptr.
+ * Valid values: 1, 2, 4, 8, 16, 32, 64
+ * The linked list are configured by TNUMT.
+ * The hash is set by LAG hash.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_group_size_mc, 0x18, 0, 8);
+
+/* reg_tngcr_nve_group_size_flood
+ * The amount of sequential linked lists of flooding entries. The first
+ * linked list is configured by SFMR.nve_tunnel_flood_ptr
+ * Valid values: 1, 2, 4, 8, 16, 32, 64
+ * The linked list are configured by TNUMT.
+ * The hash is set by LAG hash.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, nve_group_size_flood, 0x1C, 0, 8);
+
+/* reg_tngcr_learn_enable
+ * During decapsulation, whether to learn from NVE port.
+ * Reserved when Spectrum-2. See TNPC.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, learn_enable, 0x20, 31, 1);
+
+/* reg_tngcr_underlay_virtual_router
+ * Underlay virtual router.
+ * Reserved when Spectrum-2.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, underlay_virtual_router, 0x20, 0, 16);
+
+/* reg_tngcr_underlay_rif
+ * Underlay ingress router interface. RIF type should be loopback generic.
+ * Reserved when Spectrum.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, underlay_rif, 0x24, 0, 16);
+
+/* reg_tngcr_usipv4
+ * Underlay source IPv4 address of the NVE.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, tngcr, usipv4, 0x28, 0, 32);
+
+/* reg_tngcr_usipv6
+ * Underlay source IPv6 address of the NVE. For Spectrum, must not be
+ * modified under traffic of NVE tunneling encapsulation.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, tngcr, usipv6, 0x30, 16);
+
+static inline void mlxsw_reg_tngcr_pack(char *payload,
+					enum mlxsw_reg_tngcr_type type,
+					bool valid, u8 ttl)
+{
+	MLXSW_REG_ZERO(tngcr, payload);
+	mlxsw_reg_tngcr_type_set(payload, type);
+	mlxsw_reg_tngcr_nve_valid_set(payload, valid);
+	mlxsw_reg_tngcr_nve_ttl_uc_set(payload, ttl);
+	mlxsw_reg_tngcr_nve_ttl_mc_set(payload, ttl);
+	mlxsw_reg_tngcr_nve_flc_set(payload, MLXSW_REG_TNGCR_FL_NO_COPY);
+	mlxsw_reg_tngcr_nve_flh_set(payload, 0);
+	mlxsw_reg_tngcr_nve_udp_sport_type_set(payload,
+					       MLXSW_REG_TNGCR_UDP_SPORT_HASH);
+	mlxsw_reg_tngcr_nve_udp_sport_prefix_set(payload, 0);
+	mlxsw_reg_tngcr_nve_group_size_mc_set(payload, 1);
+	mlxsw_reg_tngcr_nve_group_size_flood_set(payload, 1);
+}
+
 /* TIGCR - Tunneling IPinIP General Configuration Register
  * -------------------------------------------------------
  * The TIGCR register is used for setting up the IPinIP Tunnel configuration.
@@ -8841,6 +9025,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcc),
 	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
+	MLXSW_REG(tngcr),
 	MLXSW_REG(tigcr),
 	MLXSW_REG(sbpr),
 	MLXSW_REG(sbcm),
