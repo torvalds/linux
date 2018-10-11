@@ -138,6 +138,6 @@ struct rpc_cred null_cred = {
 	.cr_lru		= LIST_HEAD_INIT(null_cred.cr_lru),
 	.cr_auth	= &null_auth,
 	.cr_ops		= &null_credops,
-	.cr_count	= ATOMIC_INIT(1),
+	.cr_count	= ATOMIC_INIT(2),
 	.cr_flags	= 1UL << RPCAUTH_CRED_UPTODATE,
 };

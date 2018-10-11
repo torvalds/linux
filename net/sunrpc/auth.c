@@ -291,25 +291,30 @@ rpcauth_release(struct rpc_auth *auth)
 
 static DEFINE_SPINLOCK(rpc_credcache_lock);
 
-static void
+/*
+ * On success, the caller is responsible for freeing the reference
+ * held by the hashtable
+ */
+static bool
 rpcauth_unhash_cred_locked(struct rpc_cred *cred)
 {
+	if (!test_and_clear_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags))
+		return false;
 	hlist_del_rcu(&cred->cr_hash);
-	smp_mb__before_atomic();
-	clear_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
+	return true;
 }
 
-static int
+static bool
 rpcauth_unhash_cred(struct rpc_cred *cred)
 {
 	spinlock_t *cache_lock;
-	int ret;
+	bool ret;
 
+	if (!test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags))
+		return false;
 	cache_lock = &cred->cr_auth->au_credcache->lock;
 	spin_lock(cache_lock);
-	ret = atomic_read(&cred->cr_count) == 0;
-	if (ret)
-		rpcauth_unhash_cred_locked(cred);
+	ret = rpcauth_unhash_cred_locked(cred);
 	spin_unlock(cache_lock);
 	return ret;
 }
@@ -388,6 +393,44 @@ void rpcauth_destroy_credlist(struct list_head *head)
 	}
 }
 
+static void
+rpcauth_lru_add_locked(struct rpc_cred *cred)
+{
+	if (!list_empty(&cred->cr_lru))
+		return;
+	number_cred_unused++;
+	list_add_tail(&cred->cr_lru, &cred_unused);
+}
+
+static void
+rpcauth_lru_add(struct rpc_cred *cred)
+{
+	if (!list_empty(&cred->cr_lru))
+		return;
+	spin_lock(&rpc_credcache_lock);
+	rpcauth_lru_add_locked(cred);
+	spin_unlock(&rpc_credcache_lock);
+}
+
+static void
+rpcauth_lru_remove_locked(struct rpc_cred *cred)
+{
+	if (list_empty(&cred->cr_lru))
+		return;
+	number_cred_unused--;
+	list_del_init(&cred->cr_lru);
+}
+
+static void
+rpcauth_lru_remove(struct rpc_cred *cred)
+{
+	if (list_empty(&cred->cr_lru))
+		return;
+	spin_lock(&rpc_credcache_lock);
+	rpcauth_lru_remove_locked(cred);
+	spin_unlock(&rpc_credcache_lock);
+}
+
 /*
  * Clear the RPC credential cache, and delete those credentials
  * that are not referenced.
@@ -407,13 +450,10 @@ rpcauth_clear_credcache(struct rpc_cred_cache *cache)
 		head = &cache->hashtable[i];
 		while (!hlist_empty(head)) {
 			cred = hlist_entry(head->first, struct rpc_cred, cr_hash);
-			get_rpccred(cred);
-			if (!list_empty(&cred->cr_lru)) {
-				list_del(&cred->cr_lru);
-				number_cred_unused--;
-			}
-			list_add_tail(&cred->cr_lru, &free);
 			rpcauth_unhash_cred_locked(cred);
+			/* Note: We now hold a reference to cred */
+			rpcauth_lru_remove_locked(cred);
+			list_add_tail(&cred->cr_lru, &free);
 		}
 	}
 	spin_unlock(&cache->lock);
@@ -447,7 +487,6 @@ EXPORT_SYMBOL_GPL(rpcauth_destroy_credcache);
 static long
 rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 {
-	spinlock_t *cache_lock;
 	struct rpc_cred *cred, *next;
 	unsigned long expired = jiffies - RPC_AUTH_EXPIRY_MORATORIUM;
 	long freed = 0;
@@ -456,32 +495,24 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 
 		if (nr_to_scan-- == 0)
 			break;
+		if (atomic_read(&cred->cr_count) > 1) {
+			rpcauth_lru_remove_locked(cred);
+			continue;
+		}
 		/*
 		 * Enforce a 60 second garbage collection moratorium
 		 * Note that the cred_unused list must be time-ordered.
 		 */
-		if (time_in_range(cred->cr_expire, expired, jiffies) &&
-		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
-			freed = SHRINK_STOP;
-			break;
-		}
-
-		list_del_init(&cred->cr_lru);
-		number_cred_unused--;
-		freed++;
-		if (atomic_read(&cred->cr_count) != 0)
+		if (!time_in_range(cred->cr_expire, expired, jiffies))
+			continue;
+		if (!rpcauth_unhash_cred(cred))
 			continue;
 
-		cache_lock = &cred->cr_auth->au_credcache->lock;
-		spin_lock(cache_lock);
-		if (atomic_read(&cred->cr_count) == 0) {
-			get_rpccred(cred);
-			list_add_tail(&cred->cr_lru, free);
-			rpcauth_unhash_cred_locked(cred);
-		}
-		spin_unlock(cache_lock);
+		rpcauth_lru_remove_locked(cred);
+		freed++;
+		list_add_tail(&cred->cr_lru, free);
 	}
-	return freed;
+	return freed ? freed : SHRINK_STOP;
 }
 
 static unsigned long
@@ -595,6 +626,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 	if (cred == NULL) {
 		cred = new;
 		set_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
+		atomic_inc(&cred->cr_count);
 		hlist_add_head_rcu(&cred->cr_hash, &cache->hashtable[nr]);
 	} else
 		list_add_tail(&new->cr_lru, &free);
@@ -709,36 +741,29 @@ put_rpccred(struct rpc_cred *cred)
 {
 	if (cred == NULL)
 		return;
-	/* Fast path for unhashed credentials */
-	if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) == 0) {
+	rcu_read_lock();
+	if (atomic_dec_and_test(&cred->cr_count))
+		goto destroy;
+	if (atomic_read(&cred->cr_count) != 1 ||
+	    !test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags))
+		goto out;
+	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0) {
+		cred->cr_expire = jiffies;
+		rpcauth_lru_add(cred);
+		/* Race breaker */
+		if (unlikely(!test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags)))
+			rpcauth_lru_remove(cred);
+	} else if (rpcauth_unhash_cred(cred)) {
+		rpcauth_lru_remove(cred);
 		if (atomic_dec_and_test(&cred->cr_count))
-			cred->cr_ops->crdestroy(cred);
-		return;
+			goto destroy;
 	}
-
-	if (!atomic_dec_and_lock(&cred->cr_count, &rpc_credcache_lock))
-		return;
-	if (!list_empty(&cred->cr_lru)) {
-		number_cred_unused--;
-		list_del_init(&cred->cr_lru);
-	}
-	if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
-		if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0) {
-			cred->cr_expire = jiffies;
-			list_add_tail(&cred->cr_lru, &cred_unused);
-			number_cred_unused++;
-			goto out_nodestroy;
-		}
-		if (!rpcauth_unhash_cred(cred)) {
-			/* We were hashed and someone looked us up... */
-			goto out_nodestroy;
-		}
-	}
-	spin_unlock(&rpc_credcache_lock);
-	cred->cr_ops->crdestroy(cred);
+out:
+	rcu_read_unlock();
 	return;
-out_nodestroy:
-	spin_unlock(&rpc_credcache_lock);
+destroy:
+	rcu_read_unlock();
+	cred->cr_ops->crdestroy(cred);
 }
 EXPORT_SYMBOL_GPL(put_rpccred);
 
