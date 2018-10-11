@@ -36,7 +36,6 @@ config CPU_RK322X
 config CPU_RV110X
 	bool "RV1107/8"
 	depends on ARM
-	default y
 
 config CPU_PX30
 	bool "PX30"
