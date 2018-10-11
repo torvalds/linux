@@ -5,7 +5,8 @@
  * is confidential and proprietary to MediaTek Inc. and/or its licensors.
  * Without the prior written permission of MediaTek inc. and/or its licensors,
  * any reproduction, modification, use or disclosure of MediaTek Software,
- * and information contained herein, in whole or in part, shall be strictly prohibited.
+ * and information contained herein, in whole or in part, shall be strictly
+ * prohibited.
  *
  * MediaTek Inc. (C) 2010. All rights reserved.
  *
@@ -17,20 +18,22 @@
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR NONINFRINGEMENT.
  * NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY WHATSOEVER WITH RESPECT TO THE
  * SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY, INCORPORATED IN, OR
- * SUPPLIED WITH THE MEDIATEK SOFTWARE, AND RECEIVER AGREES TO LOOK ONLY TO SUCH
- * THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. RECEIVER EXPRESSLY ACKNOWLEDGES
- * THAT IT IS RECEIVER'S SOLE RESPONSIBILITY TO OBTAIN FROM ANY THIRD PARTY ALL PROPER LICENSES
- * CONTAINED IN MEDIATEK SOFTWARE. MEDIATEK SHALL ALSO NOT BE RESPONSIBLE FOR ANY MEDIATEK
- * SOFTWARE RELEASES MADE TO RECEIVER'S SPECIFICATION OR TO CONFORM TO A PARTICULAR
- * STANDARD OR OPEN FORUM. RECEIVER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S ENTIRE AND
- * CUMULATIVE LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE RELEASED HEREUNDER WILL BE,
- * AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE MEDIATEK SOFTWARE AT ISSUE,
- * OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE CHARGE PAID BY RECEIVER TO
- * MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
+ * SUPPLIED WITH THE MEDIATEK SOFTWARE, AND RECEIVER AGREES TO LOOK ONLY TO
+ * SUCH THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. RECEIVER EXPRESSLY
+ * ACKNOWLEDGES THAT IT IS RECEIVER'S SOLE RESPONSIBILITY TO OBTAIN FROM ANY
+ * THIRD PARTY ALL PROPER LICENSES CONTAINED IN MEDIATEK SOFTWARE. MEDIATEK
+ * SHALL ALSO NOT BE RESPONSIBLE FOR ANY MEDIATEK SOFTWARE RELEASES MADE TO
+ * RECEIVER'S SPECIFICATION OR TO CONFORM TO A PARTICULAR STANDARD OR OPEN
+ * FORUM. RECEIVER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S ENTIRE AND
+ * CUMULATIVE LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE RELEASED
+ * HEREUNDER WILL BE, AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE MEDIATEK
+ * SOFTWARE AT ISSUE, OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE CHARGE
+ * PAID BY RECEIVER TO MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
  *
- * The following software/firmware and/or related documentation ("MediaTek Software")
- * have been modified by MediaTek Inc. All revisions are subject to any receiver's
- * applicable license agreements with MediaTek Inc.
+ * The following software/firmware and/or related documentation
+ * ("MediaTek Software") have been modified by MediaTek Inc. All revisions
+ * are subject to any receiver's applicable license agreements with MediaTek
+ * Inc.
  */
 
 #include <linux/version.h>
@@ -74,7 +77,8 @@ u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32)
 		ret = new_L32 - old_L32;
 	} else if (new_H32 == (old_H32 + 1)) {
 		if (new_L32 > old_L32)
-			pr_debug("msdc old_L<0x%x> new_L<0x%x>\n", old_L32, new_L32);
+			pr_debug("msdc old_L<0x%x> new_L<0x%x>\n",
+				 old_L32, new_L32);
 		ret = (0xffffffff - old_L32);
 		ret += new_L32;
 	} else {
@@ -96,27 +100,33 @@ void msdc_sdio_profile(struct sdio_profile *result)
 
 	/* CMD52 Dump */
 	cmd = &result->cmd52_rx;
-	pr_debug("sdio === CMD52 Rx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
-		 cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count);
+	pr_debug("sdio === CMD52 Rx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n",
+		 cmd->count, cmd->tot_tc, cmd->max_tc, cmd->min_tc,
+		 cmd->tot_tc / cmd->count);
 	cmd = &result->cmd52_tx;
-	pr_debug("sdio === CMD52 Tx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n", cmd->count, cmd->tot_tc,
-		 cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count);
+	pr_debug("sdio === CMD52 Tx <%d>times tick<%d> Max<%d> Min<%d> Aver<%d>\n",
+		 cmd->count, cmd->tot_tc, cmd->max_tc, cmd->min_tc,
+		 cmd->tot_tc / cmd->count);
 
 	/* CMD53 Rx bytes + block mode */
 	for (i = 0; i < 512; i++) {
 		cmd = &result->cmd53_rx_byte[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3dB>_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-				 cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
-				 cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
+			pr_debug("sdio<%6d><%3dB>_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
+				 cmd->min_tc, cmd->tot_tc / cmd->count,
+				 cmd->tot_bytes,
+				 (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
 	for (i = 0; i < 100; i++) {
 		cmd = &result->cmd53_rx_blk[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3d>B_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-				 cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
-				 cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
+			pr_debug("sdio<%6d><%3d>B_Rx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
+				 cmd->min_tc, cmd->tot_tc / cmd->count,
+				 cmd->tot_bytes,
+				 (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
 
@@ -124,17 +134,21 @@ void msdc_sdio_profile(struct sdio_profile *result)
 	for (i = 0; i < 512; i++) {
 		cmd = &result->cmd53_tx_byte[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3dB>_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-				 cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
-				 cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
+			pr_debug("sdio<%6d><%3dB>_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
+				 cmd->min_tc, cmd->tot_tc / cmd->count,
+				 cmd->tot_bytes,
+				 (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
 	for (i = 0; i < 100; i++) {
 		cmd = &result->cmd53_tx_blk[i];
 		if (cmd->count) {
-			pr_debug("sdio<%6d><%3d>B_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n", cmd->count, i, cmd->tot_tc,
-				 cmd->max_tc, cmd->min_tc, cmd->tot_tc / cmd->count,
-				 cmd->tot_bytes, (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
+			pr_debug("sdio<%6d><%3d>B_Tx_<%9d><%9d><%6d><%6d>_<%9dB><%2dM>\n",
+				 cmd->count, i, cmd->tot_tc, cmd->max_tc,
+				 cmd->min_tc, cmd->tot_tc / cmd->count,
+				 cmd->tot_bytes,
+				 (cmd->tot_bytes / 10) * 13 / (cmd->tot_tc / 10));
 		}
 	}
 
@@ -205,7 +219,8 @@ static int msdc_debug_proc_read(struct seq_file *s, void *p)
 
 	seq_puts(s, "Index<3> + SDIO_PROFILE + TIME\n");
 	seq_puts(s, "-> echo 3 1 0x1E >msdc_bebug -> enable sdio_profile, 30s\n");
-	seq_printf(s, "-> SDIO_PROFILE<%d> TIME<%ds>\n", sdio_pro_enable, sdio_pro_time);
+	seq_printf(s, "-> SDIO_PROFILE<%d> TIME<%ds>\n",
+		   sdio_pro_enable, sdio_pro_time);
 	seq_puts(s, "=========================================\n\n");
 
 	return 0;
