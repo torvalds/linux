@@ -163,8 +163,6 @@ static const enum gpiod_flags gpio_flags[] = {
 /* Give this long for the PHY to reset. */
 #define T_PHY_RESET_MS	50
 
-static DEFINE_MUTEX(sfp_mutex);
-
 struct sff_data {
 	unsigned int gpios;
 	bool (*module_supported)(const struct sfp_eeprom_id *id);
