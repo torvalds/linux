@@ -46,7 +46,6 @@ config CPU_RK1808
 
 config CPU_RK3308
 	bool "RK3308"
-	default y if ARM64
 
 config CPU_RK3328
 	bool "RK3328"
