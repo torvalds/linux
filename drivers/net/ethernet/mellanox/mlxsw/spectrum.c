@@ -21,6 +21,7 @@
 #include <linux/dcbnl.h>
 #include <linux/inetdevice.h>
 #include <linux/netlink.h>
+#include <linux/random.h>
 #include <net/switchdev.h>
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
@@ -3469,6 +3470,7 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV4, TRAP_TO_CPU, ROUTER_EXP, false),
 	MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV6, TRAP_TO_CPU, ROUTER_EXP, false),
 	MLXSW_SP_RXL_MARK(IPIP_DECAP_ERROR, TRAP_TO_CPU, ROUTER_EXP, false),
+	MLXSW_SP_RXL_MARK(DECAP_ECN0, TRAP_TO_CPU, ROUTER_EXP, false),
 	MLXSW_SP_RXL_MARK(IPV4_VRRP, TRAP_TO_CPU, ROUTER_EXP, false),
 	MLXSW_SP_RXL_MARK(IPV6_VRRP, TRAP_TO_CPU, ROUTER_EXP, false),
 	/* PKT Sample trap */
@@ -3482,6 +3484,8 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_MARK(RPF, TRAP_TO_CPU, RPF, false),
 	MLXSW_SP_RXL_MARK(ACL1, TRAP_TO_CPU, MULTICAST, false),
 	MLXSW_SP_RXL_MR_MARK(ACL2, TRAP_TO_CPU, MULTICAST, false),
+	/* NVE traps */
+	MLXSW_SP_RXL_MARK(NVE_ENCAP_ARP, TRAP_TO_CPU, ARP, false),
 };
 
 static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
@@ -3666,8 +3670,10 @@ static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char slcr_pl[MLXSW_REG_SLCR_LEN];
+	u32 seed;
 	int err;
 
+	get_random_bytes(&seed, sizeof(seed));
 	mlxsw_reg_slcr_pack(slcr_pl, MLXSW_REG_SLCR_LAG_HASH_SMAC |
 				     MLXSW_REG_SLCR_LAG_HASH_DMAC |
 				     MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE |
@@ -3676,7 +3682,7 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 				     MLXSW_REG_SLCR_LAG_HASH_DIP |
 				     MLXSW_REG_SLCR_LAG_HASH_SPORT |
 				     MLXSW_REG_SLCR_LAG_HASH_DPORT |
-				     MLXSW_REG_SLCR_LAG_HASH_IPPROTO);
+				     MLXSW_REG_SLCR_LAG_HASH_IPPROTO, seed);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(slcr), slcr_pl);
 	if (err)
 		return err;

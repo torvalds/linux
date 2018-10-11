@@ -383,6 +383,17 @@ static inline void mlxsw_sp_port_dcb_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 #endif
 
 /* spectrum_router.c */
+enum mlxsw_sp_l3proto {
+	MLXSW_SP_L3_PROTO_IPV4,
+	MLXSW_SP_L3_PROTO_IPV6,
+#define MLXSW_SP_L3_PROTO_MAX	(MLXSW_SP_L3_PROTO_IPV6 + 1)
+};
+
+union mlxsw_sp_l3addr {
+	__be32 addr4;
+	struct in6_addr addr6;
+};
+
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
@@ -416,6 +427,10 @@ mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif);
 void mlxsw_sp_rif_destroy_by_dev(struct mlxsw_sp *mlxsw_sp,
 				 struct net_device *dev);
+struct mlxsw_sp_rif *mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
+					      const struct net_device *dev);
+u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp);
+struct mlxsw_sp_fid *mlxsw_sp_rif_fid(const struct mlxsw_sp_rif *rif);
 
 /* spectrum_kvdl.c */
 enum mlxsw_sp_kvdl_entry_type {
@@ -423,6 +438,7 @@ enum mlxsw_sp_kvdl_entry_type {
 	MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
 	MLXSW_SP_KVDL_ENTRY_TYPE_PBS,
 	MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+	MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT,
 };
 
 static inline unsigned int
@@ -433,6 +449,7 @@ mlxsw_sp_kvdl_entry_size(enum mlxsw_sp_kvdl_entry_type type)
 	case MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET: /* fall through */
 	case MLXSW_SP_KVDL_ENTRY_TYPE_PBS: /* fall through */
 	case MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR: /* fall through */
+	case MLXSW_SP_KVDL_ENTRY_TYPE_TNUMT: /* fall through */
 	default:
 		return 1;
 	}

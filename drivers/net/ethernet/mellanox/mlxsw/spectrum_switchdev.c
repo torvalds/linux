@@ -17,7 +17,6 @@
 #include <net/switchdev.h>
 
 #include "spectrum_span.h"
-#include "spectrum_router.h"
 #include "spectrum_switchdev.h"
 #include "spectrum.h"
 #include "core.h"
@@ -2289,7 +2288,7 @@ struct mlxsw_sp_switchdev_event_work {
 	unsigned long event;
 };
 
-static void mlxsw_sp_switchdev_event_work(struct work_struct *work)
+static void mlxsw_sp_switchdev_bridge_fdb_event_work(struct work_struct *work)
 {
 	struct mlxsw_sp_switchdev_event_work *switchdev_work =
 		container_of(work, struct mlxsw_sp_switchdev_event_work, work);
@@ -2344,16 +2343,23 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 {
 	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
 	struct mlxsw_sp_switchdev_event_work *switchdev_work;
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_notifier_info *info = ptr;
+	struct net_device *br_dev;
 
-	if (!mlxsw_sp_port_dev_lower_find_rcu(dev))
+	/* Tunnel devices are not our uppers, so check their master instead */
+	br_dev = netdev_master_upper_dev_get_rcu(dev);
+	if (!br_dev)
+		return NOTIFY_DONE;
+	if (!netif_is_bridge_master(br_dev))
+		return NOTIFY_DONE;
+	if (!mlxsw_sp_port_dev_lower_find_rcu(br_dev))
 		return NOTIFY_DONE;
 
 	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
 	if (!switchdev_work)
 		return NOTIFY_BAD;
 
-	INIT_WORK(&switchdev_work->work, mlxsw_sp_switchdev_event_work);
 	switchdev_work->dev = dev;
 	switchdev_work->event = event;
 
@@ -2362,6 +2368,11 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 	case SWITCHDEV_FDB_DEL_TO_DEVICE: /* fall through */
 	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
 	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
+		fdb_info = container_of(info,
+					struct switchdev_notifier_fdb_info,
+					info);
+		INIT_WORK(&switchdev_work->work,
+			  mlxsw_sp_switchdev_bridge_fdb_event_work);
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
