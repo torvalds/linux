@@ -2213,7 +2213,6 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 
 	switch (type) {
 	case DM_TYPE_REQUEST_BASED:
-	case DM_TYPE_MQ_REQUEST_BASED:
 		r = dm_mq_init_request_queue(md, t);
 		if (r) {
 			DMERR("Cannot initialize queue for request-based dm-mq mapped device");
@@ -2946,7 +2945,6 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 			goto out;
 		break;
 	case DM_TYPE_REQUEST_BASED:
-	case DM_TYPE_MQ_REQUEST_BASED:
 		pool_size = max(dm_get_reserved_rq_based_ios(), min_pool_size);
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
 		/* per_io_data_size is used for blk-mq pdu at queue allocation */

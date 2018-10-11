@@ -871,8 +871,7 @@ static bool __table_type_bio_based(enum dm_queue_mode table_type)
 
 static bool __table_type_request_based(enum dm_queue_mode table_type)
 {
-	return (table_type == DM_TYPE_REQUEST_BASED ||
-		table_type == DM_TYPE_MQ_REQUEST_BASED);
+	return table_type == DM_TYPE_REQUEST_BASED;
 }
 
 void dm_table_set_type(struct dm_table *t, enum dm_queue_mode type)
@@ -986,10 +985,6 @@ verify_bio_based:
 
 	BUG_ON(!request_based); /* No targets in this table */
 
-	/*
-	 * The only way to establish DM_TYPE_MQ_REQUEST_BASED is by
-	 * having a compatible target use dm_table_set_type.
-	 */
 	t->type = DM_TYPE_REQUEST_BASED;
 
 verify_rq_based:
