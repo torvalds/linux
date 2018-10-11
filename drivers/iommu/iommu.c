@@ -1712,33 +1712,32 @@ EXPORT_SYMBOL_GPL(iommu_unmap_fast);
 size_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 		    struct scatterlist *sg, unsigned int nents, int prot)
 {
-	struct scatterlist *s;
-	size_t mapped = 0;
-	unsigned int i, min_pagesz;
+	size_t len = 0, mapped = 0;
+	phys_addr_t start;
+	unsigned int i = 0;
 	int ret;
 
-	if (unlikely(domain->pgsize_bitmap == 0UL))
-		return 0;
+	while (i <= nents) {
+		phys_addr_t s_phys = sg_phys(sg);
 
-	min_pagesz = 1 << __ffs(domain->pgsize_bitmap);
+		if (len && s_phys != start + len) {
+			ret = iommu_map(domain, iova + mapped, start, len, prot);
+			if (ret)
+				goto out_err;
 
-	for_each_sg(sg, s, nents, i) {
-		phys_addr_t phys = page_to_phys(sg_page(s)) + s->offset;
+			mapped += len;
+			len = 0;
+		}
 
-		/*
-		 * We are mapping on IOMMU page boundaries, so offset within
-		 * the page must be 0. However, the IOMMU may support pages
-		 * smaller than PAGE_SIZE, so s->offset may still represent
-		 * an offset of that boundary within the CPU page.
-		 */
-		if (!IS_ALIGNED(s->offset, min_pagesz))
-			goto out_err;
+		if (len) {
+			len += sg->length;
+		} else {
+			len = sg->length;
+			start = s_phys;
+		}
 
-		ret = iommu_map(domain, iova + mapped, phys, s->length, prot);
-		if (ret)
-			goto out_err;
-
-		mapped += s->length;
+		if (++i < nents)
+			sg = sg_next(sg);
 	}
 
 	return mapped;
