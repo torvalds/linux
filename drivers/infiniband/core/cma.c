@@ -2510,8 +2510,8 @@ static void cma_query_handler(int status, struct sa_path_rec *path_rec,
 	queue_work(cma_wq, &work->work);
 }
 
-static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
-			      struct cma_work *work)
+static int cma_query_ib_route(struct rdma_id_private *id_priv,
+			      unsigned long timeout_ms, struct cma_work *work)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	struct sa_path_rec path_rec;
@@ -2629,7 +2629,8 @@ static void cma_init_resolve_addr_work(struct cma_work *work,
 	work->event.event = RDMA_CM_EVENT_ADDR_RESOLVED;
 }
 
-static int cma_resolve_ib_route(struct rdma_id_private *id_priv, int timeout_ms)
+static int cma_resolve_ib_route(struct rdma_id_private *id_priv,
+				unsigned long timeout_ms)
 {
 	struct rdma_route *route = &id_priv->id.route;
 	struct cma_work *work;
@@ -2852,7 +2853,7 @@ err1:
 	return ret;
 }
 
-int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms)
+int rdma_resolve_route(struct rdma_cm_id *id, unsigned long timeout_ms)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
@@ -3072,7 +3073,7 @@ static int cma_bind_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 }
 
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      const struct sockaddr *dst_addr, int timeout_ms)
+		      const struct sockaddr *dst_addr, unsigned long timeout_ms)
 {
 	struct rdma_id_private *id_priv;
 	int ret;

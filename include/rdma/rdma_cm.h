@@ -196,7 +196,8 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr);
  * @timeout_ms: Time to wait for resolution to complete.
  */
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      const struct sockaddr *dst_addr, int timeout_ms);
+		      const struct sockaddr *dst_addr,
+		      unsigned long timeout_ms);
 
 /**
  * rdma_resolve_route - Resolve the RDMA address bound to the RDMA identifier
@@ -206,7 +207,7 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
  * Users must have first called rdma_resolve_addr to resolve a dst_addr
  * into an RDMA address before calling this routine.
  */
-int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms);
+int rdma_resolve_route(struct rdma_cm_id *id, unsigned long timeout_ms);
 
 /**
  * rdma_create_qp - Allocate a QP and associate it with the specified RDMA

@@ -99,7 +99,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
  * @context: User-specified context associated with the call.
  */
 int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
-		    struct rdma_dev_addr *addr, int timeout_ms,
+		    struct rdma_dev_addr *addr, unsigned long timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
 		    bool resolve_by_gid_attr, void *context);

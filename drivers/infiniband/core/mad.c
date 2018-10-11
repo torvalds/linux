@@ -2414,7 +2414,7 @@ static void wait_for_response(struct ib_mad_send_wr_private *mad_send_wr)
 }
 
 void ib_reset_mad_timeout(struct ib_mad_send_wr_private *mad_send_wr,
-			  int timeout_ms)
+			  unsigned long timeout_ms)
 {
 	mad_send_wr->timeout = msecs_to_jiffies(timeout_ms);
 	wait_for_response(mad_send_wr);
