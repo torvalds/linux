@@ -335,9 +335,9 @@ static void update_attrib_phy_info(struct pkt_attrib *pattrib, struct sta_info *
 	pattrib->retry_ctrl = false;
 }
 
-u8	qos_acm(u8 acm_mask, u8 priority)
+u8 qos_acm(u8 acm_mask, u8 priority)
 {
-	u8	change_priority = priority;
+	u8 change_priority = priority;
 
 	switch (priority) {
 	case 0:
