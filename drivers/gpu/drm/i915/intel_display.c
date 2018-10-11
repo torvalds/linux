@@ -15370,7 +15370,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
+	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
 	if (crtc->active && !transcoder_is_dsi(cpu_transcoder)) {
@@ -15380,7 +15381,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 			   I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 	}
 
-	if (crtc->active) {
+	if (crtc_state->base.active) {
 		struct intel_plane *plane;
 
 		/* Disable everything but the primary plane */
@@ -15396,10 +15397,10 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
-	if (crtc->active && !intel_crtc_has_encoders(crtc))
+	if (crtc_state->base.active && !intel_crtc_has_encoders(crtc))
 		intel_crtc_disable_noatomic(&crtc->base, ctx);
 
-	if (crtc->active || HAS_GMCH_DISPLAY(dev_priv)) {
+	if (crtc_state->base.active || HAS_GMCH_DISPLAY(dev_priv)) {
 		/*
 		 * We start out with underrun reporting disabled to avoid races.
 		 * For correct bookkeeping mark this on active crtcs.
