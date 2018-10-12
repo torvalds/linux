@@ -641,6 +641,20 @@ test_pmtu_vti6_link_change_mtu() {
 	return ${fail}
 }
 
+usage() {
+	echo
+	echo "$0 [TEST]..."
+	echo "If no TEST argument is given, all tests will be run."
+	echo
+	echo "Available tests${tests}"
+	exit 1
+}
+
+for arg do
+	# Check first that all requested tests are available before running any
+	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} not found"; usage; }
+done
+
 trap cleanup EXIT
 
 exitcode=0
@@ -649,6 +663,13 @@ IFS="
 "
 for t in ${tests}; do
 	[ $desc -eq 0 ] && name="${t}" && desc=1 && continue || desc=0
+
+	run_this=1
+	for arg do
+		[ "${arg}" = "${name}" ] && run_this=1 && break
+		run_this=0
+	done
+	[ $run_this -eq 0 ] && continue
 
 	(
 		unset IFS
