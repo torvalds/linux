@@ -436,6 +436,15 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(ICL_PORT_CL_DW12(port), val | ICL_LANE_ENABLE_AUX);
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
+
+	/* Display WA #1178: icl */
+	if (IS_ICELAKE(dev_priv) &&
+	    pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
+	    !intel_bios_is_port_edp(dev_priv, port)) {
+		val = I915_READ(ICL_AUX_ANAOVRD1(pw_idx));
+		val |= ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS;
+		I915_WRITE(ICL_AUX_ANAOVRD1(pw_idx), val);
+	}
 }
 
 static void
