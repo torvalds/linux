@@ -55,7 +55,8 @@ struct mt76x02_calibration {
 	s8 agc_gain_adjust;
 	s8 low_gain;
 
-	u8 temp;
+	s8 temp_vco;
+	s8 temp;
 
 	bool init_cal_done;
 	bool tssi_cal_done;
