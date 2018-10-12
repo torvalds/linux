@@ -1162,9 +1162,15 @@ struct intel_dp {
 	struct intel_dp_compliance compliance;
 };
 
+enum lspcon_vendor {
+	LSPCON_VENDOR_MCA,
+	LSPCON_VENDOR_PARADE
+};
+
 struct intel_lspcon {
 	bool active;
 	enum drm_lspcon_mode mode;
+	enum lspcon_vendor vendor;
 };
 
 struct intel_digital_port {

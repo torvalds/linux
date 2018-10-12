@@ -27,6 +27,10 @@
 #include <drm/drm_dp_dual_mode_helper.h>
 #include "intel_drv.h"
 
+/* LSPCON OUI Vendor ID(signatures) */
+#define LSPCON_VENDOR_PARADE_OUI 0x001CF8
+#define LSPCON_VENDOR_MCA_OUI 0x0060AD
+
 static struct intel_dp *lspcon_to_intel_dp(struct intel_lspcon *lspcon)
 {
 	struct intel_digital_port *dig_port =
@@ -48,6 +52,40 @@ static const char *lspcon_mode_name(enum drm_lspcon_mode mode)
 		MISSING_CASE(mode);
 		return "INVALID";
 	}
+}
+
+static bool lspcon_detect_vendor(struct intel_lspcon *lspcon)
+{
+	struct intel_dp *dp = lspcon_to_intel_dp(lspcon);
+	struct drm_dp_dpcd_ident *ident;
+	u32 vendor_oui;
+
+	if (drm_dp_read_desc(&dp->aux, &dp->desc, drm_dp_is_branch(dp->dpcd))) {
+		DRM_ERROR("Can't read description\n");
+		return false;
+	}
+
+	ident = &dp->desc.ident;
+	vendor_oui = (ident->oui[0] << 16) | (ident->oui[1] << 8) |
+		      ident->oui[2];
+
+	switch (vendor_oui) {
+	case LSPCON_VENDOR_MCA_OUI:
+		lspcon->vendor = LSPCON_VENDOR_MCA;
+		DRM_DEBUG_KMS("Vendor: Mega Chips\n");
+		break;
+
+	case LSPCON_VENDOR_PARADE_OUI:
+		lspcon->vendor = LSPCON_VENDOR_PARADE;
+		DRM_DEBUG_KMS("Vendor: Parade Tech\n");
+		break;
+
+	default:
+		DRM_ERROR("Invalid/Unknown vendor OUI\n");
+		return false;
+	}
+
+	return true;
 }
 
 static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
@@ -159,7 +197,18 @@ static bool lspcon_probe(struct intel_lspcon *lspcon)
 	/* Yay ... got a LSPCON device */
 	DRM_DEBUG_KMS("LSPCON detected\n");
 	lspcon->mode = lspcon_wait_mode(lspcon, expected_mode);
-	lspcon->active = true;
+
+	/*
+	 * In the SW state machine, lets Put LSPCON in PCON mode only.
+	 * In this way, it will work with both HDMI 1.4 sinks as well as HDMI
+	 * 2.0 sinks.
+	 */
+	if (lspcon->active && lspcon->mode != DRM_LSPCON_MODE_PCON) {
+		if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON) < 0) {
+			DRM_ERROR("LSPCON mode change to PCON failed\n");
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -230,25 +279,17 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 		return false;
 	}
 
-	/*
-	* In the SW state machine, lets Put LSPCON in PCON mode only.
-	* In this way, it will work with both HDMI 1.4 sinks as well as HDMI
-	* 2.0 sinks.
-	*/
-	if (lspcon->active && lspcon->mode != DRM_LSPCON_MODE_PCON) {
-		if (lspcon_change_mode(lspcon, DRM_LSPCON_MODE_PCON) < 0) {
-			DRM_ERROR("LSPCON mode change to PCON failed\n");
-			return false;
-		}
-	}
-
 	if (!intel_dp_read_dpcd(dp)) {
 		DRM_ERROR("LSPCON DPCD read failed\n");
 		return false;
 	}
 
-	drm_dp_read_desc(&dp->aux, &dp->desc, drm_dp_is_branch(dp->dpcd));
+	if (!lspcon_detect_vendor(lspcon)) {
+		DRM_ERROR("LSPCON vendor detection failed\n");
+		return false;
+	}
 
+	lspcon->active = true;
 	DRM_DEBUG_KMS("Success: LSPCON init\n");
 	return true;
 }
