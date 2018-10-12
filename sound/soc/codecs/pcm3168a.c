@@ -484,6 +484,7 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	unsigned int fmt;
 	unsigned int sample_min;
+	unsigned int channel_max;
 
 	if (tx)
 		fmt = pcm3168a->dac_fmt;
@@ -496,18 +497,37 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 	 * RIGHT_J : 24 / 16
 	 * LEFT_J  : 24
 	 * I2S     : 24
+	 *
+	 * TDM available
+	 *
+	 * I2S
+	 * LEFT_J
 	 */
 	switch (fmt) {
 	case PCM3168A_FMT_RIGHT_J:
 		sample_min  = 16;
+		channel_max =  2;
+		break;
+	case PCM3168A_FMT_LEFT_J:
+		sample_min  = 24;
+		channel_max =  8;
+		break;
+	case PCM3168A_FMT_I2S:
+		sample_min  = 24;
+		channel_max =  8;
 		break;
 	default:
 		sample_min  = 24;
+		channel_max =  2;
 	}
 
 	snd_pcm_hw_constraint_minmax(substream->runtime,
 				     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
 				     sample_min, 32);
+
+	snd_pcm_hw_constraint_minmax(substream->runtime,
+				     SNDRV_PCM_HW_PARAM_CHANNELS,
+				     2, channel_max);
 
 	return 0;
 }
