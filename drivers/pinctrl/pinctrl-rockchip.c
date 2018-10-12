@@ -936,6 +936,34 @@ static struct rockchip_mux_route_data rk1808_mux_route_data[] = {
 		.route_offset = 0x190,
 		.route_val = BIT(16 + 3) | BIT(3),
 	}, {
+		/* spi2m0_miso */
+		.bank_num = 1,
+		.pin = 6,
+		.func = 2,
+		.route_offset = 0x190,
+		.route_val = BIT(16 + 4),
+	}, {
+		/* spi2m1_miso */
+		.bank_num = 2,
+		.pin = 4,
+		.func = 3,
+		.route_offset = 0x190,
+		.route_val = BIT(16 + 4) | BIT(4),
+	}, {
+		/* spi1m0_miso */
+		.bank_num = 4,
+		.pin = 15,
+		.func = 2,
+		.route_offset = 0x190,
+		.route_val = BIT(16 + 5),
+	}, {
+		/* spi1m1_miso */
+		.bank_num = 3,
+		.pin = 26,
+		.func = 3,
+		.route_offset = 0x190,
+		.route_val = BIT(16 + 5) | BIT(5),
+	}, {
 		/* uart1_rxm0 */
 		.bank_num = 4,
 		.pin = 8,
