@@ -1351,6 +1351,9 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
+	for (i = 0; i < chip->ngpio; i++)
+		gdev->descs[i].gdev = gdev;
+
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&gdev->pin_ranges);
 #endif
@@ -1381,8 +1384,6 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 
 	for (i = 0; i < chip->ngpio; i++) {
 		struct gpio_desc *desc = &gdev->descs[i];
-
-		desc->gdev = gdev;
 
 		if (chip->get_direction && gpiochip_line_is_valid(chip, i))
 			desc->flags = !chip->get_direction(chip, i) ?
