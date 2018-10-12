@@ -135,6 +135,10 @@
 	status = "okay";
 };
 
+&rk_rga {
+	status =  "okay";
+};
+
 &rk809_sound {
 	status = "okay";
 };
