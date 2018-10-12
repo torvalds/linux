@@ -581,6 +581,48 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 	mt76x02_phy_set_txpower(dev, info[0], info[1]);
 }
 
+void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
+{
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	u32 val, tx_alc, reg_val;
+
+	if (power_on) {
+		mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_VCO, chan->hw_value,
+				      false);
+		usleep_range(10, 20);
+		/* XXX: tssi */
+	}
+
+	tx_alc = mt76_rr(dev, MT_TX_ALC_CFG_0);
+	mt76_wr(dev, MT_TX_ALC_CFG_0, 0);
+	usleep_range(500, 700);
+
+	reg_val = mt76_rr(dev, MT_BBP(IBI, 9));
+	mt76_wr(dev, MT_BBP(IBI, 9), 0xffffff7e);
+
+	if (chan->band == NL80211_BAND_5GHZ) {
+		if (chan->hw_value < 100)
+			val = 0x701;
+		else if (chan->hw_value < 140)
+			val = 0x801;
+		else
+			val = 0x901;
+	} else {
+		val = 0x600;
+	}
+
+	mt76x02_mcu_calibrate(dev, MCU_CAL_FULL, val, false);
+	msleep(350);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 1, false);
+	usleep_range(15000, 20000);
+
+	mt76_wr(dev, MT_BBP(IBI, 9), reg_val);
+	mt76_wr(dev, MT_TX_ALC_CFG_0, tx_alc);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1, false);
+}
+EXPORT_SYMBOL_GPL(mt76x0_phy_calibrate);
+
 int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 			   struct cfg80211_chan_def *chandef)
 {
@@ -671,9 +713,14 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 	/* Vendor driver don't do it */
 	/* mt76x0_phy_set_tx_power(dev, channel, rf_bw_band); */
 
-	mt76x0_vco_cal(dev, channel);
-	if (scan)
-		mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1, false);
+	if (mt76_is_usb(dev)) {
+		mt76x0_vco_cal(dev, channel);
+		if (scan)
+			mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1,
+					      false);
+	} else {
+		mt76x0_phy_calibrate(dev, false);
+	}
 
 	mt76x0_phy_set_txpower(dev);
 

@@ -28,6 +28,7 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 	mutex_lock(&dev->mt76.mutex);
 
 	mt76x02_mac_start(dev);
+	mt76x0_phy_calibrate(dev, true);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
