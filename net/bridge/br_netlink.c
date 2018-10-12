@@ -1034,6 +1034,7 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_MCAST_STATS_ENABLED] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_IGMP_VERSION] = { .type = NLA_U8 },
 	[IFLA_BR_MCAST_MLD_VERSION] = { .type = NLA_U8 },
+	[IFLA_BR_VLAN_STATS_PER_PORT] = { .type = NLA_U8 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -1111,6 +1112,14 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 		__u8 vlan_stats = nla_get_u8(data[IFLA_BR_VLAN_STATS_ENABLED]);
 
 		err = br_vlan_set_stats(br, vlan_stats);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_BR_VLAN_STATS_PER_PORT]) {
+		__u8 per_port = nla_get_u8(data[IFLA_BR_VLAN_STATS_PER_PORT]);
+
+		err = br_vlan_set_stats_per_port(br, per_port);
 		if (err)
 			return err;
 	}
@@ -1327,6 +1336,7 @@ static size_t br_get_size(const struct net_device *brdev)
 	       nla_total_size(sizeof(__be16)) +	/* IFLA_BR_VLAN_PROTOCOL */
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_VLAN_DEFAULT_PVID */
 	       nla_total_size(sizeof(u8)) +     /* IFLA_BR_VLAN_STATS_ENABLED */
+	       nla_total_size(sizeof(u8)) +	/* IFLA_BR_VLAN_STATS_PER_PORT */
 #endif
 	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_GROUP_FWD_MASK */
 	       nla_total_size(sizeof(struct ifla_bridge_id)) +   /* IFLA_BR_ROOT_ID */
@@ -1417,7 +1427,9 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	if (nla_put_be16(skb, IFLA_BR_VLAN_PROTOCOL, br->vlan_proto) ||
 	    nla_put_u16(skb, IFLA_BR_VLAN_DEFAULT_PVID, br->default_pvid) ||
 	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_ENABLED,
-		       br_opt_get(br, BROPT_VLAN_STATS_ENABLED)))
+		       br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) ||
+	    nla_put_u8(skb, IFLA_BR_VLAN_STATS_PER_PORT,
+		       br_opt_get(br, IFLA_BR_VLAN_STATS_PER_PORT)))
 		return -EMSGSIZE;
 #endif
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING

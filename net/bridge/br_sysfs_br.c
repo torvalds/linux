@@ -803,6 +803,22 @@ static ssize_t vlan_stats_enabled_store(struct device *d,
 	return store_bridge_parm(d, buf, len, br_vlan_set_stats);
 }
 static DEVICE_ATTR_RW(vlan_stats_enabled);
+
+static ssize_t vlan_stats_per_port_show(struct device *d,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%u\n", br_opt_get(br, BROPT_VLAN_STATS_PER_PORT));
+}
+
+static ssize_t vlan_stats_per_port_store(struct device *d,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_vlan_set_stats_per_port);
+}
+static DEVICE_ATTR_RW(vlan_stats_per_port);
 #endif
 
 static struct attribute *bridge_attrs[] = {
@@ -856,6 +872,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_vlan_protocol.attr,
 	&dev_attr_default_pvid.attr,
 	&dev_attr_vlan_stats_enabled.attr,
+	&dev_attr_vlan_stats_per_port.attr,
 #endif
 	NULL
 };

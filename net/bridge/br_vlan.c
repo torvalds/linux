@@ -190,6 +190,19 @@ static void br_vlan_put_master(struct net_bridge_vlan *masterv)
 	}
 }
 
+static void nbp_vlan_rcu_free(struct rcu_head *rcu)
+{
+	struct net_bridge_vlan *v;
+
+	v = container_of(rcu, struct net_bridge_vlan, rcu);
+	WARN_ON(br_vlan_is_master(v));
+	/* if we had per-port stats configured then free them here */
+	if (v->brvlan->stats != v->stats)
+		free_percpu(v->stats);
+	v->stats = NULL;
+	kfree(v);
+}
+
 /* This is the shared VLAN add function which works for both ports and bridge
  * devices. There are four possible calls to this function in terms of the
  * vlan entry type:
@@ -245,7 +258,15 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 		if (!masterv)
 			goto out_filt;
 		v->brvlan = masterv;
-		v->stats = masterv->stats;
+		if (br_opt_get(br, BROPT_VLAN_STATS_PER_PORT)) {
+			v->stats = netdev_alloc_pcpu_stats(struct br_vlan_stats);
+			if (!v->stats) {
+				err = -ENOMEM;
+				goto out_filt;
+			}
+		} else {
+			v->stats = masterv->stats;
+		}
 	} else {
 		err = br_switchdev_port_vlan_add(dev, v->vid, flags);
 		if (err && err != -EOPNOTSUPP)
@@ -329,7 +350,7 @@ static int __vlan_del(struct net_bridge_vlan *v)
 		rhashtable_remove_fast(&vg->vlan_hash, &v->vnode,
 				       br_vlan_rht_params);
 		__vlan_del_list(v);
-		kfree_rcu(v, rcu);
+		call_rcu(&v->rcu, nbp_vlan_rcu_free);
 	}
 
 	br_vlan_put_master(masterv);
@@ -822,6 +843,30 @@ int br_vlan_set_stats(struct net_bridge *br, unsigned long val)
 	case 0:
 	case 1:
 		br_opt_toggle(br, BROPT_VLAN_STATS_ENABLED, !!val);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int br_vlan_set_stats_per_port(struct net_bridge *br, unsigned long val)
+{
+	struct net_bridge_port *p;
+
+	/* allow to change the option if there are no port vlans configured */
+	list_for_each_entry(p, &br->port_list, list) {
+		struct net_bridge_vlan_group *vg = nbp_vlan_group(p);
+
+		if (vg->num_vlans)
+			return -EBUSY;
+	}
+
+	switch (val) {
+	case 0:
+	case 1:
+		br_opt_toggle(br, BROPT_VLAN_STATS_PER_PORT, !!val);
 		break;
 	default:
 		return -EINVAL;

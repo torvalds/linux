@@ -59,7 +59,7 @@
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 
-#define RTNL_MAX_TYPE		48
+#define RTNL_MAX_TYPE		49
 #define RTNL_SLAVE_MAX_TYPE	36
 
 struct rtnl_link {
