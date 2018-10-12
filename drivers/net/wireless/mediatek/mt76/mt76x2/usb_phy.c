@@ -156,7 +156,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 	mt76x2_phy_set_txpower(dev);
 
 	mt76x2_phy_set_band(dev, chan->band, ch_group_index & 1);
-	mt76x2_phy_set_bw(dev, chandef->width, ch_group_index);
+	mt76x02_phy_set_bw(dev, chandef->width, ch_group_index);
 
 	mt76_rmw(dev, MT_EXT_CCA_CFG,
 		 (MT_EXT_CCA_CFG_CCA0 |
