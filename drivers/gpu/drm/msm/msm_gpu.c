@@ -345,6 +345,10 @@ static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
 {
 	struct msm_gpu_state *state;
 
+	/* Check if the target supports capturing crash state */
+	if (!gpu->funcs->gpu_state_get)
+		return;
+
 	/* Only save one crash state at a time */
 	if (gpu->crashstate)
 		return;
