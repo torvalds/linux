@@ -115,7 +115,7 @@ static struct dentry *punit_dbg_file;
 
 static int punit_dbgfs_register(struct punit_device *punit_device)
 {
-	static struct dentry *dev_state;
+	struct dentry *dev_state;
 
 	punit_dbg_file = debugfs_create_dir("punit_atom", NULL);
 	if (!punit_dbg_file)
