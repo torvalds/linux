@@ -2321,9 +2321,16 @@ void intel_infoframe_init(struct intel_digital_port *intel_dig_port)
 		intel_dig_port->set_infoframes = g4x_set_infoframes;
 		intel_dig_port->infoframe_enabled = g4x_infoframe_enabled;
 	} else if (HAS_DDI(dev_priv)) {
-		intel_dig_port->write_infoframe = hsw_write_infoframe;
-		intel_dig_port->set_infoframes = hsw_set_infoframes;
-		intel_dig_port->infoframe_enabled = hsw_infoframe_enabled;
+		if (intel_dig_port->lspcon.active) {
+			intel_dig_port->set_infoframes = lspcon_set_infoframes;
+			intel_dig_port->infoframe_enabled =
+						lspcon_infoframe_enabled;
+		} else {
+			intel_dig_port->set_infoframes = hsw_set_infoframes;
+			intel_dig_port->infoframe_enabled =
+						hsw_infoframe_enabled;
+			intel_dig_port->write_infoframe = hsw_write_infoframe;
+		}
 	} else if (HAS_PCH_IBX(dev_priv)) {
 		intel_dig_port->write_infoframe = ibx_write_infoframe;
 		intel_dig_port->set_infoframes = ibx_set_infoframes;

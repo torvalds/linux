@@ -1318,6 +1318,12 @@ static inline bool intel_encoder_is_dp(struct intel_encoder *encoder)
 	}
 }
 
+static inline struct intel_lspcon *
+enc_to_intel_lspcon(struct drm_encoder *encoder)
+{
+	return &enc_to_dig_port(encoder)->lspcon;
+}
+
 static inline struct intel_digital_port *
 dp_to_dig_port(struct intel_dp *intel_dp)
 {
@@ -1879,7 +1885,6 @@ bool intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable);
 void intel_infoframe_init(struct intel_digital_port *intel_dig_port);
 
-
 /* intel_lvds.c */
 bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
 			     i915_reg_t lvds_reg, enum pipe *pipe);
@@ -2210,6 +2215,12 @@ void intel_color_load_luts(struct drm_crtc_state *crtc_state);
 bool lspcon_init(struct intel_digital_port *intel_dig_port);
 void lspcon_resume(struct intel_lspcon *lspcon);
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
+void lspcon_set_infoframes(struct intel_encoder *encoder,
+			   bool enable,
+			   const struct intel_crtc_state *crtc_state,
+			   const struct drm_connector_state *conn_state);
+bool lspcon_infoframe_enabled(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *pipe_config);
 
 /* intel_pipe_crc.c */
 #ifdef CONFIG_DEBUG_FS

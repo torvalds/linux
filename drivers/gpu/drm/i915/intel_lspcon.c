@@ -234,6 +234,55 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 	DRM_DEBUG_KMS("LSPCON DP descriptor mismatch after resume\n");
 }
 
+void lspcon_set_infoframes(struct intel_encoder *encoder,
+			   bool enable,
+			   const struct intel_crtc_state *crtc_state,
+			   const struct drm_connector_state *conn_state)
+{
+	ssize_t ret;
+	union hdmi_infoframe frame;
+	uint8_t buf[VIDEO_DIP_DATA_SIZE];
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
+	struct intel_dp *intel_dp = &dig_port->dp;
+	struct drm_connector *connector = &intel_dp->attached_connector->base;
+	const struct drm_display_mode *mode = &crtc_state->base.adjusted_mode;
+	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported;
+
+	if (!lspcon->active) {
+		DRM_ERROR("Writing infoframes while LSPCON disabled ?\n");
+		return;
+	}
+
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						       mode, is_hdmi2_sink);
+	if (ret < 0) {
+		DRM_ERROR("couldn't fill AVI infoframe\n");
+		return;
+	}
+
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi, mode,
+					   crtc_state->limited_color_range ?
+					   HDMI_QUANTIZATION_RANGE_LIMITED :
+					   HDMI_QUANTIZATION_RANGE_FULL,
+					   false, is_hdmi2_sink);
+
+	ret = hdmi_infoframe_pack(&frame, buf, sizeof(buf));
+	if (ret < 0) {
+		DRM_ERROR("Failed to pack AVI IF\n");
+		return;
+	}
+
+	dig_port->write_infoframe(encoder, crtc_state, HDMI_INFOFRAME_TYPE_AVI,
+				  buf, ret);
+}
+
+bool lspcon_infoframe_enabled(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *pipe_config)
+{
+	return enc_to_intel_lspcon(&encoder->base)->active;
+}
+
 void lspcon_resume(struct intel_lspcon *lspcon)
 {
 	enum drm_lspcon_mode expected_mode;

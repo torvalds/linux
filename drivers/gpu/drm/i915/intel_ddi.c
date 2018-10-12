@@ -2978,10 +2978,22 @@ static void intel_ddi_pre_enable(struct intel_encoder *encoder,
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		intel_ddi_pre_enable_hdmi(encoder, crtc_state, conn_state);
-	else
+	} else {
+		struct intel_lspcon *lspcon =
+				enc_to_intel_lspcon(&encoder->base);
+
 		intel_ddi_pre_enable_dp(encoder, crtc_state, conn_state);
+		if (lspcon->active) {
+			struct intel_digital_port *dig_port =
+					enc_to_dig_port(&encoder->base);
+
+			dig_port->set_infoframes(encoder,
+						 crtc_state->has_infoframe,
+						 crtc_state, conn_state);
+		}
+	}
 }
 
 static void intel_disable_ddi_buf(struct intel_encoder *encoder)
@@ -3845,8 +3857,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		MISSING_CASE(port);
 	}
 
-	intel_infoframe_init(intel_dig_port);
-
 	if (init_dp) {
 		if (!intel_ddi_init_dp_connector(intel_dig_port))
 			goto err;
@@ -3875,6 +3885,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				port_name(port));
 	}
 
+	intel_infoframe_init(intel_dig_port);
 	return;
 
 err:
