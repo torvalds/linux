@@ -32,15 +32,6 @@
 /* Size of each PWM register space if multiple */
 #define PWM_SIZE			0x400
 
-#define MAX_PWMS			4
-
-struct pwm_lpss_chip {
-	struct pwm_chip chip;
-	void __iomem *regs;
-	const struct pwm_lpss_boardinfo *info;
-	u32 saved_ctrl[MAX_PWMS];
-};
-
 static inline struct pwm_lpss_chip *to_lpwm(struct pwm_chip *chip)
 {
 	return container_of(chip, struct pwm_lpss_chip, chip);

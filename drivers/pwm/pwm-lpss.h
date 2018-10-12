@@ -16,7 +16,14 @@
 #include <linux/device.h>
 #include <linux/pwm.h>
 
-struct pwm_lpss_chip;
+#define MAX_PWMS			4
+
+struct pwm_lpss_chip {
+	struct pwm_chip chip;
+	void __iomem *regs;
+	const struct pwm_lpss_boardinfo *info;
+	u32 saved_ctrl[MAX_PWMS];
+};
 
 struct pwm_lpss_boardinfo {
 	unsigned long clk_rate;
