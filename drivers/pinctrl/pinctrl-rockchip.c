@@ -2001,6 +2001,7 @@ static void rk1808_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 	} else {
 		*reg = RK1808_PULL_GRF_OFFSET;
 		*regmap = info->regmap_base;
+		*reg += (bank->bank_num - 1) * RK1808_PULL_BANK_STRIDE;
 	}
 
 	*reg += ((pin_num / RK1808_PULL_PINS_PER_REG) * 4);
