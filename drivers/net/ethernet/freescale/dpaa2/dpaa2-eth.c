@@ -98,8 +98,7 @@ free_buf:
 }
 
 /* Build a linear skb based on a single-buffer frame descriptor */
-static struct sk_buff *build_linear_skb(struct dpaa2_eth_priv *priv,
-					struct dpaa2_eth_channel *ch,
+static struct sk_buff *build_linear_skb(struct dpaa2_eth_channel *ch,
 					const struct dpaa2_fd *fd,
 					void *fd_vaddr)
 {
@@ -233,7 +232,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 
 	if (fd_format == dpaa2_fd_single) {
-		skb = build_linear_skb(priv, ch, fd, vaddr);
+		skb = build_linear_skb(ch, fd, vaddr);
 	} else if (fd_format == dpaa2_fd_sg) {
 		skb = build_frag_skb(priv, ch, buf_data);
 		skb_free_frag(vaddr);
@@ -1085,8 +1084,7 @@ enable_err:
 /* The DPIO store must be empty when we call this,
  * at the end of every NAPI cycle.
  */
-static u32 drain_channel(struct dpaa2_eth_priv *priv,
-			 struct dpaa2_eth_channel *ch)
+static u32 drain_channel(struct dpaa2_eth_channel *ch)
 {
 	u32 drained = 0, total = 0;
 
@@ -1107,7 +1105,7 @@ static u32 drain_ingress_frames(struct dpaa2_eth_priv *priv)
 
 	for (i = 0; i < priv->num_channels; i++) {
 		ch = priv->channel[i];
-		drained += drain_channel(priv, ch);
+		drained += drain_channel(ch);
 	}
 
 	return drained;
