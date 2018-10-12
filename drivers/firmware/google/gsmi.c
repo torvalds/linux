@@ -29,6 +29,7 @@
 #include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/ucs2_string.h>
+#include <linux/suspend.h>
 
 #define GSMI_SHUTDOWN_CLEAN	0	/* Clean Shutdown */
 /* TODO(mikew@google.com): Tie in HARDLOCKUP_DETECTOR with NMIWDT */
@@ -70,6 +71,8 @@
 #define GSMI_CMD_SET_NVRAM_VAR		0x03
 #define GSMI_CMD_SET_EVENT_LOG		0x08
 #define GSMI_CMD_CLEAR_EVENT_LOG	0x09
+#define GSMI_CMD_LOG_S0IX_SUSPEND	0x0a
+#define GSMI_CMD_LOG_S0IX_RESUME	0x0b
 #define GSMI_CMD_CLEAR_CONFIG		0x20
 #define GSMI_CMD_HANDSHAKE_TYPE		0xC1
 
@@ -122,7 +125,6 @@ struct gsmi_log_entry_type_1 {
 	u32	instance;
 } __packed;
 
-
 /*
  * Some platforms don't have explicit SMI handshake
  * and need to wait for SMI to complete.
@@ -132,6 +134,15 @@ static unsigned int spincount = GSMI_DEFAULT_SPINCOUNT;
 module_param(spincount, uint, 0600);
 MODULE_PARM_DESC(spincount,
 	"The number of loop iterations to use when using the spin handshake.");
+
+/*
+ * Platforms might not support S0ix logging in their GSMI handlers. In order to
+ * avoid any side-effects of generating an SMI for S0ix logging, use the S0ix
+ * related GSMI commands only for those platforms that explicitly enable this
+ * option.
+ */
+static bool s0ix_logging_enable;
+module_param(s0ix_logging_enable, bool, 0600);
 
 static struct gsmi_buf *gsmi_buf_alloc(void)
 {
@@ -781,6 +792,78 @@ static const struct platform_device_info gsmi_dev_info = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+#ifdef CONFIG_PM
+static void gsmi_log_s0ix_info(u8 cmd)
+{
+	unsigned long flags;
+
+	/*
+	 * If platform has not enabled S0ix logging, then no action is
+	 * necessary.
+	 */
+	if (!s0ix_logging_enable)
+		return;
+
+	spin_lock_irqsave(&gsmi_dev.lock, flags);
+
+	memset(gsmi_dev.param_buf->start, 0, gsmi_dev.param_buf->length);
+
+	gsmi_exec(GSMI_CALLBACK, cmd);
+
+	spin_unlock_irqrestore(&gsmi_dev.lock, flags);
+}
+
+static int gsmi_log_s0ix_suspend(struct device *dev)
+{
+	/*
+	 * If system is not suspending via firmware using the standard ACPI Sx
+	 * types, then make a GSMI call to log the suspend info.
+	 */
+	if (!pm_suspend_via_firmware())
+		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_SUSPEND);
+
+	/*
+	 * Always return success, since we do not want suspend
+	 * to fail just because of logging failure.
+	 */
+	return 0;
+}
+
+static int gsmi_log_s0ix_resume(struct device *dev)
+{
+	/*
+	 * If system did not resume via firmware, then make a GSMI call to log
+	 * the resume info and wake source.
+	 */
+	if (!pm_resume_via_firmware())
+		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_RESUME);
+
+	/*
+	 * Always return success, since we do not want resume
+	 * to fail just because of logging failure.
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops gsmi_pm_ops = {
+	.suspend_noirq = gsmi_log_s0ix_suspend,
+	.resume_noirq = gsmi_log_s0ix_resume,
+};
+
+static int gsmi_platform_driver_probe(struct platform_device *dev)
+{
+	return 0;
+}
+
+static struct platform_driver gsmi_driver_info = {
+	.driver = {
+		.name = "gsmi",
+		.pm = &gsmi_pm_ops,
+	},
+	.probe = gsmi_platform_driver_probe,
+};
+#endif
+
 static __init int gsmi_init(void)
 {
 	unsigned long flags;
@@ -791,6 +874,14 @@ static __init int gsmi_init(void)
 		return ret;
 
 	gsmi_dev.smi_cmd = acpi_gbl_FADT.smi_command;
+
+#ifdef CONFIG_PM
+	ret = platform_driver_register(&gsmi_driver_info);
+	if (unlikely(ret)) {
+		printk(KERN_ERR "gsmi: unable to register platform driver\n");
+		return ret;
+	}
+#endif
 
 	/* register device */
 	gsmi_dev.pdev = platform_device_register_full(&gsmi_dev_info);
