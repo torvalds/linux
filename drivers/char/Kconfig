@@ -316,6 +316,15 @@ config DEVMEM
 	  memory.
 	  When in doubt, say "Y".
 
+config DEVMEM_BOOTPARAM
+	bool "mem.devmem boot parameter"
+	depends on DEVMEM
+	default n
+	help
+	  This option adds a 'mem.devmem' kernel parameter which activates
+	  the /dev/mem device when enabled.
+	  When in doubt, say "N".
+
 config NVRAM
 	tristate "/dev/nvram support"
 	depends on X86 || HAVE_ARCH_NVRAM_OPS
