@@ -4991,6 +4991,7 @@ enum wmi_rate_preamble {
 #define ATH10K_LEGACY_NUM	12
 #define ATH10K_GI_NUM		2
 #define ATH10K_HT_MCS_NUM	32
+#define ATH10K_RATE_TABLE_NUM	320
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)

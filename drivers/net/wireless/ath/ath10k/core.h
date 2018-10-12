@@ -474,6 +474,7 @@ struct ath10k_htt_data_stats {
 	u64 bw[ATH10K_COUNTER_TYPE_MAX][ATH10K_BW_NUM];
 	u64 nss[ATH10K_COUNTER_TYPE_MAX][ATH10K_NSS_NUM];
 	u64 gi[ATH10K_COUNTER_TYPE_MAX][ATH10K_GI_NUM];
+	u64 rate_table[ATH10K_COUNTER_TYPE_MAX][ATH10K_RATE_TABLE_NUM];
 };
 
 struct ath10k_htt_tx_stats {
