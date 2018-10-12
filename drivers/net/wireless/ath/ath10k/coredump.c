@@ -867,6 +867,101 @@ static const struct ath10k_mem_region qca9984_hw10_mem_regions[] = {
 	},
 };
 
+static const struct ath10k_mem_section ipq4019_soc_reg_range[] = {
+	{0x080000, 0x080004},
+	{0x080020, 0x080024},
+	{0x080028, 0x080050},
+	{0x0800d4, 0x0800ec},
+	{0x08010c, 0x080118},
+	{0x080284, 0x080290},
+	{0x0802a8, 0x0802b8},
+	{0x0802dc, 0x08030c},
+	{0x082000, 0x083fff}
+};
+
+static const struct ath10k_mem_region qca4019_hw10_mem_regions[] = {
+	{
+		.type = ATH10K_MEM_REGION_TYPE_DRAM,
+		.start = 0x400000,
+		.len = 0x68000,
+		.name = "DRAM",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_REG,
+		.start = 0xC0000,
+		.len = 0x40000,
+		.name = "SRAM",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_REG,
+		.start = 0x98000,
+		.len = 0x50000,
+		.name = "IRAM",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x30000,
+		.len = 0x7000,
+		.name = "APB REG 1",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x3f000,
+		.len = 0x3000,
+		.name = "APB REG 2",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x43000,
+		.len = 0x3000,
+		.name = "WIFI REG",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_IOREG,
+		.start = 0x4A000,
+		.len = 0x5000,
+		.name = "CE REG",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_REG,
+		.start = 0x080000,
+		.len = 0x083fff - 0x080000,
+		.name = "REG_TOTAL",
+		.section_table = {
+			.sections = ipq4019_soc_reg_range,
+			.size = ARRAY_SIZE(ipq4019_soc_reg_range),
+		},
+	},
+};
+
 static const struct ath10k_hw_mem_layout hw_mem_layouts[] = {
 	{
 		.hw_id = QCA6174_HW_1_0_VERSION,
@@ -945,7 +1040,13 @@ static const struct ath10k_hw_mem_layout hw_mem_layouts[] = {
 			.size = ARRAY_SIZE(qca99x0_hw20_mem_regions),
 		},
 	},
-
+	{
+		.hw_id = QCA4019_HW_1_0_DEV_VERSION,
+		.region_table = {
+			.regions = qca4019_hw10_mem_regions,
+			.size = ARRAY_SIZE(qca4019_hw10_mem_regions),
+		},
+	},
 };
 
 static u32 ath10k_coredump_get_ramdump_size(struct ath10k *ar)
