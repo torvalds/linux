@@ -13,6 +13,8 @@
 #include <linux/rbtree.h>
 #include <linux/blkdev.h>
 
+#include "blk.h"
+
 static inline sector_t blk_zone_start(struct request_queue *q,
 				      sector_t sector)
 {
@@ -277,16 +279,17 @@ int blkdev_reset_zones(struct block_device *bdev,
 	struct request_queue *q = bdev_get_queue(bdev);
 	sector_t zone_sectors;
 	sector_t end_sector = sector + nr_sectors;
-	struct bio *bio;
+	struct bio *bio = NULL;
+	struct blk_plug plug;
 	int ret;
-
-	if (!q)
-		return -ENXIO;
 
 	if (!blk_queue_is_zoned(q))
 		return -EOPNOTSUPP;
 
-	if (end_sector > bdev->bd_part->nr_sects)
+	if (bdev_read_only(bdev))
+		return -EPERM;
+
+	if (!nr_sectors || end_sector > bdev->bd_part->nr_sects)
 		/* Out of range */
 		return -EINVAL;
 
@@ -299,18 +302,13 @@ int blkdev_reset_zones(struct block_device *bdev,
 	    end_sector != bdev->bd_part->nr_sects)
 		return -EINVAL;
 
+	blk_start_plug(&plug);
 	while (sector < end_sector) {
 
-		bio = bio_alloc(gfp_mask, 0);
+		bio = blk_next_bio(bio, 0, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		bio_set_dev(bio, bdev);
 		bio_set_op_attrs(bio, REQ_OP_ZONE_RESET, 0);
-
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-
-		if (ret)
-			return ret;
 
 		sector += zone_sectors;
 
@@ -319,7 +317,12 @@ int blkdev_reset_zones(struct block_device *bdev,
 
 	}
 
-	return 0;
+	ret = submit_bio_wait(bio);
+	bio_put(bio);
+
+	blk_finish_plug(&plug);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(blkdev_reset_zones);
 

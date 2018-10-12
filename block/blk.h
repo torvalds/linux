@@ -488,4 +488,6 @@ extern int blk_iolatency_init(struct request_queue *q);
 static inline int blk_iolatency_init(struct request_queue *q) { return 0; }
 #endif
 
+struct bio *blk_next_bio(struct bio *bio, unsigned int nr_pages, gfp_t gfp);
+
 #endif /* BLK_INTERNAL_H */
