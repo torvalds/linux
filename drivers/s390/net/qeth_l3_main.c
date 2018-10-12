@@ -2037,7 +2037,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	hdr->hdr.l3.length = data_len;
 
 	if (skb_is_gso(skb)) {
-		hdr->hdr.l3.id = QETH_HEADER_TYPE_TSO;
+		hdr->hdr.l3.id = QETH_HEADER_TYPE_L3_TSO;
 	} else {
 		hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {

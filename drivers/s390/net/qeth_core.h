@@ -390,8 +390,9 @@ enum qeth_layer2_frame_flags {
 enum qeth_header_ids {
 	QETH_HEADER_TYPE_LAYER3 = 0x01,
 	QETH_HEADER_TYPE_LAYER2 = 0x02,
-	QETH_HEADER_TYPE_TSO	= 0x03,
+	QETH_HEADER_TYPE_L3_TSO	= 0x03,
 	QETH_HEADER_TYPE_OSN    = 0x04,
+	QETH_HEADER_TYPE_L2_TSO	= 0x06,
 };
 /* flags for qeth_hdr.ext_flags */
 #define QETH_HDR_EXT_VLAN_FRAME       0x01
