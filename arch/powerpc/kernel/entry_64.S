@@ -1124,7 +1124,7 @@ _ASM_NOKPROBE_SYMBOL(fast_exception_return);
 _GLOBAL(enter_rtas)
 	mflr	r0
 	std	r0,16(r1)
-        stdu	r1,-RTAS_FRAME_SIZE(r1)	/* Save SP and create stack space. */
+        stdu	r1,-SWITCH_FRAME_SIZE(r1) /* Save SP and create stack space. */
 
 	/* Because RTAS is running in 32b mode, it clobbers the high order half
 	 * of all registers that it saves.  We therefore save those registers
@@ -1256,7 +1256,7 @@ rtas_restore_regs:
 	ld	r8,_DSISR(r1)
 	mtdsisr	r8
 
-        addi	r1,r1,RTAS_FRAME_SIZE	/* Unstack our frame */
+        addi	r1,r1,SWITCH_FRAME_SIZE	/* Unstack our frame */
 	ld	r0,16(r1)		/* get return address */
 
 	mtlr    r0
@@ -1267,7 +1267,7 @@ rtas_restore_regs:
 _GLOBAL(enter_prom)
 	mflr	r0
 	std	r0,16(r1)
-        stdu	r1,-PROM_FRAME_SIZE(r1)	/* Save SP and create stack space */
+        stdu	r1,-SWITCH_FRAME_SIZE(r1) /* Save SP and create stack space */
 
 	/* Because PROM is running in 32b mode, it clobbers the high order half
 	 * of all registers that it saves.  We therefore save those registers
@@ -1324,8 +1324,8 @@ _GLOBAL(enter_prom)
 	REST_10GPRS(22, r1)
 	ld	r4,_CCR(r1)
 	mtcr	r4
-	
-        addi	r1,r1,PROM_FRAME_SIZE
+
+        addi	r1,r1,SWITCH_FRAME_SIZE
 	ld	r0,16(r1)
 	mtlr    r0
         blr
