@@ -391,9 +391,11 @@ bool dc_stream_program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
 				== stream) {
 
 			pipes = &dc->current_state->res_ctx.pipe_ctx[i];
-			dc->hwss.program_csc_matrix(pipes,
-			stream->output_color_space,
-			stream->csc_color_matrix.matrix);
+			dc->hwss.program_output_csc(dc,
+					pipes,
+					stream->output_color_space,
+					stream->csc_color_matrix.matrix,
+					pipes->plane_res.hubp->opp_id);
 			ret = true;
 		}
 	}

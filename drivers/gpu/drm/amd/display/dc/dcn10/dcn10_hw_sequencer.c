@@ -1704,30 +1704,19 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.dpp->funcs->dpp_set_gamut_remap(pipe_ctx->plane_res.dpp, &adjust);
 }
 
-
-static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
-		enum dc_color_space colorspace,
-		uint16_t *matrix)
-{
-	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
-			if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
-				pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, matrix);
-	} else {
-		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default != NULL)
-			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
-	}
-}
-
 static void dcn10_program_output_csc(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
 		uint16_t *matrix,
 		int opp_id)
 {
-	if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
-		program_csc_matrix(pipe_ctx,
-				colorspace,
-				matrix);
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
+		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
+			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, matrix);
+	} else {
+		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default != NULL)
+			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
+	}
 }
 
 bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
@@ -2684,7 +2673,6 @@ static void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
-	.program_csc_matrix = program_csc_matrix,
 	.init_hw = dcn10_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,

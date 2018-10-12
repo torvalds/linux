@@ -85,11 +85,6 @@ struct hw_sequencer_funcs {
 	void (*program_gamut_remap)(
 			struct pipe_ctx *pipe_ctx);
 
-	void (*program_csc_matrix)(
-			struct pipe_ctx *pipe_ctx,
-			enum dc_color_space colorspace,
-			uint16_t *matrix);
-
 	void (*program_output_csc)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			enum dc_color_space colorspace,
