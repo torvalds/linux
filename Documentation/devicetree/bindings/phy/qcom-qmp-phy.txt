@@ -40,24 +40,36 @@ Required properties:
 		"ref" for 19.2 MHz ref clk,
 		"com_aux" for phy common block aux clock,
 		"ref_aux" for phy reference aux clock,
+
+		For "qcom,ipq8074-qmp-pcie-phy": no clocks are listed.
 		For "qcom,msm8996-qmp-pcie-phy" must contain:
 			"aux", "cfg_ahb", "ref".
 		For "qcom,msm8996-qmp-usb3-phy" must contain:
 			"aux", "cfg_ahb", "ref".
-		For "qcom,qmp-v3-usb3-phy" must contain:
+		For "qcom,sdm845-qmp-usb3-phy" must contain:
 			"aux", "cfg_ahb", "ref", "com_aux".
+		For "qcom,sdm845-qmp-usb3-uni-phy" must contain:
+			"aux", "cfg_ahb", "ref", "com_aux".
+		For "qcom,sdm845-qmp-ufs-phy" must contain:
+			"ref", "ref_aux".
 
  - resets: a list of phandles and reset controller specifier pairs,
 	   one for each entry in reset-names.
  - reset-names: "phy" for reset of phy block,
 		"common" for phy common block reset,
-		"cfg" for phy's ahb cfg block reset (Optional).
-		For "qcom,msm8996-qmp-pcie-phy" must contain:
-		 "phy", "common", "cfg".
-		For "qcom,msm8996-qmp-usb3-phy" must contain
-		 "phy", "common".
+		"cfg" for phy's ahb cfg block reset.
+
 		For "qcom,ipq8074-qmp-pcie-phy" must contain:
-		 "phy", "common".
+			"phy", "common".
+		For "qcom,msm8996-qmp-pcie-phy" must contain:
+			"phy", "common", "cfg".
+		For "qcom,msm8996-qmp-usb3-phy" must contain
+			"phy", "common".
+		For "qcom,sdm845-qmp-usb3-phy" must contain:
+			"phy", "common".
+		For "qcom,sdm845-qmp-usb3-uni-phy" must contain:
+			"phy", "common".
+		For "qcom,sdm845-qmp-ufs-phy": no resets are listed.
 
  - vdda-phy-supply: Phandle to a regulator supply to PHY core block.
  - vdda-pll-supply: Phandle to 1.8V regulator supply to PHY refclk pll block.
@@ -79,9 +91,10 @@ Required properties for child node:
 
  - #phy-cells: must be 0
 
+Required properties child node of pcie and usb3 qmp phys:
  - clocks: a list of phandles and clock-specifier pairs,
 	   one for each entry in clock-names.
- - clock-names: Must contain following for pcie and usb qmp phys:
+ - clock-names: Must contain following:
 		 "pipe<lane-number>" for pipe clock specific to each lane.
  - clock-output-names: Name of the PHY clock that will be the parent for
 		       the above pipe clock.
@@ -91,9 +104,11 @@ Required properties for child node:
 			(or)
 		  "pcie20_phy1_pipe_clk"
 
+Required properties for child node of PHYs with lane reset, AKA:
+	"qcom,msm8996-qmp-pcie-phy"
  - resets: a list of phandles and reset controller specifier pairs,
 	   one for each entry in reset-names.
- - reset-names: Must contain following for pcie qmp phys:
+ - reset-names: Must contain following:
 		 "lane<lane-number>" for reset specific to each lane.
 
 Example:
