@@ -787,7 +787,7 @@ static void mt76x0_dynamic_vga_tuning(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_BBP(AGC,8), val);
 }
 
-static void mt76x0_phy_calibrate(struct work_struct *work)
+static void mt76x0_phy_calibration_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
 					       cal_work.work);
@@ -854,7 +854,7 @@ static void mt76x0_rf_init(struct mt76x02_dev *dev)
 
 void mt76x0_phy_init(struct mt76x02_dev *dev)
 {
-	INIT_DELAYED_WORK(&dev->cal_work, mt76x0_phy_calibrate);
+	INIT_DELAYED_WORK(&dev->cal_work, mt76x0_phy_calibration_work);
 
 	mt76x0_rf_init(dev);
 	mt76x02_phy_set_rxpath(dev);
