@@ -659,7 +659,7 @@ err_alloc_headroom:
 
 /* Tx confirmation frame processing routine */
 static void dpaa2_eth_tx_conf(struct dpaa2_eth_priv *priv,
-			      struct dpaa2_eth_channel *ch,
+			      struct dpaa2_eth_channel *ch __always_unused,
 			      const struct dpaa2_fd *fd,
 			      struct napi_struct *napi __always_unused,
 			      u16 queue_id __always_unused)
