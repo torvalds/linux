@@ -476,7 +476,43 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int pcm3168a_startup(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
+	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	unsigned int fmt;
+	unsigned int sample_min;
+
+	if (tx)
+		fmt = pcm3168a->dac_fmt;
+	else
+		fmt = pcm3168a->adc_fmt;
+
+	/*
+	 * Available Data Bits
+	 *
+	 * RIGHT_J : 24 / 16
+	 * LEFT_J  : 24
+	 * I2S     : 24
+	 */
+	switch (fmt) {
+	case PCM3168A_FMT_RIGHT_J:
+		sample_min  = 16;
+		break;
+	default:
+		sample_min  = 24;
+	}
+
+	snd_pcm_hw_constraint_minmax(substream->runtime,
+				     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+				     sample_min, 32);
+
+	return 0;
+}
 static const struct snd_soc_dai_ops pcm3168a_dac_dai_ops = {
+	.startup	= pcm3168a_startup,
 	.set_fmt	= pcm3168a_set_dai_fmt_dac,
 	.set_sysclk	= pcm3168a_set_dai_sysclk,
 	.hw_params	= pcm3168a_hw_params,
