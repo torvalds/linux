@@ -528,8 +528,8 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	}
 
 	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) { /*  802_1x */
-		struct sta_info * psta,*pbcmc_sta;
-		struct sta_priv * pstapriv = &padapter->stapriv;
+		struct sta_info *psta, *pbcmc_sta;
+		struct sta_priv *pstapriv = &padapter->stapriv;
 
 		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_MP_STATE) == true) { /* sta mode */
 			psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
