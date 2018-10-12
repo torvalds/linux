@@ -56,5 +56,6 @@ void mt76x02_phy_set_bw(struct mt76x02_dev *dev, int width, u8 ctrl);
 void mt76x02_phy_set_band(struct mt76x02_dev *dev, int band,
 			  bool primary_upper);
 bool mt76x02_phy_adjust_vga_gain(struct mt76x02_dev *dev);
+void mt76x02_init_agc_gain(struct mt76x02_dev *dev);
 
 #endif /* __MT76x02_PHY_H */

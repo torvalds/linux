@@ -125,13 +125,6 @@ void mt76x2_phy_set_antenna(struct mt76x02_dev *dev)
 }
 
 static void
-mt76x2_get_agc_gain(struct mt76x02_dev *dev, u8 *dest)
-{
-	dest[0] = mt76_get_field(dev, MT_BBP(AGC, 8), MT_BBP_AGC_GAIN);
-	dest[1] = mt76_get_field(dev, MT_BBP(AGC, 9), MT_BBP_AGC_GAIN);
-}
-
-static void
 mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 {
 	u32 val;
@@ -340,11 +333,8 @@ int mt76x2_phy_set_channel(struct mt76x02_dev *dev,
 	if (scan)
 		return 0;
 
-	dev->cal.low_gain = -1;
 	mt76x2_phy_channel_calibrate(dev, true);
-	mt76x2_get_agc_gain(dev, dev->cal.agc_gain_init);
-	memcpy(dev->cal.agc_gain_cur, dev->cal.agc_gain_init,
-	       sizeof(dev->cal.agc_gain_cur));
+	mt76x02_init_agc_gain(dev);
 
 	/* init default values for temp compensation */
 	if (mt76x2_tssi_enabled(dev)) {

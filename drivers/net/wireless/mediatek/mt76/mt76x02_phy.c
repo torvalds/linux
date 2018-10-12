@@ -244,3 +244,15 @@ bool mt76x02_phy_adjust_vga_gain(struct mt76x02_dev *dev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76x02_phy_adjust_vga_gain);
+
+void mt76x02_init_agc_gain(struct mt76x02_dev *dev)
+{
+	dev->cal.agc_gain_init[0] = mt76_get_field(dev, MT_BBP(AGC, 8),
+						   MT_BBP_AGC_GAIN);
+	dev->cal.agc_gain_init[1] = mt76_get_field(dev, MT_BBP(AGC, 9),
+						   MT_BBP_AGC_GAIN);
+	memcpy(dev->cal.agc_gain_cur, dev->cal.agc_gain_init,
+	       sizeof(dev->cal.agc_gain_cur));
+	dev->cal.low_gain = -1;
+}
+EXPORT_SYMBOL_GPL(mt76x02_init_agc_gain);
