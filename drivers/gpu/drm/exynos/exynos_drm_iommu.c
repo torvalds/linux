@@ -12,83 +12,29 @@
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
 
+#include <linux/dma-iommu.h>
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_iommu.h"
 
-#define EXYNOS_DEV_ADDR_START	0x20000000
-#define EXYNOS_DEV_ADDR_SIZE	0x40000000
-
 #if defined(CONFIG_ARM_DMA_USE_IOMMU)
 #include <asm/dma-iommu.h>
-
-static inline int __exynos_iommu_create_mapping(struct exynos_drm_private *priv,
-					unsigned long start, unsigned long size)
-{
-	priv->mapping = arm_iommu_create_mapping(&platform_bus_type, start,
-						 size);
-	return IS_ERR(priv->mapping);
-}
-
-static inline void
-__exynos_iommu_release_mapping(struct exynos_drm_private *priv)
-{
-	arm_iommu_release_mapping(priv->mapping);
-}
-
-static inline int __exynos_iommu_attach(struct exynos_drm_private *priv,
-					struct device *dev)
-{
-	if (dev->archdata.mapping)
-		arm_iommu_detach_device(dev);
-
-	return arm_iommu_attach_device(dev, priv->mapping);
-}
-
-static inline void __exynos_iommu_detach(struct exynos_drm_private *priv,
-					 struct device *dev)
-{
-	arm_iommu_detach_device(dev);
-}
-
-#elif defined(CONFIG_IOMMU_DMA)
-#include <linux/dma-iommu.h>
-
-static inline int __exynos_iommu_create_mapping(struct exynos_drm_private *priv,
-					unsigned long start, unsigned long size)
-{
-	priv->mapping = iommu_get_domain_for_dev(priv->dma_dev);
-	return 0;
-}
-
-static inline void __exynos_iommu_release_mapping(struct exynos_drm_private *priv)
-{
-	priv->mapping = NULL;
-}
-
-static inline int __exynos_iommu_attach(struct exynos_drm_private *priv,
-					struct device *dev)
-{
-	struct iommu_domain *domain = priv->mapping;
-
-	if (dev != priv->dma_dev)
-		return iommu_attach_device(domain, dev);
-	return 0;
-}
-
-static inline void __exynos_iommu_detach(struct exynos_drm_private *priv,
-					 struct device *dev)
-{
-	struct iommu_domain *domain = priv->mapping;
-
-	if (dev != priv->dma_dev)
-		iommu_detach_device(domain, dev);
-}
 #else
-#error Unsupported architecture and IOMMU/DMA-mapping glue code
+#define arm_iommu_create_mapping(...)	({ NULL; })
+#define arm_iommu_attach_device(...)	({ -ENODEV; })
+#define arm_iommu_release_mapping(...)	({ })
+#define arm_iommu_detach_device(...)	({ })
+#define to_dma_iommu_mapping(dev) NULL
 #endif
+
+#if !defined(CONFIG_IOMMU_DMA)
+#define iommu_dma_init_domain(...) ({ -EINVAL; })
+#endif
+
+#define EXYNOS_DEV_ADDR_START	0x20000000
+#define EXYNOS_DEV_ADDR_SIZE	0x40000000
 
 static inline int configure_dma_max_seg_size(struct device *dev)
 {
@@ -116,8 +62,13 @@ int drm_create_iommu_mapping(struct drm_device *drm_dev)
 {
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	return __exynos_iommu_create_mapping(priv, EXYNOS_DEV_ADDR_START,
-					     EXYNOS_DEV_ADDR_SIZE);
+	if (IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU))
+		priv->mapping = arm_iommu_create_mapping(&platform_bus_type,
+			EXYNOS_DEV_ADDR_START, EXYNOS_DEV_ADDR_SIZE);
+	else if (IS_ENABLED(CONFIG_IOMMU_DMA))
+		priv->mapping = iommu_get_domain_for_dev(priv->dma_dev);
+
+	return IS_ERR(priv->mapping);
 }
 
 /*
@@ -129,7 +80,8 @@ void drm_release_iommu_mapping(struct drm_device *drm_dev)
 {
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	__exynos_iommu_release_mapping(priv);
+	arm_iommu_release_mapping(priv->mapping);
+	priv->mapping = NULL;
 }
 
 /*
@@ -157,7 +109,15 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 	if (ret)
 		return ret;
 
-	ret = __exynos_iommu_attach(priv, subdrv_dev);
+	if (IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)) {
+		if (to_dma_iommu_mapping(subdrv_dev))
+			arm_iommu_detach_device(subdrv_dev);
+
+		ret = arm_iommu_attach_device(subdrv_dev, priv->mapping);
+	} else if (IS_ENABLED(CONFIG_IOMMU_DMA)) {
+		ret = iommu_attach_device(priv->mapping, subdrv_dev);
+	}
+
 	if (ret)
 		clear_dma_max_seg_size(subdrv_dev);
 
@@ -178,6 +138,10 @@ void drm_iommu_detach_device(struct drm_device *drm_dev,
 {
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	__exynos_iommu_detach(priv, subdrv_dev);
+	if (IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU))
+		arm_iommu_detach_device(subdrv_dev);
+	else if (IS_ENABLED(CONFIG_IOMMU_DMA))
+		iommu_detach_device(priv->mapping, subdrv_dev);
+
 	clear_dma_max_seg_size(subdrv_dev);
 }
