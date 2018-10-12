@@ -719,6 +719,7 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	mt76x0_read_rx_gain(dev);
 	mt76x0_phy_set_chan_bbp_params(dev, rf_bw_band);
+	mt76x02_init_agc_gain(dev);
 
 	if (mt76_is_usb(dev)) {
 		mt76x0_vco_cal(dev, channel);
@@ -820,23 +821,44 @@ done:
 	rf_wr(dev, MT_RF(0, 67), rf_b0_67);
 }
 
-static void mt76x0_dynamic_vga_tuning(struct mt76x02_dev *dev)
+static void mt76x0_phy_set_gain_val(struct mt76x02_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
-	u32 val, init_vga;
-	int avg_rssi;
+	u8 gain = dev->cal.agc_gain_cur[0] - dev->cal.agc_gain_adjust;
+	u32 val = 0x122c << 16 | 0xf2;
 
-	init_vga = chandef->chan->band == NL80211_BAND_5GHZ ? 0x54 : 0x4E;
-	avg_rssi = mt76x02_phy_get_min_avg_rssi(dev);
-	if (avg_rssi > -60)
-		init_vga -= 0x20;
-	else if (avg_rssi > -70)
-		init_vga -= 0x10;
+	mt76_wr(dev, MT_BBP(AGC, 8),
+		val | FIELD_PREP(MT_BBP_AGC_GAIN, gain));
+}
 
-	val = mt76_rr(dev, MT_BBP(AGC, 8));
-	val &= 0xFFFF80FF;
-	val |= init_vga << 8;
-	mt76_wr(dev, MT_BBP(AGC,8), val);
+static void
+mt76x0_phy_update_channel_gain(struct mt76x02_dev *dev)
+{
+	bool gain_change;
+	u8 gain_delta;
+	int low_gain;
+
+	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
+
+	low_gain = (dev->cal.avg_rssi_all > mt76x02_get_rssi_gain_thresh(dev)) +
+		   (dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
+
+	gain_change = (dev->cal.low_gain & 2) ^ (low_gain & 2);
+	dev->cal.low_gain = low_gain;
+
+	if (!gain_change) {
+		if (mt76x02_phy_adjust_vga_gain(dev))
+			mt76x0_phy_set_gain_val(dev);
+		return;
+	}
+
+	dev->cal.agc_gain_adjust = (low_gain == 2) ? 0 : 10;
+	gain_delta = (low_gain == 2) ? 10 : 0;
+
+	dev->cal.agc_gain_cur[0] = dev->cal.agc_gain_init[0] - gain_delta;
+	mt76x0_phy_set_gain_val(dev);
+
+	/* clear false CCA counters */
+	mt76_rr(dev, MT_RX_STAT_1);
 }
 
 static void mt76x0_phy_calibration_work(struct work_struct *work)
@@ -844,7 +866,7 @@ static void mt76x0_phy_calibration_work(struct work_struct *work)
 	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
 					       cal_work.work);
 
-	mt76x0_dynamic_vga_tuning(dev);
+	mt76x0_phy_update_channel_gain(dev);
 	if (!mt76x0_tssi_enabled(dev))
 		mt76x0_temp_sensor(dev);
 
