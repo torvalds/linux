@@ -26,6 +26,33 @@
 #include <uapi/asm/ptrace.h>
 #include <asm/asm-const.h>
 
+#ifndef __ASSEMBLY__
+struct pt_regs
+{
+	union {
+		struct user_pt_regs user_regs;
+		struct {
+			unsigned long gpr[32];
+			unsigned long nip;
+			unsigned long msr;
+			unsigned long orig_gpr3;
+			unsigned long ctr;
+			unsigned long link;
+			unsigned long xer;
+			unsigned long ccr;
+#ifdef CONFIG_PPC64
+			unsigned long softe;
+#else
+			unsigned long mq;
+#endif
+			unsigned long trap;
+			unsigned long dar;
+			unsigned long dsisr;
+			unsigned long result;
+		};
+	};
+};
+#endif
 
 #ifdef __powerpc64__
 

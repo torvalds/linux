@@ -29,7 +29,12 @@
 
 #ifndef __ASSEMBLY__
 
-struct pt_regs {
+#ifdef __KERNEL__
+struct user_pt_regs
+#else
+struct pt_regs
+#endif
+{
 	unsigned long gpr[32];
 	unsigned long nip;
 	unsigned long msr;

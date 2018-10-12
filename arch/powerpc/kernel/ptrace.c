@@ -3335,3 +3335,42 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 
 	user_enter();
 }
+
+void __init pt_regs_check(void)
+{
+	BUILD_BUG_ON(offsetof(struct pt_regs, gpr) !=
+		     offsetof(struct user_pt_regs, gpr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, nip) !=
+		     offsetof(struct user_pt_regs, nip));
+	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+		     offsetof(struct user_pt_regs, msr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+		     offsetof(struct user_pt_regs, msr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+		     offsetof(struct user_pt_regs, orig_gpr3));
+	BUILD_BUG_ON(offsetof(struct pt_regs, ctr) !=
+		     offsetof(struct user_pt_regs, ctr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, link) !=
+		     offsetof(struct user_pt_regs, link));
+	BUILD_BUG_ON(offsetof(struct pt_regs, xer) !=
+		     offsetof(struct user_pt_regs, xer));
+	BUILD_BUG_ON(offsetof(struct pt_regs, ccr) !=
+		     offsetof(struct user_pt_regs, ccr));
+#ifdef __powerpc64__
+	BUILD_BUG_ON(offsetof(struct pt_regs, softe) !=
+		     offsetof(struct user_pt_regs, softe));
+#else
+	BUILD_BUG_ON(offsetof(struct pt_regs, mq) !=
+		     offsetof(struct user_pt_regs, mq));
+#endif
+	BUILD_BUG_ON(offsetof(struct pt_regs, trap) !=
+		     offsetof(struct user_pt_regs, trap));
+	BUILD_BUG_ON(offsetof(struct pt_regs, dar) !=
+		     offsetof(struct user_pt_regs, dar));
+	BUILD_BUG_ON(offsetof(struct pt_regs, dsisr) !=
+		     offsetof(struct user_pt_regs, dsisr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, result) !=
+		     offsetof(struct user_pt_regs, result));
+
+	BUILD_BUG_ON(sizeof(struct user_pt_regs) > sizeof(struct pt_regs));
+}
