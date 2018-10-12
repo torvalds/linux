@@ -157,25 +157,6 @@ mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 }
 
 static void
-mt76x2_phy_adjust_vga_gain(struct mt76x02_dev *dev)
-{
-	u32 false_cca;
-	u8 limit = dev->cal.low_gain > 0 ? 16 : 4;
-
-	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS, mt76_rr(dev, MT_RX_STAT_1));
-	dev->cal.false_cca = false_cca;
-	if (false_cca > 800 && dev->cal.agc_gain_adjust < limit)
-		dev->cal.agc_gain_adjust += 2;
-	else if ((false_cca < 10 && dev->cal.agc_gain_adjust > 0) ||
-		 (dev->cal.agc_gain_adjust >= limit && false_cca < 500))
-		dev->cal.agc_gain_adjust -= 2;
-	else
-		return;
-
-	mt76x2_phy_set_gain_val(dev);
-}
-
-static void
 mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 {
 	u8 *gain = dev->cal.agc_gain_init;
@@ -193,7 +174,8 @@ mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 	dev->cal.low_gain = low_gain;
 
 	if (!gain_change) {
-		mt76x2_phy_adjust_vga_gain(dev);
+		if (mt76x02_phy_adjust_vga_gain(dev))
+			mt76x2_phy_set_gain_val(dev);
 		return;
 	}
 
