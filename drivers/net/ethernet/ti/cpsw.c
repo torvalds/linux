@@ -576,10 +576,8 @@ static void cpsw_add_mcast(struct cpsw_priv *priv, const u8 *addr)
 
 	if (cpsw->data.dual_emac) {
 		struct cpsw_slave *slave = cpsw->slaves + priv->emac_port;
-		int slave_port = cpsw_get_slave_port(slave->slave_num);
 
-		cpsw_ale_add_mcast(cpsw->ale, addr,
-				   1 << slave_port | ALE_PORT_HOST,
+		cpsw_ale_add_mcast(cpsw->ale, addr, ALE_PORT_HOST,
 				   ALE_VLAN, slave->port_vlan, 0);
 		return;
 	}
@@ -1419,7 +1417,7 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 	cpsw_ale_add_vlan(cpsw->ale, slave->port_vlan, port_mask,
 			  port_mask, port_mask, 0);
 	cpsw_ale_add_mcast(cpsw->ale, priv->ndev->broadcast,
-			   port_mask, ALE_VLAN, slave->port_vlan, 0);
+			   ALE_PORT_HOST, ALE_VLAN, slave->port_vlan, 0);
 	cpsw_ale_add_ucast(cpsw->ale, priv->mac_addr,
 			   HOST_PORT_NUM, ALE_VLAN |
 			   ALE_SECURE, slave->port_vlan);
@@ -2303,16 +2301,19 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 {
 	int ret;
 	int unreg_mcast_mask = 0;
+	int mcast_mask;
 	u32 port_mask;
 	struct cpsw_common *cpsw = priv->cpsw;
 
 	if (cpsw->data.dual_emac) {
 		port_mask = (1 << (priv->emac_port + 1)) | ALE_PORT_HOST;
 
+		mcast_mask = ALE_PORT_HOST;
 		if (priv->ndev->flags & IFF_ALLMULTI)
-			unreg_mcast_mask = port_mask;
+			unreg_mcast_mask = mcast_mask;
 	} else {
 		port_mask = ALE_ALL_PORTS;
+		mcast_mask = port_mask;
 
 		if (priv->ndev->flags & IFF_ALLMULTI)
 			unreg_mcast_mask = ALE_ALL_PORTS;
@@ -2331,7 +2332,7 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 		goto clean_vid;
 
 	ret = cpsw_ale_add_mcast(cpsw->ale, priv->ndev->broadcast,
-				 port_mask, ALE_VLAN, vid, 0);
+				 mcast_mask, ALE_VLAN, vid, 0);
 	if (ret != 0)
 		goto clean_vlan_ucast;
 	return 0;
