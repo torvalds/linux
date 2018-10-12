@@ -5,6 +5,8 @@
 #include "bcachefs.h"
 #include "alloc_types.h"
 
+#include <linux/hash.h>
+
 struct bkey;
 struct bch_dev;
 struct bch_fs;
