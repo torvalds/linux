@@ -1953,13 +1953,15 @@ EXPORT_SYMBOL_GPL(of_alias_get_id);
  * The function travels the lookup table to record alias ids for the given
  * device match structures and alias stem.
  *
- * Return:	0 or -ENOSYS when !CONFIG_OF
+ * Return:	0 or -ENOSYS when !CONFIG_OF or
+ *		-EOVERFLOW if alias ID is greater then allocated nbits
  */
 int of_alias_get_alias_list(const struct of_device_id *matches,
 			     const char *stem, unsigned long *bitmap,
 			     unsigned int nbits)
 {
 	struct alias_prop *app;
+	int ret = 0;
 
 	/* Zero bitmap field to make sure that all the time it is clean */
 	bitmap_zero(bitmap, nbits);
@@ -1976,21 +1978,21 @@ int of_alias_get_alias_list(const struct of_device_id *matches,
 			continue;
 		}
 
-		if (app->id >= nbits) {
-			pr_debug("%s: ID %d greater then bitmap field %d\n",
-				__func__, app->id, nbits);
-			continue;
-		}
-
 		if (of_match_node(matches, app->np)) {
 			pr_debug("%s: Allocated ID %d\n", __func__, app->id);
-			set_bit(app->id, bitmap);
+
+			if (app->id >= nbits) {
+				pr_warn("%s: ID %d >= than bitmap field %d\n",
+					__func__, app->id, nbits);
+				ret = -EOVERFLOW;
+			} else {
+				set_bit(app->id, bitmap);
+			}
 		}
-		/* Alias exists but is not compatible with matches */
 	}
 	mutex_unlock(&of_mutex);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(of_alias_get_alias_list);
 
