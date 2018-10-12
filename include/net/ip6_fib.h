@@ -407,6 +407,9 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 
 void fib6_clean_all(struct net *net, int (*func)(struct fib6_info *, void *arg),
 		    void *arg);
+void fib6_clean_all_skip_notify(struct net *net,
+				int (*func)(struct fib6_info *, void *arg),
+				void *arg);
 
 int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 	     struct nl_info *info, struct netlink_ext_ack *extack);

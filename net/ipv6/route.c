@@ -4026,8 +4026,12 @@ void rt6_sync_down_dev(struct net_device *dev, unsigned long event)
 			.event = event,
 		},
 	};
+	struct net *net = dev_net(dev);
 
-	fib6_clean_all(dev_net(dev), fib6_ifdown, &arg);
+	if (net->ipv6.sysctl.skip_notify_on_dev_down)
+		fib6_clean_all_skip_notify(net, fib6_ifdown, &arg);
+	else
+		fib6_clean_all(net, fib6_ifdown, &arg);
 }
 
 void rt6_disable_ip(struct net_device *dev, unsigned long event)
@@ -5031,6 +5035,9 @@ int ipv6_sysctl_rtcache_flush(struct ctl_table *ctl, int write,
 	return 0;
 }
 
+static int zero;
+static int one = 1;
+
 static struct ctl_table ipv6_route_table_template[] = {
 	{
 		.procname	=	"flush",
@@ -5102,6 +5109,15 @@ static struct ctl_table ipv6_route_table_template[] = {
 		.mode		=	0644,
 		.proc_handler	=	proc_dointvec_ms_jiffies,
 	},
+	{
+		.procname	=	"skip_notify_on_dev_down",
+		.data		=	&init_net.ipv6.sysctl.skip_notify_on_dev_down,
+		.maxlen		=	sizeof(int),
+		.mode		=	0644,
+		.proc_handler	=	proc_dointvec,
+		.extra1		=	&zero,
+		.extra2		=	&one,
+	},
 	{ }
 };
 
@@ -5125,6 +5141,7 @@ struct ctl_table * __net_init ipv6_route_sysctl_init(struct net *net)
 		table[7].data = &net->ipv6.sysctl.ip6_rt_mtu_expires;
 		table[8].data = &net->ipv6.sysctl.ip6_rt_min_advmss;
 		table[9].data = &net->ipv6.sysctl.ip6_rt_gc_min_interval;
+		table[10].data = &net->ipv6.sysctl.skip_notify_on_dev_down;
 
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns)
@@ -5189,6 +5206,7 @@ static int __net_init ip6_route_net_init(struct net *net)
 	net->ipv6.sysctl.ip6_rt_gc_elasticity = 9;
 	net->ipv6.sysctl.ip6_rt_mtu_expires = 10*60*HZ;
 	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
+	net->ipv6.sysctl.skip_notify_on_dev_down = 0;
 
 	net->ipv6.ip6_rt_gc_expire = 30*HZ;
 

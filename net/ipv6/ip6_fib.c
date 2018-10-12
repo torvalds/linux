@@ -47,6 +47,7 @@ struct fib6_cleaner {
 	int (*func)(struct fib6_info *, void *arg);
 	int sernum;
 	void *arg;
+	bool skip_notify;
 };
 
 #ifdef CONFIG_IPV6_SUBTREES
@@ -1956,6 +1957,7 @@ static int fib6_clean_node(struct fib6_walker *w)
 	struct fib6_cleaner *c = container_of(w, struct fib6_cleaner, w);
 	struct nl_info info = {
 		.nl_net = c->net,
+		.skip_notify = c->skip_notify,
 	};
 
 	if (c->sernum != FIB6_NO_SERNUM_CHANGE &&
@@ -2007,7 +2009,7 @@ static int fib6_clean_node(struct fib6_walker *w)
 
 static void fib6_clean_tree(struct net *net, struct fib6_node *root,
 			    int (*func)(struct fib6_info *, void *arg),
-			    int sernum, void *arg)
+			    int sernum, void *arg, bool skip_notify)
 {
 	struct fib6_cleaner c;
 
@@ -2019,13 +2021,14 @@ static void fib6_clean_tree(struct net *net, struct fib6_node *root,
 	c.sernum = sernum;
 	c.arg = arg;
 	c.net = net;
+	c.skip_notify = skip_notify;
 
 	fib6_walk(net, &c.w);
 }
 
 static void __fib6_clean_all(struct net *net,
 			     int (*func)(struct fib6_info *, void *),
-			     int sernum, void *arg)
+			     int sernum, void *arg, bool skip_notify)
 {
 	struct fib6_table *table;
 	struct hlist_head *head;
@@ -2037,7 +2040,7 @@ static void __fib6_clean_all(struct net *net,
 		hlist_for_each_entry_rcu(table, head, tb6_hlist) {
 			spin_lock_bh(&table->tb6_lock);
 			fib6_clean_tree(net, &table->tb6_root,
-					func, sernum, arg);
+					func, sernum, arg, skip_notify);
 			spin_unlock_bh(&table->tb6_lock);
 		}
 	}
@@ -2047,14 +2050,21 @@ static void __fib6_clean_all(struct net *net,
 void fib6_clean_all(struct net *net, int (*func)(struct fib6_info *, void *),
 		    void *arg)
 {
-	__fib6_clean_all(net, func, FIB6_NO_SERNUM_CHANGE, arg);
+	__fib6_clean_all(net, func, FIB6_NO_SERNUM_CHANGE, arg, false);
+}
+
+void fib6_clean_all_skip_notify(struct net *net,
+				int (*func)(struct fib6_info *, void *),
+				void *arg)
+{
+	__fib6_clean_all(net, func, FIB6_NO_SERNUM_CHANGE, arg, true);
 }
 
 static void fib6_flush_trees(struct net *net)
 {
 	int new_sernum = fib6_new_sernum(net);
 
-	__fib6_clean_all(net, NULL, new_sernum, NULL);
+	__fib6_clean_all(net, NULL, new_sernum, NULL, false);
 }
 
 /*

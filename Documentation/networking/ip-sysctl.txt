@@ -1442,6 +1442,14 @@ max_hbh_length - INTEGER
 	header.
 	Default: INT_MAX (unlimited)
 
+skip_notify_on_dev_down - BOOLEAN
+	Controls whether an RTM_DELROUTE message is generated for routes
+	removed when a device is taken down or deleted. IPv4 does not
+	generate this message; IPv6 does by default. Setting this sysctl
+	to true skips the message, making IPv4 and IPv6 on par in relying
+	on userspace caches to track link events and evict routes.
+	Default: false (generate message)
+
 IPv6 Fragmentation:
 
 ip6frag_high_thresh - INTEGER
