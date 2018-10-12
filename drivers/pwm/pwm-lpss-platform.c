@@ -81,6 +81,7 @@ static SIMPLE_DEV_PM_OPS(pwm_lpss_platform_pm_ops,
 static const struct acpi_device_id pwm_lpss_acpi_match[] = {
 	{ "80860F09", (unsigned long)&pwm_lpss_byt_info },
 	{ "80862288", (unsigned long)&pwm_lpss_bsw_info },
+	{ "80862289", (unsigned long)&pwm_lpss_bsw_info },
 	{ "80865AC8", (unsigned long)&pwm_lpss_bxt_info },
 	{ },
 };
