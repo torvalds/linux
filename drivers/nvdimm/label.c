@@ -424,6 +424,7 @@ int nd_label_data_init(struct nvdimm_drvdata *ndd)
 	struct nd_namespace_index *nsindex;
 	unsigned int i;
 	int rc = 0;
+	u32 nslot;
 
 	if (ndd->data)
 		return 0;
@@ -495,9 +496,10 @@ int nd_label_data_init(struct nvdimm_drvdata *ndd)
 
 	/* Determine starting offset for label data */
 	offset = __le64_to_cpu(nsindex->labeloff);
+	nslot = __le32_to_cpu(nsindex->nslot);
 
 	/* Loop through the free list pulling in any active labels */
-	for (i = 0; i < nsindex->nslot; i++, offset += ndd->nslabel_size) {
+	for (i = 0; i < nslot; i++, offset += ndd->nslabel_size) {
 		size_t label_read_size;
 
 		/* zero out the unused labels */
