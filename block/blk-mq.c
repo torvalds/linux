@@ -2521,6 +2521,39 @@ static int blk_mq_hw_ctx_size(struct blk_mq_tag_set *tag_set)
 	return hw_ctx_size;
 }
 
+static struct blk_mq_hw_ctx *blk_mq_alloc_and_init_hctx(
+		struct blk_mq_tag_set *set, struct request_queue *q,
+		int hctx_idx, int node)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	hctx = kzalloc_node(blk_mq_hw_ctx_size(set),
+			GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
+			node);
+	if (!hctx)
+		return NULL;
+
+	if (!zalloc_cpumask_var_node(&hctx->cpumask,
+				GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
+				node)) {
+		kfree(hctx);
+		return NULL;
+	}
+
+	atomic_set(&hctx->nr_active, 0);
+	hctx->numa_node = node;
+	hctx->queue_num = hctx_idx;
+
+	if (blk_mq_init_hctx(q, set, hctx, hctx_idx)) {
+		free_cpumask_var(hctx->cpumask);
+		kfree(hctx);
+		return NULL;
+	}
+	blk_mq_hctx_kobj_init(hctx);
+
+	return hctx;
+}
+
 static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 						struct request_queue *q)
 {
@@ -2531,37 +2564,34 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 	mutex_lock(&q->sysfs_lock);
 	for (i = 0; i < set->nr_hw_queues; i++) {
 		int node;
-
-		if (hctxs[i])
-			continue;
+		struct blk_mq_hw_ctx *hctx;
 
 		node = blk_mq_hw_queue_to_node(q->mq_map, i);
-		hctxs[i] = kzalloc_node(blk_mq_hw_ctx_size(set),
-				GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
-				node);
-		if (!hctxs[i])
-			break;
+		/*
+		 * If the hw queue has been mapped to another numa node,
+		 * we need to realloc the hctx. If allocation fails, fallback
+		 * to use the previous one.
+		 */
+		if (hctxs[i] && (hctxs[i]->numa_node == node))
+			continue;
 
-		if (!zalloc_cpumask_var_node(&hctxs[i]->cpumask,
-					GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
-					node)) {
-			kfree(hctxs[i]);
-			hctxs[i] = NULL;
-			break;
+		hctx = blk_mq_alloc_and_init_hctx(set, q, i, node);
+		if (hctx) {
+			if (hctxs[i]) {
+				blk_mq_exit_hctx(q, set, hctxs[i], i);
+				kobject_put(&hctxs[i]->kobj);
+			}
+			hctxs[i] = hctx;
+		} else {
+			if (hctxs[i])
+				pr_warn("Allocate new hctx on node %d fails,\
+						fallback to previous one on node %d\n",
+						node, hctxs[i]->numa_node);
+			else
+				break;
 		}
-
-		atomic_set(&hctxs[i]->nr_active, 0);
-		hctxs[i]->numa_node = node;
-		hctxs[i]->queue_num = i;
-
-		if (blk_mq_init_hctx(q, set, hctxs[i], i)) {
-			free_cpumask_var(hctxs[i]->cpumask);
-			kfree(hctxs[i]);
-			hctxs[i] = NULL;
-			break;
-		}
-		blk_mq_hctx_kobj_init(hctxs[i]);
 	}
+
 	for (j = i; j < q->nr_hw_queues; j++) {
 		struct blk_mq_hw_ctx *hctx = hctxs[j];
 
