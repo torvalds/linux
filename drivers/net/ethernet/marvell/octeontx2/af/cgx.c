@@ -58,9 +58,6 @@ struct cgx {
 
 static LIST_HEAD(cgx_list);
 
-/* CGX PHY management internal APIs */
-static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool en);
-
 /* Supported devices */
 static const struct pci_device_id cgx_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, PCI_DEVID_OCTEONTX2_CGX) },
@@ -316,20 +313,6 @@ int cgx_lmac_evh_register(struct cgx_event_cb *cb, void *cgxd, int lmac_id)
 	return 0;
 }
 EXPORT_SYMBOL(cgx_lmac_evh_register);
-
-static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool enable)
-{
-	u64 req = 0;
-	u64 resp;
-
-	if (enable)
-		req = FIELD_SET(CMDREG_ID, CGX_CMD_LINK_BRING_UP, req);
-	else
-		req = FIELD_SET(CMDREG_ID, CGX_CMD_LINK_BRING_DOWN, req);
-
-	return cgx_fwi_cmd_generic(req, &resp, cgx, lmac_id);
-}
-EXPORT_SYMBOL(cgx_fwi_link_change);
 
 static inline int cgx_fwi_read_version(u64 *resp, struct cgx *cgx)
 {
