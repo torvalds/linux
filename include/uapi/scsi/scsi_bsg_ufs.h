@@ -8,6 +8,7 @@
 #ifndef SCSI_BSG_UFS_H
 #define SCSI_BSG_UFS_H
 
+#include <linux/types.h>
 /*
  * This file intended to be included by both kernel and user space
  */
@@ -15,7 +16,7 @@
 #define UFS_CDB_SIZE	16
 #define UPIU_TRANSACTION_UIC_CMD 0x1F
 /* uic commands are 4DW long, per UFSHCI V2.1 paragraph 5.6.1 */
-#define UIC_CMD_SIZE (sizeof(u32) * 4)
+#define UIC_CMD_SIZE (sizeof(__u32) * 4)
 
 /**
  * struct utp_upiu_header - UPIU header structure
@@ -59,7 +60,7 @@ struct utp_upiu_query {
  */
 struct utp_upiu_cmd {
 	__be32 exp_data_transfer_len;
-	u8 cdb[UFS_CDB_SIZE];
+	__u8 cdb[UFS_CDB_SIZE];
 };
 
 /**
@@ -81,7 +82,7 @@ struct utp_upiu_req {
 
 /* request (CDB) structure of the sg_io_v4 */
 struct ufs_bsg_request {
-	uint32_t msgcode;
+	__u32 msgcode;
 	struct utp_upiu_req upiu_req;
 };
 
@@ -95,10 +96,10 @@ struct ufs_bsg_reply {
 	 * msg and status fields. The per-msgcode reply structure
 	 * will contain valid data.
 	 */
-	uint32_t result;
+	__u32 result;
 
 	/* If there was reply_payload, how much was received? */
-	uint32_t reply_payload_rcv_len;
+	__u32 reply_payload_rcv_len;
 
 	struct utp_upiu_req upiu_rsp;
 };
