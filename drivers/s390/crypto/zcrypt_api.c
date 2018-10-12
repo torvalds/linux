@@ -893,7 +893,7 @@ out:
 
 long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 {
-	return _zcrypt_send_cprb(NULL, xcRB);
+	return _zcrypt_send_cprb(&ap_perms, xcRB);
 }
 EXPORT_SYMBOL(zcrypt_send_cprb);
 
