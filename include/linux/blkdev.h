@@ -396,11 +396,6 @@ struct queue_limits {
 
 #ifdef CONFIG_BLK_DEV_ZONED
 
-struct blk_zone_report_hdr {
-	unsigned int	nr_zones;
-	u8		padding[60];
-};
-
 extern unsigned int blkdev_nr_zones(struct block_device *bdev);
 extern int blkdev_report_zones(struct block_device *bdev,
 			       sector_t sector, struct blk_zone *zones,
@@ -1867,6 +1862,9 @@ struct block_device_operations {
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	/* this callback is with swap_lock and sometimes page table lock held */
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+	int (*report_zones)(struct gendisk *, sector_t sector,
+			    struct blk_zone *zones, unsigned int *nr_zones,
+			    gfp_t gfp_mask);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 };

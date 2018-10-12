@@ -62,7 +62,7 @@ static void sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
 }
 
 /**
- * sd_zbc_report_zones - Issue a REPORT ZONES scsi command.
+ * sd_zbc_do_report_zones - Issue a REPORT ZONES scsi command.
  * @sdkp: The target disk
  * @buf: Buffer to use for the reply
  * @buflen: the buffer size
@@ -75,9 +75,9 @@ static void sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
  * zones and will only report the count of zones fitting in the command reply
  * buffer.
  */
-static int sd_zbc_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
-			       unsigned int buflen, sector_t lba,
-			       bool partial)
+static int sd_zbc_do_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
+				  unsigned int buflen, sector_t lba,
+				  bool partial)
 {
 	struct scsi_device *sdp = sdkp->device;
 	const int timeout = sdp->request_queue->rq_timeout;
@@ -118,108 +118,56 @@ static int sd_zbc_report_zones(struct scsi_disk *sdkp, unsigned char *buf,
 }
 
 /**
- * sd_zbc_setup_report_cmnd - Prepare a REPORT ZONES scsi command
- * @cmd: The command to setup
+ * sd_zbc_report_zones - Disk report zones operation.
+ * @disk: The target disk
+ * @sector: Start 512B sector of the report
+ * @zones: Array of zone descriptors
+ * @nr_zones: Number of descriptors in the array
+ * @gfp_mask: Memory allocation mask
  *
- * Call in sd_init_command() for a REQ_OP_ZONE_REPORT request.
+ * Execute a report zones command on the target disk.
  */
-int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd)
+int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
+			struct blk_zone *zones, unsigned int *nr_zones,
+			gfp_t gfp_mask)
 {
-	struct request *rq = cmd->request;
-	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
-	sector_t lba, sector = blk_rq_pos(rq);
-	unsigned int nr_bytes = blk_rq_bytes(rq);
-	int ret;
-
-	WARN_ON(nr_bytes == 0);
+	struct scsi_disk *sdkp = scsi_disk(disk);
+	unsigned int i, buflen, nrz = *nr_zones;
+	unsigned char *buf;
+	size_t offset = 0;
+	int ret = 0;
 
 	if (!sd_is_zoned(sdkp))
 		/* Not a zoned device */
-		return BLKPREP_KILL;
+		return -EOPNOTSUPP;
 
-	ret = scsi_init_io(cmd);
-	if (ret != BLKPREP_OK)
-		return ret;
+	/*
+	 * Get a reply buffer for the number of requested zones plus a header.
+	 * For ATA, buffers must be aligned to 512B.
+	 */
+	buflen = roundup((nrz + 1) * 64, 512);
+	buf = kmalloc(buflen, gfp_mask);
+	if (!buf)
+		return -ENOMEM;
 
-	cmd->cmd_len = 16;
-	memset(cmd->cmnd, 0, cmd->cmd_len);
-	cmd->cmnd[0] = ZBC_IN;
-	cmd->cmnd[1] = ZI_REPORT_ZONES;
-	lba = sectors_to_logical(sdkp->device, sector);
-	put_unaligned_be64(lba, &cmd->cmnd[2]);
-	put_unaligned_be32(nr_bytes, &cmd->cmnd[10]);
-	/* Do partial report for speeding things up */
-	cmd->cmnd[14] = ZBC_REPORT_ZONE_PARTIAL;
+	ret = sd_zbc_do_report_zones(sdkp, buf, buflen,
+			sectors_to_logical(sdkp->device, sector), true);
+	if (ret)
+		goto out_free_buf;
 
-	cmd->sc_data_direction = DMA_FROM_DEVICE;
-	cmd->sdb.length = nr_bytes;
-	cmd->transfersize = sdkp->device->sector_size;
-	cmd->allowed = 0;
-
-	return BLKPREP_OK;
-}
-
-/**
- * sd_zbc_report_zones_complete - Process a REPORT ZONES scsi command reply.
- * @scmd: The completed report zones command
- * @good_bytes: reply size in bytes
- *
- * Convert all reported zone descriptors to struct blk_zone. The conversion
- * is done in-place, directly in the request specified sg buffer.
- */
-static void sd_zbc_report_zones_complete(struct scsi_cmnd *scmd,
-					 unsigned int good_bytes)
-{
-	struct request *rq = scmd->request;
-	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
-	struct sg_mapping_iter miter;
-	struct blk_zone_report_hdr hdr;
-	struct blk_zone zone;
-	unsigned int offset, bytes = 0;
-	unsigned long flags;
-	u8 *buf;
-
-	if (good_bytes < 64)
-		return;
-
-	memset(&hdr, 0, sizeof(struct blk_zone_report_hdr));
-
-	sg_miter_start(&miter, scsi_sglist(scmd), scsi_sg_count(scmd),
-		       SG_MITER_TO_SG | SG_MITER_ATOMIC);
-
-	local_irq_save(flags);
-	while (sg_miter_next(&miter) && bytes < good_bytes) {
-
-		buf = miter.addr;
-		offset = 0;
-
-		if (bytes == 0) {
-			/* Set the report header */
-			hdr.nr_zones = min_t(unsigned int,
-					 (good_bytes - 64) / 64,
-					 get_unaligned_be32(&buf[0]) / 64);
-			memcpy(buf, &hdr, sizeof(struct blk_zone_report_hdr));
-			offset += 64;
-			bytes += 64;
-		}
-
-		/* Parse zone descriptors */
-		while (offset < miter.length && hdr.nr_zones) {
-			WARN_ON(offset > miter.length);
-			buf = miter.addr + offset;
-			sd_zbc_parse_report(sdkp, buf, &zone);
-			memcpy(buf, &zone, sizeof(struct blk_zone));
-			offset += 64;
-			bytes += 64;
-			hdr.nr_zones--;
-		}
-
-		if (!hdr.nr_zones)
-			break;
-
+	nrz = min(nrz, get_unaligned_be32(&buf[0]) / 64);
+	for (i = 0; i < nrz; i++) {
+		offset += 64;
+		sd_zbc_parse_report(sdkp, buf + offset, zones);
+		zones++;
 	}
-	sg_miter_stop(&miter);
-	local_irq_restore(flags);
+
+	*nr_zones = nrz;
+
+out_free_buf:
+	kfree(buf);
+
+	return ret;
 }
 
 /**
@@ -302,13 +250,6 @@ void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
 	case REQ_OP_WRITE_ZEROES:
 	case REQ_OP_WRITE_SAME:
 		break;
-
-	case REQ_OP_ZONE_REPORT:
-
-		if (!result)
-			sd_zbc_report_zones_complete(cmd, good_bytes);
-		break;
-
 	}
 }
 
@@ -390,7 +331,7 @@ static int sd_zbc_check_zones(struct scsi_disk *sdkp, u32 *zblocks)
 		return -ENOMEM;
 
 	/* Do a report zone to get max_lba and the same field */
-	ret = sd_zbc_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE, 0, false);
+	ret = sd_zbc_do_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE, 0, false);
 	if (ret)
 		goto out_free;
 
@@ -447,8 +388,8 @@ static int sd_zbc_check_zones(struct scsi_disk *sdkp, u32 *zblocks)
 		}
 
 		if (block < sdkp->capacity) {
-			ret = sd_zbc_report_zones(sdkp, buf,
-						  SD_ZBC_BUF_SIZE, block, true);
+			ret = sd_zbc_do_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE,
+						     block, true);
 			if (ret)
 				goto out_free;
 		}
@@ -565,8 +506,8 @@ sd_zbc_setup_seq_zones_bitmap(struct scsi_disk *sdkp, u32 zone_shift,
 		goto out;
 
 	while (lba < sdkp->capacity) {
-		ret = sd_zbc_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE,
-					  lba, true);
+		ret = sd_zbc_do_report_zones(sdkp, buf, SD_ZBC_BUF_SIZE, lba,
+					     true);
 		if (ret)
 			goto out;
 		lba = sd_zbc_get_seq_zones(sdkp, buf, SD_ZBC_BUF_SIZE,
