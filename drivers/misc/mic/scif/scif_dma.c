@@ -1553,7 +1553,6 @@ static int scif_rma_list_dma_copy_wrapper(struct scif_endpt *epd,
 	u8 *temp = NULL;
 	bool src_local = true;
 	struct scif_dma_comp_cb *comp_cb;
-	dma_addr_t src_dma_addr, dst_dma_addr;
 	int err;
 
 	if (is_dma_copy_aligned(chan->device, 1, 1, 1))
@@ -1567,8 +1566,6 @@ static int scif_rma_list_dma_copy_wrapper(struct scif_endpt *epd,
 
 	if (work->loopback)
 		return scif_rma_list_cpu_copy(work);
-	src_dma_addr = __scif_off_to_dma_addr(work->src_window, src_offset);
-	dst_dma_addr = __scif_off_to_dma_addr(work->dst_window, dst_offset);
 	src_local = work->src_window->type == SCIF_WINDOW_SELF;
 
 	/* Allocate dma_completion cb */
