@@ -131,32 +131,6 @@ mt76x2_get_agc_gain(struct mt76x02_dev *dev, u8 *dest)
 	dest[1] = mt76_get_field(dev, MT_BBP(AGC, 9), MT_BBP_AGC_GAIN);
 }
 
-static int
-mt76x2_get_rssi_gain_thresh(struct mt76x02_dev *dev)
-{
-	switch (dev->mt76.chandef.width) {
-	case NL80211_CHAN_WIDTH_80:
-		return -62;
-	case NL80211_CHAN_WIDTH_40:
-		return -65;
-	default:
-		return -68;
-	}
-}
-
-static int
-mt76x2_get_low_rssi_gain_thresh(struct mt76x02_dev *dev)
-{
-	switch (dev->mt76.chandef.width) {
-	case NL80211_CHAN_WIDTH_80:
-		return -76;
-	case NL80211_CHAN_WIDTH_40:
-		return -79;
-	default:
-		return -82;
-	}
-}
-
 static void
 mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 {
@@ -212,8 +186,8 @@ mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 
 	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
 
-	low_gain = (dev->cal.avg_rssi_all > mt76x2_get_rssi_gain_thresh(dev)) +
-		   (dev->cal.avg_rssi_all > mt76x2_get_low_rssi_gain_thresh(dev));
+	low_gain = (dev->cal.avg_rssi_all > mt76x02_get_rssi_gain_thresh(dev)) +
+		   (dev->cal.avg_rssi_all > mt76x02_get_low_rssi_gain_thresh(dev));
 
 	gain_change = (dev->cal.low_gain & 2) ^ (low_gain & 2);
 	dev->cal.low_gain = low_gain;
