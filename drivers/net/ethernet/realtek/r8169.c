@@ -4553,27 +4553,19 @@ static void rtl_set_rx_tx_desc_registers(struct rtl8169_private *tp)
 
 static void rtl8169_set_magic_reg(struct rtl8169_private *tp, unsigned mac_version)
 {
-	static const struct rtl_cfg2_info {
-		u32 mac_version;
-		u32 clk;
-		u32 val;
-	} cfg2_info [] = {
-		{ RTL_GIGA_MAC_VER_05, PCI_Clock_33MHz, 0x000fff00 }, // 8110SCd
-		{ RTL_GIGA_MAC_VER_05, PCI_Clock_66MHz, 0x000fffff },
-		{ RTL_GIGA_MAC_VER_06, PCI_Clock_33MHz, 0x00ffff00 }, // 8110SCe
-		{ RTL_GIGA_MAC_VER_06, PCI_Clock_66MHz, 0x00ffffff }
-	};
-	const struct rtl_cfg2_info *p = cfg2_info;
-	unsigned int i;
-	u32 clk;
+	u32 val;
 
-	clk = RTL_R8(tp, Config2) & PCI_Clock_66MHz;
-	for (i = 0; i < ARRAY_SIZE(cfg2_info); i++, p++) {
-		if ((p->mac_version == mac_version) && (p->clk == clk)) {
-			RTL_W32(tp, 0x7c, p->val);
-			break;
-		}
-	}
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
+		val = 0x000fff00;
+	else if (tp->mac_version == RTL_GIGA_MAC_VER_06)
+		val = 0x00ffff00;
+	else
+		return;
+
+	if (RTL_R8(tp, Config2) & PCI_Clock_66MHz)
+		val |= 0xff;
+
+	RTL_W32(tp, 0x7c, val);
 }
 
 static void rtl_set_rx_mode(struct net_device *dev)
