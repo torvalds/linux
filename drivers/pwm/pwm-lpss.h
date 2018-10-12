@@ -30,6 +30,8 @@ struct pwm_lpss_boardinfo {
 	unsigned int npwm;
 	unsigned long base_unit_bits;
 	bool bypass;
+	/* Some devices have AML code messing with the state underneath us */
+	bool check_power_on_resume;
 };
 
 struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,

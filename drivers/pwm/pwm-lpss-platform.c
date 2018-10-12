@@ -30,6 +30,7 @@ static const struct pwm_lpss_boardinfo pwm_lpss_bsw_info = {
 	.clk_rate = 19200000,
 	.npwm = 1,
 	.base_unit_bits = 16,
+	.check_power_on_resume = true,
 };
 
 /* Broxton */
@@ -74,9 +75,27 @@ static int pwm_lpss_remove_platform(struct platform_device *pdev)
 	return pwm_lpss_remove(lpwm);
 }
 
-static SIMPLE_DEV_PM_OPS(pwm_lpss_platform_pm_ops,
-			 pwm_lpss_suspend,
-			 pwm_lpss_resume);
+static void pwm_lpss_complete(struct device *dev)
+{
+	struct pwm_lpss_chip *lpwm = dev_get_drvdata(dev);
+	int ret, state;
+
+	/* The PWM may be turned on by AML code, update our state to match */
+	if (pm_runtime_suspended(dev) && lpwm->info->check_power_on_resume) {
+		pm_runtime_disable(dev);
+
+		ret = acpi_device_get_power(ACPI_COMPANION(dev), &state);
+		if (ret == 0 && state == ACPI_STATE_D0)
+			pm_runtime_set_active(dev);
+
+		pm_runtime_enable(dev);
+	}
+}
+
+static const struct dev_pm_ops pwm_lpss_platform_pm_ops = {
+	.complete = pwm_lpss_complete,
+	SET_SYSTEM_SLEEP_PM_OPS(pwm_lpss_suspend, pwm_lpss_resume)
+};
 
 static const struct acpi_device_id pwm_lpss_acpi_match[] = {
 	{ "80860F09", (unsigned long)&pwm_lpss_byt_info },
