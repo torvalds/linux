@@ -142,5 +142,6 @@ struct blk_zone_range {
 #define BLKREPORTZONE	_IOWR(0x12, 130, struct blk_zone_report)
 #define BLKRESETZONE	_IOW(0x12, 131, struct blk_zone_range)
 #define BLKGETZONESZ	_IOW(0x12, 132, __u32)
+#define BLKGETNRZONES	_IOW(0x12, 133, __u32)
 
 #endif /* _UAPI_BLKZONED_H */
