@@ -33,6 +33,8 @@
 #define PCM3168A_FMT_RIGHT_J_16		0x3
 #define PCM3168A_FMT_DSP_A		0x4
 #define PCM3168A_FMT_DSP_B		0x5
+#define PCM3168A_FMT_I2S_TDM		0x6
+#define PCM3168A_FMT_LEFT_J_TDM		0x7
 #define PCM3168A_FMT_DSP_MASK		0x4
 
 #define PCM3168A_NUM_SUPPLIES 6
@@ -401,9 +403,11 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	bool tx, master_mode;
 	u32 val, mask, shift, reg;
 	unsigned int rate, fmt, ratio, max_ratio;
+	unsigned int chan;
 	int i, min_frame_size;
 
 	rate = params_rate(params);
+	chan = params_channels(params);
 
 	ratio = pcm3168a->sysclk / rate;
 
@@ -454,6 +458,21 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	default:
 		dev_err(component->dev, "unsupported frame size: %d\n", min_frame_size);
 		return -EINVAL;
+	}
+
+	/* for TDM */
+	if (chan > 2) {
+		switch (fmt) {
+		case PCM3168A_FMT_I2S:
+			fmt = PCM3168A_FMT_I2S_TDM;
+			break;
+		case PCM3168A_FMT_LEFT_J:
+			fmt = PCM3168A_FMT_LEFT_J_TDM;
+			break;
+		default:
+			dev_err(component->dev, "TDM is supported under I2S/Left_J only\n");
+			return -EINVAL;
+		}
 	}
 
 	if (master_mode)
