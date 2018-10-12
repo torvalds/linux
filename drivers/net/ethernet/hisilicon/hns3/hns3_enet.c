@@ -459,23 +459,81 @@ static int hns3_nic_mc_unsync(struct net_device *netdev,
 	return 0;
 }
 
+static u8 hns3_get_netdev_flags(struct net_device *netdev)
+{
+	u8 flags = 0;
+
+	if (netdev->flags & IFF_PROMISC) {
+		flags = HNAE3_USER_UPE | HNAE3_USER_MPE;
+	} else {
+		flags |= HNAE3_VLAN_FLTR;
+		if (netdev->flags & IFF_ALLMULTI)
+			flags |= HNAE3_USER_MPE;
+	}
+
+	return flags;
+}
+
 static void hns3_nic_set_rx_mode(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u8 new_flags;
+	int ret;
+
+	new_flags = hns3_get_netdev_flags(netdev);
+
+	ret = __dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync);
+	if (ret) {
+		netdev_err(netdev, "sync uc address fail\n");
+		if (ret == -ENOSPC)
+			new_flags |= HNAE3_OVERFLOW_UPE;
+	}
+
+	if (netdev->flags & IFF_MULTICAST) {
+		ret = __dev_mc_sync(netdev, hns3_nic_mc_sync,
+				    hns3_nic_mc_unsync);
+		if (ret) {
+			netdev_err(netdev, "sync mc address fail\n");
+			if (ret == -ENOSPC)
+				new_flags |= HNAE3_OVERFLOW_MPE;
+		}
+	}
+
+	hns3_update_promisc_mode(netdev, new_flags);
+	/* User mode Promisc mode enable and vlan filtering is disabled to
+	 * let all packets in. MAC-VLAN Table overflow Promisc enabled and
+	 * vlan fitering is enabled
+	 */
+	hns3_enable_vlan_filter(netdev, new_flags & HNAE3_VLAN_FLTR);
+	h->netdev_flags = new_flags;
+}
+
+void hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
 
 	if (h->ae_algo->ops->set_promisc_mode) {
-		if (netdev->flags & IFF_PROMISC)
-			h->ae_algo->ops->set_promisc_mode(h, true, true);
-		else if (netdev->flags & IFF_ALLMULTI)
-			h->ae_algo->ops->set_promisc_mode(h, false, true);
-		else
-			h->ae_algo->ops->set_promisc_mode(h, false, false);
+		h->ae_algo->ops->set_promisc_mode(h,
+						  promisc_flags & HNAE3_UPE,
+						  promisc_flags & HNAE3_MPE);
 	}
-	if (__dev_uc_sync(netdev, hns3_nic_uc_sync, hns3_nic_uc_unsync))
-		netdev_err(netdev, "sync uc address fail\n");
-	if (netdev->flags & IFF_MULTICAST) {
-		if (__dev_mc_sync(netdev, hns3_nic_mc_sync, hns3_nic_mc_unsync))
-			netdev_err(netdev, "sync mc address fail\n");
+}
+
+void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+	bool last_state;
+
+	if (h->pdev->revision >= 0x21 && h->ae_algo->ops->enable_vlan_filter) {
+		last_state = h->netdev_flags & HNAE3_VLAN_FLTR ? true : false;
+		if (enable != last_state) {
+			netdev_info(netdev,
+				    "%s vlan filter\n",
+				    enable ? "enable" : "disable");
+			h->ae_algo->ops->enable_vlan_filter(h, enable);
+		}
 	}
 }
 

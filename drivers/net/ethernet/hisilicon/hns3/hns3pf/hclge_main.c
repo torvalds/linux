@@ -5606,6 +5606,10 @@ static void hclge_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
 		hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF,
 					   HCLGE_FILTER_FE_EGRESS_V1_B, enable);
 	}
+	if (enable)
+		handle->netdev_flags |= HNAE3_VLAN_FLTR;
+	else
+		handle->netdev_flags &= ~HNAE3_VLAN_FLTR;
 }
 
 static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
@@ -5902,7 +5906,7 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 {
 #define HCLGE_DEF_VLAN_TYPE		0x8100
 
-	struct hnae3_handle *handle;
+	struct hnae3_handle *handle = &hdev->vport[0].nic;
 	struct hclge_vport *vport;
 	int ret;
 	int i;
@@ -5924,6 +5928,8 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 		if (ret)
 			return ret;
 	}
+
+	handle->netdev_flags |= HNAE3_VLAN_FLTR;
 
 	hdev->vlan_type_cfg.rx_in_fst_vlan_type = HCLGE_DEF_VLAN_TYPE;
 	hdev->vlan_type_cfg.rx_in_sec_vlan_type = HCLGE_DEF_VLAN_TYPE;
@@ -5969,7 +5975,6 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 			return ret;
 	}
 
-	handle = &hdev->vport[0].nic;
 	return hclge_set_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
 }
 
