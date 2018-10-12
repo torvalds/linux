@@ -2172,8 +2172,8 @@ int dpaa2_eth_cls_fld_off(int prot, int field)
 /* Set Rx distribution (hash or flow classification) key
  * flags is a combination of RXH_ bits
  */
-int dpaa2_eth_set_dist_key(struct net_device *net_dev,
-			   enum dpaa2_eth_rx_dist type, u64 flags)
+static int dpaa2_eth_set_dist_key(struct net_device *net_dev,
+				  enum dpaa2_eth_rx_dist type, u64 flags)
 {
 	struct device *dev = net_dev->dev.parent;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
