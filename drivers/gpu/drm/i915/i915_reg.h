@@ -9229,6 +9229,8 @@ enum skl_power_gate {
 #define TRANS_MSA_MISC(tran) _MMIO_TRANS2(tran, _TRANSA_MSA_MISC)
 
 #define  TRANS_MSA_SYNC_CLK		(1 << 0)
+#define  TRANS_MSA_SAMPLING_444		(2 << 1)
+#define  TRANS_MSA_CLRSP_YCBCR		(2 << 3)
 #define  TRANS_MSA_6_BPC		(0 << 5)
 #define  TRANS_MSA_8_BPC		(1 << 5)
 #define  TRANS_MSA_10_BPC		(2 << 5)

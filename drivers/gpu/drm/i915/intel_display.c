@@ -7797,6 +7797,8 @@ static void intel_get_crtc_ycbcr_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum intel_output_format output = INTEL_OUTPUT_FORMAT_RGB;
 
+	pipe_config->lspcon_downsampling = false;
+
 	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9) {
 		u32 tmp = I915_READ(PIPEMISC(crtc->pipe));
 
@@ -7814,6 +7816,16 @@ static void intel_get_crtc_ycbcr_config(struct intel_crtc *crtc,
 				else
 					output = INTEL_OUTPUT_FORMAT_YCBCR420;
 			} else {
+				/*
+				 * Currently there is no interface defined to
+				 * check user preference between RGB/YCBCR444
+				 * or YCBCR420. So the only possible case for
+				 * YCBCR444 usage is driving YCBCR420 output
+				 * with LSPCON, when pipe is configured for
+				 * YCBCR444 output and LSPCON takes care of
+				 * downsampling it.
+				 */
+				pipe_config->lspcon_downsampling = true;
 				output = INTEL_OUTPUT_FORMAT_YCBCR444;
 			}
 		}

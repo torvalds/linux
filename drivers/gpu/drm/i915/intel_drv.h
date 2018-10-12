@@ -908,6 +908,9 @@ struct intel_crtc_state {
 
 	/* Output format RGB/YCBCR etc */
 	enum intel_output_format output_format;
+
+	/* Output down scaling is done in LSPCON device */
+	bool lspcon_downsampling;
 };
 
 struct intel_crtc {
@@ -2225,6 +2228,8 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 			   const struct drm_connector_state *conn_state);
 bool lspcon_infoframe_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config);
+void lspcon_ycbcr420_config(struct drm_connector *connector,
+			    struct intel_crtc_state *crtc_state);
 
 /* intel_pipe_crc.c */
 #ifdef CONFIG_DEBUG_FS

@@ -180,6 +180,21 @@ static bool lspcon_wake_native_aux_ch(struct intel_lspcon *lspcon)
 	return true;
 }
 
+void lspcon_ycbcr420_config(struct drm_connector *connector,
+			    struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_info *info = &connector->display_info;
+	const struct drm_display_mode *adjusted_mode =
+					&crtc_state->base.adjusted_mode;
+
+	if (drm_mode_is_420_only(info, adjusted_mode) &&
+	    connector->ycbcr_420_allowed) {
+		crtc_state->port_clock /= 2;
+		crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR444;
+		crtc_state->lspcon_downsampling = true;
+	}
+}
+
 static bool lspcon_probe(struct intel_lspcon *lspcon)
 {
 	int retry;
@@ -464,6 +479,15 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 		return;
 	}
 
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
+		if (crtc_state->lspcon_downsampling)
+			frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
+		else
+			frame.avi.colorspace = HDMI_COLORSPACE_YUV444;
+	} else {
+		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
+	}
+
 	drm_hdmi_avi_infoframe_quant_range(&frame.avi, mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
@@ -517,6 +541,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 	struct intel_lspcon *lspcon = &intel_dig_port->lspcon;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_connector *connector = &dp->attached_connector->base;
 
 	if (!HAS_LSPCON(dev_priv)) {
 		DRM_ERROR("LSPCON is not supported on this platform\n");
@@ -541,6 +566,7 @@ bool lspcon_init(struct intel_digital_port *intel_dig_port)
 		return false;
 	}
 
+	connector->ycbcr_420_allowed = true;
 	lspcon->active = true;
 	DRM_DEBUG_KMS("Success: LSPCON init\n");
 	return true;

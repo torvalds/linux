@@ -2074,6 +2074,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_lspcon *lspcon = enc_to_intel_lspcon(&encoder->base);
 	enum port port = encoder->port;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
@@ -2086,6 +2087,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	if (lspcon->active)
+		lspcon_ycbcr420_config(&intel_connector->base, pipe_config);
+
 	pipe_config->has_drrs = false;
 	if (IS_G4X(dev_priv) || port == PORT_A)
 		pipe_config->has_audio = false;

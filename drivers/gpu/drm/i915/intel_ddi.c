@@ -1784,6 +1784,13 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 		break;
 	}
 
+	/*
+	 * As per DP 1.2 spec section 2.3.4.3 while sending
+	 * YCBCR 444 signals we should program MSA MISC1/0 fields with
+	 * colorspace information. The output colorspace encoding is BT601.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
+		temp |= TRANS_MSA_SAMPLING_444 | TRANS_MSA_CLRSP_YCBCR;
 	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 }
 
