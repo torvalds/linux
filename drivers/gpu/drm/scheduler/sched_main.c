@@ -283,6 +283,7 @@ static void drm_sched_job_timedout(struct work_struct *work)
 already_signaled:
 		;
 	}
+	drm_sched_start_timeout(sched);
 	spin_unlock(&sched->job_list_lock);
 }
 

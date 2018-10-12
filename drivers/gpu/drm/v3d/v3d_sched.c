@@ -167,9 +167,6 @@ v3d_job_timedout(struct drm_sched_job *sched_job)
 	if (job->timedout_ctca != ctca || job->timedout_ctra != ctra) {
 		job->timedout_ctca = ctca;
 		job->timedout_ctra = ctra;
-
-		schedule_delayed_work(&job->base.sched->work_tdr,
-				      job->base.sched->timeout);
 		return;
 	}
 
