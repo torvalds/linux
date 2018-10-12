@@ -225,8 +225,6 @@ int elevator_init(struct request_queue *q)
 							chosen_elevator);
 	}
 
-	if (!e)
-		e = elevator_get(q, CONFIG_DEFAULT_IOSCHED, false);
 	if (!e) {
 		printk(KERN_ERR
 			"Default I/O scheduler not found. Using noop.\n");
@@ -355,68 +353,6 @@ struct request *elv_rb_find(struct rb_root *root, sector_t sector)
 	return NULL;
 }
 EXPORT_SYMBOL(elv_rb_find);
-
-/*
- * Insert rq into dispatch queue of q.  Queue lock must be held on
- * entry.  rq is sort instead into the dispatch queue. To be used by
- * specific elevators.
- */
-void elv_dispatch_sort(struct request_queue *q, struct request *rq)
-{
-	sector_t boundary;
-	struct list_head *entry;
-
-	if (q->last_merge == rq)
-		q->last_merge = NULL;
-
-	elv_rqhash_del(q, rq);
-
-	q->nr_sorted--;
-
-	boundary = q->end_sector;
-	list_for_each_prev(entry, &q->queue_head) {
-		struct request *pos = list_entry_rq(entry);
-
-		if (req_op(rq) != req_op(pos))
-			break;
-		if (rq_data_dir(rq) != rq_data_dir(pos))
-			break;
-		if (pos->rq_flags & (RQF_STARTED | RQF_SOFTBARRIER))
-			break;
-		if (blk_rq_pos(rq) >= boundary) {
-			if (blk_rq_pos(pos) < boundary)
-				continue;
-		} else {
-			if (blk_rq_pos(pos) >= boundary)
-				break;
-		}
-		if (blk_rq_pos(rq) >= blk_rq_pos(pos))
-			break;
-	}
-
-	list_add(&rq->queuelist, entry);
-}
-EXPORT_SYMBOL(elv_dispatch_sort);
-
-/*
- * Insert rq into dispatch queue of q.  Queue lock must be held on
- * entry.  rq is added to the back of the dispatch queue. To be used by
- * specific elevators.
- */
-void elv_dispatch_add_tail(struct request_queue *q, struct request *rq)
-{
-	if (q->last_merge == rq)
-		q->last_merge = NULL;
-
-	elv_rqhash_del(q, rq);
-
-	q->nr_sorted--;
-
-	q->end_sector = rq_end_sector(rq);
-	q->boundary_rq = rq;
-	list_add_tail(&rq->queuelist, &q->queue_head);
-}
-EXPORT_SYMBOL(elv_dispatch_add_tail);
 
 enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 		struct bio *bio)
@@ -880,12 +816,6 @@ int elv_register(struct elevator_type *e)
 	}
 	list_add_tail(&e->list, &elv_list);
 	spin_unlock(&elv_list_lock);
-
-	/* print pretty message */
-	if (elevator_match(e, chosen_elevator) ||
-			(!*chosen_elevator &&
-			 elevator_match(e, CONFIG_DEFAULT_IOSCHED)))
-				def = " (default)";
 
 	printk(KERN_INFO "io scheduler %s registered%s\n", e->elevator_name,
 								def);
