@@ -287,7 +287,7 @@ static int sof_resume(struct device *dev, int runtime_resume)
 	}
 
 	/* init DMA trace */
-	ret = snd_sof_init_trace_ipc(sdev);
+	ret = snd_sof_init_trace(sdev);
 	if (ret < 0) {
 		/* non fatal */
 		dev_warn(sdev->dev,
@@ -324,6 +324,9 @@ static int sof_suspend(struct device *dev, int runtime_suspend)
 	if (!sdev->ops->suspend)
 		return 0;
 
+	/* release trace */
+	snd_sof_release_trace(sdev);
+
 	/*
 	 * Suspend running pcm streams.
 	 * They will be restarted by ALSA resume trigger call.
@@ -341,9 +344,6 @@ static int sof_suspend(struct device *dev, int runtime_suspend)
 
 	/* drop all ipc */
 	sof_ipc_drop_all(sdev->ipc);
-
-	/* release trace */
-	snd_sof_dma_trace_release(sdev);
 
 	/* power down DSP */
 	if (runtime_suspend)
