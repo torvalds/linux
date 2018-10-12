@@ -682,7 +682,16 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 		break;
 	}
 
-	mt76x0_bbp_set_bw(dev, chandef->width);
+	if (mt76_is_usb(dev)) {
+		mt76x0_bbp_set_bw(dev, chandef->width);
+	} else {
+		if (chandef->width == NL80211_CHAN_WIDTH_80 ||
+		    chandef->width == NL80211_CHAN_WIDTH_40)
+			val = 0x201;
+		else
+			val = 0x601;
+		mt76_wr(dev, MT_TX_SW_CFG0, val);
+	}
 	mt76x02_phy_set_bw(dev, chandef->width, ch_group_index);
 	mt76x02_phy_set_band(dev, chandef->chan->band,
 			     ch_group_index & 1);
@@ -698,7 +707,6 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	mt76x0_phy_set_band(dev, chandef->chan->band);
 	mt76x0_phy_set_chan_rf_params(dev, channel, rf_bw_band);
-	mt76x0_read_rx_gain(dev);
 
 	/* set Japan Tx filter at channel 14 */
 	val = mt76_rr(dev, MT_BBP(CORE, 1));
@@ -708,10 +716,8 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 		val &= ~0x20;
 	mt76_wr(dev, MT_BBP(CORE, 1), val);
 
+	mt76x0_read_rx_gain(dev);
 	mt76x0_phy_set_chan_bbp_params(dev, rf_bw_band);
-
-	/* Vendor driver don't do it */
-	/* mt76x0_phy_set_tx_power(dev, channel, rf_bw_band); */
 
 	if (mt76_is_usb(dev)) {
 		mt76x0_vco_cal(dev, channel);
@@ -719,6 +725,8 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 			mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1,
 					      false);
 	} else {
+		/* enable vco */
+		rf_set(dev, MT_RF(0, 4), BIT(7));
 		mt76x0_phy_calibrate(dev, false);
 	}
 
