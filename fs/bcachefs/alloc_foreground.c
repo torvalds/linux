@@ -207,7 +207,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 {
 	struct bucket_array *buckets;
 	struct open_bucket *ob;
-	long bucket;
+	long bucket = 0;
 
 	spin_lock(&c->freelist_lock);
 
