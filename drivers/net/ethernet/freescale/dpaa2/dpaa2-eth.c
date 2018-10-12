@@ -935,7 +935,7 @@ static int dpaa2_eth_poll(struct napi_struct *napi, int budget)
 	struct dpaa2_eth_channel *ch;
 	struct dpaa2_eth_priv *priv;
 	int rx_cleaned = 0, txconf_cleaned = 0;
-	enum dpaa2_eth_fq_type type;
+	enum dpaa2_eth_fq_type type = 0;
 	int store_cleaned;
 	int err;
 
@@ -1002,7 +1002,7 @@ static void disable_ch_napi(struct dpaa2_eth_priv *priv)
 
 static int link_state_update(struct dpaa2_eth_priv *priv)
 {
-	struct dpni_link_state state;
+	struct dpni_link_state state = {0};
 	int err;
 
 	err = dpni_get_link_state(priv->mc_io, 0, priv->mc_token, &state);
@@ -1116,7 +1116,7 @@ static u32 drain_ingress_frames(struct dpaa2_eth_priv *priv)
 static int dpaa2_eth_stop(struct net_device *net_dev)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	int dpni_enabled;
+	int dpni_enabled = 0;
 	int retries = 10;
 	u32 drained;
 
