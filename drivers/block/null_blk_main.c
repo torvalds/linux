@@ -1528,6 +1528,13 @@ static int null_gendisk_register(struct nullb *nullb)
 	disk->queue		= nullb->q;
 	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
 
+	if (nullb->dev->zoned) {
+		int ret = blk_revalidate_disk_zones(disk);
+
+		if (ret != 0)
+			return ret;
+	}
+
 	add_disk(disk);
 	return 0;
 }

@@ -402,6 +402,7 @@ extern int blkdev_report_zones(struct block_device *bdev,
 			       unsigned int *nr_zones, gfp_t gfp_mask);
 extern int blkdev_reset_zones(struct block_device *bdev, sector_t sectors,
 			      sector_t nr_sectors, gfp_t gfp_mask);
+extern int blk_revalidate_disk_zones(struct gendisk *disk);
 
 extern int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 				     unsigned int cmd, unsigned long arg);
@@ -414,6 +415,12 @@ static inline unsigned int blkdev_nr_zones(struct block_device *bdev)
 {
 	return 0;
 }
+
+static inline int blk_revalidate_disk_zones(struct gendisk *disk)
+{
+	return 0;
+}
+
 static inline int blkdev_report_zones_ioctl(struct block_device *bdev,
 					    fmode_t mode, unsigned int cmd,
 					    unsigned long arg)
