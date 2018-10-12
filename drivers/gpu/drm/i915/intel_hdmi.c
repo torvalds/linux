@@ -480,6 +480,8 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
 		frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
+	else if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
+		frame.avi.colorspace = HDMI_COLORSPACE_YUV444;
 	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
