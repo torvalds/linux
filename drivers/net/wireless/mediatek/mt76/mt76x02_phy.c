@@ -204,3 +204,22 @@ void mt76x02_phy_set_bw(struct mt76x02_dev *dev, int width, u8 ctrl)
 	mt76_rmw_field(dev, MT_BBP(TXBE, 0), MT_BBP_TXBE_R0_CTRL_CHAN, ctrl);
 }
 EXPORT_SYMBOL_GPL(mt76x02_phy_set_bw);
+
+void mt76x02_phy_set_band(struct mt76x02_dev *dev, int band,
+			  bool primary_upper)
+{
+	switch (band) {
+	case NL80211_BAND_2GHZ:
+		mt76_set(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_2G);
+		mt76_clear(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_5G);
+		break;
+	case NL80211_BAND_5GHZ:
+		mt76_clear(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_2G);
+		mt76_set(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_5G);
+		break;
+	}
+
+	mt76_rmw_field(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_UPPER_40M,
+		       primary_upper);
+}
+EXPORT_SYMBOL_GPL(mt76x02_phy_set_band);

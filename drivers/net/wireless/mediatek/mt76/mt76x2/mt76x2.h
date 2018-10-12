@@ -100,7 +100,6 @@ void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 				 enum nl80211_band band);
 void mt76x2_configure_tx_delay(struct mt76x02_dev *dev,
 			       enum nl80211_band band, u8 bw);
-void mt76x2_phy_set_band(struct mt76x02_dev *dev, int band, bool primary_upper);
 void mt76x2_apply_gain_adj(struct mt76x02_dev *dev);
 
 #endif

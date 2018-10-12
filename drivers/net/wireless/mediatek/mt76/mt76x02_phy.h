@@ -27,5 +27,7 @@ void mt76x02_phy_set_rxpath(struct mt76x02_dev *dev);
 void mt76x02_phy_set_txdac(struct mt76x02_dev *dev);
 int mt76x02_phy_get_min_avg_rssi(struct mt76x02_dev *dev);
 void mt76x02_phy_set_bw(struct mt76x02_dev *dev, int width, u8 ctrl);
+void mt76x02_phy_set_band(struct mt76x02_dev *dev, int band,
+			  bool primary_upper);
 
 #endif /* __MT76x02_PHY_H */

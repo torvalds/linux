@@ -271,13 +271,6 @@ static void mt76x0_vco_cal(struct mt76x02_dev *dev, u8 channel)
 }
 
 static void
-mt76x0_mac_set_ctrlch(struct mt76x02_dev *dev, bool primary_upper)
-{
-	mt76_rmw_field(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_UPPER_40M,
-		       primary_upper);
-}
-
-static void
 mt76x0_phy_set_band(struct mt76x02_dev *dev, enum nl80211_band band)
 {
 	switch (band) {
@@ -287,9 +280,6 @@ mt76x0_phy_set_band(struct mt76x02_dev *dev, enum nl80211_band band)
 		rf_wr(dev, MT_RF(5, 0), 0x45);
 		rf_wr(dev, MT_RF(6, 0), 0x44);
 
-		mt76_set(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_2G);
-		mt76_clear(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_5G);
-
 		mt76_wr(dev, MT_TX_ALC_VGA3, 0x00050007);
 		mt76_wr(dev, MT_TX0_RF_GAIN_CORR, 0x003E0002);
 		break;
@@ -298,9 +288,6 @@ mt76x0_phy_set_band(struct mt76x02_dev *dev, enum nl80211_band band)
 
 		rf_wr(dev, MT_RF(5, 0), 0x44);
 		rf_wr(dev, MT_RF(6, 0), 0x45);
-
-		mt76_clear(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_2G);
-		mt76_set(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_5G);
 
 		mt76_wr(dev, MT_TX_ALC_VGA3, 0x00000005);
 		mt76_wr(dev, MT_TX0_RF_GAIN_CORR, 0x01010102);
@@ -655,7 +642,8 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	mt76x0_bbp_set_bw(dev, chandef->width);
 	mt76x02_phy_set_bw(dev, chandef->width, ch_group_index);
-	mt76x0_mac_set_ctrlch(dev, ch_group_index & 1);
+	mt76x02_phy_set_band(dev, chandef->chan->band,
+			     ch_group_index & 1);
 	mt76x0_ant_select(dev);
 
 	mt76_rmw(dev, MT_EXT_CCA_CFG,
