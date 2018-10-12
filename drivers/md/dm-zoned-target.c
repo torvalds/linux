@@ -702,8 +702,7 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path)
 	dev->zone_nr_blocks = dmz_sect2blk(dev->zone_nr_sectors);
 	dev->zone_nr_blocks_shift = ilog2(dev->zone_nr_blocks);
 
-	dev->nr_zones = (dev->capacity + dev->zone_nr_sectors - 1)
-		>> dev->zone_nr_sectors_shift;
+	dev->nr_zones = blkdev_nr_zones(dev->bdev);
 
 	dmz->dev = dev;
 

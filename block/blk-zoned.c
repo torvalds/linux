@@ -63,6 +63,33 @@ void __blk_req_zone_write_unlock(struct request *rq)
 }
 EXPORT_SYMBOL_GPL(__blk_req_zone_write_unlock);
 
+static inline unsigned int __blkdev_nr_zones(struct request_queue *q,
+					     sector_t nr_sectors)
+{
+	unsigned long zone_sectors = blk_queue_zone_sectors(q);
+
+	return (nr_sectors + zone_sectors - 1) >> ilog2(zone_sectors);
+}
+
+/**
+ * blkdev_nr_zones - Get number of zones
+ * @bdev:	Target block device
+ *
+ * Description:
+ *    Return the total number of zones of a zoned block device.
+ *    For a regular block device, the number of zones is always 0.
+ */
+unsigned int blkdev_nr_zones(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (!blk_queue_is_zoned(q))
+		return 0;
+
+	return __blkdev_nr_zones(q, bdev->bd_part->nr_sects);
+}
+EXPORT_SYMBOL_GPL(blkdev_nr_zones);
+
 /*
  * Check that a zone report belongs to the partition.
  * If yes, fix its start sector and write pointer, copy it in the
