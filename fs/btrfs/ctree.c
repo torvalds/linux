@@ -1050,9 +1050,26 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	if ((root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) && parent)
 		parent_start = parent->start;
 
+	/*
+	 * If we are COWing a node/leaf from the extent, chunk or device trees,
+	 * make sure that we do not finish block group creation of pending block
+	 * groups. We do this to avoid a deadlock.
+	 * COWing can result in allocation of a new chunk, and flushing pending
+	 * block groups (btrfs_create_pending_block_groups()) can be triggered
+	 * when finishing allocation of a new chunk. Creation of a pending block
+	 * group modifies the extent, chunk and device trees, therefore we could
+	 * deadlock with ourselves since we are holding a lock on an extent
+	 * buffer that btrfs_create_pending_block_groups() may try to COW later.
+	 */
+	if (root == fs_info->extent_root ||
+	    root == fs_info->chunk_root ||
+	    root == fs_info->dev_root)
+		trans->can_flush_pending_bgs = false;
+
 	cow = btrfs_alloc_tree_block(trans, root, parent_start,
 			root->root_key.objectid, &disk_key, level,
 			search_start, empty_size);
+	trans->can_flush_pending_bgs = true;
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
