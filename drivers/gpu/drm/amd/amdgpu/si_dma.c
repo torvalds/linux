@@ -658,15 +658,6 @@ static int si_dma_process_trap_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int si_dma_process_illegal_inst_irq(struct amdgpu_device *adev,
-					      struct amdgpu_irq_src *source,
-					      struct amdgpu_iv_entry *entry)
-{
-	DRM_ERROR("Illegal instruction in SDMA command stream\n");
-	schedule_work(&adev->reset_work);
-	return 0;
-}
-
 static int si_dma_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
@@ -781,15 +772,10 @@ static const struct amdgpu_irq_src_funcs si_dma_trap_irq_funcs = {
 	.process = si_dma_process_trap_irq,
 };
 
-static const struct amdgpu_irq_src_funcs si_dma_illegal_inst_irq_funcs = {
-	.process = si_dma_process_illegal_inst_irq,
-};
-
 static void si_dma_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
 	adev->sdma.trap_irq.funcs = &si_dma_trap_irq_funcs;
-	adev->sdma.illegal_inst_irq.funcs = &si_dma_illegal_inst_irq_funcs;
 }
 
 /**
