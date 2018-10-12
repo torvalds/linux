@@ -640,6 +640,9 @@ void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 				 u32 rl_value);
 
+void hns3_enable_vlan_filter(struct net_device *netdev, bool enable);
+void hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags);
+
 #ifdef CONFIG_HNS3_DCB
 void hns3_dcbnl_setup(struct hnae3_handle *handle);
 #else
