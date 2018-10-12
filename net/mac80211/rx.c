@@ -2458,8 +2458,9 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 			if (!xmit_skb)
 				net_info_ratelimited("%s: failed to clone multicast frame\n",
 						    dev->name);
-		} else if (!is_multicast_ether_addr(ehdr->h_dest)) {
-			dsta = sta_info_get(sdata, skb->data);
+		} else if (!is_multicast_ether_addr(ehdr->h_dest) &&
+			   !ether_addr_equal(ehdr->h_dest, ehdr->h_source)) {
+			dsta = sta_info_get(sdata, ehdr->h_dest);
 			if (dsta) {
 				/*
 				 * The destination station is associated to
@@ -4240,11 +4241,10 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 
 	if (fast_rx->internal_forward) {
 		struct sk_buff *xmit_skb = NULL;
-		bool multicast = is_multicast_ether_addr(skb->data);
-
-		if (multicast) {
+		if (is_multicast_ether_addr(addrs.da)) {
 			xmit_skb = skb_copy(skb, GFP_ATOMIC);
-		} else if (sta_info_get(rx->sdata, skb->data)) {
+		} else if (!ether_addr_equal(addrs.da, addrs.sa) &&
+			   sta_info_get(rx->sdata, addrs.da)) {
 			xmit_skb = skb;
 			skb = NULL;
 		}
