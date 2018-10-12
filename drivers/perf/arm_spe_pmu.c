@@ -1169,6 +1169,7 @@ static const struct of_device_id arm_spe_pmu_of_match[] = {
 	{ .compatible = "arm,statistical-profiling-extension-v1", .data = (void *)1 },
 	{ /* Sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, arm_spe_pmu_of_match);
 
 static int arm_spe_pmu_device_dt_probe(struct platform_device *pdev)
 {
