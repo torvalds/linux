@@ -197,15 +197,19 @@ static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 				struct sk_buff *skb, int ipv, int cast_type,
 				unsigned int data_len)
 {
-	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb_mac_header(skb);
+	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
 
-	hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
 	hdr->hdr.l2.pkt_length = data_len;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
-		if (card->options.performance_stats)
-			card->perf_stats.tx_csum++;
+	if (skb_is_gso(skb)) {
+		hdr->hdr.l2.id = QETH_HEADER_TYPE_L2_TSO;
+	} else {
+		hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
+			if (card->options.performance_stats)
+				card->perf_stats.tx_csum++;
+		}
 	}
 
 	/* set byte byte 3 to casting flags */
@@ -896,6 +900,20 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	    qeth_is_supported6(card, IPA_INBOUND_CHECKSUM_V6)) {
 		card->dev->hw_features |= NETIF_F_RXCSUM;
 		card->dev->vlan_features |= NETIF_F_RXCSUM;
+	}
+	if (qeth_is_supported(card, IPA_OUTBOUND_TSO)) {
+		card->dev->hw_features |= NETIF_F_TSO;
+		card->dev->vlan_features |= NETIF_F_TSO;
+	}
+	if (qeth_is_supported6(card, IPA_OUTBOUND_TSO)) {
+		card->dev->hw_features |= NETIF_F_TSO6;
+		card->dev->vlan_features |= NETIF_F_TSO6;
+	}
+
+	if (card->dev->hw_features & (NETIF_F_TSO | NETIF_F_TSO6)) {
+		card->dev->needed_headroom = sizeof(struct qeth_hdr_tso);
+		netif_set_gso_max_size(card->dev,
+				       PAGE_SIZE * (QDIO_MAX_ELEMENTS_PER_BUFFER - 1));
 	}
 
 	qeth_l2_request_initial_mac(card);

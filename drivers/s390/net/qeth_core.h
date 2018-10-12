@@ -390,8 +390,9 @@ enum qeth_layer2_frame_flags {
 enum qeth_header_ids {
 	QETH_HEADER_TYPE_LAYER3 = 0x01,
 	QETH_HEADER_TYPE_LAYER2 = 0x02,
-	QETH_HEADER_TYPE_TSO	= 0x03,
+	QETH_HEADER_TYPE_L3_TSO	= 0x03,
 	QETH_HEADER_TYPE_OSN    = 0x04,
+	QETH_HEADER_TYPE_L2_TSO	= 0x06,
 };
 /* flags for qeth_hdr.ext_flags */
 #define QETH_HDR_EXT_VLAN_FRAME       0x01
@@ -1047,6 +1048,8 @@ int qeth_vm_request_mac(struct qeth_card *card);
 int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
 		       struct qeth_hdr **hdr, unsigned int hdr_len,
 		       unsigned int proto_len, unsigned int *elements);
+void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr, unsigned int payload_len,
+		       struct sk_buff *skb, unsigned int proto_len);
 int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 	      struct qeth_qdio_out_q *queue, int ipv, int cast_type,
 	      void (*fill_header)(struct qeth_card *card, struct qeth_hdr *hdr,
