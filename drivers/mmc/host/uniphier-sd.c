@@ -78,7 +78,7 @@ static void *uniphier_sd_priv(struct tmio_mmc_host *host)
 
 static void uniphier_sd_dma_endisable(struct tmio_mmc_host *host, int enable)
 {
-	sd_ctrl_write16(host, CTL_DMA_ENABLE, DMA_ENABLE_DMASDRW);
+	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? DMA_ENABLE_DMASDRW : 0);
 }
 
 /* external DMA engine */
