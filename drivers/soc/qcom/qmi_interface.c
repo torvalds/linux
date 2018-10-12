@@ -592,6 +592,7 @@ static struct socket *qmi_sock_create(struct qmi_handle *qmi,
 	sock->sk->sk_user_data = qmi;
 	sock->sk->sk_data_ready = qmi_data_ready;
 	sock->sk->sk_error_report = qmi_data_ready;
+	sock->sk->sk_sndtimeo = HZ * 10;
 
 	return sock;
 }
