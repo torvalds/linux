@@ -37,6 +37,12 @@
 #define  LSPCON_MCA_AVI_IF_KICKOFF (1 << 0)
 #define  LSPCON_MCA_AVI_IF_HANDLED (1 << 1)
 
+/* AUX addresses to write Parade AVI IF */
+#define LSPCON_PARADE_AVI_IF_WRITE_OFFSET 0x516
+#define LSPCON_PARADE_AVI_IF_CTRL 0x51E
+#define  LSPCON_PARADE_AVI_IF_KICKOFF (1 << 7)
+#define LSPCON_PARADE_AVI_IF_DATA_SIZE 32
+
 static struct intel_dp *lspcon_to_intel_dp(struct intel_lspcon *lspcon)
 {
 	struct intel_digital_port *dig_port =
@@ -240,6 +246,111 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 	DRM_DEBUG_KMS("LSPCON DP descriptor mismatch after resume\n");
 }
 
+static bool lspcon_parade_fw_ready(struct drm_dp_aux *aux)
+{
+	u8 avi_if_ctrl;
+	u8 retry;
+	ssize_t ret;
+
+	/* Check if LSPCON FW is ready for data */
+	for (retry = 0; retry < 5; retry++) {
+		if (retry)
+			usleep_range(200, 300);
+
+		ret = drm_dp_dpcd_read(aux, LSPCON_PARADE_AVI_IF_CTRL,
+				       &avi_if_ctrl, 1);
+		if (ret < 0) {
+			DRM_ERROR("Failed to read AVI IF control\n");
+			return false;
+		}
+
+		if ((avi_if_ctrl & LSPCON_PARADE_AVI_IF_KICKOFF) == 0)
+			return true;
+	}
+
+	DRM_ERROR("Parade FW not ready to accept AVI IF\n");
+	return false;
+}
+
+static bool _lspcon_parade_write_infoframe_blocks(struct drm_dp_aux *aux,
+						  uint8_t *avi_buf)
+{
+	u8 avi_if_ctrl;
+	u8 block_count = 0;
+	u8 *data;
+	uint16_t reg;
+	ssize_t ret;
+
+	while (block_count < 4) {
+		if (!lspcon_parade_fw_ready(aux)) {
+			DRM_DEBUG_KMS("LSPCON FW not ready, block %d\n",
+				      block_count);
+			return false;
+		}
+
+		reg = LSPCON_PARADE_AVI_IF_WRITE_OFFSET;
+		data = avi_buf + block_count * 8;
+		ret = drm_dp_dpcd_write(aux, reg, data, 8);
+		if (ret < 0) {
+			DRM_ERROR("Failed to write AVI IF block %d\n",
+				  block_count);
+			return false;
+		}
+
+		/*
+		 * Once a block of data is written, we have to inform the FW
+		 * about this by writing into avi infoframe control register:
+		 * - set the kickoff bit[7] to 1
+		 * - write the block no. to bits[1:0]
+		 */
+		reg = LSPCON_PARADE_AVI_IF_CTRL;
+		avi_if_ctrl = LSPCON_PARADE_AVI_IF_KICKOFF | block_count;
+		ret = drm_dp_dpcd_write(aux, reg, &avi_if_ctrl, 1);
+		if (ret < 0) {
+			DRM_ERROR("Failed to update (0x%x), block %d\n",
+				  reg, block_count);
+			return false;
+		}
+
+		block_count++;
+	}
+
+	DRM_DEBUG_KMS("Wrote AVI IF blocks successfully\n");
+	return true;
+}
+
+static bool _lspcon_write_avi_infoframe_parade(struct drm_dp_aux *aux,
+					       const uint8_t *frame,
+					       ssize_t len)
+{
+	uint8_t avi_if[LSPCON_PARADE_AVI_IF_DATA_SIZE] = {1, };
+
+	/*
+	 * Parade's frames contains 32 bytes of data, divided
+	 * into 4 frames:
+	 *	Token byte (first byte of first frame, must be non-zero)
+	 *	HB0 to HB2	 from AVI IF (3 bytes header)
+	 *	PB0 to PB27 from AVI IF (28 bytes data)
+	 * So it should look like this
+	 *	first block: | <token> <HB0-HB2> <DB0-DB3> |
+	 *	next 3 blocks: |<DB4-DB11>|<DB12-DB19>|<DB20-DB28>|
+	 */
+
+	if (len > LSPCON_PARADE_AVI_IF_DATA_SIZE - 1) {
+		DRM_ERROR("Invalid length of infoframes\n");
+		return false;
+	}
+
+	memcpy(&avi_if[1], frame, len);
+
+	if (!_lspcon_parade_write_infoframe_blocks(aux, avi_if)) {
+		DRM_DEBUG_KMS("Failed to write infoframe blocks\n");
+		return false;
+	}
+
+	return true;
+}
+
 static bool _lspcon_write_avi_infoframe_mca(struct drm_dp_aux *aux,
 					    const uint8_t *buffer, ssize_t len)
 {
@@ -303,7 +414,7 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 			    unsigned int type,
 			    const void *frame, ssize_t len)
 {
-	bool ret = true;
+	bool ret;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_lspcon *lspcon = enc_to_intel_lspcon(&encoder->base);
 
@@ -314,6 +425,10 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 	if (lspcon->vendor == LSPCON_VENDOR_MCA)
 		ret = _lspcon_write_avi_infoframe_mca(&intel_dp->aux,
 						      frame, len);
+	else
+		ret = _lspcon_write_avi_infoframe_parade(&intel_dp->aux,
+							 frame, len);
+
 	if (!ret) {
 		DRM_ERROR("Failed to write AVI infoframes\n");
 		return;
