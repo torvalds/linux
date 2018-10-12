@@ -138,7 +138,7 @@ struct tmio_mmc_host {
 	struct tmio_mmc_data *pdata;
 
 	/* DMA support */
-	bool			force_pio;
+	bool			dma_on;
 	struct dma_chan		*chan_rx;
 	struct dma_chan		*chan_tx;
 	struct tasklet_struct	dma_issue;

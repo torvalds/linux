@@ -157,13 +157,14 @@ static void uniphier_sd_external_dma_start(struct tmio_mmc_host *host,
 	if (cookie < 0)
 		goto unmap_sg;
 
+	host->dma_on = true;
+
 	return;
 
 unmap_sg:
 	dma_unmap_sg(mmc_dev(host->mmc), host->sg_ptr, host->sg_len,
 		     priv->dma_dir);
 force_pio:
-	host->force_pio = true;
 	uniphier_sd_dma_endisable(host, 0);
 }
 
@@ -280,9 +281,10 @@ static void uniphier_sd_internal_dma_start(struct tmio_mmc_host *host,
 	writel(lower_32_bits(dma_addr), host->ctl + UNIPHIER_SD_DMA_ADDR_L);
 	writel(upper_32_bits(dma_addr), host->ctl + UNIPHIER_SD_DMA_ADDR_H);
 
+	host->dma_on = true;
+
 	return;
 force_pio:
-	host->force_pio = true;
 	uniphier_sd_dma_endisable(host, 0);
 }
 
