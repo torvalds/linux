@@ -5394,6 +5394,21 @@ static int qeth_setassparms_inspect_rc(struct qeth_ipa_cmd *cmd)
 	return cmd->hdr.return_code;
 }
 
+static int qeth_setassparms_get_caps_cb(struct qeth_card *card,
+					struct qeth_reply *reply,
+					unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	struct qeth_ipa_caps *caps = reply->param;
+
+	if (qeth_setassparms_inspect_rc(cmd))
+		return 0;
+
+	caps->supported = cmd->data.setassparms.data.caps.supported;
+	caps->enabled = cmd->data.setassparms.data.caps.enabled;
+	return 0;
+}
+
 int qeth_setassparms_cb(struct qeth_card *card,
 			struct qeth_reply *reply, unsigned long data)
 {
@@ -6396,6 +6411,20 @@ static int qeth_set_ipa_csum(struct qeth_card *card, bool on, int cstype,
 	return rc ? -EIO : 0;
 }
 
+static int qeth_start_tso_cb(struct qeth_card *card, struct qeth_reply *reply,
+			     unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+	struct qeth_tso_start_data *tso_data = reply->param;
+
+	if (qeth_setassparms_inspect_rc(cmd))
+		return 0;
+
+	tso_data->mss = cmd->data.setassparms.data.tso.mss;
+	tso_data->supported = cmd->data.setassparms.data.tso.supported;
+	return 0;
+}
+
 static int qeth_set_tso_off(struct qeth_card *card,
 			    enum qeth_prot_versions prot)
 {
@@ -6406,8 +6435,52 @@ static int qeth_set_tso_off(struct qeth_card *card,
 static int qeth_set_tso_on(struct qeth_card *card,
 			   enum qeth_prot_versions prot)
 {
-	return qeth_send_simple_setassparms_prot(card, IPA_OUTBOUND_TSO,
-						 IPA_CMD_ASS_START, 0, prot);
+	struct qeth_tso_start_data tso_data;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_caps caps;
+	int rc;
+
+	iob = qeth_get_setassparms_cmd(card, IPA_OUTBOUND_TSO,
+				       IPA_CMD_ASS_START, 0, prot);
+	if (!iob)
+		return -ENOMEM;
+
+	rc = qeth_send_setassparms(card, iob, 0, 0 /* unused */,
+				   qeth_start_tso_cb, &tso_data);
+	if (rc)
+		return rc;
+
+	if (!tso_data.mss || !(tso_data.supported & QETH_IPA_LARGE_SEND_TCP)) {
+		qeth_set_tso_off(card, prot);
+		return -EOPNOTSUPP;
+	}
+
+	iob = qeth_get_setassparms_cmd(card, IPA_OUTBOUND_TSO,
+				       IPA_CMD_ASS_ENABLE, sizeof(caps), prot);
+	if (!iob) {
+		qeth_set_tso_off(card, prot);
+		return -ENOMEM;
+	}
+
+	/* enable TSO capability */
+	caps.supported = 0;
+	caps.enabled = QETH_IPA_LARGE_SEND_TCP;
+	rc = qeth_send_setassparms(card, iob, sizeof(caps), (long) &caps,
+				   qeth_setassparms_get_caps_cb, &caps);
+	if (rc) {
+		qeth_set_tso_off(card, prot);
+		return rc;
+	}
+
+	if (!qeth_ipa_caps_supported(&caps, QETH_IPA_LARGE_SEND_TCP) ||
+	    !qeth_ipa_caps_enabled(&caps, QETH_IPA_LARGE_SEND_TCP)) {
+		qeth_set_tso_off(card, prot);
+		return -EOPNOTSUPP;
+	}
+
+	dev_info(&card->gdev->dev, "TSOv%u enabled (MSS: %u)\n", prot,
+		 tso_data.mss);
+	return 0;
 }
 
 static int qeth_set_ipa_tso(struct qeth_card *card, bool on,
