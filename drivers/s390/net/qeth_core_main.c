@@ -6396,27 +6396,27 @@ static int qeth_set_ipa_csum(struct qeth_card *card, bool on, int cstype,
 	return rc ? -EIO : 0;
 }
 
-static int qeth_set_ipa_tso(struct qeth_card *card, int on)
+static int qeth_set_tso_off(struct qeth_card *card,
+			    enum qeth_prot_versions prot)
 {
-	int rc;
+	return qeth_send_simple_setassparms_prot(card, IPA_OUTBOUND_TSO,
+						 IPA_CMD_ASS_STOP, 0, prot);
+}
 
-	QETH_CARD_TEXT(card, 3, "sttso");
+static int qeth_set_tso_on(struct qeth_card *card,
+			   enum qeth_prot_versions prot)
+{
+	return qeth_send_simple_setassparms_prot(card, IPA_OUTBOUND_TSO,
+						 IPA_CMD_ASS_START, 0, prot);
+}
 
-	if (on) {
-		rc = qeth_send_simple_setassparms(card, IPA_OUTBOUND_TSO,
-						  IPA_CMD_ASS_START, 0);
-		if (rc) {
-			dev_warn(&card->gdev->dev,
-				 "Starting outbound TCP segmentation offload for %s failed\n",
-				 QETH_CARD_IFNAME(card));
-			return -EIO;
-		}
-		dev_info(&card->gdev->dev, "Outbound TSO enabled\n");
-	} else {
-		rc = qeth_send_simple_setassparms(card, IPA_OUTBOUND_TSO,
-						  IPA_CMD_ASS_STOP, 0);
-	}
-	return rc;
+static int qeth_set_ipa_tso(struct qeth_card *card, bool on,
+			    enum qeth_prot_versions prot)
+{
+	int rc = on ? qeth_set_tso_on(card, prot) :
+		      qeth_set_tso_off(card, prot);
+
+	return rc ? -EIO : 0;
 }
 
 static int qeth_set_ipa_rx_csum(struct qeth_card *card, bool on)
@@ -6493,8 +6493,9 @@ int qeth_set_features(struct net_device *dev, netdev_features_t features)
 		if (rc)
 			changed ^= NETIF_F_RXCSUM;
 	}
-	if ((changed & NETIF_F_TSO)) {
-		rc = qeth_set_ipa_tso(card, features & NETIF_F_TSO ? 1 : 0);
+	if (changed & NETIF_F_TSO) {
+		rc = qeth_set_ipa_tso(card, features & NETIF_F_TSO,
+				      QETH_PROT_IPV4);
 		if (rc)
 			changed ^= NETIF_F_TSO;
 	}
