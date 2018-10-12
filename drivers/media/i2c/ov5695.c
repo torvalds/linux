@@ -912,6 +912,20 @@ static int ov5695_enable_test_pattern(struct ov5695 *ov5695, u32 pattern)
 				OV5695_REG_VALUE_08BIT, val);
 }
 
+static int ov5695_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov5695 *ov5695 = to_ov5695(sd);
+	const struct ov5695_mode *mode = ov5695->cur_mode;
+
+	mutex_lock(&ov5695->mutex);
+	fi->interval.numerator = 10000;
+	fi->interval.denominator = mode->max_fps * 10000;
+	mutex_unlock(&ov5695->mutex);
+
+	return 0;
+}
+
 static int __ov5695_start_stream(struct ov5695 *ov5695)
 {
 	int ret;
@@ -1087,6 +1101,7 @@ static const struct v4l2_subdev_internal_ops ov5695_internal_ops = {
 
 static const struct v4l2_subdev_video_ops ov5695_video_ops = {
 	.s_stream = ov5695_s_stream,
+	.g_frame_interval = ov5695_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov5695_pad_ops = {

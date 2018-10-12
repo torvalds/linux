@@ -495,6 +495,19 @@ static int imx219_s_ctrl_test_pattern(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int imx219_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct imx219 *priv = to_imx219(client);
+	const struct imx219_mode *mode = priv->cur_mode;
+
+	fi->interval.numerator = 10000;
+	fi->interval.denominator = mode->max_fps * 10000;
+
+	return 0;
+}
+
 static int imx219_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx219 *priv =
@@ -701,6 +714,7 @@ static int imx219_get_fmt(struct v4l2_subdev *sd,
 /* Various V4L2 operations tables */
 static struct v4l2_subdev_video_ops imx219_subdev_video_ops = {
 	.s_stream = imx219_s_stream,
+	.g_frame_interval = imx219_g_frame_interval,
 };
 
 static struct v4l2_subdev_core_ops imx219_subdev_core_ops = {

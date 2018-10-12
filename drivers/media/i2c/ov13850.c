@@ -865,6 +865,20 @@ static int ov13850_enable_test_pattern(struct ov13850 *ov13850, u32 pattern)
 				 val);
 }
 
+static int ov13850_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov13850 *ov13850 = to_ov13850(sd);
+	const struct ov13850_mode *mode = ov13850->cur_mode;
+
+	mutex_lock(&ov13850->mutex);
+	fi->interval.numerator = 10000;
+	fi->interval.denominator = mode->max_fps * 10000;
+	mutex_unlock(&ov13850->mutex);
+
+	return 0;
+}
+
 static int __ov13850_start_stream(struct ov13850 *ov13850)
 {
 	int ret;
@@ -1062,6 +1076,7 @@ static const struct v4l2_subdev_internal_ops ov13850_internal_ops = {
 
 static const struct v4l2_subdev_video_ops ov13850_video_ops = {
 	.s_stream = ov13850_s_stream,
+	.g_frame_interval = ov13850_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov13850_pad_ops = {
