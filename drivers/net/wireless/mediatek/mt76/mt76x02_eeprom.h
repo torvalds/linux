@@ -179,27 +179,6 @@ mt76x02_eeprom_get(struct mt76x02_dev *dev,
 	return get_unaligned_le16(dev->mt76.eeprom.data + field);
 }
 
-static inline bool
-mt76x02_temp_tx_alc_enabled(struct mt76x02_dev *dev)
-{
-	u16 val;
-
-	val = mt76x02_eeprom_get(dev, MT_EE_TX_POWER_EXT_PA_5G);
-	if (!(val & BIT(15)))
-		return false;
-
-	return mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1) &
-	       MT_EE_NIC_CONF_1_TEMP_TX_ALC;
-}
-
-static inline bool
-mt76x02_tssi_enabled(struct mt76x02_dev *dev)
-{
-	return !mt76x02_temp_tx_alc_enabled(dev) &&
-	       (mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1) &
-		MT_EE_NIC_CONF_1_TX_ALC_EN);
-}
-
 bool mt76x02_ext_pa_enabled(struct mt76x02_dev *dev, enum nl80211_band band);
 int mt76x02_get_efuse_data(struct mt76x02_dev *dev, u16 base, void *buf,
 			   int len, enum mt76x02_eeprom_modes mode);

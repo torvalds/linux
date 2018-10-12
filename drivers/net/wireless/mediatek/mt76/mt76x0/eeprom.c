@@ -135,7 +135,7 @@ static s8 mt76x0_get_delta(struct mt76x02_dev *dev)
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 	u8 val;
 
-	if (mt76x02_tssi_enabled(dev))
+	if (mt76x0_tssi_enabled(dev))
 		return 0;
 
 	if (chandef->width == NL80211_CHAN_WIDTH_80) {

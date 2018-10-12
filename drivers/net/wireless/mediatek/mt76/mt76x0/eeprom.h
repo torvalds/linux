@@ -37,4 +37,10 @@ static inline s8 s6_to_s8(u32 val)
 	return ret;
 }
 
+static inline bool mt76x0_tssi_enabled(struct mt76x02_dev *dev)
+{
+	return (mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1) &
+		MT_EE_NIC_CONF_1_TX_ALC_EN);
+}
+
 #endif
