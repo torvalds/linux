@@ -622,7 +622,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 0>, <&dmac 1>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
@@ -702,7 +701,6 @@
 		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 10>, <&dmac 11>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi0_clk &spi0_csn &spi0_miso &spi0_mosi>;
 		pinctrl-1 = <&spi0_clk_hs &spi0_csn &spi0_miso_hs &spi0_mosi_hs>;
@@ -718,7 +716,6 @@
 		clocks = <&cru SCLK_SPI1>, <&cru PCLK_SPI1>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 12>, <&dmac 13>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi1_clk &spi1_csn0 &spi1_csn1 &spi1_miso &spi1_mosi>;
 		pinctrl-1 = <&spi1_clk_hs &spi1_csn0 &spi1_csn1 &spi1_miso_hs &spi1_mosi_hs>;
@@ -734,7 +731,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 2>, <&dmac 3>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart1m0_xfer &uart1_cts &uart1_rts>;
 		status = "disabled";
@@ -749,7 +745,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 4>, <&dmac 5>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2m0_xfer>;
 		status = "disabled";
@@ -764,7 +759,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 6>, <&dmac 7>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart3m0_xfer &uart3_ctsm0 &uart3_rtsm0>;
 		status = "disabled";
@@ -779,7 +773,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 8>, <&dmac 9>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart4_xfer &uart4_cts &uart4_rts>;
 		status = "disabled";
@@ -794,7 +787,6 @@
 		clocks = <&cru SCLK_SPI2>, <&cru PCLK_SPI2>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 14>, <&dmac 15>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi2m0_clk &spi2m0_csn &spi2m0_miso &spi2m0_mosi>;
 		pinctrl-1 = <&spi2m0_clk_hs &spi2m0_csn &spi2m0_miso_hs &spi2m0_mosi_hs>;
@@ -810,7 +802,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 25>, <&dmac 26>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart5_xfer>;
 		status = "disabled";
@@ -825,7 +816,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 27>, <&dmac 28>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart6_xfer>;
 		status = "disabled";
@@ -840,7 +830,6 @@
 		reg-shift = <2>;
 		reg-io-width = <4>;
 		dmas = <&dmac 29>, <&dmac 30>;
-		dma-names = "tx", "rx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart7_xfer>;
 		status = "disabled";
