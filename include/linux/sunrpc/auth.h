@@ -206,11 +206,11 @@ bool			rpcauth_cred_key_to_expire(struct rpc_auth *, struct rpc_cred *);
 char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 
 static inline
-struct rpc_cred *	get_rpccred(struct rpc_cred *cred)
+struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 {
-	if (cred != NULL)
-		atomic_inc(&cred->cr_count);
-	return cred;
+	if (cred != NULL && atomic_inc_not_zero(&cred->cr_count))
+		return cred;
+	return NULL;
 }
 
 /**
@@ -226,9 +226,7 @@ struct rpc_cred *	get_rpccred(struct rpc_cred *cred)
 static inline struct rpc_cred *
 get_rpccred_rcu(struct rpc_cred *cred)
 {
-	if (atomic_inc_not_zero(&cred->cr_count))
-		return cred;
-	return NULL;
+	return get_rpccred(cred);
 }
 
 #endif /* __KERNEL__ */

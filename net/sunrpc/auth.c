@@ -588,19 +588,15 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 		if (!entry->cr_ops->crmatch(acred, entry, flags))
 			continue;
 		if (flags & RPCAUTH_LOOKUP_RCU) {
-			if (test_bit(RPCAUTH_CRED_HASHED, &entry->cr_flags) &&
-			    !test_bit(RPCAUTH_CRED_NEW, &entry->cr_flags))
-				cred = entry;
+			if (test_bit(RPCAUTH_CRED_NEW, &entry->cr_flags) ||
+			    atomic_read(&entry->cr_count) == 0)
+				continue;
+			cred = entry;
 			break;
 		}
-		spin_lock(&cache->lock);
-		if (test_bit(RPCAUTH_CRED_HASHED, &entry->cr_flags) == 0) {
-			spin_unlock(&cache->lock);
-			continue;
-		}
 		cred = get_rpccred(entry);
-		spin_unlock(&cache->lock);
-		break;
+		if (cred)
+			break;
 	}
 	rcu_read_unlock();
 
@@ -621,7 +617,8 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 		if (!entry->cr_ops->crmatch(acred, entry, flags))
 			continue;
 		cred = get_rpccred(entry);
-		break;
+		if (cred)
+			break;
 	}
 	if (cred == NULL) {
 		cred = new;
