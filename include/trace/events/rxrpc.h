@@ -931,6 +931,7 @@ TRACE_EVENT(rxrpc_tx_packet,
 	    TP_fast_assign(
 		    __entry->call = call_id;
 		    memcpy(&__entry->whdr, whdr, sizeof(__entry->whdr));
+		    __entry->where = where;
 			   ),
 
 	    TP_printk("c=%08x %08x:%08x:%08x:%04x %08x %08x %02x %02x %s %s",
