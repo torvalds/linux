@@ -24,7 +24,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
-#include "exynos_drm_iommu.h"
 #include "exynos_drm_crtc.h"
 
 static int check_fb_gem_memory_type(struct drm_device *drm_dev,

@@ -23,7 +23,6 @@
 #include <drm/exynos_drm.h>
 #include "regs-rotator.h"
 #include "exynos_drm_drv.h"
-#include "exynos_drm_iommu.h"
 #include "exynos_drm_ipp.h"
 
 /*
@@ -263,7 +262,7 @@ static void rotator_unbind(struct device *dev, struct device *master,
 	struct exynos_drm_ipp *ipp = &rot->ipp;
 
 	exynos_drm_ipp_unregister(drm_dev, ipp);
-	drm_iommu_detach_device(rot->drm_dev, rot->dev);
+	exynos_drm_unregister_dma(rot->drm_dev, rot->dev);
 }
 
 static const struct component_ops rotator_component_ops = {

@@ -25,7 +25,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_g2d.h"
 #include "exynos_drm_gem.h"
-#include "exynos_drm_iommu.h"
 
 #define G2D_HW_MAJOR_VER		4
 #define G2D_HW_MINOR_VER		1
@@ -1430,7 +1429,7 @@ static void g2d_unbind(struct device *dev, struct device *master, void *data)
 	priv->g2d_dev = NULL;
 
 	cancel_work_sync(&g2d->runqueue_work);
-	drm_iommu_detach_device(g2d->drm_dev, dev);
+	exynos_drm_unregister_dma(g2d->drm_dev, dev);
 }
 
 static const struct component_ops g2d_component_ops = {

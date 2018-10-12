@@ -96,13 +96,6 @@ int drm_iommu_attach_device(struct drm_device *drm_dev,
 void drm_iommu_detach_device(struct drm_device *dev_dev,
 				struct device *subdrv_dev);
 
-static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
-{
-	struct exynos_drm_private *priv = drm_dev->dev_private;
-
-	return priv->mapping ? true : false;
-}
-
 #else
 
 static inline int drm_create_iommu_mapping(struct drm_device *drm_dev)
@@ -123,11 +116,6 @@ static inline int drm_iommu_attach_device(struct drm_device *drm_dev,
 static inline void drm_iommu_detach_device(struct drm_device *drm_dev,
 						struct device *subdrv_dev)
 {
-}
-
-static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
-{
-	return false;
 }
 
 #endif

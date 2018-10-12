@@ -23,7 +23,6 @@
 #include "regs-scaler.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_drv.h"
-#include "exynos_drm_iommu.h"
 #include "exynos_drm_ipp.h"
 
 #define scaler_read(offset)		readl(scaler->regs + (offset))
@@ -473,7 +472,7 @@ static void scaler_unbind(struct device *dev, struct device *master,
 	struct exynos_drm_ipp *ipp = &scaler->ipp;
 
 	exynos_drm_ipp_unregister(drm_dev, ipp);
-	drm_iommu_detach_device(scaler->drm_dev, scaler->dev);
+	exynos_drm_unregister_dma(scaler->drm_dev, scaler->dev);
 }
 
 static const struct component_ops scaler_component_ops = {

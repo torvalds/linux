@@ -25,7 +25,6 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
-#include "exynos_drm_iommu.h"
 #include "regs-decon5433.h"
 
 #define DSD_CFG_MUX 0x1004
@@ -579,7 +578,7 @@ static void decon_unbind(struct device *dev, struct device *master, void *data)
 	decon_disable(ctx->crtc);
 
 	/* detach this sub driver from iommu mapping if supported. */
-	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);
 }
 
 static const struct component_ops decon_component_ops = {

@@ -40,7 +40,6 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
-#include "exynos_drm_iommu.h"
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
@@ -883,7 +882,7 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)
 {
-	drm_iommu_detach_device(mixer_ctx->drm_dev, mixer_ctx->dev);
+	exynos_drm_unregister_dma(mixer_ctx->drm_dev, mixer_ctx->dev);
 }
 
 static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)

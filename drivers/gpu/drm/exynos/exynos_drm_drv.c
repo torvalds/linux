@@ -30,7 +30,6 @@
 #include "exynos_drm_ipp.h"
 #include "exynos_drm_vidi.h"
 #include "exynos_drm_g2d.h"
-#include "exynos_drm_iommu.h"
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -44,27 +43,6 @@
  */
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	1
-
-int exynos_drm_register_dma(struct drm_device *drm, struct device *dev)
-{
-	struct exynos_drm_private *priv = drm->dev_private;
-	int ret;
-
-	if (!priv->dma_dev) {
-		priv->dma_dev = dev;
-		DRM_INFO("Exynos DRM: using %s device for DMA mapping operations\n",
-			 dev_name(dev));
-		/* create common IOMMU mapping for all Exynos DRM devices */
-		ret = drm_create_iommu_mapping(drm);
-		if (ret < 0) {
-			priv->dma_dev = NULL;
-			DRM_ERROR("failed to create iommu mapping.\n");
-			return -EINVAL;
-		}
-	}
-
-	return drm_iommu_attach_device(drm, dev);
-}
 
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -367,7 +345,7 @@ err_unbind_all:
 	component_unbind_all(drm->dev, drm);
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(drm);
-	drm_release_iommu_mapping(drm);
+	exynos_drm_cleanup_dma(drm);
 	kfree(private);
 err_free_drm:
 	drm_dev_put(drm);
@@ -386,7 +364,7 @@ static void exynos_drm_unbind(struct device *dev)
 
 	component_unbind_all(drm->dev, drm);
 	drm_mode_config_cleanup(drm);
-	drm_release_iommu_mapping(drm);
+	exynos_drm_cleanup_dma(drm);
 
 	kfree(drm->dev_private);
 	drm->dev_private = NULL;

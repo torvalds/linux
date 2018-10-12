@@ -25,7 +25,6 @@
 #include <drm/exynos_drm.h>
 #include "regs-fimc.h"
 #include "exynos_drm_drv.h"
-#include "exynos_drm_iommu.h"
 #include "exynos_drm_ipp.h"
 
 /*
@@ -1149,7 +1148,7 @@ static void fimc_unbind(struct device *dev, struct device *master,
 	struct exynos_drm_ipp *ipp = &ctx->ipp;
 
 	exynos_drm_ipp_unregister(drm_dev, ipp);
-	drm_iommu_detach_device(drm_dev, dev);
+	exynos_drm_unregister_dma(drm_dev, dev);
 }
 
 static const struct component_ops fimc_component_ops = {
