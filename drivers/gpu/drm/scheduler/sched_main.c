@@ -196,6 +196,19 @@ static void drm_sched_start_timeout(struct drm_gpu_scheduler *sched)
 		schedule_delayed_work(&sched->work_tdr, sched->timeout);
 }
 
+/**
+ * drm_sched_fault - immediately start timeout handler
+ *
+ * @sched: scheduler where the timeout handling should be started.
+ *
+ * Start timeout handling immediately when the driver detects a hardware fault.
+ */
+void drm_sched_fault(struct drm_gpu_scheduler *sched)
+{
+	mod_delayed_work(system_wq, &sched->work_tdr, 0);
+}
+EXPORT_SYMBOL(drm_sched_fault);
+
 /* job_finish is called after hw fence signaled
  */
 static void drm_sched_job_finish(struct work_struct *work)

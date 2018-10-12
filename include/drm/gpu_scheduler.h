@@ -299,6 +299,7 @@ void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched,
 void drm_sched_job_recovery(struct drm_gpu_scheduler *sched);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity);
+void drm_sched_fault(struct drm_gpu_scheduler *sched);
 void drm_sched_job_kickout(struct drm_sched_job *s_job);
 
 void drm_sched_rq_add_entity(struct drm_sched_rq *rq,
