@@ -2557,7 +2557,7 @@ static struct blk_mq_hw_ctx *blk_mq_alloc_and_init_hctx(
 static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 						struct request_queue *q)
 {
-	int i, j;
+	int i, j, end;
 	struct blk_mq_hw_ctx **hctxs = q->queue_hw_ctx;
 
 	/* protect against switching io scheduler  */
@@ -2591,8 +2591,20 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 				break;
 		}
 	}
+	/*
+	 * Increasing nr_hw_queues fails. Free the newly allocated
+	 * hctxs and keep the previous q->nr_hw_queues.
+	 */
+	if (i != set->nr_hw_queues) {
+		j = q->nr_hw_queues;
+		end = i;
+	} else {
+		j = i;
+		end = q->nr_hw_queues;
+		q->nr_hw_queues = set->nr_hw_queues;
+	}
 
-	for (j = i; j < q->nr_hw_queues; j++) {
+	for (; j < end; j++) {
 		struct blk_mq_hw_ctx *hctx = hctxs[j];
 
 		if (hctx) {
@@ -2604,7 +2616,6 @@ static void blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 
 		}
 	}
-	q->nr_hw_queues = i;
 	mutex_unlock(&q->sysfs_lock);
 }
 
@@ -2989,6 +3000,7 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 {
 	struct request_queue *q;
 	LIST_HEAD(head);
+	int prev_nr_hw_queues;
 
 	lockdep_assert_held(&set->tag_list_lock);
 
@@ -3017,10 +3029,19 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 		blk_mq_sysfs_unregister(q);
 	}
 
+	prev_nr_hw_queues = set->nr_hw_queues;
 	set->nr_hw_queues = nr_hw_queues;
 	blk_mq_update_queue_map(set);
+fallback:
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
 		blk_mq_realloc_hw_ctxs(set, q);
+		if (q->nr_hw_queues != set->nr_hw_queues) {
+			pr_warn("Increasing nr_hw_queues to %d fails, fallback to %d\n",
+					nr_hw_queues, prev_nr_hw_queues);
+			set->nr_hw_queues = prev_nr_hw_queues;
+			blk_mq_map_queues(set);
+			goto fallback;
+		}
 		blk_mq_map_swqueue(q);
 	}
 
