@@ -930,14 +930,14 @@ static const struct address_space_operations gfs2_jdata_aops = {
 void gfs2_set_aops(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
-	if (gfs2_is_writeback(ip))
-		inode->i_mapping->a_ops = &gfs2_writeback_aops;
-	else if (gfs2_is_ordered(ip))
-		inode->i_mapping->a_ops = &gfs2_ordered_aops;
-	else if (gfs2_is_jdata(ip))
+	if (gfs2_is_jdata(ip))
 		inode->i_mapping->a_ops = &gfs2_jdata_aops;
+	else if (gfs2_is_writeback(sdp))
+		inode->i_mapping->a_ops = &gfs2_writeback_aops;
+	else if (gfs2_is_ordered(sdp))
+		inode->i_mapping->a_ops = &gfs2_ordered_aops;
 	else
 		BUG();
 }
-

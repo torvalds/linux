@@ -30,16 +30,14 @@ static inline int gfs2_is_jdata(const struct gfs2_inode *ip)
 	return ip->i_diskflags & GFS2_DIF_JDATA;
 }
 
-static inline int gfs2_is_writeback(const struct gfs2_inode *ip)
+static inline bool gfs2_is_ordered(const struct gfs2_sbd *sdp)
 {
-	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	return (sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK) && !gfs2_is_jdata(ip);
+	return sdp->sd_args.ar_data == GFS2_DATA_ORDERED;
 }
 
-static inline int gfs2_is_ordered(const struct gfs2_inode *ip)
+static inline bool gfs2_is_writeback(const struct gfs2_sbd *sdp)
 {
-	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	return (sdp->sd_args.ar_data == GFS2_DATA_ORDERED) && !gfs2_is_jdata(ip);
+	return sdp->sd_args.ar_data == GFS2_DATA_WRITEBACK;
 }
 
 static inline int gfs2_is_dir(const struct gfs2_inode *ip)
