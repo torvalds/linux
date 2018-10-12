@@ -244,7 +244,7 @@ static int rotator_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_ipp *ipp = &rot->ipp;
 
 	rot->drm_dev = drm_dev;
-	drm_iommu_attach_device(drm_dev, dev);
+	exynos_drm_register_dma(drm_dev, dev);
 
 	exynos_drm_ipp_register(drm_dev, ipp, &ipp_funcs,
 			   DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE,

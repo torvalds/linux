@@ -1405,7 +1405,7 @@ static int g2d_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = drm_iommu_attach_device(drm_dev, dev);
+	ret = exynos_drm_register_dma(drm_dev, dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to enable iommu.\n");
 		g2d_fini_cmdlist(g2d);

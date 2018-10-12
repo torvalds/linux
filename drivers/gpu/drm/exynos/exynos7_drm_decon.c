@@ -133,7 +133,7 @@ static int decon_ctx_initialize(struct decon_context *ctx,
 
 	decon_clear_channels(ctx->crtc);
 
-	return drm_iommu_attach_device(drm_dev, ctx->dev);
+	return exynos_drm_register_dma(drm_dev, ctx->dev);
 }
 
 static void decon_ctx_remove(struct decon_context *ctx)

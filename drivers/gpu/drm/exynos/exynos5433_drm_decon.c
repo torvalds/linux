@@ -569,7 +569,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	decon_clear_channels(ctx->crtc);
 
-	return drm_iommu_attach_device(drm_dev, dev);
+	return exynos_drm_register_dma(drm_dev, dev);
 }
 
 static void decon_unbind(struct device *dev, struct device *master, void *data)

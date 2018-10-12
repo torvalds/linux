@@ -1011,7 +1011,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
 
-	return drm_iommu_attach_device(drm_dev, dev);
+	return exynos_drm_register_dma(drm_dev, dev);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,

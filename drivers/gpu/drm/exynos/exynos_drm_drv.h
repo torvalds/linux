@@ -214,6 +214,8 @@ static inline struct device *to_dma_dev(struct drm_device *dev)
 	return priv->dma_dev;
 }
 
+int exynos_drm_register_dma(struct drm_device *drm, struct device *dev);
+
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct drm_encoder *exynos_dpi_probe(struct device *dev);
 int exynos_dpi_remove(struct drm_encoder *encoder);
