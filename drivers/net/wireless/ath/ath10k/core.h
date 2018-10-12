@@ -960,6 +960,7 @@ struct ath10k {
 	} hif;
 
 	struct completion target_suspend;
+	struct completion driver_recovery;
 
 	const struct ath10k_hw_regs *regs;
 	const struct ath10k_hw_ce_regs *hw_ce_regs;

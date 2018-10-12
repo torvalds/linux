@@ -918,7 +918,9 @@ static void ath10k_snoc_buffer_cleanup(struct ath10k *ar)
 
 static void ath10k_snoc_hif_stop(struct ath10k *ar)
 {
-	ath10k_snoc_irq_disable(ar);
+	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+		ath10k_snoc_irq_disable(ar);
+
 	napi_synchronize(&ar->napi);
 	napi_disable(&ar->napi);
 	ath10k_snoc_buffer_cleanup(ar);
@@ -927,9 +929,13 @@ static void ath10k_snoc_hif_stop(struct ath10k *ar)
 
 static int ath10k_snoc_hif_start(struct ath10k *ar)
 {
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+
 	napi_enable(&ar->napi);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
+
+	clear_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif start\n");
 
@@ -994,7 +1000,8 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar)
 
 static void ath10k_snoc_wlan_disable(struct ath10k *ar)
 {
-	ath10k_qmi_wlan_disable(ar);
+	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+		ath10k_qmi_wlan_disable(ar);
 }
 
 static void ath10k_snoc_hif_power_down(struct ath10k *ar)
@@ -1090,6 +1097,11 @@ static int ath10k_snoc_napi_poll(struct napi_struct *ctx, int budget)
 {
 	struct ath10k *ar = container_of(ctx, struct ath10k, napi);
 	int done = 0;
+
+	if (test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags)) {
+		napi_complete(ctx);
+		return done;
+	}
 
 	ath10k_ce_per_engine_service_any(ar);
 	done = ath10k_htt_txrx_compl_task(ar, budget);
@@ -1187,17 +1199,29 @@ int ath10k_snoc_fw_indication(struct ath10k *ar, u64 type)
 	struct ath10k_bus_params bus_params;
 	int ret;
 
+	if (test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags))
+		return 0;
+
 	switch (type) {
 	case ATH10K_QMI_EVENT_FW_READY_IND:
+		if (test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {
+			queue_work(ar->workqueue, &ar->restart_work);
+			break;
+		}
+
 		bus_params.dev_type = ATH10K_DEV_TYPE_LL;
 		bus_params.chip_id = ar_snoc->target_info.soc_version;
 		ret = ath10k_core_register(ar, &bus_params);
 		if (ret) {
-			ath10k_err(ar, "failed to register driver core: %d\n",
+			ath10k_err(ar, "Failed to register driver core: %d\n",
 				   ret);
+			return ret;
 		}
+		set_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags);
 		break;
 	case ATH10K_QMI_EVENT_FW_DOWN_IND:
+		set_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags);
+		set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
 		break;
 	default:
 		ath10k_err(ar, "invalid fw indication: %llx\n", type);
@@ -1628,8 +1652,17 @@ err_core_destroy:
 static int ath10k_snoc_remove(struct platform_device *pdev)
 {
 	struct ath10k *ar = platform_get_drvdata(pdev);
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc remove\n");
+
+	reinit_completion(&ar->driver_recovery);
+
+	if (test_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags))
+		wait_for_completion_timeout(&ar->driver_recovery, 3 * HZ);
+
+	set_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags);
+
 	ath10k_core_unregister(ar);
 	ath10k_hw_power_off(ar);
 	ath10k_snoc_free_irq(ar);
