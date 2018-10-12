@@ -2951,6 +2951,9 @@
 			deep    - Suspend-To-RAM or equivalent (if supported)
 			See Documentation/admin-guide/pm/sleep-states.rst.
 
+	mem.devmem=	Activate the /dev/mem device
+			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
+
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/admin-guide/media/meye.rst.
 
