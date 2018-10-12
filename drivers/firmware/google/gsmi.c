@@ -715,6 +715,12 @@ static const struct dmi_system_id gsmi_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Google, Inc."),
 		},
 	},
+	{
+		.ident = "Coreboot Firmware",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
+		},
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(dmi, gsmi_dmi_table);
