@@ -478,7 +478,7 @@ static void intel_hdmi_set_avi_infoframe(struct intel_encoder *encoder,
 		return;
 	}
 
-	if (crtc_state->ycbcr420)
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
 		frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
 	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
@@ -1619,7 +1619,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
-		if (crtc_state->ycbcr420) {
+		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
 			const struct drm_hdmi_info *hdmi = &info->hdmi;
 
 			if (bpc == 12 && !(hdmi->y420_dc_modes &
@@ -1664,7 +1664,7 @@ intel_hdmi_ycbcr420_config(struct drm_connector *connector,
 	*clock_12bpc /= 2;
 	*clock_10bpc /= 2;
 	*clock_8bpc /= 2;
-	config->ycbcr420 = true;
+	config->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
 
 	/* YCBCR 420 output conversion needs a scaler */
 	if (skl_update_scaler_crtc(config)) {

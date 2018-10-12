@@ -715,6 +715,7 @@ struct intel_crtc_wm_state {
 enum intel_output_format {
 	INTEL_OUTPUT_FORMAT_INVALID,
 	INTEL_OUTPUT_FORMAT_RGB,
+	INTEL_OUTPUT_FORMAT_YCBCR420,
 };
 
 struct intel_crtc_state {
@@ -903,9 +904,6 @@ struct intel_crtc_state {
 
 	/* HDMI High TMDS char rate ratio */
 	bool hdmi_high_tmds_clock_ratio;
-
-	/* output format is YCBCR 4:2:0 */
-	bool ycbcr420;
 
 	/* Output format RGB/YCBCR etc */
 	enum intel_output_format output_format;

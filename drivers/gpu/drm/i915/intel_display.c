@@ -4839,7 +4839,8 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		if (pixel_format == DRM_FORMAT_NV12)
 			need_scaling = true;
 
-	if (crtc_state->ycbcr420 && scaler_user == SKL_CRTC_INDEX)
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
+	    scaler_user == SKL_CRTC_INDEX)
 		need_scaling = true;
 
 	/*
@@ -6590,7 +6591,8 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (pipe_config->ycbcr420 && pipe_config->base.ctm) {
+	if (pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
+	    pipe_config->base.ctm) {
 		/*
 		 * There is only one pipe CSC unit per pipe, and we need that
 		 * for output conversion from RGB->YCBCR. So if CTM is already
@@ -7788,6 +7790,35 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 	pipe_config->port_clock = chv_calc_dpll_params(refclk, &clock);
 }
 
+static void intel_get_crtc_ycbcr_config(struct intel_crtc *crtc,
+					struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum intel_output_format output = INTEL_OUTPUT_FORMAT_RGB;
+
+	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9) {
+		u32 tmp = I915_READ(PIPEMISC(crtc->pipe));
+
+		if (tmp & PIPEMISC_OUTPUT_COLORSPACE_YUV) {
+			bool ycbcr420_enabled = tmp & PIPEMISC_YUV420_ENABLE;
+			bool blend = tmp & PIPEMISC_YUV420_MODE_FULL_BLEND;
+
+			if (ycbcr420_enabled) {
+				/* We support 4:2:0 in full blend mode only */
+				if (!blend)
+					output = INTEL_OUTPUT_FORMAT_INVALID;
+				else if (!(IS_GEMINILAKE(dev_priv) ||
+					   INTEL_GEN(dev_priv) >= 10))
+					output = INTEL_OUTPUT_FORMAT_INVALID;
+				else
+					output = INTEL_OUTPUT_FORMAT_YCBCR420;
+			}
+		}
+	}
+
+	pipe_config->output_format = output;
+}
+
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 				 struct intel_crtc_state *pipe_config)
 {
@@ -8422,9 +8453,9 @@ static void haswell_set_pipemisc(const struct intel_crtc_state *crtc_state)
 		if (crtc_state->dither)
 			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
 
-		if (crtc_state->ycbcr420) {
-			val |= PIPEMISC_OUTPUT_COLORSPACE_YUV |
-				PIPEMISC_YUV420_ENABLE |
+		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
+			val |= PIPEMISC_OUTPUT_COLORSPACE_YUV;
+			val |= PIPEMISC_YUV420_ENABLE |
 				PIPEMISC_YUV420_MODE_FULL_BLEND;
 		}
 
@@ -9485,28 +9516,11 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	intel_get_pipe_src_size(crtc, pipe_config);
+	intel_get_crtc_ycbcr_config(crtc, pipe_config);
 
 	pipe_config->gamma_mode =
 		I915_READ(GAMMA_MODE(crtc->pipe)) & GAMMA_MODE_MODE_MASK;
 
-	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9) {
-		u32 tmp = I915_READ(PIPEMISC(crtc->pipe));
-		bool clrspace_yuv = tmp & PIPEMISC_OUTPUT_COLORSPACE_YUV;
-
-		if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
-			bool blend_mode_420 = tmp &
-					      PIPEMISC_YUV420_MODE_FULL_BLEND;
-
-			pipe_config->ycbcr420 = tmp & PIPEMISC_YUV420_ENABLE;
-			if (pipe_config->ycbcr420 != clrspace_yuv ||
-			    pipe_config->ycbcr420 != blend_mode_420)
-				DRM_DEBUG_KMS("Bad 4:2:0 mode (%08x)\n", tmp);
-		} else if (clrspace_yuv) {
-			DRM_DEBUG_KMS("YCbCr 4:2:0 Unsupported\n");
-		}
-	}
-
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
 	if (intel_display_power_get_if_enabled(dev_priv, power_domain)) {
 		power_domain_mask |= BIT_ULL(power_domain);
@@ -10925,11 +10939,12 @@ static void snprintf_output_types(char *buf, size_t len,
 static const char * const output_format_str[] = {
 	[INTEL_OUTPUT_FORMAT_INVALID] = "Invalid",
 	[INTEL_OUTPUT_FORMAT_RGB] = "RGB",
+	[INTEL_OUTPUT_FORMAT_YCBCR420] = "YCBCR4:2:0",
 };
 
 static const char *output_formats(enum intel_output_format format)
 {
-	if (format != INTEL_OUTPUT_FORMAT_RGB)
+	if (format >= ARRAY_SIZE(output_format_str))
 		format = INTEL_OUTPUT_FORMAT_INVALID;
 	return output_format_str[format];
 }
@@ -10964,9 +10979,6 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		intel_dump_m_n_config(pipe_config, "fdi",
 				      pipe_config->fdi_lanes,
 				      &pipe_config->fdi_m_n);
-
-	if (pipe_config->ycbcr420)
-		DRM_DEBUG_KMS("YCbCr 4:2:0 output enabled\n");
 
 	if (intel_crtc_has_dp_encoder(pipe_config)) {
 		intel_dump_m_n_config(pipe_config, "dp m_n",
@@ -11554,7 +11566,6 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 	PIPE_CONF_CHECK_BOOL(hdmi_scrambling);
 	PIPE_CONF_CHECK_BOOL(hdmi_high_tmds_clock_ratio);
 	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_infoframe);
-	PIPE_CONF_CHECK_BOOL(ycbcr420);
 
 	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_audio);
 
