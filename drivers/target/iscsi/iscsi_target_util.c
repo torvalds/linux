@@ -915,6 +915,7 @@ static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
 void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 {
 	struct iscsi_conn *conn = from_timer(conn, t, nopin_response_timer);
+	struct iscsi_session *sess = conn->sess;
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -925,9 +926,10 @@ void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 		return;
 	}
 
-	pr_debug("Did not receive response to NOPIN on CID: %hu on"
-		" SID: %u, failing connection.\n", conn->cid,
-			conn->sess->sid);
+	pr_err("Did not receive response to NOPIN on CID: %hu, failing"
+		" connection for I_T Nexus %s,i,0x%6phN,%s,t,0x%02x\n",
+		conn->cid, sess->sess_ops->InitiatorName, sess->isid,
+		sess->tpg->tpg_tiqn->tiqn, (u32)sess->tpg->tpgt);
 	conn->nopin_response_timer_flags &= ~ISCSI_TF_RUNNING;
 	spin_unlock_bh(&conn->nopin_timer_lock);
 
