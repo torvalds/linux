@@ -359,6 +359,10 @@
 	status = "okay";
 };
 
+&video_phy {
+	status = "okay";
+};
+
 &vpu_mmu {
 	status = "okay";
 };
