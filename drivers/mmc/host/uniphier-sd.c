@@ -252,6 +252,9 @@ static void uniphier_sd_internal_dma_start(struct tmio_mmc_host *host,
 	u32 dma_mode;
 	int sg_len;
 
+	if ((data->flags & MMC_DATA_READ) && !host->chan_rx)
+		goto force_pio;
+
 	if (WARN_ON(host->sg_len != 1))
 		goto force_pio;
 
