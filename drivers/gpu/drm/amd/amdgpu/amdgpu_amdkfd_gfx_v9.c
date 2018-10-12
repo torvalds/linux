@@ -48,17 +48,6 @@
 #include "soc15d.h"
 #include "gmc_v9_0.h"
 
-/* HACK: MMHUB and GC both have VM-related register with the same
- * names but different offsets. Define the MMHUB register we need here
- * with a prefix. A proper solution would be to move the functions
- * programming these registers into gfx_v9_0.c and mmhub_v1_0.c
- * respectively.
- */
-#define mmMMHUB_VM_INVALIDATE_ENG16_REQ				0x06f3
-#define mmMMHUB_VM_INVALIDATE_ENG16_REQ_BASE_IDX		0
-
-#define mmMMHUB_VM_INVALIDATE_ENG16_ACK				0x0705
-#define mmMMHUB_VM_INVALIDATE_ENG16_ACK_BASE_IDX		0
 
 #define V9_PIPE_PER_MEC		(4)
 #define V9_QUEUES_PER_PIPE_MEC	(8)
@@ -742,15 +731,6 @@ static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-	uint32_t req = (1 << vmid) |
-		(0 << VM_INVALIDATE_ENG16_REQ__FLUSH_TYPE__SHIFT) | /* legacy */
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PTES_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PDE0_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PDE1_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L2_PDE2_MASK |
-		VM_INVALIDATE_ENG16_REQ__INVALIDATE_L1_PTES_MASK;
-
-	mutex_lock(&adev->srbm_mutex);
 
 	/* Use legacy mode tlb invalidation.
 	 *
@@ -767,22 +747,7 @@ static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
 	 * TODO 2: support range-based invalidation, requires kfg2kgd
 	 * interface change
 	 */
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_INVALIDATE_ENG16_REQ), req);
-
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_INVALIDATE_ENG16_REQ),
-				req);
-
-	while (!(RREG32(SOC15_REG_OFFSET(GC, 0, mmVM_INVALIDATE_ENG16_ACK)) &
-					(1 << vmid)))
-		cpu_relax();
-
-	while (!(RREG32(SOC15_REG_OFFSET(MMHUB, 0,
-					mmMMHUB_VM_INVALIDATE_ENG16_ACK)) &
-					(1 << vmid)))
-		cpu_relax();
-
-	mutex_unlock(&adev->srbm_mutex);
-
+	amdgpu_gmc_flush_gpu_tlb(adev, vmid, 0);
 }
 
 static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid)
