@@ -15,7 +15,7 @@
 #define EXYNOS_DEV_ADDR_START	0x20000000
 #define EXYNOS_DEV_ADDR_SIZE	0x40000000
 
-#ifdef CONFIG_DRM_EXYNOS_IOMMU
+#ifdef CONFIG_EXYNOS_IOMMU
 
 #if defined(CONFIG_ARM_DMA_USE_IOMMU)
 #include <asm/dma-iommu.h>
