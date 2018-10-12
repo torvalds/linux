@@ -256,6 +256,7 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return false;
 
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	return true;
 }
 

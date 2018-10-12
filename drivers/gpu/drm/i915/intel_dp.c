@@ -2085,6 +2085,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
 
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_drrs = false;
 	if (IS_G4X(dev_priv) || port == PORT_A)
 		pipe_config->has_audio = false;

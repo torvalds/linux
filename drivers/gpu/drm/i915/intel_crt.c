@@ -354,6 +354,7 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return false;
 
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	return true;
 }
 
@@ -368,6 +369,7 @@ static bool pch_crt_compute_config(struct intel_encoder *encoder,
 		return false;
 
 	pipe_config->has_pch_encoder = true;
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	return true;
 }
@@ -389,6 +391,7 @@ static bool hsw_crt_compute_config(struct intel_encoder *encoder,
 		return false;
 
 	pipe_config->has_pch_encoder = true;
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	/* LPT FDI RX only supports 8bpc. */
 	if (HAS_PCH_LPT(dev_priv)) {

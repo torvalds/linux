@@ -409,6 +409,8 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		pipe_config->pipe_bpp = lvds_bpp;
 	}
 
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+
 	/*
 	 * We have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,

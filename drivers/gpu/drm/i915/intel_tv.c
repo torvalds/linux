@@ -885,6 +885,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return false;
 
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	adjusted_mode->crtc_clock = tv_mode->clock;
 	DRM_DEBUG_KMS("forcing bpc to 8 for TV\n");
 	pipe_config->pipe_bpp = 8*3;

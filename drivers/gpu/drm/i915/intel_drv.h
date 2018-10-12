@@ -712,6 +712,11 @@ struct intel_crtc_wm_state {
 	bool need_postvbl_update;
 };
 
+enum intel_output_format {
+	INTEL_OUTPUT_FORMAT_INVALID,
+	INTEL_OUTPUT_FORMAT_RGB,
+};
+
 struct intel_crtc_state {
 	struct drm_crtc_state base;
 
@@ -901,6 +906,9 @@ struct intel_crtc_state {
 
 	/* output format is YCBCR 4:2:0 */
 	bool ycbcr420;
+
+	/* Output format RGB/YCBCR etc */
+	enum intel_output_format output_format;
 };
 
 struct intel_crtc {

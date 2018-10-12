@@ -314,6 +314,7 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	int ret;
 
 	DRM_DEBUG_KMS("\n");
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	if (fixed_mode) {
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
