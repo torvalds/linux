@@ -46,6 +46,7 @@
 #include "v9_structs.h"
 #include "soc15.h"
 #include "soc15d.h"
+#include "gmc_v9_0.h"
 
 /* HACK: MMHUB and GC both have VM-related register with the same
  * names but different offsets. Define the MMHUB register we need here
@@ -58,11 +59,6 @@
 
 #define mmMMHUB_VM_INVALIDATE_ENG16_ACK				0x0705
 #define mmMMHUB_VM_INVALIDATE_ENG16_ACK_BASE_IDX		0
-
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32		0x072b
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32_BASE_IDX	0
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32		0x072c
-#define mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32_BASE_IDX	0
 
 #define mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_LO32		0x0727
 #define mmMMHUB_VM_INVALIDATE_ENG16_ADDR_RANGE_LO32_BASE_IDX	0
@@ -1018,9 +1014,7 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 	 * now, all processes share the same address space size, like
 	 * on GFX8 and older.
 	 */
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32) + (vmid*2), lower_32_bits(base));
-	WREG32(SOC15_REG_OFFSET(MMHUB, 0, mmMMHUB_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32) + (vmid*2), upper_32_bits(base));
+	mmhub_v1_0_setup_vm_pt_regs(adev, vmid, base);
 
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32) + (vmid*2), lower_32_bits(base));
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32) + (vmid*2), upper_32_bits(base));
+	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, base);
 }
