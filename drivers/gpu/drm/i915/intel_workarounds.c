@@ -948,7 +948,7 @@ struct whitelist {
 
 static void whitelist_reg(struct whitelist *w, i915_reg_t reg)
 {
-	if (GEM_WARN_ON(w->count >= RING_MAX_NONPRIV_SLOTS))
+	if (GEM_DEBUG_WARN_ON(w->count >= RING_MAX_NONPRIV_SLOTS))
 		return;
 
 	w->reg[w->count++] = reg;

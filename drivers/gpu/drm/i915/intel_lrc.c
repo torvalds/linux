@@ -1515,7 +1515,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	unsigned int i;
 	int ret;
 
-	if (GEM_WARN_ON(engine->id != RCS))
+	if (GEM_DEBUG_WARN_ON(engine->id != RCS))
 		return -EINVAL;
 
 	switch (INTEL_GEN(engine->i915)) {
@@ -1554,8 +1554,8 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	 */
 	for (i = 0; i < ARRAY_SIZE(wa_bb_fn); i++) {
 		wa_bb[i]->offset = batch_ptr - batch;
-		if (GEM_WARN_ON(!IS_ALIGNED(wa_bb[i]->offset,
-					    CACHELINE_BYTES))) {
+		if (GEM_DEBUG_WARN_ON(!IS_ALIGNED(wa_bb[i]->offset,
+						  CACHELINE_BYTES))) {
 			ret = -EINVAL;
 			break;
 		}

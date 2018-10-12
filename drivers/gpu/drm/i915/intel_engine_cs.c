@@ -273,13 +273,13 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
 
-	if (GEM_WARN_ON(info->class > MAX_ENGINE_CLASS))
+	if (GEM_DEBUG_WARN_ON(info->class > MAX_ENGINE_CLASS))
 		return -EINVAL;
 
-	if (GEM_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
+	if (GEM_DEBUG_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
 		return -EINVAL;
 
-	if (GEM_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
+	if (GEM_DEBUG_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
 		return -EINVAL;
 
 	GEM_BUG_ON(dev_priv->engine[id]);
@@ -402,7 +402,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 		err = -EINVAL;
 		err_id = id;
 
-		if (GEM_WARN_ON(!init))
+		if (GEM_DEBUG_WARN_ON(!init))
 			goto cleanup;
 
 		err = init(engine);
