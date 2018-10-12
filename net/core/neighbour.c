@@ -232,7 +232,8 @@ static void pneigh_queue_purge(struct sk_buff_head *list)
 	}
 }
 
-static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
+static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev,
+			    bool skip_perm)
 {
 	int i;
 	struct neigh_hash_table *nht;
@@ -247,6 +248,10 @@ static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
 		while ((n = rcu_dereference_protected(*np,
 					lockdep_is_held(&tbl->lock))) != NULL) {
 			if (dev && n->dev != dev) {
+				np = &n->next;
+				continue;
+			}
+			if (skip_perm && n->nud_state & NUD_PERMANENT) {
 				np = &n->next;
 				continue;
 			}
@@ -285,19 +290,33 @@ static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
 void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev)
 {
 	write_lock_bh(&tbl->lock);
-	neigh_flush_dev(tbl, dev);
+	neigh_flush_dev(tbl, dev, false);
 	write_unlock_bh(&tbl->lock);
 }
 EXPORT_SYMBOL(neigh_changeaddr);
 
-int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
+static int __neigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
+			  bool skip_perm)
 {
 	write_lock_bh(&tbl->lock);
-	neigh_flush_dev(tbl, dev);
+	neigh_flush_dev(tbl, dev, skip_perm);
 	pneigh_ifdown_and_unlock(tbl, dev);
 
 	del_timer_sync(&tbl->proxy_timer);
 	pneigh_queue_purge(&tbl->proxy_queue);
+	return 0;
+}
+
+int neigh_carrier_down(struct neigh_table *tbl, struct net_device *dev)
+{
+	__neigh_ifdown(tbl, dev, true);
+	return 0;
+}
+EXPORT_SYMBOL(neigh_carrier_down);
+
+int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
+{
+	__neigh_ifdown(tbl, dev, false);
 	return 0;
 }
 EXPORT_SYMBOL(neigh_ifdown);
