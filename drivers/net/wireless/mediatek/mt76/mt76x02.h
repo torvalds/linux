@@ -102,8 +102,6 @@ struct mt76x02_dev {
 
 	bool no_2ghz;
 
-	u8 agc_save;
-
 	u8 coverage_class;
 	u8 slottime;
 

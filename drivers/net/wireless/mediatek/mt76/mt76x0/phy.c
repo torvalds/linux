@@ -723,16 +723,20 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	if (mt76_is_usb(dev)) {
 		mt76x0_vco_cal(dev, channel);
-		if (scan)
-			mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1,
-					      false);
 	} else {
 		/* enable vco */
 		rf_set(dev, MT_RF(0, 4), BIT(7));
-		mt76x0_phy_calibrate(dev, false);
 	}
 
+	if (scan)
+		return 0;
+
+	if (mt76_is_mmio(dev))
+		mt76x0_phy_calibrate(dev, false);
 	mt76x0_phy_set_txpower(dev);
+
+	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
+				     MT_CALIBRATE_INTERVAL);
 
 	return 0;
 }
@@ -768,17 +772,6 @@ void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev)
 	msleep(100);
 
 	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1, false);
-}
-
-void mt76x0_agc_save(struct mt76x02_dev *dev)
-{
-	/* Only one RX path */
-	dev->agc_save = FIELD_GET(MT_BBP_AGC_GAIN, mt76_rr(dev, MT_BBP(AGC, 8)));
-}
-
-void mt76x0_agc_restore(struct mt76x02_dev *dev)
-{
-	mt76_rmw_field(dev, MT_BBP(AGC, 8), MT_BBP_AGC_GAIN, dev->agc_save);
 }
 
 static void mt76x0_temp_sensor(struct mt76x02_dev *dev)
