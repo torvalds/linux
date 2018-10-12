@@ -655,14 +655,6 @@ void dump_hex(char *p, int len);
 #ifndef PNMI_INIT
 #define	PNMI_INIT(smc)	/* Nothing */
 #endif
-#ifndef PNMI_GET_ID
-#define PNMI_GET_ID( smc, ndis_oid, buf, len, BytesWritten, BytesNeeded ) \
-		( 1 ? (-1) : (-1) )
-#endif
-#ifndef PNMI_SET_ID
-#define PNMI_SET_ID( smc, ndis_oid, buf, len, BytesRead, BytesNeeded, \
-		set_type) ( 1 ? (-1) : (-1) )
-#endif
 
 /*
  * SMT_PANIC defines
