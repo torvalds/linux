@@ -142,6 +142,7 @@ dummy6_mask="64"
 
 cleanup_done=1
 err_buf=
+tcpdump_pids=
 
 err() {
 	err_buf="${err_buf}${1}
@@ -284,7 +285,24 @@ setup() {
 	done
 }
 
+trace() {
+	[ $tracing -eq 0 ] && return
+
+	for arg do
+		[ "${ns_cmd}" = "" ] && ns_cmd="${arg}" && continue
+		${ns_cmd} tcpdump -s 0 -i "${arg}" -w "${name}_${arg}.pcap" 2> /dev/null &
+		tcpdump_pids="${tcpdump_pids} $!"
+		ns_cmd=
+	done
+	sleep 1
+}
+
 cleanup() {
+	for pid in ${tcpdump_pids}; do
+		kill ${pid}
+	done
+	tcpdump_pids=
+
 	[ ${cleanup_done} -eq 1 ] && return
 	for n in ${NS_A} ${NS_B} ${NS_R1} ${NS_R2}; do
 		ip netns del ${n} 2> /dev/null
@@ -357,6 +375,10 @@ test_pmtu_ipvX() {
 	family=${1}
 
 	setup namespaces routing || return 2
+	trace "${ns_a}"  veth_A-R1    "${ns_r1}" veth_R1-A \
+	      "${ns_r1}" veth_R1-B    "${ns_b}"  veth_B-R1 \
+	      "${ns_a}"  veth_A-R2    "${ns_r2}" veth_R2-A \
+	      "${ns_r2}" veth_R2-B    "${ns_b}"  veth_B-R2
 
 	if [ ${family} -eq 4 ]; then
 		ping=ping
@@ -445,6 +467,8 @@ test_pmtu_ipv6_exception() {
 
 test_pmtu_vti4_exception() {
 	setup namespaces veth vti4 xfrm4 || return 2
+	trace "${ns_a}" veth_a    "${ns_b}" veth_b \
+	      "${ns_a}" vti4_a    "${ns_b}" vti4_b
 
 	veth_mtu=1500
 	vti_mtu=$((veth_mtu - 20))
@@ -473,6 +497,8 @@ test_pmtu_vti4_exception() {
 
 test_pmtu_vti6_exception() {
 	setup namespaces veth vti6 xfrm6 || return 2
+	trace "${ns_a}" veth_a    "${ns_b}" veth_b \
+	      "${ns_a}" vti6_a    "${ns_b}" vti6_b
 	fail=0
 
 	# Create route exception by exceeding link layer MTU
@@ -643,29 +669,49 @@ test_pmtu_vti6_link_change_mtu() {
 
 usage() {
 	echo
-	echo "$0 [TEST]..."
+	echo "$0 [OPTIONS] [TEST]..."
 	echo "If no TEST argument is given, all tests will be run."
+	echo
+	echo "Options"
+	echo "  --trace: capture traffic to TEST_INTERFACE.pcap"
 	echo
 	echo "Available tests${tests}"
 	exit 1
 }
 
-for arg do
-	# Check first that all requested tests are available before running any
-	command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} not found"; usage; }
-done
-
-trap cleanup EXIT
-
 exitcode=0
 desc=0
 IFS="	
 "
+
+tracing=0
+for arg do
+	if [ "${arg}" != "${arg#--*}" ]; then
+		opt="${arg#--}"
+		if [ "${opt}" = "trace" ]; then
+			if which tcpdump > /dev/null 2>&1; then
+				tracing=1
+			else
+				echo "=== tcpdump not available, tracing disabled"
+			fi
+		else
+			usage
+		fi
+	else
+		# Check first that all requested tests are available before
+		# running any
+		command -v > /dev/null "test_${arg}" || { echo "=== Test ${arg} not found"; usage; }
+	fi
+done
+
+trap cleanup EXIT
+
 for t in ${tests}; do
 	[ $desc -eq 0 ] && name="${t}" && desc=1 && continue || desc=0
 
 	run_this=1
 	for arg do
+		[ "${arg}" != "${arg#--*}" ] && continue
 		[ "${arg}" = "${name}" ] && run_this=1 && break
 		run_this=0
 	done
