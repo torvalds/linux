@@ -3665,11 +3665,15 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	bool vlan_filter_enable;
 	int ret;
 
 	hns3_init_mac_addr(netdev, false);
-	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
+	hns3_update_promisc_mode(netdev, handle->netdev_flags);
+	vlan_filter_enable = netdev->flags & IFF_PROMISC ? false : true;
+	hns3_enable_vlan_filter(netdev, vlan_filter_enable);
+
 
 	/* Hardware table is only clear when pf resets */
 	if (!(handle->flags & HNAE3_SUPPORT_VF))
