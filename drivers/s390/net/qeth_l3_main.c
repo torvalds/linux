@@ -2099,22 +2099,6 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	rcu_read_unlock();
 }
 
-static void qeth_l3_fill_tso_ext(struct qeth_hdr_tso *hdr,
-				 unsigned int payload_len, struct sk_buff *skb,
-				 unsigned int proto_len)
-{
-	struct qeth_hdr_ext_tso *ext = &hdr->ext;
-
-	ext->hdr_tot_len = sizeof(*ext);
-	ext->imb_hdr_no = 1;
-	ext->hdr_type = 1;
-	ext->hdr_version = 1;
-	ext->hdr_len = 28;
-	ext->payload_len = payload_len;
-	ext->mss = skb_shinfo(skb)->gso_size;
-	ext->dg_hdr_len = proto_len;
-}
-
 static void qeth_l3_fixup_headers(struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
@@ -2175,9 +2159,9 @@ static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 	} else {
 		qeth_l3_fill_header(card, hdr, skb, ipv, cast_type, frame_len);
 		if (is_tso)
-			qeth_l3_fill_tso_ext((struct qeth_hdr_tso *) hdr,
-					     frame_len - proto_len, skb,
-					     proto_len);
+			qeth_fill_tso_ext((struct qeth_hdr_tso *) hdr,
+					  frame_len - proto_len, skb,
+					  proto_len);
 	}
 
 	is_sg = skb_is_nonlinear(skb);
@@ -2401,6 +2385,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 
 static int qeth_l3_setup_netdev(struct qeth_card *card)
 {
+	unsigned int headroom;
 	int rc;
 
 	if (card->dev->netdev_ops)
@@ -2415,11 +2400,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 		}
 
 		card->dev->netdev_ops = &qeth_l3_osa_netdev_ops;
-		card->dev->needed_headroom = sizeof(struct qeth_hdr);
-		/* allow for de-acceleration of NETIF_F_HW_VLAN_CTAG_TX: */
-		card->dev->needed_headroom += VLAN_HLEN;
-		if (qeth_is_supported(card, IPA_OUTBOUND_TSO))
-			card->dev->needed_headroom = sizeof(struct qeth_hdr_tso);
 
 		/*IPv6 address autoconfiguration stuff*/
 		qeth_l3_get_unique_id(card);
@@ -2438,10 +2418,22 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 			card->dev->hw_features |= NETIF_F_IPV6_CSUM;
 			card->dev->vlan_features |= NETIF_F_IPV6_CSUM;
 		}
+		if (qeth_is_supported6(card, IPA_OUTBOUND_TSO)) {
+			card->dev->hw_features |= NETIF_F_TSO6;
+			card->dev->vlan_features |= NETIF_F_TSO6;
+		}
+
+		/* allow for de-acceleration of NETIF_F_HW_VLAN_CTAG_TX: */
+		if (card->dev->hw_features & NETIF_F_TSO6)
+			headroom = sizeof(struct qeth_hdr_tso) + VLAN_HLEN;
+		else if (card->dev->hw_features & NETIF_F_TSO)
+			headroom = sizeof(struct qeth_hdr_tso);
+		else
+			headroom = sizeof(struct qeth_hdr) + VLAN_HLEN;
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
 		card->dev->flags |= IFF_NOARP;
 		card->dev->netdev_ops = &qeth_l3_netdev_ops;
-		card->dev->needed_headroom = sizeof(struct qeth_hdr) - ETH_HLEN;
+		headroom = sizeof(struct qeth_hdr) - ETH_HLEN;
 
 		rc = qeth_l3_iqd_read_initial_mac(card);
 		if (rc)
@@ -2452,13 +2444,14 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	} else
 		return -ENODEV;
 
+	card->dev->needed_headroom = headroom;
 	card->dev->ethtool_ops = &qeth_l3_ethtool_ops;
 	card->dev->features |=	NETIF_F_HW_VLAN_CTAG_TX |
 				NETIF_F_HW_VLAN_CTAG_RX |
 				NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	netif_keep_dst(card->dev);
-	if (card->dev->hw_features & NETIF_F_TSO)
+	if (card->dev->hw_features & (NETIF_F_TSO | NETIF_F_TSO6))
 		netif_set_gso_max_size(card->dev,
 				       PAGE_SIZE * (QETH_MAX_BUFFER_ELEMENTS(card) - 1));
 

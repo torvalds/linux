@@ -4088,21 +4088,45 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_do_send_packet);
 
+void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr, unsigned int payload_len,
+		       struct sk_buff *skb, unsigned int proto_len)
+{
+	struct qeth_hdr_ext_tso *ext = &hdr->ext;
+
+	ext->hdr_tot_len = sizeof(*ext);
+	ext->imb_hdr_no = 1;
+	ext->hdr_type = 1;
+	ext->hdr_version = 1;
+	ext->hdr_len = 28;
+	ext->payload_len = payload_len;
+	ext->mss = skb_shinfo(skb)->gso_size;
+	ext->dg_hdr_len = proto_len;
+}
+EXPORT_SYMBOL_GPL(qeth_fill_tso_ext);
+
 int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 	      struct qeth_qdio_out_q *queue, int ipv, int cast_type,
 	      void (*fill_header)(struct qeth_card *card, struct qeth_hdr *hdr,
 				  struct sk_buff *skb, int ipv, int cast_type,
 				  unsigned int data_len))
 {
-	const unsigned int proto_len = IS_IQD(card) ? ETH_HLEN : 0;
-	const unsigned int hw_hdr_len = sizeof(struct qeth_hdr);
+	unsigned int proto_len, hw_hdr_len;
 	unsigned int frame_len = skb->len;
+	bool is_tso = skb_is_gso(skb);
 	unsigned int data_offset = 0;
 	struct qeth_hdr *hdr = NULL;
 	unsigned int hd_len = 0;
 	unsigned int elements;
 	int push_len, rc;
 	bool is_sg;
+
+	if (is_tso) {
+		hw_hdr_len = sizeof(struct qeth_hdr_tso);
+		proto_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	} else {
+		hw_hdr_len = sizeof(struct qeth_hdr);
+		proto_len = IS_IQD(card) ? ETH_HLEN : 0;
+	}
 
 	rc = skb_cow_head(skb, hw_hdr_len);
 	if (rc)
@@ -4112,13 +4136,16 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 				      &elements);
 	if (push_len < 0)
 		return push_len;
-	if (!push_len) {
+	if (is_tso || !push_len) {
 		/* HW header needs its own buffer element. */
 		hd_len = hw_hdr_len + proto_len;
-		data_offset = proto_len;
+		data_offset = push_len + proto_len;
 	}
 	memset(hdr, 0, hw_hdr_len);
 	fill_header(card, hdr, skb, ipv, cast_type, frame_len);
+	if (is_tso)
+		qeth_fill_tso_ext((struct qeth_hdr_tso *) hdr,
+				  frame_len - proto_len, skb, proto_len);
 
 	is_sg = skb_is_nonlinear(skb);
 	if (IS_IQD(card)) {
@@ -4136,6 +4163,10 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 			card->perf_stats.buf_elements_sent += elements;
 			if (is_sg)
 				card->perf_stats.sg_skbs_sent++;
+			if (is_tso) {
+				card->perf_stats.large_send_bytes += frame_len;
+				card->perf_stats.large_send_cnt++;
+			}
 		}
 	} else {
 		if (!push_len)
@@ -6516,7 +6547,7 @@ static int qeth_set_ipa_rx_csum(struct qeth_card *card, bool on)
 }
 
 #define QETH_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | NETIF_F_TSO | \
-			  NETIF_F_IPV6_CSUM)
+			  NETIF_F_IPV6_CSUM | NETIF_F_TSO6)
 /**
  * qeth_enable_hw_features() - (Re-)Enable HW functions for device features
  * @dev:	a net_device
@@ -6572,6 +6603,12 @@ int qeth_set_features(struct net_device *dev, netdev_features_t features)
 		if (rc)
 			changed ^= NETIF_F_TSO;
 	}
+	if (changed & NETIF_F_TSO6) {
+		rc = qeth_set_ipa_tso(card, features & NETIF_F_TSO6,
+				      QETH_PROT_IPV6);
+		if (rc)
+			changed ^= NETIF_F_TSO6;
+	}
 
 	/* everything changed successfully? */
 	if ((dev->features ^ features) == changed)
@@ -6597,6 +6634,8 @@ netdev_features_t qeth_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_RXCSUM;
 	if (!qeth_is_supported(card, IPA_OUTBOUND_TSO))
 		features &= ~NETIF_F_TSO;
+	if (!qeth_is_supported6(card, IPA_OUTBOUND_TSO))
+		features &= ~NETIF_F_TSO6;
 	/* if the card isn't up, remove features that require hw changes */
 	if (card->state == CARD_STATE_DOWN ||
 	    card->state == CARD_STATE_RECOVER)
