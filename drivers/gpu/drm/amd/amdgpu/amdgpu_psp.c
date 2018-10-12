@@ -271,6 +271,104 @@ static int psp_asd_load(struct psp_context *psp)
 	return ret;
 }
 
+static void psp_prep_xgmi_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					  uint64_t xgmi_ta_mc, uint64_t xgmi_mc_shared,
+					  uint32_t xgmi_ta_size, uint32_t shared_size)
+{
+        cmd->cmd_id = GFX_CMD_ID_LOAD_TA;
+        cmd->cmd.cmd_load_ta.app_phy_addr_lo = lower_32_bits(xgmi_ta_mc);
+        cmd->cmd.cmd_load_ta.app_phy_addr_hi = upper_32_bits(xgmi_ta_mc);
+        cmd->cmd.cmd_load_ta.app_len = xgmi_ta_size;
+
+        cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo = lower_32_bits(xgmi_mc_shared);
+        cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi = upper_32_bits(xgmi_mc_shared);
+        cmd->cmd.cmd_load_ta.cmd_buf_len = shared_size;
+}
+
+static int psp_xgmi_init_shared_buf(struct psp_context *psp)
+{
+	int ret;
+
+	/*
+	 * Allocate 16k memory aligned to 4k from Frame Buffer (local
+	 * physical) for xgmi ta <-> Driver
+	 */
+	ret = amdgpu_bo_create_kernel(psp->adev, PSP_XGMI_SHARED_MEM_SIZE,
+				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				      &psp->xgmi_context.xgmi_shared_bo,
+				      &psp->xgmi_context.xgmi_shared_mc_addr,
+				      &psp->xgmi_context.xgmi_shared_buf);
+
+	return ret;
+}
+
+static int psp_xgmi_load(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the loading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->ta_xgmi_start_addr, psp->ta_xgmi_ucode_size);
+
+	psp_prep_xgmi_ta_load_cmd_buf(cmd, psp->fw_pri_mc_addr,
+				      psp->xgmi_context.xgmi_shared_mc_addr,
+				      psp->ta_xgmi_ucode_size, PSP_XGMI_SHARED_MEM_SIZE);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+
+	if (!ret) {
+		psp->xgmi_context.initialized = 1;
+		psp->xgmi_context.session_id = cmd->resp.session_id;
+	}
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static void psp_prep_xgmi_ta_unload_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					    uint32_t xgmi_session_id)
+{
+	cmd->cmd_id = GFX_CMD_ID_UNLOAD_TA;
+	cmd->cmd.cmd_unload_ta.session_id = xgmi_session_id;
+}
+
+static int psp_xgmi_unload(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the unloading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_xgmi_ta_unload_cmd_buf(cmd, psp->xgmi_context.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
