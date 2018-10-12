@@ -1609,7 +1609,7 @@ static int ppr_get(struct task_struct *target,
 		      void *kbuf, void __user *ubuf)
 {
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.ppr, 0, sizeof(u64));
+				   &target->thread.regs->ppr, 0, sizeof(u64));
 }
 
 static int ppr_set(struct task_struct *target,
@@ -1618,7 +1618,7 @@ static int ppr_set(struct task_struct *target,
 		      const void *kbuf, const void __user *ubuf)
 {
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.ppr, 0, sizeof(u64));
+				  &target->thread.regs->ppr, 0, sizeof(u64));
 }
 
 static int dscr_get(struct task_struct *target,

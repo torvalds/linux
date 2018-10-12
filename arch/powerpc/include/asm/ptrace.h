@@ -51,6 +51,10 @@ struct pt_regs
 			unsigned long result;
 		};
 	};
+
+#ifdef CONFIG_PPC64
+	unsigned long ppr;
+#endif
 };
 #endif
 

@@ -1710,7 +1710,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.dscr = mfspr(SPRN_DSCR);
 	}
 	if (cpu_has_feature(CPU_FTR_HAS_PPR))
-		p->thread.ppr = INIT_PPR;
+		childregs->ppr = DEFAULT_PPR;
 
 	p->thread.tidr = 0;
 #endif

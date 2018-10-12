@@ -32,9 +32,9 @@
 /* Default SMT priority is set to 3. Use 11- 13bits to save priority. */
 #define PPR_PRIORITY 3
 #ifdef __ASSEMBLY__
-#define INIT_PPR (PPR_PRIORITY << 50)
+#define DEFAULT_PPR (PPR_PRIORITY << 50)
 #else
-#define INIT_PPR ((u64)PPR_PRIORITY << 50)
+#define DEFAULT_PPR ((u64)PPR_PRIORITY << 50)
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_PPC64 */
 
@@ -341,7 +341,6 @@ struct thread_struct {
 	 * onwards.
 	 */
 	int		dscr_inherit;
-	unsigned long	ppr;	/* used to save/restore SMT priority */
 	unsigned long	tidr;
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -389,7 +388,6 @@ struct thread_struct {
 	.regs = (struct pt_regs *)INIT_SP - 1, /* XXX bogus, I think */ \
 	.addr_limit = KERNEL_DS, \
 	.fpexc_mode = 0, \
-	.ppr = INIT_PPR, \
 	.fscr = FSCR_TAR | FSCR_EBB \
 }
 #endif
