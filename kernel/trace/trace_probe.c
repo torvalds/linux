@@ -209,7 +209,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 {
 	struct fetch_insn *code = *pcode;
 	unsigned long param;
-	long offset;
+	long offset = 0;
 	char *tmp;
 	int ret = 0;
 
