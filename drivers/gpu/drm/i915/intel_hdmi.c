@@ -2322,6 +2322,8 @@ void intel_infoframe_init(struct intel_digital_port *intel_dig_port)
 		intel_dig_port->infoframe_enabled = g4x_infoframe_enabled;
 	} else if (HAS_DDI(dev_priv)) {
 		if (intel_dig_port->lspcon.active) {
+			intel_dig_port->write_infoframe =
+					lspcon_write_infoframe;
 			intel_dig_port->set_infoframes = lspcon_set_infoframes;
 			intel_dig_port->infoframe_enabled =
 						lspcon_infoframe_enabled;

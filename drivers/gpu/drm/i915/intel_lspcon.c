@@ -31,6 +31,12 @@
 #define LSPCON_VENDOR_PARADE_OUI 0x001CF8
 #define LSPCON_VENDOR_MCA_OUI 0x0060AD
 
+/* AUX addresses to write MCA AVI IF */
+#define LSPCON_MCA_AVI_IF_WRITE_OFFSET 0x5C0
+#define LSPCON_MCA_AVI_IF_CTRL 0x5DF
+#define  LSPCON_MCA_AVI_IF_KICKOFF (1 << 0)
+#define  LSPCON_MCA_AVI_IF_HANDLED (1 << 1)
+
 static struct intel_dp *lspcon_to_intel_dp(struct intel_lspcon *lspcon)
 {
 	struct intel_digital_port *dig_port =
@@ -232,6 +238,88 @@ static void lspcon_resume_in_pcon_wa(struct intel_lspcon *lspcon)
 	}
 
 	DRM_DEBUG_KMS("LSPCON DP descriptor mismatch after resume\n");
+}
+
+static bool _lspcon_write_avi_infoframe_mca(struct drm_dp_aux *aux,
+					    const uint8_t *buffer, ssize_t len)
+{
+	int ret;
+	uint32_t val = 0;
+	uint32_t retry;
+	uint16_t reg;
+	const uint8_t *data = buffer;
+
+	reg = LSPCON_MCA_AVI_IF_WRITE_OFFSET;
+	while (val < len) {
+		/* DPCD write for AVI IF can fail on a slow FW day, so retry */
+		for (retry = 0; retry < 5; retry++) {
+			ret = drm_dp_dpcd_write(aux, reg, (void *)data, 1);
+			if (ret == 1) {
+				break;
+			} else if (retry < 4) {
+				mdelay(50);
+				continue;
+			} else {
+				DRM_ERROR("DPCD write failed at:0x%x\n", reg);
+				return false;
+			}
+		}
+		val++; reg++; data++;
+	}
+
+	val = 0;
+	reg = LSPCON_MCA_AVI_IF_CTRL;
+	ret = drm_dp_dpcd_read(aux, reg, &val, 1);
+	if (ret < 0) {
+		DRM_ERROR("DPCD read failed, address 0x%x\n", reg);
+		return false;
+	}
+
+	/* Indicate LSPCON chip about infoframe, clear bit 1 and set bit 0 */
+	val &= ~LSPCON_MCA_AVI_IF_HANDLED;
+	val |= LSPCON_MCA_AVI_IF_KICKOFF;
+
+	ret = drm_dp_dpcd_write(aux, reg, &val, 1);
+	if (ret < 0) {
+		DRM_ERROR("DPCD read failed, address 0x%x\n", reg);
+		return false;
+	}
+
+	val = 0;
+	ret = drm_dp_dpcd_read(aux, reg, &val, 1);
+	if (ret < 0) {
+		DRM_ERROR("DPCD read failed, address 0x%x\n", reg);
+		return false;
+	}
+
+	if (val == LSPCON_MCA_AVI_IF_HANDLED)
+		DRM_DEBUG_KMS("AVI IF handled by FW\n");
+
+	return true;
+}
+
+void lspcon_write_infoframe(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state,
+			    unsigned int type,
+			    const void *frame, ssize_t len)
+{
+	bool ret = true;
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_lspcon *lspcon = enc_to_intel_lspcon(&encoder->base);
+
+	/* LSPCON only needs AVI IF */
+	if (type != HDMI_INFOFRAME_TYPE_AVI)
+		return;
+
+	if (lspcon->vendor == LSPCON_VENDOR_MCA)
+		ret = _lspcon_write_avi_infoframe_mca(&intel_dp->aux,
+						      frame, len);
+	if (!ret) {
+		DRM_ERROR("Failed to write AVI infoframes\n");
+		return;
+	}
+
+	DRM_DEBUG_DRIVER("AVI infoframes updated successfully\n");
 }
 
 void lspcon_set_infoframes(struct intel_encoder *encoder,

@@ -2215,6 +2215,10 @@ void intel_color_load_luts(struct drm_crtc_state *crtc_state);
 bool lspcon_init(struct intel_digital_port *intel_dig_port);
 void lspcon_resume(struct intel_lspcon *lspcon);
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
+void lspcon_write_infoframe(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state,
+			    unsigned int type,
+			    const void *buf, ssize_t len);
 void lspcon_set_infoframes(struct intel_encoder *encoder,
 			   bool enable,
 			   const struct intel_crtc_state *crtc_state,
