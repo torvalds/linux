@@ -373,7 +373,7 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
  * Returns the zone size in number of blocks upon success or an error code
  * upon failure.
  */
-static s64 sd_zbc_check_zones(struct scsi_disk *sdkp)
+static int sd_zbc_check_zones(struct scsi_disk *sdkp, u32 *zblocks)
 {
 	u64 zone_blocks = 0;
 	sector_t max_lba, block = 0;
@@ -381,7 +381,7 @@ static s64 sd_zbc_check_zones(struct scsi_disk *sdkp)
 	unsigned char *rec;
 	unsigned int buf_len;
 	unsigned int list_length;
-	s64 ret;
+	int ret;
 	u8 same;
 
 	/* Get a buffer */
@@ -472,9 +472,10 @@ out:
 		if (sdkp->first_scan)
 			sd_printk(KERN_NOTICE, sdkp,
 				  "Zone size too large\n");
-		ret = -ENODEV;
+		ret = -EFBIG;
 	} else {
-		ret = zone_blocks;
+		*zblocks = zone_blocks;
+		ret = 0;
 	}
 
 out_free:
@@ -668,7 +669,7 @@ err:
 
 int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 {
-	int64_t zone_blocks;
+	u32 zone_blocks;
 	int ret;
 
 	if (!sd_is_zoned(sdkp))
@@ -687,12 +688,8 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	 * Check zone size: only devices with a constant zone size (except
 	 * an eventual last runt zone) that is a power of 2 are supported.
 	 */
-	zone_blocks = sd_zbc_check_zones(sdkp);
-	ret = -EFBIG;
-	if (zone_blocks != (u32)zone_blocks)
-		goto err;
-	ret = zone_blocks;
-	if (ret < 0)
+	ret = sd_zbc_check_zones(sdkp, &zone_blocks);
+	if (ret != 0)
 		goto err;
 
 	/* The drive satisfies the kernel restrictions: set it up */
