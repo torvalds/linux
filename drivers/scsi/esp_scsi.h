@@ -249,11 +249,7 @@
 #define SYNC_DEFP_FAST            0x19   /* 10mb/s */
 
 struct esp_cmd_priv {
-	union {
-		dma_addr_t	dma_addr;
-		int		num_sg;
-	} u;
-
+	int			num_sg;
 	int			cur_residue;
 	struct scatterlist	*cur_sg;
 	int			tot_residue;

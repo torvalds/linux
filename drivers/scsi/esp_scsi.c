@@ -379,14 +379,14 @@ static void esp_map_dma(struct esp *esp, struct scsi_cmnd *cmd)
 		 * For pseudo DMA and PIO we need the virtual address instead of
 		 * a dma address, so perform an identity mapping.
 		 */
-		spriv->u.num_sg = scsi_sg_count(cmd);
-		for (i = 0; i < spriv->u.num_sg; i++) {
+		spriv->num_sg = scsi_sg_count(cmd);
+		for (i = 0; i < spriv->num_sg; i++) {
 			sg[i].dma_address = (uintptr_t)sg_virt(&sg[i]);
 			total += sg_dma_len(&sg[i]);
 		}
 	} else {
-		spriv->u.num_sg = scsi_dma_map(cmd);
-		for (i = 0; i < spriv->u.num_sg; i++)
+		spriv->num_sg = scsi_dma_map(cmd);
+		for (i = 0; i < spriv->num_sg; i++)
 			total += sg_dma_len(&sg[i]);
 	}
 	spriv->cur_residue = sg_dma_len(sg);
@@ -982,7 +982,7 @@ static int esp_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_
 	cmd->scsi_done = done;
 
 	spriv = ESP_CMD_PRIV(cmd);
-	spriv->u.dma_addr = ~(dma_addr_t)0x0;
+	spriv->num_sg = 0;
 
 	list_add_tail(&ent->list, &esp->queued_cmds);
 
@@ -1372,7 +1372,7 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 			struct esp_cmd_priv *p = ESP_CMD_PRIV(cmd);
 			u8 *ptr;
 
-			ptr = scsi_kmap_atomic_sg(p->cur_sg, p->u.num_sg,
+			ptr = scsi_kmap_atomic_sg(p->cur_sg, p->num_sg,
 						  &offset, &count);
 			if (likely(ptr)) {
 				*(ptr + offset) = bval;
