@@ -70,38 +70,6 @@ static inline u8 mac_esp_read8(struct esp *esp, unsigned long reg)
 	return nubus_readb(esp->regs + reg * 16);
 }
 
-/* For pseudo DMA and PIO we need the virtual address
- * so this address mapping is the identity mapping.
- */
-
-static dma_addr_t mac_esp_map_single(struct esp *esp, void *buf,
-				     size_t sz, int dir)
-{
-	return (dma_addr_t)buf;
-}
-
-static int mac_esp_map_sg(struct esp *esp, struct scatterlist *sg,
-			  int num_sg, int dir)
-{
-	int i;
-
-	for (i = 0; i < num_sg; i++)
-		sg[i].dma_address = (u32)sg_virt(&sg[i]);
-	return num_sg;
-}
-
-static void mac_esp_unmap_single(struct esp *esp, dma_addr_t addr,
-				 size_t sz, int dir)
-{
-	/* Nothing to do. */
-}
-
-static void mac_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
-			     int num_sg, int dir)
-{
-	/* Nothing to do. */
-}
-
 static void mac_esp_reset_dma(struct esp *esp)
 {
 	/* Nothing to do. */
@@ -469,10 +437,6 @@ static irqreturn_t mac_scsi_esp_intr(int irq, void *dev_id)
 static struct esp_driver_ops mac_esp_ops = {
 	.esp_write8       = mac_esp_write8,
 	.esp_read8        = mac_esp_read8,
-	.map_single       = mac_esp_map_single,
-	.map_sg           = mac_esp_map_sg,
-	.unmap_single     = mac_esp_unmap_single,
-	.unmap_sg         = mac_esp_unmap_sg,
 	.irq_pending      = mac_esp_irq_pending,
 	.dma_length_limit = mac_esp_dma_length_limit,
 	.reset_dma        = mac_esp_reset_dma,
@@ -552,11 +516,12 @@ static int esp_mac_probe(struct platform_device *dev)
 	}
 
 	esp->ops = &mac_esp_ops;
+	esp->flags = ESP_FLAG_NO_DMA_MAP;
 	if (mep->pdma_io == NULL) {
 		printk(KERN_INFO PFX "using PIO for controller %d\n", dev->id);
 		esp_write8(0, ESP_TCLOW);
 		esp_write8(0, ESP_TCMED);
-		esp->flags = ESP_FLAG_DISABLE_SYNC;
+		esp->flags |= ESP_FLAG_DISABLE_SYNC;
 		mac_esp_ops.send_dma_cmd = mac_esp_send_pio_cmd;
 	} else {
 		printk(KERN_INFO PFX "using PDMA for controller %d\n", dev->id);

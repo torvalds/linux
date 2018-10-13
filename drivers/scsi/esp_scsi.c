@@ -369,19 +369,28 @@ static void esp_map_dma(struct esp *esp, struct scsi_cmnd *cmd)
 {
 	struct esp_cmd_priv *spriv = ESP_CMD_PRIV(cmd);
 	struct scatterlist *sg = scsi_sglist(cmd);
-	int dir = cmd->sc_data_direction;
-	int total, i;
+	int total = 0, i;
 
-	if (dir == DMA_NONE)
+	if (cmd->sc_data_direction == DMA_NONE)
 		return;
 
-	spriv->u.num_sg = esp->ops->map_sg(esp, sg, scsi_sg_count(cmd), dir);
+	if (esp->flags & ESP_FLAG_NO_DMA_MAP) {
+		/*
+		 * For pseudo DMA and PIO we need the virtual address instead of
+		 * a dma address, so perform an identity mapping.
+		 */
+		spriv->u.num_sg = scsi_sg_count(cmd);
+		for (i = 0; i < spriv->u.num_sg; i++) {
+			sg[i].dma_address = (uintptr_t)sg_virt(&sg[i]);
+			total += sg_dma_len(&sg[i]);
+		}
+	} else {
+		spriv->u.num_sg = scsi_dma_map(cmd);
+		for (i = 0; i < spriv->u.num_sg; i++)
+			total += sg_dma_len(&sg[i]);
+	}
 	spriv->cur_residue = sg_dma_len(sg);
 	spriv->cur_sg = sg;
-
-	total = 0;
-	for (i = 0; i < spriv->u.num_sg; i++)
-		total += sg_dma_len(&sg[i]);
 	spriv->tot_residue = total;
 }
 
@@ -441,13 +450,8 @@ static void esp_advance_dma(struct esp *esp, struct esp_cmd_entry *ent,
 
 static void esp_unmap_dma(struct esp *esp, struct scsi_cmnd *cmd)
 {
-	struct esp_cmd_priv *spriv = ESP_CMD_PRIV(cmd);
-	int dir = cmd->sc_data_direction;
-
-	if (dir == DMA_NONE)
-		return;
-
-	esp->ops->unmap_sg(esp, scsi_sglist(cmd), spriv->u.num_sg, dir);
+	if (!(esp->flags & ESP_FLAG_NO_DMA_MAP))
+		scsi_dma_unmap(cmd);
 }
 
 static void esp_save_pointers(struct esp *esp, struct esp_cmd_entry *ent)
@@ -624,6 +628,26 @@ static void esp_free_lun_tag(struct esp_cmd_entry *ent,
 	}
 }
 
+static void esp_map_sense(struct esp *esp, struct esp_cmd_entry *ent)
+{
+	ent->sense_ptr = ent->cmd->sense_buffer;
+	if (esp->flags & ESP_FLAG_NO_DMA_MAP) {
+		ent->sense_dma = (uintptr_t)ent->sense_ptr;
+		return;
+	}
+
+	ent->sense_dma = dma_map_single(esp->dev, ent->sense_ptr,
+					SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+}
+
+static void esp_unmap_sense(struct esp *esp, struct esp_cmd_entry *ent)
+{
+	if (!(esp->flags & ESP_FLAG_NO_DMA_MAP))
+		dma_unmap_single(esp->dev, ent->sense_dma,
+				 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+	ent->sense_ptr = NULL;
+}
+
 /* When a contingent allegiance conditon is created, we force feed a
  * REQUEST_SENSE command to the device to fetch the sense data.  I
  * tried many other schemes, relying on the scsi error handling layer
@@ -645,12 +669,7 @@ static void esp_autosense(struct esp *esp, struct esp_cmd_entry *ent)
 	if (!ent->sense_ptr) {
 		esp_log_autosense("Doing auto-sense for tgt[%d] lun[%d]\n",
 				  tgt, lun);
-
-		ent->sense_ptr = cmd->sense_buffer;
-		ent->sense_dma = esp->ops->map_single(esp,
-						      ent->sense_ptr,
-						      SCSI_SENSE_BUFFERSIZE,
-						      DMA_FROM_DEVICE);
+		esp_map_sense(esp, ent);
 	}
 	ent->saved_sense_ptr = ent->sense_ptr;
 
@@ -902,9 +921,7 @@ static void esp_cmd_is_done(struct esp *esp, struct esp_cmd_entry *ent,
 	}
 
 	if (ent->flags & ESP_CMD_FLAG_AUTOSENSE) {
-		esp->ops->unmap_single(esp, ent->sense_dma,
-				       SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
-		ent->sense_ptr = NULL;
+		esp_unmap_sense(esp, ent);
 
 		/* Restore the message/status bytes to what we actually
 		 * saw originally.  Also, report that we are providing
@@ -1256,10 +1273,7 @@ static int esp_finish_select(struct esp *esp)
 			esp->cmd_bytes_ptr = NULL;
 			esp->cmd_bytes_left = 0;
 		} else {
-			esp->ops->unmap_single(esp, ent->sense_dma,
-					       SCSI_SENSE_BUFFERSIZE,
-					       DMA_FROM_DEVICE);
-			ent->sense_ptr = NULL;
+			esp_unmap_sense(esp, ent);
 		}
 
 		/* Now that the state is unwound properly, put back onto
@@ -2039,11 +2053,8 @@ static void esp_reset_cleanup_one(struct esp *esp, struct esp_cmd_entry *ent)
 	esp_free_lun_tag(ent, cmd->device->hostdata);
 	cmd->result = DID_RESET << 16;
 
-	if (ent->flags & ESP_CMD_FLAG_AUTOSENSE) {
-		esp->ops->unmap_single(esp, ent->sense_dma,
-				       SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
-		ent->sense_ptr = NULL;
-	}
+	if (ent->flags & ESP_CMD_FLAG_AUTOSENSE)
+		esp_unmap_sense(esp, ent);
 
 	cmd->scsi_done(cmd);
 	list_del(&ent->list);

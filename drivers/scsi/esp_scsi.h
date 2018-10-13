@@ -363,19 +363,6 @@ struct esp_driver_ops {
 	void (*esp_write8)(struct esp *esp, u8 val, unsigned long reg);
 	u8 (*esp_read8)(struct esp *esp, unsigned long reg);
 
-	/* Map and unmap DMA memory.  Eventually the driver will be
-	 * converted to the generic DMA API as soon as SBUS is able to
-	 * cope with that.  At such time we can remove this.
-	 */
-	dma_addr_t (*map_single)(struct esp *esp, void *buf,
-				 size_t sz, int dir);
-	int (*map_sg)(struct esp *esp, struct scatterlist *sg,
-		      int num_sg, int dir);
-	void (*unmap_single)(struct esp *esp, dma_addr_t addr,
-			     size_t sz, int dir);
-	void (*unmap_sg)(struct esp *esp, struct scatterlist *sg,
-			 int num_sg, int dir);
-
 	/* Return non-zero if there is an IRQ pending.  Usually this
 	 * status bit lives in the DMA controller sitting in front of
 	 * the ESP.  This has to be accurate or else the ESP interrupt
@@ -495,6 +482,7 @@ struct esp {
 #define ESP_FLAG_QUICKIRQ_CHECK	0x00000010
 #define ESP_FLAG_DISABLE_SYNC	0x00000020
 #define ESP_FLAG_USE_FIFO	0x00000040
+#define ESP_FLAG_NO_DMA_MAP	0x00000080
 
 	u8			select_state;
 #define ESP_SELECT_NONE		0x00 /* Not selecting */

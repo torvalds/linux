@@ -182,30 +182,6 @@ static u8 zorro_esp_read8(struct esp *esp, unsigned long reg)
 	return readb(esp->regs + (reg * 4UL));
 }
 
-static dma_addr_t zorro_esp_map_single(struct esp *esp, void *buf,
-				      size_t sz, int dir)
-{
-	return dma_map_single(esp->dev, buf, sz, dir);
-}
-
-static int zorro_esp_map_sg(struct esp *esp, struct scatterlist *sg,
-				  int num_sg, int dir)
-{
-	return dma_map_sg(esp->dev, sg, num_sg, dir);
-}
-
-static void zorro_esp_unmap_single(struct esp *esp, dma_addr_t addr,
-				  size_t sz, int dir)
-{
-	dma_unmap_single(esp->dev, addr, sz, dir);
-}
-
-static void zorro_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
-			      int num_sg, int dir)
-{
-	dma_unmap_sg(esp->dev, sg, num_sg, dir);
-}
-
 static int zorro_esp_irq_pending(struct esp *esp)
 {
 	/* check ESP status register; DMA has no status reg. */
@@ -739,10 +715,6 @@ static int zorro_esp_dma_error(struct esp *esp)
 static const struct esp_driver_ops blz1230_esp_ops = {
 	.esp_write8		= zorro_esp_write8,
 	.esp_read8		= zorro_esp_read8,
-	.map_single		= zorro_esp_map_single,
-	.map_sg			= zorro_esp_map_sg,
-	.unmap_single		= zorro_esp_unmap_single,
-	.unmap_sg		= zorro_esp_unmap_sg,
 	.irq_pending		= zorro_esp_irq_pending,
 	.dma_length_limit	= zorro_esp_dma_length_limit,
 	.reset_dma		= zorro_esp_reset_dma,
@@ -755,10 +727,6 @@ static const struct esp_driver_ops blz1230_esp_ops = {
 static const struct esp_driver_ops blz1230II_esp_ops = {
 	.esp_write8		= zorro_esp_write8,
 	.esp_read8		= zorro_esp_read8,
-	.map_single		= zorro_esp_map_single,
-	.map_sg			= zorro_esp_map_sg,
-	.unmap_single		= zorro_esp_unmap_single,
-	.unmap_sg		= zorro_esp_unmap_sg,
 	.irq_pending		= zorro_esp_irq_pending,
 	.dma_length_limit	= zorro_esp_dma_length_limit,
 	.reset_dma		= zorro_esp_reset_dma,
@@ -771,10 +739,6 @@ static const struct esp_driver_ops blz1230II_esp_ops = {
 static const struct esp_driver_ops blz2060_esp_ops = {
 	.esp_write8		= zorro_esp_write8,
 	.esp_read8		= zorro_esp_read8,
-	.map_single		= zorro_esp_map_single,
-	.map_sg			= zorro_esp_map_sg,
-	.unmap_single		= zorro_esp_unmap_single,
-	.unmap_sg		= zorro_esp_unmap_sg,
 	.irq_pending		= zorro_esp_irq_pending,
 	.dma_length_limit	= zorro_esp_dma_length_limit,
 	.reset_dma		= zorro_esp_reset_dma,
@@ -787,10 +751,6 @@ static const struct esp_driver_ops blz2060_esp_ops = {
 static const struct esp_driver_ops cyber_esp_ops = {
 	.esp_write8		= zorro_esp_write8,
 	.esp_read8		= zorro_esp_read8,
-	.map_single		= zorro_esp_map_single,
-	.map_sg			= zorro_esp_map_sg,
-	.unmap_single		= zorro_esp_unmap_single,
-	.unmap_sg		= zorro_esp_unmap_sg,
 	.irq_pending		= cyber_esp_irq_pending,
 	.dma_length_limit	= zorro_esp_dma_length_limit,
 	.reset_dma		= zorro_esp_reset_dma,
@@ -803,10 +763,6 @@ static const struct esp_driver_ops cyber_esp_ops = {
 static const struct esp_driver_ops cyberII_esp_ops = {
 	.esp_write8		= zorro_esp_write8,
 	.esp_read8		= zorro_esp_read8,
-	.map_single		= zorro_esp_map_single,
-	.map_sg			= zorro_esp_map_sg,
-	.unmap_single		= zorro_esp_unmap_single,
-	.unmap_sg		= zorro_esp_unmap_sg,
 	.irq_pending		= zorro_esp_irq_pending,
 	.dma_length_limit	= zorro_esp_dma_length_limit,
 	.reset_dma		= zorro_esp_reset_dma,
@@ -819,10 +775,6 @@ static const struct esp_driver_ops cyberII_esp_ops = {
 static const struct esp_driver_ops fastlane_esp_ops = {
 	.esp_write8		= zorro_esp_write8,
 	.esp_read8		= zorro_esp_read8,
-	.map_single		= zorro_esp_map_single,
-	.map_sg			= zorro_esp_map_sg,
-	.unmap_single		= zorro_esp_unmap_single,
-	.unmap_sg		= zorro_esp_unmap_sg,
 	.irq_pending		= fastlane_esp_irq_pending,
 	.dma_length_limit	= zorro_esp_dma_length_limit,
 	.reset_dma		= zorro_esp_reset_dma,

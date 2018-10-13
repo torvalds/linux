@@ -210,30 +210,6 @@ static u8 sbus_esp_read8(struct esp *esp, unsigned long reg)
 	return sbus_readb(esp->regs + (reg * 4UL));
 }
 
-static dma_addr_t sbus_esp_map_single(struct esp *esp, void *buf,
-				      size_t sz, int dir)
-{
-	return dma_map_single(esp->dev, buf, sz, dir);
-}
-
-static int sbus_esp_map_sg(struct esp *esp, struct scatterlist *sg,
-				  int num_sg, int dir)
-{
-	return dma_map_sg(esp->dev, sg, num_sg, dir);
-}
-
-static void sbus_esp_unmap_single(struct esp *esp, dma_addr_t addr,
-				  size_t sz, int dir)
-{
-	dma_unmap_single(esp->dev, addr, sz, dir);
-}
-
-static void sbus_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
-			      int num_sg, int dir)
-{
-	dma_unmap_sg(esp->dev, sg, num_sg, dir);
-}
-
 static int sbus_esp_irq_pending(struct esp *esp)
 {
 	if (dma_read32(DMA_CSR) & (DMA_HNDL_INTR | DMA_HNDL_ERROR))
@@ -463,10 +439,6 @@ static int sbus_esp_dma_error(struct esp *esp)
 static const struct esp_driver_ops sbus_esp_ops = {
 	.esp_write8	=	sbus_esp_write8,
 	.esp_read8	=	sbus_esp_read8,
-	.map_single	=	sbus_esp_map_single,
-	.map_sg		=	sbus_esp_map_sg,
-	.unmap_single	=	sbus_esp_unmap_single,
-	.unmap_sg	=	sbus_esp_unmap_sg,
 	.irq_pending	=	sbus_esp_irq_pending,
 	.reset_dma	=	sbus_esp_reset_dma,
 	.dma_drain	=	sbus_esp_dma_drain,

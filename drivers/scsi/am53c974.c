@@ -114,30 +114,6 @@ static void pci_esp_write32(struct esp *esp, u32 val, unsigned long reg)
 	return iowrite32(val, esp->regs + (reg * 4UL));
 }
 
-static dma_addr_t pci_esp_map_single(struct esp *esp, void *buf,
-				     size_t sz, int dir)
-{
-	return dma_map_single(esp->dev, buf, sz, dir);
-}
-
-static int pci_esp_map_sg(struct esp *esp, struct scatterlist *sg,
-			  int num_sg, int dir)
-{
-	return dma_map_sg(esp->dev, sg, num_sg, dir);
-}
-
-static void pci_esp_unmap_single(struct esp *esp, dma_addr_t addr,
-				 size_t sz, int dir)
-{
-	dma_unmap_single(esp->dev, addr, sz, dir);
-}
-
-static void pci_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
-			     int num_sg, int dir)
-{
-	dma_unmap_sg(esp->dev, sg, num_sg, dir);
-}
-
 static int pci_esp_irq_pending(struct esp *esp)
 {
 	struct pci_esp_priv *pep = pci_esp_get_priv(esp);
@@ -293,10 +269,6 @@ static u32 pci_esp_dma_length_limit(struct esp *esp, u32 dma_addr, u32 dma_len)
 static const struct esp_driver_ops pci_esp_ops = {
 	.esp_write8	=	pci_esp_write8,
 	.esp_read8	=	pci_esp_read8,
-	.map_single	=	pci_esp_map_single,
-	.map_sg		=	pci_esp_map_sg,
-	.unmap_single	=	pci_esp_unmap_single,
-	.unmap_sg	=	pci_esp_unmap_sg,
 	.irq_pending	=	pci_esp_irq_pending,
 	.reset_dma	=	pci_esp_reset_dma,
 	.dma_drain	=	pci_esp_dma_drain,
