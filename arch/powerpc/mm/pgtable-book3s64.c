@@ -73,7 +73,8 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	 * Make sure hardware valid bit is not set. We don't do
 	 * tlb flush for this update.
 	 */
-	WARN_ON(pte_val(pmd_pte(*pmdp)) & _PAGE_PRESENT);
+
+	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
 	WARN_ON(!(pmd_large(pmd) || pmd_devmap(pmd)));
 #endif

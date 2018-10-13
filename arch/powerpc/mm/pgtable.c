@@ -184,7 +184,7 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	 * Make sure hardware valid bit is not set. We don't do
 	 * tlb flush for this update.
 	 */
-	VM_WARN_ON(pte_hw_valid(*ptep));
+	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
 
 	/* Add the pte bit when trying to set a pte */
 	pte = pte_mkpte(pte);
