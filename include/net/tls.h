@@ -39,6 +39,8 @@
 #include <linux/crypto.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
+#include <linux/skmsg.h>
+
 #include <net/tcp.h>
 #include <net/strparser.h>
 #include <crypto/aead.h>
@@ -103,15 +105,13 @@ struct tls_rec {
 	int tx_flags;
 	int inplace_crypto;
 
-	/* AAD | sg_plaintext_data | sg_tag */
-	struct scatterlist sg_plaintext_data[MAX_SKB_FRAGS + 1];
-	/* AAD | sg_encrypted_data (data contain overhead for hdr&iv&tag) */
-	struct scatterlist sg_encrypted_data[MAX_SKB_FRAGS + 1];
+	struct sk_msg msg_plaintext;
+	struct sk_msg msg_encrypted;
 
-	unsigned int sg_plaintext_size;
-	unsigned int sg_encrypted_size;
-	int sg_plaintext_num_elem;
-	int sg_encrypted_num_elem;
+	/* AAD | msg_plaintext.sg.data | sg_tag */
+	struct scatterlist sg_aead_in[2];
+	/* AAD | msg_encrypted.sg.data (data contains overhead for hdr & iv & tag) */
+	struct scatterlist sg_aead_out[2];
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
 	struct aead_request aead_req;
@@ -223,8 +223,8 @@ struct tls_context {
 
 	unsigned long flags;
 	bool in_tcp_sendpages;
+	bool pending_open_record_frags;
 
-	u16 pending_open_record_frags;
 	int (*push_pending_record)(struct sock *sk, int flags);
 
 	void (*sk_write_space)(struct sock *sk);

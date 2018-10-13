@@ -73,6 +73,45 @@ int sk_msg_alloc(struct sock *sk, struct sk_msg *msg, int len,
 }
 EXPORT_SYMBOL_GPL(sk_msg_alloc);
 
+int sk_msg_clone(struct sock *sk, struct sk_msg *dst, struct sk_msg *src,
+		 u32 off, u32 len)
+{
+	int i = src->sg.start;
+	struct scatterlist *sge = sk_msg_elem(src, i);
+	u32 sge_len, sge_off;
+
+	if (sk_msg_full(dst))
+		return -ENOSPC;
+
+	while (off) {
+		if (sge->length > off)
+			break;
+		off -= sge->length;
+		sk_msg_iter_var_next(i);
+		if (i == src->sg.end && off)
+			return -ENOSPC;
+		sge = sk_msg_elem(src, i);
+	}
+
+	while (len) {
+		sge_len = sge->length - off;
+		sge_off = sge->offset + off;
+		if (sge_len > len)
+			sge_len = len;
+		off = 0;
+		len -= sge_len;
+		sk_msg_page_add(dst, sg_page(sge), sge_len, sge_off);
+		sk_mem_charge(sk, sge_len);
+		sk_msg_iter_var_next(i);
+		if (i == src->sg.end && len)
+			return -ENOSPC;
+		sge = sk_msg_elem(src, i);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sk_msg_clone);
+
 void sk_msg_return_zero(struct sock *sk, struct sk_msg *msg, int bytes)
 {
 	int i = msg->sg.start;
