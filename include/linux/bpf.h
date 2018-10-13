@@ -737,33 +737,18 @@ static inline void bpf_map_offload_map_free(struct bpf_map *map)
 }
 #endif /* CONFIG_NET && CONFIG_BPF_SYSCALL */
 
-#if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_INET)
-struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
-struct sock  *__sock_hash_lookup_elem(struct bpf_map *map, void *key);
-int sock_map_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
-int sockmap_get_from_fd(const union bpf_attr *attr, int type,
-			struct bpf_prog *prog);
+#if defined(CONFIG_BPF_STREAM_PARSER)
+int sock_map_prog_update(struct bpf_map *map, struct bpf_prog *prog, u32 which);
+int sock_map_get_from_fd(const union bpf_attr *attr, struct bpf_prog *prog);
 #else
-static inline struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
-{
-	return NULL;
-}
-
-static inline struct sock  *__sock_hash_lookup_elem(struct bpf_map *map,
-						    void *key)
-{
-	return NULL;
-}
-
-static inline int sock_map_prog(struct bpf_map *map,
-				struct bpf_prog *prog,
-				u32 type)
+static inline int sock_map_prog_update(struct bpf_map *map,
+				       struct bpf_prog *prog, u32 which)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int sockmap_get_from_fd(const union bpf_attr *attr, int type,
-				      struct bpf_prog *prog)
+static inline int sock_map_get_from_fd(const union bpf_attr *attr,
+				       struct bpf_prog *prog)
 {
 	return -EINVAL;
 }
@@ -839,6 +824,10 @@ extern const struct bpf_func_proto bpf_get_stack_proto;
 extern const struct bpf_func_proto bpf_sock_map_update_proto;
 extern const struct bpf_func_proto bpf_sock_hash_update_proto;
 extern const struct bpf_func_proto bpf_get_current_cgroup_id_proto;
+extern const struct bpf_func_proto bpf_msg_redirect_hash_proto;
+extern const struct bpf_func_proto bpf_msg_redirect_map_proto;
+extern const struct bpf_func_proto bpf_sk_redirect_hash_proto;
+extern const struct bpf_func_proto bpf_sk_redirect_map_proto;
 
 extern const struct bpf_func_proto bpf_get_local_storage_proto;
 
