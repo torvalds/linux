@@ -15365,13 +15365,19 @@ F:	arch/x86/um/
 F:	fs/hostfs/
 F:	fs/hppfs/
 
+USERSPACE COPYIN/COPYOUT (UIOVEC)
+M:	Alexander Viro <viro@zeniv.linux.org.uk>
+S:	Maintained
+F:	lib/iov_iter.c
+F:	include/linux/uio.h
+
 USERSPACE I/O (UIO)
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
 F:	Documentation/driver-api/uio-howto.rst
 F:	drivers/uio/
-F:	include/linux/uio*.h
+F:	include/linux/uio_driver.h
 
 UTIL-LINUX PACKAGE
 M:	Karel Zak <kzak@redhat.com>
