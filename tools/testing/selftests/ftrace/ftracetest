@@ -153,7 +153,7 @@ else
 fi
 
 prlog() { # messages
-  [ -z "$LOG_FILE" ] && echo "$@" || echo "$@" | tee -a $LOG_FILE
+  [ -z "$LOG_FILE" ] && echo -e "$@" || echo -e "$@" | tee -a $LOG_FILE
 }
 catlog() { #file
   [ -z "$LOG_FILE" ] && cat $1 || cat $1 | tee -a $LOG_FILE
@@ -195,37 +195,37 @@ test_on_instance() { # testfile
 eval_result() { # sigval
   case $1 in
     $PASS)
-      prlog "	[PASS]"
+      prlog "	[\e[32mPASS\e[30m]"
       PASSED_CASES="$PASSED_CASES $CASENO"
       return 0
     ;;
     $FAIL)
-      prlog "	[FAIL]"
+      prlog "	[\e[31mFAIL\e[30m]"
       FAILED_CASES="$FAILED_CASES $CASENO"
       return 1 # this is a bug.
     ;;
     $UNRESOLVED)
-      prlog "	[UNRESOLVED]"
+      prlog "	[\e[34mUNRESOLVED\e[30m]"
       UNRESOLVED_CASES="$UNRESOLVED_CASES $CASENO"
       return 1 # this is a kind of bug.. something happened.
     ;;
     $UNTESTED)
-      prlog "	[UNTESTED]"
+      prlog "	[\e[34mUNTESTED\e[30m]"
       UNTESTED_CASES="$UNTESTED_CASES $CASENO"
       return 0
     ;;
     $UNSUPPORTED)
-      prlog "	[UNSUPPORTED]"
+      prlog "	[\e[34mUNSUPPORTED\e[30m]"
       UNSUPPORTED_CASES="$UNSUPPORTED_CASES $CASENO"
       return $UNSUPPORTED_RESULT # depends on use case
     ;;
     $XFAIL)
-      prlog "	[XFAIL]"
+      prlog "	[\e[31mXFAIL\e[30m]"
       XFAILED_CASES="$XFAILED_CASES $CASENO"
       return 0
     ;;
     *)
-      prlog "	[UNDEFINED]"
+      prlog "	[\e[34mUNDEFINED\e[30m]"
       UNDEFINED_CASES="$UNDEFINED_CASES $CASENO"
       return 1 # this must be a test bug
     ;;
