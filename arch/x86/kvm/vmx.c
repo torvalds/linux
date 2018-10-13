@@ -1571,7 +1571,8 @@ static void check_ept_pointer_match(struct kvm *kvm)
 
 static int vmx_hv_remote_flush_tlb(struct kvm *kvm)
 {
-	int ret;
+	struct kvm_vcpu *vcpu;
+	int ret = -ENOTSUPP, i;
 
 	spin_lock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 
@@ -1579,14 +1580,14 @@ static int vmx_hv_remote_flush_tlb(struct kvm *kvm)
 		check_ept_pointer_match(kvm);
 
 	if (to_kvm_vmx(kvm)->ept_pointers_match != EPT_POINTERS_MATCH) {
-		ret = -ENOTSUPP;
-		goto out;
+		kvm_for_each_vcpu(i, vcpu, kvm)
+			ret |= hyperv_flush_guest_mapping(
+				to_vmx(kvm_get_vcpu(kvm, i))->ept_pointer);
+	} else {
+		ret = hyperv_flush_guest_mapping(
+				to_vmx(kvm_get_vcpu(kvm, 0))->ept_pointer);
 	}
 
-	ret = hyperv_flush_guest_mapping(
-			to_vmx(kvm_get_vcpu(kvm, 0))->ept_pointer);
-
-out:
 	spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 	return ret;
 }
