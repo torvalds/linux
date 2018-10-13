@@ -1572,8 +1572,12 @@ static int vmx_hv_remote_flush_tlb(struct kvm *kvm)
 		goto out;
 	}
 
+	/*
+	 * FLUSH_GUEST_PHYSICAL_ADDRESS_SPACE hypercall needs the address of the
+	 * base of EPT PML4 table, strip off EPT configuration information.
+	 */
 	ret = hyperv_flush_guest_mapping(
-			to_vmx(kvm_get_vcpu(kvm, 0))->ept_pointer);
+			to_vmx(kvm_get_vcpu(kvm, 0))->ept_pointer & PAGE_MASK);
 
 out:
 	spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
