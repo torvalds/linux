@@ -568,13 +568,12 @@ struct esp {
  *     example, the DMA engine has to be reset before ESP can
  *     be programmed.
  * 11) If necessary, call dev_set_drvdata() as needed.
- * 12) Call scsi_esp_register() with prepared 'esp' structure
- *     and a device pointer if possible.
+ * 12) Call scsi_esp_register() with prepared 'esp' structure.
  * 13) Check scsi_esp_register() return value, release all resources
  *     if an error was returned.
  */
 extern struct scsi_host_template scsi_esp_template;
-extern int scsi_esp_register(struct esp *, struct device *);
+extern int scsi_esp_register(struct esp *);
 
 extern void scsi_esp_unregister(struct esp *);
 extern irqreturn_t scsi_esp_intr(int, void *);

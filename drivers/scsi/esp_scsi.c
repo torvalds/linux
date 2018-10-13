@@ -2382,7 +2382,7 @@ static const char *esp_chip_names[] = {
 
 static struct scsi_transport_template *esp_transport_template;
 
-int scsi_esp_register(struct esp *esp, struct device *dev)
+int scsi_esp_register(struct esp *esp)
 {
 	static int instance;
 	int err;
@@ -2402,10 +2402,10 @@ int scsi_esp_register(struct esp *esp, struct device *dev)
 
 	esp_bootup_reset(esp);
 
-	dev_printk(KERN_INFO, dev, "esp%u: regs[%1p:%1p] irq[%u]\n",
+	dev_printk(KERN_INFO, esp->dev, "esp%u: regs[%1p:%1p] irq[%u]\n",
 		   esp->host->unique_id, esp->regs, esp->dma_regs,
 		   esp->host->irq);
-	dev_printk(KERN_INFO, dev,
+	dev_printk(KERN_INFO, esp->dev,
 		   "esp%u: is a %s, %u MHz (ccf=%u), SCSI ID %u\n",
 		   esp->host->unique_id, esp_chip_names[esp->rev],
 		   esp->cfreq / 1000000, esp->cfact, esp->scsi_id);
@@ -2413,7 +2413,7 @@ int scsi_esp_register(struct esp *esp, struct device *dev)
 	/* Let the SCSI bus reset settle. */
 	ssleep(esp_bus_reset_settle);
 
-	err = scsi_add_host(esp->host, dev);
+	err = scsi_add_host(esp->host, esp->dev);
 	if (err)
 		return err;
 

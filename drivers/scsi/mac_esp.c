@@ -576,7 +576,7 @@ static int esp_mac_probe(struct platform_device *dev)
 	esp_chips[dev->id] = esp;
 	spin_unlock(&esp_chips_lock);
 
-	err = scsi_esp_register(esp, &dev->dev);
+	err = scsi_esp_register(esp);
 	if (err)
 		goto fail_free_irq;
 

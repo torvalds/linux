@@ -529,7 +529,7 @@ static int esp_sbus_probe_one(struct platform_device *op,
 
 	dev_set_drvdata(&op->dev, esp);
 
-	err = scsi_esp_register(esp, &op->dev);
+	err = scsi_esp_register(esp);
 	if (err)
 		goto fail_free_irq;
 

@@ -496,7 +496,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 	/* Assume 40MHz clock */
 	esp->cfreq = 40000000;
 
-	err = scsi_esp_register(esp, &pdev->dev);
+	err = scsi_esp_register(esp);
 	if (err)
 		goto fail_free_irq;
 

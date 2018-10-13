@@ -1082,7 +1082,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	}
 
 	/* register the chip */
-	err = scsi_esp_register(esp, &z->dev);
+	err = scsi_esp_register(esp);
 
 	if (err) {
 		err = -ENOMEM;

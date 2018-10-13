@@ -182,7 +182,7 @@ static int esp_jazz_probe(struct platform_device *dev)
 
 	dev_set_drvdata(&dev->dev, esp);
 
-	err = scsi_esp_register(esp, &dev->dev);
+	err = scsi_esp_register(esp);
 	if (err)
 		goto fail_free_irq;
 
