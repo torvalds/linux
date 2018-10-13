@@ -114,9 +114,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 static inline struct blk_flush_queue *blk_get_flush_queue(
 		struct request_queue *q, struct blk_mq_ctx *ctx)
 {
-	if (q->mq_ops)
-		return blk_mq_map_queue(q, ctx->cpu)->fq;
-	return q->fq;
+	return blk_mq_map_queue(q, ctx->cpu)->fq;
 }
 
 static inline void __blk_get_queue(struct request_queue *q)
