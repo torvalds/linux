@@ -1352,23 +1352,15 @@ splice_read_end:
 	return copied ? : err;
 }
 
-unsigned int tls_sw_poll(struct file *file, struct socket *sock,
-			 struct poll_table_struct *wait)
+bool tls_sw_stream_read(const struct sock *sk)
 {
-	unsigned int ret;
-	struct sock *sk = sock->sk;
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 
-	/* Grab POLLOUT and POLLHUP from the underlying socket */
-	ret = ctx->sk_poll(file, sock, wait);
-
-	/* Clear POLLIN bits, and set based on recv_pkt */
-	ret &= ~(POLLIN | POLLRDNORM);
 	if (ctx->recv_pkt)
-		ret |= POLLIN | POLLRDNORM;
+		return true;
 
-	return ret;
+	return false;
 }
 
 static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
@@ -1685,8 +1677,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		sw_ctx_rx->saved_data_ready = sk->sk_data_ready;
 		sk->sk_data_ready = tls_data_ready;
 		write_unlock_bh(&sk->sk_callback_lock);
-
-		sw_ctx_rx->sk_poll = sk->sk_socket->ops->poll;
 
 		strp_check_rcv(&sw_ctx_rx->strp);
 	}
