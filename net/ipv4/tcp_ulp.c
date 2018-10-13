@@ -123,6 +123,8 @@ void tcp_cleanup_ulp(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
+	sock_owned_by_me(sk);
+
 	if (!icsk->icsk_ulp_ops)
 		return;
 
@@ -140,6 +142,7 @@ int tcp_set_ulp(struct sock *sk, const char *name)
 	const struct tcp_ulp_ops *ulp_ops;
 	int err = 0;
 
+	sock_owned_by_me(sk);
 	if (icsk->icsk_ulp_ops)
 		return -EEXIST;
 
@@ -168,6 +171,7 @@ int tcp_set_ulp_id(struct sock *sk, int ulp)
 	const struct tcp_ulp_ops *ulp_ops;
 	int err;
 
+	sock_owned_by_me(sk);
 	if (icsk->icsk_ulp_ops)
 		return -EEXIST;
 
