@@ -1140,32 +1140,16 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
 	/* Check if TXQ needs to be allocated or re-activated */
-	if (unlikely(txq_id == IWL_MVM_INVALID_QUEUE ||
-		     !mvmsta->tid_data[tid].is_tid_active)) {
-		/* If TXQ needs to be allocated... */
-		if (txq_id == IWL_MVM_INVALID_QUEUE) {
-			iwl_mvm_tx_add_stream(mvm, mvmsta, tid, skb);
+	if (unlikely(txq_id == IWL_MVM_INVALID_QUEUE)) {
+		iwl_mvm_tx_add_stream(mvm, mvmsta, tid, skb);
 
-			/*
-			 * The frame is now deferred, and the worker scheduled
-			 * will re-allocate it, so we can free it for now.
-			 */
-			iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
-			spin_unlock(&mvmsta->lock);
-			return 0;
-		}
-
-		/* queue should always be active in new TX path */
-		WARN_ON(iwl_mvm_has_new_tx_api(mvm));
-
-		/* If we are here - TXQ exists and needs to be re-activated */
-		spin_lock(&mvm->queue_info_lock);
-		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_READY;
-		mvmsta->tid_data[tid].is_tid_active = true;
-		spin_unlock(&mvm->queue_info_lock);
-
-		IWL_DEBUG_TX_QUEUES(mvm, "Re-activating queue %d for TX\n",
-				    txq_id);
+		/*
+		 * The frame is now deferred, and the worker scheduled
+		 * will re-allocate it, so we can free it for now.
+		 */
+		iwl_trans_free_tx_cmd(mvm->trans, dev_cmd);
+		spin_unlock(&mvmsta->lock);
+		return 0;
 	}
 
 	if (!iwl_mvm_has_new_tx_api(mvm)) {

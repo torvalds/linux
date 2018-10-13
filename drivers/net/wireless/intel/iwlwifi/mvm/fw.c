@@ -364,7 +364,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 
 	memset(&mvm->queue_info, 0, sizeof(mvm->queue_info));
-	mvm->queue_info[IWL_MVM_DQA_CMD_QUEUE].hw_queue_refcount = 1;
+	/*
+	 * Set a 'fake' TID for the command queue, since we use the
+	 * hweight() of the tid_bitmap as a refcount now. Not that
+	 * we ever even consider the command queue as one we might
+	 * want to reuse, but be safe nevertheless.
+	 */
+	mvm->queue_info[IWL_MVM_DQA_CMD_QUEUE].tid_bitmap =
+		BIT(IWL_MAX_TID_COUNT + 2);
 
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);

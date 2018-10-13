@@ -1154,14 +1154,14 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 }
 IWL_EXPORT_SYMBOL(iwl_fw_start_dbg_conf);
 
-void iwl_fw_error_dump_wk(struct work_struct *work)
+/* this function assumes dump_start was called beforehand and dump_end will be
+ * called afterwards
+ */
+void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt)
 {
-	struct iwl_fw_runtime *fwrt =
-		container_of(work, struct iwl_fw_runtime, dump.wk.work);
 	struct iwl_fw_dbg_params params = {0};
 
-	if (fwrt->ops && fwrt->ops->dump_start &&
-	    fwrt->ops->dump_start(fwrt->ops_ctx))
+	if (!test_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
 		return;
 
 	if (fwrt->ops && fwrt->ops->fw_running &&
@@ -1169,7 +1169,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 		IWL_ERR(fwrt, "Firmware not running - cannot dump error\n");
 		iwl_fw_free_dump_desc(fwrt);
 		clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
-		goto out;
+		return;
 	}
 
 	iwl_fw_dbg_stop_recording(fwrt, &params);
@@ -1183,7 +1183,20 @@ void iwl_fw_error_dump_wk(struct work_struct *work)
 		udelay(500);
 		iwl_fw_dbg_restart_recording(fwrt, &params);
 	}
-out:
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_sync);
+
+void iwl_fw_error_dump_wk(struct work_struct *work)
+{
+	struct iwl_fw_runtime *fwrt =
+		container_of(work, struct iwl_fw_runtime, dump.wk.work);
+
+	if (fwrt->ops && fwrt->ops->dump_start &&
+	    fwrt->ops->dump_start(fwrt->ops_ctx))
+		return;
+
+	iwl_fw_dbg_collect_sync(fwrt);
+
 	if (fwrt->ops && fwrt->ops->dump_end)
 		fwrt->ops->dump_end(fwrt->ops_ctx);
 }
