@@ -182,6 +182,7 @@ enum {
 static struct proto *saved_tcpv6_prot __read_mostly;
 static DEFINE_SPINLOCK(tcpv6_prot_lock);
 static struct proto bpf_tcp_prots[SOCKMAP_NUM_PROTS][SOCKMAP_NUM_CONFIGS];
+
 static void build_protos(struct proto prot[SOCKMAP_NUM_CONFIGS],
 			 struct proto *base)
 {
@@ -238,6 +239,13 @@ static int bpf_tcp_init(struct sock *sk)
 	rcu_read_unlock();
 	return 0;
 }
+
+static int __init bpf_sock_init(void)
+{
+	build_protos(bpf_tcp_prots[SOCKMAP_IPV4], &tcp_prot);
+	return 0;
+}
+core_initcall(bpf_sock_init);
 
 static void smap_release_sock(struct smap_psock *psock, struct sock *sock);
 static int free_start_sg(struct sock *sk, struct sk_msg_buff *md, bool charge);
@@ -411,15 +419,6 @@ enum __sk_action {
 	__SK_PASS,
 	__SK_REDIRECT,
 	__SK_NONE,
-};
-
-static struct tcp_ulp_ops bpf_tcp_ulp_ops __read_mostly = {
-	.name		= "bpf_tcp",
-	.uid		= TCP_ULP_BPF,
-	.user_visible	= false,
-	.owner		= NULL,
-	.init		= bpf_tcp_init,
-	.release	= bpf_tcp_release,
 };
 
 static int memcopy_from_iter(struct sock *sk,
@@ -1236,16 +1235,6 @@ static void bpf_tcp_msg_add(struct smap_psock *psock,
 		bpf_prog_put(orig_tx_msg);
 }
 
-static int bpf_tcp_ulp_register(void)
-{
-	build_protos(bpf_tcp_prots[SOCKMAP_IPV4], &tcp_prot);
-	/* Once BPF TX ULP is registered it is never unregistered. It
-	 * will be in the ULP list for the lifetime of the system. Doing
-	 * duplicate registers is not a problem.
-	 */
-	return tcp_register_ulp(&bpf_tcp_ulp_ops);
-}
-
 static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 {
 	struct bpf_prog *prog = READ_ONCE(psock->bpf_verdict);
@@ -1491,7 +1480,7 @@ static void smap_release_sock(struct smap_psock *psock, struct sock *sock)
 {
 	if (refcount_dec_and_test(&psock->refcnt)) {
 		if (psock_is_smap_sk(sock))
-			tcp_cleanup_ulp(sock);
+			bpf_tcp_release(sock);
 		write_lock_bh(&sock->sk_callback_lock);
 		smap_stop_sock(psock, sock);
 		write_unlock_bh(&sock->sk_callback_lock);
@@ -1665,10 +1654,6 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
 	    attr->value_size != 4 || attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
-
-	err = bpf_tcp_ulp_register();
-	if (err && err != -EEXIST)
-		return ERR_PTR(err);
 
 	stab = kzalloc(sizeof(*stab), GFP_USER);
 	if (!stab)
@@ -1951,7 +1936,7 @@ static int __sock_map_ctx_update_elem(struct bpf_map *map,
 	if (tx_msg)
 		bpf_tcp_msg_add(psock, sock, tx_msg);
 	if (new) {
-		err = tcp_set_ulp_id(sock, TCP_ULP_BPF);
+		err = bpf_tcp_init(sock);
 		if (err)
 			goto out_free;
 	}
@@ -2186,10 +2171,6 @@ static struct bpf_map *sock_hash_alloc(union bpf_attr *attr)
 		 * larger than max stack size
 		 */
 		return ERR_PTR(-E2BIG);
-
-	err = bpf_tcp_ulp_register();
-	if (err && err != -EEXIST)
-		return ERR_PTR(err);
 
 	htab = kzalloc(sizeof(*htab), GFP_USER);
 	if (!htab)
