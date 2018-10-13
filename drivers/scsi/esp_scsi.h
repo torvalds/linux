@@ -435,7 +435,7 @@ struct esp {
 	const struct esp_driver_ops *ops;
 
 	struct Scsi_Host	*host;
-	void			*dev;
+	struct device		*dev;
 
 	struct esp_cmd_entry	*active_cmd;
 

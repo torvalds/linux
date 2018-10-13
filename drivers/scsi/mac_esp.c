@@ -58,8 +58,7 @@ static struct esp *esp_chips[2];
 static DEFINE_SPINLOCK(esp_chips_lock);
 
 #define MAC_ESP_GET_PRIV(esp) ((struct mac_esp_priv *) \
-			       platform_get_drvdata((struct platform_device *) \
-						    (esp->dev)))
+			       dev_get_drvdata((esp)->dev))
 
 static inline void mac_esp_write8(struct esp *esp, u8 val, unsigned long reg)
 {
@@ -508,7 +507,7 @@ static int esp_mac_probe(struct platform_device *dev)
 	esp = shost_priv(host);
 
 	esp->host = host;
-	esp->dev = dev;
+	esp->dev = &dev->dev;
 
 	esp->command_block = kzalloc(16, GFP_KERNEL);
 	if (!esp->command_block)
