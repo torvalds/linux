@@ -249,11 +249,11 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
  */
 static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 						    struct rxrpc_local *local,
+						    struct rxrpc_peer *peer,
 						    struct rxrpc_connection *conn,
 						    struct sk_buff *skb)
 {
 	struct rxrpc_backlog *b = rx->backlog;
-	struct rxrpc_peer *peer, *xpeer;
 	struct rxrpc_call *call;
 	unsigned short call_head, conn_head, peer_head;
 	unsigned short call_tail, conn_tail, peer_tail;
@@ -276,21 +276,18 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		return NULL;
 
 	if (!conn) {
-		/* No connection.  We're going to need a peer to start off
-		 * with.  If one doesn't yet exist, use a spare from the
-		 * preallocation set.  We dump the address into the spare in
-		 * anticipation - and to save on stack space.
-		 */
-		xpeer = b->peer_backlog[peer_tail];
-		if (rxrpc_extract_addr_from_skb(local, &xpeer->srx, skb) < 0)
-			return NULL;
-
-		peer = rxrpc_lookup_incoming_peer(local, xpeer);
-		if (peer == xpeer) {
+		if (peer && !rxrpc_get_peer_maybe(peer))
+			peer = NULL;
+		if (!peer) {
+			peer = b->peer_backlog[peer_tail];
+			if (rxrpc_extract_addr_from_skb(local, &peer->srx, skb) < 0)
+				return NULL;
 			b->peer_backlog[peer_tail] = NULL;
 			smp_store_release(&b->peer_backlog_tail,
 					  (peer_tail + 1) &
 					  (RXRPC_BACKLOG_MAX - 1));
+
+			rxrpc_new_incoming_peer(rx, local, peer);
 		}
 
 		/* Now allocate and set up the connection */
@@ -335,45 +332,38 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  * The call is returned with the user access mutex held.
  */
 struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
-					   struct rxrpc_connection *conn,
+					   struct rxrpc_sock *rx,
 					   struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct rxrpc_sock *rx;
+	struct rxrpc_connection *conn;
+	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
-	u16 service_id = sp->hdr.serviceId;
 
 	_enter("");
 
-	/* Get the socket providing the service */
-	rx = rcu_dereference(local->service);
-	if (rx && (service_id == rx->srx.srx_service ||
-		   service_id == rx->second_service))
-		goto found_service;
-
-	trace_rxrpc_abort(0, "INV", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-			  RX_INVALID_OPERATION, EOPNOTSUPP);
-	skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
-	skb->priority = RX_INVALID_OPERATION;
-	_leave(" = NULL [service]");
-	return NULL;
-
-found_service:
 	spin_lock(&rx->incoming_lock);
 	if (rx->sk.sk_state == RXRPC_SERVER_LISTEN_DISABLED ||
 	    rx->sk.sk_state == RXRPC_CLOSE) {
 		trace_rxrpc_abort(0, "CLS", sp->hdr.cid, sp->hdr.callNumber,
 				  sp->hdr.seq, RX_INVALID_OPERATION, ESHUTDOWN);
-		skb->mark = RXRPC_SKB_MARK_LOCAL_ABORT;
+		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 		skb->priority = RX_INVALID_OPERATION;
 		_leave(" = NULL [close]");
 		call = NULL;
 		goto out;
 	}
 
-	call = rxrpc_alloc_incoming_call(rx, local, conn, skb);
+	/* The peer, connection and call may all have sprung into existence due
+	 * to a duplicate packet being handled on another CPU in parallel, so
+	 * we have to recheck the routing.  However, we're now holding
+	 * rx->incoming_lock, so the values should remain stable.
+	 */
+	conn = rxrpc_find_connection_rcu(local, skb, &peer);
+
+	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, skb);
 	if (!call) {
-		skb->mark = RXRPC_SKB_MARK_BUSY;
+		skb->mark = RXRPC_SKB_MARK_REJECT_BUSY;
 		_leave(" = NULL [busy]");
 		call = NULL;
 		goto out;
@@ -413,20 +403,22 @@ found_service:
 
 	case RXRPC_CONN_SERVICE:
 		write_lock(&call->state_lock);
-		if (rx->discard_new_call)
-			call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
-		else
-			call->state = RXRPC_CALL_SERVER_ACCEPTING;
+		if (call->state < RXRPC_CALL_COMPLETE) {
+			if (rx->discard_new_call)
+				call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
+			else
+				call->state = RXRPC_CALL_SERVER_ACCEPTING;
+		}
 		write_unlock(&call->state_lock);
 		break;
 
 	case RXRPC_CONN_REMOTELY_ABORTED:
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
-					  conn->remote_abort, -ECONNABORTED);
+					  conn->abort_code, conn->error);
 		break;
 	case RXRPC_CONN_LOCALLY_ABORTED:
 		rxrpc_abort_call("CON", call, sp->hdr.seq,
-				 conn->local_abort, -ECONNABORTED);
+				 conn->abort_code, conn->error);
 		break;
 	default:
 		BUG();

@@ -1730,6 +1730,8 @@ enum netdev_priv_flags {
  *			switch driver and used to set the phys state of the
  *			switch port.
  *
+ *	@wol_enabled:	Wake-on-LAN is enabled
+ *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
@@ -2014,6 +2016,7 @@ struct net_device {
 	struct lock_class_key	*qdisc_tx_busylock;
 	struct lock_class_key	*qdisc_running_key;
 	bool			proto_down;
+	unsigned		wol_enabled:1;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -2453,6 +2456,13 @@ int unregister_netdevice_notifier(struct notifier_block *nb);
 struct netdev_notifier_info {
 	struct net_device	*dev;
 	struct netlink_ext_ack	*extack;
+};
+
+struct netdev_notifier_info_ext {
+	struct netdev_notifier_info info; /* must be first */
+	union {
+		u32 mtu;
+	} ext;
 };
 
 struct netdev_notifier_change_info {

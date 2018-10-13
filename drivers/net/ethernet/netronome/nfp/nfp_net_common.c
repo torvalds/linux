@@ -2077,14 +2077,17 @@ nfp_ctrl_rx_one(struct nfp_net *nn, struct nfp_net_dp *dp,
 	return true;
 }
 
-static void nfp_ctrl_rx(struct nfp_net_r_vector *r_vec)
+static bool nfp_ctrl_rx(struct nfp_net_r_vector *r_vec)
 {
 	struct nfp_net_rx_ring *rx_ring = r_vec->rx_ring;
 	struct nfp_net *nn = r_vec->nfp_net;
 	struct nfp_net_dp *dp = &nn->dp;
+	unsigned int budget = 512;
 
-	while (nfp_ctrl_rx_one(nn, dp, r_vec, rx_ring))
+	while (nfp_ctrl_rx_one(nn, dp, r_vec, rx_ring) && budget--)
 		continue;
+
+	return budget;
 }
 
 static void nfp_ctrl_poll(unsigned long arg)
@@ -2096,9 +2099,13 @@ static void nfp_ctrl_poll(unsigned long arg)
 	__nfp_ctrl_tx_queued(r_vec);
 	spin_unlock_bh(&r_vec->lock);
 
-	nfp_ctrl_rx(r_vec);
-
-	nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
+	if (nfp_ctrl_rx(r_vec)) {
+		nfp_net_irq_unmask(r_vec->nfp_net, r_vec->irq_entry);
+	} else {
+		tasklet_schedule(&r_vec->tasklet);
+		nn_dp_warn(&r_vec->nfp_net->dp,
+			   "control message budget exceeded!\n");
+	}
 }
 
 /* Setup and Configuration
@@ -3146,21 +3153,6 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return nfp_net_reconfig_mbox(nn, NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL);
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void nfp_net_netpoll(struct net_device *netdev)
-{
-	struct nfp_net *nn = netdev_priv(netdev);
-	int i;
-
-	/* nfp_net's NAPIs are statically allocated so even if there is a race
-	 * with reconfig path this will simply try to schedule some disabled
-	 * NAPI instances.
-	 */
-	for (i = 0; i < nn->dp.num_stack_tx_rings; i++)
-		napi_schedule_irqoff(&nn->r_vecs[i].napi);
-}
-#endif
-
 static void nfp_net_stat64(struct net_device *netdev,
 			   struct rtnl_link_stats64 *stats)
 {
@@ -3519,9 +3511,6 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_get_stats64	= nfp_net_stat64,
 	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= nfp_net_netpoll,
-#endif
 	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
 	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
 	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,

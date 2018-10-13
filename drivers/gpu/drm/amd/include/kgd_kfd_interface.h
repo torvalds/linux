@@ -292,7 +292,7 @@ struct tile_config {
 struct kfd2kgd_calls {
 	int (*init_gtt_mem_allocation)(struct kgd_dev *kgd, size_t size,
 					void **mem_obj, uint64_t *gpu_addr,
-					void **cpu_ptr);
+					void **cpu_ptr, bool mqd_gfx9);
 
 	void (*free_gtt_mem)(struct kgd_dev *kgd, void *mem_obj);
 

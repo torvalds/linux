@@ -44,8 +44,8 @@
 #define MLXSW_SP_FWREV_MINOR_TO_BRANCH(minor) ((minor) / 100)
 
 #define MLXSW_SP1_FWREV_MAJOR 13
-#define MLXSW_SP1_FWREV_MINOR 1702
-#define MLXSW_SP1_FWREV_SUBMINOR 6
+#define MLXSW_SP1_FWREV_MINOR 1703
+#define MLXSW_SP1_FWREV_SUBMINOR 4
 #define MLXSW_SP1_FWREV_CAN_RESET_MINOR 1702
 
 static const struct mlxsw_fw_rev mlxsw_sp1_fw_rev = {
@@ -4845,6 +4845,8 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		upper_dev = info->upper_dev;
 		if (info->linking)
 			break;
+		if (is_vlan_dev(upper_dev))
+			mlxsw_sp_rif_destroy_by_dev(mlxsw_sp, upper_dev);
 		if (netif_is_macvlan(upper_dev))
 			mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
 		break;

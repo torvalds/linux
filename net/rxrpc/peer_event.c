@@ -23,6 +23,8 @@
 #include "ar-internal.h"
 
 static void rxrpc_store_error(struct rxrpc_peer *, struct sock_exterr_skb *);
+static void rxrpc_distribute_error(struct rxrpc_peer *, int,
+				   enum rxrpc_call_completion);
 
 /*
  * Find the peer associated with an ICMP packet.
@@ -194,8 +196,6 @@ void rxrpc_error_report(struct sock *sk)
 	rcu_read_unlock();
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
 
-	/* The ref we obtained is passed off to the work item */
-	__rxrpc_queue_peer_error(peer);
 	_leave("");
 }
 
@@ -205,6 +205,7 @@ void rxrpc_error_report(struct sock *sk)
 static void rxrpc_store_error(struct rxrpc_peer *peer,
 			      struct sock_exterr_skb *serr)
 {
+	enum rxrpc_call_completion compl = RXRPC_CALL_NETWORK_ERROR;
 	struct sock_extended_err *ee;
 	int err;
 
@@ -255,7 +256,7 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 	case SO_EE_ORIGIN_NONE:
 	case SO_EE_ORIGIN_LOCAL:
 		_proto("Rx Received local error { error=%d }", err);
-		err += RXRPC_LOCAL_ERROR_OFFSET;
+		compl = RXRPC_CALL_LOCAL_ERROR;
 		break;
 
 	case SO_EE_ORIGIN_ICMP6:
@@ -264,48 +265,23 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 		break;
 	}
 
-	peer->error_report = err;
+	rxrpc_distribute_error(peer, err, compl);
 }
 
 /*
- * Distribute an error that occurred on a peer
+ * Distribute an error that occurred on a peer.
  */
-void rxrpc_peer_error_distributor(struct work_struct *work)
+static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
+				   enum rxrpc_call_completion compl)
 {
-	struct rxrpc_peer *peer =
-		container_of(work, struct rxrpc_peer, error_distributor);
 	struct rxrpc_call *call;
-	enum rxrpc_call_completion compl;
-	int error;
 
-	_enter("");
-
-	error = READ_ONCE(peer->error_report);
-	if (error < RXRPC_LOCAL_ERROR_OFFSET) {
-		compl = RXRPC_CALL_NETWORK_ERROR;
-	} else {
-		compl = RXRPC_CALL_LOCAL_ERROR;
-		error -= RXRPC_LOCAL_ERROR_OFFSET;
-	}
-
-	_debug("ISSUE ERROR %s %d", rxrpc_call_completions[compl], error);
-
-	spin_lock_bh(&peer->lock);
-
-	while (!hlist_empty(&peer->error_targets)) {
-		call = hlist_entry(peer->error_targets.first,
-				   struct rxrpc_call, error_link);
-		hlist_del_init(&call->error_link);
+	hlist_for_each_entry_rcu(call, &peer->error_targets, error_link) {
 		rxrpc_see_call(call);
-
-		if (rxrpc_set_call_completion(call, compl, 0, -error))
+		if (call->state < RXRPC_CALL_COMPLETE &&
+		    rxrpc_set_call_completion(call, compl, 0, -error))
 			rxrpc_notify_socket(call);
 	}
-
-	spin_unlock_bh(&peer->lock);
-
-	rxrpc_put_peer(peer);
-	_leave("");
 }
 
 /*
@@ -325,6 +301,8 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 	if (rtt < 0)
 		return;
 
+	spin_lock(&peer->rtt_input_lock);
+
 	/* Replace the oldest datum in the RTT buffer */
 	sum -= peer->rtt_cache[cursor];
 	sum += rtt;
@@ -336,6 +314,8 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		peer->rtt_usage = usage;
 	}
 
+	spin_unlock(&peer->rtt_input_lock);
+
 	/* Now recalculate the average */
 	if (usage == RXRPC_RTT_CACHE_SIZE) {
 		avg = sum / RXRPC_RTT_CACHE_SIZE;
@@ -344,6 +324,7 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		do_div(avg, usage);
 	}
 
+	/* Don't need to update this under lock */
 	peer->rtt = avg;
 	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial, rtt,
 			   usage, avg);

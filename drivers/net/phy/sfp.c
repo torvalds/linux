@@ -163,8 +163,6 @@ static const enum gpiod_flags gpio_flags[] = {
 /* Give this long for the PHY to reset. */
 #define T_PHY_RESET_MS	50
 
-static DEFINE_MUTEX(sfp_mutex);
-
 struct sff_data {
 	unsigned int gpios;
 	bool (*module_supported)(const struct sfp_eeprom_id *id);
@@ -1098,8 +1096,11 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 
 static void sfp_hwmon_remove(struct sfp *sfp)
 {
-	hwmon_device_unregister(sfp->hwmon_dev);
-	kfree(sfp->hwmon_name);
+	if (!IS_ERR_OR_NULL(sfp->hwmon_dev)) {
+		hwmon_device_unregister(sfp->hwmon_dev);
+		sfp->hwmon_dev = NULL;
+		kfree(sfp->hwmon_name);
+	}
 }
 #else
 static int sfp_hwmon_insert(struct sfp *sfp)

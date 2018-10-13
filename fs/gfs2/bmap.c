@@ -975,6 +975,10 @@ static void gfs2_iomap_journaled_page_done(struct inode *inode, loff_t pos,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 
+	if (!page_has_buffers(page)) {
+		create_empty_buffers(page, inode->i_sb->s_blocksize,
+				     (1 << BH_Dirty)|(1 << BH_Uptodate));
+	}
 	gfs2_page_add_databufs(ip, page, offset_in_page(pos), copied);
 }
 

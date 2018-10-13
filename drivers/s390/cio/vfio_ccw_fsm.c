@@ -93,13 +93,13 @@ static void fsm_io_error(struct vfio_ccw_private *private,
 			 enum vfio_ccw_event event)
 {
 	pr_err("vfio-ccw: FSM: I/O request from state:%d\n", private->state);
-	private->io_region.ret_code = -EIO;
+	private->io_region->ret_code = -EIO;
 }
 
 static void fsm_io_busy(struct vfio_ccw_private *private,
 			enum vfio_ccw_event event)
 {
-	private->io_region.ret_code = -EBUSY;
+	private->io_region->ret_code = -EBUSY;
 }
 
 static void fsm_disabled_irq(struct vfio_ccw_private *private,
@@ -126,7 +126,7 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 {
 	union orb *orb;
 	union scsw *scsw = &private->scsw;
-	struct ccw_io_region *io_region = &private->io_region;
+	struct ccw_io_region *io_region = private->io_region;
 	struct mdev_device *mdev = private->mdev;
 	char *errstr = "request";
 
