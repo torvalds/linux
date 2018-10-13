@@ -104,7 +104,7 @@ static int esp_sbus_map_command_block(struct esp *esp)
 
 	esp->command_block = dma_alloc_coherent(&op->dev, 16,
 						&esp->command_block_dma,
-						GFP_ATOMIC);
+						GFP_KERNEL);
 	if (!esp->command_block)
 		return -ENOMEM;
 	return 0;
