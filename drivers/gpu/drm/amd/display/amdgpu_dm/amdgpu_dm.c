@@ -1580,8 +1580,14 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 	 */
 	if (bd->props.brightness < 1)
 		return 1;
+
+	/* backlight_pwm_u16_16 parameter is in unsigned 32 bit, 16 bit integer
+	 * and 16 bit fractional, where 1.0 is max backlight value.
+	 * bd->props.brightness is 8 bit format and needs to be converted by
+	 * scaling via copy lower byte to upper byte of 16 bit value.
+	 */
 	if (dc_link_set_backlight_level(dm->backlight_link,
-			bd->props.brightness, 0, 0))
+			(bd->props.brightness * 0x101), 0, 0))
 		return 0;
 	else
 		return 1;
