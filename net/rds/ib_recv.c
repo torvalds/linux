@@ -986,9 +986,9 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	} else {
 		/* We expect errors as the qp is drained during shutdown */
 		if (rds_conn_up(conn) || rds_conn_connecting(conn))
-			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c> had status %u (%s), disconnecting and reconnecting\n",
+			rds_ib_conn_error(conn, "recv completion on <%pI6c,%pI6c, %d> had status %u (%s), disconnecting and reconnecting\n",
 					  &conn->c_laddr, &conn->c_faddr,
-					  wc->status,
+					  conn->c_tos, wc->status,
 					  ib_wc_status_msg(wc->status));
 	}
 
