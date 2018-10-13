@@ -515,6 +515,15 @@ void rds_ib_exit(void)
 	rds_ib_mr_exit();
 }
 
+static u8 rds_ib_get_tos_map(u8 tos)
+{
+	/* 1:1 user to transport map for RDMA transport.
+	 * In future, if custom map is desired, hook can export
+	 * user configurable map.
+	 */
+	return tos;
+}
+
 struct rds_transport rds_ib_transport = {
 	.laddr_check		= rds_ib_laddr_check,
 	.xmit_path_complete	= rds_ib_xmit_path_complete,
@@ -537,6 +546,7 @@ struct rds_transport rds_ib_transport = {
 	.sync_mr		= rds_ib_sync_mr,
 	.free_mr		= rds_ib_free_mr,
 	.flush_mrs		= rds_ib_flush_mrs,
+	.get_tos_map		= rds_ib_get_tos_map,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "infiniband",
 	.t_unloading		= rds_ib_is_unloading,

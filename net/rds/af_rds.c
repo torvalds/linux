@@ -255,16 +255,18 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 static int rds_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
-	rds_tos_t tos;
+	rds_tos_t utos, tos = 0;
 
 	switch (cmd) {
 	case SIOCRDSSETTOS:
-		if (get_user(tos, (rds_tos_t __user *)arg))
+		if (get_user(utos, (rds_tos_t __user *)arg))
 			return -EFAULT;
 
 		if (rs->rs_transport &&
-		    rs->rs_transport->t_type == RDS_TRANS_TCP)
-			tos = 0;
+		    rs->rs_transport->get_tos_map)
+			tos = rs->rs_transport->get_tos_map(utos);
+		else
+			return -ENOIOCTLCMD;
 
 		spin_lock_bh(&rds_sock_lock);
 		if (rs->rs_tos || rs->rs_conn) {

@@ -574,6 +574,7 @@ struct rds_transport {
 	void (*free_mr)(void *trans_private, int invalidate);
 	void (*flush_mrs)(void);
 	bool (*t_unloading)(struct rds_connection *conn);
+	u8 (*get_tos_map)(u8 tos);
 };
 
 /* Bind hash table key length.  It is the sum of the size of a struct
