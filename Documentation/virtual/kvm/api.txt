@@ -3683,27 +3683,31 @@ the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
 
 4.116 KVM_(UN)REGISTER_COALESCED_MMIO
 
-Capability: KVM_CAP_COALESCED_MMIO
+Capability: KVM_CAP_COALESCED_MMIO (for coalesced mmio)
+	    KVM_CAP_COALESCED_PIO (for coalesced pio)
 Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_coalesced_mmio_zone
 Returns: 0 on success, < 0 on error
 
-Coalesced mmio is a performance optimization that defers hardware
+Coalesced I/O is a performance optimization that defers hardware
 register write emulation so that userspace exits are avoided.  It is
 typically used to reduce the overhead of emulating frequently accessed
 hardware registers.
 
-When a hardware register is configured for coalesced mmio, write accesses
+When a hardware register is configured for coalesced I/O, write accesses
 do not exit to userspace and their value is recorded in a ring buffer
 that is shared between kernel and userspace.
 
-Coalesced mmio is used if one or more write accesses to a hardware
+Coalesced I/O is used if one or more write accesses to a hardware
 register can be deferred until a read or a write to another hardware
 register on the same device.  This last access will cause a vmexit and
 userspace will process accesses from the ring buffer before emulating
-it. That will avoid exiting to userspace on repeated writes to the
-first register.
+it. That will avoid exiting to userspace on repeated writes.
+
+Coalesced pio is based on coalesced mmio. There is little difference
+between coalesced mmio and pio except that coalesced pio records accesses
+to I/O ports.
 
 5. The kvm_run structure
 ------------------------

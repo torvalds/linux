@@ -420,13 +420,19 @@ struct kvm_run {
 struct kvm_coalesced_mmio_zone {
 	__u64 addr;
 	__u32 size;
-	__u32 pad;
+	union {
+		__u32 pad;
+		__u32 pio;
+	};
 };
 
 struct kvm_coalesced_mmio {
 	__u64 phys_addr;
 	__u32 len;
-	__u32 pad;
+	union {
+		__u32 pad;
+		__u32 pio;
+	};
 	__u8  data[8];
 };
 
@@ -956,6 +962,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_MSR_PLATFORM_INFO 159
 #define KVM_CAP_PPC_NESTED_HV 160
 #define KVM_CAP_HYPERV_SEND_IPI 161
+#define KVM_CAP_COALESCED_PIO 162
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
