@@ -903,12 +903,6 @@ static void ceph_osdc_msg_data_add(struct ceph_msg *msg,
 static u32 osd_req_encode_op(struct ceph_osd_op *dst,
 			     const struct ceph_osd_req_op *src)
 {
-	if (WARN_ON(!osd_req_opcode_valid(src->op))) {
-		pr_err("unrecognized osd opcode %d\n", src->op);
-
-		return 0;
-	}
-
 	switch (src->op) {
 	case CEPH_OSD_OP_STAT:
 		break;
