@@ -34,6 +34,7 @@
 #include <linux/topology.h>
 #include <linux/profile.h>
 #include <linux/processor.h>
+#include <linux/random.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -810,9 +811,16 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 {
 	struct thread_info *ti = task_thread_info(idle);
 
+#ifdef CONFIG_STACKPROTECTOR
+	idle->stack_canary = get_random_canary();
+#endif
+
 #ifdef CONFIG_PPC64
 	paca_ptrs[cpu]->__current = idle;
 	paca_ptrs[cpu]->kstack = (unsigned long)ti + THREAD_SIZE - STACK_FRAME_OVERHEAD;
+#ifdef CONFIG_STACKPROTECTOR
+	paca_ptrs[cpu]->canary = idle->stack_canary;
+#endif
 #endif
 	ti->cpu = cpu;
 	secondary_ti = current_set[cpu] = ti;
