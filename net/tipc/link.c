@@ -477,6 +477,8 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 	l->in_session = false;
 	l->bearer_id = bearer_id;
 	l->tolerance = tolerance;
+	if (bc_rcvlink)
+		bc_rcvlink->tolerance = tolerance;
 	l->net_plane = net_plane;
 	l->advertised_mtu = mtu;
 	l->mtu = mtu;
@@ -843,14 +845,21 @@ static void link_prepare_wakeup(struct tipc_link *l)
 
 void tipc_link_reset(struct tipc_link *l)
 {
+	struct sk_buff_head list;
+
+	__skb_queue_head_init(&list);
+
 	l->in_session = false;
 	l->session++;
 	l->mtu = l->advertised_mtu;
+
 	spin_lock_bh(&l->wakeupq.lock);
-	spin_lock_bh(&l->inputq->lock);
-	skb_queue_splice_init(&l->wakeupq, l->inputq);
-	spin_unlock_bh(&l->inputq->lock);
+	skb_queue_splice_init(&l->wakeupq, &list);
 	spin_unlock_bh(&l->wakeupq.lock);
+
+	spin_lock_bh(&l->inputq->lock);
+	skb_queue_splice_init(&list, l->inputq);
+	spin_unlock_bh(&l->inputq->lock);
 
 	__skb_queue_purge(&l->transmq);
 	__skb_queue_purge(&l->deferdq);
@@ -1031,7 +1040,7 @@ static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 	/* Detect repeated retransmit failures on same packet */
 	if (r->last_retransm != buf_seqno(skb)) {
 		r->last_retransm = buf_seqno(skb);
-		r->stale_limit = jiffies + msecs_to_jiffies(l->tolerance);
+		r->stale_limit = jiffies + msecs_to_jiffies(r->tolerance);
 	} else if (++r->stale_cnt > 99 && time_after(jiffies, r->stale_limit)) {
 		link_retransmit_failure(l, skb);
 		if (link_is_bc_sndlink(l))
@@ -1576,9 +1585,10 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		strncpy(if_name, data, TIPC_MAX_IF_NAME);
 
 		/* Update own tolerance if peer indicates a non-zero value */
-		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL))
+		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL)) {
 			l->tolerance = peers_tol;
-
+			l->bc_rcvlink->tolerance = peers_tol;
+		}
 		/* Update own priority if peer's priority is higher */
 		if (in_range(peers_prio, l->priority + 1, TIPC_MAX_LINK_PRI))
 			l->priority = peers_prio;
@@ -1604,9 +1614,10 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 		l->rcv_nxt_state = msg_seqno(hdr) + 1;
 
 		/* Update own tolerance if peer indicates a non-zero value */
-		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL))
+		if (in_range(peers_tol, TIPC_MIN_LINK_TOL, TIPC_MAX_LINK_TOL)) {
 			l->tolerance = peers_tol;
-
+			l->bc_rcvlink->tolerance = peers_tol;
+		}
 		/* Update own prio if peer indicates a different value */
 		if ((peers_prio != l->priority) &&
 		    in_range(peers_prio, 1, TIPC_MAX_LINK_PRI)) {
@@ -2223,6 +2234,8 @@ void tipc_link_set_tolerance(struct tipc_link *l, u32 tol,
 			     struct sk_buff_head *xmitq)
 {
 	l->tolerance = tol;
+	if (l->bc_rcvlink)
+		l->bc_rcvlink->tolerance = tol;
 	if (link_is_up(l))
 		tipc_link_build_proto_msg(l, STATE_MSG, 0, 0, 0, tol, 0, xmitq);
 }

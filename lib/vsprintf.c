@@ -2794,7 +2794,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 						copy = end - str;
 					memcpy(str, args, copy);
 					str += len;
-					args += len;
+					args += len + 1;
 				}
 			}
 			if (process)

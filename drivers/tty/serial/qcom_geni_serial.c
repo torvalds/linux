@@ -868,8 +868,8 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	geni_se_init(&port->se, port->rx_wm, port->rx_rfr);
 	geni_se_select_mode(&port->se, port->xfer_mode);
 	if (!uart_console(uport)) {
-		port->rx_fifo = devm_kzalloc(uport->dev,
-			port->rx_fifo_depth * sizeof(u32), GFP_KERNEL);
+		port->rx_fifo = devm_kcalloc(uport->dev,
+			port->rx_fifo_depth, sizeof(u32), GFP_KERNEL);
 		if (!port->rx_fifo)
 			return -ENOMEM;
 	}
