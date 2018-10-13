@@ -19,10 +19,13 @@
  */
 #define RDS_PROTOCOL_3_0	0x0300
 #define RDS_PROTOCOL_3_1	0x0301
+#define RDS_PROTOCOL_4_0	0x0400
+#define RDS_PROTOCOL_4_1	0x0401
 #define RDS_PROTOCOL_VERSION	RDS_PROTOCOL_3_1
 #define RDS_PROTOCOL_MAJOR(v)	((v) >> 8)
 #define RDS_PROTOCOL_MINOR(v)	((v) & 255)
 #define RDS_PROTOCOL(maj, min)	(((maj) << 8) | min)
+#define RDS_PROTOCOL_COMPAT_VERSION	RDS_PROTOCOL_3_1
 
 /* The following ports, 16385, 18634, 18635, are registered with IANA as
  * the ports to be used for RDS over TCP and UDP.  Currently, only RDS over
@@ -151,6 +154,7 @@ struct rds_connection {
 	struct rds_cong_map	*c_fcong;
 
 	/* Protocol version */
+	unsigned int		c_proposed_version;
 	unsigned int		c_version;
 	possible_net_t		c_net;
 

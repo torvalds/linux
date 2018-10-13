@@ -133,22 +133,23 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		rds_ib_set_flow_control(conn, be32_to_cpu(credit));
 	}
 
-	if (conn->c_version < RDS_PROTOCOL(3, 1)) {
-		pr_notice("RDS/IB: Connection <%pI6c,%pI6c> version %u.%u no longer supported\n",
-			  &conn->c_laddr, &conn->c_faddr,
-			  RDS_PROTOCOL_MAJOR(conn->c_version),
-			  RDS_PROTOCOL_MINOR(conn->c_version));
-		set_bit(RDS_DESTROY_PENDING, &conn->c_path[0].cp_flags);
-		rds_conn_destroy(conn);
-		return;
-	} else {
-		pr_notice("RDS/IB: %s conn connected <%pI6c,%pI6c> version %u.%u%s\n",
-			  ic->i_active_side ? "Active" : "Passive",
-			  &conn->c_laddr, &conn->c_faddr,
-			  RDS_PROTOCOL_MAJOR(conn->c_version),
-			  RDS_PROTOCOL_MINOR(conn->c_version),
-			  ic->i_flowctl ? ", flow control" : "");
+	if (conn->c_version < RDS_PROTOCOL_VERSION) {
+		if (conn->c_version != RDS_PROTOCOL_COMPAT_VERSION) {
+			pr_notice("RDS/IB: Connection <%pI6c,%pI6c> version %u.%u no longer supported\n",
+				  &conn->c_laddr, &conn->c_faddr,
+				  RDS_PROTOCOL_MAJOR(conn->c_version),
+				  RDS_PROTOCOL_MINOR(conn->c_version));
+			rds_conn_destroy(conn);
+			return;
+		}
 	}
+
+	pr_notice("RDS/IB: %s conn connected <%pI6c,%pI6c> version %u.%u%s\n",
+		  ic->i_active_side ? "Active" : "Passive",
+		  &conn->c_laddr, &conn->c_faddr,
+		  RDS_PROTOCOL_MAJOR(conn->c_version),
+		  RDS_PROTOCOL_MINOR(conn->c_version),
+		  ic->i_flowctl ? ", flow control" : "");
 
 	atomic_set(&ic->i_cq_quiesce, 0);
 
@@ -184,6 +185,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 					    NULL);
 	}
 
+	conn->c_proposed_version = conn->c_version;
 	rds_connect_complete(conn);
 }
 
@@ -667,6 +669,9 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 		version = RDS_PROTOCOL_3_0;
 		while ((common >>= 1) != 0)
 			version++;
+	} else if (RDS_PROTOCOL_COMPAT_VERSION ==
+		   RDS_PROTOCOL(major, minor)) {
+		version = RDS_PROTOCOL_COMPAT_VERSION;
 	} else {
 		if (isv6)
 			printk_ratelimited(KERN_NOTICE "RDS: Connection from %pI6c using incompatible protocol version %u.%u\n",
@@ -861,7 +866,7 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id, bool isv6)
 
 	/* If the peer doesn't do protocol negotiation, we must
 	 * default to RDSv3.0 */
-	rds_ib_set_protocol(conn, RDS_PROTOCOL_3_0);
+	rds_ib_set_protocol(conn, RDS_PROTOCOL_VERSION);
 	ic->i_flowctl = rds_ib_sysctl_flow_control;	/* advertise flow control */
 
 	ret = rds_ib_setup_qp(conn);
@@ -870,7 +875,8 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id, bool isv6)
 		goto out;
 	}
 
-	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp, RDS_PROTOCOL_VERSION,
+	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp,
+				  conn->c_proposed_version,
 				  UINT_MAX, UINT_MAX, isv6);
 	ret = rdma_connect(cm_id, &conn_param);
 	if (ret)
