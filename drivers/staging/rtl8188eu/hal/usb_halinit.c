@@ -52,7 +52,7 @@ static bool HalUsbSetQueuePipeMapping8188EUsb(struct adapter *adapt, u8 NumInPip
 
 	/*  All config other than above support one Bulk IN and one Interrupt IN. */
 
-	result = Hal_MappingOutPipe(adapt, NumOutPipe);
+	result = hal_mapping_out_pipe(adapt, NumOutPipe);
 
 	return result;
 }
