@@ -30,8 +30,11 @@ struct pwm_lpss_boardinfo {
 	unsigned int npwm;
 	unsigned long base_unit_bits;
 	bool bypass;
-	/* Some devices have AML code messing with the state underneath us */
-	bool check_power_on_resume;
+	/*
+	 * On some devices the _PS0/_PS3 AML code of the GPU (GFX0) device
+	 * messes with the PWM0 controllers state,
+	 */
+	bool other_devices_aml_touches_pwm_regs;
 };
 
 struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
