@@ -66,12 +66,11 @@ int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 /* PHY */
 void mt76x0_phy_init(struct mt76x02_dev *dev);
 int mt76x0_wait_bbp_ready(struct mt76x02_dev *dev);
-void mt76x0_agc_save(struct mt76x02_dev *dev);
-void mt76x0_agc_restore(struct mt76x02_dev *dev);
 int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 			    struct cfg80211_chan_def *chandef);
 void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev);
 void mt76x0_phy_set_txpower(struct mt76x02_dev *dev);
+void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on);
 
 /* MAC */
 void mt76x0_mac_work(struct work_struct *work);

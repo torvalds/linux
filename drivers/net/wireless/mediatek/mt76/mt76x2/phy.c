@@ -65,7 +65,7 @@ void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 		mt76_wr(dev, MT_TX_ALC_CFG_2, 0x35160a00);
 		mt76_wr(dev, MT_TX_ALC_CFG_3, 0x35160a06);
 
-		if (mt76x02_ext_pa_enabled(&dev->mt76, band)) {
+		if (mt76x02_ext_pa_enabled(dev, band)) {
 			mt76_wr(dev, MT_RF_PA_MODE_ADJ0, 0x0000ec00);
 			mt76_wr(dev, MT_RF_PA_MODE_ADJ1, 0x0000ec00);
 		} else {
@@ -76,7 +76,7 @@ void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 		pa_mode[0] = 0x0000ffff;
 		pa_mode[1] = 0x00ff00ff;
 
-		if (mt76x02_ext_pa_enabled(&dev->mt76, band)) {
+		if (mt76x02_ext_pa_enabled(dev, band)) {
 			mt76_wr(dev, MT_TX_ALC_CFG_2, 0x2f0f0400);
 			mt76_wr(dev, MT_TX_ALC_CFG_3, 0x2f0f0476);
 		} else {
@@ -84,7 +84,7 @@ void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 			mt76_wr(dev, MT_TX_ALC_CFG_3, 0x1b0f0476);
 		}
 
-		if (mt76x02_ext_pa_enabled(&dev->mt76, band))
+		if (mt76x02_ext_pa_enabled(dev, band))
 			pa_mode_adj = 0x04000000;
 		else
 			pa_mode_adj = 0;
@@ -98,7 +98,7 @@ void mt76x2_phy_set_txpower_regs(struct mt76x02_dev *dev,
 	mt76_wr(dev, MT_RF_PA_MODE_CFG0, pa_mode[0]);
 	mt76_wr(dev, MT_RF_PA_MODE_CFG1, pa_mode[1]);
 
-	if (mt76x02_ext_pa_enabled(&dev->mt76, band)) {
+	if (mt76x02_ext_pa_enabled(dev, band)) {
 		u32 val;
 
 		if (band == NL80211_BAND_2GHZ)
@@ -187,7 +187,7 @@ void mt76x2_phy_set_txpower(struct mt76x02_dev *dev)
 	dev->target_power_delta[1] = txp_1 - txp.chain[0].target_power;
 	dev->mt76.rate_power = t;
 
-	mt76x02_phy_set_txpower(&dev->mt76, txp_0, txp_1);
+	mt76x02_phy_set_txpower(dev, txp_0, txp_1);
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_set_txpower);
 
@@ -196,7 +196,7 @@ void mt76x2_configure_tx_delay(struct mt76x02_dev *dev,
 {
 	u32 cfg0, cfg1;
 
-	if (mt76x02_ext_pa_enabled(&dev->mt76, band)) {
+	if (mt76x02_ext_pa_enabled(dev, band)) {
 		cfg0 = bw ? 0x000b0c01 : 0x00101101;
 		cfg1 = 0x00011414;
 	} else {
@@ -209,50 +209,6 @@ void mt76x2_configure_tx_delay(struct mt76x02_dev *dev,
 	mt76_rmw_field(dev, MT_XIFS_TIME_CFG, MT_XIFS_TIME_CFG_OFDM_SIFS, 15);
 }
 EXPORT_SYMBOL_GPL(mt76x2_configure_tx_delay);
-
-void mt76x2_phy_set_bw(struct mt76x02_dev *dev, int width, u8 ctrl)
-{
-	int core_val, agc_val;
-
-	switch (width) {
-	case NL80211_CHAN_WIDTH_80:
-		core_val = 3;
-		agc_val = 7;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-		core_val = 2;
-		agc_val = 3;
-		break;
-	default:
-		core_val = 0;
-		agc_val = 1;
-		break;
-	}
-
-	mt76_rmw_field(dev, MT_BBP(CORE, 1), MT_BBP_CORE_R1_BW, core_val);
-	mt76_rmw_field(dev, MT_BBP(AGC, 0), MT_BBP_AGC_R0_BW, agc_val);
-	mt76_rmw_field(dev, MT_BBP(AGC, 0), MT_BBP_AGC_R0_CTRL_CHAN, ctrl);
-	mt76_rmw_field(dev, MT_BBP(TXBE, 0), MT_BBP_TXBE_R0_CTRL_CHAN, ctrl);
-}
-EXPORT_SYMBOL_GPL(mt76x2_phy_set_bw);
-
-void mt76x2_phy_set_band(struct mt76x02_dev *dev, int band, bool primary_upper)
-{
-	switch (band) {
-	case NL80211_BAND_2GHZ:
-		mt76_set(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_2G);
-		mt76_clear(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_5G);
-		break;
-	case NL80211_BAND_5GHZ:
-		mt76_clear(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_2G);
-		mt76_set(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_5G);
-		break;
-	}
-
-	mt76_rmw_field(dev, MT_TX_BAND_CFG, MT_TX_BAND_CFG_UPPER_40M,
-		       primary_upper);
-}
-EXPORT_SYMBOL_GPL(mt76x2_phy_set_band);
 
 void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
 {
@@ -275,7 +231,7 @@ void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
 		dev->cal.tssi_comp_pending = false;
 		mt76x2_get_power_info(dev, &txp, chan);
 
-		if (mt76x02_ext_pa_enabled(&dev->mt76, chan->band))
+		if (mt76x02_ext_pa_enabled(dev, chan->band))
 			t.pa_mode = 1;
 
 		t.cal_mode = BIT(1);
@@ -289,8 +245,7 @@ void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
 			return;
 
 		usleep_range(10000, 20000);
-		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_DPD,
-				      chan->hw_value, wait);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_DPD, chan->hw_value, wait);
 		dev->cal.dpd_cal_done = true;
 	}
 }

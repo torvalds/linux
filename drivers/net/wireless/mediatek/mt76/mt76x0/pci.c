@@ -28,6 +28,7 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 	mutex_lock(&dev->mt76.mutex);
 
 	mt76x02_mac_start(dev);
+	mt76x0_phy_calibrate(dev, true);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
@@ -71,10 +72,19 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x0e_start,
 	.stop = mt76x0e_stop,
-	.config = mt76x0_config,
 	.add_interface = mt76x02_add_interface,
 	.remove_interface = mt76x02_remove_interface,
+	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,
+	.sta_add = mt76x02_sta_add,
+	.sta_remove = mt76x02_sta_remove,
+	.set_key = mt76x02_set_key,
+	.conf_tx = mt76x02_conf_tx,
+	.sw_scan_start = mt76x0_sw_scan,
+	.sw_scan_complete = mt76x0_sw_scan_complete,
+	.ampdu_action = mt76x02_ampdu_action,
+	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
+	.wake_tx_queue = mt76_wake_tx_queue,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)
@@ -102,21 +112,20 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 		u16 val;
 
 		mt76_clear(dev, MT_COEXCFG0, BIT(0));
-		val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_0);
-		if (val & MT_EE_NIC_CONF_0_PA_IO_CURRENT) {
-			u32 data;
 
-			/* set external external PA I/O
-			 * current to 16mA
-			 */
-			data = mt76_rr(dev, 0x11c);
-			val |= 0xc03;
-			mt76_wr(dev, 0x11c, val);
-		}
+		val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_0);
+		if (!(val & MT_EE_NIC_CONF_0_PA_IO_CURRENT))
+			mt76_set(dev, MT_XO_CTRL7, 0xc03);
 	}
 
 	mt76_clear(dev, 0x110, BIT(9));
 	mt76_set(dev, MT_MAX_LEN_CFG, BIT(13));
+
+	err = mt76x0_register_device(dev);
+	if (err < 0)
+		return err;
+
+	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 
 	return 0;
 }
@@ -124,6 +133,13 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 static int
 mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	static const struct mt76_driver_ops drv_ops = {
+		.txwi_size = sizeof(struct mt76x02_txwi),
+		.tx_prepare_skb = mt76x02_tx_prepare_skb,
+		.tx_complete_skb = mt76x02_tx_complete_skb,
+		.rx_skb = mt76x02_queue_rx_skb,
+		.rx_poll_complete = mt76x02_rx_poll_complete,
+	};
 	struct mt76x02_dev *dev;
 	int ret;
 
@@ -141,7 +157,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	dev = mt76x0_alloc_device(&pdev->dev, NULL, &mt76x0e_ops);
+	dev = mt76x0_alloc_device(&pdev->dev, &drv_ops, &mt76x0e_ops);
 	if (!dev)
 		return -ENOMEM;
 
@@ -149,6 +165,11 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev->mt76.rev = mt76_rr(dev, MT_ASIC_VERSION);
 	dev_info(dev->mt76.dev, "ASIC revision: %08x\n", dev->mt76.rev);
+
+	ret = devm_request_irq(dev->mt76.dev, pdev->irq, mt76x02_irq_handler,
+			       IRQF_SHARED, KBUILD_MODNAME, dev);
+	if (ret)
+		goto error;
 
 	ret = mt76x0e_register_device(dev);
 	if (ret < 0)
@@ -167,7 +188,7 @@ static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 	mt76x0_chip_onoff(dev, false, false);
 	mt76x0e_stop_hw(dev);
 	mt76x02_dma_cleanup(dev);
-	mt76x02_mcu_cleanup(&dev->mt76);
+	mt76x02_mcu_cleanup(dev);
 }
 
 static void

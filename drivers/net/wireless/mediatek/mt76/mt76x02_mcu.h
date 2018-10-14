@@ -17,6 +17,8 @@
 #ifndef __MT76x02_MCU_H
 #define __MT76x02_MCU_H
 
+#include "mt76x02.h"
+
 #define MT_MCU_RESET_CTL		0x070C
 #define MT_MCU_INT_LEVEL		0x0718
 #define MT_MCU_COM_REG0			0x0730
@@ -94,18 +96,18 @@ struct mt76x02_patch_header {
 	u8 pad[2];
 };
 
-int mt76x02_mcu_cleanup(struct mt76_dev *dev);
-int mt76x02_mcu_calibrate(struct mt76_dev *dev, int type,
+int mt76x02_mcu_cleanup(struct mt76x02_dev *dev);
+int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
 			  u32 param, bool wait);
 struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len);
-int mt76x02_mcu_msg_send(struct mt76_dev *dev, struct sk_buff *skb,
+int mt76x02_mcu_msg_send(struct mt76_dev *mdev, struct sk_buff *skb,
 			 int cmd, bool wait_resp);
-int mt76x02_mcu_function_select(struct mt76_dev *dev,
+int mt76x02_mcu_function_select(struct mt76x02_dev *dev,
 				enum mcu_function func,
 				u32 val, bool wait_resp);
-int mt76x02_mcu_set_radio_state(struct mt76_dev *dev, bool on,
+int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
 				bool wait_resp);
-void mt76x02_set_ethtool_fwver(struct mt76_dev *dev,
+void mt76x02_set_ethtool_fwver(struct mt76x02_dev *dev,
 			       const struct mt76x02_fw_header *h);
 
 #endif /* __MT76x02_MCU_H */

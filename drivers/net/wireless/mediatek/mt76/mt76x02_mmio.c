@@ -65,7 +65,7 @@ static void mt76x02_process_tx_status_fifo(struct mt76x02_dev *dev)
 	u8 update = 1;
 
 	while (kfifo_get(&dev->txstatus_fifo, &stat))
-		mt76x02_send_tx_status(&dev->mt76, &stat, &update);
+		mt76x02_send_tx_status(dev, &stat, &update);
 }
 
 static void mt76x02_tx_tasklet(unsigned long data)

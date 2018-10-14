@@ -29,12 +29,12 @@ void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev)
 	mt76x2u_mac_stop(dev);
 
 	if (is_5ghz)
-		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_LC, 0, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 0, false);
 
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TX_LOFT, is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TXIQ, is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXIQC_FI, is_5ghz, false);
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TEMP_SENSOR, 0, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_LOFT, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQC_FI, is_5ghz, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_TEMP_SENSOR, 0, false);
 
 	mt76x2u_mac_resume(dev);
 }
@@ -69,7 +69,7 @@ mt76x2u_phy_update_channel_gain(struct mt76x02_dev *dev)
 		break;
 	}
 
-	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(&dev->mt76);
+	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
 	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS,
 			      mt76_rr(dev, MT_RX_STAT_1));
 
@@ -155,8 +155,8 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 	mt76x2_configure_tx_delay(dev, chan->band, bw);
 	mt76x2_phy_set_txpower(dev);
 
-	mt76x2_phy_set_band(dev, chan->band, ch_group_index & 1);
-	mt76x2_phy_set_bw(dev, chandef->width, ch_group_index);
+	mt76x02_phy_set_band(dev, chan->band, ch_group_index & 1);
+	mt76x02_phy_set_bw(dev, chandef->width, ch_group_index);
 
 	mt76_rmw(dev, MT_EXT_CCA_CFG,
 		 (MT_EXT_CCA_CFG_CCA0 |
@@ -177,18 +177,17 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 		mt76_set(dev, MT_BBP(RXO, 13), BIT(10));
 
 	if (!dev->cal.init_cal_done) {
-		u8 val = mt76x02_eeprom_get(&dev->mt76, MT_EE_BT_RCAL_RESULT);
+		u8 val = mt76x02_eeprom_get(dev, MT_EE_BT_RCAL_RESULT);
 
 		if (val != 0xff)
-			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_R,
-					      0, false);
+			mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
 	}
 
-	mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RXDCOC, channel, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, channel, false);
 
 	/* Rx LPF calibration */
 	if (!dev->cal.init_cal_done)
-		mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_RC, 0, false);
+		mt76x02_mcu_calibrate(dev, MCU_CAL_RC, 0, false);
 	dev->cal.init_cal_done = true;
 
 	mt76_wr(dev, MT_BBP(AGC, 61), 0xff64a4e2);
@@ -203,7 +202,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 	if (scan)
 		return 0;
 
-	if (mt76x02_tssi_enabled(&dev->mt76)) {
+	if (mt76x2_tssi_enabled(dev)) {
 		/* init default values for temp compensation */
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
 			       0x38);
@@ -218,10 +217,9 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 			chan = dev->mt76.chandef.chan;
 			if (chan->band == NL80211_BAND_5GHZ)
 				flag |= BIT(0);
-			if (mt76x02_ext_pa_enabled(&dev->mt76, chan->band))
+			if (mt76x02_ext_pa_enabled(dev, chan->band))
 				flag |= BIT(8);
-			mt76x02_mcu_calibrate(&dev->mt76, MCU_CAL_TSSI,
-					      flag, false);
+			mt76x02_mcu_calibrate(dev, MCU_CAL_TSSI, flag, false);
 			dev->cal.tssi_cal_done = true;
 		}
 	}
