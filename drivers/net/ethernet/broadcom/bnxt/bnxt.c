@@ -3078,6 +3078,13 @@ static void bnxt_free_stats(struct bnxt *bp)
 		bp->hw_rx_port_stats = NULL;
 	}
 
+	if (bp->hw_tx_port_stats_ext) {
+		dma_free_coherent(&pdev->dev, sizeof(struct tx_port_stats_ext),
+				  bp->hw_tx_port_stats_ext,
+				  bp->hw_tx_port_stats_ext_map);
+		bp->hw_tx_port_stats_ext = NULL;
+	}
+
 	if (bp->hw_rx_port_stats_ext) {
 		dma_free_coherent(&pdev->dev, sizeof(struct rx_port_stats_ext),
 				  bp->hw_rx_port_stats_ext,
@@ -3152,6 +3159,13 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 		if (!bp->hw_rx_port_stats_ext)
 			return 0;
 
+		if (bp->hwrm_spec_code >= 0x10902) {
+			bp->hw_tx_port_stats_ext =
+				dma_zalloc_coherent(&pdev->dev,
+					    sizeof(struct tx_port_stats_ext),
+					    &bp->hw_tx_port_stats_ext_map,
+					    GFP_KERNEL);
+		}
 		bp->flags |= BNXT_FLAG_PORT_STATS_EXT;
 	}
 	return 0;
@@ -5425,8 +5439,10 @@ static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 
 static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 {
+	struct hwrm_port_qstats_ext_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_port_qstats_ext_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
+	int rc;
 
 	if (!(bp->flags & BNXT_FLAG_PORT_STATS_EXT))
 		return 0;
@@ -5435,7 +5451,19 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 	req.port_id = cpu_to_le16(pf->port_id);
 	req.rx_stat_size = cpu_to_le16(sizeof(struct rx_port_stats_ext));
 	req.rx_stat_host_addr = cpu_to_le64(bp->hw_rx_port_stats_ext_map);
-	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	req.tx_stat_size = cpu_to_le16(sizeof(struct tx_port_stats_ext));
+	req.tx_stat_host_addr = cpu_to_le64(bp->hw_tx_port_stats_ext_map);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		bp->fw_rx_stats_ext_size = le16_to_cpu(resp->rx_stat_size) / 8;
+		bp->fw_tx_stats_ext_size = le16_to_cpu(resp->tx_stat_size) / 8;
+	} else {
+		bp->fw_rx_stats_ext_size = 0;
+		bp->fw_tx_stats_ext_size = 0;
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static void bnxt_hwrm_free_tunnel_ports(struct bnxt *bp)

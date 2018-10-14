@@ -148,6 +148,65 @@ reset_coalesce:
 #define BNXT_RX_STATS_EXT_ENTRY(counter)	\
 	{ BNXT_RX_STATS_EXT_OFFSET(counter), __stringify(counter) }
 
+#define BNXT_TX_STATS_EXT_ENTRY(counter)	\
+	{ BNXT_TX_STATS_EXT_OFFSET(counter), __stringify(counter) }
+
+#define BNXT_RX_STATS_EXT_PFC_ENTRY(n)				\
+	BNXT_RX_STATS_EXT_ENTRY(pfc_pri##n##_rx_duration_us),	\
+	BNXT_RX_STATS_EXT_ENTRY(pfc_pri##n##_rx_transitions)
+
+#define BNXT_TX_STATS_EXT_PFC_ENTRY(n)				\
+	BNXT_TX_STATS_EXT_ENTRY(pfc_pri##n##_tx_duration_us),	\
+	BNXT_TX_STATS_EXT_ENTRY(pfc_pri##n##_tx_transitions)
+
+#define BNXT_RX_STATS_EXT_PFC_ENTRIES				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(0),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(1),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(2),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(3),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(4),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(5),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(6),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(7)
+
+#define BNXT_TX_STATS_EXT_PFC_ENTRIES				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(0),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(1),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(2),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(3),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(4),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(5),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(6),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(7)
+
+#define BNXT_RX_STATS_EXT_COS_ENTRY(n)				\
+	BNXT_RX_STATS_EXT_ENTRY(rx_bytes_cos##n),		\
+	BNXT_RX_STATS_EXT_ENTRY(rx_packets_cos##n)
+
+#define BNXT_TX_STATS_EXT_COS_ENTRY(n)				\
+	BNXT_TX_STATS_EXT_ENTRY(tx_bytes_cos##n),		\
+	BNXT_TX_STATS_EXT_ENTRY(tx_packets_cos##n)
+
+#define BNXT_RX_STATS_EXT_COS_ENTRIES				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(0),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(1),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(2),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(3),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(4),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(5),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(6),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(7)				\
+
+#define BNXT_TX_STATS_EXT_COS_ENTRIES				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(0),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(1),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(2),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(3),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(4),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(5),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(6),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(7)				\
+
 enum {
 	RX_TOTAL_DISCARDS,
 	TX_TOTAL_DISCARDS,
@@ -256,11 +315,20 @@ static const struct {
 	BNXT_RX_STATS_EXT_ENTRY(resume_pause_events),
 	BNXT_RX_STATS_EXT_ENTRY(continuous_roce_pause_events),
 	BNXT_RX_STATS_EXT_ENTRY(resume_roce_pause_events),
+	BNXT_RX_STATS_EXT_COS_ENTRIES,
+	BNXT_RX_STATS_EXT_PFC_ENTRIES,
+};
+
+static const struct {
+	long offset;
+	char string[ETH_GSTRING_LEN];
+} bnxt_tx_port_stats_ext_arr[] = {
+	BNXT_TX_STATS_EXT_COS_ENTRIES,
+	BNXT_TX_STATS_EXT_PFC_ENTRIES,
 };
 
 #define BNXT_NUM_SW_FUNC_STATS	ARRAY_SIZE(bnxt_sw_func_stats)
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
-#define BNXT_NUM_PORT_STATS_EXT ARRAY_SIZE(bnxt_port_stats_ext_arr)
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
@@ -272,7 +340,8 @@ static int bnxt_get_num_stats(struct bnxt *bp)
 		num_stats += BNXT_NUM_PORT_STATS;
 
 	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT)
-		num_stats += BNXT_NUM_PORT_STATS_EXT;
+		num_stats += bp->fw_rx_stats_ext_size +
+			     bp->fw_tx_stats_ext_size;
 
 	return num_stats;
 }
@@ -334,11 +403,16 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		}
 	}
 	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
-		__le64 *port_stats_ext = (__le64 *)bp->hw_rx_port_stats_ext;
+		__le64 *rx_port_stats_ext = (__le64 *)bp->hw_rx_port_stats_ext;
+		__le64 *tx_port_stats_ext = (__le64 *)bp->hw_tx_port_stats_ext;
 
-		for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++, j++) {
-			buf[j] = le64_to_cpu(*(port_stats_ext +
+		for (i = 0; i < bp->fw_rx_stats_ext_size; i++, j++) {
+			buf[j] = le64_to_cpu(*(rx_port_stats_ext +
 					    bnxt_port_stats_ext_arr[i].offset));
+		}
+		for (i = 0; i < bp->fw_tx_stats_ext_size; i++, j++) {
+			buf[j] = le64_to_cpu(*(tx_port_stats_ext +
+					bnxt_tx_port_stats_ext_arr[i].offset));
 		}
 	}
 }
@@ -407,8 +481,13 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			}
 		}
 		if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
-			for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++) {
+			for (i = 0; i < bp->fw_rx_stats_ext_size; i++) {
 				strcpy(buf, bnxt_port_stats_ext_arr[i].string);
+				buf += ETH_GSTRING_LEN;
+			}
+			for (i = 0; i < bp->fw_tx_stats_ext_size; i++) {
+				strcpy(buf,
+				       bnxt_tx_port_stats_ext_arr[i].string);
 				buf += ETH_GSTRING_LEN;
 			}
 		}
