@@ -4202,7 +4202,8 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_rss_cfg_input req = {0};
 
-	if (vnic->fw_rss_cos_lb_ctx[0] == INVALID_HW_RING_ID)
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) ||
+	    vnic->fw_rss_cos_lb_ctx[0] == INVALID_HW_RING_ID)
 		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_RSS_CFG, -1, -1);
@@ -4231,6 +4232,51 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 	}
 	req.rss_ctx_idx = cpu_to_le16(vnic->fw_rss_cos_lb_ctx[0]);
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
+static int bnxt_hwrm_vnic_set_rss_p5(struct bnxt *bp, u16 vnic_id, bool set_rss)
+{
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
+	u32 i, j, k, nr_ctxs, max_rings = bp->rx_nr_rings;
+	struct bnxt_rx_ring_info *rxr = &bp->rx_ring[0];
+	struct hwrm_vnic_rss_cfg_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_RSS_CFG, -1, -1);
+	req.vnic_id = cpu_to_le16(vnic->fw_vnic_id);
+	if (!set_rss) {
+		hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+		return 0;
+	}
+	req.hash_type = cpu_to_le32(bp->rss_hash_cfg);
+	req.hash_mode_flags = VNIC_RSS_CFG_REQ_HASH_MODE_FLAGS_DEFAULT;
+	req.ring_grp_tbl_addr = cpu_to_le64(vnic->rss_table_dma_addr);
+	req.hash_key_tbl_addr = cpu_to_le64(vnic->rss_hash_key_dma_addr);
+	nr_ctxs = DIV_ROUND_UP(bp->rx_nr_rings, 64);
+	for (i = 0, k = 0; i < nr_ctxs; i++) {
+		__le16 *ring_tbl = vnic->rss_table;
+		int rc;
+
+		req.ring_table_pair_index = i;
+		req.rss_ctx_idx = cpu_to_le16(vnic->fw_rss_cos_lb_ctx[i]);
+		for (j = 0; j < 64; j++) {
+			u16 ring_id;
+
+			ring_id = rxr->rx_ring_struct.fw_ring_id;
+			*ring_tbl++ = cpu_to_le16(ring_id);
+			ring_id = bnxt_cp_ring_for_rx(bp, rxr);
+			*ring_tbl++ = cpu_to_le16(ring_id);
+			rxr++;
+			k++;
+			if (k == max_rings) {
+				k = 0;
+				rxr = &bp->rx_ring[0];
+			}
+		}
+		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+		if (rc)
+			return -EIO;
+	}
+	return 0;
 }
 
 static int bnxt_hwrm_vnic_set_hds(struct bnxt *bp, u16 vnic_id)
@@ -4316,6 +4362,18 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_CFG, -1, -1);
 
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[0];
+
+		req.default_rx_ring_id =
+			cpu_to_le16(rxr->rx_ring_struct.fw_ring_id);
+		req.default_cmpl_ring_id =
+			cpu_to_le16(bnxt_cp_ring_for_rx(bp, rxr));
+		req.enables =
+			cpu_to_le32(VNIC_CFG_REQ_ENABLES_DEFAULT_RX_RING_ID |
+				    VNIC_CFG_REQ_ENABLES_DEFAULT_CMPL_RING_ID);
+		goto vnic_mru;
+	}
 	req.enables = cpu_to_le32(VNIC_CFG_REQ_ENABLES_DFLT_RING_GRP);
 	/* Only RSS support for now TBD: COS & LB */
 	if (vnic->fw_rss_cos_lb_ctx[0] != INVALID_HW_RING_ID) {
@@ -4348,13 +4406,13 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 		ring = bp->rx_nr_rings - 1;
 
 	grp_idx = bp->rx_ring[ring].bnapi->index;
-	req.vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 	req.dflt_ring_grp = cpu_to_le16(bp->grp_info[grp_idx].fw_grp_id);
-
 	req.lb_rule = cpu_to_le16(0xffff);
+vnic_mru:
 	req.mru = cpu_to_le16(bp->dev->mtu + ETH_HLEN + ETH_FCS_LEN +
 			      VLAN_HLEN);
 
+	req.vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 #ifdef CONFIG_BNXT_SRIOV
 	if (BNXT_VF(bp))
 		def_vlan = bp->vf.vlan;
@@ -6363,7 +6421,7 @@ static int bnxt_hwrm_set_cache_line_size(struct bnxt *bp, int size)
 	return rc;
 }
 
-static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
+static int __bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 {
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	int rc;
@@ -6417,6 +6475,53 @@ skip_rss_ctx:
 
 vnic_setup_err:
 	return rc;
+}
+
+static int __bnxt_setup_vnic_p5(struct bnxt *bp, u16 vnic_id)
+{
+	int rc, i, nr_ctxs;
+
+	nr_ctxs = DIV_ROUND_UP(bp->rx_nr_rings, 64);
+	for (i = 0; i < nr_ctxs; i++) {
+		rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic_id, i);
+		if (rc) {
+			netdev_err(bp->dev, "hwrm vnic %d ctx %d alloc failure rc: %x\n",
+				   vnic_id, i, rc);
+			break;
+		}
+		bp->rsscos_nr_ctxs++;
+	}
+	if (i < nr_ctxs)
+		return -ENOMEM;
+
+	rc = bnxt_hwrm_vnic_set_rss_p5(bp, vnic_id, true);
+	if (rc) {
+		netdev_err(bp->dev, "hwrm vnic %d set rss failure rc: %d\n",
+			   vnic_id, rc);
+		return rc;
+	}
+	rc = bnxt_hwrm_vnic_cfg(bp, vnic_id);
+	if (rc) {
+		netdev_err(bp->dev, "hwrm vnic %d cfg failure rc: %x\n",
+			   vnic_id, rc);
+		return rc;
+	}
+	if (bp->flags & BNXT_FLAG_AGG_RINGS) {
+		rc = bnxt_hwrm_vnic_set_hds(bp, vnic_id);
+		if (rc) {
+			netdev_err(bp->dev, "hwrm vnic %d set hds failure rc: %x\n",
+				   vnic_id, rc);
+		}
+	}
+	return rc;
+}
+
+static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
+{
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		return __bnxt_setup_vnic_p5(bp, vnic_id);
+	else
+		return __bnxt_setup_vnic(bp, vnic_id);
 }
 
 static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
