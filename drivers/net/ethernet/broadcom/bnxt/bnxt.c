@@ -5424,6 +5424,7 @@ static void bnxt_hwrm_coal_params_qcaps(struct bnxt *bp)
 	rc = _hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc) {
 		coal_cap->cmpl_params = le32_to_cpu(resp->cmpl_params);
+		coal_cap->nq_params = le32_to_cpu(resp->nq_params);
 		coal_cap->num_cmpl_dma_aggr_max =
 			le16_to_cpu(resp->num_cmpl_dma_aggr_max);
 		coal_cap->num_cmpl_dma_aggr_during_int_max =
@@ -5508,6 +5509,32 @@ static void bnxt_hwrm_set_coal_params(struct bnxt *bp,
 	req->enables |= cpu_to_le16(BNXT_COAL_CMPL_ENABLES);
 }
 
+/* Caller holds bp->hwrm_cmd_lock */
+static int __bnxt_hwrm_set_coal_nq(struct bnxt *bp, struct bnxt_napi *bnapi,
+				   struct bnxt_coal *hw_coal)
+{
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req = {0};
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	struct bnxt_coal_cap *coal_cap = &bp->coal_cap;
+	u32 nq_params = coal_cap->nq_params;
+	u16 tmr;
+
+	if (!(nq_params & RING_AGGINT_QCAPS_RESP_NQ_PARAMS_INT_LAT_TMR_MIN))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS,
+			       -1, -1);
+	req.ring_id = cpu_to_le16(cpr->cp_ring_struct.fw_ring_id);
+	req.flags =
+		cpu_to_le16(RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_IS_NQ);
+
+	tmr = bnxt_usec_to_coal_tmr(bp, hw_coal->coal_ticks) / 2;
+	tmr = clamp_t(u16, tmr, 1, coal_cap->int_lat_tmr_min_max);
+	req.int_lat_tmr_min = cpu_to_le16(tmr);
+	req.enables |= cpu_to_le16(BNXT_COAL_CMPL_MIN_TMR_ENABLE);
+	return _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
 {
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0};
@@ -5553,6 +5580,7 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
+		struct bnxt_coal *hw_coal;
 		u16 ring_id;
 
 		req = &req_rx;
@@ -5568,6 +5596,24 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 					HWRM_CMD_TIMEOUT);
 		if (rc)
 			break;
+
+		if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+			continue;
+
+		if (bnapi->rx_ring && bnapi->tx_ring) {
+			req = &req_tx;
+			ring_id = bnxt_cp_ring_for_tx(bp, bnapi->tx_ring);
+			req->ring_id = cpu_to_le16(ring_id);
+			rc = _hwrm_send_message(bp, req, sizeof(*req),
+						HWRM_CMD_TIMEOUT);
+			if (rc)
+				break;
+		}
+		if (bnapi->rx_ring)
+			hw_coal = &bp->rx_coal;
+		else
+			hw_coal = &bp->tx_coal;
+		__bnxt_hwrm_set_coal_nq(bp, bnapi, hw_coal);
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
