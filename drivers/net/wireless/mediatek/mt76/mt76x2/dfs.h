@@ -19,7 +19,6 @@
 
 void mt76x2_dfs_init_params(struct mt76x02_dev *dev);
 void mt76x2_dfs_init_detector(struct mt76x02_dev *dev);
-void mt76x2_dfs_adjust_agc(struct mt76x02_dev *dev);
 void mt76x2_dfs_set_domain(struct mt76x02_dev *dev,
 			   enum nl80211_dfs_regions region);
 

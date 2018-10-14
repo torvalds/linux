@@ -39,51 +39,13 @@ void mt76x2u_phy_channel_calibrate(struct mt76x02_dev *dev)
 	mt76x2u_mac_resume(dev);
 }
 
-static void
-mt76x2u_phy_update_channel_gain(struct mt76x02_dev *dev)
-{
-	u8 channel = dev->mt76.chandef.chan->hw_value;
-	int freq, freq1;
-	u32 false_cca;
-
-	freq = dev->mt76.chandef.chan->center_freq;
-	freq1 = dev->mt76.chandef.center_freq1;
-
-	switch (dev->mt76.chandef.width) {
-	case NL80211_CHAN_WIDTH_80: {
-		int ch_group_index;
-
-		ch_group_index = (freq - freq1 + 30) / 20;
-		if (WARN_ON(ch_group_index < 0 || ch_group_index > 3))
-			ch_group_index = 0;
-		channel += 6 - ch_group_index * 4;
-		break;
-	}
-	case NL80211_CHAN_WIDTH_40:
-		if (freq1 > freq)
-			channel += 2;
-		else
-			channel -= 2;
-		break;
-	default:
-		break;
-	}
-
-	dev->cal.avg_rssi_all = mt76x02_phy_get_min_avg_rssi(dev);
-	false_cca = FIELD_GET(MT_RX_STAT_1_CCA_ERRORS,
-			      mt76_rr(dev, MT_RX_STAT_1));
-
-	mt76x2u_mcu_set_dynamic_vga(dev, channel, false, false,
-				    dev->cal.avg_rssi_all, false_cca);
-}
-
 void mt76x2u_phy_calibrate(struct work_struct *work)
 {
 	struct mt76x02_dev *dev;
 
 	dev = container_of(work, struct mt76x02_dev, cal_work.work);
 	mt76x2_phy_tssi_compensate(dev, false);
-	mt76x2u_phy_update_channel_gain(dev);
+	mt76x2_phy_update_channel_gain(dev);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
@@ -202,6 +164,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 	if (scan)
 		return 0;
 
+	mt76x02_init_agc_gain(dev);
 	if (mt76x2_tssi_enabled(dev)) {
 		/* init default values for temp compensation */
 		mt76_rmw_field(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,

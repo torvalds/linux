@@ -29,30 +29,6 @@
 #define MT76U_MCU_DLM_OFFSET		0x110000
 #define MT76U_MCU_ROM_PATCH_OFFSET	0x90000
 
-int mt76x2u_mcu_set_dynamic_vga(struct mt76x02_dev *dev, u8 channel, bool ap,
-				bool ext, int rssi, u32 false_cca)
-{
-	struct {
-		__le32 channel;
-		__le32 rssi_val;
-		__le32 false_cca_val;
-	} __packed __aligned(4) msg = {
-		.rssi_val = cpu_to_le32(rssi),
-		.false_cca_val = cpu_to_le32(false_cca),
-	};
-	struct sk_buff *skb;
-	u32 val = channel;
-
-	if (ap)
-		val |= BIT(31);
-	if (ext)
-		val |= BIT(30);
-	msg.channel = cpu_to_le32(val);
-
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_DYNC_VGA_OP, true);
-}
-
 static void mt76x2u_mcu_load_ivb(struct mt76x02_dev *dev)
 {
 	mt76u_vendor_request(&dev->mt76, MT_VEND_DEV_MODE,
