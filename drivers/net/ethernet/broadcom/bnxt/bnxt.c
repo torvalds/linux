@@ -4543,13 +4543,52 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	case HWRM_RING_ALLOC_RX:
 		req.ring_type = RING_ALLOC_REQ_RING_TYPE_RX;
 		req.length = cpu_to_le32(bp->rx_ring_mask + 1);
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			u16 flags = 0;
+
+			/* Association of rx ring with stats context */
+			grp_info = &bp->grp_info[ring->grp_idx];
+			req.rx_buf_size = cpu_to_le16(bp->rx_buf_use_size);
+			req.stat_ctx_id = cpu_to_le32(grp_info->fw_stats_ctx);
+			req.enables |= cpu_to_le32(
+				RING_ALLOC_REQ_ENABLES_RX_BUF_SIZE_VALID);
+			if (NET_IP_ALIGN == 2)
+				flags = RING_ALLOC_REQ_FLAGS_RX_SOP_PAD;
+			req.flags = cpu_to_le16(flags);
+		}
 		break;
 	case HWRM_RING_ALLOC_AGG:
-		req.ring_type = RING_ALLOC_REQ_RING_TYPE_RX;
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			req.ring_type = RING_ALLOC_REQ_RING_TYPE_RX_AGG;
+			/* Association of agg ring with rx ring */
+			grp_info = &bp->grp_info[ring->grp_idx];
+			req.rx_ring_id = cpu_to_le16(grp_info->rx_fw_ring_id);
+			req.rx_buf_size = cpu_to_le16(BNXT_RX_PAGE_SIZE);
+			req.stat_ctx_id = cpu_to_le32(grp_info->fw_stats_ctx);
+			req.enables |= cpu_to_le32(
+				RING_ALLOC_REQ_ENABLES_RX_RING_ID_VALID |
+				RING_ALLOC_REQ_ENABLES_RX_BUF_SIZE_VALID);
+		} else {
+			req.ring_type = RING_ALLOC_REQ_RING_TYPE_RX;
+		}
 		req.length = cpu_to_le32(bp->rx_agg_ring_mask + 1);
 		break;
 	case HWRM_RING_ALLOC_CMPL:
 		req.ring_type = RING_ALLOC_REQ_RING_TYPE_L2_CMPL;
+		req.length = cpu_to_le32(bp->cp_ring_mask + 1);
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			/* Association of cp ring with nq */
+			grp_info = &bp->grp_info[map_index];
+			req.nq_ring_id = cpu_to_le16(grp_info->cp_fw_ring_id);
+			req.cq_handle = cpu_to_le64(ring->handle);
+			req.enables |= cpu_to_le32(
+				RING_ALLOC_REQ_ENABLES_NQ_RING_ID_VALID);
+		} else if (bp->flags & BNXT_FLAG_USING_MSIX) {
+			req.int_mode = RING_ALLOC_REQ_INT_MODE_MSIX;
+		}
+		break;
+	case HWRM_RING_ALLOC_NQ:
+		req.ring_type = RING_ALLOC_REQ_RING_TYPE_NQ;
 		req.length = cpu_to_le32(bp->cp_ring_mask + 1);
 		if (bp->flags & BNXT_FLAG_USING_MSIX)
 			req.int_mode = RING_ALLOC_REQ_INT_MODE_MSIX;
@@ -4645,7 +4684,10 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 	int i, rc = 0;
 	u32 type;
 
-	type = HWRM_RING_ALLOC_CMPL;
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		type = HWRM_RING_ALLOC_NQ;
+	else
+		type = HWRM_RING_ALLOC_CMPL;
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
@@ -4743,6 +4785,7 @@ static int hwrm_ring_free_send_msg(struct bnxt *bp,
 
 static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 {
+	u32 type;
 	int i;
 
 	if (!bp->bnapi)
@@ -4781,6 +4824,10 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 		}
 	}
 
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		type = RING_FREE_REQ_RING_TYPE_RX_AGG;
+	else
+		type = RING_FREE_REQ_RING_TYPE_RX;
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring = &rxr->rx_agg_ring_struct;
@@ -4789,8 +4836,7 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 
 		cmpl_ring_id = bnxt_cp_ring_for_rx(bp, rxr);
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
-			hwrm_ring_free_send_msg(bp, ring,
-						RING_FREE_REQ_RING_TYPE_RX,
+			hwrm_ring_free_send_msg(bp, ring, type,
 						close_path ? cmpl_ring_id :
 						INVALID_HW_RING_ID);
 			ring->fw_ring_id = INVALID_HW_RING_ID;
@@ -4805,14 +4851,17 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	 */
 	bnxt_disable_int_sync(bp);
 
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		type = RING_FREE_REQ_RING_TYPE_NQ;
+	else
+		type = RING_FREE_REQ_RING_TYPE_L2_CMPL;
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
-			hwrm_ring_free_send_msg(bp, ring,
-						RING_FREE_REQ_RING_TYPE_L2_CMPL,
+			hwrm_ring_free_send_msg(bp, ring, type,
 						INVALID_HW_RING_ID);
 			ring->fw_ring_id = INVALID_HW_RING_ID;
 			bp->grp_info[i].cp_fw_ring_id = INVALID_HW_RING_ID;
