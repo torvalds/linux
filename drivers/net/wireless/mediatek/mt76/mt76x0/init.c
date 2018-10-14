@@ -113,7 +113,7 @@ static int mt76x0_init_bbp(struct mt76x02_dev *dev)
 {
 	int ret, i;
 
-	ret = mt76x0_wait_bbp_ready(dev);
+	ret = mt76x0_phy_wait_bbp_ready(dev);
 	if (ret)
 		return ret;
 
