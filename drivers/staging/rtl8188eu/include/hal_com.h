@@ -140,7 +140,7 @@ void dump_chip_info(struct HAL_VERSION	ChipVersion);
 
 /* return the final channel plan decision */
 u8 hal_com_get_channel_plan(u8 hw_channel_plan, u8 sw_channel_plan,
-			    u8 def_channel_plan, bool AutoLoadFail);
+			    u8 def_channel_plan, bool load_fail);
 
 u8 MRateToHwRate(u8 rate);
 
