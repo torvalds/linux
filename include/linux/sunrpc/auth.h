@@ -67,7 +67,7 @@ struct rpc_cred {
 	const struct rpc_credops *cr_ops;
 	unsigned long		cr_expire;	/* when to gc */
 	unsigned long		cr_flags;	/* various flags */
-	atomic_t		cr_count;	/* ref count */
+	refcount_t		cr_count;	/* ref count */
 
 	kuid_t			cr_uid;
 
@@ -208,7 +208,7 @@ char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 static inline
 struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 {
-	if (cred != NULL && atomic_inc_not_zero(&cred->cr_count))
+	if (cred != NULL && refcount_inc_not_zero(&cred->cr_count))
 		return cred;
 	return NULL;
 }

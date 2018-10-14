@@ -495,7 +495,7 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 
 		if (nr_to_scan-- == 0)
 			break;
-		if (atomic_read(&cred->cr_count) > 1) {
+		if (refcount_read(&cred->cr_count) > 1) {
 			rpcauth_lru_remove_locked(cred);
 			continue;
 		}
@@ -589,7 +589,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 			continue;
 		if (flags & RPCAUTH_LOOKUP_RCU) {
 			if (test_bit(RPCAUTH_CRED_NEW, &entry->cr_flags) ||
-			    atomic_read(&entry->cr_count) == 0)
+			    refcount_read(&entry->cr_count) == 0)
 				continue;
 			cred = entry;
 			break;
@@ -623,7 +623,7 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 	if (cred == NULL) {
 		cred = new;
 		set_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
-		atomic_inc(&cred->cr_count);
+		refcount_inc(&cred->cr_count);
 		hlist_add_head_rcu(&cred->cr_hash, &cache->hashtable[nr]);
 	} else
 		list_add_tail(&new->cr_lru, &free);
@@ -670,7 +670,7 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 {
 	INIT_HLIST_NODE(&cred->cr_hash);
 	INIT_LIST_HEAD(&cred->cr_lru);
-	atomic_set(&cred->cr_count, 1);
+	refcount_set(&cred->cr_count, 1);
 	cred->cr_auth = auth;
 	cred->cr_ops = ops;
 	cred->cr_expire = jiffies;
@@ -739,9 +739,9 @@ put_rpccred(struct rpc_cred *cred)
 	if (cred == NULL)
 		return;
 	rcu_read_lock();
-	if (atomic_dec_and_test(&cred->cr_count))
+	if (refcount_dec_and_test(&cred->cr_count))
 		goto destroy;
-	if (atomic_read(&cred->cr_count) != 1 ||
+	if (refcount_read(&cred->cr_count) != 1 ||
 	    !test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags))
 		goto out;
 	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0) {
@@ -752,7 +752,7 @@ put_rpccred(struct rpc_cred *cred)
 			rpcauth_lru_remove(cred);
 	} else if (rpcauth_unhash_cred(cred)) {
 		rpcauth_lru_remove(cred);
-		if (atomic_dec_and_test(&cred->cr_count))
+		if (refcount_dec_and_test(&cred->cr_count))
 			goto destroy;
 	}
 out:
