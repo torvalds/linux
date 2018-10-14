@@ -649,12 +649,20 @@ struct tx_push_buffer {
 	u32			data[25];
 };
 
+struct bnxt_db_info {
+	void __iomem		*doorbell;
+	union {
+		u64		db_key64;
+		u32		db_key32;
+	};
+};
+
 struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
 	u16			tx_prod;
 	u16			tx_cons;
 	u16			txq_index;
-	void __iomem		*tx_doorbell;
+	struct bnxt_db_info	tx_db;
 
 	struct tx_bd		*tx_desc_ring[MAX_TX_PAGES];
 	struct bnxt_sw_tx_bd	*tx_buf_ring;
@@ -751,8 +759,8 @@ struct bnxt_rx_ring_info {
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
 	u16			rx_next_cons;
-	void __iomem		*rx_doorbell;
-	void __iomem		*rx_agg_doorbell;
+	struct bnxt_db_info	rx_db;
+	struct bnxt_db_info	rx_agg_db;
 
 	struct bpf_prog		*xdp_prog;
 
@@ -780,7 +788,7 @@ struct bnxt_rx_ring_info {
 
 struct bnxt_cp_ring_info {
 	u32			cp_raw_cons;
-	void __iomem		*cp_doorbell;
+	struct bnxt_db_info	cp_db;
 
 	struct bnxt_coal	rx_ring_coal;
 	u64			rx_packets;
@@ -836,6 +844,7 @@ struct bnxt_irq {
 #define HWRM_RING_ALLOC_RX	0x2
 #define HWRM_RING_ALLOC_AGG	0x4
 #define HWRM_RING_ALLOC_CMPL	0x8
+#define HWRM_RING_ALLOC_NQ	0x10
 
 #define INVALID_STATS_CTX_ID	-1
 
@@ -1523,6 +1532,11 @@ struct bnxt {
 	struct mutex		sriov_lock;
 #endif
 
+#if BITS_PER_LONG == 32
+	/* ensure atomic 64-bit doorbell writes on 32-bit systems. */
+	spinlock_t		db_lock;
+#endif
+
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
 #define BNXT_NTP_FLTR_HASH_SIZE	512
 #define BNXT_NTP_FLTR_HASH_MASK	(BNXT_NTP_FLTR_HASH_SIZE - 1)
@@ -1595,21 +1609,46 @@ static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
 		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
 }
 
+#if BITS_PER_LONG == 32
+#define writeq(val64, db)			\
+do {						\
+	spin_lock(&bp->db_lock);		\
+	writel((val64) & 0xffffffff, db);	\
+	writel((val64) >> 32, (db) + 4);	\
+	spin_unlock(&bp->db_lock);		\
+} while (0)
+
+#define writeq_relaxed writeq
+#endif
+
 /* For TX and RX ring doorbells with no ordering guarantee*/
-static inline void bnxt_db_write_relaxed(struct bnxt *bp, void __iomem *db,
-					 u32 val)
+static inline void bnxt_db_write_relaxed(struct bnxt *bp,
+					 struct bnxt_db_info *db, u32 idx)
 {
-	writel_relaxed(val, db);
-	if (bp->flags & BNXT_FLAG_DOUBLE_DB)
-		writel_relaxed(val, db);
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		writeq_relaxed(db->db_key64 | idx, db->doorbell);
+	} else {
+		u32 db_val = db->db_key32 | idx;
+
+		writel_relaxed(db_val, db->doorbell);
+		if (bp->flags & BNXT_FLAG_DOUBLE_DB)
+			writel_relaxed(db_val, db->doorbell);
+	}
 }
 
 /* For TX and RX ring doorbells */
-static inline void bnxt_db_write(struct bnxt *bp, void __iomem *db, u32 val)
+static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
+				 u32 idx)
 {
-	writel(val, db);
-	if (bp->flags & BNXT_FLAG_DOUBLE_DB)
-		writel(val, db);
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		writeq(db->db_key64 | idx, db->doorbell);
+	} else {
+		u32 db_val = db->db_key32 | idx;
+
+		writel(db_val, db->doorbell);
+		if (bp->flags & BNXT_FLAG_DOUBLE_DB)
+			writel(db_val, db->doorbell);
+	}
 }
 
 extern const u16 bnxt_lhint_arr[];

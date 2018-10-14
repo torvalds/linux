@@ -241,14 +241,45 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 #define DB_CP_FLAGS		(DB_KEY_CP | DB_IDX_VALID | DB_IRQ_DIS)
 #define DB_CP_IRQ_DIS_FLAGS	(DB_KEY_CP | DB_IRQ_DIS)
 
-#define BNXT_CP_DB_REARM(db, raw_cons)					\
-		writel(DB_CP_REARM_FLAGS | RING_CMP(raw_cons), db)
-
-#define BNXT_CP_DB(db, raw_cons)					\
-		writel(DB_CP_FLAGS | RING_CMP(raw_cons), db)
-
 #define BNXT_CP_DB_IRQ_DIS(db)						\
 		writel(DB_CP_IRQ_DIS_FLAGS, db)
+
+#define BNXT_DB_CQ(db, idx)						\
+	writel(DB_CP_FLAGS | RING_CMP(idx), (db)->doorbell)
+
+#define BNXT_DB_NQ_P5(db, idx)						\
+	writeq((db)->db_key64 | DBR_TYPE_NQ | RING_CMP(idx), (db)->doorbell)
+
+#define BNXT_DB_CQ_ARM(db, idx)						\
+	writel(DB_CP_REARM_FLAGS | RING_CMP(idx), (db)->doorbell)
+
+#define BNXT_DB_NQ_ARM_P5(db, idx)					\
+	writeq((db)->db_key64 | DBR_TYPE_NQ_ARM | RING_CMP(idx), (db)->doorbell)
+
+static void bnxt_db_nq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
+{
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		BNXT_DB_NQ_P5(db, idx);
+	else
+		BNXT_DB_CQ(db, idx);
+}
+
+static void bnxt_db_nq_arm(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
+{
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		BNXT_DB_NQ_ARM_P5(db, idx);
+	else
+		BNXT_DB_CQ_ARM(db, idx);
+}
+
+static void bnxt_db_cq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
+{
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		writeq(db->db_key64 | DBR_TYPE_CQ_ARMALL | RING_CMP(idx),
+		       db->doorbell);
+	else
+		BNXT_DB_CQ(db, idx);
+}
 
 const u16 bnxt_lhint_arr[] = {
 	TX_BD_FLAGS_LHINT_512_AND_SMALLER,
@@ -341,6 +372,7 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct tx_push_buffer *tx_push_buf = txr->tx_push;
 		struct tx_push_bd *tx_push = &tx_push_buf->push_bd;
 		struct tx_bd_ext *tx_push1 = &tx_push->txbd2;
+		void __iomem *db = txr->tx_db.doorbell;
 		void *pdata = tx_push_buf->data;
 		u64 *end;
 		int j, push_len;
@@ -398,12 +430,11 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		push_len = (length + sizeof(*tx_push) + 7) / 8;
 		if (push_len > 16) {
-			__iowrite64_copy(txr->tx_doorbell, tx_push_buf, 16);
-			__iowrite32_copy(txr->tx_doorbell + 4, tx_push_buf + 1,
+			__iowrite64_copy(db, tx_push_buf, 16);
+			__iowrite32_copy(db + 4, tx_push_buf + 1,
 					 (push_len - 16) << 1);
 		} else {
-			__iowrite64_copy(txr->tx_doorbell, tx_push_buf,
-					 push_len);
+			__iowrite64_copy(db, tx_push_buf, push_len);
 		}
 
 		goto tx_done;
@@ -505,7 +536,7 @@ normal_tx:
 	txr->tx_prod = prod;
 
 	if (!skb->xmit_more || netif_xmit_stopped(txq))
-		bnxt_db_write(bp, txr->tx_doorbell, DB_KEY_TX | prod);
+		bnxt_db_write(bp, &txr->tx_db, prod);
 
 tx_done:
 
@@ -513,7 +544,7 @@ tx_done:
 
 	if (unlikely(bnxt_tx_avail(bp, txr) <= MAX_SKB_FRAGS + 1)) {
 		if (skb->xmit_more && !tx_buf->is_push)
-			bnxt_db_write(bp, txr->tx_doorbell, DB_KEY_TX | prod);
+			bnxt_db_write(bp, &txr->tx_db, prod);
 
 		netif_tx_stop_queue(txq);
 
@@ -1848,7 +1879,7 @@ static irqreturn_t bnxt_inta(int irq, void *dev_instance)
 	}
 
 	/* disable ring IRQ */
-	BNXT_CP_DB_IRQ_DIS(cpr->cp_doorbell);
+	BNXT_CP_DB_IRQ_DIS(cpr->cp_db.doorbell);
 
 	/* Return here if interrupt is shared and is disabled. */
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
@@ -1922,13 +1953,12 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 
 	if (event & BNXT_TX_EVENT) {
 		struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
-		void __iomem *db = txr->tx_doorbell;
 		u16 prod = txr->tx_prod;
 
 		/* Sync BD data before updating doorbell */
 		wmb();
 
-		bnxt_db_write_relaxed(bp, db, DB_KEY_TX | prod);
+		bnxt_db_write_relaxed(bp, &txr->tx_db, prod);
 	}
 
 	cpr->cp_raw_cons = raw_cons;
@@ -1936,7 +1966,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	 * buffers in rx/agg rings to prevent overflowing the completion
 	 * ring.
 	 */
-	BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
+	bnxt_db_cq(bp, &cpr->cp_db, cpr->cp_raw_cons);
 
 	if (tx_pkts)
 		bnapi->tx_int(bp, bnapi, tx_pkts);
@@ -1944,10 +1974,9 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	if (event & BNXT_RX_EVENT) {
 		struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
 
-		bnxt_db_write(bp, rxr->rx_doorbell, DB_KEY_RX | rxr->rx_prod);
+		bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
 		if (event & BNXT_AGG_EVENT)
-			bnxt_db_write(bp, rxr->rx_agg_doorbell,
-				      DB_KEY_RX | rxr->rx_agg_prod);
+			bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
 	}
 	return rx_pkts;
 }
@@ -2006,16 +2035,15 @@ static int bnxt_poll_nitroa0(struct napi_struct *napi, int budget)
 	}
 
 	cpr->cp_raw_cons = raw_cons;
-	BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
-	bnxt_db_write(bp, rxr->rx_doorbell, DB_KEY_RX | rxr->rx_prod);
+	BNXT_DB_CQ(&cpr->cp_db, cpr->cp_raw_cons);
+	bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
 
 	if (event & BNXT_AGG_EVENT)
-		bnxt_db_write(bp, rxr->rx_agg_doorbell,
-			      DB_KEY_RX | rxr->rx_agg_prod);
+		bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
 
 	if (!bnxt_has_work(bp, cpr) && rx_pkts < budget) {
 		napi_complete_done(napi, rx_pkts);
-		BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
+		BNXT_DB_CQ_ARM(&cpr->cp_db, cpr->cp_raw_cons);
 	}
 	return rx_pkts;
 }
@@ -2032,15 +2060,13 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 
 		if (work_done >= budget) {
 			if (!budget)
-				BNXT_CP_DB_REARM(cpr->cp_doorbell,
-						 cpr->cp_raw_cons);
+				BNXT_DB_CQ_ARM(&cpr->cp_db, cpr->cp_raw_cons);
 			break;
 		}
 
 		if (!bnxt_has_work(bp, cpr)) {
 			if (napi_complete_done(napi, work_done))
-				BNXT_CP_DB_REARM(cpr->cp_doorbell,
-						 cpr->cp_raw_cons);
+				BNXT_DB_CQ_ARM(&cpr->cp_db, cpr->cp_raw_cons);
 			break;
 		}
 	}
@@ -3437,7 +3463,7 @@ static void bnxt_disable_int(struct bnxt *bp)
 		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 
 		if (ring->fw_ring_id != INVALID_HW_RING_ID)
-			BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
+			bnxt_db_nq(bp, &cpr->cp_db, cpr->cp_raw_cons);
 	}
 }
 
@@ -3473,7 +3499,7 @@ static void bnxt_enable_int(struct bnxt *bp)
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 
-		BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
+		bnxt_db_nq_arm(bp, &cpr->cp_db, cpr->cp_raw_cons);
 	}
 }
 
@@ -4468,22 +4494,64 @@ static int bnxt_hwrm_set_async_event_cr(struct bnxt *bp, int idx)
 	return rc;
 }
 
+static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
+			u32 map_idx, u32 xid)
+{
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		if (BNXT_PF(bp))
+			db->doorbell = bp->bar1 + 0x10000;
+		else
+			db->doorbell = bp->bar1 + 0x4000;
+		switch (ring_type) {
+		case HWRM_RING_ALLOC_TX:
+			db->db_key64 = DBR_PATH_L2 | DBR_TYPE_SQ;
+			break;
+		case HWRM_RING_ALLOC_RX:
+		case HWRM_RING_ALLOC_AGG:
+			db->db_key64 = DBR_PATH_L2 | DBR_TYPE_SRQ;
+			break;
+		case HWRM_RING_ALLOC_CMPL:
+			db->db_key64 = DBR_PATH_L2;
+			break;
+		case HWRM_RING_ALLOC_NQ:
+			db->db_key64 = DBR_PATH_L2;
+			break;
+		}
+		db->db_key64 |= (u64)xid << DBR_XID_SFT;
+	} else {
+		db->doorbell = bp->bar1 + map_idx * 0x80;
+		switch (ring_type) {
+		case HWRM_RING_ALLOC_TX:
+			db->db_key32 = DB_KEY_TX;
+			break;
+		case HWRM_RING_ALLOC_RX:
+		case HWRM_RING_ALLOC_AGG:
+			db->db_key32 = DB_KEY_RX;
+			break;
+		case HWRM_RING_ALLOC_CMPL:
+			db->db_key32 = DB_KEY_CP;
+			break;
+		}
+	}
+}
+
 static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 {
 	int i, rc = 0;
+	u32 type;
 
+	type = HWRM_RING_ALLOC_CMPL;
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 		u32 map_idx = ring->map_idx;
 
-		cpr->cp_doorbell = bp->bar1 + map_idx * 0x80;
-		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_CMPL,
-					      map_idx);
+		rc = hwrm_ring_alloc_send_msg(bp, ring, type, map_idx);
 		if (rc)
 			goto err_out;
-		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
+		bnxt_set_db(bp, &cpr->cp_db, type, map_idx, ring->fw_ring_id);
+		bnxt_db_nq(bp, &cpr->cp_db, cpr->cp_raw_cons);
 		bp->grp_info[i].cp_fw_ring_id = ring->fw_ring_id;
 
 		if (!i) {
@@ -4493,33 +4561,34 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 		}
 	}
 
+	type = HWRM_RING_ALLOC_TX;
 	for (i = 0; i < bp->tx_nr_rings; i++) {
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		struct bnxt_ring_struct *ring = &txr->tx_ring_struct;
 		u32 map_idx = i;
 
-		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_TX,
-					      map_idx);
+		rc = hwrm_ring_alloc_send_msg(bp, ring, type, map_idx);
 		if (rc)
 			goto err_out;
-		txr->tx_doorbell = bp->bar1 + map_idx * 0x80;
+		bnxt_set_db(bp, &txr->tx_db, type, map_idx, ring->fw_ring_id);
 	}
 
+	type = HWRM_RING_ALLOC_RX;
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring = &rxr->rx_ring_struct;
 		u32 map_idx = rxr->bnapi->index;
 
-		rc = hwrm_ring_alloc_send_msg(bp, ring, HWRM_RING_ALLOC_RX,
-					      map_idx);
+		rc = hwrm_ring_alloc_send_msg(bp, ring, type, map_idx);
 		if (rc)
 			goto err_out;
-		rxr->rx_doorbell = bp->bar1 + map_idx * 0x80;
-		writel(DB_KEY_RX | rxr->rx_prod, rxr->rx_doorbell);
+		bnxt_set_db(bp, &rxr->rx_db, type, map_idx, ring->fw_ring_id);
+		bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
 		bp->grp_info[map_idx].rx_fw_ring_id = ring->fw_ring_id;
 	}
 
 	if (bp->flags & BNXT_FLAG_AGG_RINGS) {
+		type = HWRM_RING_ALLOC_AGG;
 		for (i = 0; i < bp->rx_nr_rings; i++) {
 			struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 			struct bnxt_ring_struct *ring =
@@ -4527,15 +4596,13 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 			u32 grp_idx = ring->grp_idx;
 			u32 map_idx = grp_idx + bp->rx_nr_rings;
 
-			rc = hwrm_ring_alloc_send_msg(bp, ring,
-						      HWRM_RING_ALLOC_AGG,
-						      map_idx);
+			rc = hwrm_ring_alloc_send_msg(bp, ring, type, map_idx);
 			if (rc)
 				goto err_out;
 
-			rxr->rx_agg_doorbell = bp->bar1 + map_idx * 0x80;
-			writel(DB_KEY_RX | rxr->rx_agg_prod,
-			       rxr->rx_agg_doorbell);
+			bnxt_set_db(bp, &rxr->rx_agg_db, type, map_idx,
+				    ring->fw_ring_id);
+			bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
 			bp->grp_info[grp_idx].agg_fw_ring_id = ring->fw_ring_id;
 		}
 	}
@@ -8439,6 +8506,9 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	INIT_WORK(&bp->sp_task, bnxt_sp_task);
 
 	spin_lock_init(&bp->ntp_fltr_lock);
+#if BITS_PER_LONG == 32
+	spin_lock_init(&bp->db_lock);
+#endif
 
 	bp->rx_ring_size = BNXT_DEFAULT_RX_RING_SIZE;
 	bp->tx_ring_size = BNXT_DEFAULT_TX_RING_SIZE;
