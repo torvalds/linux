@@ -3042,7 +3042,7 @@ static void bnxt_free_hwrm_short_cmd_req(struct bnxt *bp)
 	if (bp->hwrm_short_cmd_req_addr) {
 		struct pci_dev *pdev = bp->pdev;
 
-		dma_free_coherent(&pdev->dev, BNXT_HWRM_MAX_REQ_LEN,
+		dma_free_coherent(&pdev->dev, bp->hwrm_max_ext_req_len,
 				  bp->hwrm_short_cmd_req_addr,
 				  bp->hwrm_short_cmd_req_dma_addr);
 		bp->hwrm_short_cmd_req_addr = NULL;
@@ -3054,7 +3054,7 @@ static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt *bp)
 	struct pci_dev *pdev = bp->pdev;
 
 	bp->hwrm_short_cmd_req_addr =
-		dma_alloc_coherent(&pdev->dev, BNXT_HWRM_MAX_REQ_LEN,
+		dma_alloc_coherent(&pdev->dev, bp->hwrm_max_ext_req_len,
 				   &bp->hwrm_short_cmd_req_dma_addr,
 				   GFP_KERNEL);
 	if (!bp->hwrm_short_cmd_req_addr)
@@ -3469,12 +3469,27 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	cp_ring_id = le16_to_cpu(req->cmpl_ring);
 	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
 
-	if (bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) {
+	if (msg_len > BNXT_HWRM_MAX_REQ_LEN) {
+		if (msg_len > bp->hwrm_max_ext_req_len ||
+		    !bp->hwrm_short_cmd_req_addr)
+			return -EINVAL;
+	}
+
+	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
+	    msg_len > BNXT_HWRM_MAX_REQ_LEN) {
 		void *short_cmd_req = bp->hwrm_short_cmd_req_addr;
+		u16 max_msg_len;
+
+		/* Set boundary for maximum extended request length for short
+		 * cmd format. If passed up from device use the max supported
+		 * internal req length.
+		 */
+		max_msg_len = bp->hwrm_max_ext_req_len;
 
 		memcpy(short_cmd_req, req, msg_len);
-		memset(short_cmd_req + msg_len, 0, BNXT_HWRM_MAX_REQ_LEN -
-						   msg_len);
+		if (msg_len < max_msg_len)
+			memset(short_cmd_req + msg_len, 0,
+			       max_msg_len - msg_len);
 
 		short_input.req_type = req->req_type;
 		short_input.signature =
@@ -5381,8 +5396,12 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	if (!bp->hwrm_cmd_timeout)
 		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
 
-	if (resp->hwrm_intf_maj_8b >= 1)
+	if (resp->hwrm_intf_maj_8b >= 1) {
 		bp->hwrm_max_req_len = le16_to_cpu(resp->max_req_win_len);
+		bp->hwrm_max_ext_req_len = le16_to_cpu(resp->max_ext_req_len);
+	}
+	if (bp->hwrm_max_ext_req_len < HWRM_MAX_REQ_LEN)
+		bp->hwrm_max_ext_req_len = HWRM_MAX_REQ_LEN;
 
 	bp->chip_num = le16_to_cpu(resp->chip_num);
 	if (bp->chip_num == CHIP_NUM_58700 && !resp->chip_rev &&
@@ -8908,7 +8927,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
-	if (bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) {
+	if ((bp->fw_cap & BNXT_FW_CAP_SHORT_CMD) ||
+	    bp->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
 		rc = bnxt_alloc_hwrm_short_cmd_req(bp);
 		if (rc)
 			goto init_err_pci_clean;
