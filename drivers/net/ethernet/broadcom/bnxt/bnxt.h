@@ -1117,6 +1117,51 @@ struct bnxt_vf_rep {
 #define PTU_PTE_LAST              0x2UL
 #define PTU_PTE_NEXT_TO_LAST      0x4UL
 
+#define MAX_CTX_PAGES	(BNXT_PAGE_SIZE / 8)
+
+struct bnxt_ctx_pg_info {
+	u32		entries;
+	void		*ctx_pg_arr[MAX_CTX_PAGES];
+	dma_addr_t	ctx_dma_arr[MAX_CTX_PAGES];
+	struct bnxt_ring_mem_info ring_mem;
+};
+
+struct bnxt_ctx_mem_info {
+	u32	qp_max_entries;
+	u16	qp_min_qp1_entries;
+	u16	qp_max_l2_entries;
+	u16	qp_entry_size;
+	u16	srq_max_l2_entries;
+	u32	srq_max_entries;
+	u16	srq_entry_size;
+	u16	cq_max_l2_entries;
+	u32	cq_max_entries;
+	u16	cq_entry_size;
+	u16	vnic_max_vnic_entries;
+	u16	vnic_max_ring_table_entries;
+	u16	vnic_entry_size;
+	u32	stat_max_entries;
+	u16	stat_entry_size;
+	u16	tqm_entry_size;
+	u32	tqm_min_entries_per_ring;
+	u32	tqm_max_entries_per_ring;
+	u32	mrav_max_entries;
+	u16	mrav_entry_size;
+	u16	tim_entry_size;
+	u32	tim_max_entries;
+	u8	tqm_entries_multiple;
+
+	u32	flags;
+	#define BNXT_CTX_FLAG_INITED	0x01
+
+	struct bnxt_ctx_pg_info qp_mem;
+	struct bnxt_ctx_pg_info srq_mem;
+	struct bnxt_ctx_pg_info cq_mem;
+	struct bnxt_ctx_pg_info vnic_mem;
+	struct bnxt_ctx_pg_info stat_mem;
+	struct bnxt_ctx_pg_info *tqm_mem[9];
+};
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -1309,6 +1354,8 @@ struct bnxt {
 	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
 	u8			tc_to_qidx[BNXT_MAX_QUEUE];
+	u8			q_ids[BNXT_MAX_QUEUE];
+	u8			max_q;
 
 	unsigned int		current_interval;
 #define BNXT_TIMER_INTERVAL	HZ
@@ -1412,6 +1459,7 @@ struct bnxt {
 
 	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
+	struct bnxt_ctx_mem_info	*ctx;
 #ifdef CONFIG_BNXT_SRIOV
 	int			nr_vfs;
 	struct bnxt_vf_info	vf;

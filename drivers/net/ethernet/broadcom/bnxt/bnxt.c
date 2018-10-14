@@ -5255,6 +5255,187 @@ func_qcfg_exit:
 	return rc;
 }
 
+static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
+{
+	struct hwrm_func_backing_store_qcaps_input req = {0};
+	struct hwrm_func_backing_store_qcaps_output *resp =
+		bp->hwrm_cmd_resp_addr;
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10902 || BNXT_VF(bp) || bp->ctx)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_BACKING_STORE_QCAPS, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		struct bnxt_ctx_pg_info *ctx_pg;
+		struct bnxt_ctx_mem_info *ctx;
+		int i;
+
+		ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+		if (!ctx) {
+			rc = -ENOMEM;
+			goto ctx_err;
+		}
+		ctx_pg = kzalloc(sizeof(*ctx_pg) * (bp->max_q + 1), GFP_KERNEL);
+		if (!ctx_pg) {
+			kfree(ctx);
+			rc = -ENOMEM;
+			goto ctx_err;
+		}
+		for (i = 0; i < bp->max_q + 1; i++, ctx_pg++)
+			ctx->tqm_mem[i] = ctx_pg;
+
+		bp->ctx = ctx;
+		ctx->qp_max_entries = le32_to_cpu(resp->qp_max_entries);
+		ctx->qp_min_qp1_entries = le16_to_cpu(resp->qp_min_qp1_entries);
+		ctx->qp_max_l2_entries = le16_to_cpu(resp->qp_max_l2_entries);
+		ctx->qp_entry_size = le16_to_cpu(resp->qp_entry_size);
+		ctx->srq_max_l2_entries = le16_to_cpu(resp->srq_max_l2_entries);
+		ctx->srq_max_entries = le32_to_cpu(resp->srq_max_entries);
+		ctx->srq_entry_size = le16_to_cpu(resp->srq_entry_size);
+		ctx->cq_max_l2_entries = le16_to_cpu(resp->cq_max_l2_entries);
+		ctx->cq_max_entries = le32_to_cpu(resp->cq_max_entries);
+		ctx->cq_entry_size = le16_to_cpu(resp->cq_entry_size);
+		ctx->vnic_max_vnic_entries =
+			le16_to_cpu(resp->vnic_max_vnic_entries);
+		ctx->vnic_max_ring_table_entries =
+			le16_to_cpu(resp->vnic_max_ring_table_entries);
+		ctx->vnic_entry_size = le16_to_cpu(resp->vnic_entry_size);
+		ctx->stat_max_entries = le32_to_cpu(resp->stat_max_entries);
+		ctx->stat_entry_size = le16_to_cpu(resp->stat_entry_size);
+		ctx->tqm_entry_size = le16_to_cpu(resp->tqm_entry_size);
+		ctx->tqm_min_entries_per_ring =
+			le32_to_cpu(resp->tqm_min_entries_per_ring);
+		ctx->tqm_max_entries_per_ring =
+			le32_to_cpu(resp->tqm_max_entries_per_ring);
+		ctx->tqm_entries_multiple = resp->tqm_entries_multiple;
+		if (!ctx->tqm_entries_multiple)
+			ctx->tqm_entries_multiple = 1;
+		ctx->mrav_max_entries = le32_to_cpu(resp->mrav_max_entries);
+		ctx->mrav_entry_size = le16_to_cpu(resp->mrav_entry_size);
+		ctx->tim_entry_size = le16_to_cpu(resp->tim_entry_size);
+		ctx->tim_max_entries = le32_to_cpu(resp->tim_max_entries);
+	} else {
+		rc = 0;
+	}
+ctx_err:
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int bnxt_alloc_ctx_mem_blk(struct bnxt *bp,
+				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size)
+{
+	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+
+	if (!mem_size)
+		return 0;
+
+	rmem->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
+	if (rmem->nr_pages > MAX_CTX_PAGES) {
+		rmem->nr_pages = 0;
+		return -EINVAL;
+	}
+	rmem->page_size = BNXT_PAGE_SIZE;
+	rmem->pg_arr = ctx_pg->ctx_pg_arr;
+	rmem->dma_arr = ctx_pg->ctx_dma_arr;
+	return bnxt_alloc_ring(bp, rmem);
+}
+
+static void bnxt_free_ctx_mem(struct bnxt *bp)
+{
+	struct bnxt_ctx_mem_info *ctx = bp->ctx;
+	int i;
+
+	if (!ctx)
+		return;
+
+	if (ctx->tqm_mem[0]) {
+		for (i = 0; i < bp->max_q + 1; i++)
+			bnxt_free_ring(bp, &ctx->tqm_mem[i]->ring_mem);
+		kfree(ctx->tqm_mem[0]);
+		ctx->tqm_mem[0] = NULL;
+	}
+
+	bnxt_free_ring(bp, &ctx->stat_mem.ring_mem);
+	bnxt_free_ring(bp, &ctx->vnic_mem.ring_mem);
+	bnxt_free_ring(bp, &ctx->cq_mem.ring_mem);
+	bnxt_free_ring(bp, &ctx->srq_mem.ring_mem);
+	bnxt_free_ring(bp, &ctx->qp_mem.ring_mem);
+	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
+}
+
+static int bnxt_alloc_ctx_mem(struct bnxt *bp)
+{
+	struct bnxt_ctx_pg_info *ctx_pg;
+	struct bnxt_ctx_mem_info *ctx;
+	u32 mem_size, entries;
+	int i, rc;
+
+	rc = bnxt_hwrm_func_backing_store_qcaps(bp);
+	if (rc) {
+		netdev_err(bp->dev, "Failed querying context mem capability, rc = %d.\n",
+			   rc);
+		return rc;
+	}
+	ctx = bp->ctx;
+	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
+		return 0;
+
+	ctx_pg = &ctx->qp_mem;
+	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries;
+	mem_size = ctx->qp_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->srq_mem;
+	ctx_pg->entries = ctx->srq_max_l2_entries;
+	mem_size = ctx->srq_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->cq_mem;
+	ctx_pg->entries = ctx->cq_max_l2_entries;
+	mem_size = ctx->cq_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->vnic_mem;
+	ctx_pg->entries = ctx->vnic_max_vnic_entries +
+			  ctx->vnic_max_ring_table_entries;
+	mem_size = ctx->vnic_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->stat_mem;
+	ctx_pg->entries = ctx->stat_max_entries;
+	mem_size = ctx->stat_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+	if (rc)
+		return rc;
+
+	entries = ctx->qp_max_l2_entries;
+	entries = roundup(entries, ctx->tqm_entries_multiple);
+	entries = clamp_t(u32, entries, ctx->tqm_min_entries_per_ring,
+			  ctx->tqm_max_entries_per_ring);
+	for (i = 0; i < bp->max_q + 1; i++) {
+		ctx_pg = ctx->tqm_mem[i];
+		ctx_pg->entries = entries;
+		mem_size = ctx->tqm_entry_size * entries;
+		rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg, mem_size);
+		if (rc)
+			return rc;
+	}
+	ctx->flags |= BNXT_CTX_FLAG_INITED;
+	return 0;
+}
+
 int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all)
 {
 	struct hwrm_func_resource_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
@@ -5382,6 +5563,9 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	if (rc)
 		return rc;
 	if (bp->hwrm_spec_code >= 0x10803) {
+		rc = bnxt_alloc_ctx_mem(bp);
+		if (rc)
+			return rc;
 		rc = bnxt_hwrm_func_resc_qcaps(bp, true);
 		if (!rc)
 			bp->fw_cap |= BNXT_FW_CAP_NEW_RM;
@@ -5426,13 +5610,15 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 	no_rdma = !(bp->flags & BNXT_FLAG_ROCE_CAP);
 	qptr = &resp->queue_id0;
 	for (i = 0, j = 0; i < bp->max_tc; i++) {
-		bp->q_info[j].queue_id = *qptr++;
+		bp->q_info[j].queue_id = *qptr;
+		bp->q_ids[i] = *qptr++;
 		bp->q_info[j].queue_profile = *qptr++;
 		bp->tc_to_qidx[j] = j;
 		if (!BNXT_CNPQ(bp->q_info[j].queue_profile) ||
 		    (no_rdma && BNXT_PF(bp)))
 			j++;
 	}
+	bp->max_q = bp->max_tc;
 	bp->max_tc = max_t(u8, j, 1);
 
 	if (resp->queue_cfg_info & QUEUE_QPORTCFG_RESP_QUEUE_CFG_INFO_ASYM_CFG)
@@ -8682,6 +8868,9 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_dcb_free(bp);
 	kfree(bp->edev);
 	bp->edev = NULL;
+	bnxt_free_ctx_mem(bp);
+	kfree(bp->ctx);
+	bp->ctx = NULL;
 	bnxt_cleanup_pci(bp);
 	free_netdev(dev);
 }
@@ -9075,6 +9264,13 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bp->ulp_probe = bnxt_ulp_probe;
 
+	rc = bnxt_hwrm_queue_qportcfg(bp);
+	if (rc) {
+		netdev_err(bp->dev, "hwrm query qportcfg failure rc: %x\n",
+			   rc);
+		rc = -1;
+		goto init_err_pci_clean;
+	}
 	/* Get the MAX capabilities for this function */
 	rc = bnxt_hwrm_func_qcaps(bp);
 	if (rc) {
@@ -9087,13 +9283,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to initialize mac address.\n");
 		rc = -EADDRNOTAVAIL;
-		goto init_err_pci_clean;
-	}
-	rc = bnxt_hwrm_queue_qportcfg(bp);
-	if (rc) {
-		netdev_err(bp->dev, "hwrm query qportcfg failure rc: %x\n",
-			   rc);
-		rc = -1;
 		goto init_err_pci_clean;
 	}
 
@@ -9195,6 +9384,9 @@ init_err_cleanup_tc:
 
 init_err_pci_clean:
 	bnxt_free_hwrm_resources(bp);
+	bnxt_free_ctx_mem(bp);
+	kfree(bp->ctx);
+	bp->ctx = NULL;
 	bnxt_cleanup_pci(bp);
 
 init_err_free:
