@@ -792,6 +792,8 @@ struct bnxt_cp_ring_info {
 	u32			cp_raw_cons;
 	struct bnxt_db_info	cp_db;
 
+	u8			had_work_done:1;
+
 	struct bnxt_coal	rx_ring_coal;
 	u64			rx_packets;
 	u64			rx_bytes;
@@ -829,6 +831,9 @@ struct bnxt_napi {
 
 	void			(*tx_int)(struct bnxt *, struct bnxt_napi *,
 					  int);
+	int			tx_pkts;
+	u8			events;
+
 	u32			flags;
 #define BNXT_NAPI_FLAG_XDP	0x1
 

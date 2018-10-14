@@ -1889,8 +1889,8 @@ static irqreturn_t bnxt_inta(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static int bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
-			  int budget)
+static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
+			    int budget)
 {
 	struct bnxt_napi *bnapi = cpr->bnapi;
 	u32 raw_cons = cpr->cp_raw_cons;
@@ -1913,6 +1913,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 * reading any further.
 		 */
 		dma_rmb();
+		cpr->had_work_done = 1;
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
 			tx_pkts++;
 			/* return full budget so NAPI will complete. */
@@ -1963,22 +1964,43 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	}
 
 	cpr->cp_raw_cons = raw_cons;
+	bnapi->tx_pkts += tx_pkts;
+	bnapi->events |= event;
+	return rx_pkts;
+}
+
+static void __bnxt_poll_work_done(struct bnxt *bp, struct bnxt_napi *bnapi)
+{
+	if (bnapi->tx_pkts) {
+		bnapi->tx_int(bp, bnapi, bnapi->tx_pkts);
+		bnapi->tx_pkts = 0;
+	}
+
+	if (bnapi->events & BNXT_RX_EVENT) {
+		struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+
+		bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
+		if (bnapi->events & BNXT_AGG_EVENT)
+			bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
+	}
+	bnapi->events = 0;
+}
+
+static int bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
+			  int budget)
+{
+	struct bnxt_napi *bnapi = cpr->bnapi;
+	int rx_pkts;
+
+	rx_pkts = __bnxt_poll_work(bp, cpr, budget);
+
 	/* ACK completion ring before freeing tx ring and producing new
 	 * buffers in rx/agg rings to prevent overflowing the completion
 	 * ring.
 	 */
 	bnxt_db_cq(bp, &cpr->cp_db, cpr->cp_raw_cons);
 
-	if (tx_pkts)
-		bnapi->tx_int(bp, bnapi, tx_pkts);
-
-	if (event & BNXT_RX_EVENT) {
-		struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
-
-		bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
-		if (event & BNXT_AGG_EVENT)
-			bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
-	}
+	__bnxt_poll_work_done(bp, bnapi);
 	return rx_pkts;
 }
 
