@@ -1189,15 +1189,13 @@ ENTRY(paranoid_entry)
 1:
 	/*
 	 * Always stash CR3 in %r14.  This value will be restored,
-	 * verbatim, at exit.  Needed if kernel is interrupted
-	 * after switching to the user CR3 value but before
-	 * returning to userspace.
+	 * verbatim, at exit.  Needed if paranoid_entry interrupted
+	 * another entry that already switched to the user CR3 value
+	 * but has not yet returned to userspace.
 	 *
 	 * This is also why CS (stashed in the "iret frame" by the
 	 * hardware at entry) can not be used: this may be a return
-	 * to kernel code, but with a user CR3 value.  The %ebx flag
-	 * for SWAPGS is also unusable for CR3 because there is a
-	 * window with a user GS and a kernel CR3.
+	 * to kernel code, but with a user CR3 value.
 	 */
 	SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg=%rax save_reg=%r14
 
