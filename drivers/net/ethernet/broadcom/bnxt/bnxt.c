@@ -2482,6 +2482,7 @@ static void bnxt_free_cp_rings(struct bnxt *bp)
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr;
 		struct bnxt_ring_struct *ring;
+		int j;
 
 		if (!bnapi)
 			continue;
@@ -2490,11 +2491,50 @@ static void bnxt_free_cp_rings(struct bnxt *bp)
 		ring = &cpr->cp_ring_struct;
 
 		bnxt_free_ring(bp, &ring->ring_mem);
+
+		for (j = 0; j < 2; j++) {
+			struct bnxt_cp_ring_info *cpr2 = cpr->cp_ring_arr[j];
+
+			if (cpr2) {
+				ring = &cpr2->cp_ring_struct;
+				bnxt_free_ring(bp, &ring->ring_mem);
+				kfree(cpr2);
+				cpr->cp_ring_arr[j] = NULL;
+			}
+		}
 	}
+}
+
+static struct bnxt_cp_ring_info *bnxt_alloc_cp_sub_ring(struct bnxt *bp)
+{
+	struct bnxt_ring_mem_info *rmem;
+	struct bnxt_ring_struct *ring;
+	struct bnxt_cp_ring_info *cpr;
+	int rc;
+
+	cpr = kzalloc(sizeof(*cpr), GFP_KERNEL);
+	if (!cpr)
+		return NULL;
+
+	ring = &cpr->cp_ring_struct;
+	rmem = &ring->ring_mem;
+	rmem->nr_pages = bp->cp_nr_pages;
+	rmem->page_size = HW_CMPD_RING_SIZE;
+	rmem->pg_arr = (void **)cpr->cp_desc_ring;
+	rmem->dma_arr = cpr->cp_desc_mapping;
+	rmem->flags = BNXT_RMEM_RING_PTE_FLAG;
+	rc = bnxt_alloc_ring(bp, rmem);
+	if (rc) {
+		bnxt_free_ring(bp, rmem);
+		kfree(cpr);
+		cpr = NULL;
+	}
+	return cpr;
 }
 
 static int bnxt_alloc_cp_rings(struct bnxt *bp)
 {
+	bool sh = !!(bp->flags & BNXT_FLAG_SHARED_RINGS);
 	int i, rc, ulp_base_vec, ulp_msix;
 
 	ulp_msix = bnxt_get_ulp_msix_num(bp);
@@ -2508,6 +2548,7 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 			continue;
 
 		cpr = &bnapi->cp_ring;
+		cpr->bnapi = bnapi;
 		ring = &cpr->cp_ring_struct;
 
 		rc = bnxt_alloc_ring(bp, &ring->ring_mem);
@@ -2518,6 +2559,29 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 			ring->map_idx = i + ulp_msix;
 		else
 			ring->map_idx = i;
+
+		if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+			continue;
+
+		if (i < bp->rx_nr_rings) {
+			struct bnxt_cp_ring_info *cpr2 =
+				bnxt_alloc_cp_sub_ring(bp);
+
+			cpr->cp_ring_arr[BNXT_RX_HDL] = cpr2;
+			if (!cpr2)
+				return -ENOMEM;
+			cpr2->bnapi = bnapi;
+		}
+		if ((sh && i < bp->tx_nr_rings) ||
+		    (!sh && i >= bp->rx_nr_rings)) {
+			struct bnxt_cp_ring_info *cpr2 =
+				bnxt_alloc_cp_sub_ring(bp);
+
+			cpr->cp_ring_arr[BNXT_TX_HDL] = cpr2;
+			if (!cpr2)
+				return -ENOMEM;
+			cpr2->bnapi = bnapi;
+		}
 	}
 	return 0;
 }
