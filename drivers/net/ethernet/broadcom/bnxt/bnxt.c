@@ -2758,7 +2758,7 @@ static int bnxt_init_one_rx_ring(struct bnxt *bp, int ring_nr)
 
 static void bnxt_init_cp_rings(struct bnxt *bp)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_cp_ring_info *cpr = &bp->bnapi[i]->cp_ring;
@@ -2767,6 +2767,17 @@ static void bnxt_init_cp_rings(struct bnxt *bp)
 		ring->fw_ring_id = INVALID_HW_RING_ID;
 		cpr->rx_ring_coal.coal_ticks = bp->rx_coal.coal_ticks;
 		cpr->rx_ring_coal.coal_bufs = bp->rx_coal.coal_bufs;
+		for (j = 0; j < 2; j++) {
+			struct bnxt_cp_ring_info *cpr2 = cpr->cp_ring_arr[j];
+
+			if (!cpr2)
+				continue;
+
+			ring = &cpr2->cp_ring_struct;
+			ring->fw_ring_id = INVALID_HW_RING_ID;
+			cpr2->rx_ring_coal.coal_ticks = bp->rx_coal.coal_ticks;
+			cpr2->rx_ring_coal.coal_bufs = bp->rx_coal.coal_bufs;
+		}
 	}
 }
 
@@ -4711,9 +4722,28 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 	type = HWRM_RING_ALLOC_TX;
 	for (i = 0; i < bp->tx_nr_rings; i++) {
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
-		struct bnxt_ring_struct *ring = &txr->tx_ring_struct;
-		u32 map_idx = i;
+		struct bnxt_ring_struct *ring;
+		u32 map_idx;
 
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			struct bnxt_napi *bnapi = txr->bnapi;
+			struct bnxt_cp_ring_info *cpr, *cpr2;
+			u32 type2 = HWRM_RING_ALLOC_CMPL;
+
+			cpr = &bnapi->cp_ring;
+			cpr2 = cpr->cp_ring_arr[BNXT_TX_HDL];
+			ring = &cpr2->cp_ring_struct;
+			ring->handle = BNXT_TX_HDL;
+			map_idx = bnapi->index;
+			rc = hwrm_ring_alloc_send_msg(bp, ring, type2, map_idx);
+			if (rc)
+				goto err_out;
+			bnxt_set_db(bp, &cpr2->cp_db, type2, map_idx,
+				    ring->fw_ring_id);
+			bnxt_db_cq(bp, &cpr2->cp_db, cpr2->cp_raw_cons);
+		}
+		ring = &txr->tx_ring_struct;
+		map_idx = i;
 		rc = hwrm_ring_alloc_send_msg(bp, ring, type, map_idx);
 		if (rc)
 			goto err_out;
@@ -4724,7 +4754,8 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring = &rxr->rx_ring_struct;
-		u32 map_idx = rxr->bnapi->index;
+		struct bnxt_napi *bnapi = rxr->bnapi;
+		u32 map_idx = bnapi->index;
 
 		rc = hwrm_ring_alloc_send_msg(bp, ring, type, map_idx);
 		if (rc)
@@ -4732,6 +4763,21 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 		bnxt_set_db(bp, &rxr->rx_db, type, map_idx, ring->fw_ring_id);
 		bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
 		bp->grp_info[map_idx].rx_fw_ring_id = ring->fw_ring_id;
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+			u32 type2 = HWRM_RING_ALLOC_CMPL;
+			struct bnxt_cp_ring_info *cpr2;
+
+			cpr2 = cpr->cp_ring_arr[BNXT_RX_HDL];
+			ring = &cpr2->cp_ring_struct;
+			ring->handle = BNXT_RX_HDL;
+			rc = hwrm_ring_alloc_send_msg(bp, ring, type2, map_idx);
+			if (rc)
+				goto err_out;
+			bnxt_set_db(bp, &cpr2->cp_db, type2, map_idx,
+				    ring->fw_ring_id);
+			bnxt_db_cq(bp, &cpr2->cp_db, cpr2->cp_raw_cons);
+		}
 	}
 
 	if (bp->flags & BNXT_FLAG_AGG_RINGS) {
@@ -4858,8 +4904,23 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
+		struct bnxt_ring_struct *ring;
+		int j;
 
+		for (j = 0; j < 2; j++) {
+			struct bnxt_cp_ring_info *cpr2 = cpr->cp_ring_arr[j];
+
+			if (cpr2) {
+				ring = &cpr2->cp_ring_struct;
+				if (ring->fw_ring_id == INVALID_HW_RING_ID)
+					continue;
+				hwrm_ring_free_send_msg(bp, ring,
+					RING_FREE_REQ_RING_TYPE_L2_CMPL,
+					INVALID_HW_RING_ID);
+				ring->fw_ring_id = INVALID_HW_RING_ID;
+			}
+		}
+		ring = &cpr->cp_ring_struct;
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
 			hwrm_ring_free_send_msg(bp, ring, type,
 						INVALID_HW_RING_ID);
