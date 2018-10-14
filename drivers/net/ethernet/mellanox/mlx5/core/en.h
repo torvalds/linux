@@ -411,6 +411,11 @@ struct mlx5e_xdp_info_fifo {
 	u32 mask;
 };
 
+struct mlx5e_xdp_wqe_info {
+	u8 num_wqebbs;
+	u8 num_ds;
+};
+
 struct mlx5e_xdpsq {
 	/* data path */
 
@@ -430,6 +435,7 @@ struct mlx5e_xdpsq {
 	struct mlx5_wq_cyc         wq;
 	struct mlx5e_xdpsq_stats  *stats;
 	struct {
+		struct mlx5e_xdp_wqe_info *wqe_info;
 		struct mlx5e_xdp_info_fifo xdpi_fifo;
 	} db;
 	void __iomem              *uar_map;

@@ -199,19 +199,27 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 					 get_cqe_opcode(cqe));
 
 		do {
-			struct mlx5e_xdp_info xdpi =
-				mlx5e_xdpi_fifo_pop(xdpi_fifo);
+			struct mlx5e_xdp_wqe_info *wi;
+			u16 ci, j;
 
 			last_wqe = (sqcc == wqe_counter);
-			sqcc++;
+			ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
+			wi = &sq->db.wqe_info[ci];
 
-			if (is_redirect) {
-				xdp_return_frame(xdpi.xdpf);
-				dma_unmap_single(sq->pdev, xdpi.dma_addr,
-						 xdpi.xdpf->len, DMA_TO_DEVICE);
-			} else {
-				/* Recycle RX page */
-				mlx5e_page_release(rq, &xdpi.di, true);
+			sqcc += wi->num_wqebbs;
+
+			for (j = 0; j < wi->num_ds; j++) {
+				struct mlx5e_xdp_info xdpi =
+					mlx5e_xdpi_fifo_pop(xdpi_fifo);
+
+				if (is_redirect) {
+					xdp_return_frame(xdpi.xdpf);
+					dma_unmap_single(sq->pdev, xdpi.dma_addr,
+							 xdpi.xdpf->len, DMA_TO_DEVICE);
+				} else {
+					/* Recycle RX page */
+					mlx5e_page_release(rq, &xdpi.di, true);
+				}
 			}
 		} while (!last_wqe);
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
@@ -233,18 +241,26 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 	bool is_redirect = !rq;
 
 	while (sq->cc != sq->pc) {
-		struct mlx5e_xdp_info xdpi =
-			mlx5e_xdpi_fifo_pop(xdpi_fifo);
+		struct mlx5e_xdp_wqe_info *wi;
+		u16 ci, i;
 
-		sq->cc++;
+		ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->cc);
+		wi = &sq->db.wqe_info[ci];
 
-		if (is_redirect) {
-			xdp_return_frame(xdpi.xdpf);
-			dma_unmap_single(sq->pdev, xdpi.dma_addr,
-					 xdpi.xdpf->len, DMA_TO_DEVICE);
-		} else {
-			/* Recycle RX page */
-			mlx5e_page_release(rq, &xdpi.di, false);
+		sq->cc += wi->num_wqebbs;
+
+		for (i = 0; i < wi->num_ds; i++) {
+			struct mlx5e_xdp_info xdpi =
+				mlx5e_xdpi_fifo_pop(xdpi_fifo);
+
+			if (is_redirect) {
+				xdp_return_frame(xdpi.xdpf);
+				dma_unmap_single(sq->pdev, xdpi.dma_addr,
+						 xdpi.xdpf->len, DMA_TO_DEVICE);
+			} else {
+				/* Recycle RX page */
+				mlx5e_page_release(rq, &xdpi.di, false);
+			}
 		}
 	}
 }

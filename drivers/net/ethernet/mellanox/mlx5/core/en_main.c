@@ -993,6 +993,7 @@ static void mlx5e_close_rq(struct mlx5e_rq *rq)
 static void mlx5e_free_xdpsq_db(struct mlx5e_xdpsq *sq)
 {
 	kvfree(sq->db.xdpi_fifo.xi);
+	kvfree(sq->db.wqe_info);
 }
 
 static int mlx5e_alloc_xdpsq_fifo(struct mlx5e_xdpsq *sq, int numa)
@@ -1015,7 +1016,13 @@ static int mlx5e_alloc_xdpsq_fifo(struct mlx5e_xdpsq *sq, int numa)
 
 static int mlx5e_alloc_xdpsq_db(struct mlx5e_xdpsq *sq, int numa)
 {
+	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 	int err;
+
+	sq->db.wqe_info = kvzalloc_node(sizeof(*sq->db.wqe_info) * wq_sz,
+					GFP_KERNEL, numa);
+	if (!sq->db.wqe_info)
+		return -ENOMEM;
 
 	err = mlx5e_alloc_xdpsq_fifo(sq, numa);
 	if (err) {
@@ -1606,6 +1613,7 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 
 	/* Pre initialize fixed WQE fields */
 	for (i = 0; i < mlx5_wq_cyc_get_size(&sq->wq); i++) {
+		struct mlx5e_xdp_wqe_info *wi  = &sq->db.wqe_info[i];
 		struct mlx5e_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(&sq->wq, i);
 		struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
 		struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
@@ -1616,6 +1624,9 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 
 		dseg = (struct mlx5_wqe_data_seg *)cseg + (ds_cnt - 1);
 		dseg->lkey = sq->mkey_be;
+
+		wi->num_wqebbs = 1;
+		wi->num_ds     = 1;
 	}
 
 	return 0;
