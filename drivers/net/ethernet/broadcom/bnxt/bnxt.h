@@ -580,6 +580,10 @@ struct bnxt_sw_rx_agg_bd {
 struct bnxt_ring_mem_info {
 	int			nr_pages;
 	int			page_size;
+	u32			flags;
+#define BNXT_RMEM_VALID_PTE_FLAG	1
+#define BNXT_RMEM_RING_PTE_FLAG		2
+
 	void			**pg_arr;
 	dma_addr_t		*dma_arr;
 
@@ -1108,6 +1112,10 @@ struct bnxt_vf_rep {
 	struct bnxt_vf_rep_stats	rx_stats;
 	struct bnxt_vf_rep_stats	tx_stats;
 };
+
+#define PTU_PTE_VALID             0x1UL
+#define PTU_PTE_LAST              0x2UL
+#define PTU_PTE_NEXT_TO_LAST      0x4UL
 
 struct bnxt {
 	void __iomem		*bar0;
