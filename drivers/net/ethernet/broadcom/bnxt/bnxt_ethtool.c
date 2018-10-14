@@ -2498,11 +2498,11 @@ static int bnxt_hwrm_phy_loopback(struct bnxt *bp, bool enable, bool ext)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
-static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_napi *bnapi,
+static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 			    u32 raw_cons, int pkt_size)
 {
-	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	struct bnxt_napi *bnapi = cpr->bnapi;
+	struct bnxt_rx_ring_info *rxr;
 	struct bnxt_sw_rx_bd *rx_buf;
 	struct rx_cmp *rxcmp;
 	u16 cp_cons, cons;
@@ -2510,6 +2510,7 @@ static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_napi *bnapi,
 	u32 len;
 	int i;
 
+	rxr = bnapi->rx_ring;
 	cp_cons = RING_CMP(raw_cons);
 	rxcmp = (struct rx_cmp *)
 		&cpr->cp_desc_ring[CP_RING(cp_cons)][CP_IDX(cp_cons)];
@@ -2530,17 +2531,15 @@ static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_napi *bnapi,
 	return 0;
 }
 
-static int bnxt_poll_loopback(struct bnxt *bp, int pkt_size)
+static int bnxt_poll_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
+			      int pkt_size)
 {
-	struct bnxt_napi *bnapi = bp->bnapi[0];
-	struct bnxt_cp_ring_info *cpr;
 	struct tx_cmp *txcmp;
 	int rc = -EIO;
 	u32 raw_cons;
 	u32 cons;
 	int i;
 
-	cpr = &bnapi->cp_ring;
 	raw_cons = cpr->cp_raw_cons;
 	for (i = 0; i < 200; i++) {
 		cons = RING_CMP(raw_cons);
@@ -2556,7 +2555,7 @@ static int bnxt_poll_loopback(struct bnxt *bp, int pkt_size)
 		 */
 		dma_rmb();
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP) {
-			rc = bnxt_rx_loopback(bp, bnapi, raw_cons, pkt_size);
+			rc = bnxt_rx_loopback(bp, cpr, raw_cons, pkt_size);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
 			break;
@@ -2570,12 +2569,14 @@ static int bnxt_poll_loopback(struct bnxt *bp, int pkt_size)
 static int bnxt_run_loopback(struct bnxt *bp)
 {
 	struct bnxt_tx_ring_info *txr = &bp->tx_ring[0];
+	struct bnxt_cp_ring_info *cpr;
 	int pkt_size, i = 0;
 	struct sk_buff *skb;
 	dma_addr_t map;
 	u8 *data;
 	int rc;
 
+	cpr = &txr->bnapi->cp_ring;
 	pkt_size = min(bp->dev->mtu + ETH_HLEN, bp->rx_copy_thresh);
 	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)
@@ -2600,7 +2601,7 @@ static int bnxt_run_loopback(struct bnxt *bp)
 	wmb();
 
 	bnxt_db_write(bp, &txr->tx_db, txr->tx_prod);
-	rc = bnxt_poll_loopback(bp, pkt_size);
+	rc = bnxt_poll_loopback(bp, cpr, pkt_size);
 
 	dma_unmap_single(&bp->pdev->dev, map, pkt_size, PCI_DMA_TODEVICE);
 	dev_kfree_skb(skb);
