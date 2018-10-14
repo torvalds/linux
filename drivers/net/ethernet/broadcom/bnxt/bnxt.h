@@ -403,6 +403,19 @@ struct rx_tpa_end_cmp_ext {
 	((rx_tpa_end_ext)->rx_tpa_end_cmp_errors_v2 &			\
 	 cpu_to_le32(RX_TPA_END_CMP_ERRORS))
 
+struct nqe_cn {
+	__le16	type;
+	#define NQ_CN_TYPE_MASK           0x3fUL
+	#define NQ_CN_TYPE_SFT            0
+	#define NQ_CN_TYPE_CQ_NOTIFICATION  0x30UL
+	#define NQ_CN_TYPE_LAST            NQ_CN_TYPE_CQ_NOTIFICATION
+	__le16	reserved16;
+	__le32	cq_handle_low;
+	__le32	v;
+	#define NQ_CN_V     0x1UL
+	__le32	cq_handle_high;
+};
+
 #define DB_IDX_MASK						0xffffff
 #define DB_IDX_VALID						(0x1 << 26)
 #define DB_IRQ_DIS						(0x1 << 27)
@@ -415,6 +428,25 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_MIN_ROCE_CP_RINGS	2
 #define BNXT_MIN_ROCE_STAT_CTXS	1
+
+/* 64-bit doorbell */
+#define DBR_INDEX_MASK					0x0000000000ffffffULL
+#define DBR_XID_MASK					0x000fffff00000000ULL
+#define DBR_XID_SFT					32
+#define DBR_PATH_L2					(0x1ULL << 56)
+#define DBR_TYPE_SQ					(0x0ULL << 60)
+#define DBR_TYPE_RQ					(0x1ULL << 60)
+#define DBR_TYPE_SRQ					(0x2ULL << 60)
+#define DBR_TYPE_SRQ_ARM				(0x3ULL << 60)
+#define DBR_TYPE_CQ					(0x4ULL << 60)
+#define DBR_TYPE_CQ_ARMSE				(0x5ULL << 60)
+#define DBR_TYPE_CQ_ARMALL				(0x6ULL << 60)
+#define DBR_TYPE_CQ_ARMENA				(0x7ULL << 60)
+#define DBR_TYPE_SRQ_ARMENA				(0x8ULL << 60)
+#define DBR_TYPE_CQ_CUTOFF_ACK				(0x9ULL << 60)
+#define DBR_TYPE_NQ					(0xaULL << 60)
+#define DBR_TYPE_NQ_ARM					(0xbULL << 60)
+#define DBR_TYPE_NULL					(0xfULL << 60)
 
 #define INVALID_HW_RING_ID	((u16)-1)
 
@@ -757,7 +789,10 @@ struct bnxt_cp_ring_info {
 
 	struct net_dim		dim;
 
-	struct tx_cmp		*cp_desc_ring[MAX_CP_PAGES];
+	union {
+		struct tx_cmp	*cp_desc_ring[MAX_CP_PAGES];
+		struct nqe_cn	*nq_desc_ring[MAX_CP_PAGES];
+	};
 
 	dma_addr_t		cp_desc_mapping[MAX_CP_PAGES];
 
@@ -767,6 +802,8 @@ struct bnxt_cp_ring_info {
 	u64			rx_l4_csum_errors;
 
 	struct bnxt_ring_struct	cp_ring_struct;
+
+	struct bnxt_cp_ring_info *cp_ring_arr[2];
 };
 
 struct bnxt_napi {
@@ -1191,6 +1228,8 @@ struct bnxt {
 
 #define CHIP_NUM_5745X		0xd730
 
+#define CHIP_NUM_57500		0x1750
+
 #define CHIP_NUM_58802		0xd802
 #define CHIP_NUM_58804		0xd804
 #define CHIP_NUM_58808		0xd808
@@ -1237,6 +1276,7 @@ struct bnxt {
 	atomic_t		intr_sem;
 
 	u32			flags;
+	#define BNXT_FLAG_CHIP_P5	0x1
 	#define BNXT_FLAG_VF		0x2
 	#define BNXT_FLAG_LRO		0x4
 #ifdef CONFIG_INET
@@ -1283,14 +1323,23 @@ struct bnxt {
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
+#define BNXT_SUPPORTS_TPA(bp)	(!BNXT_CHIP_TYPE_NITRO_A0(bp) &&	\
+				 !(bp->flags & BNXT_FLAG_CHIP_P5))
 
-/* Chip class phase 4 and later */
-#define BNXT_CHIP_P4_PLUS(bp)			\
+/* Chip class phase 5 */
+#define BNXT_CHIP_P5(bp)			\
+	((bp)->chip_num == CHIP_NUM_57500)
+
+/* Chip class phase 4.x */
+#define BNXT_CHIP_P4(bp)			\
 	(BNXT_CHIP_NUM_57X1X((bp)->chip_num) ||	\
 	 BNXT_CHIP_NUM_5745X((bp)->chip_num) ||	\
 	 BNXT_CHIP_NUM_588XX((bp)->chip_num) ||	\
 	 (BNXT_CHIP_NUM_58700((bp)->chip_num) &&	\
 	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
+
+#define BNXT_CHIP_P4_PLUS(bp)			\
+	(BNXT_CHIP_P4(bp) || BNXT_CHIP_P5(bp))
 
 	struct bnxt_en_dev	*edev;
 	struct bnxt_en_dev *	(*ulp_probe)(struct net_device *);

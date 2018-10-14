@@ -3322,6 +3322,13 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 			bp->bnapi[i] = bnapi;
 			bp->bnapi[i]->index = i;
 			bp->bnapi[i]->bp = bp;
+			if (bp->flags & BNXT_FLAG_CHIP_P5) {
+				struct bnxt_cp_ring_info *cpr =
+					&bp->bnapi[i]->cp_ring;
+
+				cpr->cp_ring_struct.ring_mem.flags =
+					BNXT_RMEM_RING_PTE_FLAG;
+			}
 		}
 
 		bp->rx_ring = kcalloc(bp->rx_nr_rings,
@@ -3331,7 +3338,15 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 			return -ENOMEM;
 
 		for (i = 0; i < bp->rx_nr_rings; i++) {
-			bp->rx_ring[i].bnapi = bp->bnapi[i];
+			struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
+
+			if (bp->flags & BNXT_FLAG_CHIP_P5) {
+				rxr->rx_ring_struct.ring_mem.flags =
+					BNXT_RMEM_RING_PTE_FLAG;
+				rxr->rx_agg_ring_struct.ring_mem.flags =
+					BNXT_RMEM_RING_PTE_FLAG;
+			}
+			rxr->bnapi = bp->bnapi[i];
 			bp->bnapi[i]->rx_ring = &bp->rx_ring[i];
 		}
 
@@ -3353,12 +3368,16 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 			j = bp->rx_nr_rings;
 
 		for (i = 0; i < bp->tx_nr_rings; i++, j++) {
-			bp->tx_ring[i].bnapi = bp->bnapi[j];
-			bp->bnapi[j]->tx_ring = &bp->tx_ring[i];
+			struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
+
+			if (bp->flags & BNXT_FLAG_CHIP_P5)
+				txr->tx_ring_struct.ring_mem.flags =
+					BNXT_RMEM_RING_PTE_FLAG;
+			txr->bnapi = bp->bnapi[j];
+			bp->bnapi[j]->tx_ring = txr;
 			bp->tx_ring_map[i] = bp->tx_nr_rings_xdp + i;
 			if (i >= bp->tx_nr_rings_xdp) {
-				bp->tx_ring[i].txq_index = i -
-					bp->tx_nr_rings_xdp;
+				txr->txq_index = i - bp->tx_nr_rings_xdp;
 				bp->bnapi[j]->tx_int = bnxt_tx_int;
 			} else {
 				bp->bnapi[j]->flags |= BNXT_NAPI_FLAG_XDP;
@@ -9326,6 +9345,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto init_err_pci_clean;
 	}
 
+	if (BNXT_CHIP_P5(bp))
+		bp->flags |= BNXT_FLAG_CHIP_P5;
+
 	rc = bnxt_hwrm_func_reset(bp);
 	if (rc)
 		goto init_err_pci_clean;
@@ -9340,7 +9362,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_GSO_PARTIAL | NETIF_F_RXHASH |
 			   NETIF_F_RXCSUM | NETIF_F_GRO;
 
-	if (!BNXT_CHIP_TYPE_NITRO_A0(bp))
+	if (BNXT_SUPPORTS_TPA(bp))
 		dev->hw_features |= NETIF_F_LRO;
 
 	dev->hw_enc_features =
@@ -9354,7 +9376,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->vlan_features = dev->hw_features | NETIF_F_HIGHDMA;
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX |
 			    NETIF_F_HW_VLAN_STAG_RX | NETIF_F_HW_VLAN_STAG_TX;
-	if (!BNXT_CHIP_TYPE_NITRO_A0(bp))
+	if (BNXT_SUPPORTS_TPA(bp))
 		dev->hw_features |= NETIF_F_GRO_HW;
 	dev->features |= dev->hw_features | NETIF_F_HIGHDMA;
 	if (dev->features & NETIF_F_GRO_HW)
@@ -9365,10 +9387,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	init_waitqueue_head(&bp->sriov_cfg_wait);
 	mutex_init(&bp->sriov_lock);
 #endif
-	bp->gro_func = bnxt_gro_func_5730x;
-	if (BNXT_CHIP_P4_PLUS(bp))
-		bp->gro_func = bnxt_gro_func_5731x;
-	else
+	if (BNXT_SUPPORTS_TPA(bp)) {
+		bp->gro_func = bnxt_gro_func_5730x;
+		if (BNXT_CHIP_P4(bp))
+			bp->gro_func = bnxt_gro_func_5731x;
+	}
+	if (!BNXT_CHIP_P4_PLUS(bp))
 		bp->flags |= BNXT_FLAG_DOUBLE_DB;
 
 	rc = bnxt_hwrm_func_drv_rgtr(bp);
@@ -9432,7 +9456,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
-	if (BNXT_CHIP_P4_PLUS(bp) && bp->hwrm_spec_code >= 0x10501) {
+	if (BNXT_CHIP_P4(bp) && bp->hwrm_spec_code >= 0x10501) {
 		bp->flags |= BNXT_FLAG_UDP_RSS_CAP;
 		bp->rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
 				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
