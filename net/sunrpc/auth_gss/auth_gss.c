@@ -1058,7 +1058,7 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 	auth->au_flavor = flavor;
 	if (gss_pseudoflavor_to_datatouch(gss_auth->mech, flavor))
 		auth->au_flags |= RPCAUTH_AUTH_DATATOUCH;
-	atomic_set(&auth->au_count, 1);
+	refcount_set(&auth->au_count, 1);
 	kref_init(&gss_auth->kref);
 
 	err = rpcauth_init_credcache(auth);
@@ -1187,7 +1187,7 @@ gss_auth_find_or_add_hashed(const struct rpc_auth_create_args *args,
 			if (strcmp(gss_auth->target_name, args->target_name))
 				continue;
 		}
-		if (!atomic_inc_not_zero(&gss_auth->rpc_auth.au_count))
+		if (!refcount_inc_not_zero(&gss_auth->rpc_auth.au_count))
 			continue;
 		goto out;
 	}

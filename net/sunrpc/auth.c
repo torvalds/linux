@@ -284,7 +284,7 @@ EXPORT_SYMBOL_GPL(rpcauth_create);
 void
 rpcauth_release(struct rpc_auth *auth)
 {
-	if (!atomic_dec_and_test(&auth->au_count))
+	if (!refcount_dec_and_test(&auth->au_count))
 		return;
 	auth->au_ops->destroy(auth);
 }
