@@ -2042,7 +2042,7 @@ static void rtw_signal_stat_timer_hdl(struct timer_list *t)
 	}
 
 	/* update value of signal_strength, rssi, signal_qual */
-	if (check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == false) {
+	if (!check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY)) {
 		tmp_s = avg_signal_strength +
 			(_alpha - 1) * recvpriv->signal_strength;
 		tmp_s = DIV_ROUND_UP(tmp_s, _alpha);

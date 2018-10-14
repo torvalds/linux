@@ -451,7 +451,7 @@ int Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data)
 								bDataEmpty = false;
 						}
 					}
-					if (bDataEmpty == false) {
+					if (!bDataEmpty) {
 						ReadState = PG_STATE_DATA;
 					} else {/* read next header */
 						efuse_addr = efuse_addr + (word_cnts*2)+1;

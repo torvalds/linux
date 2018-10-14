@@ -173,7 +173,7 @@ int rtw_xmit_entry(struct sk_buff *pkt, struct net_device *pnetdev)
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("+xmit_enry\n"));
 
-	if (rtw_if_up(padapter) == false) {
+	if (!rtw_if_up(padapter)) {
 		RT_TRACE(_module_xmit_osdep_c_, _drv_err_,
 			 ("%s: rtw_if_up fail\n", __func__));
 		goto drop_packet;
