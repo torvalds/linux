@@ -62,12 +62,33 @@ void mt76x2_read_rx_gain(struct mt76x02_dev *dev);
 static inline bool
 mt76x2_has_ext_lna(struct mt76x02_dev *dev)
 {
-	u32 val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_1);
+	u32 val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1);
 
 	if (dev->mt76.chandef.chan->band == NL80211_BAND_2GHZ)
 		return val & MT_EE_NIC_CONF_1_LNA_EXT_2G;
 	else
 		return val & MT_EE_NIC_CONF_1_LNA_EXT_5G;
+}
+
+static inline bool
+mt76x2_temp_tx_alc_enabled(struct mt76x02_dev *dev)
+{
+	u16 val;
+
+	val = mt76x02_eeprom_get(dev, MT_EE_TX_POWER_EXT_PA_5G);
+	if (!(val & BIT(15)))
+		return false;
+
+	return mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1) &
+	       MT_EE_NIC_CONF_1_TEMP_TX_ALC;
+}
+
+static inline bool
+mt76x2_tssi_enabled(struct mt76x02_dev *dev)
+{
+	return !mt76x2_temp_tx_alc_enabled(dev) &&
+	       (mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_1) &
+		MT_EE_NIC_CONF_1_TX_ALC_EN);
 }
 
 #endif

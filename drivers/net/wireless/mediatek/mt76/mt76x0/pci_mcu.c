@@ -116,6 +116,7 @@ static int mt76x0e_load_firmware(struct mt76x02_dev *dev)
 		goto out;
 	}
 
+	mt76x02_set_ethtool_fwver(dev, hdr);
 	dev_dbg(dev->mt76.dev, "Firmware running!\n");
 
 out:

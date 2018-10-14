@@ -1,18 +1,5 @@
-/*
- * Copyright (c) 2015-2016 Quantenna Communications, Inc.
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+/* SPDX-License-Identifier: GPL-2.0+ */
+/* Copyright (c) 2015-2016 Quantenna Communications */
 
 #ifndef _QTN_FMAC_PCIE_IPC_H_
 #define _QTN_FMAC_PCIE_IPC_H_
@@ -84,11 +71,6 @@
 #define QTN_PCIE_TX_DESC_TQE_BIT	BIT(24)
 
 #define QTN_EP_LHOST_TQE_PORT	4
-
-enum qtnf_pcie_bda_ipc_flags {
-	QTN_PCIE_IPC_FLAG_HBM_MAGIC	= BIT(0),
-	QTN_PCIE_IPC_FLAG_SHM_PIO	= BIT(1),
-};
 
 enum qtnf_fw_loadtype {
 	QTN_FW_DBEGIN,

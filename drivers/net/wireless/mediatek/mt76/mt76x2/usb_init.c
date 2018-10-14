@@ -130,7 +130,7 @@ static int mt76x2u_init_eeprom(struct mt76x02_dev *dev)
 		put_unaligned_le32(val, dev->mt76.eeprom.data + i);
 	}
 
-	mt76x02_eeprom_parse_hw_cap(&dev->mt76);
+	mt76x02_eeprom_parse_hw_cap(dev);
 	return 0;
 }
 
@@ -204,8 +204,7 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
-	mt76x02_mac_setaddr(&dev->mt76,
-			    dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
+	mt76x02_mac_setaddr(dev, dev->mt76.eeprom.data + MT_EE_MAC_ADDR);
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
 	mt76x2u_init_beacon_offsets(dev);
@@ -237,8 +236,8 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
-	mt76x02_phy_set_rxpath(&dev->mt76);
-	mt76x02_phy_set_txdac(&dev->mt76);
+	mt76x02_phy_set_rxpath(dev);
+	mt76x02_phy_set_txdac(dev);
 
 	return mt76x2u_mac_stop(dev);
 }
@@ -303,7 +302,7 @@ void mt76x2u_stop_hw(struct mt76x02_dev *dev)
 
 void mt76x2u_cleanup(struct mt76x02_dev *dev)
 {
-	mt76x02_mcu_set_radio_state(&dev->mt76, false, false);
+	mt76x02_mcu_set_radio_state(dev, false, false);
 	mt76x2u_stop_hw(dev);
 	mt76u_queues_deinit(&dev->mt76);
 	mt76u_mcu_deinit(&dev->mt76);

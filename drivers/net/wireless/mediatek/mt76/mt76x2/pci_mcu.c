@@ -140,7 +140,7 @@ mt76pci_load_firmware(struct mt76x02_dev *dev)
 
 	mt76_wr(dev, MT_MCU_PCIE_REMAP_BASE4, 0);
 
-	val = mt76x02_eeprom_get(&dev->mt76, MT_EE_NIC_CONF_2);
+	val = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_2);
 	if (FIELD_GET(MT_EE_NIC_CONF_2_XTAL_OPTION, val) == 1)
 		mt76_set(dev, MT_MCU_COM_REG0, BIT(30));
 
@@ -152,8 +152,8 @@ mt76pci_load_firmware(struct mt76x02_dev *dev)
 		return -ETIMEDOUT;
 	}
 
+	mt76x02_set_ethtool_fwver(dev, hdr);
 	dev_info(dev->mt76.dev, "Firmware running!\n");
-	mt76x02_set_ethtool_fwver(&dev->mt76, hdr);
 
 	release_firmware(fw);
 
@@ -183,6 +183,6 @@ int mt76x2_mcu_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76x02_mcu_function_select(&dev->mt76, Q_SELECT, 1, true);
+	mt76x02_mcu_function_select(dev, Q_SELECT, 1, true);
 	return 0;
 }

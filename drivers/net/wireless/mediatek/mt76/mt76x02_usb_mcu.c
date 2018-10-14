@@ -17,8 +17,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 
-#include "mt76.h"
-#include "mt76x02_dma.h"
+#include "mt76x02.h"
 #include "mt76x02_mcu.h"
 #include "mt76x02_usb.h"
 
@@ -255,16 +254,16 @@ mt76x02u_mcu_rd_rp(struct mt76_dev *dev, u32 base,
 	return ret;
 }
 
-void mt76x02u_mcu_fw_reset(struct mt76_dev *dev)
+void mt76x02u_mcu_fw_reset(struct mt76x02_dev *dev)
 {
-	mt76u_vendor_request(dev, MT_VEND_DEV_MODE,
+	mt76u_vendor_request(&dev->mt76, MT_VEND_DEV_MODE,
 			     USB_DIR_OUT | USB_TYPE_VENDOR,
 			     0x1, 0, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_mcu_fw_reset);
 
 static int
-__mt76x02u_mcu_fw_send_data(struct mt76_dev *dev, struct mt76u_buf *buf,
+__mt76x02u_mcu_fw_send_data(struct mt76x02_dev *dev, struct mt76u_buf *buf,
 			    const void *fw_data, int len, u32 dst_addr)
 {
 	u8 *data = sg_virt(&buf->urb->sg[0]);
@@ -281,14 +280,14 @@ __mt76x02u_mcu_fw_send_data(struct mt76_dev *dev, struct mt76u_buf *buf,
 	memcpy(data + sizeof(info), fw_data, len);
 	memset(data + sizeof(info) + len, 0, 4);
 
-	mt76u_single_wr(dev, MT_VEND_WRITE_FCE,
+	mt76u_single_wr(&dev->mt76, MT_VEND_WRITE_FCE,
 			MT_FCE_DMA_ADDR, dst_addr);
 	len = roundup(len, 4);
-	mt76u_single_wr(dev, MT_VEND_WRITE_FCE,
+	mt76u_single_wr(&dev->mt76, MT_VEND_WRITE_FCE,
 			MT_FCE_DMA_LEN, len << 16);
 
 	buf->len = MT_CMD_HDR_LEN + len + sizeof(info);
-	err = mt76u_submit_buf(dev, USB_DIR_OUT,
+	err = mt76u_submit_buf(&dev->mt76, USB_DIR_OUT,
 			       MT_EP_OUT_INBAND_CMD,
 			       buf, GFP_KERNEL,
 			       mt76u_mcu_complete_urb, &cmpl);
@@ -297,31 +296,31 @@ __mt76x02u_mcu_fw_send_data(struct mt76_dev *dev, struct mt76u_buf *buf,
 
 	if (!wait_for_completion_timeout(&cmpl,
 					 msecs_to_jiffies(1000))) {
-		dev_err(dev->dev, "firmware upload timed out\n");
+		dev_err(dev->mt76.dev, "firmware upload timed out\n");
 		usb_kill_urb(buf->urb);
 		return -ETIMEDOUT;
 	}
 
 	if (mt76u_urb_error(buf->urb)) {
-		dev_err(dev->dev, "firmware upload failed: %d\n",
+		dev_err(dev->mt76.dev, "firmware upload failed: %d\n",
 			buf->urb->status);
 		return buf->urb->status;
 	}
 
-	val = mt76u_rr(dev, MT_TX_CPU_FROM_FCE_CPU_DESC_IDX);
+	val = mt76_rr(dev, MT_TX_CPU_FROM_FCE_CPU_DESC_IDX);
 	val++;
-	mt76u_wr(dev, MT_TX_CPU_FROM_FCE_CPU_DESC_IDX, val);
+	mt76_wr(dev, MT_TX_CPU_FROM_FCE_CPU_DESC_IDX, val);
 
 	return 0;
 }
 
-int mt76x02u_mcu_fw_send_data(struct mt76_dev *dev, const void *data,
+int mt76x02u_mcu_fw_send_data(struct mt76x02_dev *dev, const void *data,
 			      int data_len, u32 max_payload, u32 offset)
 {
 	int err, len, pos = 0, max_len = max_payload - 8;
 	struct mt76u_buf buf;
 
-	err = mt76u_buf_alloc(dev, &buf, 1, max_payload, max_payload,
+	err = mt76u_buf_alloc(&dev->mt76, &buf, 1, max_payload, max_payload,
 			      GFP_KERNEL);
 	if (err < 0)
 		return err;

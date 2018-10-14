@@ -79,6 +79,7 @@ void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 		.copy = mt76_mmio_copy,
 		.wr_rp = mt76_mmio_wr_rp,
 		.rd_rp = mt76_mmio_rd_rp,
+		.type = MT76_BUS_MMIO,
 	};
 
 	dev->bus = &mt76_mmio_ops;

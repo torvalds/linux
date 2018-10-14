@@ -138,7 +138,7 @@ static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 
 	RANDOM_WRITE(dev, common_mac_reg_table);
 
-	mt76x02_set_beacon_offsets(&dev->mt76);
+	mt76x02_set_beacon_offsets(dev);
 
 	/* Enable PBF and MAC clock SYS_CTRL[11:10] = 0x3 */
 	RANDOM_WRITE(dev, mt76x0_mac_reg_table);
@@ -280,7 +280,7 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return -ETIMEDOUT;
 
 	mt76x0_reset_csr_bbp(dev);
-	ret = mt76x02_mcu_function_select(&dev->mt76, Q_SELECT, 1, false);
+	ret = mt76x02_mcu_function_select(dev, Q_SELECT, 1, false);
 	if (ret)
 		return ret;
 
@@ -368,7 +368,10 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	hw->max_rates = 1;
 	hw->max_report_rates = 7;
 	hw->max_rate_tries = 1;
-	hw->extra_tx_headroom = sizeof(struct mt76x02_txwi) + 4 + 2;
+	hw->extra_tx_headroom = 2;
+	if (mt76_is_usb(dev))
+		hw->extra_tx_headroom += sizeof(struct mt76x02_txwi) +
+					 MT_DMA_HDR_LEN;
 
 	hw->sta_data_size = sizeof(struct mt76x02_sta);
 	hw->vif_data_size = sizeof(struct mt76x02_vif);

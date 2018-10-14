@@ -254,8 +254,11 @@ static int if_usb_probe(struct usb_interface *intf,
 		goto dealloc;
 	}
 
-	if (!(priv = lbs_add_card(cardp, &intf->dev)))
+	priv = lbs_add_card(cardp, &intf->dev);
+	if (IS_ERR(priv)) {
+		r = PTR_ERR(priv);
 		goto err_add_card;
+	}
 
 	cardp->priv = priv;
 
@@ -455,8 +458,6 @@ static int __if_usb_submit_rx_urb(struct if_usb_card *cardp,
 			  skb->data + IPFIELD_ALIGN_OFFSET,
 			  MRVDRV_ETH_RX_PACKET_BUFFER_SIZE, callbackfn,
 			  cardp);
-
-	cardp->rx_urb->transfer_flags |= URB_ZERO_PACKET;
 
 	lbs_deb_usb2(&cardp->udev->dev, "Pointer for rx_urb %p\n", cardp->rx_urb);
 	if ((ret = usb_submit_urb(cardp->rx_urb, GFP_ATOMIC))) {

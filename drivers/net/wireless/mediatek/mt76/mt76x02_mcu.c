@@ -19,9 +19,7 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 
-#include "mt76.h"
 #include "mt76x02_mcu.h"
-#include "mt76x02_dma.h"
 
 struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len)
 {
@@ -37,7 +35,7 @@ struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len)
 EXPORT_SYMBOL_GPL(mt76x02_mcu_msg_alloc);
 
 static struct sk_buff *
-mt76x02_mcu_get_response(struct mt76_dev *dev, unsigned long expires)
+mt76x02_mcu_get_response(struct mt76x02_dev *dev, unsigned long expires)
 {
 	unsigned long timeout;
 
@@ -45,17 +43,17 @@ mt76x02_mcu_get_response(struct mt76_dev *dev, unsigned long expires)
 		return NULL;
 
 	timeout = expires - jiffies;
-	wait_event_timeout(dev->mmio.mcu.wait,
-			   !skb_queue_empty(&dev->mmio.mcu.res_q),
+	wait_event_timeout(dev->mt76.mmio.mcu.wait,
+			   !skb_queue_empty(&dev->mt76.mmio.mcu.res_q),
 			   timeout);
-	return skb_dequeue(&dev->mmio.mcu.res_q);
+	return skb_dequeue(&dev->mt76.mmio.mcu.res_q);
 }
 
 static int
-mt76x02_tx_queue_mcu(struct mt76_dev *dev, enum mt76_txq_id qid,
+mt76x02_tx_queue_mcu(struct mt76x02_dev *dev, enum mt76_txq_id qid,
 		     struct sk_buff *skb, int cmd, int seq)
 {
-	struct mt76_queue *q = &dev->q_tx[qid];
+	struct mt76_queue *q = &dev->mt76.q_tx[qid];
 	struct mt76_queue_buf buf;
 	dma_addr_t addr;
 	u32 tx_info;
@@ -66,24 +64,26 @@ mt76x02_tx_queue_mcu(struct mt76_dev *dev, enum mt76_txq_id qid,
 		  FIELD_PREP(MT_MCU_MSG_PORT, CPU_TX_PORT) |
 		  FIELD_PREP(MT_MCU_MSG_LEN, skb->len);
 
-	addr = dma_map_single(dev->dev, skb->data, skb->len,
+	addr = dma_map_single(dev->mt76.dev, skb->data, skb->len,
 			      DMA_TO_DEVICE);
-	if (dma_mapping_error(dev->dev, addr))
+	if (dma_mapping_error(dev->mt76.dev, addr))
 		return -ENOMEM;
 
 	buf.addr = addr;
 	buf.len = skb->len;
+
 	spin_lock_bh(&q->lock);
-	dev->queue_ops->add_buf(dev, q, &buf, 1, tx_info, skb, NULL);
-	dev->queue_ops->kick(dev, q);
+	mt76_queue_add_buf(dev, q, &buf, 1, tx_info, skb, NULL);
+	mt76_queue_kick(dev, q);
 	spin_unlock_bh(&q->lock);
 
 	return 0;
 }
 
-int mt76x02_mcu_msg_send(struct mt76_dev *dev, struct sk_buff *skb,
+int mt76x02_mcu_msg_send(struct mt76_dev *mdev, struct sk_buff *skb,
 			 int cmd, bool wait_resp)
 {
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	unsigned long expires = jiffies + HZ;
 	int ret;
 	u8 seq;
@@ -91,11 +91,11 @@ int mt76x02_mcu_msg_send(struct mt76_dev *dev, struct sk_buff *skb,
 	if (!skb)
 		return -EINVAL;
 
-	mutex_lock(&dev->mmio.mcu.mutex);
+	mutex_lock(&mdev->mmio.mcu.mutex);
 
-	seq = ++dev->mmio.mcu.msg_seq & 0xf;
+	seq = ++mdev->mmio.mcu.msg_seq & 0xf;
 	if (!seq)
-		seq = ++dev->mmio.mcu.msg_seq & 0xf;
+		seq = ++mdev->mmio.mcu.msg_seq & 0xf;
 
 	ret = mt76x02_tx_queue_mcu(dev, MT_TXQ_MCU, skb, cmd, seq);
 	if (ret)
@@ -107,7 +107,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *dev, struct sk_buff *skb,
 
 		skb = mt76x02_mcu_get_response(dev, expires);
 		if (!skb) {
-			dev_err(dev->dev,
+			dev_err(mdev->dev,
 				"MCU message %d (seq %d) timed out\n", cmd,
 				seq);
 			ret = -ETIMEDOUT;
@@ -125,13 +125,13 @@ int mt76x02_mcu_msg_send(struct mt76_dev *dev, struct sk_buff *skb,
 	}
 
 out:
-	mutex_unlock(&dev->mmio.mcu.mutex);
+	mutex_unlock(&mdev->mmio.mcu.mutex);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_msg_send);
 
-int mt76x02_mcu_function_select(struct mt76_dev *dev,
+int mt76x02_mcu_function_select(struct mt76x02_dev *dev,
 				enum mcu_function func,
 				u32 val, bool wait_resp)
 {
@@ -144,13 +144,12 @@ int mt76x02_mcu_function_select(struct mt76_dev *dev,
 	    .value = cpu_to_le32(val),
 	};
 
-	skb = dev->mcu_ops->mcu_msg_alloc(&msg, sizeof(msg));
-	return dev->mcu_ops->mcu_send_msg(dev, skb, CMD_FUN_SET_OP,
-					  wait_resp);
+	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	return mt76_mcu_send_msg(dev, skb, CMD_FUN_SET_OP, wait_resp);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_function_select);
 
-int mt76x02_mcu_set_radio_state(struct mt76_dev *dev, bool on,
+int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
 				bool wait_resp)
 {
 	struct sk_buff *skb;
@@ -162,13 +161,12 @@ int mt76x02_mcu_set_radio_state(struct mt76_dev *dev, bool on,
 		.level = cpu_to_le32(0),
 	};
 
-	skb = dev->mcu_ops->mcu_msg_alloc(&msg, sizeof(msg));
-	return dev->mcu_ops->mcu_send_msg(dev, skb, CMD_POWER_SAVING_OP,
-					  wait_resp);
+	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	return mt76_mcu_send_msg(dev, skb, CMD_POWER_SAVING_OP, wait_resp);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 
-int mt76x02_mcu_calibrate(struct mt76_dev *dev, int type,
+int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
 			  u32 param, bool wait)
 {
 	struct sk_buff *skb;
@@ -182,44 +180,44 @@ int mt76x02_mcu_calibrate(struct mt76_dev *dev, int type,
 	int ret;
 
 	if (wait)
-		dev->bus->rmw(dev, MT_MCU_COM_REG0, BIT(31), 0);
+		mt76_rmw(dev, MT_MCU_COM_REG0, BIT(31), 0);
 
-	skb = dev->mcu_ops->mcu_msg_alloc(&msg, sizeof(msg));
-	ret = dev->mcu_ops->mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
+	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	ret = mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
 	if (ret)
 		return ret;
 
 	if (wait &&
-	    WARN_ON(!__mt76_poll_msec(dev, MT_MCU_COM_REG0,
-				      BIT(31), BIT(31), 100)))
+	    WARN_ON(!mt76_poll_msec(dev, MT_MCU_COM_REG0,
+				    BIT(31), BIT(31), 100)))
 		return -ETIMEDOUT;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_calibrate);
 
-int mt76x02_mcu_cleanup(struct mt76_dev *dev)
+int mt76x02_mcu_cleanup(struct mt76x02_dev *dev)
 {
 	struct sk_buff *skb;
 
-	dev->bus->wr(dev, MT_MCU_INT_LEVEL, 1);
+	mt76_wr(dev, MT_MCU_INT_LEVEL, 1);
 	usleep_range(20000, 30000);
 
-	while ((skb = skb_dequeue(&dev->mmio.mcu.res_q)) != NULL)
+	while ((skb = skb_dequeue(&dev->mt76.mmio.mcu.res_q)) != NULL)
 		dev_kfree_skb(skb);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_cleanup);
 
-void mt76x02_set_ethtool_fwver(struct mt76_dev *dev,
+void mt76x02_set_ethtool_fwver(struct mt76x02_dev *dev,
 			       const struct mt76x02_fw_header *h)
 {
 	u16 bld = le16_to_cpu(h->build_ver);
 	u16 ver = le16_to_cpu(h->fw_ver);
 
-	snprintf(dev->hw->wiphy->fw_version,
-		 sizeof(dev->hw->wiphy->fw_version),
+	snprintf(dev->mt76.hw->wiphy->fw_version,
+		 sizeof(dev->mt76.hw->wiphy->fw_version),
 		 "%d.%d.%02d-b%x",
 		 (ver >> 12) & 0xf, (ver >> 8) & 0xf, ver & 0xf, bld);
 }

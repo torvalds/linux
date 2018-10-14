@@ -40,8 +40,7 @@ mt76x0u_upload_firmware(struct mt76x02_dev *dev,
 	ilm_len = le32_to_cpu(hdr->ilm_len) - MT_MCU_IVB_SIZE;
 	dev_dbg(dev->mt76.dev, "loading FW - ILM %u + IVB %u\n",
 		ilm_len, MT_MCU_IVB_SIZE);
-	err = mt76x02u_mcu_fw_send_data(&dev->mt76,
-					fw_payload + MT_MCU_IVB_SIZE,
+	err = mt76x02u_mcu_fw_send_data(dev, fw_payload + MT_MCU_IVB_SIZE,
 					ilm_len, MCU_FW_URB_MAX_PAYLOAD,
 					MT_MCU_IVB_SIZE);
 	if (err)
@@ -49,7 +48,7 @@ mt76x0u_upload_firmware(struct mt76x02_dev *dev,
 
 	dlm_len = le32_to_cpu(hdr->dlm_len);
 	dev_dbg(dev->mt76.dev, "loading FW - DLM %u\n", dlm_len);
-	err = mt76x02u_mcu_fw_send_data(&dev->mt76,
+	err = mt76x02u_mcu_fw_send_data(dev,
 					fw_payload + le32_to_cpu(hdr->ilm_len),
 					dlm_len, MCU_FW_URB_MAX_PAYLOAD,
 					MT_MCU_DLM_OFFSET);
@@ -121,7 +120,7 @@ static int mt76x0u_load_firmware(struct mt76x02_dev *dev)
 	mt76_set(dev, MT_USB_DMA_CFG,
 		 (MT_USB_DMA_CFG_RX_BULK_EN | MT_USB_DMA_CFG_TX_BULK_EN) |
 		 FIELD_PREP(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, 0x20));
-	mt76x02u_mcu_fw_reset(&dev->mt76);
+	mt76x02u_mcu_fw_reset(dev);
 	usleep_range(5000, 6000);
 /*
 	mt76x0_rmw(dev, MT_PBF_CFG, 0, (MT_PBF_CFG_TX0Q_EN |

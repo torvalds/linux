@@ -30,38 +30,20 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM iwlwifi_data
 
-TRACE_EVENT(iwlwifi_dev_tx_data,
-	TP_PROTO(const struct device *dev,
-		 struct sk_buff *skb, u8 hdr_len),
-	TP_ARGS(dev, skb, hdr_len),
+TRACE_EVENT(iwlwifi_dev_tx_tb,
+	TP_PROTO(const struct device *dev, struct sk_buff *skb,
+		 u8 *data_src, size_t data_len),
+	TP_ARGS(dev, skb, data_src, data_len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
 
 		__dynamic_array(u8, data,
-				iwl_trace_data(skb) ? skb->len - hdr_len : 0)
+				iwl_trace_data(skb) ? data_len : 0)
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
 		if (iwl_trace_data(skb))
-			skb_copy_bits(skb, hdr_len,
-				      __get_dynamic_array(data),
-				      skb->len - hdr_len);
-	),
-	TP_printk("[%s] TX frame data", __get_str(dev))
-);
-
-TRACE_EVENT(iwlwifi_dev_tx_tso_chunk,
-	TP_PROTO(const struct device *dev,
-		 u8 *data_src, size_t data_len),
-	TP_ARGS(dev, data_src, data_len),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-
-		__dynamic_array(u8, data, data_len)
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		memcpy(__get_dynamic_array(data), data_src, data_len);
+			memcpy(__get_dynamic_array(data), data_src, data_len);
 	),
 	TP_printk("[%s] TX frame data", __get_str(dev))
 );

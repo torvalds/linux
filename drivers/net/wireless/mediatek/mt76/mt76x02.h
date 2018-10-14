@@ -55,7 +55,8 @@ struct mt76x02_calibration {
 	s8 agc_gain_adjust;
 	s8 low_gain;
 
-	u8 temp;
+	s8 temp_vco;
+	s8 temp;
 
 	bool init_cal_done;
 	bool tssi_cal_done;
@@ -101,8 +102,6 @@ struct mt76x02_dev {
 
 	bool no_2ghz;
 
-	u8 agc_save;
-
 	u8 coverage_class;
 	u8 slottime;
 
@@ -119,8 +118,8 @@ int mt76x02_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 int mt76x02_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 
-void mt76x02_vif_init(struct mt76_dev *dev, struct ieee80211_vif *vif,
-		     unsigned int idx);
+void mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
+		      unsigned int idx);
 int mt76x02_add_interface(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif);
 void mt76x02_remove_interface(struct ieee80211_hw *hw,
@@ -136,14 +135,15 @@ int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta);
-s8 mt76x02_tx_get_max_txpwr_adj(struct mt76_dev *dev,
+s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 				const struct ieee80211_tx_rate *rate);
-s8 mt76x02_tx_get_txpwr_adj(struct mt76_dev *mdev, s8 txpwr, s8 max_txpwr_adj);
+s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr,
+			    s8 max_txpwr_adj);
 void mt76x02_tx_set_txpwr_auto(struct mt76x02_dev *dev, s8 txpwr);
 int mt76x02_insert_hdr_pad(struct sk_buff *skb);
 void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len);
 void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb);
-bool mt76x02_tx_status_data(struct mt76_dev *dev, u8 *update);
+bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			  struct sk_buff *skb);
 void mt76x02_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
@@ -156,9 +156,16 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi,
 			   u32 *tx_info);
 
 extern const u16 mt76x02_beacon_offsets[16];
-void mt76x02_set_beacon_offsets(struct mt76_dev *dev);
+void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev);
 void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
+
+static inline bool is_mt76x2(struct mt76x02_dev *dev)
+{
+	return mt76_chip(&dev->mt76) == 0x7612 ||
+	       mt76_chip(&dev->mt76) == 0x7662 ||
+	       mt76_chip(&dev->mt76) == 0x7602;
+}
 
 static inline void mt76x02_irq_enable(struct mt76x02_dev *dev, u32 mask)
 {

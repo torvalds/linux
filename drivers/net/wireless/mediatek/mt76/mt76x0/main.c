@@ -16,6 +16,20 @@
 #include <linux/etherdevice.h>
 #include "mt76x0.h"
 
+static int
+mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
+{
+	int ret;
+
+	cancel_delayed_work_sync(&dev->cal_work);
+
+	mt76_set_channel(&dev->mt76);
+	ret = mt76x0_phy_set_channel(dev, chandef);
+	mt76_txq_schedule_all(&dev->mt76);
+
+	return ret;
+}
+
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt76x02_dev *dev = hw->priv;
@@ -25,7 +39,7 @@ int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
-		ret = mt76x0_phy_set_channel(dev, &hw->conf.chandef);
+		ret = mt76x0_set_channel(dev, &hw->conf.chandef);
 		ieee80211_wake_queues(hw);
 	}
 
@@ -114,8 +128,6 @@ void mt76x0_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	cancel_delayed_work_sync(&dev->cal_work);
-	mt76x0_agc_save(dev);
 	set_bit(MT76_SCANNING, &dev->mt76.state);
 }
 EXPORT_SYMBOL_GPL(mt76x0_sw_scan);
@@ -125,11 +137,7 @@ void mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	mt76x0_agc_restore(dev);
 	clear_bit(MT76_SCANNING, &dev->mt76.state);
-
-	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
-				     MT_CALIBRATE_INTERVAL);
 }
 EXPORT_SYMBOL_GPL(mt76x0_sw_scan_complete);
 
