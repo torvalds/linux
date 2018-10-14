@@ -4330,7 +4330,8 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 	if (!rc) {
 		u32 flags = le32_to_cpu(resp->flags);
 
-		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP)
+		if (!(bp->flags & BNXT_FLAG_CHIP_P5) &&
+		    (flags & VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP))
 			bp->flags |= BNXT_FLAG_NEW_RSS_CAP;
 		if (flags &
 		    VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP)
@@ -4713,6 +4714,9 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	}
 }
 
+static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
+			   bool shared);
+
 static int bnxt_hwrm_get_rings(struct bnxt *bp)
 {
 	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
@@ -4743,6 +4747,22 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 		cp = le16_to_cpu(resp->alloc_cmpl_rings);
 		stats = le16_to_cpu(resp->alloc_stat_ctx);
 		cp = min_t(u16, cp, stats);
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			int rx = hw_resc->resv_rx_rings;
+			int tx = hw_resc->resv_tx_rings;
+
+			if (bp->flags & BNXT_FLAG_AGG_RINGS)
+				rx >>= 1;
+			if (cp < (rx + tx)) {
+				bnxt_trim_rings(bp, &rx, &tx, cp, false);
+				if (bp->flags & BNXT_FLAG_AGG_RINGS)
+					rx <<= 1;
+				hw_resc->resv_rx_rings = rx;
+				hw_resc->resv_tx_rings = tx;
+			}
+			cp = le16_to_cpu(resp->alloc_msix);
+			hw_resc->resv_hw_ring_grps = rx;
+		}
 		hw_resc->resv_cp_rings = cp;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -4768,6 +4788,8 @@ int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings)
 	return rc;
 }
 
+static bool bnxt_rfs_supported(struct bnxt *bp);
+
 static void
 __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct hwrm_func_cfg_input *req,
 			     int tx_rings, int rx_rings, int ring_grps,
@@ -4781,15 +4803,38 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct hwrm_func_cfg_input *req,
 	req->num_tx_rings = cpu_to_le16(tx_rings);
 	if (BNXT_NEW_RM(bp)) {
 		enables |= rx_rings ? FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS : 0;
-		enables |= cp_rings ? FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
-				      FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
-		enables |= ring_grps ?
-			   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			enables |= cp_rings ? FUNC_CFG_REQ_ENABLES_NUM_MSIX : 0;
+			enables |= tx_rings + ring_grps ?
+				   FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
+				   FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
+			enables |= rx_rings ?
+				FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
+		} else {
+			enables |= cp_rings ?
+				   FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
+				   FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
+			enables |= ring_grps ?
+				   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS |
+				   FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
+		}
 		enables |= vnics ? FUNC_CFG_REQ_ENABLES_NUM_VNICS : 0;
 
 		req->num_rx_rings = cpu_to_le16(rx_rings);
-		req->num_hw_ring_grps = cpu_to_le16(ring_grps);
-		req->num_cmpl_rings = cpu_to_le16(cp_rings);
+		if (bp->flags & BNXT_FLAG_CHIP_P5) {
+			req->num_cmpl_rings = cpu_to_le16(tx_rings + ring_grps);
+			req->num_msix = cpu_to_le16(cp_rings);
+			req->num_rsscos_ctxs =
+				cpu_to_le16(DIV_ROUND_UP(ring_grps, 64));
+		} else {
+			req->num_cmpl_rings = cpu_to_le16(cp_rings);
+			req->num_hw_ring_grps = cpu_to_le16(ring_grps);
+			req->num_rsscos_ctxs = cpu_to_le16(1);
+			if (!(bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
+			    bnxt_rfs_supported(bp))
+				req->num_rsscos_ctxs =
+					cpu_to_le16(ring_grps + 1);
+		}
 		req->num_stat_ctxs = req->num_cmpl_rings;
 		req->num_vnics = cpu_to_le16(vnics);
 	}
@@ -4806,16 +4851,33 @@ __bnxt_hwrm_reserve_vf_rings(struct bnxt *bp,
 
 	bnxt_hwrm_cmd_hdr_init(bp, req, HWRM_FUNC_VF_CFG, -1, -1);
 	enables |= tx_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_TX_RINGS : 0;
-	enables |= rx_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_RX_RINGS : 0;
-	enables |= cp_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
-			      FUNC_VF_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
-	enables |= ring_grps ? FUNC_VF_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
+	enables |= rx_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_RX_RINGS |
+			      FUNC_VF_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		enables |= tx_rings + ring_grps ?
+			   FUNC_VF_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
+			   FUNC_VF_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
+	} else {
+		enables |= cp_rings ?
+			   FUNC_VF_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
+			   FUNC_VF_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
+		enables |= ring_grps ?
+			   FUNC_VF_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
+	}
 	enables |= vnics ? FUNC_VF_CFG_REQ_ENABLES_NUM_VNICS : 0;
+	enables |= FUNC_VF_CFG_REQ_ENABLES_NUM_L2_CTXS;
 
+	req->num_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 	req->num_tx_rings = cpu_to_le16(tx_rings);
 	req->num_rx_rings = cpu_to_le16(rx_rings);
-	req->num_hw_ring_grps = cpu_to_le16(ring_grps);
-	req->num_cmpl_rings = cpu_to_le16(cp_rings);
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		req->num_cmpl_rings = cpu_to_le16(tx_rings + ring_grps);
+		req->num_rsscos_ctxs = cpu_to_le16(DIV_ROUND_UP(ring_grps, 64));
+	} else {
+		req->num_cmpl_rings = cpu_to_le16(cp_rings);
+		req->num_hw_ring_grps = cpu_to_le16(ring_grps);
+		req->num_rsscos_ctxs = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
+	}
 	req->num_stat_ctxs = req->num_cmpl_rings;
 	req->num_vnics = cpu_to_le16(vnics);
 
@@ -4859,10 +4921,6 @@ bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 
 	__bnxt_hwrm_reserve_vf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
 				     cp_rings, vnics);
-	req.enables |= cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS |
-				   FUNC_VF_CFG_REQ_ENABLES_NUM_L2_CTXS);
-	req.num_rsscos_ctxs = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
-	req.num_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		return -ENOMEM;
@@ -4908,19 +4966,18 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 	if (hw_resc->resv_tx_rings != bp->tx_nr_rings)
 		return true;
 
-	if (bp->flags & BNXT_FLAG_RFS)
+	if ((bp->flags & BNXT_FLAG_RFS) && !(bp->flags & BNXT_FLAG_CHIP_P5))
 		vnic = rx + 1;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx <<= 1;
 	if (BNXT_NEW_RM(bp) &&
 	    (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
-	     hw_resc->resv_hw_ring_grps != grp || hw_resc->resv_vnics != vnic))
+	     hw_resc->resv_vnics != vnic ||
+	     (hw_resc->resv_hw_ring_grps != grp &&
+	      !(bp->flags & BNXT_FLAG_CHIP_P5))))
 		return true;
 	return false;
 }
-
-static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
-			   bool shared);
 
 static int __bnxt_reserve_rings(struct bnxt *bp)
 {
@@ -4937,7 +4994,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 
 	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
 		sh = true;
-	if (bp->flags & BNXT_FLAG_RFS)
+	if ((bp->flags & BNXT_FLAG_RFS) && !(bp->flags & BNXT_FLAG_CHIP_P5))
 		vnic = rx + 1;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx <<= 1;
@@ -5000,9 +5057,11 @@ static int bnxt_hwrm_check_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	flags = FUNC_VF_CFG_REQ_FLAGS_TX_ASSETS_TEST |
 		FUNC_VF_CFG_REQ_FLAGS_RX_ASSETS_TEST |
 		FUNC_VF_CFG_REQ_FLAGS_CMPL_ASSETS_TEST |
-		FUNC_VF_CFG_REQ_FLAGS_RING_GRP_ASSETS_TEST |
 		FUNC_VF_CFG_REQ_FLAGS_STAT_CTX_ASSETS_TEST |
-		FUNC_VF_CFG_REQ_FLAGS_VNIC_ASSETS_TEST;
+		FUNC_VF_CFG_REQ_FLAGS_VNIC_ASSETS_TEST |
+		FUNC_VF_CFG_REQ_FLAGS_RSSCOS_CTX_ASSETS_TEST;
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+		flags |= FUNC_VF_CFG_REQ_FLAGS_RING_GRP_ASSETS_TEST;
 
 	req.flags = cpu_to_le32(flags);
 	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
@@ -5021,12 +5080,16 @@ static int bnxt_hwrm_check_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	__bnxt_hwrm_reserve_pf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
 				     cp_rings, vnics);
 	flags = FUNC_CFG_REQ_FLAGS_TX_ASSETS_TEST;
-	if (BNXT_NEW_RM(bp))
+	if (BNXT_NEW_RM(bp)) {
 		flags |= FUNC_CFG_REQ_FLAGS_RX_ASSETS_TEST |
 			 FUNC_CFG_REQ_FLAGS_CMPL_ASSETS_TEST |
-			 FUNC_CFG_REQ_FLAGS_RING_GRP_ASSETS_TEST |
 			 FUNC_CFG_REQ_FLAGS_STAT_CTX_ASSETS_TEST |
 			 FUNC_CFG_REQ_FLAGS_VNIC_ASSETS_TEST;
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			flags |= FUNC_CFG_REQ_FLAGS_RSSCOS_CTX_ASSETS_TEST;
+		else
+			flags |= FUNC_CFG_REQ_FLAGS_RING_GRP_ASSETS_TEST;
+	}
 
 	req.flags = cpu_to_le32(flags);
 	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
@@ -7505,10 +7568,10 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 			netdev_err(bp->dev, "Failed to reserve default rings at open\n");
 			return rc;
 		}
-		rc = bnxt_reserve_rings(bp);
-		if (rc)
-			return rc;
 	}
+	rc = bnxt_reserve_rings(bp);
+	if (rc)
+		return rc;
 	if ((bp->flags & BNXT_FLAG_RFS) &&
 	    !(bp->flags & BNXT_FLAG_USING_MSIX)) {
 		/* disable RFS if falling back to INTA */
@@ -7980,6 +8043,8 @@ static bool bnxt_can_reserve_rings(struct bnxt *bp)
 /* If the chip and firmware supports RFS */
 static bool bnxt_rfs_supported(struct bnxt *bp)
 {
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		return false;
 	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
 		return true;
 	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
@@ -7993,6 +8058,8 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 #ifdef CONFIG_RFS_ACCEL
 	int vnics, max_vnics, max_rss_ctxs;
 
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		return false;
 	if (!(bp->flags & BNXT_FLAG_MSIX_CAP) || !bnxt_can_reserve_rings(bp))
 		return false;
 
