@@ -2881,10 +2881,12 @@ static void bnxt_init_vnics(struct bnxt *bp)
 
 	for (i = 0; i < bp->nr_vnics; i++) {
 		struct bnxt_vnic_info *vnic = &bp->vnic_info[i];
+		int j;
 
 		vnic->fw_vnic_id = INVALID_HW_RING_ID;
-		vnic->fw_rss_cos_lb_ctx[0] = INVALID_HW_RING_ID;
-		vnic->fw_rss_cos_lb_ctx[1] = INVALID_HW_RING_ID;
+		for (j = 0; j < BNXT_MAX_CTX_PER_VNIC; j++)
+			vnic->fw_rss_cos_lb_ctx[j] = INVALID_HW_RING_ID;
+
 		vnic->fw_l2_ctx_id = INVALID_HW_RING_ID;
 
 		if (bp->vnic_info[i].rss_hash_key) {
@@ -3098,6 +3100,9 @@ static int bnxt_alloc_vnic_attributes(struct bnxt *bp)
 			}
 		}
 
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			goto vnic_skip_grps;
+
 		if (vnic->flags & BNXT_VNIC_RSS_FLAG)
 			max_rings = bp->rx_nr_rings;
 		else
@@ -3108,7 +3113,7 @@ static int bnxt_alloc_vnic_attributes(struct bnxt *bp)
 			rc = -ENOMEM;
 			goto out;
 		}
-
+vnic_skip_grps:
 		if ((bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
 		    !(vnic->flags & BNXT_VNIC_RSS_FLAG))
 			continue;
@@ -4397,6 +4402,10 @@ static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
 	unsigned int i, j, grp_idx, end_idx = start_rx_ring_idx + nr_rings;
 	struct hwrm_vnic_alloc_input req = {0};
 	struct hwrm_vnic_alloc_output *resp = bp->hwrm_cmd_resp_addr;
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
+
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		goto vnic_no_ring_grps;
 
 	/* map ring groups to this vnic */
 	for (i = start_rx_ring_idx, j = 0; i < end_idx; i++, j++) {
@@ -4406,12 +4415,12 @@ static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
 				   j, nr_rings);
 			break;
 		}
-		bp->vnic_info[vnic_id].fw_grp_ids[j] =
-					bp->grp_info[grp_idx].fw_grp_id;
+		vnic->fw_grp_ids[j] = bp->grp_info[grp_idx].fw_grp_id;
 	}
 
-	bp->vnic_info[vnic_id].fw_rss_cos_lb_ctx[0] = INVALID_HW_RING_ID;
-	bp->vnic_info[vnic_id].fw_rss_cos_lb_ctx[1] = INVALID_HW_RING_ID;
+vnic_no_ring_grps:
+	for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++)
+		vnic->fw_rss_cos_lb_ctx[i] = INVALID_HW_RING_ID;
 	if (vnic_id == 0)
 		req.flags = cpu_to_le32(VNIC_ALLOC_REQ_FLAGS_DEFAULT);
 
@@ -4420,7 +4429,7 @@ static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc)
-		bp->vnic_info[vnic_id].fw_vnic_id = le32_to_cpu(resp->vnic_id);
+		vnic->fw_vnic_id = le32_to_cpu(resp->vnic_id);
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
@@ -4456,6 +4465,9 @@ static int bnxt_hwrm_ring_grp_alloc(struct bnxt *bp)
 	u16 i;
 	u32 rc = 0;
 
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		return 0;
+
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct hwrm_ring_grp_alloc_input req = {0};
@@ -4488,7 +4500,7 @@ static int bnxt_hwrm_ring_grp_free(struct bnxt *bp)
 	u32 rc = 0;
 	struct hwrm_ring_grp_free_input req = {0};
 
-	if (!bp->grp_info)
+	if (!bp->grp_info || (bp->flags & BNXT_FLAG_CHIP_P5))
 		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_GRP_FREE, -1, -1);
