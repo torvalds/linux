@@ -149,20 +149,18 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi)
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | MLX5_OPCODE_SEND);
 
-	/* move page to reference to sq responsibility,
-	 * and mark so it's not put back in page-cache.
-	 */
-	sq->db.xdpi[pi] = *xdpi;
 	sq->pc++;
 
 	sq->doorbell_cseg = cseg;
 
+	mlx5e_xdpi_fifo_push(&sq->db.xdpi_fifo, xdpi);
 	stats->xmit++;
 	return true;
 }
 
 bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 {
+	struct mlx5e_xdp_info_fifo *xdpi_fifo;
 	struct mlx5e_xdpsq *sq;
 	struct mlx5_cqe64 *cqe;
 	bool is_redirect;
@@ -179,6 +177,7 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 		return false;
 
 	is_redirect = !rq;
+	xdpi_fifo = &sq->db.xdpi_fifo;
 
 	/* sq->cc must be updated only after mlx5_cqwq_update_db_record(),
 	 * otherwise a cq overrun may occur
@@ -200,19 +199,19 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 					 get_cqe_opcode(cqe));
 
 		do {
-			u16 ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sqcc);
-			struct mlx5e_xdp_info *xdpi = &sq->db.xdpi[ci];
+			struct mlx5e_xdp_info xdpi =
+				mlx5e_xdpi_fifo_pop(xdpi_fifo);
 
 			last_wqe = (sqcc == wqe_counter);
 			sqcc++;
 
 			if (is_redirect) {
-				xdp_return_frame(xdpi->xdpf);
-				dma_unmap_single(sq->pdev, xdpi->dma_addr,
-						 xdpi->xdpf->len, DMA_TO_DEVICE);
+				xdp_return_frame(xdpi.xdpf);
+				dma_unmap_single(sq->pdev, xdpi.dma_addr,
+						 xdpi.xdpf->len, DMA_TO_DEVICE);
 			} else {
 				/* Recycle RX page */
-				mlx5e_page_release(rq, &xdpi->di, true);
+				mlx5e_page_release(rq, &xdpi.di, true);
 			}
 		} while (!last_wqe);
 	} while ((++i < MLX5E_TX_CQ_POLL_BUDGET) && (cqe = mlx5_cqwq_get_cqe(&cq->wq)));
@@ -230,21 +229,22 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 
 void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 {
+	struct mlx5e_xdp_info_fifo *xdpi_fifo = &sq->db.xdpi_fifo;
 	bool is_redirect = !rq;
 
 	while (sq->cc != sq->pc) {
-		u16 ci = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->cc);
-		struct mlx5e_xdp_info *xdpi = &sq->db.xdpi[ci];
+		struct mlx5e_xdp_info xdpi =
+			mlx5e_xdpi_fifo_pop(xdpi_fifo);
 
 		sq->cc++;
 
 		if (is_redirect) {
-			xdp_return_frame(xdpi->xdpf);
-			dma_unmap_single(sq->pdev, xdpi->dma_addr,
-					 xdpi->xdpf->len, DMA_TO_DEVICE);
+			xdp_return_frame(xdpi.xdpf);
+			dma_unmap_single(sq->pdev, xdpi.dma_addr,
+					 xdpi.xdpf->len, DMA_TO_DEVICE);
 		} else {
 			/* Recycle RX page */
-			mlx5e_page_release(rq, &xdpi->di, false);
+			mlx5e_page_release(rq, &xdpi.di, false);
 		}
 	}
 }

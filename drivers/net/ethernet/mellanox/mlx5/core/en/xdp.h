@@ -57,4 +57,19 @@ static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 	}
 }
 
+static inline void
+mlx5e_xdpi_fifo_push(struct mlx5e_xdp_info_fifo *fifo,
+		     struct mlx5e_xdp_info *xi)
+{
+	u32 i = (*fifo->pc)++ & fifo->mask;
+
+	fifo->xi[i] = *xi;
+}
+
+static inline struct mlx5e_xdp_info
+mlx5e_xdpi_fifo_pop(struct mlx5e_xdp_info_fifo *fifo)
+{
+	return fifo->xi[(*fifo->cc)++ & fifo->mask];
+}
+
 #endif

@@ -404,15 +404,24 @@ struct mlx5e_xdp_info {
 	struct mlx5e_dma_info di;
 };
 
+struct mlx5e_xdp_info_fifo {
+	struct mlx5e_xdp_info *xi;
+	u32 *cc;
+	u32 *pc;
+	u32 mask;
+};
+
 struct mlx5e_xdpsq {
 	/* data path */
 
 	/* dirtied @completion */
+	u32                        xdpi_fifo_cc;
 	u16                        cc;
 	bool                       redirect_flush;
 
 	/* dirtied @xmit */
-	u16                        pc ____cacheline_aligned_in_smp;
+	u32                        xdpi_fifo_pc ____cacheline_aligned_in_smp;
+	u16                        pc;
 	struct mlx5_wqe_ctrl_seg   *doorbell_cseg;
 
 	struct mlx5e_cq            cq;
@@ -421,7 +430,7 @@ struct mlx5e_xdpsq {
 	struct mlx5_wq_cyc         wq;
 	struct mlx5e_xdpsq_stats  *stats;
 	struct {
-		struct mlx5e_xdp_info     *xdpi;
+		struct mlx5e_xdp_info_fifo xdpi_fifo;
 	} db;
 	void __iomem              *uar_map;
 	u32                        sqn;
