@@ -2680,8 +2680,6 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 		STATS_OP_FMT(RETRY).ht[1][ht_idx] += pstats->retry_pkts;
 	} else {
 		mcs = legacy_rate_idx;
-		if (mcs < 0)
-			return;
 
 		STATS_OP_FMT(SUCC).legacy[0][mcs] += pstats->succ_bytes;
 		STATS_OP_FMT(SUCC).legacy[1][mcs] += pstats->succ_pkts;
@@ -2753,7 +2751,8 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 				struct ath10k_per_peer_tx_stats *peer_stats)
 {
 	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
-	u8 rate = 0, rate_idx = 0, sgi;
+	u8 rate = 0, sgi;
+	s8 rate_idx = 0;
 	struct rate_info txrate;
 
 	lockdep_assert_held(&ar->data_lock);

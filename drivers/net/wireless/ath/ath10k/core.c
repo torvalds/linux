@@ -989,7 +989,7 @@ static int ath10k_download_fw(struct ath10k *ar)
 					data, data_len);
 }
 
-static void ath10k_core_free_board_files(struct ath10k *ar)
+void ath10k_core_free_board_files(struct ath10k *ar)
 {
 	if (!IS_ERR(ar->normal_mode_fw.board))
 		release_firmware(ar->normal_mode_fw.board);
@@ -1004,6 +1004,7 @@ static void ath10k_core_free_board_files(struct ath10k *ar)
 	ar->normal_mode_fw.ext_board_data = NULL;
 	ar->normal_mode_fw.ext_board_len = 0;
 }
+EXPORT_SYMBOL(ath10k_core_free_board_files);
 
 static void ath10k_core_free_firmware_files(struct ath10k *ar)
 {
@@ -1331,6 +1332,14 @@ static int ath10k_core_create_board_name(struct ath10k *ar, char *name,
 		goto out;
 	}
 
+	if (ar->id.qmi_ids_valid) {
+		scnprintf(name, name_len,
+			  "bus=%s,qmi-board-id=%x",
+			  ath10k_bus_str(ar->hif.bus),
+			  ar->id.qmi_board_id);
+		goto out;
+	}
+
 	scnprintf(name, name_len,
 		  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x%s",
 		  ath10k_bus_str(ar->hif.bus),
@@ -1359,7 +1368,7 @@ static int ath10k_core_create_eboard_name(struct ath10k *ar, char *name,
 	return -1;
 }
 
-static int ath10k_core_fetch_board_file(struct ath10k *ar, int bd_ie_type)
+int ath10k_core_fetch_board_file(struct ath10k *ar, int bd_ie_type)
 {
 	char boardname[100], fallback_boardname[100];
 	int ret;
@@ -1407,6 +1416,7 @@ success:
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "using board api %d\n", ar->bd_api);
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_core_fetch_board_file);
 
 static int ath10k_core_get_ext_board_id_from_otp(struct ath10k *ar)
 {

@@ -164,7 +164,7 @@ static int ath10k_mac_get_rate_hw_value(int bitrate)
 	if (ath10k_mac_bitrate_is_cck(bitrate))
 		hw_value_prefix = WMI_RATE_PREAMBLE_CCK << 6;
 
-	for (i = 0; i < sizeof(ath10k_rates); i++) {
+	for (i = 0; i < ARRAY_SIZE(ath10k_rates); i++) {
 		if (ath10k_rates[i].bitrate == bitrate)
 			return hw_value_prefix | ath10k_rates[i].hw_value;
 	}
@@ -4697,6 +4697,14 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err_core_stop;
 	}
 
+	if (test_bit(WMI_SERVICE_SPOOF_MAC_SUPPORT, ar->wmi.svc_map)) {
+		ret = ath10k_wmi_scan_prob_req_oui(ar, ar->mac_addr);
+		if (ret) {
+			ath10k_err(ar, "failed to set prob req oui: %i\n", ret);
+			goto err_core_stop;
+		}
+	}
+
 	if (test_bit(WMI_SERVICE_ADAPTIVE_OCS, ar->wmi.svc_map)) {
 		ret = ath10k_wmi_adaptive_qcs(ar, true);
 		if (ret) {
@@ -5682,22 +5690,22 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 			return;
 		}
 
-	sband = ar->hw->wiphy->bands[def.chan->band];
-	basic_rate_idx = ffs(vif->bss_conf.basic_rates) - 1;
-	bitrate = sband->bitrates[basic_rate_idx].bitrate;
+		sband = ar->hw->wiphy->bands[def.chan->band];
+		basic_rate_idx = ffs(vif->bss_conf.basic_rates) - 1;
+		bitrate = sband->bitrates[basic_rate_idx].bitrate;
 
-	hw_rate_code = ath10k_mac_get_rate_hw_value(bitrate);
-	if (hw_rate_code < 0) {
-		ath10k_warn(ar, "bitrate not supported %d\n", bitrate);
-		mutex_unlock(&ar->conf_mutex);
-		return;
-	}
+		hw_rate_code = ath10k_mac_get_rate_hw_value(bitrate);
+		if (hw_rate_code < 0) {
+			ath10k_warn(ar, "bitrate not supported %d\n", bitrate);
+			mutex_unlock(&ar->conf_mutex);
+			return;
+		}
 
-	vdev_param = ar->wmi.vdev_param->mgmt_rate;
-	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
-					hw_rate_code);
-	if (ret)
-		ath10k_warn(ar, "failed to set mgmt tx rate %d\n", ret);
+		vdev_param = ar->wmi.vdev_param->mgmt_rate;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+						hw_rate_code);
+		if (ret)
+			ath10k_warn(ar, "failed to set mgmt tx rate %d\n", ret);
 	}
 
 	mutex_unlock(&ar->conf_mutex);
@@ -6855,9 +6863,20 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 u32 queues, bool drop)
 {
 	struct ath10k *ar = hw->priv;
+	struct ath10k_vif *arvif;
+	u32 bitmap;
 
-	if (drop)
+	if (drop) {
+		if (vif->type == NL80211_IFTYPE_STATION) {
+			bitmap = ~(1 << WMI_MGMT_TID);
+			list_for_each_entry(arvif, &ar->arvifs, list) {
+				if (arvif->vdev_type == WMI_VDEV_TYPE_STA)
+					ath10k_wmi_peer_flush(ar, arvif->vdev_id,
+							      arvif->bssid, bitmap);
+			}
+		}
 		return;
+	}
 
 	mutex_lock(&ar->conf_mutex);
 	ath10k_mac_wait_tx_complete(ar);
@@ -8493,6 +8512,18 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->wiphy->max_scan_ssids = WLAN_SCAN_PARAMS_MAX_SSID;
 	ar->hw->wiphy->max_scan_ie_len = WLAN_SCAN_PARAMS_MAX_IE_LEN;
 
+	if (test_bit(WMI_SERVICE_NLO, ar->wmi.svc_map)) {
+		ar->hw->wiphy->max_sched_scan_reqs = 1;
+		ar->hw->wiphy->max_sched_scan_ssids = WMI_PNO_MAX_SUPP_NETWORKS;
+		ar->hw->wiphy->max_match_sets = WMI_PNO_MAX_SUPP_NETWORKS;
+		ar->hw->wiphy->max_sched_scan_ie_len = WMI_PNO_MAX_IE_LENGTH;
+		ar->hw->wiphy->max_sched_scan_plans = WMI_PNO_MAX_SCHED_SCAN_PLANS;
+		ar->hw->wiphy->max_sched_scan_plan_interval =
+			WMI_PNO_MAX_SCHED_SCAN_PLAN_INT;
+		ar->hw->wiphy->max_sched_scan_plan_iterations =
+			WMI_PNO_MAX_SCHED_SCAN_PLAN_ITRNS;
+	}
+
 	ar->hw->vif_data_size = sizeof(struct ath10k_vif);
 	ar->hw->sta_data_size = sizeof(struct ath10k_sta);
 	ar->hw->txq_data_size = sizeof(struct ath10k_txq);
@@ -8542,9 +8573,10 @@ int ath10k_mac_register(struct ath10k *ar)
 	wiphy_ext_feature_set(ar->hw->wiphy,
 			      NL80211_EXT_FEATURE_SET_SCAN_DWELL);
 
-	if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI, ar->wmi.svc_map))
+	if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI, ar->wmi.svc_map) ||
+	    test_bit(WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS, ar->wmi.svc_map))
 		wiphy_ext_feature_set(ar->hw->wiphy,
-				      NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT);
+				      NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT);
 
 	/*
 	 * on LL hardware queues are managed entirely by the FW
@@ -8635,12 +8667,6 @@ int ath10k_mac_register(struct ath10k *ar)
 	}
 
 	if (test_bit(WMI_SERVICE_SPOOF_MAC_SUPPORT, ar->wmi.svc_map)) {
-		ret = ath10k_wmi_scan_prob_req_oui(ar, ar->mac_addr);
-		if (ret) {
-			ath10k_err(ar, "failed to set prob req oui: %i\n", ret);
-			goto err_dfs_detector_exit;
-		}
-
 		ar->hw->wiphy->features |=
 			NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 	}
