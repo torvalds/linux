@@ -2358,6 +2358,7 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 		if (rc)
 			return rc;
 
+		ring->grp_idx = i;
 		if (agg_rings) {
 			u16 mem_size;
 
@@ -4145,6 +4146,40 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
+static u16 bnxt_cp_ring_from_grp(struct bnxt *bp, struct bnxt_ring_struct *ring)
+{
+	struct bnxt_ring_grp_info *grp_info;
+
+	grp_info = &bp->grp_info[ring->grp_idx];
+	return grp_info->cp_fw_ring_id;
+}
+
+static u16 bnxt_cp_ring_for_rx(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
+{
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		struct bnxt_napi *bnapi = rxr->bnapi;
+		struct bnxt_cp_ring_info *cpr;
+
+		cpr = bnapi->cp_ring.cp_ring_arr[BNXT_RX_HDL];
+		return cpr->cp_ring_struct.fw_ring_id;
+	} else {
+		return bnxt_cp_ring_from_grp(bp, &rxr->rx_ring_struct);
+	}
+}
+
+static u16 bnxt_cp_ring_for_tx(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
+{
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		struct bnxt_napi *bnapi = txr->bnapi;
+		struct bnxt_cp_ring_info *cpr;
+
+		cpr = bnapi->cp_ring.cp_ring_arr[BNXT_TX_HDL];
+		return cpr->cp_ring_struct.fw_ring_id;
+	} else {
+		return bnxt_cp_ring_from_grp(bp, &txr->tx_ring_struct);
+	}
+}
+
 static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 {
 	u32 i, j, max_rings;
@@ -4491,15 +4526,20 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	req.logical_id = cpu_to_le16(map_index);
 
 	switch (ring_type) {
-	case HWRM_RING_ALLOC_TX:
+	case HWRM_RING_ALLOC_TX: {
+		struct bnxt_tx_ring_info *txr;
+
+		txr = container_of(ring, struct bnxt_tx_ring_info,
+				   tx_ring_struct);
 		req.ring_type = RING_ALLOC_REQ_RING_TYPE_TX;
 		/* Association of transmit ring with completion ring */
 		grp_info = &bp->grp_info[ring->grp_idx];
-		req.cmpl_ring_id = cpu_to_le16(grp_info->cp_fw_ring_id);
+		req.cmpl_ring_id = cpu_to_le16(bnxt_cp_ring_for_tx(bp, txr));
 		req.length = cpu_to_le32(bp->tx_ring_mask + 1);
 		req.stat_ctx_id = cpu_to_le32(grp_info->fw_stats_ctx);
 		req.queue_id = cpu_to_le16(ring->queue_id);
 		break;
+	}
 	case HWRM_RING_ALLOC_RX:
 		req.ring_type = RING_ALLOC_REQ_RING_TYPE_RX;
 		req.length = cpu_to_le32(bp->rx_ring_mask + 1);
@@ -4711,9 +4751,9 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	for (i = 0; i < bp->tx_nr_rings; i++) {
 		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
 		struct bnxt_ring_struct *ring = &txr->tx_ring_struct;
-		u32 grp_idx = txr->bnapi->index;
-		u32 cmpl_ring_id = bp->grp_info[grp_idx].cp_fw_ring_id;
+		u32 cmpl_ring_id;
 
+		cmpl_ring_id = bnxt_cp_ring_for_tx(bp, txr);
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
 			hwrm_ring_free_send_msg(bp, ring,
 						RING_FREE_REQ_RING_TYPE_TX,
@@ -4727,8 +4767,9 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring = &rxr->rx_ring_struct;
 		u32 grp_idx = rxr->bnapi->index;
-		u32 cmpl_ring_id = bp->grp_info[grp_idx].cp_fw_ring_id;
+		u32 cmpl_ring_id;
 
+		cmpl_ring_id = bnxt_cp_ring_for_rx(bp, rxr);
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
 			hwrm_ring_free_send_msg(bp, ring,
 						RING_FREE_REQ_RING_TYPE_RX,
@@ -4744,8 +4785,9 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring = &rxr->rx_agg_ring_struct;
 		u32 grp_idx = rxr->bnapi->index;
-		u32 cmpl_ring_id = bp->grp_info[grp_idx].cp_fw_ring_id;
+		u32 cmpl_ring_id;
 
+		cmpl_ring_id = bnxt_cp_ring_for_rx(bp, rxr);
 		if (ring->fw_ring_id != INVALID_HW_RING_ID) {
 			hwrm_ring_free_send_msg(bp, ring,
 						RING_FREE_REQ_RING_TYPE_RX,
@@ -5290,7 +5332,6 @@ int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0};
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	struct bnxt_coal coal;
-	unsigned int grp_idx;
 
 	/* Tick values in micro seconds.
 	 * 1 coal_buf x bufs_per_record = 1 completion record.
@@ -5308,8 +5349,7 @@ int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
 
 	bnxt_hwrm_set_coal_params(bp, &coal, &req_rx);
 
-	grp_idx = bnapi->index;
-	req_rx.ring_id = cpu_to_le16(bp->grp_info[grp_idx].cp_fw_ring_id);
+	req_rx.ring_id = cpu_to_le16(bnxt_cp_ring_for_rx(bp, bnapi->rx_ring));
 
 	return hwrm_send_message(bp, &req_rx, sizeof(req_rx),
 				 HWRM_CMD_TIMEOUT);
@@ -5332,11 +5372,16 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
+		u16 ring_id;
 
 		req = &req_rx;
-		if (!bnapi->rx_ring)
+		if (!bnapi->rx_ring) {
+			ring_id = bnxt_cp_ring_for_tx(bp, bnapi->tx_ring);
 			req = &req_tx;
-		req->ring_id = cpu_to_le16(bp->grp_info[i].cp_fw_ring_id);
+		} else {
+			ring_id = bnxt_cp_ring_for_rx(bp, bnapi->rx_ring);
+		}
+		req->ring_id = cpu_to_le16(ring_id);
 
 		rc = _hwrm_send_message(bp, req, sizeof(*req),
 					HWRM_CMD_TIMEOUT);
