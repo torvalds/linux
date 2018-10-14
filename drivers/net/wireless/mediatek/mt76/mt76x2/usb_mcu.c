@@ -117,7 +117,7 @@ static int mt76x2u_mcu_load_rom_patch(struct mt76x02_dev *dev)
 		return 0;
 	}
 
-	err = request_firmware(&fw, MT7662U_ROM_PATCH, dev->mt76.dev);
+	err = request_firmware(&fw, MT7662_ROM_PATCH, dev->mt76.dev);
 	if (err < 0)
 		return err;
 
@@ -183,7 +183,7 @@ static int mt76x2u_mcu_load_firmware(struct mt76x02_dev *dev)
 	int err, len, ilm_len, dlm_len;
 	const struct firmware *fw;
 
-	err = request_firmware(&fw, MT7662U_FIRMWARE, dev->mt76.dev);
+	err = request_firmware(&fw, MT7662_FIRMWARE, dev->mt76.dev);
 	if (err < 0)
 		return err;
 

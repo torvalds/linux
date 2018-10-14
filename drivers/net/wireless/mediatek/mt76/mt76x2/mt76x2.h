@@ -31,9 +31,6 @@
 #define MT7662_ROM_PATCH	"mt7662_rom_patch.bin"
 #define MT7662_EEPROM_SIZE	512
 
-#define MT7662U_FIRMWARE	"mediatek/mt7662u.bin"
-#define MT7662U_ROM_PATCH	"mediatek/mt7662u_rom_patch.bin"
-
 #define MT_CALIBRATE_INTERVAL	HZ
 
 #include "../mt76x02.h"
