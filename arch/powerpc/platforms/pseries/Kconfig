@@ -138,3 +138,10 @@ config IBMEBUS
 	bool "Support for GX bus based adapters"
 	help
 	  Bus device driver for GX bus based adapters.
+
+config PAPR_SCM
+	depends on PPC_PSERIES && MEMORY_HOTPLUG
+	select LIBNVDIMM
+	tristate "Support for the PAPR Storage Class Memory interface"
+	help
+	  Enable access to hypervisor provided storage class memory.
