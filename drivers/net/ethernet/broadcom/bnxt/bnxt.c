@@ -111,6 +111,7 @@ enum board_idx {
 	BCM57452,
 	BCM57454,
 	BCM5745x_NPAR,
+	BCM57508,
 	BCM58802,
 	BCM58804,
 	BCM58808,
@@ -152,6 +153,7 @@ static const struct {
 	[BCM57452] = { "Broadcom BCM57452 NetXtreme-E 10Gb/25Gb/40Gb/50Gb Ethernet" },
 	[BCM57454] = { "Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
 	[BCM5745x_NPAR] = { "Broadcom BCM5745x NetXtreme-E Ethernet Partition" },
+	[BCM57508] = { "Broadcom BCM57508 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet" },
 	[BCM58802] = { "Broadcom BCM58802 NetXtreme-S 10Gb/25Gb/40Gb/50Gb Ethernet" },
 	[BCM58804] = { "Broadcom BCM58804 NetXtreme-S 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
 	[BCM58808] = { "Broadcom BCM58808 NetXtreme-S 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet" },
@@ -196,6 +198,7 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16ef), .driver_data = BCM57416_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16f0), .driver_data = BCM58808 },
 	{ PCI_VDEVICE(BROADCOM, 0x16f1), .driver_data = BCM57452 },
+	{ PCI_VDEVICE(BROADCOM, 0x1750), .driver_data = BCM57508 },
 	{ PCI_VDEVICE(BROADCOM, 0xd802), .driver_data = BCM58802 },
 	{ PCI_VDEVICE(BROADCOM, 0xd804), .driver_data = BCM58804 },
 #ifdef CONFIG_BNXT_SRIOV
