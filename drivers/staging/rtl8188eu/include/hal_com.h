@@ -148,7 +148,7 @@ u8 hal_com_get_channel_plan(struct adapter *padapter,
 
 u8 MRateToHwRate(u8 rate);
 
-void HalSetBrateCfg(u8 *brates, u16 *rate_cfg);
+void hal_set_brate_cfg(u8 *brates, u16 *rate_cfg);
 
 bool Hal_MappingOutPipe(struct adapter *pAdapter, u8 NumOutPipe);
 
