@@ -49,11 +49,11 @@ mt76x0_rf_csr_wr(struct mt76x02_dev *dev, u32 offset, u8 value)
 	}
 
 	mt76_wr(dev, MT_RF_CSR_CFG,
-		   FIELD_PREP(MT_RF_CSR_CFG_DATA, value) |
-		   FIELD_PREP(MT_RF_CSR_CFG_REG_BANK, bank) |
-		   FIELD_PREP(MT_RF_CSR_CFG_REG_ID, reg) |
-		   MT_RF_CSR_CFG_WR |
-		   MT_RF_CSR_CFG_KICK);
+		FIELD_PREP(MT_RF_CSR_CFG_DATA, value) |
+		FIELD_PREP(MT_RF_CSR_CFG_REG_BANK, bank) |
+		FIELD_PREP(MT_RF_CSR_CFG_REG_ID, reg) |
+		MT_RF_CSR_CFG_WR |
+		MT_RF_CSR_CFG_KICK);
 	trace_mt76x0_rf_write(&dev->mt76, bank, offset, value);
 out:
 	mutex_unlock(&dev->phy_mutex);
@@ -86,9 +86,9 @@ static int mt76x0_rf_csr_rr(struct mt76x02_dev *dev, u32 offset)
 		goto out;
 
 	mt76_wr(dev, MT_RF_CSR_CFG,
-		   FIELD_PREP(MT_RF_CSR_CFG_REG_BANK, bank) |
-		   FIELD_PREP(MT_RF_CSR_CFG_REG_ID, reg) |
-		   MT_RF_CSR_CFG_KICK);
+		FIELD_PREP(MT_RF_CSR_CFG_REG_BANK, bank) |
+		FIELD_PREP(MT_RF_CSR_CFG_REG_ID, reg) |
+		MT_RF_CSR_CFG_KICK);
 
 	if (!mt76_poll(dev, MT_RF_CSR_CFG, MT_RF_CSR_CFG_KICK, 0, 100))
 		goto out;
@@ -168,13 +168,11 @@ mt76x0_rf_set(struct mt76x02_dev *dev, u32 offset, u8 val)
 	return mt76x0_rf_rmw(dev, offset, 0, val);
 }
 
-#if 0
 static int
-rf_clear(struct mt76x02_dev *dev, u32 offset, u8 mask)
+mt76x0_rf_clear(struct mt76x02_dev *dev, u32 offset, u8 mask)
 {
 	return mt76x0_rf_rmw(dev, offset, mask, 0);
 }
-#endif
 
 static void
 mt76x0_phy_rf_csr_wr_rp(struct mt76x02_dev *dev,
@@ -222,46 +220,31 @@ static void mt76x0_phy_vco_cal(struct mt76x02_dev *dev, u8 channel)
 	if ((val & 0x70) != 0x30)
 		return;
 
-	/*
-	 * Calibration Mode - Open loop, closed loop, and amplitude:
-	 * B0.R06.[0]: 1
-	 * B0.R06.[3:1] bp_close_code: 100
-	 * B0.R05.[7:0] bp_open_code: 0x0
-	 * B0.R04.[2:0] cal_bits: 000
-	 * B0.R03.[2:0] startup_time: 011
-	 * B0.R03.[6:4] settle_time:
-	 *  80MHz channel: 110
-	 *  40MHz channel: 101
-	 *  20MHz channel: 100
-	 */
-	val = mt76x0_rf_rr(dev, MT_RF(0, 6));
-	val &= ~0xf;
-	val |= 0x09;
-	mt76x0_rf_wr(dev, MT_RF(0, 6), val);
+	/* closed loop calibarion - B0.R06.[3:0]: 1001 */
+	mt76x0_rf_rmw(dev, MT_RF(0, 6), MT_RF_VCO_BP_CLOSE_LOOP_MASK,
+		      MT_RF_VCO_BP_CLOSE_LOOP | BIT(0));
 
-	val = mt76x0_rf_rr(dev, MT_RF(0, 5));
-	if (val != 0)
-		mt76x0_rf_wr(dev, MT_RF(0, 5), 0x0);
+	/* open loop calibration - B0.R05.[7:0]: 0x0 */
+	mt76x0_rf_wr(dev, MT_RF(0, 5), 0x0);
 
-	val = mt76x0_rf_rr(dev, MT_RF(0, 4));
-	val &= ~0x07;
-	mt76x0_rf_wr(dev, MT_RF(0, 4), val);
+	/* caliration mask - B0.R04.[2:0]: 000 */
+	mt76x0_rf_clear(dev, MT_RF(0, 4), MT_RF_VCO_CAL_MASK);
 
-	val = mt76x0_rf_rr(dev, MT_RF(0, 3));
-	val &= ~0x77;
-	if (channel == 1 || channel == 7 || channel == 9 || channel >= 13) {
-		val |= 0x63;
-	} else if (channel == 3 || channel == 4 || channel == 10) {
-		val |= 0x53;
-	} else if (channel == 2 || channel == 5 || channel == 6 ||
-		   channel == 8 || channel == 11 || channel == 12) {
-		val |= 0x43;
-	} else {
-		WARN(1, "Unknown channel %u\n", channel);
-		return;
-	}
-	mt76x0_rf_wr(dev, MT_RF(0, 3), val);
+	/* startup time - B0.R03.[2:0] startup_time: 011 */
+	mt76x0_rf_rmw(dev, MT_RF(0, 3), MT_RF_START_TIME_MASK,
+		      MT_RF_START_TIME);
 
+	/* settle_time - B0.R03.[6:4] */
+	if (channel == 3 || channel == 4 || channel == 10)
+		val = 0x50;
+	else if (channel == 2 || channel == 5 || channel == 6 ||
+		 channel == 8 || channel == 11 || channel == 12)
+		val = 0x40;
+	else
+		val = 0x60;
+	mt76x0_rf_rmw(dev, MT_RF(0, 3), MT_RF_SETTLE_TIME_MASK, val);
+
+	/* enable vco */
 	mt76x0_rf_set(dev, MT_RF(0, 4), BIT(7));
 
 	msleep(2);
@@ -297,18 +280,17 @@ mt76x0_phy_set_band(struct mt76x02_dev *dev, enum nl80211_band band)
 static void
 mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_band)
 {
+	const struct mt76x0_freq_item *freq_item;
 	u16 rf_band = rf_bw_band & 0xff00;
 	u16 rf_bw = rf_bw_band & 0x00ff;
 	enum nl80211_band band;
+	bool b_sdm = false;
 	u32 mac_reg;
-	u8 rf_val;
 	int i;
-	bool bSDM = false;
-	const struct mt76x0_freq_item *freq_item;
 
 	for (i = 0; i < ARRAY_SIZE(mt76x0_sdm_channel); i++) {
 		if (channel == mt76x0_sdm_channel[i]) {
-			bSDM = true;
+			b_sdm = true;
 			break;
 		}
 	}
@@ -317,7 +299,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 		if (channel == mt76x0_frequency_plan[i].channel) {
 			rf_band = mt76x0_frequency_plan[i].band;
 
-			if (bSDM)
+			if (b_sdm)
 				freq_item = &(mt76x0_sdm_frequency_plan[i]);
 			else
 				freq_item = &(mt76x0_frequency_plan[i]);
@@ -328,97 +310,73 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 			mt76x0_rf_wr(dev, MT_RF(0, 34), freq_item->pllR34);
 			mt76x0_rf_wr(dev, MT_RF(0, 33), freq_item->pllR33);
 
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 32));
-			rf_val &= ~0xE0;
-			rf_val |= freq_item->pllR32_b7b5;
-			mt76x0_rf_wr(dev, MT_RF(0, 32), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 32), 0xe0,
+				      freq_item->pllR32_b7b5);
 
 			/* R32<4:0> pll_den: (Denomina - 8) */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 32));
-			rf_val &= ~0x1F;
-			rf_val |= freq_item->pllR32_b4b0;
-			mt76x0_rf_wr(dev, MT_RF(0, 32), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 32), MT_RF_PLL_DEN_MASK,
+				      freq_item->pllR32_b4b0);
 
 			/* R31<7:5> */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 31));
-			rf_val &= ~0xE0;
-			rf_val |= freq_item->pllR31_b7b5;
-			mt76x0_rf_wr(dev, MT_RF(0, 31), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 31), 0xe0,
+				      freq_item->pllR31_b7b5);
 
 			/* R31<4:0> pll_k(Nominator) */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 31));
-			rf_val &= ~0x1F;
-			rf_val |= freq_item->pllR31_b4b0;
-			mt76x0_rf_wr(dev, MT_RF(0, 31), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 31), MT_RF_PLL_K_MASK,
+				      freq_item->pllR31_b4b0);
 
 			/* R30<7> sdm_reset_n */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 30));
-			rf_val &= ~0x80;
-			if (bSDM) {
-				mt76x0_rf_wr(dev, MT_RF(0, 30), rf_val);
-				rf_val |= 0x80;
-				mt76x0_rf_wr(dev, MT_RF(0, 30), rf_val);
+			if (b_sdm) {
+				mt76x0_rf_clear(dev, MT_RF(0, 30),
+						MT_RF_SDM_RESET_MASK);
+				mt76x0_rf_set(dev, MT_RF(0, 30),
+					      MT_RF_SDM_RESET_MASK);
 			} else {
-				rf_val |= freq_item->pllR30_b7;
-				mt76x0_rf_wr(dev, MT_RF(0, 30), rf_val);
+				mt76x0_rf_rmw(dev, MT_RF(0, 30),
+					      MT_RF_SDM_RESET_MASK,
+					      freq_item->pllR30_b7);
 			}
 
 			/* R30<6:2> sdmmash_prbs,sin */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 30));
-			rf_val &= ~0x7C;
-			rf_val |= freq_item->pllR30_b6b2;
-			mt76x0_rf_wr(dev, MT_RF(0, 30), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 30),
+				      MT_RF_SDM_MASH_PRBS_MASK,
+				      freq_item->pllR30_b6b2);
 
 			/* R30<1> sdm_bp */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 30));
-			rf_val &= ~0x02;
-			rf_val |= (freq_item->pllR30_b1 << 1);
-			mt76x0_rf_wr(dev, MT_RF(0, 30), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 30), MT_RF_SDM_BP_MASK,
+				      freq_item->pllR30_b1 << 1);
 
 			/* R30<0> R29<7:0> (hex) pll_n */
-			rf_val = freq_item->pll_n & 0x00FF;
-			mt76x0_rf_wr(dev, MT_RF(0, 29), rf_val);
+			mt76x0_rf_wr(dev, MT_RF(0, 29),
+				     freq_item->pll_n & 0xff);
 
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 30));
-			rf_val &= ~0x1;
-			rf_val |= ((freq_item->pll_n >> 8) & 0x0001);
-			mt76x0_rf_wr(dev, MT_RF(0, 30), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 30), 0x1,
+				      (freq_item->pll_n >> 8) & 0x1);
 
 			/* R28<7:6> isi_iso */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 28));
-			rf_val &= ~0xC0;
-			rf_val |= freq_item->pllR28_b7b6;
-			mt76x0_rf_wr(dev, MT_RF(0, 28), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 28), MT_RF_ISI_ISO_MASK,
+				      freq_item->pllR28_b7b6);
 
 			/* R28<5:4> pfd_dly */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 28));
-			rf_val &= ~0x30;
-			rf_val |= freq_item->pllR28_b5b4;
-			mt76x0_rf_wr(dev, MT_RF(0, 28), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 28), MT_RF_PFD_DLY_MASK,
+				      freq_item->pllR28_b5b4);
 
 			/* R28<3:2> clksel option */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 28));
-			rf_val &= ~0x0C;
-			rf_val |= freq_item->pllR28_b3b2;
-			mt76x0_rf_wr(dev, MT_RF(0, 28), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 28), MT_RF_CLK_SEL_MASK,
+				      freq_item->pllR28_b3b2);
 
 			/* R28<1:0> R27<7:0> R26<7:0> (hex) sdm_k */
-			rf_val = freq_item->pll_sdm_k & 0x000000FF;
-			mt76x0_rf_wr(dev, MT_RF(0, 26), rf_val);
+			mt76x0_rf_wr(dev, MT_RF(0, 26),
+				     freq_item->pll_sdm_k & 0xff);
+			mt76x0_rf_wr(dev, MT_RF(0, 27),
+				     (freq_item->pll_sdm_k >> 8) & 0xff);
 
-			rf_val = ((freq_item->pll_sdm_k >> 8) & 0x000000FF);
-			mt76x0_rf_wr(dev, MT_RF(0, 27), rf_val);
-
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 28));
-			rf_val &= ~0x3;
-			rf_val |= ((freq_item->pll_sdm_k >> 16) & 0x0003);
-			mt76x0_rf_wr(dev, MT_RF(0, 28), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 28), 0x3,
+				      (freq_item->pll_sdm_k >> 16) & 0x3);
 
 			/* R24<1:0> xo_div */
-			rf_val = mt76x0_rf_rr(dev, MT_RF(0, 24));
-			rf_val &= ~0x3;
-			rf_val |= freq_item->pllR24_b1b0;
-			mt76x0_rf_wr(dev, MT_RF(0, 24), rf_val);
+			mt76x0_rf_rmw(dev, MT_RF(0, 24), MT_RF_XO_DIV_MASK,
+				      freq_item->pllR24_b1b0);
 
 			break;
 		}
@@ -445,9 +403,7 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 		}
 	}
 
-	mac_reg = mt76_rr(dev, MT_RF_MISC);
-	mac_reg &= ~0xC; /* Clear 0x518[3:2] */
-	mt76_wr(dev, MT_RF_MISC, mac_reg);
+	mt76_clear(dev, MT_RF_MISC, 0xc);
 
 	band = (rf_band & RF_G_BAND) ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 	if (mt76x02_ext_pa_enabled(dev, band)) {
@@ -456,15 +412,10 @@ mt76x0_phy_set_chan_rf_params(struct mt76x02_dev *dev, u8 channel, u16 rf_bw_ban
 			[2]1'b1: enable external A band PA, 1'b0: disable external A band PA
 			[3]1'b1: enable external G band PA, 1'b0: disable external G band PA
 		*/
-		if (rf_band & RF_A_BAND) {
-			mac_reg = mt76_rr(dev, MT_RF_MISC);
-			mac_reg |= 0x4;
-			mt76_wr(dev, MT_RF_MISC, mac_reg);
-		} else {
-			mac_reg = mt76_rr(dev, MT_RF_MISC);
-			mac_reg |= 0x8;
-			mt76_wr(dev, MT_RF_MISC, mac_reg);
-		}
+		if (rf_band & RF_A_BAND)
+			mt76_set(dev, MT_RF_MISC, BIT(2));
+		else
+			mt76_set(dev, MT_RF_MISC, BIT(3));
 
 		/* External PA */
 		for (i = 0; i < ARRAY_SIZE(mt76x0_rf_ext_pa_tab); i++)
@@ -710,12 +661,10 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 	mt76x0_phy_set_chan_rf_params(dev, channel, rf_bw_band);
 
 	/* set Japan Tx filter at channel 14 */
-	val = mt76_rr(dev, MT_BBP(CORE, 1));
 	if (channel == 14)
-		val |= 0x20;
+		mt76_set(dev, MT_BBP(CORE, 1), 0x20);
 	else
-		val &= ~0x20;
-	mt76_wr(dev, MT_BBP(CORE, 1), val);
+		mt76_clear(dev, MT_BBP(CORE, 1), 0x20);
 
 	mt76x0_read_rx_gain(dev);
 	mt76x0_phy_set_chan_bbp_params(dev, rf_bw_band);
@@ -903,20 +852,16 @@ static void mt76x0_phy_rf_init(struct mt76x02_dev *dev)
 		     min_t(u8, dev->cal.rx.freq_offset, 0xbf));
 	val = mt76x0_rf_rr(dev, MT_RF(0, 22));
 
-	/*
-	   Reset the DAC (Set B0.R73<7>=1, then set B0.R73<7>=0, and then set B0.R73<7>) during power up.
+	/* Reset procedure DAC during power-up:
+	 * - set B0.R73<7>
+	 * - clear B0.R73<7>
+	 * - set B0.R73<7>
 	 */
-	val = mt76x0_rf_rr(dev, MT_RF(0, 73));
-	val |= 0x80;
-	mt76x0_rf_wr(dev, MT_RF(0, 73), val);
-	val &= ~0x80;
-	mt76x0_rf_wr(dev, MT_RF(0, 73), val);
-	val |= 0x80;
-	mt76x0_rf_wr(dev, MT_RF(0, 73), val);
+	mt76x0_rf_set(dev, MT_RF(0, 73), BIT(7));
+	mt76x0_rf_clear(dev, MT_RF(0, 73), BIT(7));
+	mt76x0_rf_set(dev, MT_RF(0, 73), BIT(7));
 
-	/*
-	   vcocal_en (initiate VCO calibration (reset after completion)) - It should be at the end of RF configuration.
-	 */
+	/* vcocal_en: initiate VCO calibration (reset after completion)) */
 	mt76x0_rf_set(dev, MT_RF(0, 4), 0x80);
 }
 
