@@ -119,7 +119,7 @@ u8 MRateToHwRate(u8 rate)
 	return ret;
 }
 
-void HalSetBrateCfg(struct adapter *adapt, u8 *brates, u16 *rate_cfg)
+void HalSetBrateCfg(u8 *brates, u16 *rate_cfg)
 {
 	u8 i, is_brate, brate;
 
