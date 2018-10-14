@@ -2202,60 +2202,60 @@ static void bnxt_free_skbs(struct bnxt *bp)
 	bnxt_free_rx_skbs(bp);
 }
 
-static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_struct *ring)
+static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 {
 	struct pci_dev *pdev = bp->pdev;
 	int i;
 
-	for (i = 0; i < ring->nr_pages; i++) {
-		if (!ring->pg_arr[i])
+	for (i = 0; i < rmem->nr_pages; i++) {
+		if (!rmem->pg_arr[i])
 			continue;
 
-		dma_free_coherent(&pdev->dev, ring->page_size,
-				  ring->pg_arr[i], ring->dma_arr[i]);
+		dma_free_coherent(&pdev->dev, rmem->page_size,
+				  rmem->pg_arr[i], rmem->dma_arr[i]);
 
-		ring->pg_arr[i] = NULL;
+		rmem->pg_arr[i] = NULL;
 	}
-	if (ring->pg_tbl) {
-		dma_free_coherent(&pdev->dev, ring->nr_pages * 8,
-				  ring->pg_tbl, ring->pg_tbl_map);
-		ring->pg_tbl = NULL;
+	if (rmem->pg_tbl) {
+		dma_free_coherent(&pdev->dev, rmem->nr_pages * 8,
+				  rmem->pg_tbl, rmem->pg_tbl_map);
+		rmem->pg_tbl = NULL;
 	}
-	if (ring->vmem_size && *ring->vmem) {
-		vfree(*ring->vmem);
-		*ring->vmem = NULL;
+	if (rmem->vmem_size && *rmem->vmem) {
+		vfree(*rmem->vmem);
+		*rmem->vmem = NULL;
 	}
 }
 
-static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_struct *ring)
+static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 {
-	int i;
 	struct pci_dev *pdev = bp->pdev;
+	int i;
 
-	if (ring->nr_pages > 1) {
-		ring->pg_tbl = dma_alloc_coherent(&pdev->dev,
-						  ring->nr_pages * 8,
-						  &ring->pg_tbl_map,
+	if (rmem->nr_pages > 1) {
+		rmem->pg_tbl = dma_alloc_coherent(&pdev->dev,
+						  rmem->nr_pages * 8,
+						  &rmem->pg_tbl_map,
 						  GFP_KERNEL);
-		if (!ring->pg_tbl)
+		if (!rmem->pg_tbl)
 			return -ENOMEM;
 	}
 
-	for (i = 0; i < ring->nr_pages; i++) {
-		ring->pg_arr[i] = dma_alloc_coherent(&pdev->dev,
-						     ring->page_size,
-						     &ring->dma_arr[i],
+	for (i = 0; i < rmem->nr_pages; i++) {
+		rmem->pg_arr[i] = dma_alloc_coherent(&pdev->dev,
+						     rmem->page_size,
+						     &rmem->dma_arr[i],
 						     GFP_KERNEL);
-		if (!ring->pg_arr[i])
+		if (!rmem->pg_arr[i])
 			return -ENOMEM;
 
-		if (ring->nr_pages > 1)
-			ring->pg_tbl[i] = cpu_to_le64(ring->dma_arr[i]);
+		if (rmem->nr_pages > 1)
+			rmem->pg_tbl[i] = cpu_to_le64(rmem->dma_arr[i]);
 	}
 
-	if (ring->vmem_size) {
-		*ring->vmem = vzalloc(ring->vmem_size);
-		if (!(*ring->vmem))
+	if (rmem->vmem_size) {
+		*rmem->vmem = vzalloc(rmem->vmem_size);
+		if (!(*rmem->vmem))
 			return -ENOMEM;
 	}
 	return 0;
@@ -2285,10 +2285,10 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 		rxr->rx_agg_bmap = NULL;
 
 		ring = &rxr->rx_ring_struct;
-		bnxt_free_ring(bp, ring);
+		bnxt_free_ring(bp, &ring->ring_mem);
 
 		ring = &rxr->rx_agg_ring_struct;
-		bnxt_free_ring(bp, ring);
+		bnxt_free_ring(bp, &ring->ring_mem);
 	}
 }
 
@@ -2315,7 +2315,7 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 		if (rc < 0)
 			return rc;
 
-		rc = bnxt_alloc_ring(bp, ring);
+		rc = bnxt_alloc_ring(bp, &ring->ring_mem);
 		if (rc)
 			return rc;
 
@@ -2323,7 +2323,7 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 			u16 mem_size;
 
 			ring = &rxr->rx_agg_ring_struct;
-			rc = bnxt_alloc_ring(bp, ring);
+			rc = bnxt_alloc_ring(bp, &ring->ring_mem);
 			if (rc)
 				return rc;
 
@@ -2366,7 +2366,7 @@ static void bnxt_free_tx_rings(struct bnxt *bp)
 
 		ring = &txr->tx_ring_struct;
 
-		bnxt_free_ring(bp, ring);
+		bnxt_free_ring(bp, &ring->ring_mem);
 	}
 }
 
@@ -2397,7 +2397,7 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 
 		ring = &txr->tx_ring_struct;
 
-		rc = bnxt_alloc_ring(bp, ring);
+		rc = bnxt_alloc_ring(bp, &ring->ring_mem);
 		if (rc)
 			return rc;
 
@@ -2450,7 +2450,7 @@ static void bnxt_free_cp_rings(struct bnxt *bp)
 		cpr = &bnapi->cp_ring;
 		ring = &cpr->cp_ring_struct;
 
-		bnxt_free_ring(bp, ring);
+		bnxt_free_ring(bp, &ring->ring_mem);
 	}
 }
 
@@ -2471,7 +2471,7 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 		cpr = &bnapi->cp_ring;
 		ring = &cpr->cp_ring_struct;
 
-		rc = bnxt_alloc_ring(bp, ring);
+		rc = bnxt_alloc_ring(bp, &ring->ring_mem);
 		if (rc)
 			return rc;
 
@@ -2489,6 +2489,7 @@ static void bnxt_init_ring_struct(struct bnxt *bp)
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
+		struct bnxt_ring_mem_info *rmem;
 		struct bnxt_cp_ring_info *cpr;
 		struct bnxt_rx_ring_info *rxr;
 		struct bnxt_tx_ring_info *txr;
@@ -2499,31 +2500,34 @@ static void bnxt_init_ring_struct(struct bnxt *bp)
 
 		cpr = &bnapi->cp_ring;
 		ring = &cpr->cp_ring_struct;
-		ring->nr_pages = bp->cp_nr_pages;
-		ring->page_size = HW_CMPD_RING_SIZE;
-		ring->pg_arr = (void **)cpr->cp_desc_ring;
-		ring->dma_arr = cpr->cp_desc_mapping;
-		ring->vmem_size = 0;
+		rmem = &ring->ring_mem;
+		rmem->nr_pages = bp->cp_nr_pages;
+		rmem->page_size = HW_CMPD_RING_SIZE;
+		rmem->pg_arr = (void **)cpr->cp_desc_ring;
+		rmem->dma_arr = cpr->cp_desc_mapping;
+		rmem->vmem_size = 0;
 
 		rxr = bnapi->rx_ring;
 		if (!rxr)
 			goto skip_rx;
 
 		ring = &rxr->rx_ring_struct;
-		ring->nr_pages = bp->rx_nr_pages;
-		ring->page_size = HW_RXBD_RING_SIZE;
-		ring->pg_arr = (void **)rxr->rx_desc_ring;
-		ring->dma_arr = rxr->rx_desc_mapping;
-		ring->vmem_size = SW_RXBD_RING_SIZE * bp->rx_nr_pages;
-		ring->vmem = (void **)&rxr->rx_buf_ring;
+		rmem = &ring->ring_mem;
+		rmem->nr_pages = bp->rx_nr_pages;
+		rmem->page_size = HW_RXBD_RING_SIZE;
+		rmem->pg_arr = (void **)rxr->rx_desc_ring;
+		rmem->dma_arr = rxr->rx_desc_mapping;
+		rmem->vmem_size = SW_RXBD_RING_SIZE * bp->rx_nr_pages;
+		rmem->vmem = (void **)&rxr->rx_buf_ring;
 
 		ring = &rxr->rx_agg_ring_struct;
-		ring->nr_pages = bp->rx_agg_nr_pages;
-		ring->page_size = HW_RXBD_RING_SIZE;
-		ring->pg_arr = (void **)rxr->rx_agg_desc_ring;
-		ring->dma_arr = rxr->rx_agg_desc_mapping;
-		ring->vmem_size = SW_RXBD_AGG_RING_SIZE * bp->rx_agg_nr_pages;
-		ring->vmem = (void **)&rxr->rx_agg_ring;
+		rmem = &ring->ring_mem;
+		rmem->nr_pages = bp->rx_agg_nr_pages;
+		rmem->page_size = HW_RXBD_RING_SIZE;
+		rmem->pg_arr = (void **)rxr->rx_agg_desc_ring;
+		rmem->dma_arr = rxr->rx_agg_desc_mapping;
+		rmem->vmem_size = SW_RXBD_AGG_RING_SIZE * bp->rx_agg_nr_pages;
+		rmem->vmem = (void **)&rxr->rx_agg_ring;
 
 skip_rx:
 		txr = bnapi->tx_ring;
@@ -2531,12 +2535,13 @@ skip_rx:
 			continue;
 
 		ring = &txr->tx_ring_struct;
-		ring->nr_pages = bp->tx_nr_pages;
-		ring->page_size = HW_RXBD_RING_SIZE;
-		ring->pg_arr = (void **)txr->tx_desc_ring;
-		ring->dma_arr = txr->tx_desc_mapping;
-		ring->vmem_size = SW_TXBD_RING_SIZE * bp->tx_nr_pages;
-		ring->vmem = (void **)&txr->tx_buf_ring;
+		rmem = &ring->ring_mem;
+		rmem->nr_pages = bp->tx_nr_pages;
+		rmem->page_size = HW_RXBD_RING_SIZE;
+		rmem->pg_arr = (void **)txr->tx_desc_ring;
+		rmem->dma_arr = txr->tx_desc_mapping;
+		rmem->vmem_size = SW_TXBD_RING_SIZE * bp->tx_nr_pages;
+		rmem->vmem = (void **)&txr->tx_buf_ring;
 	}
 }
 
@@ -2546,8 +2551,8 @@ static void bnxt_init_rxbd_pages(struct bnxt_ring_struct *ring, u32 type)
 	u32 prod;
 	struct rx_bd **rx_buf_ring;
 
-	rx_buf_ring = (struct rx_bd **)ring->pg_arr;
-	for (i = 0, prod = 0; i < ring->nr_pages; i++) {
+	rx_buf_ring = (struct rx_bd **)ring->ring_mem.pg_arr;
+	for (i = 0, prod = 0; i < ring->ring_mem.nr_pages; i++) {
 		int j;
 		struct rx_bd *rxbd;
 
@@ -4343,19 +4348,20 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	int rc = 0, err = 0;
 	struct hwrm_ring_alloc_input req = {0};
 	struct hwrm_ring_alloc_output *resp = bp->hwrm_cmd_resp_addr;
+	struct bnxt_ring_mem_info *rmem = &ring->ring_mem;
 	struct bnxt_ring_grp_info *grp_info;
 	u16 ring_id;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_ALLOC, -1, -1);
 
 	req.enables = 0;
-	if (ring->nr_pages > 1) {
-		req.page_tbl_addr = cpu_to_le64(ring->pg_tbl_map);
+	if (rmem->nr_pages > 1) {
+		req.page_tbl_addr = cpu_to_le64(rmem->pg_tbl_map);
 		/* Page size is in log2 units */
 		req.page_size = BNXT_PAGE_SHIFT;
 		req.page_tbl_depth = 1;
 	} else {
-		req.page_tbl_addr =  cpu_to_le64(ring->dma_arr[0]);
+		req.page_tbl_addr =  cpu_to_le64(rmem->dma_arr[0]);
 	}
 	req.fbo = 0;
 	/* Association of ring index with doorbell index and MSIX number */

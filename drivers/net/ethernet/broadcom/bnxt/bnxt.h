@@ -577,7 +577,7 @@ struct bnxt_sw_rx_agg_bd {
 	dma_addr_t		mapping;
 };
 
-struct bnxt_ring_struct {
+struct bnxt_ring_mem_info {
 	int			nr_pages;
 	int			page_size;
 	void			**pg_arr;
@@ -588,6 +588,10 @@ struct bnxt_ring_struct {
 
 	int			vmem_size;
 	void			**vmem;
+};
+
+struct bnxt_ring_struct {
+	struct bnxt_ring_mem_info	ring_mem;
 
 	u16			fw_ring_id; /* Ring id filled by Chimp FW */
 	union {
