@@ -65,8 +65,13 @@ int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_errlog);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 int dlpar_memory(struct pseries_hp_errorlog *hp_elog);
+int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog);
 #else
 static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
+{
+	return -EOPNOTSUPP;
+}
+static inline int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog)
 {
 	return -EOPNOTSUPP;
 }

@@ -91,6 +91,8 @@ static char *rtas_event_type(int type)
 			return "Dump Notification Event";
 		case RTAS_TYPE_PRRN:
 			return "Platform Resource Reassignment Event";
+		case RTAS_TYPE_HOTPLUG:
+			return "Hotplug Event";
 	}
 
 	return rtas_type[0];

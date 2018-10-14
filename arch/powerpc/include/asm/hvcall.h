@@ -296,7 +296,15 @@
 #define H_INT_ESB               0x3C8
 #define H_INT_SYNC              0x3CC
 #define H_INT_RESET             0x3D0
-#define MAX_HCALL_OPCODE	H_INT_RESET
+#define H_SCM_READ_METADATA     0x3E4
+#define H_SCM_WRITE_METADATA    0x3E8
+#define H_SCM_BIND_MEM          0x3EC
+#define H_SCM_UNBIND_MEM        0x3F0
+#define H_SCM_QUERY_BLOCK_MEM_BINDING 0x3F4
+#define H_SCM_QUERY_LOGICAL_MEM_BINDING 0x3F8
+#define H_SCM_MEM_QUERY	        0x3FC
+#define H_SCM_BLOCK_CLEAR       0x400
+#define MAX_HCALL_OPCODE	H_SCM_BLOCK_CLEAR
 
 /* H_VIOCTL functions */
 #define H_GET_VIOA_DUMP_SIZE	0x01
