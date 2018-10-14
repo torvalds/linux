@@ -846,15 +846,8 @@ static int
 set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
 			unsigned int vmid)
 {
-	uint32_t pasid_mapping;
-
-	pasid_mapping = (pasid == 0) ? 0 :
-		(uint32_t)pasid |
-		ATC_VMID_PASID_MAPPING_VALID;
-
 	return dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
-						dqm->dev->kgd, pasid_mapping,
-						vmid);
+						dqm->dev->kgd, pasid, vmid);
 }
 
 static void init_interrupts(struct device_queue_manager *dqm)
