@@ -1900,6 +1900,7 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	u8 event = 0;
 	struct tx_cmp *txcmp;
 
+	cpr->has_more_work = 0;
 	while (1) {
 		int rc;
 
@@ -1920,6 +1921,8 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 			if (unlikely(tx_pkts > bp->tx_wake_thresh)) {
 				rx_pkts = budget;
 				raw_cons = NEXT_RAW_CMP(raw_cons);
+				if (budget)
+					cpr->has_more_work = 1;
 				break;
 			}
 		} else if ((TX_CMP_TYPE(txcmp) & 0x30) == 0x10) {
@@ -1949,8 +1952,10 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		}
 		raw_cons = NEXT_RAW_CMP(raw_cons);
 
-		if (rx_pkts && rx_pkts == budget)
+		if (rx_pkts && rx_pkts == budget) {
+			cpr->has_more_work = 1;
 			break;
+		}
 	}
 
 	if (event & BNXT_TX_EVENT) {
@@ -2103,6 +2108,104 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 		net_dim(&cpr->dim, dim_sample);
 	}
 	mmiowb();
+	return work_done;
+}
+
+static int __bnxt_poll_cqs(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
+{
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	int i, work_done = 0;
+
+	for (i = 0; i < 2; i++) {
+		struct bnxt_cp_ring_info *cpr2 = cpr->cp_ring_arr[i];
+
+		if (cpr2) {
+			work_done += __bnxt_poll_work(bp, cpr2,
+						      budget - work_done);
+			cpr->has_more_work |= cpr2->has_more_work;
+		}
+	}
+	return work_done;
+}
+
+static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
+				 u64 dbr_type, bool all)
+{
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		struct bnxt_cp_ring_info *cpr2 = cpr->cp_ring_arr[i];
+		struct bnxt_db_info *db;
+
+		if (cpr2 && (all || cpr2->had_work_done)) {
+			db = &cpr2->cp_db;
+			writeq(db->db_key64 | dbr_type |
+			       RING_CMP(cpr2->cp_raw_cons), db->doorbell);
+			cpr2->had_work_done = 0;
+		}
+	}
+	__bnxt_poll_work_done(bp, bnapi);
+}
+
+static int bnxt_poll_p5(struct napi_struct *napi, int budget)
+{
+	struct bnxt_napi *bnapi = container_of(napi, struct bnxt_napi, napi);
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+	u32 raw_cons = cpr->cp_raw_cons;
+	struct bnxt *bp = bnapi->bp;
+	struct nqe_cn *nqcmp;
+	int work_done = 0;
+	u32 cons;
+
+	if (cpr->has_more_work) {
+		cpr->has_more_work = 0;
+		work_done = __bnxt_poll_cqs(bp, bnapi, budget);
+		if (cpr->has_more_work) {
+			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ, false);
+			return work_done;
+		}
+		__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL, true);
+		if (napi_complete_done(napi, work_done))
+			BNXT_DB_NQ_ARM_P5(&cpr->cp_db, cpr->cp_raw_cons);
+		return work_done;
+	}
+	while (1) {
+		cons = RING_CMP(raw_cons);
+		nqcmp = &cpr->nq_desc_ring[CP_RING(cons)][CP_IDX(cons)];
+
+		if (!NQ_CMP_VALID(nqcmp, raw_cons)) {
+			__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ_ARMALL,
+					     false);
+			cpr->cp_raw_cons = raw_cons;
+			if (napi_complete_done(napi, work_done))
+				BNXT_DB_NQ_ARM_P5(&cpr->cp_db,
+						  cpr->cp_raw_cons);
+			return work_done;
+		}
+
+		/* The valid test of the entry must be done first before
+		 * reading any further.
+		 */
+		dma_rmb();
+
+		if (nqcmp->type == cpu_to_le16(NQ_CN_TYPE_CQ_NOTIFICATION)) {
+			u32 idx = le32_to_cpu(nqcmp->cq_handle_low);
+			struct bnxt_cp_ring_info *cpr2;
+
+			cpr2 = cpr->cp_ring_arr[idx];
+			work_done += __bnxt_poll_work(bp, cpr2,
+						      budget - work_done);
+			cpr->has_more_work = cpr2->has_more_work;
+		} else {
+			bnxt_hwrm_handler(bp, (struct tx_cmp *)nqcmp);
+		}
+		raw_cons = NEXT_RAW_CMP(raw_cons);
+		if (cpr->has_more_work)
+			break;
+	}
+	__bnxt_poll_cqs_done(bp, bnapi, DBR_TYPE_CQ, true);
+	cpr->cp_raw_cons = raw_cons;
 	return work_done;
 }
 
@@ -7211,12 +7314,15 @@ static void bnxt_init_napi(struct bnxt *bp)
 	struct bnxt_napi *bnapi;
 
 	if (bp->flags & BNXT_FLAG_USING_MSIX) {
-		if (BNXT_CHIP_TYPE_NITRO_A0(bp))
+		int (*poll_fn)(struct napi_struct *, int) = bnxt_poll;
+
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			poll_fn = bnxt_poll_p5;
+		else if (BNXT_CHIP_TYPE_NITRO_A0(bp))
 			cp_nr_rings--;
 		for (i = 0; i < cp_nr_rings; i++) {
 			bnapi = bp->bnapi[i];
-			netif_napi_add(bp->dev, &bnapi->napi,
-				       bnxt_poll, 64);
+			netif_napi_add(bp->dev, &bnapi->napi, poll_fn, 64);
 		}
 		if (BNXT_CHIP_TYPE_NITRO_A0(bp)) {
 			bnapi = bp->bnapi[cp_nr_rings];

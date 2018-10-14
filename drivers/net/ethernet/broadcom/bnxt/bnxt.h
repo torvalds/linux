@@ -537,6 +537,9 @@ struct nqe_cn {
 	(!!((agg)->rx_agg_cmp_v & cpu_to_le32(RX_AGG_CMP_V)) ==	\
 	 !((raw_cons) & bp->cp_bit))
 
+#define NQ_CMP_VALID(nqcmp, raw_cons)				\
+	(!!((nqcmp)->v & cpu_to_le32(NQ_CN_V)) == !((raw_cons) & bp->cp_bit))
+
 #define TX_CMP_TYPE(txcmp)					\
 	(le32_to_cpu((txcmp)->tx_cmp_flags_type) & CMP_TYPE)
 
@@ -793,6 +796,7 @@ struct bnxt_cp_ring_info {
 	struct bnxt_db_info	cp_db;
 
 	u8			had_work_done:1;
+	u8			has_more_work:1;
 
 	struct bnxt_coal	rx_ring_coal;
 	u64			rx_packets;
