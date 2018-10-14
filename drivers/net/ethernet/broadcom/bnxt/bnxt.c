@@ -5677,6 +5677,13 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all)
 	hw_resc->min_stat_ctxs = le16_to_cpu(resp->min_stat_ctx);
 	hw_resc->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
 
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		u16 max_msix = le16_to_cpu(resp->max_msix);
+
+		hw_resc->max_irqs = min_t(u16, hw_resc->max_irqs, max_msix);
+		hw_resc->max_hw_ring_grps = hw_resc->max_rx_rings;
+	}
+
 	if (BNXT_PF(bp)) {
 		struct bnxt_pf_info *pf = &bp->pf;
 
@@ -9382,6 +9389,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	bp = netdev_priv(dev);
+	bnxt_set_max_func_irqs(bp, max_irqs);
 
 	if (bnxt_vf_pciid(ent->driver_data))
 		bp->flags |= BNXT_FLAG_VF;
@@ -9513,7 +9521,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_set_rx_skb_mode(bp, false);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
-	bnxt_set_max_func_irqs(bp, max_irqs);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
 		netdev_err(bp->dev, "Not enough rings available.\n");
