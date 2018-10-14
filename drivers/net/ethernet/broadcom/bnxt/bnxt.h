@@ -631,6 +631,42 @@ struct bnxt_tx_ring_info {
 	struct bnxt_ring_struct	tx_ring_struct;
 };
 
+#define BNXT_LEGACY_COAL_CMPL_PARAMS					\
+	(RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_INT_LAT_TMR_MIN |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_INT_LAT_TMR_MAX |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_TIMER_RESET |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_RING_IDLE |			\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_NUM_CMPL_DMA_AGGR |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_NUM_CMPL_DMA_AGGR_DURING_INT | \
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_CMPL_AGGR_DMA_TMR |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_CMPL_AGGR_DMA_TMR_DURING_INT | \
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_NUM_CMPL_AGGR_INT)
+
+#define BNXT_COAL_CMPL_ENABLES						\
+	(RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_NUM_CMPL_DMA_AGGR | \
+	 RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_CMPL_AGGR_DMA_TMR | \
+	 RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_INT_LAT_TMR_MAX | \
+	 RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_NUM_CMPL_AGGR_INT)
+
+#define BNXT_COAL_CMPL_MIN_TMR_ENABLE					\
+	RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_INT_LAT_TMR_MIN
+
+#define BNXT_COAL_CMPL_AGGR_TMR_DURING_INT_ENABLE			\
+	RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_NUM_CMPL_DMA_AGGR_DURING_INT
+
+struct bnxt_coal_cap {
+	u32			cmpl_params;
+	u32			nq_params;
+	u16			num_cmpl_dma_aggr_max;
+	u16			num_cmpl_dma_aggr_during_int_max;
+	u16			cmpl_aggr_dma_tmr_max;
+	u16			cmpl_aggr_dma_tmr_during_int_max;
+	u16			int_lat_tmr_min_max;
+	u16			int_lat_tmr_max_max;
+	u16			num_cmpl_aggr_int_max;
+	u16			timer_units;
+};
+
 struct bnxt_coal {
 	u16			coal_ticks;
 	u16			coal_ticks_irq;
@@ -1333,10 +1369,9 @@ struct bnxt {
 	u8			port_count;
 	u16			br_mode;
 
+	struct bnxt_coal_cap	coal_cap;
 	struct bnxt_coal	rx_coal;
 	struct bnxt_coal	tx_coal;
-
-#define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
 
 	u32			stats_coal_ticks;
 #define BNXT_DEF_STATS_COAL_TICKS	 1000000

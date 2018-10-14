@@ -4944,46 +4944,113 @@ static int bnxt_hwrm_check_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 					cp_rings, vnics);
 }
 
-static void bnxt_hwrm_set_coal_params(struct bnxt_coal *hw_coal,
+static void bnxt_hwrm_coal_params_qcaps(struct bnxt *bp)
+{
+	struct hwrm_ring_aggint_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct bnxt_coal_cap *coal_cap = &bp->coal_cap;
+	struct hwrm_ring_aggint_qcaps_input req = {0};
+	int rc;
+
+	coal_cap->cmpl_params = BNXT_LEGACY_COAL_CMPL_PARAMS;
+	coal_cap->num_cmpl_dma_aggr_max = 63;
+	coal_cap->num_cmpl_dma_aggr_during_int_max = 63;
+	coal_cap->cmpl_aggr_dma_tmr_max = 65535;
+	coal_cap->cmpl_aggr_dma_tmr_during_int_max = 65535;
+	coal_cap->int_lat_tmr_min_max = 65535;
+	coal_cap->int_lat_tmr_max_max = 65535;
+	coal_cap->num_cmpl_aggr_int_max = 65535;
+	coal_cap->timer_units = 80;
+
+	if (bp->hwrm_spec_code < 0x10902)
+		return;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_AGGINT_QCAPS, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		coal_cap->cmpl_params = le32_to_cpu(resp->cmpl_params);
+		coal_cap->num_cmpl_dma_aggr_max =
+			le16_to_cpu(resp->num_cmpl_dma_aggr_max);
+		coal_cap->num_cmpl_dma_aggr_during_int_max =
+			le16_to_cpu(resp->num_cmpl_dma_aggr_during_int_max);
+		coal_cap->cmpl_aggr_dma_tmr_max =
+			le16_to_cpu(resp->cmpl_aggr_dma_tmr_max);
+		coal_cap->cmpl_aggr_dma_tmr_during_int_max =
+			le16_to_cpu(resp->cmpl_aggr_dma_tmr_during_int_max);
+		coal_cap->int_lat_tmr_min_max =
+			le16_to_cpu(resp->int_lat_tmr_min_max);
+		coal_cap->int_lat_tmr_max_max =
+			le16_to_cpu(resp->int_lat_tmr_max_max);
+		coal_cap->num_cmpl_aggr_int_max =
+			le16_to_cpu(resp->num_cmpl_aggr_int_max);
+		coal_cap->timer_units = le16_to_cpu(resp->timer_units);
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+}
+
+static u16 bnxt_usec_to_coal_tmr(struct bnxt *bp, u16 usec)
+{
+	struct bnxt_coal_cap *coal_cap = &bp->coal_cap;
+
+	return usec * 1000 / coal_cap->timer_units;
+}
+
+static void bnxt_hwrm_set_coal_params(struct bnxt *bp,
+	struct bnxt_coal *hw_coal,
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
 {
-	u16 val, tmr, max, flags;
+	struct bnxt_coal_cap *coal_cap = &bp->coal_cap;
+	u32 cmpl_params = coal_cap->cmpl_params;
+	u16 val, tmr, max, flags = 0;
 
 	max = hw_coal->bufs_per_record * 128;
 	if (hw_coal->budget)
 		max = hw_coal->bufs_per_record * hw_coal->budget;
+	max = min_t(u16, max, coal_cap->num_cmpl_aggr_int_max);
 
 	val = clamp_t(u16, hw_coal->coal_bufs, 1, max);
 	req->num_cmpl_aggr_int = cpu_to_le16(val);
 
-	/* This is a 6-bit value and must not be 0, or we'll get non stop IRQ */
-	val = min_t(u16, val, 63);
+	val = min_t(u16, val, coal_cap->num_cmpl_dma_aggr_max);
 	req->num_cmpl_dma_aggr = cpu_to_le16(val);
 
-	/* This is a 6-bit value and must not be 0, or we'll get non stop IRQ */
-	val = clamp_t(u16, hw_coal->coal_bufs_irq, 1, 63);
+	val = clamp_t(u16, hw_coal->coal_bufs_irq, 1,
+		      coal_cap->num_cmpl_dma_aggr_during_int_max);
 	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(val);
 
-	tmr = BNXT_USEC_TO_COAL_TIMER(hw_coal->coal_ticks);
-	tmr = max_t(u16, tmr, 1);
+	tmr = bnxt_usec_to_coal_tmr(bp, hw_coal->coal_ticks);
+	tmr = clamp_t(u16, tmr, 1, coal_cap->int_lat_tmr_max_max);
 	req->int_lat_tmr_max = cpu_to_le16(tmr);
 
 	/* min timer set to 1/2 of interrupt timer */
-	val = tmr / 2;
-	req->int_lat_tmr_min = cpu_to_le16(val);
+	if (cmpl_params & RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_INT_LAT_TMR_MIN) {
+		val = tmr / 2;
+		val = clamp_t(u16, val, 1, coal_cap->int_lat_tmr_min_max);
+		req->int_lat_tmr_min = cpu_to_le16(val);
+		req->enables |= cpu_to_le16(BNXT_COAL_CMPL_MIN_TMR_ENABLE);
+	}
 
 	/* buf timer set to 1/4 of interrupt timer */
-	val = max_t(u16, tmr / 4, 1);
+	val = clamp_t(u16, tmr / 4, 1, coal_cap->cmpl_aggr_dma_tmr_max);
 	req->cmpl_aggr_dma_tmr = cpu_to_le16(val);
 
-	tmr = BNXT_USEC_TO_COAL_TIMER(hw_coal->coal_ticks_irq);
-	tmr = max_t(u16, tmr, 1);
-	req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(tmr);
+	if (cmpl_params &
+	    RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_NUM_CMPL_DMA_AGGR_DURING_INT) {
+		tmr = bnxt_usec_to_coal_tmr(bp, hw_coal->coal_ticks_irq);
+		val = clamp_t(u16, tmr, 1,
+			      coal_cap->cmpl_aggr_dma_tmr_during_int_max);
+		req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(tmr);
+		req->enables |=
+			cpu_to_le16(BNXT_COAL_CMPL_AGGR_TMR_DURING_INT_ENABLE);
+	}
 
-	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
-	if (hw_coal->idle_thresh && hw_coal->coal_ticks < hw_coal->idle_thresh)
+	if (cmpl_params & RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_TIMER_RESET)
+		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
+	if ((cmpl_params & RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_RING_IDLE) &&
+	    hw_coal->idle_thresh && hw_coal->coal_ticks < hw_coal->idle_thresh)
 		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 	req->flags = cpu_to_le16(flags);
+	req->enables |= cpu_to_le16(BNXT_COAL_CMPL_ENABLES);
 }
 
 int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
@@ -5007,7 +5074,7 @@ int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
 	bnxt_hwrm_cmd_hdr_init(bp, &req_rx,
 			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 
-	bnxt_hwrm_set_coal_params(&coal, &req_rx);
+	bnxt_hwrm_set_coal_params(bp, &coal, &req_rx);
 
 	grp_idx = bnapi->index;
 	req_rx.ring_id = cpu_to_le16(bp->grp_info[grp_idx].cp_fw_ring_id);
@@ -5027,8 +5094,8 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	bnxt_hwrm_cmd_hdr_init(bp, &req_tx,
 			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 
-	bnxt_hwrm_set_coal_params(&bp->rx_coal, &req_rx);
-	bnxt_hwrm_set_coal_params(&bp->tx_coal, &req_tx);
+	bnxt_hwrm_set_coal_params(bp, &bp->rx_coal, &req_rx);
+	bnxt_hwrm_set_coal_params(bp, &bp->tx_coal, &req_tx);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -9074,6 +9141,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		device_set_wakeup_capable(&pdev->dev, false);
 
 	bnxt_hwrm_set_cache_line_size(bp, cache_line_size());
+
+	bnxt_hwrm_coal_params_qcaps(bp);
 
 	if (BNXT_PF(bp)) {
 		if (!bnxt_pf_wq) {
