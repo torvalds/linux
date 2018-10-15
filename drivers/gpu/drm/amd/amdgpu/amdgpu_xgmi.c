@@ -88,14 +88,19 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	list_for_each_entry(entry, &hive->device_list, head)
 		tmp_topology->nodes[count++].node_id = entry->node_id;
 
-	ret = psp_xgmi_get_topology_info(&adev->psp, count, tmp_topology);
-	if (ret) {
-		dev_err(adev->dev,
-			"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
-			adev->gmc.xgmi.node_id,
-			adev->gmc.xgmi.hive_id, ret);
-		goto exit;
+	/* Each psp need to get the latest topology */
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count, tmp_topology);
+		if (ret) {
+			dev_err(tmp_adev->dev,
+				"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
+				tmp_adev->gmc.xgmi.node_id,
+				tmp_adev->gmc.xgmi.hive_id, ret);
+			/* To do : continue with some node failed or disable the whole hive */
+			break;
+		}
 	}
+
 	/* Each psp need to set the latest topology */
 	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
 		ret = psp_xgmi_set_topology_info(&tmp_adev->psp, count, tmp_topology);
