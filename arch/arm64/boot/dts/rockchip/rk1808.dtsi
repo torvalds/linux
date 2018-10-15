@@ -869,6 +869,18 @@
 		status = "disabled";
 	};
 
+	rng: rng@ff630000 {
+		compatible = "rockchip,cryptov2-rng";
+		reg = <0x0 0xff630000 0x0 0x4000>;
+		clocks = <&cru SCLK_CRYPTO>, <&cru SCLK_CRYPTO_APK>,
+			<&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>;
+		clock-names = "clk_crypto", "clk_crypto_apk",
+				"aclk_crypto", "hclk_crypto";
+		resets = <&cru SRST_CRYPTO_CORE>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	wdt: watchdog@ff720000 {
 		compatible = "snps,dw-wdt";
 		reg = <0x0 0xff720000 0x0 0x100>;
