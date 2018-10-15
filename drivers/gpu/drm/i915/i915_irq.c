@@ -3129,6 +3129,24 @@ gen11_gu_misc_irq_handler(struct drm_i915_private *dev_priv, const u32 iir)
 		intel_opregion_asle_intr(dev_priv);
 }
 
+static inline u32 gen11_master_intr_disable(void __iomem * const regs)
+{
+	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, 0);
+
+	/*
+	 * Now with master disabled, get a sample of level indications
+	 * for this interrupt. Indications will be cleared on related acks.
+	 * New indications can and will light up during processing,
+	 * and will generate new interrupt after enabling master.
+	 */
+	return raw_reg_read(regs, GEN11_GFX_MSTR_IRQ);
+}
+
+static inline void gen11_master_intr_enable(void __iomem * const regs)
+{
+	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ);
+}
+
 static irqreturn_t gen11_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private * const i915 = to_i915(arg);
@@ -3139,13 +3157,11 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	if (!intel_irqs_enabled(i915))
 		return IRQ_NONE;
 
-	master_ctl = raw_reg_read(regs, GEN11_GFX_MSTR_IRQ);
-	master_ctl &= ~GEN11_MASTER_IRQ;
-	if (!master_ctl)
+	master_ctl = gen11_master_intr_disable(regs);
+	if (!master_ctl) {
+		gen11_master_intr_enable(regs);
 		return IRQ_NONE;
-
-	/* Disable interrupts. */
-	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, 0);
+	}
 
 	/* Find, clear, then process each source of interrupt. */
 	gen11_gt_irq_handler(i915, master_ctl);
@@ -3165,8 +3181,7 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 
 	gu_misc_iir = gen11_gu_misc_irq_ack(i915, master_ctl);
 
-	/* Enable interrupts. */
-	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ);
+	gen11_master_intr_enable(regs);
 
 	gen11_gu_misc_irq_handler(i915, gu_misc_iir);
 
@@ -3658,8 +3673,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 
-	I915_WRITE(GEN11_GFX_MSTR_IRQ, 0);
-	POSTING_READ(GEN11_GFX_MSTR_IRQ);
+	gen11_master_intr_disable(dev_priv->regs);
 
 	gen11_gt_irq_reset(dev_priv);
 
@@ -4323,8 +4337,7 @@ static int gen11_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
-	I915_WRITE(GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ);
-	POSTING_READ(GEN11_GFX_MSTR_IRQ);
+	gen11_master_intr_enable(dev_priv->regs);
 
 	return 0;
 }
