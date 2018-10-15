@@ -360,6 +360,10 @@ static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success,
 	unsigned int offset;
 	sense_reason_t ret = TCM_NO_SENSE;
 	int i, count;
+
+	if (!success)
+		return 0;
+
 	/*
 	 * From sbc3r22.pdf section 5.48 XDWRITEREAD (10) command
 	 *
@@ -426,7 +430,7 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	sense_reason_t ret = TCM_NO_SENSE;
 
 	spin_lock_irq(&cmd->t_state_lock);
-	if (cmd->transport_state & CMD_T_SENT) {
+	if (success) {
 		*post_ret = 1;
 
 		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
