@@ -143,6 +143,10 @@
 	status = "okay";
 };
 
+&rng {
+	status = "okay";
+};
+
 &route_dsi {
 	status = "disabled";
 };
