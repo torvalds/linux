@@ -25,6 +25,8 @@ MAP COMMANDS
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
 |	**bpftool** **prog load** *OBJ* *FILE* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
+|       **bpftool** **prog attach** *PROG* *ATTACH_TYPE* *MAP*
+|       **bpftool** **prog detach** *PROG* *ATTACH_TYPE* *MAP*
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -37,6 +39,7 @@ MAP COMMANDS
 |		**cgroup/bind4** | **cgroup/bind6** | **cgroup/post_bind4** | **cgroup/post_bind6** |
 |		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6**
 |	}
+|       *ATTACH_TYPE* := { **msg_verdict** | **skb_verdict** | **skb_parse** }
 
 
 DESCRIPTION
@@ -89,6 +92,14 @@ DESCRIPTION
 		  given networking device (offload).
 
 		  Note: *FILE* must be located in *bpffs* mount.
+
+        **bpftool prog attach** *PROG* *ATTACH_TYPE* *MAP*
+                  Attach bpf program *PROG* (with type specified by *ATTACH_TYPE*)
+                  to the map *MAP*.
+
+        **bpftool prog detach** *PROG* *ATTACH_TYPE* *MAP*
+                  Detach bpf program *PROG* (with type specified by *ATTACH_TYPE*)
+                  from the map *MAP*.
 
 	**bpftool prog help**
 		  Print short help message.

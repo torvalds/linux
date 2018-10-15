@@ -55,6 +55,7 @@ json_writer_t *json_wtr;
 bool pretty_output;
 bool json_output;
 bool show_pinned;
+int bpf_flags;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
 
@@ -341,6 +342,7 @@ int main(int argc, char **argv)
 		{ "pretty",	no_argument,	NULL,	'p' },
 		{ "version",	no_argument,	NULL,	'V' },
 		{ "bpffs",	no_argument,	NULL,	'f' },
+		{ "mapcompat",	no_argument,	NULL,	'm' },
 		{ 0 }
 	};
 	int opt, ret;
@@ -355,7 +357,7 @@ int main(int argc, char **argv)
 	hash_init(map_table.table);
 
 	opterr = 0;
-	while ((opt = getopt_long(argc, argv, "Vhpjf",
+	while ((opt = getopt_long(argc, argv, "Vhpjfm",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
@@ -378,6 +380,9 @@ int main(int argc, char **argv)
 			break;
 		case 'f':
 			show_pinned = true;
+			break;
+		case 'm':
+			bpf_flags = MAPS_RELAX_COMPAT;
 			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
