@@ -173,7 +173,7 @@ static unsigned long __prombss prom_tce_alloc_end;
 #endif
 
 #ifdef CONFIG_PPC_PSERIES
-static bool prom_radix_disable __prombss;
+static bool __prombss prom_radix_disable;
 #endif
 
 struct platform_support {
@@ -210,7 +210,7 @@ static int __prombss mem_reserve_cnt;
 
 static cell_t __prombss regbuf[1024];
 
-static bool rtas_has_query_cpu_stopped;
+static bool  __prombss rtas_has_query_cpu_stopped;
 
 
 /*
@@ -525,8 +525,8 @@ static void add_string(char **str, const char *q)
 
 static char *tohex(unsigned int x)
 {
-	static char digits[] = "0123456789abcdef";
-	static char result[9];
+	static const char digits[] __initconst = "0123456789abcdef";
+	static char result[9] __prombss;
 	int i;
 
 	result[8] = 0;
@@ -2327,7 +2327,7 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 	char *namep, *prev_name, *sstart, *p, *ep, *lp, *path;
 	unsigned long soff;
 	unsigned char *valp;
-	static char pname[MAX_PROPERTY_NAME];
+	static char pname[MAX_PROPERTY_NAME] __prombss;
 	int l, room, has_phandle = 0;
 
 	dt_push_token(OF_DT_BEGIN_NODE, mem_start, mem_end);
