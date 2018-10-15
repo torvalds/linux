@@ -3341,6 +3341,8 @@ static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd)
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
+	struct nfit_spa *nfit_spa;
+	int rc = 0;
 
 	if (nvdimm)
 		return 0;
@@ -3350,13 +3352,20 @@ static int acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 	/*
 	 * The kernel and userspace may race to initiate a scrub, but
 	 * the scrub thread is prepared to lose that initial race.  It
-	 * just needs guarantees that any ars it initiates are not
-	 * interrupted by any intervening start reqeusts from userspace.
+	 * just needs guarantees that any ARS it initiates are not
+	 * interrupted by any intervening start requests from userspace.
 	 */
-	if (work_busy(&acpi_desc->dwork.work))
-		return -EBUSY;
+	mutex_lock(&acpi_desc->init_mutex);
+	list_for_each_entry(nfit_spa, &acpi_desc->spas, list)
+		if (acpi_desc->scrub_spa
+				|| test_bit(ARS_REQ_SHORT, &nfit_spa->ars_state)
+				|| test_bit(ARS_REQ_LONG, &nfit_spa->ars_state)) {
+			rc = -EBUSY;
+			break;
+		}
+	mutex_unlock(&acpi_desc->init_mutex);
 
-	return 0;
+	return rc;
 }
 
 int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc,
