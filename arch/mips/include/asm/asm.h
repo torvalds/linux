@@ -20,15 +20,6 @@
 #include <asm/sgidefs.h>
 #include <asm/asm-eva.h>
 
-#ifndef CAT
-#ifdef __STDC__
-#define __CAT(str1, str2) str1##str2
-#else
-#define __CAT(str1, str2) str1/**/str2
-#endif
-#define CAT(str1, str2) __CAT(str1, str2)
-#endif
-
 /*
  * LEAF - declare leaf routine
  */
