@@ -410,6 +410,9 @@ static void osd_req_op_data_release(struct ceph_osd_request *osd_req,
 	case CEPH_OSD_OP_LIST_WATCHERS:
 		ceph_osd_data_release(&op->list_watchers.response_data);
 		break;
+	case CEPH_OSD_OP_COPY_FROM:
+		ceph_osd_data_release(&op->copy_from.osd_data);
+		break;
 	default:
 		break;
 	}
@@ -702,6 +705,7 @@ static void get_num_data_items(struct ceph_osd_request *req,
 		case CEPH_OSD_OP_SETXATTR:
 		case CEPH_OSD_OP_CMPXATTR:
 		case CEPH_OSD_OP_NOTIFY_ACK:
+		case CEPH_OSD_OP_COPY_FROM:
 			*num_request_data_items += 1;
 			break;
 
@@ -1015,6 +1019,14 @@ static u32 osd_req_encode_op(struct ceph_osd_op *dst,
 		break;
 	case CEPH_OSD_OP_CREATE:
 	case CEPH_OSD_OP_DELETE:
+		break;
+	case CEPH_OSD_OP_COPY_FROM:
+		dst->copy_from.snapid = cpu_to_le64(src->copy_from.snapid);
+		dst->copy_from.src_version =
+			cpu_to_le64(src->copy_from.src_version);
+		dst->copy_from.flags = src->copy_from.flags;
+		dst->copy_from.src_fadvise_flags =
+			cpu_to_le32(src->copy_from.src_fadvise_flags);
 		break;
 	default:
 		pr_err("unsupported osd opcode %s\n",
@@ -1946,6 +1958,10 @@ static void setup_request_data(struct ceph_osd_request *req)
 		case CEPH_OSD_OP_NOTIFY_ACK:
 			ceph_osdc_msg_data_add(request_msg,
 					       &op->notify_ack.request_data);
+			break;
+		case CEPH_OSD_OP_COPY_FROM:
+			ceph_osdc_msg_data_add(request_msg,
+					       &op->copy_from.osd_data);
 			break;
 
 		/* reply */
@@ -5254,6 +5270,80 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 	return rc;
 }
 EXPORT_SYMBOL(ceph_osdc_writepages);
+
+static int osd_req_op_copy_from_init(struct ceph_osd_request *req,
+				     u64 src_snapid, u64 src_version,
+				     struct ceph_object_id *src_oid,
+				     struct ceph_object_locator *src_oloc,
+				     u32 src_fadvise_flags,
+				     u32 dst_fadvise_flags,
+				     u8 copy_from_flags)
+{
+	struct ceph_osd_req_op *op;
+	struct page **pages;
+	void *p, *end;
+
+	pages = ceph_alloc_page_vector(1, GFP_KERNEL);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	op = _osd_req_op_init(req, 0, CEPH_OSD_OP_COPY_FROM, dst_fadvise_flags);
+	op->copy_from.snapid = src_snapid;
+	op->copy_from.src_version = src_version;
+	op->copy_from.flags = copy_from_flags;
+	op->copy_from.src_fadvise_flags = src_fadvise_flags;
+
+	p = page_address(pages[0]);
+	end = p + PAGE_SIZE;
+	ceph_encode_string(&p, end, src_oid->name, src_oid->name_len);
+	encode_oloc(&p, end, src_oloc);
+	op->indata_len = PAGE_SIZE - (end - p);
+
+	ceph_osd_data_pages_init(&op->copy_from.osd_data, pages,
+				 op->indata_len, 0, false, true);
+	return 0;
+}
+
+int ceph_osdc_copy_from(struct ceph_osd_client *osdc,
+			u64 src_snapid, u64 src_version,
+			struct ceph_object_id *src_oid,
+			struct ceph_object_locator *src_oloc,
+			u32 src_fadvise_flags,
+			struct ceph_object_id *dst_oid,
+			struct ceph_object_locator *dst_oloc,
+			u32 dst_fadvise_flags,
+			u8 copy_from_flags)
+{
+	struct ceph_osd_request *req;
+	int ret;
+
+	req = ceph_osdc_alloc_request(osdc, NULL, 1, false, GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	req->r_flags = CEPH_OSD_FLAG_WRITE;
+
+	ceph_oloc_copy(&req->r_t.base_oloc, dst_oloc);
+	ceph_oid_copy(&req->r_t.base_oid, dst_oid);
+
+	ret = osd_req_op_copy_from_init(req, src_snapid, src_version, src_oid,
+					src_oloc, src_fadvise_flags,
+					dst_fadvise_flags, copy_from_flags);
+	if (ret)
+		goto out;
+
+	ret = ceph_osdc_alloc_messages(req, GFP_KERNEL);
+	if (ret)
+		goto out;
+
+	ceph_osdc_start_request(osdc, req, false);
+	ret = ceph_osdc_wait_request(osdc, req);
+
+out:
+	ceph_osdc_put_request(req);
+	return ret;
+}
+EXPORT_SYMBOL(ceph_osdc_copy_from);
 
 int __init ceph_osdc_setup(void)
 {
