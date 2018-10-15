@@ -162,6 +162,8 @@ void mt76x2_init_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 
+	INIT_DELAYED_WORK(&dev->mac_work, mt76x02_mac_work);
+
 	hw->queues = 4;
 	hw->max_rates = 1;
 	hw->max_report_rates = 7;

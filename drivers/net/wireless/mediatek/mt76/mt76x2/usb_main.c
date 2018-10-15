@@ -27,6 +27,8 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto out;
 
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
+				     MT_CALIBRATE_INTERVAL);
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 out:
