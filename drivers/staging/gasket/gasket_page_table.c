@@ -1332,9 +1332,13 @@ int gasket_alloc_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 	return 0;
 
 nomem:
-	if (mem)
+	if (mem) {
 		dma_free_coherent(gasket_get_device(gasket_dev),
 				  num_pages * PAGE_SIZE, mem, handle);
+		gasket_dev->coherent_buffer.length_bytes = 0;
+		gasket_dev->coherent_buffer.virt_base = NULL;
+		gasket_dev->coherent_buffer.phys_base = 0;
+	}
 
 	kfree(gasket_dev->page_table[index]->coherent_pages);
 	gasket_dev->page_table[index]->coherent_pages = NULL;
