@@ -6772,6 +6772,19 @@ static void intel_pch_transcoder_set_m_n(const struct intel_crtc_state *crtc_sta
 	I915_WRITE(PCH_TRANS_LINK_N1(pipe), m_n->link_n);
 }
 
+static bool transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
+				 enum transcoder transcoder)
+{
+	if (IS_HASWELL(dev_priv))
+		return transcoder == TRANSCODER_EDP;
+
+	/*
+	 * Strictly speaking some registers are available before
+	 * gen7, but we only support DRRS on gen7+
+	 */
+	return IS_GEN7(dev_priv) || IS_CHERRYVIEW(dev_priv);
+}
+
 static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_state,
 					 const struct intel_link_m_n *m_n,
 					 const struct intel_link_m_n *m2_n2)
@@ -6786,12 +6799,12 @@ static void intel_cpu_transcoder_set_m_n(const struct intel_crtc_state *crtc_sta
 		I915_WRITE(PIPE_DATA_N1(transcoder), m_n->gmch_n);
 		I915_WRITE(PIPE_LINK_M1(transcoder), m_n->link_m);
 		I915_WRITE(PIPE_LINK_N1(transcoder), m_n->link_n);
-		/* M2_N2 registers to be set only for gen < 8 (M2_N2 available
-		 * for gen < 8) and if DRRS is supported (to make sure the
-		 * registers are not unnecessarily accessed).
+		/*
+		 *  M2_N2 registers are set only if DRRS is supported
+		 * (to make sure the registers are not unnecessarily accessed).
 		 */
-		if (m2_n2 && (IS_CHERRYVIEW(dev_priv) ||
-		    INTEL_GEN(dev_priv) < 8) && crtc_state->has_drrs) {
+		if (m2_n2 && crtc_state->has_drrs &&
+		    transcoder_has_m2_n2(dev_priv, transcoder)) {
 			I915_WRITE(PIPE_DATA_M2(transcoder),
 					TU_SIZE(m2_n2->tu) | m2_n2->gmch_m);
 			I915_WRITE(PIPE_DATA_N2(transcoder), m2_n2->gmch_n);
@@ -8686,12 +8699,8 @@ static void intel_cpu_transcoder_get_m_n(struct intel_crtc *crtc,
 		m_n->gmch_n = I915_READ(PIPE_DATA_N1(transcoder));
 		m_n->tu = ((I915_READ(PIPE_DATA_M1(transcoder))
 			    & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
-		/* Read M2_N2 registers only for gen < 8 (M2_N2 available for
-		 * gen < 8) and if DRRS is supported (to make sure the
-		 * registers are not unnecessarily read).
-		 */
-		if (m2_n2 && INTEL_GEN(dev_priv) < 8 &&
-			crtc->config->has_drrs) {
+
+		if (m2_n2 && transcoder_has_m2_n2(dev_priv, transcoder)) {
 			m2_n2->link_m = I915_READ(PIPE_LINK_M2(transcoder));
 			m2_n2->link_n =	I915_READ(PIPE_LINK_N2(transcoder));
 			m2_n2->gmch_m =	I915_READ(PIPE_DATA_M2(transcoder))
