@@ -57,6 +57,10 @@ OPTIONS
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
 
+	-m, --mapcompat
+		  Allow loading maps with unknown map definitions.
+
+
 SEE ALSO
 ========
 	**bpftool-map**\ (8), **bpftool-prog**\ (8), **bpftool-cgroup**\ (8)

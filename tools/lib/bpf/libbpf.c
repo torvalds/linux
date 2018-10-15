@@ -562,8 +562,9 @@ static int compare_bpf_map(const void *_a, const void *_b)
 }
 
 static int
-bpf_object__init_maps(struct bpf_object *obj)
+bpf_object__init_maps(struct bpf_object *obj, int flags)
 {
+	bool strict = !(flags & MAPS_RELAX_COMPAT);
 	int i, map_idx, map_def_sz, nr_maps = 0;
 	Elf_Scn *scn;
 	Elf_Data *data;
@@ -685,7 +686,8 @@ bpf_object__init_maps(struct bpf_object *obj)
 						   "has unrecognized, non-zero "
 						   "options\n",
 						   obj->path, map_name);
-					return -EINVAL;
+					if (strict)
+						return -EINVAL;
 				}
 			}
 			memcpy(&obj->maps[map_idx].def, def,
@@ -716,7 +718,7 @@ static bool section_have_execinstr(struct bpf_object *obj, int idx)
 	return false;
 }
 
-static int bpf_object__elf_collect(struct bpf_object *obj)
+static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 {
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
@@ -843,7 +845,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		return LIBBPF_ERRNO__FORMAT;
 	}
 	if (obj->efile.maps_shndx >= 0) {
-		err = bpf_object__init_maps(obj);
+		err = bpf_object__init_maps(obj, flags);
 		if (err)
 			goto out;
 	}
@@ -1515,7 +1517,7 @@ static int bpf_object__validate(struct bpf_object *obj, bool needs_kver)
 
 static struct bpf_object *
 __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz,
-		   bool needs_kver)
+		   bool needs_kver, int flags)
 {
 	struct bpf_object *obj;
 	int err;
@@ -1531,7 +1533,7 @@ __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz,
 
 	CHECK_ERR(bpf_object__elf_init(obj), err, out);
 	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
-	CHECK_ERR(bpf_object__elf_collect(obj), err, out);
+	CHECK_ERR(bpf_object__elf_collect(obj, flags), err, out);
 	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
 	CHECK_ERR(bpf_object__validate(obj, needs_kver), err, out);
 
@@ -1542,7 +1544,8 @@ out:
 	return ERR_PTR(err);
 }
 
-struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
+struct bpf_object *__bpf_object__open_xattr(struct bpf_object_open_attr *attr,
+					    int flags)
 {
 	/* param validation */
 	if (!attr->file)
@@ -1551,7 +1554,13 @@ struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
 	pr_debug("loading %s\n", attr->file);
 
 	return __bpf_object__open(attr->file, NULL, 0,
-				  bpf_prog_type__needs_kver(attr->prog_type));
+				  bpf_prog_type__needs_kver(attr->prog_type),
+				  flags);
+}
+
+struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
+{
+	return __bpf_object__open_xattr(attr, 0);
 }
 
 struct bpf_object *bpf_object__open(const char *path)
@@ -1584,7 +1593,7 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 	pr_debug("loading object '%s' from buffer\n",
 		 name);
 
-	return __bpf_object__open(name, obj_buf, obj_buf_sz, true);
+	return __bpf_object__open(name, obj_buf, obj_buf_sz, true, true);
 }
 
 int bpf_object__unload(struct bpf_object *obj)

@@ -908,7 +908,7 @@ static int do_load(int argc, char **argv)
 		}
 	}
 
-	obj = bpf_object__open_xattr(&attr);
+	obj = __bpf_object__open_xattr(&attr, bpf_flags);
 	if (IS_ERR_OR_NULL(obj)) {
 		p_err("failed to open object file");
 		goto err_free_reuse_maps;
