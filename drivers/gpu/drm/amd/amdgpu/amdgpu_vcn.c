@@ -349,14 +349,14 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 
 	ib = &job->ibs[0];
 	addr = amdgpu_bo_gpu_offset(bo);
-	ib->ptr[0] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0), 0);
+	ib->ptr[0] = PACKET0(adev->vcn.internal.data0, 0);
 	ib->ptr[1] = addr;
-	ib->ptr[2] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1), 0);
+	ib->ptr[2] = PACKET0(adev->vcn.internal.data1, 0);
 	ib->ptr[3] = addr >> 32;
-	ib->ptr[4] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD), 0);
+	ib->ptr[4] = PACKET0(adev->vcn.internal.cmd, 0);
 	ib->ptr[5] = 0;
 	for (i = 6; i < 16; i += 2) {
-		ib->ptr[i] = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP), 0);
+		ib->ptr[i] = PACKET0(adev->vcn.internal.nop, 0);
 		ib->ptr[i+1] = 0;
 	}
 	ib->length_dw = 16;

@@ -25,7 +25,7 @@
 #define __AMDGPU_VCN_H__
 
 #define AMDGPU_VCN_STACK_SIZE		(128*1024)
-#define AMDGPU_VCN_CONTEXT_SIZE	(512*1024)
+#define AMDGPU_VCN_CONTEXT_SIZE 	(512*1024)
 
 #define AMDGPU_VCN_FIRMWARE_OFFSET	256
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
@@ -88,6 +88,10 @@ struct dpg_pause_state {
 };
 
 struct amdgpu_vcn_reg{
+	unsigned	data0;
+	unsigned	data1;
+	unsigned	cmd;
+	unsigned	nop;
 	unsigned	scratch9;
 };
 
