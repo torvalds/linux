@@ -103,12 +103,6 @@ struct gasket_page_table_entry {
 	/* The status of this entry/slot: free or in use. */
 	enum pte_status status;
 
-	/* Address of the page in DMA space. */
-	dma_addr_t dma_addr;
-
-	/* Linux page descriptor for the page described by this structure. */
-	struct page *page;
-
 	/*
 	 * Index for alignment into host vaddrs.
 	 * When a user specifies a host address for a mapping, that address may
@@ -118,6 +112,12 @@ struct gasket_page_table_entry {
 	 * and page-aligned addresses.
 	 */
 	int offset;
+
+	/* Address of the page in DMA space. */
+	dma_addr_t dma_addr;
+
+	/* Linux page descriptor for the page described by this structure. */
+	struct page *page;
 
 	/*
 	 * If this is an extended and first-level entry, sublevel points
