@@ -481,6 +481,17 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 	}
 }
 
+void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+
+	/* For v3 VBTs in vid-mode the delays are part of the VBT sequences */
+	if (is_vid_mode(intel_dsi) && dev_priv->vbt.dsi.seq_version >= 3)
+		return;
+
+	msleep(msec);
+}
+
 int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi)
 {
 	struct intel_connector *connector = intel_dsi->attached_connector;

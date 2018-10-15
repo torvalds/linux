@@ -129,6 +129,16 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
+static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
+{
+	return intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE;
+}
+
+static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
+{
+	return intel_dsi->operation_mode == INTEL_DSI_COMMAND_MODE;
+}
+
 /* intel_dsi.c */
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
 int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);
@@ -162,5 +172,6 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);
 int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi);
 void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 				 enum mipi_seq seq_id);
+void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec);
 
 #endif /* _INTEL_DSI_H */
