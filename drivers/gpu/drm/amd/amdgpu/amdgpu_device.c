@@ -1656,7 +1656,9 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 
 			/* right after GMC hw init, we create CSA */
 			if (amdgpu_sriov_vf(adev)) {
-				r = amdgpu_allocate_static_csa(adev);
+				r = amdgpu_allocate_static_csa(adev, &adev->virt.csa_obj,
+								AMDGPU_GEM_DOMAIN_VRAM,
+								AMDGPU_CSA_SIZE);
 				if (r) {
 					DRM_ERROR("allocate CSA failed %d\n", r);
 					return r;
@@ -1890,7 +1892,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
 			amdgpu_ucode_free_bo(adev);
-			amdgpu_free_static_csa(adev);
+			amdgpu_free_static_csa(&adev->virt.csa_obj);
 			amdgpu_device_wb_fini(adev);
 			amdgpu_device_vram_scratch_fini(adev);
 		}

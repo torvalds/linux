@@ -41,25 +41,25 @@ bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev)
 	return RREG32_NO_KIQ(0xc040) == 0xffffffff;
 }
 
-int amdgpu_allocate_static_csa(struct amdgpu_device *adev)
+int amdgpu_allocate_static_csa(struct amdgpu_device *adev, struct amdgpu_bo **bo,
+				u32 domain, uint32_t size)
 {
 	int r;
 	void *ptr;
 
-	r = amdgpu_bo_create_kernel(adev, AMDGPU_CSA_SIZE, PAGE_SIZE,
-				AMDGPU_GEM_DOMAIN_VRAM, &adev->virt.csa_obj,
+	r = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
+				domain, bo,
 				NULL, &ptr);
-	if (r)
-		return r;
+	if (!bo)
+		return -ENOMEM;
 
-	memset(ptr, 0, AMDGPU_CSA_SIZE);
+	memset(ptr, 0, size);
 	return 0;
 }
 
-void amdgpu_free_static_csa(struct amdgpu_device *adev) {
-	amdgpu_bo_free_kernel(&adev->virt.csa_obj,
-						NULL,
-						NULL);
+void amdgpu_free_static_csa(struct amdgpu_bo **bo)
+{
+	amdgpu_bo_free_kernel(bo, NULL, NULL);
 }
 
 /*
@@ -69,9 +69,9 @@ void amdgpu_free_static_csa(struct amdgpu_device *adev) {
  * package to support SRIOV gfx preemption.
  */
 int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			  struct amdgpu_bo_va **bo_va)
+			  struct amdgpu_bo *bo, struct amdgpu_bo_va **bo_va,
+			  uint64_t csa_addr,  uint32_t size)
 {
-	uint64_t csa_addr = amdgpu_csa_vaddr(adev) & AMDGPU_GMC_HOLE_MASK;
 	struct ww_acquire_ctx ticket;
 	struct list_head list;
 	struct amdgpu_bo_list_entry pd;
@@ -80,7 +80,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	INIT_LIST_HEAD(&list);
 	INIT_LIST_HEAD(&csa_tv.head);
-	csa_tv.bo = &adev->virt.csa_obj->tbo;
+	csa_tv.bo = &bo->tbo;
 	csa_tv.shared = true;
 
 	list_add(&csa_tv.head, &list);
@@ -92,7 +92,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return r;
 	}
 
-	*bo_va = amdgpu_vm_bo_add(adev, vm, adev->virt.csa_obj);
+	*bo_va = amdgpu_vm_bo_add(adev, vm, bo);
 	if (!*bo_va) {
 		ttm_eu_backoff_reservation(&ticket, &list);
 		DRM_ERROR("failed to create bo_va for static CSA\n");
@@ -100,7 +100,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 
 	r = amdgpu_vm_alloc_pts(adev, (*bo_va)->base.vm, csa_addr,
-				AMDGPU_CSA_SIZE);
+				size);
 	if (r) {
 		DRM_ERROR("failed to allocate pts for static CSA, err=%d\n", r);
 		amdgpu_vm_bo_rmv(adev, *bo_va);
@@ -108,7 +108,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return r;
 	}
 
-	r = amdgpu_vm_bo_map(adev, *bo_va, csa_addr, 0, AMDGPU_CSA_SIZE,
+	r = amdgpu_vm_bo_map(adev, *bo_va, csa_addr, 0, size,
 			     AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE |
 			     AMDGPU_PTE_EXECUTABLE);
 
