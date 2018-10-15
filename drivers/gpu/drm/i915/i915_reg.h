@@ -9769,6 +9769,10 @@ enum skl_power_gate {
 #define _MIPI_PORT(port, a, c)	(((port) == PORT_A) ? a : c)	/* ports A and C only */
 #define _MMIO_MIPI(port, a, c)	_MMIO(_MIPI_PORT(port, a, c))
 
+/* Gen11 DSI */
+#define _MMIO_DSI(tc, dsi0, dsi1)	_MMIO_TRANS((tc) - TRANSCODER_DSI_0, \
+						    dsi0, dsi1)
+
 #define MIPIO_TXESC_CLK_DIV1			_MMIO(0x160004)
 #define  GLK_TX_ESC_CLK_DIV1_MASK			0x3FF
 #define MIPIO_TXESC_CLK_DIV2			_MMIO(0x160008)
