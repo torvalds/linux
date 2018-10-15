@@ -5074,7 +5074,9 @@ void free_extent_buffer(struct extent_buffer *eb)
 
 	while (1) {
 		refs = atomic_read(&eb->refs);
-		if (refs <= 3)
+		if ((!test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags) && refs <= 3)
+		    || (test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags) &&
+			refs == 1))
 			break;
 		old = atomic_cmpxchg(&eb->refs, refs, refs - 1);
 		if (old == refs)

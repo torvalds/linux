@@ -177,8 +177,6 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	if (root->node) {
 		/* One for allocate_extent_buffer */
 		free_extent_buffer(root->node);
-		/* One for get_exent_buffer */
-		free_extent_buffer(root->node);
 	}
 	kfree(root);
 }
