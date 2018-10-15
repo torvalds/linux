@@ -104,42 +104,6 @@ symbol		=	value
 		.popsection;
 
 /*
- * MIPS IV pref instruction.
- * Use with .set noreorder only!
- *
- * MIPS IV implementations are free to treat this as a nop.  The R5000
- * is one of them.  So we should have an option not to use this instruction.
- */
-#ifdef CONFIG_CPU_HAS_PREFETCH
-
-#define PREF(hint,addr)					\
-		.set	push;				\
-		.set	arch=r5000;			\
-		pref	hint, addr;			\
-		.set	pop
-
-#define PREFE(hint, addr)				\
-		.set	push;				\
-		.set	mips0;				\
-		.set	eva;				\
-		prefe	hint, addr;			\
-		.set	pop
-
-#define PREFX(hint,addr)				\
-		.set	push;				\
-		.set	arch=r5000;			\
-		prefx	hint, addr;			\
-		.set	pop
-
-#else /* !CONFIG_CPU_HAS_PREFETCH */
-
-#define PREF(hint, addr)
-#define PREFE(hint, addr)
-#define PREFX(hint, addr)
-
-#endif /* !CONFIG_CPU_HAS_PREFETCH */
-
-/*
  * Stack alignment
  */
 #if (_MIPS_SIM == _MIPS_SIM_ABI32)
