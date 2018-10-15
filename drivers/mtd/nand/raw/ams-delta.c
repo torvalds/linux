@@ -75,7 +75,7 @@ static const struct mtd_partition partition_info[] = {
 
 static void ams_delta_io_write(struct ams_delta_nand *priv, u_char byte)
 {
-	writew(byte, priv->nand_chip.legacy.IO_ADDR_W);
+	writew(byte, priv->io_base + OMAP_MPUIO_OUTPUT);
 	gpiod_set_value(priv->gpiod_nwe, 0);
 	ndelay(40);
 	gpiod_set_value(priv->gpiod_nwe, 1);
@@ -87,7 +87,7 @@ static u_char ams_delta_io_read(struct ams_delta_nand *priv)
 
 	gpiod_set_value(priv->gpiod_nre, 0);
 	ndelay(40);
-	res = readw(priv->nand_chip.legacy.IO_ADDR_R);
+	res = readw(priv->io_base + OMAP_MPUIO_INPUT_LATCH);
 	gpiod_set_value(priv->gpiod_nre, 1);
 
 	return res;
@@ -211,8 +211,6 @@ static int ams_delta_init(struct platform_device *pdev)
 	nand_set_controller_data(this, priv);
 
 	/* Set address of NAND IO lines */
-	this->legacy.IO_ADDR_R = io_base + OMAP_MPUIO_INPUT_LATCH;
-	this->legacy.IO_ADDR_W = io_base + OMAP_MPUIO_OUTPUT;
 	this->legacy.read_byte = ams_delta_read_byte;
 	this->legacy.write_buf = ams_delta_write_buf;
 	this->legacy.read_buf = ams_delta_read_buf;
