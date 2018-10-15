@@ -1316,7 +1316,6 @@ int gasket_alloc_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 			GFP_KERNEL);
 	if (!gasket_dev->page_table[index]->coherent_pages)
 		goto nomem;
-	*dma_address = 0;
 
 	gasket_dev->coherent_buffer.length_bytes =
 		PAGE_SIZE * (num_pages);
@@ -1331,15 +1330,12 @@ int gasket_alloc_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 			(u64)mem + j * PAGE_SIZE;
 	}
 
-	if (*dma_address == 0)
-		goto nomem;
 	return 0;
 
 nomem:
-	if (mem) {
+	if (mem)
 		dma_free_coherent(gasket_get_device(gasket_dev),
 				  num_pages * PAGE_SIZE, mem, handle);
-	}
 
 	kfree(gasket_dev->page_table[index]->coherent_pages);
 	gasket_dev->page_table[index]->coherent_pages = NULL;
