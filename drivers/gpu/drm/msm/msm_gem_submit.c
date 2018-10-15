@@ -317,6 +317,9 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 	uint32_t *ptr;
 	int ret = 0;
 
+	if (!nr_relocs)
+		return 0;
+
 	if (offset % 4) {
 		DRM_ERROR("non-aligned cmdstream buffer: %u\n", offset);
 		return -EINVAL;
