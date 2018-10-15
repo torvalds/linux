@@ -444,7 +444,7 @@ begin:
 	}
 
 	skb = f->head;
-	if (skb && !skb_is_tcp_pure_ack(skb)) {
+	if (skb) {
 		u64 time_next_packet = max_t(u64, ktime_to_ns(skb->tstamp),
 					     f->time_next_packet);
 
