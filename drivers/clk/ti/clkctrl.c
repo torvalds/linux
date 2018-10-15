@@ -520,8 +520,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	provider->base = of_iomap(node, 0);
 
 	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) {
-		provider->clkdm_name = kmalloc(strlen(node->parent->name) + 3,
-					       GFP_KERNEL);
+		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFnxxx", node->parent);
 		if (!provider->clkdm_name) {
 			kfree(provider);
 			return;
@@ -531,10 +530,9 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		 * Create default clkdm name, replace _cm from end of parent
 		 * node name with _clkdm
 		 */
-		strcpy(provider->clkdm_name, node->parent->name);
-		provider->clkdm_name[strlen(provider->clkdm_name) - 2] = 0;
+		provider->clkdm_name[strlen(provider->clkdm_name) - 5] = 0;
 	} else {
-		provider->clkdm_name = kmalloc(strlen(node->name), GFP_KERNEL);
+		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFn", node);
 		if (!provider->clkdm_name) {
 			kfree(provider);
 			return;
@@ -544,7 +542,6 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		 * Create default clkdm name, replace _clkctrl from end of
 		 * node name with _clkdm
 		 */
-		strcpy(provider->clkdm_name, node->name);
 		provider->clkdm_name[strlen(provider->clkdm_name) - 7] = 0;
 	}
 
