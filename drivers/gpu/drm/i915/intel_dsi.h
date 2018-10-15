@@ -85,6 +85,9 @@ struct intel_dsi {
 	u32 port_bits;
 	u32 bw_timer;
 	u32 dphy_reg;
+
+	/* data lanes dphy timing */
+	u32 dphy_data_lane_reg;
 	u32 video_frmt_cfg_bits;
 	u16 lp_byte_clk;
 

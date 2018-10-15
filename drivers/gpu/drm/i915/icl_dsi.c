@@ -291,6 +291,24 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 		tmp |= intel_dsi->init_count;
 		I915_WRITE(ICL_DSI_T_INIT_MASTER(port), tmp);
 	}
+
+	/* Program DPHY clock lanes timings */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		I915_WRITE(DPHY_CLK_TIMING_PARAM(port), intel_dsi->dphy_reg);
+
+		/* shadow register inside display core */
+		I915_WRITE(DSI_CLK_TIMING_PARAM(port), intel_dsi->dphy_reg);
+	}
+
+	/* Program DPHY data lanes timings */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		I915_WRITE(DPHY_DATA_TIMING_PARAM(port),
+			   intel_dsi->dphy_data_lane_reg);
+
+		/* shadow register inside display core */
+		I915_WRITE(DSI_DATA_TIMING_PARAM(port),
+			   intel_dsi->dphy_data_lane_reg);
+	}
 }
 
 static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
