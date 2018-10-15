@@ -595,6 +595,9 @@ static const struct intel_device_info intel_cannonlake_info = {
 
 #define GEN11_FEATURES \
 	GEN10_FEATURES, \
+	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
+			   TRANSCODER_C_OFFSET, TRANSCODER_EDP_OFFSET, \
+			   TRANSCODER_DSI0_OFFSET, TRANSCODER_DSI1_OFFSET}, \
 	GEN(11), \
 	.ddb_size = 2048, \
 	.has_logical_ring_elsq = 1
