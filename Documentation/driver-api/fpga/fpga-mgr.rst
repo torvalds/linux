@@ -49,18 +49,14 @@ probe function calls fpga_mgr_register(), such as::
 		 * them in priv
 		 */
 
-		mgr = fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
-				      &socfpga_fpga_ops, priv);
+		mgr = devm_fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
+					   &socfpga_fpga_ops, priv);
 		if (!mgr)
 			return -ENOMEM;
 
 		platform_set_drvdata(pdev, mgr);
 
-		ret = fpga_mgr_register(mgr);
-		if (ret)
-			fpga_mgr_free(mgr);
-
-		return ret;
+		return fpga_mgr_register(mgr);
 	}
 
 	static int socfpga_fpga_remove(struct platform_device *pdev)
@@ -168,6 +164,9 @@ API for implementing a new FPGA Manager driver
 
 .. kernel-doc:: include/linux/fpga/fpga-mgr.h
    :functions: fpga_manager_ops
+
+.. kernel-doc:: drivers/fpga/fpga-mgr.c
+   :functions: devm_fpga_mgr_create
 
 .. kernel-doc:: drivers/fpga/fpga-mgr.c
    :functions: fpga_mgr_create
