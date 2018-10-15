@@ -2868,6 +2868,10 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	}
 
 	if (ret) {
+		nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING);
+		cancel_work_sync(&ctrl->ctrl.reset_work);
+		cancel_delayed_work_sync(&ctrl->connect_work);
+
 		/* couldn't schedule retry - fail out */
 		dev_err(ctrl->ctrl.device,
 			"NVME-FC{%d}: Connect retry failed\n", ctrl->cnum);

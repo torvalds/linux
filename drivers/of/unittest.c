@@ -614,6 +614,9 @@ static void __init of_unittest_parse_interrupts(void)
 	struct of_phandle_args args;
 	int i, rc;
 
+	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
+		return;
+
 	np = of_find_node_by_path("/testcase-data/interrupts/interrupts0");
 	if (!np) {
 		pr_err("missing testcase data\n");
@@ -687,6 +690,9 @@ static void __init of_unittest_parse_interrupts_extended(void)
 	struct device_node *np;
 	struct of_phandle_args args;
 	int i, rc;
+
+	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
+		return;
 
 	np = of_find_node_by_path("/testcase-data/interrupts/interrupts-extended0");
 	if (!np) {
@@ -844,15 +850,19 @@ static void __init of_unittest_platform_populate(void)
 	pdev = of_find_device_by_node(np);
 	unittest(pdev, "device 1 creation failed\n");
 
-	irq = platform_get_irq(pdev, 0);
-	unittest(irq == -EPROBE_DEFER, "device deferred probe failed - %d\n", irq);
+	if (!(of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)) {
+		irq = platform_get_irq(pdev, 0);
+		unittest(irq == -EPROBE_DEFER,
+			 "device deferred probe failed - %d\n", irq);
 
-	/* Test that a parsing failure does not return -EPROBE_DEFER */
-	np = of_find_node_by_path("/testcase-data/testcase-device2");
-	pdev = of_find_device_by_node(np);
-	unittest(pdev, "device 2 creation failed\n");
-	irq = platform_get_irq(pdev, 0);
-	unittest(irq < 0 && irq != -EPROBE_DEFER, "device parsing error failed - %d\n", irq);
+		/* Test that a parsing failure does not return -EPROBE_DEFER */
+		np = of_find_node_by_path("/testcase-data/testcase-device2");
+		pdev = of_find_device_by_node(np);
+		unittest(pdev, "device 2 creation failed\n");
+		irq = platform_get_irq(pdev, 0);
+		unittest(irq < 0 && irq != -EPROBE_DEFER,
+			 "device parsing error failed - %d\n", irq);
+	}
 
 	np = of_find_node_by_path("/testcase-data/platform-tests");
 	unittest(np, "No testcase data in device tree\n");

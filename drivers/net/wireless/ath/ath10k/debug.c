@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -163,6 +164,8 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 void ath10k_debug_print_board_info(struct ath10k *ar)
 {
 	char boardinfo[100];
+	const struct firmware *board;
+	u32 crc;
 
 	if (ar->id.bmi_ids_valid)
 		scnprintf(boardinfo, sizeof(boardinfo), "%d:%d",
@@ -170,11 +173,16 @@ void ath10k_debug_print_board_info(struct ath10k *ar)
 	else
 		scnprintf(boardinfo, sizeof(boardinfo), "N/A");
 
+	board = ar->normal_mode_fw.board;
+	if (!IS_ERR_OR_NULL(board))
+		crc = crc32_le(0, board->data, board->size);
+	else
+		crc = 0;
+
 	ath10k_info(ar, "board_file api %d bmi_id %s crc32 %08x",
 		    ar->bd_api,
 		    boardinfo,
-		    crc32_le(0, ar->normal_mode_fw.board->data,
-			     ar->normal_mode_fw.board->size));
+		    crc);
 }
 
 void ath10k_debug_print_boot_info(struct ath10k *ar)
