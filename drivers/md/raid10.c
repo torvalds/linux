@@ -1737,6 +1737,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		first = last = rdev->raid_disk;
 
 	if (rdev->saved_raid_disk >= first &&
+	    rdev->saved_raid_disk < conf->geo.raid_disks &&
 	    conf->mirrors[rdev->saved_raid_disk].rdev == NULL)
 		mirror = rdev->saved_raid_disk;
 	else
