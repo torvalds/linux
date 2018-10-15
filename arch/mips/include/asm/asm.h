@@ -30,23 +30,6 @@
 #endif
 
 /*
- * PIC specific declarations
- * Not used for the kernel but here seems to be the right place.
- */
-#ifdef __PIC__
-#define CPRESTORE(register)				\
-		.cprestore register
-#define CPADD(register)					\
-		.cpadd	register
-#define CPLOAD(register)				\
-		.cpload register
-#else
-#define CPRESTORE(register)
-#define CPADD(register)
-#define CPLOAD(register)
-#endif
-
-/*
  * LEAF - declare leaf routine
  */
 #define LEAF(symbol)					\
