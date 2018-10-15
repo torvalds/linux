@@ -24,22 +24,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/platform.h>
 
-/* PCI Controller */
-
-
-/*
- * pcibios_alloc_controller
- * pcibios_enable_device
- * pcibios_fixups
- * pcibios_align_resource
- * pcibios_fixup_bus
- * pci_bus_add_device
- */
-
-static struct pci_controller *pci_ctrl_head;
-
-static int pci_bus_count;
-
 /*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the
@@ -73,81 +57,6 @@ pcibios_align_resource(void *data, const struct resource *res,
 
 	return start;
 }
-
-static void __init pci_controller_apertures(struct pci_controller *pci_ctrl,
-					    struct list_head *resources)
-{
-	struct resource *res;
-	unsigned long io_offset;
-	int i;
-
-	io_offset = (unsigned long)pci_ctrl->io_space.base;
-	res = &pci_ctrl->io_resource;
-	if (!res->flags) {
-		if (io_offset)
-			pr_err("I/O resource not set for host bridge %d\n",
-			       pci_ctrl->index);
-		res->start = 0;
-		res->end = IO_SPACE_LIMIT;
-		res->flags = IORESOURCE_IO;
-	}
-	res->start += io_offset;
-	res->end += io_offset;
-	pci_add_resource_offset(resources, res, io_offset);
-
-	for (i = 0; i < 3; i++) {
-		res = &pci_ctrl->mem_resources[i];
-		if (!res->flags) {
-			if (i > 0)
-				continue;
-			pr_err("Memory resource not set for host bridge %d\n",
-			       pci_ctrl->index);
-			res->start = 0;
-			res->end = ~0U;
-			res->flags = IORESOURCE_MEM;
-		}
-		pci_add_resource(resources, res);
-	}
-}
-
-static int __init pcibios_init(void)
-{
-	struct pci_controller *pci_ctrl;
-	struct list_head resources;
-	struct pci_bus *bus;
-	int next_busno = 0, ret;
-
-	pr_info("PCI: Probing PCI hardware\n");
-
-	/* Scan all of the recorded PCI controllers.  */
-	for (pci_ctrl = pci_ctrl_head; pci_ctrl; pci_ctrl = pci_ctrl->next) {
-		pci_ctrl->last_busno = 0xff;
-		INIT_LIST_HEAD(&resources);
-		pci_controller_apertures(pci_ctrl, &resources);
-		bus = pci_scan_root_bus(NULL, pci_ctrl->first_busno,
-					pci_ctrl->ops, pci_ctrl, &resources);
-		if (!bus)
-			continue;
-
-		pci_ctrl->bus = bus;
-		pci_ctrl->last_busno = bus->busn_res.end;
-		if (next_busno <= pci_ctrl->last_busno)
-			next_busno = pci_ctrl->last_busno+1;
-	}
-	pci_bus_count = next_busno;
-	ret = platform_pcibios_fixup();
-	if (ret)
-		return ret;
-
-	for (pci_ctrl = pci_ctrl_head; pci_ctrl; pci_ctrl = pci_ctrl->next) {
-		if (pci_ctrl->bus)
-			pci_bus_add_devices(pci_ctrl->bus);
-	}
-
-	return 0;
-}
-
-subsys_initcall(pcibios_init);
 
 void pcibios_fixup_bus(struct pci_bus *bus)
 {

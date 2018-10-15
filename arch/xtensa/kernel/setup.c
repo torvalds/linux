@@ -405,10 +405,6 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 # endif
 #endif
-
-#ifdef CONFIG_PCI
-	platform_pcibios_init();
-#endif
 }
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
