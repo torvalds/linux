@@ -571,12 +571,13 @@ static int s5m8767_pmic_dt_parse_pdata(struct platform_device *pdev,
 			continue;
 		}
 
-		rdata->ext_control_gpiod = devm_gpiod_get_from_of_node(&pdev->dev,
-								       reg_np,
-								       "s5m8767,pmic-ext-control-gpios",
-								       0,
-								       GPIOD_OUT_HIGH,
-								       "s5m8767");
+		rdata->ext_control_gpiod = devm_gpiod_get_from_of_node(
+			&pdev->dev,
+			reg_np,
+			"s5m8767,pmic-ext-control-gpios",
+			0,
+			GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
+			"s5m8767");
 		if (IS_ERR(rdata->ext_control_gpiod))
 			return PTR_ERR(rdata->ext_control_gpiod);
 
