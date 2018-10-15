@@ -687,13 +687,13 @@ static inline bool gasket_addr_is_simple(struct gasket_page_table *pg_tbl,
  * Convert (simple, page, offset) into a device address.
  * Examples:
  * Simple page 0, offset 32:
- *  Input (0, 0, 32), Output 0x20
+ *  Input (1, 0, 32), Output 0x20
  * Simple page 1000, offset 511:
- *  Input (0, 1000, 512), Output 0x3E81FF
+ *  Input (1, 1000, 511), Output 0x3E81FF
  * Extended page 0, offset 32:
  *  Input (0, 0, 32), Output 0x8000000020
  * Extended page 1000, offset 511:
- *  Input (1, 1000, 512), Output 0x8003E81FF
+ *  Input (0, 1000, 511), Output 0x8003E81FF
  */
 static ulong gasket_components_to_dev_address(struct gasket_page_table *pg_tbl,
 					      int is_simple, uint page_index,
