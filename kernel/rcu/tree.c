@@ -2035,9 +2035,9 @@ static void rcu_gp_cleanup(void)
 	rnp = rcu_get_root();
 	raw_spin_lock_irq_rcu_node(rnp); /* GP before ->gp_seq update. */
 
-	/* Declare grace period done. */
-	rcu_seq_end(&rcu_state.gp_seq);
+	/* Declare grace period done, trace first to use old GP number. */
 	trace_rcu_grace_period(rcu_state.name, rcu_state.gp_seq, TPS("end"));
+	rcu_seq_end(&rcu_state.gp_seq);
 	rcu_state.gp_state = RCU_GP_IDLE;
 	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(&rcu_data);
