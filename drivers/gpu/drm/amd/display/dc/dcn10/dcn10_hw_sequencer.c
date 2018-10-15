@@ -1944,10 +1944,6 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct mpc *mpc = dc->res_pool->mpc;
 	struct mpc_tree *mpc_tree_params = &(pipe_ctx->stream_res.opp->mpc_tree_params);
 
-
-
-	/* TODO: proper fix once fpga works */
-
 	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR) {
 		dcn10_get_hdr_visual_confirm_color(
 				pipe_ctx, &blnd_cfg.black_color);
@@ -2026,8 +2022,6 @@ static void update_scaler(struct pipe_ctx *pipe_ctx)
 {
 	bool per_pixel_alpha =
 			pipe_ctx->plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
-
-	/* TODO: proper fix once fpga works */
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
