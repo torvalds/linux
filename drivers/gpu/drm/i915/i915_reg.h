@@ -5614,6 +5614,10 @@ enum {
  */
 #define PIPE_EDP_OFFSET	0x7f000
 
+/* ICL DSI 0 and 1 */
+#define PIPE_DSI0_OFFSET	0x7b000
+#define PIPE_DSI1_OFFSET	0x7b800
+
 #define _MMIO_PIPE2(pipe, reg) _MMIO(dev_priv->info.pipe_offsets[pipe] - \
 	dev_priv->info.pipe_offsets[PIPE_A] + (reg) + \
 	dev_priv->info.display_mmio_offset)
@@ -6201,6 +6205,10 @@ enum {
 #define _DSPBTILEOFF		(dev_priv->info.display_mmio_offset + 0x711A4)
 #define _DSPBOFFSET		(dev_priv->info.display_mmio_offset + 0x711A4)
 #define _DSPBSURFLIVE		(dev_priv->info.display_mmio_offset + 0x711AC)
+
+/* ICL DSI 0 and 1 */
+#define _PIPEDSI0CONF		0x7b008
+#define _PIPEDSI1CONF		0x7b808
 
 /* Sprite A control */
 #define _DVSACNTR		0x72180
