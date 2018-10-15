@@ -621,7 +621,7 @@ void gfs2_write_revokes(struct gfs2_sbd *sdp)
 
 	gfs2_ail1_empty(sdp);
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
 		list_for_each_entry(bd, &tr->tr_ail2_list, bd_ail_st_list) {
 			if (list_empty(&bd->bd_list)) {
 				have_revokes = 1;
@@ -645,7 +645,7 @@ done:
 	}
 	gfs2_log_lock(sdp);
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
 		list_for_each_entry_safe(bd, tmp, &tr->tr_ail2_list, bd_ail_st_list) {
 			if (max_revokes == 0)
 				goto out_of_blocks;
