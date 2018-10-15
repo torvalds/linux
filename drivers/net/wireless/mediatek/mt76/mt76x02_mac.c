@@ -754,6 +754,21 @@ void mt76x02_update_channel(struct mt76_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mt76x02_update_channel);
 
+static void mt76x02_check_mac_err(struct mt76x02_dev *dev)
+{
+	u32 val = mt76_rr(dev, 0x10f4);
+
+	if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
+		return;
+
+	dev_err(dev->mt76.dev, "mac specific condition occurred\n");
+
+	mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
+	udelay(10);
+	mt76_clear(dev, MT_MAC_SYS_CTRL,
+		   MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
+}
+
 void mt76x02_mac_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
@@ -767,6 +782,10 @@ void mt76x02_mac_work(struct work_struct *work)
 		dev->aggr_stats[idx++] += val & 0xffff;
 		dev->aggr_stats[idx++] += val >> 16;
 	}
+
+	/* XXX: check beacon stuck for ap mode */
+	if (!dev->beacon_mask)
+		mt76x02_check_mac_err(dev);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);

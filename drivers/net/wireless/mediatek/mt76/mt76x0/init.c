@@ -339,7 +339,6 @@ mt76x0_alloc_device(struct device *pdev,
 
 	dev = container_of(mdev, struct mt76x02_dev, mt76);
 	mutex_init(&dev->phy_mutex);
-	atomic_set(&dev->avg_ampdu_len, 1);
 
 	return dev;
 }
@@ -378,7 +377,7 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	INIT_DELAYED_WORK(&dev->mac_work, mt76x0_mac_work);
+	INIT_DELAYED_WORK(&dev->mac_work, mt76x02_mac_work);
 
 	ret = mt76_register_device(mdev, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));

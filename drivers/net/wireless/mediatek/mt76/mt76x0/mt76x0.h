@@ -69,7 +69,6 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev);
 void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on);
 
 /* MAC */
-void mt76x0_mac_work(struct work_struct *work);
 void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
 				int ht_mode);
 void mt76x0_mac_set_short_preamble(struct mt76x02_dev *dev, bool short_preamb);

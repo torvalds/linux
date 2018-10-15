@@ -28,14 +28,6 @@
 
 #define MT_CALIBRATE_INTERVAL	HZ
 
-struct mt76x02_mac_stats {
-	u64 rx_stat[6];
-	u64 tx_stat[6];
-	u64 aggr_stat[2];
-	u64 aggr_n[32];
-	u64 zero_len_del[2];
-};
-
 #define MT_MAX_CHAINS		2
 struct mt76x02_rx_freq_cal {
 	s8 high_gain[MT_MAX_CHAINS];
@@ -85,8 +77,6 @@ struct mt76x02_dev {
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
 
-	struct mt76x02_mac_stats stats;
-	atomic_t avg_ampdu_len;
 	u32 aggr_stats[32];
 
 	struct sk_buff *beacons[8];
