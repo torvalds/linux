@@ -11,6 +11,9 @@ API to implement a new FPGA bridge
    :functions: fpga_bridge_ops
 
 .. kernel-doc:: drivers/fpga/fpga-bridge.c
+   :functions: devm_fpga_bridge_create
+
+.. kernel-doc:: drivers/fpga/fpga-bridge.c
    :functions: fpga_bridge_create
 
 .. kernel-doc:: drivers/fpga/fpga-bridge.c
