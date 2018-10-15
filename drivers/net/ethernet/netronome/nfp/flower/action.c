@@ -429,12 +429,14 @@ nfp_fl_set_ip4(const struct tc_action *action, int idx, u32 off,
 
 	switch (off) {
 	case offsetof(struct iphdr, daddr):
-		set_ip_addr->ipv4_dst_mask = mask;
-		set_ip_addr->ipv4_dst = exact;
+		set_ip_addr->ipv4_dst_mask |= mask;
+		set_ip_addr->ipv4_dst &= ~mask;
+		set_ip_addr->ipv4_dst |= exact & mask;
 		break;
 	case offsetof(struct iphdr, saddr):
-		set_ip_addr->ipv4_src_mask = mask;
-		set_ip_addr->ipv4_src = exact;
+		set_ip_addr->ipv4_src_mask |= mask;
+		set_ip_addr->ipv4_src &= ~mask;
+		set_ip_addr->ipv4_src |= exact & mask;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -451,8 +453,9 @@ static void
 nfp_fl_set_ip6_helper(int opcode_tag, int idx, __be32 exact, __be32 mask,
 		      struct nfp_fl_set_ipv6_addr *ip6)
 {
-	ip6->ipv6[idx % 4].mask = mask;
-	ip6->ipv6[idx % 4].exact = exact;
+	ip6->ipv6[idx % 4].mask |= mask;
+	ip6->ipv6[idx % 4].exact &= ~mask;
+	ip6->ipv6[idx % 4].exact |= exact & mask;
 
 	ip6->reserved = cpu_to_be16(0);
 	ip6->head.jump_id = opcode_tag;
