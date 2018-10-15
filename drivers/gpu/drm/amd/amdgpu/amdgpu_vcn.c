@@ -669,7 +669,7 @@ static int amdgpu_vcn_jpeg_set_reg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib = &job->ibs[0];
 
-	ib->ptr[0] = PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, PACKETJ_TYPE0);
+	ib->ptr[0] = PACKETJ(adev->vcn.internal.jpeg_pitch, 0, 0, PACKETJ_TYPE0);
 	ib->ptr[1] = 0xDEADBEEF;
 	for (i = 2; i < 16; i += 2) {
 		ib->ptr[i] = PACKETJ(0, 0, 0, PACKETJ_TYPE6);
@@ -715,7 +715,7 @@ int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
+		tmp = RREG32(adev->vcn.external.jpeg_pitch);
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);
