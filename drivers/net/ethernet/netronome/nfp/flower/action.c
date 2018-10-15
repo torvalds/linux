@@ -450,12 +450,12 @@ nfp_fl_set_ip4(const struct tc_action *action, int idx, u32 off,
 }
 
 static void
-nfp_fl_set_ip6_helper(int opcode_tag, int idx, __be32 exact, __be32 mask,
+nfp_fl_set_ip6_helper(int opcode_tag, u8 word, __be32 exact, __be32 mask,
 		      struct nfp_fl_set_ipv6_addr *ip6)
 {
-	ip6->ipv6[idx % 4].mask |= mask;
-	ip6->ipv6[idx % 4].exact &= ~mask;
-	ip6->ipv6[idx % 4].exact |= exact & mask;
+	ip6->ipv6[word].mask |= mask;
+	ip6->ipv6[word].exact &= ~mask;
+	ip6->ipv6[word].exact |= exact & mask;
 
 	ip6->reserved = cpu_to_be16(0);
 	ip6->head.jump_id = opcode_tag;
@@ -468,6 +468,7 @@ nfp_fl_set_ip6(const struct tc_action *action, int idx, u32 off,
 	       struct nfp_fl_set_ipv6_addr *ip_src)
 {
 	__be32 exact, mask;
+	u8 word;
 
 	/* We are expecting tcf_pedit to return a big endian value */
 	mask = (__force __be32)~tcf_pedit_mask(action, idx);
@@ -476,17 +477,20 @@ nfp_fl_set_ip6(const struct tc_action *action, int idx, u32 off,
 	if (exact & ~mask)
 		return -EOPNOTSUPP;
 
-	if (off < offsetof(struct ipv6hdr, saddr))
+	if (off < offsetof(struct ipv6hdr, saddr)) {
 		return -EOPNOTSUPP;
-	else if (off < offsetof(struct ipv6hdr, daddr))
-		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_SRC, idx,
+	} else if (off < offsetof(struct ipv6hdr, daddr)) {
+		word = (off - offsetof(struct ipv6hdr, saddr)) / sizeof(exact);
+		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_SRC, word,
 				      exact, mask, ip_src);
-	else if (off < offsetof(struct ipv6hdr, daddr) +
-		       sizeof(struct in6_addr))
-		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_DST, idx,
+	} else if (off < offsetof(struct ipv6hdr, daddr) +
+		       sizeof(struct in6_addr)) {
+		word = (off - offsetof(struct ipv6hdr, daddr)) / sizeof(exact);
+		nfp_fl_set_ip6_helper(NFP_FL_ACTION_OPCODE_SET_IPV6_DST, word,
 				      exact, mask, ip_dst);
-	else
+	} else {
 		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
