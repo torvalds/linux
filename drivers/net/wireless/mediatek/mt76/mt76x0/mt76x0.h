@@ -37,8 +37,6 @@ static inline bool is_mt7610e(struct mt76x02_dev *dev)
 	return false;
 }
 
-void mt76x0_init_debugfs(struct mt76x02_dev *dev);
-
 /* Init */
 struct mt76x02_dev *
 mt76x0_alloc_device(struct device *pdev,

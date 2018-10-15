@@ -389,7 +389,7 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	if (mdev->cap.has_5ghz)
 		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
 
-	mt76x0_init_debugfs(dev);
+	mt76x02_init_debugfs(dev);
 
 	return 0;
 }
