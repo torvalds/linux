@@ -788,7 +788,7 @@ struct ibm_arch_vec {
 	struct option_vector6 vec6;
 } __packed;
 
-static const struct ibm_arch_vec ibm_architecture_vec_template = {
+static const struct ibm_arch_vec ibm_architecture_vec_template __initconst = {
 	.pvrs = {
 		{
 			.mask = cpu_to_be32(0xfffe0000), /* POWER5/POWER5+ */
@@ -963,7 +963,7 @@ static const struct fake_elf {
 			u32	ignore_me;
 		} rpadesc;
 	} rpanote;
-} fake_elf = {
+} fake_elf __initconst = {
 	.elfhdr = {
 		.e_ident = { 0x7f, 'E', 'L', 'F',
 			     ELFCLASS32, ELFDATA2MSB, EV_CURRENT },
@@ -2131,7 +2131,7 @@ static void __init prom_check_displays(void)
 	ihandle ih;
 	int i;
 
-	static const unsigned char default_colors[] = {
+	static const unsigned char default_colors[] __initconst = {
 		0x00, 0x00, 0x00,
 		0x00, 0x00, 0xaa,
 		0x00, 0xaa, 0x00,
