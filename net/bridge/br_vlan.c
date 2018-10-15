@@ -303,6 +303,10 @@ out_filt:
 	if (p) {
 		__vlan_vid_del(dev, br, v->vid);
 		if (masterv) {
+			if (v->stats && masterv->stats != v->stats)
+				free_percpu(v->stats);
+			v->stats = NULL;
+
 			br_vlan_put_master(masterv);
 			v->brvlan = NULL;
 		}
