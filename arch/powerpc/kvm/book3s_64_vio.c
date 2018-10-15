@@ -410,11 +410,10 @@ static long kvmppc_tce_iommu_mapped_dec(struct kvm *kvm,
 {
 	struct mm_iommu_table_group_mem_t *mem = NULL;
 	const unsigned long pgsize = 1ULL << tbl->it_page_shift;
-	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY(tbl, entry);
+	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl, entry);
 
 	if (!pua)
-		/* it_userspace allocation might be delayed */
-		return H_TOO_HARD;
+		return H_SUCCESS;
 
 	mem = mm_iommu_lookup(kvm->mm, be64_to_cpu(*pua), pgsize);
 	if (!mem)

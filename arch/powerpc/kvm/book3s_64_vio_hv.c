@@ -214,7 +214,7 @@ static long iommu_tce_xchg_rm(struct mm_struct *mm, struct iommu_table *tbl,
 
 	if (!ret && ((*direction == DMA_FROM_DEVICE) ||
 				(*direction == DMA_BIDIRECTIONAL))) {
-		__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RM(tbl, entry);
+		__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl, entry);
 		/*
 		 * kvmppc_rm_tce_iommu_do_map() updates the UA cache after
 		 * calling this so we still get here a valid UA.
@@ -240,7 +240,7 @@ static long kvmppc_rm_tce_iommu_mapped_dec(struct kvm *kvm,
 {
 	struct mm_iommu_table_group_mem_t *mem = NULL;
 	const unsigned long pgsize = 1ULL << tbl->it_page_shift;
-	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RM(tbl, entry);
+	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl, entry);
 
 	if (!pua)
 		/* it_userspace allocation might be delayed */
@@ -304,7 +304,7 @@ static long kvmppc_rm_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 {
 	long ret;
 	unsigned long hpa = 0;
-	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RM(tbl, entry);
+	__be64 *pua = IOMMU_TABLE_USERSPACE_ENTRY_RO(tbl, entry);
 	struct mm_iommu_table_group_mem_t *mem;
 
 	if (!pua)
