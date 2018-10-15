@@ -544,7 +544,7 @@ nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
 	struct nfp_fl_set_eth set_eth;
 	enum pedit_header_type htype;
 	int idx, nkeys, err;
-	size_t act_size;
+	size_t act_size = 0;
 	u32 offset, cmd;
 	u8 ip_proto = 0;
 
@@ -602,7 +602,9 @@ nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
 		act_size = sizeof(set_eth);
 		memcpy(nfp_action, &set_eth, act_size);
 		*a_len += act_size;
-	} else if (set_ip_addr.head.len_lw) {
+	}
+	if (set_ip_addr.head.len_lw) {
+		nfp_action += act_size;
 		act_size = sizeof(set_ip_addr);
 		memcpy(nfp_action, &set_ip_addr, act_size);
 		*a_len += act_size;
@@ -610,10 +612,12 @@ nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
 		/* Hardware will automatically fix IPv4 and TCP/UDP checksum. */
 		*csum_updated |= TCA_CSUM_UPDATE_FLAG_IPV4HDR |
 				nfp_fl_csum_l4_to_flag(ip_proto);
-	} else if (set_ip6_dst.head.len_lw && set_ip6_src.head.len_lw) {
+	}
+	if (set_ip6_dst.head.len_lw && set_ip6_src.head.len_lw) {
 		/* TC compiles set src and dst IPv6 address as a single action,
 		 * the hardware requires this to be 2 separate actions.
 		 */
+		nfp_action += act_size;
 		act_size = sizeof(set_ip6_src);
 		memcpy(nfp_action, &set_ip6_src, act_size);
 		*a_len += act_size;
@@ -626,6 +630,7 @@ nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
 		/* Hardware will automatically fix TCP/UDP checksum. */
 		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	} else if (set_ip6_dst.head.len_lw) {
+		nfp_action += act_size;
 		act_size = sizeof(set_ip6_dst);
 		memcpy(nfp_action, &set_ip6_dst, act_size);
 		*a_len += act_size;
@@ -633,13 +638,16 @@ nfp_fl_pedit(const struct tc_action *action, struct tc_cls_flower_offload *flow,
 		/* Hardware will automatically fix TCP/UDP checksum. */
 		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	} else if (set_ip6_src.head.len_lw) {
+		nfp_action += act_size;
 		act_size = sizeof(set_ip6_src);
 		memcpy(nfp_action, &set_ip6_src, act_size);
 		*a_len += act_size;
 
 		/* Hardware will automatically fix TCP/UDP checksum. */
 		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
-	} else if (set_tport.head.len_lw) {
+	}
+	if (set_tport.head.len_lw) {
+		nfp_action += act_size;
 		act_size = sizeof(set_tport);
 		memcpy(nfp_action, &set_tport, act_size);
 		*a_len += act_size;
