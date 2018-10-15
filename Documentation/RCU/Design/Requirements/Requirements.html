@@ -1596,7 +1596,7 @@ used in place of <tt>synchronize_rcu()</tt> as follows:
 16   struct foo *p;
 17
 18   spin_lock(&amp;gp_lock);
-19   p = rcu_dereference(gp);
+19   p = rcu_access_pointer(gp);
 20   if (!p) {
 21     spin_unlock(&amp;gp_lock);
 22     return false;
