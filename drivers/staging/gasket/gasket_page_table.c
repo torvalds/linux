@@ -514,13 +514,12 @@ static int gasket_perform_mapping(struct gasket_page_table *pg_tbl,
 					(void *)page_to_pfn(page),
 					(void *)page_to_phys(page));
 
-				/* clean up */
 				if (gasket_release_page(ptes[i].page))
 					--pg_tbl->num_active_pages;
 
 				memset(&ptes[i], 0,
 				       sizeof(struct gasket_page_table_entry));
-				return -1;
+				return -EINVAL;
 			}
 		}
 
@@ -1165,7 +1164,7 @@ fail:
 	*ppage = NULL;
 	*poffset = 0;
 	mutex_unlock(&pg_tbl->mutex);
-	return -1;
+	return -EINVAL;
 }
 
 /* See gasket_page_table.h for description. */
