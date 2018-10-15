@@ -28,8 +28,6 @@
 #include "../mt76x02.h"
 #include "eeprom.h"
 
-#define MT_CALIBRATE_INTERVAL		(4 * HZ)
-
 #define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
 #define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
 

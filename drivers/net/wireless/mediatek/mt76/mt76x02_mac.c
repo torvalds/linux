@@ -753,3 +753,22 @@ void mt76x02_update_channel(struct mt76_dev *mdev)
 	spin_unlock_bh(&dev->mt76.cc_lock);
 }
 EXPORT_SYMBOL_GPL(mt76x02_update_channel);
+
+void mt76x02_mac_work(struct work_struct *work)
+{
+	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
+					       mac_work.work);
+	int i, idx;
+
+	mt76x02_update_channel(&dev->mt76);
+	for (i = 0, idx = 0; i < 16; i++) {
+		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
+
+		dev->aggr_stats[idx++] += val & 0xffff;
+		dev->aggr_stats[idx++] += val >> 16;
+	}
+
+	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
+				     MT_CALIBRATE_INTERVAL);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_work);

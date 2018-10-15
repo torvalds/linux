@@ -227,4 +227,5 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq);
 void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			     struct mt76_queue_entry *e, bool flush);
 void mt76x02_update_channel(struct mt76_dev *mdev);
+void mt76x02_mac_work(struct work_struct *work);
 #endif

@@ -31,8 +31,6 @@
 #define MT7662_ROM_PATCH	"mt7662_rom_patch.bin"
 #define MT7662_EEPROM_SIZE	512
 
-#define MT_CALIBRATE_INTERVAL	HZ
-
 #include "../mt76x02.h"
 #include "mac.h"
 #include "dfs.h"

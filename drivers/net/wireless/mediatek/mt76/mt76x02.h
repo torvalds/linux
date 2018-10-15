@@ -26,6 +26,8 @@
 #include "mt76x02_dfs.h"
 #include "mt76x02_dma.h"
 
+#define MT_CALIBRATE_INTERVAL	HZ
+
 struct mt76x02_mac_stats {
 	u64 rx_stat[6];
 	u64 tx_stat[6];
