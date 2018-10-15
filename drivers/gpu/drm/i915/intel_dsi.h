@@ -81,6 +81,9 @@ struct intel_dsi {
 	u16 dcs_backlight_ports;
 	u16 dcs_cabc_ports;
 
+	/* RGB or BGR */
+	bool bgr_enabled;
+
 	u8 pixel_overlap;
 	u32 port_bits;
 	u32 bw_timer;
