@@ -90,6 +90,9 @@ API to add a new FPGA region
    :functions: fpga_region
 
 .. kernel-doc:: drivers/fpga/fpga-region.c
+   :functions: devm_fpga_region_create
+
+.. kernel-doc:: drivers/fpga/fpga-region.c
    :functions: fpga_region_create
 
 .. kernel-doc:: drivers/fpga/fpga-region.c
