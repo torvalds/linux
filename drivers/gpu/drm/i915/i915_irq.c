@@ -2887,21 +2887,39 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 	return ret;
 }
 
+static inline u32 gen8_master_intr_disable(void __iomem * const regs)
+{
+	raw_reg_write(regs, GEN8_MASTER_IRQ, 0);
+
+	/*
+	 * Now with master disabled, get a sample of level indications
+	 * for this interrupt. Indications will be cleared on related acks.
+	 * New indications can and will light up during processing,
+	 * and will generate new interrupt after enabling master.
+	 */
+	return raw_reg_read(regs, GEN8_MASTER_IRQ);
+}
+
+static inline void gen8_master_intr_enable(void __iomem * const regs)
+{
+	raw_reg_write(regs, GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
+}
+
 static irqreturn_t gen8_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = to_i915(arg);
+	void __iomem * const regs = dev_priv->regs;
 	u32 master_ctl;
 	u32 gt_iir[4];
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
 
-	master_ctl = I915_READ_FW(GEN8_MASTER_IRQ);
-	master_ctl &= ~GEN8_MASTER_IRQ_CONTROL;
-	if (!master_ctl)
+	master_ctl = gen8_master_intr_disable(regs);
+	if (!master_ctl) {
+		gen8_master_intr_enable(regs);
 		return IRQ_NONE;
-
-	I915_WRITE_FW(GEN8_MASTER_IRQ, 0);
+	}
 
 	/* Find, clear, then process each source of interrupt */
 	gen8_gt_irq_ack(dev_priv, master_ctl, gt_iir);
@@ -2913,7 +2931,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 		enable_rpm_wakeref_asserts(dev_priv);
 	}
 
-	I915_WRITE_FW(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
+	gen8_master_intr_enable(regs);
 
 	gen8_gt_irq_handler(dev_priv, master_ctl, gt_iir);
 
@@ -3598,8 +3616,7 @@ static void gen8_irq_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int pipe;
 
-	I915_WRITE(GEN8_MASTER_IRQ, 0);
-	POSTING_READ(GEN8_MASTER_IRQ);
+	gen8_master_intr_disable(dev_priv->regs);
 
 	gen8_gt_irq_reset(dev_priv);
 
@@ -4244,8 +4261,7 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_postinstall(dev);
 
-	I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
-	POSTING_READ(GEN8_MASTER_IRQ);
+	gen8_master_intr_enable(dev_priv->regs);
 
 	return 0;
 }
