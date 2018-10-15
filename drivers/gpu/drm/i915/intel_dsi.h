@@ -131,6 +131,7 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 
 /* intel_dsi.c */
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
+int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);
 
 /* vlv_dsi.c */
 void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);

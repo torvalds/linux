@@ -512,21 +512,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 	u32 lp_to_hs_switch, hs_to_lp_switch;
 	u32 mul;
 
-	switch (intel_dsi->escape_clk_div) {
-	case 0:
-		tlpx_ns = 50;
-		break;
-	case 1:
-		tlpx_ns = 100;
-		break;
-
-	case 2:
-		tlpx_ns = 200;
-		break;
-	default:
-		tlpx_ns = 50;
-		break;
-	}
+	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
 
 	switch (intel_dsi->lane_count) {
 	case 1:
