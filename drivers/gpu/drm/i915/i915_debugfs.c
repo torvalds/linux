@@ -4187,6 +4187,7 @@ i915_drop_caches_set(void *data, u64 val)
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
+	intel_runtime_pm_get(i915);
 
 	if (val & DROP_RESET_ACTIVE && !intel_engines_are_idle(i915))
 		i915_gem_set_wedged(i915);
@@ -4204,11 +4205,8 @@ i915_drop_caches_set(void *data, u64 val)
 						     I915_WAIT_LOCKED,
 						     MAX_SCHEDULE_TIMEOUT);
 
-		if (ret == 0 && val & DROP_RESET_SEQNO) {
-			intel_runtime_pm_get(i915);
+		if (ret == 0 && val & DROP_RESET_SEQNO)
 			ret = i915_gem_set_global_seqno(&i915->drm, 1);
-			intel_runtime_pm_put(i915);
-		}
 
 		if (val & DROP_RETIRE)
 			i915_retire_requests(i915);
@@ -4245,6 +4243,8 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_FREED)
 		i915_gem_drain_freed_objects(i915);
+
+	intel_runtime_pm_put(i915);
 
 	return ret;
 }
