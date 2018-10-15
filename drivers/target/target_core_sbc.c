@@ -447,7 +447,8 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 						 int *post_ret)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct scatterlist *write_sg = NULL, *sg;
+	struct sg_table write_tbl = { };
+	struct scatterlist *write_sg, *sg;
 	unsigned char *buf = NULL, *addr;
 	struct sg_mapping_iter m;
 	unsigned int offset = 0, len;
@@ -488,14 +489,12 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 		goto out;
 	}
 
-	write_sg = kmalloc_array(cmd->t_data_nents, sizeof(*write_sg),
-				 GFP_KERNEL);
-	if (!write_sg) {
+	if (sg_alloc_table(&write_tbl, cmd->t_data_nents, GFP_KERNEL) < 0) {
 		pr_err("Unable to allocate compare_and_write sg\n");
 		ret = TCM_OUT_OF_RESOURCES;
 		goto out;
 	}
-	sg_init_table(write_sg, cmd->t_data_nents);
+	write_sg = write_tbl.sgl;
 	/*
 	 * Setup verify and write data payloads from total NumberLBAs.
 	 */
@@ -591,7 +590,7 @@ out:
 	 * sbc_compare_and_write() before the original READ I/O submission.
 	 */
 	up(&dev->caw_sem);
-	kfree(write_sg);
+	sg_free_table(&write_tbl);
 	kfree(buf);
 	return ret;
 }
