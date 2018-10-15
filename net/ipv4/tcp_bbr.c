@@ -129,7 +129,7 @@ static const u32 bbr_probe_rtt_mode_ms = 200;
 static const int bbr_min_tso_rate = 1200000;
 
 /* Pace at ~1% below estimated bw, on average, to reduce queue at bottleneck. */
-static const int bbr_pacing_marging_percent = 1;
+static const int bbr_pacing_margin_percent = 1;
 
 /* We use a high_gain value of 2/ln(2) because it's the smallest pacing gain
  * that will allow a smoothly increasing pacing rate that will double each RTT
@@ -214,7 +214,7 @@ static u64 bbr_rate_bytes_per_sec(struct sock *sk, u64 rate, int gain)
 	rate *= mss;
 	rate *= gain;
 	rate >>= BBR_SCALE;
-	rate *= USEC_PER_SEC / 100 * (100 - bbr_pacing_marging_percent);
+	rate *= USEC_PER_SEC / 100 * (100 - bbr_pacing_margin_percent);
 	return rate >> BW_SCALE;
 }
 
