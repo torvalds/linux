@@ -244,7 +244,8 @@ process_mbx:
 		}
 
 		/* guarantee we have free space in the SM mailbox */
-		if (!hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
+		if (hw->mbx.state == FM10K_STATE_OPEN &&
+		    !hw->mbx.ops.tx_ready(&hw->mbx, FM10K_VFMBX_MSG_MTU)) {
 			/* keep track of how many times this occurs */
 			interface->hw_sm_mbx_full++;
 
