@@ -591,6 +591,28 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	}
 }
 
+static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	enum transcoder dsi_trans;
+	u32 tmp;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		tmp = I915_READ(PIPECONF(dsi_trans));
+		tmp |= PIPECONF_ENABLE;
+		I915_WRITE(PIPECONF(dsi_trans), tmp);
+
+		/* wait for transcoder to be enabled */
+		if (intel_wait_for_register(dev_priv, PIPECONF(dsi_trans),
+					    I965_PIPECONF_ACTIVE,
+					    I965_PIPECONF_ACTIVE, 10))
+			DRM_ERROR("DSI transcoder not enabled\n");
+	}
+}
+
 static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
@@ -630,4 +652,7 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 
 	/* step6c: configure transcoder timings */
 	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
+
+	/* step6d: enable dsi transcoder */
+	gen11_dsi_enable_transcoder(encoder);
 }
