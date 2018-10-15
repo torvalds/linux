@@ -292,6 +292,23 @@ _bpftool()
                     fi
                     return 0
                     ;;
+                attach|detach)
+                    if [[ ${#words[@]} == 7 ]]; then
+                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
+                        return 0
+                    fi
+
+                    if [[ ${#words[@]} == 6 ]]; then
+                        COMPREPLY=( $( compgen -W "msg_verdict skb_verdict skb_parse" -- "$cur" ) )
+                        return 0
+                    fi
+
+                    if [[ $prev == "$command" ]]; then
+                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
+                        return 0
+                    fi
+                    return 0
+                    ;;
                 load)
                     local obj
 
@@ -347,7 +364,7 @@ _bpftool()
                     ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'dump help pin load \
+                        COMPREPLY=( $( compgen -W 'dump help pin attach detach load \
                             show list' -- "$cur" ) )
                     ;;
             esac

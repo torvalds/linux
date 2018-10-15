@@ -26,7 +26,7 @@ SYNOPSIS
 	| **pin** | **event_pipe** | **help** }
 
 	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin**
-	| **load** | **help** }
+	| **load** | **attach** | **detach** | **help** }
 
 	*CGROUP-COMMANDS* := { **show** | **list** | **attach** | **detach** | **help** }
 
