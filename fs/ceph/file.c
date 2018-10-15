@@ -870,17 +870,17 @@ static void ceph_aio_retry_work(struct work_struct *work)
 	ceph_oloc_copy(&req->r_base_oloc, &orig_req->r_base_oloc);
 	ceph_oid_copy(&req->r_base_oid, &orig_req->r_base_oid);
 
+	req->r_ops[0] = orig_req->r_ops[0];
+
+	req->r_mtime = aio_req->mtime;
+	req->r_data_offset = req->r_ops[0].extent.offset;
+
 	ret = ceph_osdc_alloc_messages(req, GFP_NOFS);
 	if (ret) {
 		ceph_osdc_put_request(req);
 		req = orig_req;
 		goto out;
 	}
-
-	req->r_ops[0] = orig_req->r_ops[0];
-
-	req->r_mtime = aio_req->mtime;
-	req->r_data_offset = req->r_ops[0].extent.offset;
 
 	ceph_osdc_put_request(orig_req);
 
