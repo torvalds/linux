@@ -425,14 +425,8 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	struct se_device *dev = cmd->se_dev;
 	sense_reason_t ret = TCM_NO_SENSE;
 
-	/*
-	 * Only set SCF_COMPARE_AND_WRITE_POST to force a response fall-through
-	 * within target_complete_ok_work() if the command was successfully
-	 * sent to the backend driver.
-	 */
 	spin_lock_irq(&cmd->t_state_lock);
 	if (cmd->transport_state & CMD_T_SENT) {
-		cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
 		*post_ret = 1;
 
 		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
