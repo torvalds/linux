@@ -45,10 +45,12 @@
 #define FIRMWARE_RAVEN		"amdgpu/raven_vcn.bin"
 #define FIRMWARE_PICASSO	"amdgpu/picasso_vcn.bin"
 #define FIRMWARE_RAVEN2		"amdgpu/raven2_vcn.bin"
+#define FIRMWARE_NAVI10 	"amdgpu/navi10_vcn.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
 MODULE_FIRMWARE(FIRMWARE_RAVEN2);
+MODULE_FIRMWARE(FIRMWARE_NAVI10);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -70,6 +72,9 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			fw_name = FIRMWARE_PICASSO;
 		else
 			fw_name = FIRMWARE_RAVEN;
+		break;
+	case CHIP_NAVI10:
+		fw_name = FIRMWARE_NAVI10;
 		break;
 	default:
 		return -EINVAL;
