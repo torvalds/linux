@@ -287,7 +287,6 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	int i;
 	int idx;
 	unsigned int interactivity_req;
-	unsigned int expected_interval;
 	unsigned int predicted_us;
 	unsigned long nr_iowaiters, cpu_load;
 	ktime_t delta_next;
@@ -323,14 +322,10 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	predicted_us = DIV_ROUND_CLOSEST_ULL((uint64_t)data->next_timer_us *
 					 data->correction_factor[data->bucket],
 					 RESOLUTION * DECAY);
-
-	expected_interval = get_typical_interval(data);
-	expected_interval = min(expected_interval, data->next_timer_us);
-
 	/*
 	 * Use the lowest expected idle interval to pick the idle state.
 	 */
-	predicted_us = min(predicted_us, expected_interval);
+	predicted_us = min(predicted_us, get_typical_interval(data));
 
 	if (tick_nohz_tick_stopped()) {
 		/*
