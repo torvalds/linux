@@ -27,6 +27,14 @@
 
 #include "intel_dsi.h"
 
+static enum transcoder __attribute__((unused)) dsi_port_to_transcoder(enum port port)
+{
+	if (port == PORT_A)
+		return TRANSCODER_DSI_0;
+	else
+		return TRANSCODER_DSI_1;
+}
+
 static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
