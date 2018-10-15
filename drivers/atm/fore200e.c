@@ -1606,6 +1606,7 @@ fore200e_send(struct atm_vcc *vcc, struct sk_buff *skb)
     if (dma_mapping_error(fore200e->dev, tpd->tsd[0].buffer)) {
 	if (tx_copy)
 	    kfree(data);
+	spin_unlock_irqrestore(&fore200e->q_lock, flags);
 	return -ENOMEM;
     }
     tpd->tsd[ 0 ].length = tx_len;
