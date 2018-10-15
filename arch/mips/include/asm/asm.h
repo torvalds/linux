@@ -113,17 +113,6 @@ symbol		=	value
 		.popsection;
 
 /*
- * Build text tables
- */
-#define TTABLE(string)					\
-		.pushsection .text;			\
-		.word	1f;				\
-		.popsection				\
-		.pushsection .data;			\
-1:		.asciiz string;				\
-		.popsection
-
-/*
  * MIPS IV pref instruction.
  * Use with .set noreorder only!
  *
