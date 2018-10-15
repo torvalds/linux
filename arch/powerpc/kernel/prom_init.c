@@ -2410,14 +2410,11 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 			has_phandle = 1;
 	}
 
-	/* Add a "linux,phandle" property if no "phandle" property already
-	 * existed.
-	 */
+	/* Add a "phandle" property if none already exist */
 	if (!has_phandle) {
-		soff = dt_find_string("linux,phandle");
+		soff = dt_find_string("phandle");
 		if (soff == 0)
-			prom_printf("WARNING: Can't find string index for"
-				    " <linux-phandle> node %s\n", path);
+			prom_printf("WARNING: Can't find string index for <phandle> node %s\n", path);
 		else {
 			dt_push_token(OF_DT_PROP, mem_start, mem_end);
 			dt_push_token(4, mem_start, mem_end);
@@ -2477,9 +2474,9 @@ static void __init flatten_device_tree(void)
 	dt_string_start = mem_start;
 	mem_start += 4; /* hole */
 
-	/* Add "linux,phandle" in there, we'll need it */
+	/* Add "phandle" in there, we'll need it */
 	namep = make_room(&mem_start, &mem_end, 16, 1);
-	strcpy(namep, "linux,phandle");
+	strcpy(namep, "phandle");
 	mem_start = (unsigned long)namep + strlen(namep) + 1;
 
 	/* Build string array */
