@@ -22,7 +22,7 @@
 #include "vfio_ccw_private.h"
 
 struct workqueue_struct *vfio_ccw_work_q;
-struct kmem_cache *vfio_ccw_io_region;
+static struct kmem_cache *vfio_ccw_io_region;
 
 /*
  * Helpers
