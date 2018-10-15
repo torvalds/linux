@@ -516,7 +516,6 @@ static int exynos_suspend_enter(suspend_state_t state)
 	if (pm_data->pm_prepare)
 		pm_data->pm_prepare();
 	flush_cache_all();
-	s3c_pm_check_store();
 
 	ret = call_firmware_op(suspend);
 	if (ret == -ENOSYS)
@@ -530,8 +529,6 @@ static int exynos_suspend_enter(suspend_state_t state)
 
 	S3C_PMDBG("%s: wakeup stat: %08x\n", __func__,
 			pmu_raw_readl(S5P_WAKEUP_STAT));
-
-	s3c_pm_check_restore();
 
 	S3C_PMDBG("%s: resuming the system...\n", __func__);
 
@@ -556,16 +553,12 @@ static int exynos_suspend_prepare(void)
 		return ret;
 	}
 
-	s3c_pm_check_prepare();
-
 	return 0;
 }
 
 static void exynos_suspend_finish(void)
 {
 	int ret;
-
-	s3c_pm_check_cleanup();
 
 	ret = regulator_suspend_finish();
 	if (ret)
