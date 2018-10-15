@@ -4023,6 +4023,20 @@ enum {
 #define _VSYNCSHIFT_B	0x61028
 #define _PIPE_MULT_B	0x6102c
 
+/* DSI 0 timing regs */
+#define _HTOTAL_DSI0		0x6b000
+#define _HSYNC_DSI0		0x6b008
+#define _VTOTAL_DSI0		0x6b00c
+#define _VSYNC_DSI0		0x6b014
+#define _VSYNCSHIFT_DSI0	0x6b028
+
+/* DSI 1 timing regs */
+#define _HTOTAL_DSI1		0x6b800
+#define _HSYNC_DSI1		0x6b808
+#define _VTOTAL_DSI1		0x6b80c
+#define _VSYNC_DSI1		0x6b814
+#define _VSYNCSHIFT_DSI1	0x6b828
+
 #define TRANSCODER_A_OFFSET 0x60000
 #define TRANSCODER_B_OFFSET 0x61000
 #define TRANSCODER_C_OFFSET 0x62000
