@@ -1062,6 +1062,7 @@ void rxrpc_put_peer(struct rxrpc_peer *);
  */
 extern const struct seq_operations rxrpc_call_seq_ops;
 extern const struct seq_operations rxrpc_connection_seq_ops;
+extern const struct seq_operations rxrpc_peer_seq_ops;
 
 /*
  * recvmsg.c
