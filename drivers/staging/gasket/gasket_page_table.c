@@ -623,7 +623,6 @@ static void gasket_perform_unmapping(struct gasket_page_table *pg_tbl,
 			if (gasket_release_page(ptes[i].page))
 				--pg_tbl->num_active_pages;
 		}
-		ptes[i].status = PTE_FREE;
 
 		/* and clear the PTE. */
 		memset(&ptes[i], 0, sizeof(struct gasket_page_table_entry));
