@@ -4641,7 +4641,8 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 			ASSERT(len == i_size ||
 			       (len == fs_info->sectorsize &&
 				btrfs_file_extent_compression(leaf, extent) !=
-				BTRFS_COMPRESS_NONE));
+				BTRFS_COMPRESS_NONE) ||
+			       (len < i_size && i_size < fs_info->sectorsize));
 			return 0;
 		}
 
