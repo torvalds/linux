@@ -526,7 +526,7 @@ static ssize_t sysfs_show(struct device *device, struct device_attribute *attr,
 		return -ENODEV;
 	}
 
-	type = (enum sysfs_attribute_type)gasket_sysfs_get_attr(device, attr);
+	type = (enum sysfs_attribute_type)gasket_attr->data.attr_type;
 	switch (type) {
 	case ATTR_KERNEL_HIB_PAGE_TABLE_SIZE:
 		ret = scnprintf(buf, PAGE_SIZE, "%u\n",
