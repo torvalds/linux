@@ -101,6 +101,7 @@ static int __init ac97_bus_init(void)
 
 subsys_initcall(ac97_bus_init);
 
+// Stating bus type (sound)
 static void __exit ac97_bus_exit(void)
 {
 	bus_unregister(&ac97_bus_type);
