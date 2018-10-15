@@ -177,49 +177,6 @@ symbol		=	value
 #endif /* !CONFIG_CPU_HAS_PREFETCH */
 
 /*
- * MIPS ISA IV/V movn/movz instructions and equivalents for older CPUs.
- */
-#if (_MIPS_ISA == _MIPS_ISA_MIPS1)
-#define MOVN(rd, rs, rt)				\
-		.set	push;				\
-		.set	reorder;			\
-		beqz	rt, 9f;				\
-		move	rd, rs;				\
-		.set	pop;				\
-9:
-#define MOVZ(rd, rs, rt)				\
-		.set	push;				\
-		.set	reorder;			\
-		bnez	rt, 9f;				\
-		move	rd, rs;				\
-		.set	pop;				\
-9:
-#endif /* _MIPS_ISA == _MIPS_ISA_MIPS1 */
-#if (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3)
-#define MOVN(rd, rs, rt)				\
-		.set	push;				\
-		.set	noreorder;			\
-		bnezl	rt, 9f;				\
-		 move	rd, rs;				\
-		.set	pop;				\
-9:
-#define MOVZ(rd, rs, rt)				\
-		.set	push;				\
-		.set	noreorder;			\
-		beqzl	rt, 9f;				\
-		 move	rd, rs;				\
-		.set	pop;				\
-9:
-#endif /* (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3) */
-#if (_MIPS_ISA == _MIPS_ISA_MIPS4 ) || (_MIPS_ISA == _MIPS_ISA_MIPS5) || \
-    (_MIPS_ISA == _MIPS_ISA_MIPS32) || (_MIPS_ISA == _MIPS_ISA_MIPS64)
-#define MOVN(rd, rs, rt)				\
-		movn	rd, rs, rt
-#define MOVZ(rd, rs, rt)				\
-		movz	rd, rs, rt
-#endif /* MIPS IV, MIPS V, MIPS32 or MIPS64 */
-
-/*
  * Stack alignment
  */
 #if (_MIPS_SIM == _MIPS_SIM_ABI32)
