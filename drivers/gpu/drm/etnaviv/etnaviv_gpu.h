@@ -6,9 +6,6 @@
 #ifndef __ETNAVIV_GPU_H__
 #define __ETNAVIV_GPU_H__
 
-#include <linux/clk.h>
-#include <linux/regulator/consumer.h>
-
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 
@@ -88,6 +85,8 @@ struct etnaviv_event {
 
 struct etnaviv_cmdbuf_suballoc;
 struct etnaviv_cmdbuf;
+struct regulator;
+struct clk;
 
 #define ETNA_NR_EVENTS 30
 

@@ -3,10 +3,12 @@
  * Copyright (C) 2015-2018 Etnaviv Project
  */
 
+#include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/dma-fence.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/thermal.h>
 
 #include "etnaviv_cmdbuf.h"
