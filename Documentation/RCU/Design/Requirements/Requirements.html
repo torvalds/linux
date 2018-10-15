@@ -2475,23 +2475,37 @@ for context-switch-heavy <tt>CONFIG_NO_HZ_FULL=y</tt> workloads,
 but there is room for further improvement.
 
 <p>
-In the past, it was forbidden to disable interrupts across an
-<tt>rcu_read_unlock()</tt> unless that interrupt-disabled region
-of code also included the matching <tt>rcu_read_lock()</tt>.
-Violating this restriction could result in deadlocks involving the
-scheduler's runqueue and priority-inheritance spinlocks.
-This restriction was lifted when interrupt-disabled calls to
-<tt>rcu_read_unlock()</tt> started deferring the reporting of
-the resulting RCU-preempt quiescent state until the end of that
+It is forbidden to hold any of scheduler's runqueue or priority-inheritance
+spinlocks across an <tt>rcu_read_unlock()</tt> unless interrupts have been
+disabled across the entire RCU read-side critical section, that is,
+up to and including the matching <tt>rcu_read_lock()</tt>.
+Violating this restriction can result in deadlocks involving these
+scheduler spinlocks.
+There was hope that this restriction might be lifted when interrupt-disabled
+calls to <tt>rcu_read_unlock()</tt> started deferring the reporting of
+the resulting RCU-preempt quiescent state until the end of the corresponding
 interrupts-disabled region.
-This deferred reporting means that the scheduler's runqueue and
-priority-inheritance locks cannot be held while reporting an RCU-preempt
-quiescent state, which lifts the earlier restriction, at least from
-a deadlock perspective.
-Unfortunately, real-time systems using RCU priority boosting may
+Unfortunately, timely reporting of the corresponding quiescent state
+to expedited grace periods requires a call to <tt>raise_softirq()</tt>,
+which can acquire these scheduler spinlocks.
+In addition, real-time systems using RCU priority boosting
 need this restriction to remain in effect because deferred
-quiescent-state reporting also defers deboosting, which in turn
-degrades real-time latencies.
+quiescent-state reporting would also defer deboosting, which in turn
+would degrade real-time latencies.
+
+<p>
+In theory, if a given RCU read-side critical section could be
+guaranteed to be less than one second in duration, holding a scheduler
+spinlock across that critical section's <tt>rcu_read_unlock()</tt>
+would require only that preemption be disabled across the entire
+RCU read-side critical section, not interrupts.
+Unfortunately, given the possibility of vCPU preemption, long-running
+interrupts, and so on, it is not possible in practice to guarantee
+that a given RCU read-side critical section will complete in less than
+one second.
+Therefore, as noted above, if scheduler spinlocks are held across
+a given call to <tt>rcu_read_unlock()</tt>, interrupts must be
+disabled across the entire RCU read-side critical section.
 
 <h3><a name="Tracing and RCU">Tracing and RCU</a></h3>
 
