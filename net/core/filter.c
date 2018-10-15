@@ -4717,7 +4717,7 @@ static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 			sk = __udp4_lib_lookup(net, src4, tuple->ipv4.sport,
 					       dst4, tuple->ipv4.dport,
 					       dif, sdif, &udp_table, skb);
-#if IS_REACHABLE(CONFIG_IPV6)
+#if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		struct in6_addr *src6 = (struct in6_addr *)&tuple->ipv6.saddr;
 		struct in6_addr *dst6 = (struct in6_addr *)&tuple->ipv6.daddr;
@@ -4728,10 +4728,12 @@ static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 					    src6, tuple->ipv6.sport,
 					    dst6, tuple->ipv6.dport,
 					    dif, sdif, &refcounted);
-		else
-			sk = __udp6_lib_lookup(net, src6, tuple->ipv6.sport,
-					       dst6, tuple->ipv6.dport,
-					       dif, sdif, &udp_table, skb);
+		else if (likely(ipv6_bpf_stub))
+			sk = ipv6_bpf_stub->udp6_lib_lookup(net,
+							    src6, tuple->ipv6.sport,
+							    dst6, tuple->ipv6.dport,
+							    dif, sdif,
+							    &udp_table, skb);
 #endif
 	}
 
