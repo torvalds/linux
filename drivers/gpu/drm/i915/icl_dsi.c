@@ -477,6 +477,121 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 }
 
 static void
+gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	const struct drm_display_mode *adjusted_mode =
+					&pipe_config->base.adjusted_mode;
+	enum port port;
+	enum transcoder dsi_trans;
+	/* horizontal timings */
+	u16 htotal, hactive, hsync_start, hsync_end, hsync_size;
+	u16 hfront_porch, hback_porch;
+	/* vertical timings */
+	u16 vtotal, vactive, vsync_start, vsync_end, vsync_shift;
+
+	hactive = adjusted_mode->crtc_hdisplay;
+	htotal = adjusted_mode->crtc_htotal;
+	hsync_start = adjusted_mode->crtc_hsync_start;
+	hsync_end = adjusted_mode->crtc_hsync_end;
+	hsync_size  = hsync_end - hsync_start;
+	hfront_porch = (adjusted_mode->crtc_hsync_start -
+			adjusted_mode->crtc_hdisplay);
+	hback_porch = (adjusted_mode->crtc_htotal -
+		       adjusted_mode->crtc_hsync_end);
+	vactive = adjusted_mode->crtc_vdisplay;
+	vtotal = adjusted_mode->crtc_vtotal;
+	vsync_start = adjusted_mode->crtc_vsync_start;
+	vsync_end = adjusted_mode->crtc_vsync_end;
+	vsync_shift = hsync_start - htotal / 2;
+
+	if (intel_dsi->dual_link) {
+		hactive /= 2;
+		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
+			hactive += intel_dsi->pixel_overlap;
+		htotal /= 2;
+	}
+
+	/* minimum hactive as per bspec: 256 pixels */
+	if (adjusted_mode->crtc_hdisplay < 256)
+		DRM_ERROR("hactive is less then 256 pixels\n");
+
+	/* if RGB666 format, then hactive must be multiple of 4 pixels */
+	if (intel_dsi->pixel_format == MIPI_DSI_FMT_RGB666 && hactive % 4 != 0)
+		DRM_ERROR("hactive pixels are not multiple of 4\n");
+
+	/* program TRANS_HTOTAL register */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		I915_WRITE(HTOTAL(dsi_trans),
+			   (hactive - 1) | ((htotal - 1) << 16));
+	}
+
+	/* TRANS_HSYNC register to be programmed only for video mode */
+	if (intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE) {
+		if (intel_dsi->video_mode_format ==
+		    VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE) {
+			/* BSPEC: hsync size should be atleast 16 pixels */
+			if (hsync_size < 16)
+				DRM_ERROR("hsync size < 16 pixels\n");
+		}
+
+		if (hback_porch < 16)
+			DRM_ERROR("hback porch < 16 pixels\n");
+
+		if (intel_dsi->dual_link) {
+			hsync_start /= 2;
+			hsync_end /= 2;
+		}
+
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			I915_WRITE(HSYNC(dsi_trans),
+				   (hsync_start - 1) | ((hsync_end - 1) << 16));
+		}
+	}
+
+	/* program TRANS_VTOTAL register */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		/*
+		 * FIXME: Programing this by assuming progressive mode, since
+		 * non-interlaced info from VBT is not saved inside
+		 * struct drm_display_mode.
+		 * For interlace mode: program required pixel minus 2
+		 */
+		I915_WRITE(VTOTAL(dsi_trans),
+			   (vactive - 1) | ((vtotal - 1) << 16));
+	}
+
+	if (vsync_end < vsync_start || vsync_end > vtotal)
+		DRM_ERROR("Invalid vsync_end value\n");
+
+	if (vsync_start < vactive)
+		DRM_ERROR("vsync_start less than vactive\n");
+
+	/* program TRANS_VSYNC register */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		I915_WRITE(VSYNC(dsi_trans),
+			   (vsync_start - 1) | ((vsync_end - 1) << 16));
+	}
+
+	/*
+	 * FIXME: It has to be programmed only for interlaced
+	 * modes. Put the check condition here once interlaced
+	 * info available as described above.
+	 * program TRANS_VSYNCSHIFT register
+	 */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		I915_WRITE(VSYNCSHIFT(dsi_trans), vsync_shift);
+	}
+}
+
+static void
 gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
@@ -512,4 +627,7 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 
 	/* step4: enable DSI port and DPHY */
 	gen11_dsi_enable_port_and_phy(encoder, pipe_config);
+
+	/* step6c: configure transcoder timings */
+	gen11_dsi_set_transcoder_timings(encoder, pipe_config);
 }
