@@ -309,6 +309,27 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 		I915_WRITE(DSI_DATA_TIMING_PARAM(port),
 			   intel_dsi->dphy_data_lane_reg);
 	}
+
+	/*
+	 * If DSI link operating at or below an 800 MHz,
+	 * TA_SURE should be override and programmed to
+	 * a value '0' inside TA_PARAM_REGISTERS otherwise
+	 * leave all fields at HW default values.
+	 */
+	if (intel_dsi_bitrate(intel_dsi) <= 800000) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			tmp = I915_READ(DPHY_TA_TIMING_PARAM(port));
+			tmp &= ~TA_SURE_MASK;
+			tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
+			I915_WRITE(DPHY_TA_TIMING_PARAM(port), tmp);
+
+			/* shadow register inside display core */
+			tmp = I915_READ(DSI_TA_TIMING_PARAM(port));
+			tmp &= ~TA_SURE_MASK;
+			tmp |= TA_SURE_OVERRIDE | TA_SURE(0);
+			I915_WRITE(DSI_TA_TIMING_PARAM(port), tmp);
+		}
+	}
 }
 
 static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
