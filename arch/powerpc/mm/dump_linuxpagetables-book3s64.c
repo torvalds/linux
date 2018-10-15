@@ -38,8 +38,13 @@ static const struct flag_info flag_array[] = {
 	}, {
 		.mask	= _PAGE_PRESENT,
 		.val	= _PAGE_PRESENT,
-		.set	= "present",
-		.clear	= "       ",
+		.set	= "valid",
+		.clear	= "     ",
+	}, {
+		.mask	= _PAGE_PRESENT | _PAGE_INVALID,
+		.val	= 0,
+		.set	= "       ",
+		.clear	= "present",
 	}, {
 		.mask	= H_PAGE_HASHPTE,
 		.val	= H_PAGE_HASHPTE,
