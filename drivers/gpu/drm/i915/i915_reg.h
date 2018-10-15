@@ -10353,6 +10353,51 @@ enum skl_power_gate {
 #define  TA_GET_MASK			(0xf << 0)
 #define  TA_GET_SHIFT			0
 
+/* DSI transcoder configuration */
+#define _DSI_TRANS_FUNC_CONF_0		0x6b030
+#define _DSI_TRANS_FUNC_CONF_1		0x6b830
+#define DSI_TRANS_FUNC_CONF(tc)		_MMIO_DSI(tc,	\
+						  _DSI_TRANS_FUNC_CONF_0,\
+						  _DSI_TRANS_FUNC_CONF_1)
+#define  OP_MODE_MASK			(0x3 << 28)
+#define  OP_MODE_SHIFT			28
+#define  CMD_MODE_NO_GATE		(0x0 << 28)
+#define  CMD_MODE_TE_GATE		(0x1 << 28)
+#define  VIDEO_MODE_SYNC_EVENT		(0x2 << 28)
+#define  VIDEO_MODE_SYNC_PULSE		(0x3 << 28)
+#define  LINK_READY			(1 << 20)
+#define  PIX_FMT_MASK			(0x3 << 16)
+#define  PIX_FMT_SHIFT			16
+#define  PIX_FMT_RGB565			(0x0 << 16)
+#define  PIX_FMT_RGB666_PACKED		(0x1 << 16)
+#define  PIX_FMT_RGB666_LOOSE		(0x2 << 16)
+#define  PIX_FMT_RGB888			(0x3 << 16)
+#define  PIX_FMT_RGB101010		(0x4 << 16)
+#define  PIX_FMT_RGB121212		(0x5 << 16)
+#define  PIX_FMT_COMPRESSED		(0x6 << 16)
+#define  BGR_TRANSMISSION		(1 << 15)
+#define  PIX_VIRT_CHAN(x)		((x) << 12)
+#define  PIX_VIRT_CHAN_MASK		(0x3 << 12)
+#define  PIX_VIRT_CHAN_SHIFT		12
+#define  PIX_BUF_THRESHOLD_MASK		(0x3 << 10)
+#define  PIX_BUF_THRESHOLD_SHIFT	10
+#define  PIX_BUF_THRESHOLD_1_4		(0x0 << 10)
+#define  PIX_BUF_THRESHOLD_1_2		(0x1 << 10)
+#define  PIX_BUF_THRESHOLD_3_4		(0x2 << 10)
+#define  PIX_BUF_THRESHOLD_FULL		(0x3 << 10)
+#define  CONTINUOUS_CLK_MASK		(0x3 << 8)
+#define  CONTINUOUS_CLK_SHIFT		8
+#define  CLK_ENTER_LP_AFTER_DATA	(0x0 << 8)
+#define  CLK_HS_OR_LP			(0x2 << 8)
+#define  CLK_HS_CONTINUOUS		(0x3 << 8)
+#define  LINK_CALIBRATION_MASK		(0x3 << 4)
+#define  LINK_CALIBRATION_SHIFT		4
+#define  CALIBRATION_DISABLED		(0x0 << 4)
+#define  CALIBRATION_ENABLED_INITIAL_ONLY	(0x2 << 4)
+#define  CALIBRATION_ENABLED_INITIAL_PERIODIC	(0x3 << 4)
+#define  S3D_ORIENTATION_LANDSCAPE	(1 << 1)
+#define  EOTP_DISABLED			(1 << 0)
+
 /* bits 31:0 */
 #define _MIPIA_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb084)
 #define _MIPIC_DBI_BW_CTRL		(dev_priv->mipi_mmio_base + 0xb884)
