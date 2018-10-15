@@ -535,10 +535,10 @@ int machine_check_e500mc(struct pt_regs *regs)
 	printk("Caused by (from MCSR=%lx): ", reason);
 
 	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
+		pr_cont("Machine Check Signal\n");
 
 	if (reason & MCSR_ICPERR) {
-		printk("Instruction Cache Parity Error\n");
+		pr_cont("Instruction Cache Parity Error\n");
 
 		/*
 		 * This is recoverable by invalidating the i-cache.
@@ -556,7 +556,7 @@ int machine_check_e500mc(struct pt_regs *regs)
 	}
 
 	if (reason & MCSR_DCPERR_MC) {
-		printk("Data Cache Parity Error\n");
+		pr_cont("Data Cache Parity Error\n");
 
 		/*
 		 * In write shadow mode we auto-recover from the error, but it
@@ -575,38 +575,38 @@ int machine_check_e500mc(struct pt_regs *regs)
 	}
 
 	if (reason & MCSR_L2MMU_MHIT) {
-		printk("Hit on multiple TLB entries\n");
+		pr_cont("Hit on multiple TLB entries\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_NMI)
-		printk("Non-maskable interrupt\n");
+		pr_cont("Non-maskable interrupt\n");
 
 	if (reason & MCSR_IF) {
-		printk("Instruction Fetch Error Report\n");
+		pr_cont("Instruction Fetch Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_LD) {
-		printk("Load Error Report\n");
+		pr_cont("Load Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_ST) {
-		printk("Store Error Report\n");
+		pr_cont("Store Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_LDG) {
-		printk("Guarded Load Error Report\n");
+		pr_cont("Guarded Load Error Report\n");
 		recoverable = 0;
 	}
 
 	if (reason & MCSR_TLBSYNC)
-		printk("Simultaneous tlbsync operations\n");
+		pr_cont("Simultaneous tlbsync operations\n");
 
 	if (reason & MCSR_BSL2_ERR) {
-		printk("Level 2 Cache Error\n");
+		pr_cont("Level 2 Cache Error\n");
 		recoverable = 0;
 	}
 
@@ -616,7 +616,7 @@ int machine_check_e500mc(struct pt_regs *regs)
 		addr = mfspr(SPRN_MCAR);
 		addr |= (u64)mfspr(SPRN_MCARU) << 32;
 
-		printk("Machine Check %s Address: %#llx\n",
+		pr_cont("Machine Check %s Address: %#llx\n",
 		       reason & MCSR_MEA ? "Effective" : "Physical", addr);
 	}
 
@@ -640,29 +640,29 @@ int machine_check_e500(struct pt_regs *regs)
 	printk("Caused by (from MCSR=%lx): ", reason);
 
 	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
+		pr_cont("Machine Check Signal\n");
 	if (reason & MCSR_ICPERR)
-		printk("Instruction Cache Parity Error\n");
+		pr_cont("Instruction Cache Parity Error\n");
 	if (reason & MCSR_DCP_PERR)
-		printk("Data Cache Push Parity Error\n");
+		pr_cont("Data Cache Push Parity Error\n");
 	if (reason & MCSR_DCPERR)
-		printk("Data Cache Parity Error\n");
+		pr_cont("Data Cache Parity Error\n");
 	if (reason & MCSR_BUS_IAERR)
-		printk("Bus - Instruction Address Error\n");
+		pr_cont("Bus - Instruction Address Error\n");
 	if (reason & MCSR_BUS_RAERR)
-		printk("Bus - Read Address Error\n");
+		pr_cont("Bus - Read Address Error\n");
 	if (reason & MCSR_BUS_WAERR)
-		printk("Bus - Write Address Error\n");
+		pr_cont("Bus - Write Address Error\n");
 	if (reason & MCSR_BUS_IBERR)
-		printk("Bus - Instruction Data Error\n");
+		pr_cont("Bus - Instruction Data Error\n");
 	if (reason & MCSR_BUS_RBERR)
-		printk("Bus - Read Data Bus Error\n");
+		pr_cont("Bus - Read Data Bus Error\n");
 	if (reason & MCSR_BUS_WBERR)
-		printk("Bus - Write Data Bus Error\n");
+		pr_cont("Bus - Write Data Bus Error\n");
 	if (reason & MCSR_BUS_IPERR)
-		printk("Bus - Instruction Parity Error\n");
+		pr_cont("Bus - Instruction Parity Error\n");
 	if (reason & MCSR_BUS_RPERR)
-		printk("Bus - Read Parity Error\n");
+		pr_cont("Bus - Read Parity Error\n");
 
 	return 0;
 }
@@ -680,19 +680,19 @@ int machine_check_e200(struct pt_regs *regs)
 	printk("Caused by (from MCSR=%lx): ", reason);
 
 	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
+		pr_cont("Machine Check Signal\n");
 	if (reason & MCSR_CP_PERR)
-		printk("Cache Push Parity Error\n");
+		pr_cont("Cache Push Parity Error\n");
 	if (reason & MCSR_CPERR)
-		printk("Cache Parity Error\n");
+		pr_cont("Cache Parity Error\n");
 	if (reason & MCSR_EXCP_ERR)
-		printk("ISI, ITLB, or Bus Error on first instruction fetch for an exception handler\n");
+		pr_cont("ISI, ITLB, or Bus Error on first instruction fetch for an exception handler\n");
 	if (reason & MCSR_BUS_IRERR)
-		printk("Bus - Read Bus Error on instruction fetch\n");
+		pr_cont("Bus - Read Bus Error on instruction fetch\n");
 	if (reason & MCSR_BUS_DRERR)
-		printk("Bus - Read Bus Error on data load\n");
+		pr_cont("Bus - Read Bus Error on data load\n");
 	if (reason & MCSR_BUS_WRERR)
-		printk("Bus - Write Bus Error on buffered store or cache line push\n");
+		pr_cont("Bus - Write Bus Error on buffered store or cache line push\n");
 
 	return 0;
 }
@@ -705,30 +705,30 @@ int machine_check_generic(struct pt_regs *regs)
 	printk("Caused by (from SRR1=%lx): ", reason);
 	switch (reason & 0x601F0000) {
 	case 0x80000:
-		printk("Machine check signal\n");
+		pr_cont("Machine check signal\n");
 		break;
 	case 0:		/* for 601 */
 	case 0x40000:
 	case 0x140000:	/* 7450 MSS error and TEA */
-		printk("Transfer error ack signal\n");
+		pr_cont("Transfer error ack signal\n");
 		break;
 	case 0x20000:
-		printk("Data parity error signal\n");
+		pr_cont("Data parity error signal\n");
 		break;
 	case 0x10000:
-		printk("Address parity error signal\n");
+		pr_cont("Address parity error signal\n");
 		break;
 	case 0x20000000:
-		printk("L1 Data Cache error\n");
+		pr_cont("L1 Data Cache error\n");
 		break;
 	case 0x40000000:
-		printk("L1 Instruction Cache error\n");
+		pr_cont("L1 Instruction Cache error\n");
 		break;
 	case 0x00100000:
-		printk("L2 data cache parity error\n");
+		pr_cont("L2 data cache parity error\n");
 		break;
 	default:
-		printk("Unknown values in msr\n");
+		pr_cont("Unknown values in msr\n");
 	}
 	return 0;
 }
