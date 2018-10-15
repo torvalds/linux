@@ -482,16 +482,15 @@ static int phy_config_aneg(struct phy_device *phydev)
 }
 
 /**
- * phy_start_aneg_priv - start auto-negotiation for this PHY device
+ * phy_start_aneg - start auto-negotiation for this PHY device
  * @phydev: the phy_device struct
- * @sync: indicate whether we should wait for the workqueue cancelation
  *
  * Description: Sanitizes the settings (if we're not autonegotiating
  *   them), and then calls the driver's config_aneg function.
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
  */
-static int phy_start_aneg_priv(struct phy_device *phydev, bool sync)
+int phy_start_aneg(struct phy_device *phydev)
 {
 	bool trigger = 0;
 	int err;
@@ -540,20 +539,6 @@ out_unlock:
 		phy_trigger_machine(phydev);
 
 	return err;
-}
-
-/**
- * phy_start_aneg - start auto-negotiation for this PHY device
- * @phydev: the phy_device struct
- *
- * Description: Sanitizes the settings (if we're not autonegotiating
- *   them), and then calls the driver's config_aneg function.
- *   If the PHYCONTROL Layer is operating, we change the state to
- *   reflect the beginning of Auto-negotiation or forcing.
- */
-int phy_start_aneg(struct phy_device *phydev)
-{
-	return phy_start_aneg_priv(phydev, true);
 }
 EXPORT_SYMBOL(phy_start_aneg);
 
@@ -1085,7 +1070,7 @@ void phy_state_machine(struct work_struct *work)
 	mutex_unlock(&phydev->lock);
 
 	if (needs_aneg)
-		err = phy_start_aneg_priv(phydev, false);
+		err = phy_start_aneg(phydev);
 	else if (do_suspend)
 		phy_suspend(phydev);
 
