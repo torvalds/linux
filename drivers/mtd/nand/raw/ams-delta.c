@@ -99,10 +99,9 @@ static void ams_delta_dir_input(struct ams_delta_nand *priv, bool in)
 	priv->data_in = in;
 }
 
-static void ams_delta_write_buf(struct nand_chip *this, const u_char *buf,
+static void ams_delta_write_buf(struct ams_delta_nand *priv, const u_char *buf,
 				int len)
 {
-	struct ams_delta_nand *priv = nand_get_controller_data(this);
 	int i;
 
 	if (priv->data_in)
@@ -112,9 +111,9 @@ static void ams_delta_write_buf(struct nand_chip *this, const u_char *buf,
 		ams_delta_io_write(priv, buf[i]);
 }
 
-static void ams_delta_read_buf(struct nand_chip *this, u_char *buf, int len)
+static void ams_delta_read_buf(struct ams_delta_nand *priv, u_char *buf,
+			       int len)
 {
-	struct ams_delta_nand *priv = nand_get_controller_data(this);
 	int i;
 
 	if (!priv->data_in)
@@ -124,46 +123,66 @@ static void ams_delta_read_buf(struct nand_chip *this, u_char *buf, int len)
 		buf[i] = ams_delta_io_read(priv);
 }
 
-static u_char ams_delta_read_byte(struct nand_chip *this)
-{
-	u_char res;
-
-	ams_delta_read_buf(this, &res, 1);
-
-	return res;
-}
-
-/*
- * Command control function
- *
- * ctrl:
- * NAND_NCE: bit 0 -> bit 2
- * NAND_CLE: bit 1 -> bit 7
- * NAND_ALE: bit 2 -> bit 6
- */
-static void ams_delta_hwcontrol(struct nand_chip *this, int cmd,
-				unsigned int ctrl)
+static void ams_delta_select_chip(struct nand_chip *this, int n)
 {
 	struct ams_delta_nand *priv = nand_get_controller_data(this);
 
-	if (ctrl & NAND_CTRL_CHANGE) {
-		gpiod_set_value(priv->gpiod_nce, !(ctrl & NAND_NCE));
-		gpiod_set_value(priv->gpiod_cle, !!(ctrl & NAND_CLE));
-		gpiod_set_value(priv->gpiod_ale, !!(ctrl & NAND_ALE));
-	}
+	if (n > 0)
+		return;
 
-	if (cmd != NAND_CMD_NONE) {
-		u_char byte = cmd;
-
-		ams_delta_write_buf(this, &byte, 1);
-	}
+	gpiod_set_value(priv->gpiod_nce, n < 0);
 }
 
-static int ams_delta_nand_ready(struct nand_chip *this)
+static int ams_delta_exec_op(struct nand_chip *this,
+			     const struct nand_operation *op, bool check_only)
 {
 	struct ams_delta_nand *priv = nand_get_controller_data(this);
+	const struct nand_op_instr *instr;
+	int ret = 0;
 
-	return gpiod_get_value(priv->gpiod_rdy);
+	if (check_only)
+		return 0;
+
+	for (instr = op->instrs; instr < op->instrs + op->ninstrs; instr++) {
+
+		switch (instr->type) {
+		case NAND_OP_CMD_INSTR:
+			gpiod_set_value(priv->gpiod_cle, 1);
+			ams_delta_write_buf(priv, &instr->ctx.cmd.opcode, 1);
+			gpiod_set_value(priv->gpiod_cle, 0);
+			break;
+
+		case NAND_OP_ADDR_INSTR:
+			gpiod_set_value(priv->gpiod_ale, 1);
+			ams_delta_write_buf(priv, instr->ctx.addr.addrs,
+					    instr->ctx.addr.naddrs);
+			gpiod_set_value(priv->gpiod_ale, 0);
+			break;
+
+		case NAND_OP_DATA_IN_INSTR:
+			ams_delta_read_buf(priv, instr->ctx.data.buf.in,
+					   instr->ctx.data.len);
+			break;
+
+		case NAND_OP_DATA_OUT_INSTR:
+			ams_delta_write_buf(priv, instr->ctx.data.buf.out,
+					    instr->ctx.data.len);
+			break;
+
+		case NAND_OP_WAITRDY_INSTR:
+			ret = priv->gpiod_rdy ?
+			      nand_gpio_waitrdy(this, priv->gpiod_rdy,
+						instr->ctx.waitrdy.timeout_ms) :
+			      nand_soft_waitrdy(this,
+						instr->ctx.waitrdy.timeout_ms);
+			break;
+		}
+
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 
 
@@ -211,10 +230,8 @@ static int ams_delta_init(struct platform_device *pdev)
 	nand_set_controller_data(this, priv);
 
 	/* Set address of NAND IO lines */
-	this->legacy.read_byte = ams_delta_read_byte;
-	this->legacy.write_buf = ams_delta_write_buf;
-	this->legacy.read_buf = ams_delta_read_buf;
-	this->legacy.cmd_ctrl = ams_delta_hwcontrol;
+	this->select_chip = ams_delta_select_chip;
+	this->exec_op = ams_delta_exec_op;
 
 	priv->gpiod_rdy = devm_gpiod_get_optional(&pdev->dev, "rdy", GPIOD_IN);
 	if (IS_ERR(priv->gpiod_rdy)) {
@@ -223,11 +240,6 @@ static int ams_delta_init(struct platform_device *pdev)
 		goto out_mtd;
 	}
 
-	if (priv->gpiod_rdy)
-		this->legacy.dev_ready = ams_delta_nand_ready;
-
-	/* 25 us command delay time */
-	this->legacy.chip_delay = 30;
 	this->ecc.mode = NAND_ECC_SOFT;
 	this->ecc.algo = NAND_ECC_HAMMING;
 
