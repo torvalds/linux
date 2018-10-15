@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <net/if.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,6 +93,17 @@ static bool map_is_map_of_maps(__u32 type)
 static bool map_is_map_of_progs(__u32 type)
 {
 	return type == BPF_MAP_TYPE_PROG_ARRAY;
+}
+
+static int map_type_from_str(const char *type)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(map_type_name); i++)
+		/* Don't allow prefixing in case of possible future shadowing */
+		if (map_type_name[i] && !strcmp(map_type_name[i], type))
+			return i;
+	return -1;
 }
 
 static void *alloc_value(struct bpf_map_info *info)
@@ -1058,6 +1070,92 @@ static int do_pin(int argc, char **argv)
 	return err;
 }
 
+static int do_create(int argc, char **argv)
+{
+	struct bpf_create_map_attr attr = { NULL, };
+	const char *pinfile;
+	int err, fd;
+
+	if (!REQ_ARGS(7))
+		return -1;
+	pinfile = GET_ARG();
+
+	while (argc) {
+		if (!REQ_ARGS(2))
+			return -1;
+
+		if (is_prefix(*argv, "type")) {
+			NEXT_ARG();
+
+			if (attr.map_type) {
+				p_err("map type already specified");
+				return -1;
+			}
+
+			attr.map_type = map_type_from_str(*argv);
+			if ((int)attr.map_type < 0) {
+				p_err("unrecognized map type: %s", *argv);
+				return -1;
+			}
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "name")) {
+			NEXT_ARG();
+			attr.name = GET_ARG();
+		} else if (is_prefix(*argv, "key")) {
+			if (parse_u32_arg(&argc, &argv, &attr.key_size,
+					  "key size"))
+				return -1;
+		} else if (is_prefix(*argv, "value")) {
+			if (parse_u32_arg(&argc, &argv, &attr.value_size,
+					  "value size"))
+				return -1;
+		} else if (is_prefix(*argv, "entries")) {
+			if (parse_u32_arg(&argc, &argv, &attr.max_entries,
+					  "max entries"))
+				return -1;
+		} else if (is_prefix(*argv, "flags")) {
+			if (parse_u32_arg(&argc, &argv, &attr.map_flags,
+					  "flags"))
+				return -1;
+		} else if (is_prefix(*argv, "dev")) {
+			NEXT_ARG();
+
+			if (attr.map_ifindex) {
+				p_err("offload device already specified");
+				return -1;
+			}
+
+			attr.map_ifindex = if_nametoindex(*argv);
+			if (!attr.map_ifindex) {
+				p_err("unrecognized netdevice '%s': %s",
+				      *argv, strerror(errno));
+				return -1;
+			}
+			NEXT_ARG();
+		}
+	}
+
+	if (!attr.name) {
+		p_err("map name not specified");
+		return -1;
+	}
+
+	fd = bpf_create_map_xattr(&attr);
+	if (fd < 0) {
+		p_err("map create failed: %s", strerror(errno));
+		return -1;
+	}
+
+	err = do_pin_fd(fd, pinfile);
+	close(fd);
+	if (err)
+		return err;
+
+	if (json_output)
+		jsonw_null(json_wtr);
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1067,6 +1165,9 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %s %s { show | list }   [MAP]\n"
+		"       %s %s create     FILE type TYPE key KEY_SIZE value VALUE_SIZE \\\n"
+		"                              entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
+		"                              [dev NAME]\n"
 		"       %s %s dump       MAP\n"
 		"       %s %s update     MAP  key DATA value VALUE [UPDATE_FLAGS]\n"
 		"       %s %s lookup     MAP  key DATA\n"
@@ -1081,11 +1182,17 @@ static int do_help(int argc, char **argv)
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       VALUE := { DATA | MAP | PROG }\n"
 		"       UPDATE_FLAGS := { any | exist | noexist }\n"
+		"       TYPE := { hash | array | prog_array | perf_event_array | percpu_hash |\n"
+		"                 percpu_array | stack_trace | cgroup_array | lru_hash |\n"
+		"                 lru_percpu_hash | lpm_trie | array_of_maps | hash_of_maps |\n"
+		"                 devmap | sockmap | cpumap | xskmap | sockhash |\n"
+		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2]);
 
 	return 0;
 }
@@ -1101,6 +1208,7 @@ static const struct cmd cmds[] = {
 	{ "delete",	do_delete },
 	{ "pin",	do_pin },
 	{ "event_pipe",	do_event_pipe },
+	{ "create",	do_create },
 	{ 0 }
 };
 
