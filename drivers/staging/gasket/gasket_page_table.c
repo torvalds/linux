@@ -10,10 +10,18 @@
  *
  * This file assumes 4kB pages throughout; can be factored out when necessary.
  *
- * Address format is as follows:
+ * There is a configurable number of page table entries, as well as a
+ * configurable bit index for the extended address flag. Both of these are
+ * specified in gasket_page_table_init through the page_table_config parameter.
+ *
+ * The following example assumes:
+ *   page_table_config->total_entries = 8192
+ *   page_table_config->extended_bit = 63
+ *
+ * Address format:
  * Simple addresses - those whose containing pages are directly placed in the
  * device's address translation registers - are laid out as:
- * [ 63 - 40: Unused | 39 - 28: 0 | 27 - 12: page index | 11 - 0: page offset ]
+ * [ 63 - 25: 0 | 24 - 12: page index | 11 - 0: page offset ]
  * page index:  The index of the containing page in the device's address
  *              translation registers.
  * page offset: The index of the address into the containing page.
@@ -21,7 +29,7 @@
  * Extended address - those whose containing pages are contained in a second-
  * level page table whose address is present in the device's address translation
  * registers - are laid out as:
- * [ 63 - 40: Unused | 39: flag | 38 - 37: 0 | 36 - 21: dev/level 0 index |
+ * [ 63: flag | 62 - 34: 0 | 33 - 21: dev/level 0 index |
  *   20 - 12: host/level 1 index | 11 - 0: page offset ]
  * flag:        Marker indicating that this is an extended address. Always 1.
  * dev index:   The index of the first-level page in the device's extended
