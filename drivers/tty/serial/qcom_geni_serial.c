@@ -89,9 +89,9 @@
 #define MAX_LOOPBACK_CFG	3
 
 #ifdef CONFIG_CONSOLE_POLL
-#define RX_BYTES_PW 1
+#define CONSOLE_RX_BYTES_PW 1
 #else
-#define RX_BYTES_PW 4
+#define CONSOLE_RX_BYTES_PW 4
 #endif
 
 struct qcom_geni_serial_port {
@@ -853,11 +853,13 @@ static int qcom_geni_serial_port_setup(struct uart_port *uport)
 	unsigned int rxstale = DEFAULT_BITS_PER_CHAR * STALE_TIMEOUT;
 	u32 proto;
 
-	if (uart_console(uport))
+	if (uart_console(uport)) {
 		port->tx_bytes_pw = 1;
-	else
+		port->rx_bytes_pw = CONSOLE_RX_BYTES_PW;
+	} else {
 		port->tx_bytes_pw = 4;
-	port->rx_bytes_pw = RX_BYTES_PW;
+		port->rx_bytes_pw = 4;
+	}
 
 	proto = geni_se_read_proto(&port->se);
 	if (proto != GENI_SE_UART) {
