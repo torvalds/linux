@@ -991,14 +991,14 @@ static void tcp_update_skb_after_send(struct sock *sk, struct sk_buff *skb)
 
 	skb->skb_mstamp_ns = tp->tcp_wstamp_ns;
 	if (sk->sk_pacing_status != SK_PACING_NONE) {
-		u32 rate = sk->sk_pacing_rate;
+		unsigned long rate = sk->sk_pacing_rate;
 
 		/* Original sch_fq does not pace first 10 MSS
 		 * Note that tp->data_segs_out overflows after 2^32 packets,
 		 * this is a minor annoyance.
 		 */
-		if (rate != ~0U && rate && tp->data_segs_out >= 10) {
-			tp->tcp_wstamp_ns += div_u64((u64)skb->len * NSEC_PER_SEC, rate);
+		if (rate != ~0UL && rate && tp->data_segs_out >= 10) {
+			tp->tcp_wstamp_ns += div64_ul((u64)skb->len * NSEC_PER_SEC, rate);
 
 			tcp_internal_pacing(sk);
 		}
@@ -1704,8 +1704,9 @@ static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
 {
 	u32 bytes, segs;
 
-	bytes = min(sk->sk_pacing_rate >> sk->sk_pacing_shift,
-		    sk->sk_gso_max_size - 1 - MAX_TCP_HEADER);
+	bytes = min_t(unsigned long,
+		      sk->sk_pacing_rate >> sk->sk_pacing_shift,
+		      sk->sk_gso_max_size - 1 - MAX_TCP_HEADER);
 
 	/* Goal is to send at least one packet per ms,
 	 * not one big TSO packet every 100 ms.
@@ -2198,10 +2199,12 @@ static bool tcp_pacing_check(const struct sock *sk)
 static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
 				  unsigned int factor)
 {
-	unsigned int limit;
+	unsigned long limit;
 
-	limit = max(2 * skb->truesize, sk->sk_pacing_rate >> sk->sk_pacing_shift);
-	limit = min_t(u32, limit,
+	limit = max_t(unsigned long,
+		      2 * skb->truesize,
+		      sk->sk_pacing_rate >> sk->sk_pacing_shift);
+	limit = min_t(unsigned long, limit,
 		      sock_net(sk)->ipv4.sysctl_tcp_limit_output_bytes);
 	limit <<= factor;
 
