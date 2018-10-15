@@ -2012,7 +2012,7 @@ void target_execute_cmd(struct se_cmd *cmd)
 	 * Determine if frontend context caller is requesting the stopping of
 	 * this command for frontend exceptions.
 	 *
-	 * If the received CDB has aleady been aborted stop processing it here.
+	 * If the received CDB has already been aborted stop processing it here.
 	 */
 	spin_lock_irq(&cmd->t_state_lock);
 	if (__transport_check_aborted_status(cmd, 1)) {
@@ -2516,7 +2516,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	}
 
 	/*
-	 * Determine is the TCM fabric module has already allocated physical
+	 * Determine if the TCM fabric module has already allocated physical
 	 * memory, and is directly calling transport_generic_map_mem_to_cmd()
 	 * beforehand.
 	 */
