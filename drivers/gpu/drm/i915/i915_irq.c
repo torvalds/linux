@@ -3165,8 +3165,8 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 
 	gu_misc_iir = gen11_gu_misc_irq_ack(i915, master_ctl);
 
-	/* Acknowledge and enable interrupts. */
-	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ | master_ctl);
+	/* Enable interrupts. */
+	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ);
 
 	gen11_gu_misc_irq_handler(i915, gu_misc_iir);
 
