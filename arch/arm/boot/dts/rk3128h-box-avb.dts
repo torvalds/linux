@@ -36,6 +36,7 @@
 
 &firmware_android {
 	compatible = "android,firmware";
+	boot_devices = "30020000.dwmmc,30030000.nandc";
 	vbmeta {
 		compatible = "android,vbmeta";
 		parts = "vbmeta,boot,system,vendor,dtbo";
@@ -44,7 +45,7 @@
 		compatible = "android,fstab";
 		vendor {
 			compatible = "android,vendor";
-			dev = "/dev/block/platform/30020000.dwmmc/by-name/vendor";
+			dev = "/dev/block/by-name/vendor";
 			type = "ext4";
 			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
 			fsmgr_flags = "wait,avb";
