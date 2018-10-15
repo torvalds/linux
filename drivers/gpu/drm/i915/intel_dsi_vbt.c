@@ -499,13 +499,11 @@ int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi)
 	return 1;
 }
 
-bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
+static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
-	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
-	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
 	u32 tlpx_ns, extra_byte_count, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
@@ -513,72 +511,6 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	u32 tclk_prepare_clkzero, ths_prepare_hszero;
 	u32 lp_to_hs_switch, hs_to_lp_switch;
 	u32 mul;
-	u16 burst_mode_ratio;
-	enum port port;
-
-	DRM_DEBUG_KMS("\n");
-
-	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
-	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
-	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
-	intel_dsi->pixel_format =
-			pixel_format_from_register_bits(
-				mipi_config->videomode_color_format << 7);
-
-	intel_dsi->dual_link = mipi_config->dual_link;
-	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
-	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
-	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
-	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
-	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
-	intel_dsi->turn_arnd_val = mipi_config->turn_around_timeout;
-	intel_dsi->rst_timer_val = mipi_config->device_reset_timer;
-	intel_dsi->init_count = mipi_config->master_init_timer;
-	intel_dsi->bw_timer = mipi_config->dbi_bw_timer;
-	intel_dsi->video_frmt_cfg_bits =
-		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
-
-	/* Starting point, adjusted depending on dual link and burst mode */
-	intel_dsi->pclk = mode->clock;
-
-	/* In dual link mode each port needs half of pixel clock */
-	if (intel_dsi->dual_link) {
-		intel_dsi->pclk /= 2;
-
-		/* we can enable pixel_overlap if needed by panel. In this
-		 * case we need to increase the pixelclock for extra pixels
-		 */
-		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
-			intel_dsi->pclk += DIV_ROUND_UP(mode->vtotal * intel_dsi->pixel_overlap * 60, 1000);
-		}
-	}
-
-	/* Burst Mode Ratio
-	 * Target ddr frequency from VBT / non burst ddr freq
-	 * multiply by 100 to preserve remainder
-	 */
-	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
-		if (mipi_config->target_burst_mode_freq) {
-			u32 bitrate = intel_dsi_bitrate(intel_dsi);
-
-			if (mipi_config->target_burst_mode_freq < bitrate) {
-				DRM_ERROR("Burst mode freq is less than computed\n");
-				return false;
-			}
-
-			burst_mode_ratio = DIV_ROUND_UP(
-				mipi_config->target_burst_mode_freq * 100,
-				bitrate);
-
-			intel_dsi->pclk = DIV_ROUND_UP(intel_dsi->pclk * burst_mode_ratio, 100);
-		} else {
-			DRM_ERROR("Burst mode target is not set\n");
-			return false;
-		}
-	} else
-		burst_mode_ratio = 100;
-
-	intel_dsi->burst_mode_ratio = burst_mode_ratio;
 
 	switch (intel_dsi->escape_clk_div) {
 	case 0:
@@ -738,6 +670,83 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 		DIV_ROUND_UP(2 * tlpx_ui + trail_cnt * 2 + 8,
 			8);
 	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
+}
+
+bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
+{
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
+	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
+	u16 burst_mode_ratio;
+	enum port port;
+
+	DRM_DEBUG_KMS("\n");
+
+	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
+	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
+	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
+	intel_dsi->pixel_format =
+			pixel_format_from_register_bits(
+				mipi_config->videomode_color_format << 7);
+
+	intel_dsi->dual_link = mipi_config->dual_link;
+	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
+	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
+	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
+	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
+	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
+	intel_dsi->turn_arnd_val = mipi_config->turn_around_timeout;
+	intel_dsi->rst_timer_val = mipi_config->device_reset_timer;
+	intel_dsi->init_count = mipi_config->master_init_timer;
+	intel_dsi->bw_timer = mipi_config->dbi_bw_timer;
+	intel_dsi->video_frmt_cfg_bits =
+		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
+
+	/* Starting point, adjusted depending on dual link and burst mode */
+	intel_dsi->pclk = mode->clock;
+
+	/* In dual link mode each port needs half of pixel clock */
+	if (intel_dsi->dual_link) {
+		intel_dsi->pclk /= 2;
+
+		/* we can enable pixel_overlap if needed by panel. In this
+		 * case we need to increase the pixelclock for extra pixels
+		 */
+		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
+			intel_dsi->pclk += DIV_ROUND_UP(mode->vtotal * intel_dsi->pixel_overlap * 60, 1000);
+		}
+	}
+
+	/* Burst Mode Ratio
+	 * Target ddr frequency from VBT / non burst ddr freq
+	 * multiply by 100 to preserve remainder
+	 */
+	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
+		if (mipi_config->target_burst_mode_freq) {
+			u32 bitrate = intel_dsi_bitrate(intel_dsi);
+
+			if (mipi_config->target_burst_mode_freq < bitrate) {
+				DRM_ERROR("Burst mode freq is less than computed\n");
+				return false;
+			}
+
+			burst_mode_ratio = DIV_ROUND_UP(
+				mipi_config->target_burst_mode_freq * 100,
+				bitrate);
+
+			intel_dsi->pclk = DIV_ROUND_UP(intel_dsi->pclk * burst_mode_ratio, 100);
+		} else {
+			DRM_ERROR("Burst mode target is not set\n");
+			return false;
+		}
+	} else
+		burst_mode_ratio = 100;
+
+	intel_dsi->burst_mode_ratio = burst_mode_ratio;
+
+	vlv_dphy_param_init(intel_dsi);
 
 	DRM_DEBUG_KMS("Pclk %d\n", intel_dsi->pclk);
 	DRM_DEBUG_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);
