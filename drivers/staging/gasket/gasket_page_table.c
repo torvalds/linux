@@ -699,26 +699,9 @@ static ulong gasket_components_to_dev_address(struct gasket_page_table *pg_tbl,
 					      int is_simple, uint page_index,
 					      uint offset)
 {
-	ulong lvl0_index, lvl1_index;
+	ulong dev_addr = (page_index << GASKET_SIMPLE_PAGE_SHIFT) | offset;
 
-	if (is_simple) {
-		/* Return simple addresses directly. */
-		lvl0_index = page_index & (pg_tbl->config.total_entries - 1);
-		return (lvl0_index << GASKET_SIMPLE_PAGE_SHIFT) | offset;
-	}
-
-	/*
-	 * This could be compressed into fewer statements, but
-	 * A) the compiler should optimize it
-	 * B) this is not slow
-	 * C) this is an uncommon operation
-	 * D) this is actually readable this way.
-	 */
-	lvl0_index = page_index / GASKET_PAGES_PER_SUBTABLE;
-	lvl1_index = page_index & (GASKET_PAGES_PER_SUBTABLE - 1);
-	return (pg_tbl)->extended_flag |
-	       (lvl0_index << GASKET_EXTENDED_LVL0_SHIFT) |
-	       (lvl1_index << GASKET_EXTENDED_LVL1_SHIFT) | offset;
+	return is_simple ? dev_addr : (pg_tbl->extended_flag | dev_addr);
 }
 
 /*
