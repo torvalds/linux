@@ -212,44 +212,6 @@ int mt76x0_phy_wait_bbp_ready(struct mt76x02_dev *dev)
 	return 0;
 }
 
-static void mt76x0_phy_vco_cal(struct mt76x02_dev *dev, u8 channel)
-{
-	u8 val;
-
-	val = mt76x0_rf_rr(dev, MT_RF(0, 4));
-	if ((val & 0x70) != 0x30)
-		return;
-
-	/* closed loop calibarion - B0.R06.[3:0]: 1001 */
-	mt76x0_rf_rmw(dev, MT_RF(0, 6), MT_RF_VCO_BP_CLOSE_LOOP_MASK,
-		      MT_RF_VCO_BP_CLOSE_LOOP | BIT(0));
-
-	/* open loop calibration - B0.R05.[7:0]: 0x0 */
-	mt76x0_rf_wr(dev, MT_RF(0, 5), 0x0);
-
-	/* caliration mask - B0.R04.[2:0]: 000 */
-	mt76x0_rf_clear(dev, MT_RF(0, 4), MT_RF_VCO_CAL_MASK);
-
-	/* startup time - B0.R03.[2:0] startup_time: 011 */
-	mt76x0_rf_rmw(dev, MT_RF(0, 3), MT_RF_START_TIME_MASK,
-		      MT_RF_START_TIME);
-
-	/* settle_time - B0.R03.[6:4] */
-	if (channel == 3 || channel == 4 || channel == 10)
-		val = 0x50;
-	else if (channel == 2 || channel == 5 || channel == 6 ||
-		 channel == 8 || channel == 11 || channel == 12)
-		val = 0x40;
-	else
-		val = 0x60;
-	mt76x0_rf_rmw(dev, MT_RF(0, 3), MT_RF_SETTLE_TIME_MASK, val);
-
-	/* enable vco */
-	mt76x0_rf_set(dev, MT_RF(0, 4), BIT(7));
-
-	msleep(2);
-}
-
 static void
 mt76x0_phy_set_band(struct mt76x02_dev *dev, enum nl80211_band band)
 {
@@ -670,57 +632,18 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 	mt76x0_phy_set_chan_bbp_params(dev, rf_bw_band);
 	mt76x02_init_agc_gain(dev);
 
-	if (mt76_is_usb(dev)) {
-		mt76x0_phy_vco_cal(dev, channel);
-	} else {
-		/* enable vco */
-		mt76x0_rf_set(dev, MT_RF(0, 4), BIT(7));
-	}
-
+	/* enable vco */
+	mt76x0_rf_set(dev, MT_RF(0, 4), BIT(7));
 	if (scan)
 		return 0;
 
-	if (mt76_is_mmio(dev))
-		mt76x0_phy_calibrate(dev, false);
+	mt76x0_phy_calibrate(dev, false);
 	mt76x0_phy_set_txpower(dev);
 
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 
 	return 0;
-}
-
-void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev)
-{
-	u32 tx_alc, reg_val;
-	u8 channel = dev->mt76.chandef.chan->hw_value;
-	int is_5ghz = (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ) ? 1 : 0;
-
-	mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
-
-	mt76x0_phy_vco_cal(dev, channel);
-
-	tx_alc = mt76_rr(dev, MT_TX_ALC_CFG_0);
-	mt76_wr(dev, MT_TX_ALC_CFG_0, 0);
-	usleep_range(500, 700);
-
-	reg_val = mt76_rr(dev, MT_BBP(IBI, 9));
-	mt76_wr(dev, MT_BBP(IBI, 9), 0xffffff7e);
-
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 0, false);
-
-	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_LOFT, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TXIQ, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_TX_GROUP_DELAY, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXIQ, is_5ghz, false);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RX_GROUP_DELAY, is_5ghz, false);
-
-	mt76_wr(dev, MT_BBP(IBI, 9), reg_val);
-	mt76_wr(dev, MT_TX_ALC_CFG_0, tx_alc);
-	msleep(100);
-
-	mt76x02_mcu_calibrate(dev, MCU_CAL_RXDCOC, 1, false);
 }
 
 static void mt76x0_phy_temp_sensor(struct mt76x02_dev *dev)

@@ -64,7 +64,6 @@ void mt76x0_phy_init(struct mt76x02_dev *dev);
 int mt76x0_phy_wait_bbp_ready(struct mt76x02_dev *dev);
 int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 			    struct cfg80211_chan_def *chandef);
-void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev);
 void mt76x0_phy_set_txpower(struct mt76x02_dev *dev);
 void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on);
 

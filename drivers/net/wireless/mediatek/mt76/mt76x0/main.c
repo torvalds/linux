@@ -121,9 +121,6 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 			       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
 	}
 
-	if (changed & BSS_CHANGED_ASSOC)
-		mt76x0_phy_recalibrate_after_assoc(dev);
-
 	mutex_unlock(&dev->mt76.mutex);
 }
 EXPORT_SYMBOL_GPL(mt76x0_bss_info_changed);

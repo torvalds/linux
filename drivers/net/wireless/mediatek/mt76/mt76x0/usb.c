@@ -117,6 +117,7 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto out;
 
+	mt76x0_phy_calibrate(dev, true);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
