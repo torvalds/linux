@@ -204,9 +204,10 @@
 #define LOADB(reg, addr, handler)	EXC(lb, LD_INSN, reg, addr, handler)
 #define STOREB(reg, addr, handler)	EXC(sb, ST_INSN, reg, addr, handler)
 
-#define _PREF(hint, addr, type)						\
+#ifdef CONFIG_CPU_HAS_PREFETCH
+# define _PREF(hint, addr, type)					\
 	.if \mode == LEGACY_MODE;					\
-		PREF(hint, addr);					\
+		kernel_pref(hint, addr);				\
 	.else;								\
 		.if ((\from == USEROP) && (type == SRC_PREFETCH)) ||	\
 		    ((\to == USEROP) && (type == DST_PREFETCH));	\
@@ -218,12 +219,15 @@
 			 * used later on. Therefore use $v1.		\
 			 */						\
 			.set at=v1;					\
-			PREFE(hint, addr);				\
+			user_pref(hint, addr);				\
 			.set noat;					\
 		.else;							\
-			PREF(hint, addr);				\
+			kernel_pref(hint, addr);			\
 		.endif;							\
 	.endif
+#else
+# define _PREF(hint, addr, type)
+#endif
 
 #define PREFS(hint, addr) _PREF(hint, addr, SRC_PREFETCH)
 #define PREFD(hint, addr) _PREF(hint, addr, DST_PREFETCH)
