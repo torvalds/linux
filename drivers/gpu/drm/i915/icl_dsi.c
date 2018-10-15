@@ -340,10 +340,14 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 	}
 }
 
-static void gen11_dsi_configure_transcoder(struct intel_encoder *encoder)
+static void
+gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	u32 tmp;
 	enum port port;
 	enum transcoder dsi_trans;
@@ -420,9 +424,61 @@ static void gen11_dsi_configure_transcoder(struct intel_encoder *encoder)
 
 		I915_WRITE(DSI_TRANS_FUNC_CONF(dsi_trans), tmp);
 	}
+
+	/* enable port sync mode if dual link */
+	if (intel_dsi->dual_link) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			tmp = I915_READ(TRANS_DDI_FUNC_CTL2(dsi_trans));
+			tmp |= PORT_SYNC_MODE_ENABLE;
+			I915_WRITE(TRANS_DDI_FUNC_CTL2(dsi_trans), tmp);
+		}
+
+		//TODO: configure DSS_CTL1
+	}
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+
+		/* select data lane width */
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp &= ~DDI_PORT_WIDTH_MASK;
+		tmp |= DDI_PORT_WIDTH(intel_dsi->lane_count);
+
+		/* select input pipe */
+		tmp &= ~TRANS_DDI_EDP_INPUT_MASK;
+		switch (pipe) {
+		default:
+			MISSING_CASE(pipe);
+			/* fallthrough */
+		case PIPE_A:
+			tmp |= TRANS_DDI_EDP_INPUT_A_ON;
+			break;
+		case PIPE_B:
+			tmp |= TRANS_DDI_EDP_INPUT_B_ONOFF;
+			break;
+		case PIPE_C:
+			tmp |= TRANS_DDI_EDP_INPUT_C_ONOFF;
+			break;
+		}
+
+		/* enable DDI buffer */
+		tmp |= TRANS_DDI_FUNC_ENABLE;
+		I915_WRITE(TRANS_DDI_FUNC_CTL(dsi_trans), tmp);
+	}
+
+	/* wait for link ready */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		if (wait_for_us((I915_READ(DSI_TRANS_FUNC_CONF(dsi_trans)) &
+				LINK_READY), 2500))
+			DRM_ERROR("DSI link not ready\n");
+	}
 }
 
-static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
+static void
+gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *pipe_config)
 {
 	/* step 4a: power up all lanes of the DDI used by DSI */
 	gen11_dsi_power_up_lanes(encoder);
@@ -440,7 +496,7 @@ static void gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder)
 	gen11_dsi_setup_dphy_timings(encoder);
 
 	/* Step (4h, 4i, 4j, 4k): Configure transcoder */
-	gen11_dsi_configure_transcoder(encoder);
+	gen11_dsi_configure_transcoder(encoder, pipe_config);
 }
 
 static void __attribute__((unused))
@@ -455,5 +511,5 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 	gen11_dsi_program_esc_clk_div(encoder);
 
 	/* step4: enable DSI port and DPHY */
-	gen11_dsi_enable_port_and_phy(encoder);
+	gen11_dsi_enable_port_and_phy(encoder, pipe_config);
 }
