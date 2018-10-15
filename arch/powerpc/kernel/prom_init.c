@@ -172,7 +172,9 @@ static unsigned long __prombss prom_tce_alloc_start;
 static unsigned long __prombss prom_tce_alloc_end;
 #endif
 
-static bool prom_radix_disable __initdata = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
+#ifdef CONFIG_PPC_PSERIES
+static bool prom_radix_disable __prombss;
+#endif
 
 struct platform_support {
 	bool hash_mmu;
@@ -665,6 +667,8 @@ static void __init early_cmdline_parse(void)
 #endif
 	}
 
+#ifdef CONFIG_PPC_PSERIES
+	prom_radix_disable = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
 	opt = strstr(prom_cmd_line, "disable_radix");
 	if (opt) {
 		opt += 13;
@@ -680,6 +684,7 @@ static void __init early_cmdline_parse(void)
 	}
 	if (prom_radix_disable)
 		prom_debug("Radix disabled from cmdline\n");
+#endif /* CONFIG_PPC_PSERIES */
 }
 
 #ifdef CONFIG_PPC_PSERIES
