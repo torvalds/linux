@@ -71,6 +71,7 @@ int txmsg_start;
 int txmsg_end;
 int txmsg_ingress;
 int txmsg_skb;
+int ktls;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -92,6 +93,7 @@ static const struct option long_options[] = {
 	{"txmsg_end",	required_argument,	NULL, 'e'},
 	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
 	{"txmsg_skb", no_argument,		&txmsg_skb, 1 },
+	{"ktls", no_argument,			&ktls, 1 },
 	{0, 0, NULL, 0 }
 };
 
@@ -112,6 +114,76 @@ static void usage(char *argv[])
 	printf("\n");
 }
 
+#define TCP_ULP 31
+#define TLS_TX 1
+#define TLS_RX 2
+#include <linux/tls.h>
+
+char *sock_to_string(int s)
+{
+	if (s == c1)
+		return "client1";
+	else if (s == c2)
+		return "client2";
+	else if (s == s1)
+		return "server1";
+	else if (s == s2)
+		return "server2";
+	else if (s == p1)
+		return "peer1";
+	else if (s == p2)
+		return "peer2";
+	else
+		return "unknown";
+}
+
+static int sockmap_init_ktls(int verbose, int s)
+{
+	struct tls12_crypto_info_aes_gcm_128 tls_tx = {
+		.info = {
+			.version     = TLS_1_2_VERSION,
+			.cipher_type = TLS_CIPHER_AES_GCM_128,
+		},
+	};
+	struct tls12_crypto_info_aes_gcm_128 tls_rx = {
+		.info = {
+			.version     = TLS_1_2_VERSION,
+			.cipher_type = TLS_CIPHER_AES_GCM_128,
+		},
+	};
+	int so_buf = 6553500;
+	int err;
+
+	err = setsockopt(s, 6, TCP_ULP, "tls", sizeof("tls"));
+	if (err) {
+		fprintf(stderr, "setsockopt: TCP_ULP(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_TLS, TLS_TX, (void *)&tls_tx, sizeof(tls_tx));
+	if (err) {
+		fprintf(stderr, "setsockopt: TLS_TX(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_TLS, TLS_RX, (void *)&tls_rx, sizeof(tls_rx));
+	if (err) {
+		fprintf(stderr, "setsockopt: TLS_RX(%s) failed with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_SOCKET, SO_SNDBUF, &so_buf, sizeof(so_buf));
+	if (err) {
+		fprintf(stderr, "setsockopt: (%s) failed sndbuf with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+	err = setsockopt(s, SOL_SOCKET, SO_RCVBUF, &so_buf, sizeof(so_buf));
+	if (err) {
+		fprintf(stderr, "setsockopt: (%s) failed rcvbuf with error %i\n", sock_to_string(s), err);
+		return -EINVAL;
+	}
+
+	if (verbose)
+		fprintf(stdout, "socket(%s) kTLS enabled\n", sock_to_string(s));
+	return 0;
+}
 static int sockmap_init_sockets(int verbose)
 {
 	int i, err, one = 1;
@@ -455,6 +527,21 @@ static int sendmsg_test(struct sockmap_options *opt)
 		rx_fd = p1;
 	else
 		rx_fd = p2;
+
+	if (ktls) {
+		/* Redirecting into non-TLS socket which sends into a TLS
+		 * socket is not a valid test. So in this case lets not
+		 * enable kTLS but still run the test.
+		 */
+		if (!txmsg_redir || (txmsg_redir && txmsg_ingress)) {
+			err = sockmap_init_ktls(opt->verbose, rx_fd);
+			if (err)
+				return err;
+		}
+		err = sockmap_init_ktls(opt->verbose, c1);
+		if (err)
+			return err;
+	}
 
 	rxpid = fork();
 	if (rxpid == 0) {
@@ -907,6 +994,8 @@ static void test_options(char *options)
 		strncat(options, "ingress,", OPTSTRING);
 	if (txmsg_skb)
 		strncat(options, "skb,", OPTSTRING);
+	if (ktls)
+		strncat(options, "ktls,", OPTSTRING);
 }
 
 static int __test_exec(int cgrp, int test, struct sockmap_options *opt)

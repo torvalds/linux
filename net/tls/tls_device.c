@@ -421,7 +421,7 @@ last_record:
 			tls_push_record_flags = flags;
 			if (more) {
 				tls_ctx->pending_open_record_frags =
-						record->num_frags;
+						!!record->num_frags;
 				break;
 			}
 

@@ -13,11 +13,6 @@ ifeq ($(CONFIG_XDP_SOCKETS),y)
 obj-$(CONFIG_BPF_SYSCALL) += xskmap.o
 endif
 obj-$(CONFIG_BPF_SYSCALL) += offload.o
-ifeq ($(CONFIG_STREAM_PARSER),y)
-ifeq ($(CONFIG_INET),y)
-obj-$(CONFIG_BPF_SYSCALL) += sockmap.o
-endif
-endif
 endif
 ifeq ($(CONFIG_PERF_EVENTS),y)
 obj-$(CONFIG_BPF_SYSCALL) += stackmap.o
