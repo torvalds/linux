@@ -465,6 +465,13 @@ Next, the following policy attributes have special meaning if
 	policy for the time interval between the last two invocations of the
 	driver's utilization update callback by the CPU scheduler for that CPU.
 
+One more policy attribute is present if the `HWP feature is enabled in the
+processor <Active Mode With HWP_>`_:
+
+``base_frequency``
+	Shows the base frequency of the CPU. Any frequency above this will be
+	in the turbo frequency range.
+
 The meaning of these attributes in the `passive mode <Passive Mode_>`_ is the
 same as for other scaling drivers.
 
