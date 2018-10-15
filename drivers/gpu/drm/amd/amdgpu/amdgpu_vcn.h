@@ -75,6 +75,7 @@ enum engine_status_constants {
 	UVD_STATUS__BUSY = 0x5,
 	UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF = 0x1,
 	UVD_STATUS__RBC_BUSY = 0x1,
+	UVD_PGFSM_STATUS_UVDJ_PWR_ON = 0,
 };
 
 enum internal_dpg_state {

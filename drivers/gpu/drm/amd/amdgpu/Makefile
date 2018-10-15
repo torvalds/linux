@@ -136,7 +136,8 @@ amdgpu-y += \
 # add VCN block
 amdgpu-y += \
 	amdgpu_vcn.o \
-	vcn_v1_0.o
+	vcn_v1_0.o \
+	vcn_v2_0.o
 
 # add ATHUB block
 amdgpu-y += \
