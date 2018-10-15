@@ -129,6 +129,9 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
+/* intel_dsi.c */
+int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
+
 /* vlv_dsi.c */
 void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);

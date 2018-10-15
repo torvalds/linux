@@ -506,14 +506,12 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
 	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
 	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
-	u32 bpp;
-	u32 tlpx_ns, extra_byte_count, bitrate, tlpx_ui;
+	u32 tlpx_ns, extra_byte_count, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
 	u32 ths_prepare_ns, tclk_trail_ns;
 	u32 tclk_prepare_clkzero, ths_prepare_hszero;
 	u32 lp_to_hs_switch, hs_to_lp_switch;
-	u32 pclk, computed_ddr;
 	u32 mul;
 	u16 burst_mode_ratio;
 	enum port port;
@@ -526,7 +524,6 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->pixel_format =
 			pixel_format_from_register_bits(
 				mipi_config->videomode_color_format << 7);
-	bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
@@ -541,19 +538,18 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->video_frmt_cfg_bits =
 		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
 
-	pclk = mode->clock;
+	/* Starting point, adjusted depending on dual link and burst mode */
+	intel_dsi->pclk = mode->clock;
 
 	/* In dual link mode each port needs half of pixel clock */
 	if (intel_dsi->dual_link) {
-		pclk = pclk / 2;
+		intel_dsi->pclk /= 2;
 
 		/* we can enable pixel_overlap if needed by panel. In this
 		 * case we need to increase the pixelclock for extra pixels
 		 */
 		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
-			pclk += DIV_ROUND_UP(mode->vtotal *
-						intel_dsi->pixel_overlap *
-						60, 1000);
+			intel_dsi->pclk += DIV_ROUND_UP(mode->vtotal * intel_dsi->pixel_overlap * 60, 1000);
 		}
 	}
 
@@ -563,19 +559,18 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	 */
 	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
 		if (mipi_config->target_burst_mode_freq) {
-			computed_ddr = (pclk * bpp) / intel_dsi->lane_count;
+			u32 bitrate = intel_dsi_bitrate(intel_dsi);
 
-			if (mipi_config->target_burst_mode_freq <
-								computed_ddr) {
+			if (mipi_config->target_burst_mode_freq < bitrate) {
 				DRM_ERROR("Burst mode freq is less than computed\n");
 				return false;
 			}
 
 			burst_mode_ratio = DIV_ROUND_UP(
 				mipi_config->target_burst_mode_freq * 100,
-				computed_ddr);
+				bitrate);
 
-			pclk = DIV_ROUND_UP(pclk * burst_mode_ratio, 100);
+			intel_dsi->pclk = DIV_ROUND_UP(intel_dsi->pclk * burst_mode_ratio, 100);
 		} else {
 			DRM_ERROR("Burst mode target is not set\n");
 			return false;
@@ -584,9 +579,6 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 		burst_mode_ratio = 100;
 
 	intel_dsi->burst_mode_ratio = burst_mode_ratio;
-	intel_dsi->pclk = pclk;
-
-	bitrate = (pclk * bpp) / intel_dsi->lane_count;
 
 	switch (intel_dsi->escape_clk_div) {
 	case 0:
@@ -620,7 +612,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	/* in Kbps */
 	ui_num = NS_KHZ_RATIO;
-	ui_den = bitrate;
+	ui_den = intel_dsi_bitrate(intel_dsi);
 
 	tclk_prepare_clkzero = mipi_config->tclk_prepare_clkzero;
 	ths_prepare_hszero = mipi_config->ths_prepare_hszero;
