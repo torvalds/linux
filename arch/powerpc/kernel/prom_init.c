@@ -788,7 +788,7 @@ struct ibm_arch_vec {
 	struct option_vector6 vec6;
 } __packed;
 
-struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
+static const struct ibm_arch_vec ibm_architecture_vec_template = {
 	.pvrs = {
 		{
 			.mask = cpu_to_be32(0xfffe0000), /* POWER5/POWER5+ */
@@ -925,6 +925,8 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		.os_name = OV6_LINUX,
 	},
 };
+
+static struct ibm_arch_vec __prombss ibm_architecture_vec  ____cacheline_aligned;
 
 /* Old method - ELF header with PT_NOTE sections only works on BE */
 #ifdef __BIG_ENDIAN__
@@ -1135,6 +1137,10 @@ static void __init prom_check_platform_support(void)
 	};
 	int prop_len = prom_getproplen(prom.chosen,
 				       "ibm,arch-vec-5-platform-support");
+
+	/* First copy the architecture vec template */
+	ibm_architecture_vec = ibm_architecture_vec_template;
+
 	if (prop_len > 1) {
 		int i;
 		u8 vec[8];
