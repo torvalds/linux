@@ -25,6 +25,11 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 
 	mt76_set_channel(&dev->mt76);
 	ret = mt76x0_phy_set_channel(dev, chandef);
+
+	/* channel cycle counters read-and-clear */
+	mt76_rr(dev, MT_CH_IDLE);
+	mt76_rr(dev, MT_CH_BUSY);
+
 	mt76_txq_schedule_all(&dev->mt76);
 
 	return ret;

@@ -137,30 +137,13 @@ void mt76x2_mac_set_beacon_enable(struct mt76x02_dev *dev,
 		mt76x02_irq_disable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
 }
 
-void mt76x2_update_channel(struct mt76_dev *mdev)
-{
-	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	struct mt76_channel_state *state;
-	u32 active, busy;
-
-	state = mt76_channel_state(&dev->mt76, dev->mt76.chandef.chan);
-
-	busy = mt76_rr(dev, MT_CH_BUSY);
-	active = busy + mt76_rr(dev, MT_CH_IDLE);
-
-	spin_lock_bh(&dev->mt76.cc_lock);
-	state->cc_busy += busy;
-	state->cc_active += active;
-	spin_unlock_bh(&dev->mt76.cc_lock);
-}
-
 void mt76x2_mac_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
 					       mac_work.work);
 	int i, idx;
 
-	mt76x2_update_channel(&dev->mt76);
+	mt76x02_update_channel(&dev->mt76);
 	for (i = 0, idx = 0; i < 16; i++) {
 		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
 

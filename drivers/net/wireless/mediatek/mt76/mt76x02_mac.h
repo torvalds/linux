@@ -226,4 +226,5 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq);
 void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			     struct mt76_queue_entry *e, bool flush);
+void mt76x02_update_channel(struct mt76_dev *mdev);
 #endif

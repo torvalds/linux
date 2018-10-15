@@ -137,6 +137,8 @@ void mt76x0_mac_work(struct work_struct *work)
 	u32 sum, n;
 	int i, j, k;
 
+	mt76x02_update_channel(&dev->mt76);
+
 	/* Note: using MCU_RANDOM_READ is actually slower then reading all the
 	 *	 registers by hand.  MCU takes ca. 20ms to complete read of 24
 	 *	 registers while reading them one by one will takes roughly

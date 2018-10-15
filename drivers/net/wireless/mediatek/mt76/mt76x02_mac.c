@@ -735,3 +735,21 @@ void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 		dev_kfree_skb_any(e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_complete_skb);
+
+void mt76x02_update_channel(struct mt76_dev *mdev)
+{
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+	struct mt76_channel_state *state;
+	u32 active, busy;
+
+	state = mt76_channel_state(&dev->mt76, dev->mt76.chandef.chan);
+
+	busy = mt76_rr(dev, MT_CH_BUSY);
+	active = busy + mt76_rr(dev, MT_CH_IDLE);
+
+	spin_lock_bh(&dev->mt76.cc_lock);
+	state->cc_busy += busy;
+	state->cc_active += active;
+	spin_unlock_bh(&dev->mt76.cc_lock);
+}
+EXPORT_SYMBOL_GPL(mt76x02_update_channel);
