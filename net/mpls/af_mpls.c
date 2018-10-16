@@ -2044,7 +2044,9 @@ static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 				   struct netlink_callback *cb)
 {
 	struct netlink_ext_ack *extack = cb->extack;
+	struct nlattr *tb[RTA_MAX + 1];
 	struct rtmsg *rtm;
+	int err, i;
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
 		NL_SET_ERR_MSG_MOD(extack, "Invalid header for FIB dump request");
@@ -2053,15 +2055,36 @@ static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 
 	rtm = nlmsg_data(nlh);
 	if (rtm->rtm_dst_len || rtm->rtm_src_len  || rtm->rtm_tos   ||
-	    rtm->rtm_table   || rtm->rtm_protocol || rtm->rtm_scope ||
-	    rtm->rtm_type    || rtm->rtm_flags) {
+	    rtm->rtm_table   || rtm->rtm_scope    || rtm->rtm_type  ||
+	    rtm->rtm_flags) {
 		NL_SET_ERR_MSG_MOD(extack, "Invalid values in header for FIB dump request");
 		return -EINVAL;
 	}
 
-	if (nlmsg_attrlen(nlh, sizeof(*rtm))) {
-		NL_SET_ERR_MSG_MOD(extack, "Invalid data after header in FIB dump request");
-		return -EINVAL;
+	if (rtm->rtm_protocol) {
+		filter->protocol = rtm->rtm_protocol;
+		filter->filter_set = 1;
+		cb->answer_flags = NLM_F_DUMP_FILTERED;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+				 rtm_mpls_policy, extack);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i <= RTA_MAX; ++i) {
+		int ifindex;
+
+		if (i == RTA_OIF) {
+			ifindex = nla_get_u32(tb[i]);
+			filter->dev = __dev_get_by_index(net, ifindex);
+			if (!filter->dev)
+				return -ENODEV;
+			filter->filter_set = 1;
+		} else if (tb[i]) {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported attribute in dump request");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
