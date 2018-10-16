@@ -431,6 +431,8 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		vcpu->arch.exception.has_error_code = has_error;
 		vcpu->arch.exception.nr = nr;
 		vcpu->arch.exception.error_code = error_code;
+		vcpu->arch.exception.has_payload = false;
+		vcpu->arch.exception.payload = 0;
 		return;
 	}
 
@@ -455,6 +457,8 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		vcpu->arch.exception.has_error_code = true;
 		vcpu->arch.exception.nr = DF_VECTOR;
 		vcpu->arch.exception.error_code = 0;
+		vcpu->arch.exception.has_payload = false;
+		vcpu->arch.exception.payload = 0;
 	} else
 		/* replace previous exception with a new one in a hope
 		   that instruction re-execution will regenerate lost
@@ -3436,6 +3440,8 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 	vcpu->arch.exception.nr = events->exception.nr;
 	vcpu->arch.exception.has_error_code = events->exception.has_error_code;
 	vcpu->arch.exception.error_code = events->exception.error_code;
+	vcpu->arch.exception.has_payload = false;
+	vcpu->arch.exception.payload = 0;
 
 	vcpu->arch.interrupt.injected = events->interrupt.injected;
 	vcpu->arch.interrupt.nr = events->interrupt.nr;
@@ -9486,6 +9492,8 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 			vcpu->arch.exception.nr = 0;
 			vcpu->arch.exception.has_error_code = false;
 			vcpu->arch.exception.error_code = 0;
+			vcpu->arch.exception.has_payload = false;
+			vcpu->arch.exception.payload = 0;
 		} else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_READY)) {
 			fault.vector = PF_VECTOR;
 			fault.error_code_valid = true;

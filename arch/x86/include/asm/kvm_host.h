@@ -628,6 +628,8 @@ struct kvm_vcpu_arch {
 		bool has_error_code;
 		u8 nr;
 		u32 error_code;
+		unsigned long payload;
+		bool has_payload;
 		u8 nested_apf;
 	} exception;
 
