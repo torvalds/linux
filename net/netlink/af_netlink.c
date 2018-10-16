@@ -2257,7 +2257,8 @@ static int netlink_dump(struct sock *sk)
 	}
 
 	nlh = nlmsg_put_answer(skb, cb, NLMSG_DONE,
-			       sizeof(nlk->dump_done_errno), NLM_F_MULTI);
+			       sizeof(nlk->dump_done_errno),
+			       NLM_F_MULTI | cb->answer_flags);
 	if (WARN_ON(!nlh))
 		goto errout_skb;
 
