@@ -28,6 +28,7 @@
 #include <linux/sock_diag.h>
 #include <linux/bpf.h>
 #include <linux/if_link.h>
+#include <linux/tls.h>
 #include <assert.h>
 #include <libgen.h>
 
@@ -42,6 +43,13 @@
 
 int running;
 static void running_handler(int a);
+
+#ifndef TCP_ULP
+# define TCP_ULP 31
+#endif
+#ifndef SOL_TLS
+# define SOL_TLS 282
+#endif
 
 /* randomly selected ports for testing on lo */
 #define S1_PORT 10000
@@ -113,11 +121,6 @@ static void usage(char *argv[])
 	}
 	printf("\n");
 }
-
-#define TCP_ULP 31
-#define TLS_TX 1
-#define TLS_RX 2
-#include <linux/tls.h>
 
 char *sock_to_string(int s)
 {
