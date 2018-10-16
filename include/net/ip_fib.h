@@ -222,6 +222,16 @@ struct fib_table {
 	unsigned long		__data[0];
 };
 
+struct fib_dump_filter {
+	u32			table_id;
+	/* filter_set is an optimization that an entry is set */
+	bool			filter_set;
+	unsigned char		protocol;
+	unsigned char		rt_type;
+	unsigned int		flags;
+	struct net_device	*dev;
+};
+
 int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		     struct fib_result *res, int fib_flags);
 int fib_table_insert(struct net *, struct fib_table *, struct fib_config *,
@@ -229,7 +239,7 @@ int fib_table_insert(struct net *, struct fib_table *, struct fib_config *,
 int fib_table_delete(struct net *, struct fib_table *, struct fib_config *,
 		     struct netlink_ext_ack *extack);
 int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
-		   struct netlink_callback *cb);
+		   struct netlink_callback *cb, struct fib_dump_filter *filter);
 int fib_table_flush(struct net *net, struct fib_table *table);
 struct fib_table *fib_trie_unmerge(struct fib_table *main_tb);
 void fib_table_flush_external(struct fib_table *table);
@@ -453,6 +463,7 @@ static inline void fib_proc_exit(struct net *net)
 
 u32 ip_mtu_from_fib_result(struct fib_result *res, __be32 daddr);
 
-int ip_valid_fib_dump_req(const struct nlmsghdr *nlh,
-			  struct netlink_ext_ack *extack);
+int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
+			  struct fib_dump_filter *filter,
+			  struct netlink_callback *cb);
 #endif  /* _NET_FIB_H */

@@ -4767,28 +4767,52 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static bool fib6_info_uses_dev(const struct fib6_info *f6i,
+			       const struct net_device *dev)
+{
+	if (f6i->fib6_nh.nh_dev == dev)
+		return true;
+
+	if (f6i->fib6_nsiblings) {
+		struct fib6_info *sibling, *next_sibling;
+
+		list_for_each_entry_safe(sibling, next_sibling,
+					 &f6i->fib6_siblings, fib6_siblings) {
+			if (sibling->fib6_nh.nh_dev == dev)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 int rt6_dump_route(struct fib6_info *rt, void *p_arg)
 {
 	struct rt6_rtnl_dump_arg *arg = (struct rt6_rtnl_dump_arg *) p_arg;
+	struct fib_dump_filter *filter = &arg->filter;
+	unsigned int flags = NLM_F_MULTI;
 	struct net *net = arg->net;
 
 	if (rt == net->ipv6.fib6_null_entry)
 		return 0;
 
-	if (nlmsg_len(arg->cb->nlh) >= sizeof(struct rtmsg)) {
-		struct rtmsg *rtm = nlmsg_data(arg->cb->nlh);
-
-		/* user wants prefix routes only */
-		if (rtm->rtm_flags & RTM_F_PREFIX &&
-		    !(rt->fib6_flags & RTF_PREFIX_RT)) {
-			/* success since this is not a prefix route */
+	if ((filter->flags & RTM_F_PREFIX) &&
+	    !(rt->fib6_flags & RTF_PREFIX_RT)) {
+		/* success since this is not a prefix route */
+		return 1;
+	}
+	if (filter->filter_set) {
+		if ((filter->rt_type && rt->fib6_type != filter->rt_type) ||
+		    (filter->dev && !fib6_info_uses_dev(rt, filter->dev)) ||
+		    (filter->protocol && rt->fib6_protocol != filter->protocol)) {
 			return 1;
 		}
+		flags |= NLM_F_DUMP_FILTERED;
 	}
 
 	return rt6_fill_node(net, arg->skb, rt, NULL, NULL, NULL, 0,
 			     RTM_NEWROUTE, NETLINK_CB(arg->cb->skb).portid,
-			     arg->cb->nlh->nlmsg_seq, NLM_F_MULTI);
+			     arg->cb->nlh->nlmsg_seq, flags);
 }
 
 static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
