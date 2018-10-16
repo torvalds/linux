@@ -499,8 +499,13 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
 	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
 
+
 	/*
-	 * Need to calculate the scan direction for viewport to properly determine offset
+	 * We need take horizontal mirror into account. On an unrotated surface this means
+	 * that the viewport offset is actually the offset from the other side of source
+	 * image so we have to subtract the right edge of the viewport from the right edge of
+	 * the source window. Similar to mirror we need to take into account how offset is
+	 * affected for 270/180 rotations
 	 */
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
 		flip_vert_scan_dir = true;
@@ -509,6 +514,9 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 		flip_vert_scan_dir = true;
 	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		flip_horz_scan_dir = true;
+
+	if (pipe_ctx->plane_state->horizontal_mirror)
+		flip_horz_scan_dir = !flip_horz_scan_dir;
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
 		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
@@ -540,45 +548,27 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			plane_state->clip_rect.y + plane_state->clip_rect.height - clip.y ;
 
 	/* offset = surf_src.ofs + (clip.ofs - surface->dst_rect.ofs) * scl_ratio
+	 * note: surf_src.ofs should be added after rotation/mirror offset direction
+	 *       adjustment since it is already in viewport space
 	 * num_pixels = clip.num_pix * scl_ratio
 	 */
-	data->viewport.x = surf_src.x + (clip.x - plane_state->dst_rect.x) *
+	data->viewport.x = (clip.x - plane_state->dst_rect.x) *
 			surf_src.width / plane_state->dst_rect.width;
 	data->viewport.width = clip.width *
 			surf_src.width / plane_state->dst_rect.width;
 
-	data->viewport.y = surf_src.y + (clip.y - plane_state->dst_rect.y) *
+	data->viewport.y = (clip.y - plane_state->dst_rect.y) *
 			surf_src.height / plane_state->dst_rect.height;
 	data->viewport.height = clip.height *
 			surf_src.height / plane_state->dst_rect.height;
 
-	/* To transfer the x, y to correct coordinate on mirror image (camera).
-	 * deg  0 : transfer x,
-	 * deg 90 : don't need to transfer,
-	 * deg180 : transfer y,
-	 * deg270 : transfer x and y.
-	 * To transfer the x, y to correct coordinate on non-mirror image (video).
-	 * deg  0 : don't need to transfer,
-	 * deg 90 : transfer y,
-	 * deg180 : transfer x and y,
-	 * deg270 : transfer x.
-	 */
-	if (pipe_ctx->plane_state->horizontal_mirror) {
-		if (flip_horz_scan_dir && !flip_vert_scan_dir) {
-			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
-			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
-		} else if (flip_horz_scan_dir && flip_vert_scan_dir)
-			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
-		else {
-			if (!flip_horz_scan_dir && !flip_vert_scan_dir)
-				data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
-		}
-	} else {
-		if (flip_horz_scan_dir)
-			data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
-		if (flip_vert_scan_dir)
-			data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
-	}
+	if (flip_vert_scan_dir)
+		data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
+	if (flip_horz_scan_dir)
+		data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
+
+	data->viewport.x += surf_src.x;
+	data->viewport.y += surf_src.y;
 
 	/* Round down, compensate in init */
 	data->viewport_c.x = data->viewport.x / vpc_div;
@@ -773,22 +763,15 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *r
 	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		flip_horz_scan_dir = true;
 
+	if (pipe_ctx->plane_state->horizontal_mirror)
+			flip_horz_scan_dir = !flip_horz_scan_dir;
+
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
 		rect_swap_helper(&src);
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
-
-		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270 &&
-			pipe_ctx->plane_state->horizontal_mirror) {
-			flip_vert_scan_dir = true;
-		}
-		if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 &&
-			pipe_ctx->plane_state->horizontal_mirror) {
-			flip_vert_scan_dir = false;
-		}
-	} else if (pipe_ctx->plane_state->horizontal_mirror)
-			flip_horz_scan_dir = !flip_horz_scan_dir;
+	}
 
 	/*
 	 * Init calculated according to formula:
