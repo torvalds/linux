@@ -196,7 +196,7 @@ static int bnxt_qplib_alloc_qp_hdr_buf(struct bnxt_qplib_res *res,
 				       struct bnxt_qplib_qp *qp)
 {
 	struct bnxt_qplib_q *rq = &qp->rq;
-	struct bnxt_qplib_q *sq = &qp->rq;
+	struct bnxt_qplib_q *sq = &qp->sq;
 	int rc = 0;
 
 	if (qp->sq_hdr_buf_size && sq->hwq.max_elements) {

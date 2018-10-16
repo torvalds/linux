@@ -1375,7 +1375,8 @@ static bool mt_need_to_apply_feature(struct hid_device *hdev,
 				     struct hid_usage *usage,
 				     enum latency_mode latency,
 				     bool surface_switch,
-				     bool button_switch)
+				     bool button_switch,
+				     bool *inputmode_found)
 {
 	struct mt_device *td = hid_get_drvdata(hdev);
 	struct mt_class *cls = &td->mtclass;
@@ -1387,6 +1388,14 @@ static bool mt_need_to_apply_feature(struct hid_device *hdev,
 
 	switch (usage->hid) {
 	case HID_DG_INPUTMODE:
+		/*
+		 * Some elan panels wrongly declare 2 input mode features,
+		 * and silently ignore when we set the value in the second
+		 * field. Skip the second feature and hope for the best.
+		 */
+		if (*inputmode_found)
+			return false;
+
 		if (cls->quirks & MT_QUIRK_FORCE_GET_FEATURE) {
 			report_len = hid_report_len(report);
 			buf = hid_alloc_report_buf(report, GFP_KERNEL);
@@ -1402,6 +1411,7 @@ static bool mt_need_to_apply_feature(struct hid_device *hdev,
 		}
 
 		field->value[index] = td->inputmode_value;
+		*inputmode_found = true;
 		return true;
 
 	case HID_DG_CONTACTMAX:
@@ -1439,6 +1449,7 @@ static void mt_set_modes(struct hid_device *hdev, enum latency_mode latency,
 	struct hid_usage *usage;
 	int i, j;
 	bool update_report;
+	bool inputmode_found = false;
 
 	rep_enum = &hdev->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list) {
@@ -1457,7 +1468,8 @@ static void mt_set_modes(struct hid_device *hdev, enum latency_mode latency,
 							     usage,
 							     latency,
 							     surface_switch,
-							     button_switch))
+							     button_switch,
+							     &inputmode_found))
 					update_report = true;
 			}
 		}
@@ -1684,6 +1696,9 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 * device.
 	 */
 	hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
+
+	if (id->group != HID_GROUP_MULTITOUCH_WIN_8)
+		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 
 	timer_setup(&td->release_timer, mt_expired_timeout, 0);
 
