@@ -1900,7 +1900,8 @@ static int __init rcu_torture_fwd_prog_init(void)
 {
 	if (!fwd_progress)
 		return 0; /* Not requested, so don't do it. */
-	if (!cur_ops->stall_dur || cur_ops->stall_dur() <= 0) {
+	if (!cur_ops->stall_dur || cur_ops->stall_dur() <= 0 ||
+	    cur_ops == &rcu_busted_ops) {
 		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Disabled, unsupported by RCU flavor under test");
 		return 0;
 	}
