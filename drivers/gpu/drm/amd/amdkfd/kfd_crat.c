@@ -26,6 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_topology.h"
 #include "kfd_iommu.h"
+#include "amdgpu_amdkfd.h"
 
 /* GPU Processor ID base for dGPUs for which VCRAT needs to be created.
  * GPU processor ID are expressed with Bit[31]=1.
@@ -1159,7 +1160,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	cu->flags |= CRAT_CU_FLAGS_GPU_PRESENT;
 	cu->proximity_domain = proximity_domain;
 
-	kdev->kfd2kgd->get_cu_info(kdev->kgd, &cu_info);
+	get_cu_info(kdev->kgd, &cu_info);
 	cu->num_simd_per_cu = cu_info.simd_per_cu;
 	cu->num_simd_cores = cu_info.simd_per_cu * cu_info.cu_active_number;
 	cu->max_waves_simd = cu_info.max_waves_per_simd;
@@ -1190,7 +1191,7 @@ static int kfd_create_vcrat_image_gpu(void *pcrat_image,
 	 * report the total FB size (public+private) as a single
 	 * private heap.
 	 */
-	kdev->kfd2kgd->get_local_mem_info(kdev->kgd, &local_mem_info);
+	get_local_mem_info(kdev->kgd, &local_mem_info);
 	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
 			sub_type_hdr->length);
 
