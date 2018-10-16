@@ -262,8 +262,23 @@ static void nfp_map_bpf_byte_swap(struct nfp_bpf_map *nfp_map, void *value)
 	unsigned int i;
 
 	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
-		if (nfp_map->use_map[i] == NFP_MAP_USE_ATOMIC_CNT)
+		if (nfp_map->use_map[i].type == NFP_MAP_USE_ATOMIC_CNT)
 			word[i] = (__force u32)cpu_to_be32(word[i]);
+}
+
+/* Mark value as unsafely initialized in case it becomes atomic later
+ * and we didn't byte swap something non-byte swap neutral.
+ */
+static void
+nfp_map_bpf_byte_swap_record(struct nfp_bpf_map *nfp_map, void *value)
+{
+	u32 *word = value;
+	unsigned int i;
+
+	for (i = 0; i < DIV_ROUND_UP(nfp_map->offmap->map.value_size, 4); i++)
+		if (nfp_map->use_map[i].type == NFP_MAP_UNUSED &&
+		    word[i] != (__force u32)cpu_to_be32(word[i]))
+			nfp_map->use_map[i].non_zero_update = 1;
 }
 
 static int
@@ -285,6 +300,7 @@ nfp_bpf_map_update_entry(struct bpf_offloaded_map *offmap,
 			 void *key, void *value, u64 flags)
 {
 	nfp_map_bpf_byte_swap(offmap->dev_priv, value);
+	nfp_map_bpf_byte_swap_record(offmap->dev_priv, value);
 	return nfp_bpf_ctrl_update_entry(offmap, key, value, flags);
 }
 
@@ -473,7 +489,7 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 		 struct netlink_ext_ack *extack)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
-	unsigned int max_mtu;
+	unsigned int max_mtu, max_stack, max_prog_len;
 	dma_addr_t dma_addr;
 	void *img;
 	int err;
@@ -481,6 +497,18 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
 	if (max_mtu < nn->dp.netdev->mtu) {
 		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with MTU larger than HW packet split boundary");
+		return -EOPNOTSUPP;
+	}
+
+	max_stack = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
+	if (nfp_prog->stack_size > max_stack) {
+		NL_SET_ERR_MSG_MOD(extack, "stack too large");
+		return -EOPNOTSUPP;
+	}
+
+	max_prog_len = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
+	if (nfp_prog->prog_len > max_prog_len) {
+		NL_SET_ERR_MSG_MOD(extack, "program too long");
 		return -EOPNOTSUPP;
 	}
 
