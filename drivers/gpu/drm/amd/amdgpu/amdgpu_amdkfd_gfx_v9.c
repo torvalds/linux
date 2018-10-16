@@ -978,7 +978,6 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	uint64_t base = page_table_base | AMDGPU_PTE_VALID;
 
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
 		pr_err("trying to set page table base for wrong VMID %u\n",
@@ -990,7 +989,7 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 	 * now, all processes share the same address space size, like
 	 * on GFX8 and older.
 	 */
-	mmhub_v1_0_setup_vm_pt_regs(adev, vmid, base);
+	mmhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 
-	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, base);
+	gfxhub_v1_0_setup_vm_pt_regs(adev, vmid, page_table_base);
 }
