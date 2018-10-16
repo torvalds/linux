@@ -1522,26 +1522,22 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj)
 	kfree(glob);
 }
 
-void ttm_bo_global_ref_release(struct drm_global_reference *ref)
+void ttm_bo_global_release(struct ttm_bo_global *glob)
 {
-	struct ttm_bo_global *glob = ref->object;
-
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
 }
-EXPORT_SYMBOL(ttm_bo_global_ref_release);
+EXPORT_SYMBOL(ttm_bo_global_release);
 
-int ttm_bo_global_ref_init(struct drm_global_reference *ref)
+int ttm_bo_global_init(struct ttm_bo_global *glob,
+		       struct ttm_mem_global *mem_glob)
 {
-	struct ttm_bo_global_ref *bo_ref =
-		container_of(ref, struct ttm_bo_global_ref, ref);
-	struct ttm_bo_global *glob = ref->object;
 	int ret;
 	unsigned i;
 
 	mutex_init(&glob->device_list_mutex);
 	spin_lock_init(&glob->lru_lock);
-	glob->mem_glob = bo_ref->mem_glob;
+	glob->mem_glob = mem_glob;
 	glob->mem_glob->bo_glob = glob;
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);
 
@@ -1564,7 +1560,7 @@ out_no_drp:
 	kfree(glob);
 	return ret;
 }
-EXPORT_SYMBOL(ttm_bo_global_ref_init);
+EXPORT_SYMBOL(ttm_bo_global_init);
 
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev)
