@@ -260,6 +260,8 @@ handled:
 static void uniphier_fi2c_tx_init(struct uniphier_fi2c_priv *priv, u16 addr)
 {
 	priv->enabled_irqs |= UNIPHIER_FI2C_INT_TE;
+	uniphier_fi2c_set_irqs(priv);
+
 	/* do not use TX byte counter */
 	writel(0, priv->membase + UNIPHIER_FI2C_TBC);
 	/* set slave address */
@@ -292,6 +294,8 @@ static void uniphier_fi2c_rx_init(struct uniphier_fi2c_priv *priv, u16 addr)
 		priv->enabled_irqs |= UNIPHIER_FI2C_INT_RF;
 	}
 
+	uniphier_fi2c_set_irqs(priv);
+
 	/* set slave address with RD bit */
 	writel(UNIPHIER_FI2C_DTTX_CMD | UNIPHIER_FI2C_DTTX_RD | addr << 1,
 	       priv->membase + UNIPHIER_FI2C_DTTX);
@@ -315,14 +319,16 @@ static void uniphier_fi2c_recover(struct uniphier_fi2c_priv *priv)
 }
 
 static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
-					 struct i2c_msg *msg, bool stop)
+					 struct i2c_msg *msg, bool repeat,
+					 bool stop)
 {
 	struct uniphier_fi2c_priv *priv = i2c_get_adapdata(adap);
 	bool is_read = msg->flags & I2C_M_RD;
 	unsigned long time_left, flags;
 
-	dev_dbg(&adap->dev, "%s: addr=0x%02x, len=%d, stop=%d\n",
-		is_read ? "receive" : "transmit", msg->addr, msg->len, stop);
+	dev_dbg(&adap->dev, "%s: addr=0x%02x, len=%d, repeat=%d, stop=%d\n",
+		is_read ? "receive" : "transmit", msg->addr, msg->len,
+		repeat, stop);
 
 	priv->len = msg->len;
 	priv->buf = msg->buf;
@@ -338,16 +344,24 @@ static int uniphier_fi2c_master_xfer_one(struct i2c_adapter *adap,
 	writel(UNIPHIER_FI2C_RST_TBRST | UNIPHIER_FI2C_RST_RBRST,
 	       priv->membase + UNIPHIER_FI2C_RST);	/* reset TX/RX FIFO */
 
+	spin_lock_irqsave(&priv->lock, flags);
+
 	if (is_read)
 		uniphier_fi2c_rx_init(priv, msg->addr);
 	else
 		uniphier_fi2c_tx_init(priv, msg->addr);
 
-	uniphier_fi2c_set_irqs(priv);
-
 	dev_dbg(&adap->dev, "start condition\n");
-	writel(UNIPHIER_FI2C_CR_MST | UNIPHIER_FI2C_CR_STA,
-	       priv->membase + UNIPHIER_FI2C_CR);
+	/*
+	 * For a repeated START condition, writing a slave address to the FIFO
+	 * kicks the controller. So, the UNIPHIER_FI2C_CR register should be
+	 * written only for a non-repeated START condition.
+	 */
+	if (!repeat)
+		writel(UNIPHIER_FI2C_CR_MST | UNIPHIER_FI2C_CR_STA,
+		       priv->membase + UNIPHIER_FI2C_CR);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	time_left = wait_for_completion_timeout(&priv->comp, adap->timeout);
 
@@ -408,6 +422,7 @@ static int uniphier_fi2c_master_xfer(struct i2c_adapter *adap,
 				     struct i2c_msg *msgs, int num)
 {
 	struct i2c_msg *msg, *emsg = msgs + num;
+	bool repeat = false;
 	int ret;
 
 	ret = uniphier_fi2c_check_bus_busy(adap);
@@ -418,9 +433,11 @@ static int uniphier_fi2c_master_xfer(struct i2c_adapter *adap,
 		/* Emit STOP if it is the last message or I2C_M_STOP is set. */
 		bool stop = (msg + 1 == emsg) || (msg->flags & I2C_M_STOP);
 
-		ret = uniphier_fi2c_master_xfer_one(adap, msg, stop);
+		ret = uniphier_fi2c_master_xfer_one(adap, msg, repeat, stop);
 		if (ret)
 			return ret;
+
+		repeat = !stop;
 	}
 
 	return num;
