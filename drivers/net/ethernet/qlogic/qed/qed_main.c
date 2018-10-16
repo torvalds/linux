@@ -1305,6 +1305,7 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 	struct qed_hwfn *hwfn;
 	struct qed_mcp_link_params *link_params;
 	struct qed_ptt *ptt;
+	u32 sup_caps;
 	int rc;
 
 	if (!cdev)
@@ -1331,25 +1332,50 @@ static int qed_set_link(struct qed_dev *cdev, struct qed_link_params *params)
 		link_params->speed.autoneg = params->autoneg;
 	if (params->override_flags & QED_LINK_OVERRIDE_SPEED_ADV_SPEEDS) {
 		link_params->speed.advertised_speeds = 0;
-		if (params->adv_speeds & QED_LM_1000baseT_Full_BIT)
+		sup_caps = QED_LM_1000baseT_Full_BIT |
+			   QED_LM_1000baseKX_Full_BIT |
+			   QED_LM_1000baseX_Full_BIT;
+		if (params->adv_speeds & sup_caps)
 			link_params->speed.advertised_speeds |=
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
-		if (params->adv_speeds & QED_LM_10000baseKR_Full_BIT)
+		sup_caps = QED_LM_10000baseT_Full_BIT |
+			   QED_LM_10000baseKR_Full_BIT |
+			   QED_LM_10000baseKX4_Full_BIT |
+			   QED_LM_10000baseR_FEC_BIT |
+			   QED_LM_10000baseCR_Full_BIT |
+			   QED_LM_10000baseSR_Full_BIT |
+			   QED_LM_10000baseLR_Full_BIT |
+			   QED_LM_10000baseLRM_Full_BIT;
+		if (params->adv_speeds & sup_caps)
 			link_params->speed.advertised_speeds |=
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
 		if (params->adv_speeds & QED_LM_20000baseKR2_Full_BIT)
 			link_params->speed.advertised_speeds |=
 				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_20G;
-		if (params->adv_speeds & QED_LM_25000baseKR_Full_BIT)
+		sup_caps = QED_LM_25000baseKR_Full_BIT |
+			   QED_LM_25000baseCR_Full_BIT |
+			   QED_LM_25000baseSR_Full_BIT;
+		if (params->adv_speeds & sup_caps)
 			link_params->speed.advertised_speeds |=
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G;
-		if (params->adv_speeds & QED_LM_40000baseLR4_Full_BIT)
+		sup_caps = QED_LM_40000baseLR4_Full_BIT |
+			   QED_LM_40000baseKR4_Full_BIT |
+			   QED_LM_40000baseCR4_Full_BIT |
+			   QED_LM_40000baseSR4_Full_BIT;
+		if (params->adv_speeds & sup_caps)
 			link_params->speed.advertised_speeds |=
-			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
-		if (params->adv_speeds & QED_LM_50000baseKR2_Full_BIT)
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
+		sup_caps = QED_LM_50000baseKR2_Full_BIT |
+			   QED_LM_50000baseCR2_Full_BIT |
+			   QED_LM_50000baseSR2_Full_BIT;
+		if (params->adv_speeds & sup_caps)
 			link_params->speed.advertised_speeds |=
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_50G;
-		if (params->adv_speeds & QED_LM_100000baseKR4_Full_BIT)
+		sup_caps = QED_LM_100000baseKR4_Full_BIT |
+			   QED_LM_100000baseSR4_Full_BIT |
+			   QED_LM_100000baseCR4_Full_BIT |
+			   QED_LM_100000baseLR4_ER4_Full_BIT;
+		if (params->adv_speeds & sup_caps)
 			link_params->speed.advertised_speeds |=
 			    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_BB_100G;
 	}
