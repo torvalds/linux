@@ -886,10 +886,14 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 		err = ip_valid_fib_dump_req(net, nlh, &filter, cb);
 		if (err < 0)
 			return err;
+	} else if (nlmsg_len(nlh) >= sizeof(struct rtmsg)) {
+		struct rtmsg *rtm = nlmsg_data(nlh);
+
+		filter.flags = rtm->rtm_flags & (RTM_F_PREFIX | RTM_F_CLONED);
 	}
 
-	if (nlmsg_len(nlh) >= sizeof(struct rtmsg) &&
-	    ((struct rtmsg *)nlmsg_data(nlh))->rtm_flags & RTM_F_CLONED)
+	/* fib entries are never clones and ipv4 does not use prefix flag */
+	if (filter.flags & (RTM_F_PREFIX | RTM_F_CLONED))
 		return skb->len;
 
 	if (filter.table_id) {
