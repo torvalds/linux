@@ -330,6 +330,9 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	case QTN_CHIP_ID_PEARL_C:
 		bus = qtnf_pcie_pearl_alloc(pdev);
 		break;
+	case QTN_CHIP_ID_TOPAZ:
+		bus = qtnf_pcie_topaz_alloc(pdev);
+		break;
 	default:
 		pr_err("unsupported chip ID 0x%x\n", chipid);
 		return -ENOTSUPP;
@@ -465,7 +468,7 @@ static SIMPLE_DEV_PM_OPS(qtnf_pcie_pm_ops, qtnf_pcie_suspend,
 
 static const struct pci_device_id qtnf_pcie_devid_table[] = {
 	{
-		PCIE_VENDOR_ID_QUANTENNA, PCIE_DEVICE_ID_QTN_PEARL,
+		PCIE_VENDOR_ID_QUANTENNA, PCIE_DEVICE_ID_QSR,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	},
 	{ },

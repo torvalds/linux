@@ -76,6 +76,7 @@ void qtnf_pcie_init_shm_ipc(struct qtnf_pcie_bus_priv *priv,
 			    struct qtnf_shm_ipc_region __iomem *ipc_rx_reg,
 			    const struct qtnf_shm_ipc_int *ipc_int);
 struct qtnf_bus *qtnf_pcie_pearl_alloc(struct pci_dev *pdev);
+struct qtnf_bus *qtnf_pcie_topaz_alloc(struct pci_dev *pdev);
 
 static inline void qtnf_non_posted_write(u32 val, void __iomem *basereg)
 {
