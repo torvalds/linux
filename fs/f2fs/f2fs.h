@@ -1394,13 +1394,6 @@ static inline unsigned int f2fs_time_to_wait(struct f2fs_sb_info *sbi,
 
 static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
 {
-	struct block_device *bdev = sbi->sb->s_bdev;
-	struct request_queue *q = bdev_get_queue(bdev);
-	struct request_list *rl = &q->root_rl;
-
-	if (rl->count[BLK_RW_SYNC] || rl->count[BLK_RW_ASYNC])
-		return false;
-
 	return f2fs_time_over(sbi, type);
 }
 
