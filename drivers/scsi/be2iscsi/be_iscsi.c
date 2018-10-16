@@ -771,7 +771,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 			status = beiscsi_get_initiator_name(phba, buf, false);
 			if (status < 0) {
 				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-					    "BS_%d : Retreiving Initiator Name Failed\n");
+					    "BS_%d : Retrieving Initiator Name Failed\n");
 				status = 0;
 			}
 		}
