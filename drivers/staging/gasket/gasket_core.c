@@ -109,8 +109,6 @@ check_and_invoke_callback(struct gasket_dev *gasket_dev,
 {
 	int ret = 0;
 
-	dev_dbg(gasket_dev->dev, "check_and_invoke_callback %p\n",
-		cb_function);
 	if (cb_function) {
 		mutex_lock(&gasket_dev->mutex);
 		ret = cb_function(gasket_dev);
@@ -126,11 +124,8 @@ gasket_check_and_invoke_callback_nolock(struct gasket_dev *gasket_dev,
 {
 	int ret = 0;
 
-	if (cb_function) {
-		dev_dbg(gasket_dev->dev,
-			"Invoking device-specific callback.\n");
+	if (cb_function)
 		ret = cb_function(gasket_dev);
-	}
 	return ret;
 }
 
