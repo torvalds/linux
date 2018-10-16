@@ -1051,6 +1051,8 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		return -ENOMEM;
 	}
 
+	desc_cb->length = size;
+
 	frag_buf_num = (size + HNS3_MAX_BD_SIZE - 1) / HNS3_MAX_BD_SIZE;
 	sizeoflast = size % HNS3_MAX_BD_SIZE;
 	sizeoflast = sizeoflast ? sizeoflast : HNS3_MAX_BD_SIZE;
@@ -1059,15 +1061,14 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	for (k = 0; k < frag_buf_num; k++) {
 		/* The txbd's baseinfo of DESC_TYPE_PAGE & DESC_TYPE_SKB */
 		desc_cb->priv = priv;
-		desc_cb->length = (k == frag_buf_num - 1) ?
-					sizeoflast : HNS3_MAX_BD_SIZE;
 		desc_cb->dma = dma + HNS3_MAX_BD_SIZE * k;
 		desc_cb->type = (type == DESC_TYPE_SKB && !k) ?
 					DESC_TYPE_SKB : DESC_TYPE_PAGE;
 
 		/* now, fill the descriptor */
 		desc->addr = cpu_to_le64(dma + HNS3_MAX_BD_SIZE * k);
-		desc->tx.send_size = cpu_to_le16((u16)desc_cb->length);
+		desc->tx.send_size = cpu_to_le16((k == frag_buf_num - 1) ?
+				(u16)sizeoflast : (u16)HNS3_MAX_BD_SIZE);
 		hns3_set_txbd_baseinfo(&bdtp_fe_sc_vld_ra_ri,
 				       frag_end && (k == frag_buf_num - 1) ?
 						1 : 0);
@@ -1150,11 +1151,13 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 					 ring->desc_cb[ring->next_to_use].dma,
 					ring->desc_cb[ring->next_to_use].length,
 					DMA_TO_DEVICE);
-		else
+		else if (ring->desc_cb[ring->next_to_use].length)
 			dma_unmap_page(dev,
 				       ring->desc_cb[ring->next_to_use].dma,
 				       ring->desc_cb[ring->next_to_use].length,
 				       DMA_TO_DEVICE);
+
+		ring->desc_cb[ring->next_to_use].length = 0;
 
 		/* rollback one */
 		ring_ptr_move_bw(ring, next_to_use);
@@ -1874,7 +1877,7 @@ static void hns3_unmap_buffer(struct hns3_enet_ring *ring,
 	if (cb->type == DESC_TYPE_SKB)
 		dma_unmap_single(ring_to_dev(ring), cb->dma, cb->length,
 				 ring_to_dma_dir(ring));
-	else
+	else if (cb->length)
 		dma_unmap_page(ring_to_dev(ring), cb->dma, cb->length,
 			       ring_to_dma_dir(ring));
 }
