@@ -1054,35 +1054,6 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	return 0;
 }
 
-static int hns3_fill_desc_tso(struct hns3_enet_ring *ring, void *priv,
-			      int size, dma_addr_t dma, int frag_end,
-			      enum hns_desc_type type)
-{
-	unsigned int frag_buf_num;
-	unsigned int k;
-	int sizeoflast;
-	int ret;
-
-	frag_buf_num = (size + HNS3_MAX_BD_SIZE - 1) / HNS3_MAX_BD_SIZE;
-	sizeoflast = size % HNS3_MAX_BD_SIZE;
-	sizeoflast = sizeoflast ? sizeoflast : HNS3_MAX_BD_SIZE;
-
-	/* When the frag size is bigger than hardware, split this frag */
-	for (k = 0; k < frag_buf_num; k++) {
-		ret = hns3_fill_desc(ring, priv,
-				     (k == frag_buf_num - 1) ?
-				sizeoflast : HNS3_MAX_BD_SIZE,
-				dma + HNS3_MAX_BD_SIZE * k,
-				frag_end && (k == frag_buf_num - 1) ? 1 : 0,
-				(type == DESC_TYPE_SKB && !k) ?
-					DESC_TYPE_SKB : DESC_TYPE_PAGE);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int hns3_nic_maybe_stop_tso(struct sk_buff **out_skb, int *bnum,
 				   struct hns3_enet_ring *ring)
 {
@@ -1313,13 +1284,10 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	int ret;
 
 	if (changed & (NETIF_F_TSO | NETIF_F_TSO6)) {
-		if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
-			priv->ops.fill_desc = hns3_fill_desc_tso;
+		if (features & (NETIF_F_TSO | NETIF_F_TSO6))
 			priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tso;
-		} else {
-			priv->ops.fill_desc = hns3_fill_desc;
+		else
 			priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
-		}
 	}
 
 	if ((changed & NETIF_F_HW_VLAN_CTAG_FILTER) &&
@@ -3247,14 +3215,12 @@ static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 
+	priv->ops.fill_desc = hns3_fill_desc;
 	if ((netdev->features & NETIF_F_TSO) ||
-	    (netdev->features & NETIF_F_TSO6)) {
-		priv->ops.fill_desc = hns3_fill_desc_tso;
+	    (netdev->features & NETIF_F_TSO6))
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tso;
-	} else {
-		priv->ops.fill_desc = hns3_fill_desc;
+	else
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
-	}
 }
 
 static int hns3_client_init(struct hnae3_handle *handle)
