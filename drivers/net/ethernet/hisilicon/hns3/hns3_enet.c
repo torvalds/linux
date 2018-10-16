@@ -985,26 +985,19 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	u32 ol_type_vlan_len_msec = 0;
 	u16 bdtp_fe_sc_vld_ra_ri = 0;
 	struct skb_frag_struct *frag;
+	unsigned int frag_buf_num;
 	u32 type_cs_vlan_tso = 0;
 	struct sk_buff *skb;
 	u16 inner_vtag = 0;
 	u16 out_vtag = 0;
+	unsigned int k;
+	int sizeoflast;
 	u32 paylen = 0;
 	dma_addr_t dma;
 	u16 mss = 0;
 	u8 ol4_proto;
 	u8 il4_proto;
 	int ret;
-
-	/* The txbd's baseinfo of DESC_TYPE_PAGE & DESC_TYPE_SKB */
-	desc_cb->priv = priv;
-	desc_cb->length = size;
-	desc_cb->type = type;
-
-	/* now, fill the descriptor */
-	desc->tx.send_size = cpu_to_le16((u16)size);
-	hns3_set_txbd_baseinfo(&bdtp_fe_sc_vld_ra_ri, frag_end);
-	desc->tx.bdtp_fe_sc_vld_ra_ri = cpu_to_le16(bdtp_fe_sc_vld_ra_ri);
 
 	if (type == DESC_TYPE_SKB) {
 		skb = (struct sk_buff *)priv;
@@ -1058,11 +1051,35 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		return -ENOMEM;
 	}
 
-	desc_cb->dma = dma;
-	desc->addr = cpu_to_le64(dma);
+	frag_buf_num = (size + HNS3_MAX_BD_SIZE - 1) / HNS3_MAX_BD_SIZE;
+	sizeoflast = size % HNS3_MAX_BD_SIZE;
+	sizeoflast = sizeoflast ? sizeoflast : HNS3_MAX_BD_SIZE;
 
-	/* move ring pointer to next.*/
-	ring_ptr_move_fw(ring, next_to_use);
+	/* When frag size is bigger than hardware limit, split this frag */
+	for (k = 0; k < frag_buf_num; k++) {
+		/* The txbd's baseinfo of DESC_TYPE_PAGE & DESC_TYPE_SKB */
+		desc_cb->priv = priv;
+		desc_cb->length = (k == frag_buf_num - 1) ?
+					sizeoflast : HNS3_MAX_BD_SIZE;
+		desc_cb->dma = dma + HNS3_MAX_BD_SIZE * k;
+		desc_cb->type = (type == DESC_TYPE_SKB && !k) ?
+					DESC_TYPE_SKB : DESC_TYPE_PAGE;
+
+		/* now, fill the descriptor */
+		desc->addr = cpu_to_le64(dma + HNS3_MAX_BD_SIZE * k);
+		desc->tx.send_size = cpu_to_le16((u16)desc_cb->length);
+		hns3_set_txbd_baseinfo(&bdtp_fe_sc_vld_ra_ri,
+				       frag_end && (k == frag_buf_num - 1) ?
+						1 : 0);
+		desc->tx.bdtp_fe_sc_vld_ra_ri =
+				cpu_to_le16(bdtp_fe_sc_vld_ra_ri);
+
+		/* move ring pointer to next.*/
+		ring_ptr_move_fw(ring, next_to_use);
+
+		desc_cb = &ring->desc_cb[ring->next_to_use];
+		desc = &ring->desc[ring->next_to_use];
+	}
 
 	return 0;
 }
