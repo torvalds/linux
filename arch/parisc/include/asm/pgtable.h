@@ -43,8 +43,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 {
 	mtsp(mm->context, 1);
 	pdtlb(addr);
-	if (unlikely(split_tlb))
-		pitlb(addr);
+	pitlb(addr);
 }
 
 /* Certain architectures need to do special things when PTEs

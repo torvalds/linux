@@ -479,18 +479,6 @@ int __flush_tlb_range(unsigned long sid, unsigned long start,
 	/* Purge TLB entries for small ranges using the pdtlb and
 	   pitlb instructions.  These instructions execute locally
 	   but cause a purge request to be broadcast to other TLBs.  */
-	if (likely(!split_tlb)) {
-		while (start < end) {
-			purge_tlb_start(flags);
-			mtsp(sid, 1);
-			pdtlb(start);
-			purge_tlb_end(flags);
-			start += PAGE_SIZE;
-		}
-		return 0;
-	}
-
-	/* split TLB case */
 	while (start < end) {
 		purge_tlb_start(flags);
 		mtsp(sid, 1);

@@ -37,6 +37,7 @@
 #include <asm/pgtable.h>
 #include <asm/cache.h>
 #include <asm/ldcw.h>
+#include <asm/alternative.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 
@@ -190,7 +191,7 @@ ENDPROC_CFI(flush_tlb_all_local)
 	.import cache_info,data
 
 ENTRY_CFI(flush_instruction_cache_local)
-	load32		cache_info, %r1
+88:	load32		cache_info, %r1
 
 	/* Flush Instruction Cache */
 
@@ -243,6 +244,7 @@ fioneloop2:
 fisync:
 	sync
 	mtsm		%r22			/* restore I-bit */
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_ICACHE, INSN_NOP)
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_instruction_cache_local)
@@ -250,7 +252,7 @@ ENDPROC_CFI(flush_instruction_cache_local)
 
 	.import cache_info, data
 ENTRY_CFI(flush_data_cache_local)
-	load32		cache_info, %r1
+88:	load32		cache_info, %r1
 
 	/* Flush Data Cache */
 
@@ -304,6 +306,7 @@ fdsync:
 	syncdma
 	sync
 	mtsm		%r22			/* restore I-bit */
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_data_cache_local)
@@ -312,6 +315,7 @@ ENDPROC_CFI(flush_data_cache_local)
 
 	.macro	tlb_lock	la,flags,tmp
 #ifdef CONFIG_SMP
+98:
 #if __PA_LDCW_ALIGNMENT > 4
 	load32		pa_tlb_lock + __PA_LDCW_ALIGNMENT-1, \la
 	depi		0,31,__PA_LDCW_ALIGN_ORDER, \la
@@ -326,15 +330,17 @@ ENDPROC_CFI(flush_data_cache_local)
 	nop
 	b,n		2b
 3:
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	.macro	tlb_unlock	la,flags,tmp
 #ifdef CONFIG_SMP
-	ldi		1,\tmp
+98:	ldi		1,\tmp
 	sync
 	stw		\tmp,0(\la)
 	mtsm		\flags
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
@@ -596,9 +602,11 @@ ENTRY_CFI(copy_user_page_asm)
 	pdtlb,l		%r0(%r29)
 #else
 	tlb_lock	%r20,%r21,%r22
-	pdtlb		%r0(%r28)
-	pdtlb		%r0(%r29)
+0:	pdtlb		%r0(%r28)
+1:	pdtlb		%r0(%r29)
 	tlb_unlock	%r20,%r21,%r22
+	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
+	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 #endif
 
 #ifdef CONFIG_64BIT
@@ -736,8 +744,9 @@ ENTRY_CFI(clear_user_page_asm)
 	pdtlb,l		%r0(%r28)
 #else
 	tlb_lock	%r20,%r21,%r22
-	pdtlb		%r0(%r28)
+0:	pdtlb		%r0(%r28)
 	tlb_unlock	%r20,%r21,%r22
+	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 #endif
 
 #ifdef CONFIG_64BIT
@@ -813,11 +822,12 @@ ENTRY_CFI(flush_dcache_page_asm)
 	pdtlb,l		%r0(%r28)
 #else
 	tlb_lock	%r20,%r21,%r22
-	pdtlb		%r0(%r28)
+0:	pdtlb		%r0(%r28)
 	tlb_unlock	%r20,%r21,%r22
+	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 #endif
 
-	ldil		L%dcache_stride, %r1
+88:	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), r31
 
 #ifdef CONFIG_64BIT
@@ -847,6 +857,7 @@ ENTRY_CFI(flush_dcache_page_asm)
 	cmpb,COND(<<)	%r28, %r25,1b
 	fdc,m		r31(%r28)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop
@@ -874,15 +885,19 @@ ENTRY_CFI(flush_icache_page_asm)
 
 #ifdef CONFIG_PA20
 	pdtlb,l		%r0(%r28)
-	pitlb,l         %r0(%sr4,%r28)
+1:	pitlb,l         %r0(%sr4,%r28)
+	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SPLIT_TLB, INSN_NOP)
 #else
 	tlb_lock        %r20,%r21,%r22
-	pdtlb		%r0(%r28)
-	pitlb           %r0(%sr4,%r28)
+0:	pdtlb		%r0(%r28)
+1:	pitlb           %r0(%sr4,%r28)
 	tlb_unlock      %r20,%r21,%r22
+	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
+	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SMP, INSN_PxTLB)
+	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SPLIT_TLB, INSN_NOP)
 #endif
 
-	ldil		L%icache_stride, %r1
+88:	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r31
 
 #ifdef CONFIG_64BIT
@@ -914,13 +929,14 @@ ENTRY_CFI(flush_icache_page_asm)
 	cmpb,COND(<<)	%r28, %r25,1b
 	fic,m		%r31(%sr4,%r28)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_ICACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_icache_page_asm)
 
 ENTRY_CFI(flush_kernel_dcache_page_asm)
-	ldil		L%dcache_stride, %r1
+88:	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
 #ifdef CONFIG_64BIT
@@ -950,13 +966,14 @@ ENTRY_CFI(flush_kernel_dcache_page_asm)
 	cmpb,COND(<<)		%r26, %r25,1b
 	fdc,m		%r23(%r26)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_kernel_dcache_page_asm)
 
 ENTRY_CFI(purge_kernel_dcache_page_asm)
-	ldil		L%dcache_stride, %r1
+88:	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 
 #ifdef CONFIG_64BIT
@@ -985,13 +1002,14 @@ ENTRY_CFI(purge_kernel_dcache_page_asm)
 	cmpb,COND(<<)		%r26, %r25, 1b
 	pdc,m		%r23(%r26)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(purge_kernel_dcache_page_asm)
 
 ENTRY_CFI(flush_user_dcache_range_asm)
-	ldil		L%dcache_stride, %r1
+88:	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
@@ -999,13 +1017,14 @@ ENTRY_CFI(flush_user_dcache_range_asm)
 1:      cmpb,COND(<<),n	%r26, %r25, 1b
 	fdc,m		%r23(%sr3, %r26)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_user_dcache_range_asm)
 
 ENTRY_CFI(flush_kernel_dcache_range_asm)
-	ldil		L%dcache_stride, %r1
+88:	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
@@ -1014,13 +1033,14 @@ ENTRY_CFI(flush_kernel_dcache_range_asm)
 	fdc,m		%r23(%r26)
 
 	sync
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
 	syncdma
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_kernel_dcache_range_asm)
 
 ENTRY_CFI(purge_kernel_dcache_range_asm)
-	ldil		L%dcache_stride, %r1
+88:	ldil		L%dcache_stride, %r1
 	ldw		R%dcache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
@@ -1029,13 +1049,14 @@ ENTRY_CFI(purge_kernel_dcache_range_asm)
 	pdc,m		%r23(%r26)
 
 	sync
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_DCACHE, INSN_NOP)
 	syncdma
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(purge_kernel_dcache_range_asm)
 
 ENTRY_CFI(flush_user_icache_range_asm)
-	ldil		L%icache_stride, %r1
+88:	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
@@ -1043,13 +1064,14 @@ ENTRY_CFI(flush_user_icache_range_asm)
 1:      cmpb,COND(<<),n	%r26, %r25,1b
 	fic,m		%r23(%sr3, %r26)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_ICACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_user_icache_range_asm)
 
 ENTRY_CFI(flush_kernel_icache_page)
-	ldil		L%icache_stride, %r1
+88:	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r23
 
 #ifdef CONFIG_64BIT
@@ -1079,13 +1101,14 @@ ENTRY_CFI(flush_kernel_icache_page)
 	cmpb,COND(<<)		%r26, %r25, 1b
 	fic,m		%r23(%sr4, %r26)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_ICACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop
 ENDPROC_CFI(flush_kernel_icache_page)
 
 ENTRY_CFI(flush_kernel_icache_range_asm)
-	ldil		L%icache_stride, %r1
+88:	ldil		L%icache_stride, %r1
 	ldw		R%icache_stride(%r1), %r23
 	ldo		-1(%r23), %r21
 	ANDCM		%r26, %r21, %r26
@@ -1093,6 +1116,7 @@ ENTRY_CFI(flush_kernel_icache_range_asm)
 1:      cmpb,COND(<<),n	%r26, %r25, 1b
 	fic,m		%r23(%sr4, %r26)
 
+89:	ALTERNATIVE(88b, 89b, ALT_COND_NO_ICACHE, INSN_NOP)
 	sync
 	bv		%r0(%r2)
 	nop

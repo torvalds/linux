@@ -38,6 +38,7 @@
 #include <asm/ldcw.h>
 #include <asm/traps.h>
 #include <asm/thread_info.h>
+#include <asm/alternative.h>
 
 #include <linux/linkage.h>
 
@@ -464,7 +465,7 @@
 	/* Acquire pa_tlb_lock lock and check page is present. */
 	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
-	cmpib,COND(=),n	0,\spc,2f
+98:	cmpib,COND(=),n	0,\spc,2f
 	load_pa_tlb_lock \tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
@@ -473,6 +474,7 @@
 	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
 	b		\fault
 	stw,ma		\spc,0(\tmp)
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 2:	LDREG		0(\ptp),\pte
 	bb,>=,n		\pte,_PAGE_PRESENT_BIT,\fault
@@ -482,15 +484,17 @@
 	/* Release pa_tlb_lock lock without reloading lock address. */
 	.macro		tlb_unlock0	spc,tmp
 #ifdef CONFIG_SMP
-	or,COND(=)	%r0,\spc,%r0
+98:	or,COND(=)	%r0,\spc,%r0
 	stw,ma		\spc,0(\tmp)
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	/* Release pa_tlb_lock lock. */
 	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
-	load_pa_tlb_lock \tmp
+98:	load_pa_tlb_lock \tmp
+99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
