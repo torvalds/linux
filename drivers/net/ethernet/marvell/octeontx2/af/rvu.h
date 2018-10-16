@@ -87,6 +87,9 @@ struct rvu_pfvf {
 	struct qmem	*rss_ctx;
 	struct qmem	*cq_ints_ctx;
 	struct qmem	*nix_qints_ctx;
+	unsigned long	*sq_bmap;
+	unsigned long	*rq_bmap;
+	unsigned long	*cq_bmap;
 
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
 };
@@ -264,4 +267,7 @@ int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
 int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
 				struct nix_aq_enq_req *req,
 				struct nix_aq_enq_rsp *rsp);
+int rvu_mbox_handler_NIX_HWCTX_DISABLE(struct rvu *rvu,
+				       struct hwctx_disable_req *req,
+				       struct msg_rsp *rsp);
 #endif /* RVU_H */

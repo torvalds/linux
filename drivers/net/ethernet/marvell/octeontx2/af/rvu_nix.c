@@ -140,6 +140,9 @@ static void nix_setup_lso(struct rvu *rvu, int blkaddr)
 
 static void nix_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 {
+	kfree(pfvf->rq_bmap);
+	kfree(pfvf->sq_bmap);
+	kfree(pfvf->cq_bmap);
 	if (pfvf->rq_ctx)
 		qmem_free(rvu->dev, pfvf->rq_ctx);
 	if (pfvf->sq_ctx)
@@ -153,6 +156,9 @@ static void nix_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 	if (pfvf->cq_ints_ctx)
 		qmem_free(rvu->dev, pfvf->cq_ints_ctx);
 
+	pfvf->rq_bmap = NULL;
+	pfvf->cq_bmap = NULL;
+	pfvf->sq_bmap = NULL;
 	pfvf->rq_ctx = NULL;
 	pfvf->sq_ctx = NULL;
 	pfvf->cq_ctx = NULL;
@@ -239,6 +245,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	struct admin_queue *aq;
 	struct rvu_pfvf *pfvf;
 	void *ctx, *mask;
+	bool ena;
 	u64 cfg;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
@@ -354,9 +361,49 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		return rc;
 	}
 
+	/* Set RQ/SQ/CQ bitmap if respective queue hw context is enabled */
+	if (req->op == NIX_AQ_INSTOP_INIT) {
+		if (req->ctype == NIX_AQ_CTYPE_RQ && req->rq.ena)
+			__set_bit(req->qidx, pfvf->rq_bmap);
+		if (req->ctype == NIX_AQ_CTYPE_SQ && req->sq.ena)
+			__set_bit(req->qidx, pfvf->sq_bmap);
+		if (req->ctype == NIX_AQ_CTYPE_CQ && req->cq.ena)
+			__set_bit(req->qidx, pfvf->cq_bmap);
+	}
+
+	if (req->op == NIX_AQ_INSTOP_WRITE) {
+		if (req->ctype == NIX_AQ_CTYPE_RQ) {
+			ena = (req->rq.ena & req->rq_mask.ena) |
+				(test_bit(req->qidx, pfvf->rq_bmap) &
+				~req->rq_mask.ena);
+			if (ena)
+				__set_bit(req->qidx, pfvf->rq_bmap);
+			else
+				__clear_bit(req->qidx, pfvf->rq_bmap);
+		}
+		if (req->ctype == NIX_AQ_CTYPE_SQ) {
+			ena = (req->rq.ena & req->sq_mask.ena) |
+				(test_bit(req->qidx, pfvf->sq_bmap) &
+				~req->sq_mask.ena);
+			if (ena)
+				__set_bit(req->qidx, pfvf->sq_bmap);
+			else
+				__clear_bit(req->qidx, pfvf->sq_bmap);
+		}
+		if (req->ctype == NIX_AQ_CTYPE_CQ) {
+			ena = (req->rq.ena & req->cq_mask.ena) |
+				(test_bit(req->qidx, pfvf->cq_bmap) &
+				~req->cq_mask.ena);
+			if (ena)
+				__set_bit(req->qidx, pfvf->cq_bmap);
+			else
+				__clear_bit(req->qidx, pfvf->cq_bmap);
+		}
+	}
+
 	if (rsp) {
 		/* Copy read context into mailbox */
-		if (req->op == NIX_AQ_INSTOP_READ && !rc) {
+		if (req->op == NIX_AQ_INSTOP_READ) {
 			if (req->ctype == NIX_AQ_CTYPE_RQ)
 				memcpy(&rsp->rq, ctx,
 				       sizeof(struct nix_rq_ctx_s));
@@ -373,7 +420,60 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	}
 
 	spin_unlock(&aq->lock);
-	return rc;
+	return 0;
+}
+
+static int nix_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
+	struct nix_aq_enq_req aq_req;
+	unsigned long *bmap;
+	int qidx, q_cnt = 0;
+	int err = 0, rc;
+
+	if (!pfvf->cq_ctx || !pfvf->sq_ctx || !pfvf->rq_ctx)
+		return NIX_AF_ERR_AQ_ENQUEUE;
+
+	memset(&aq_req, 0, sizeof(struct nix_aq_enq_req));
+	aq_req.hdr.pcifunc = req->hdr.pcifunc;
+
+	if (req->ctype == NIX_AQ_CTYPE_CQ) {
+		aq_req.cq.ena = 0;
+		aq_req.cq_mask.ena = 1;
+		q_cnt = pfvf->cq_ctx->qsize;
+		bmap = pfvf->cq_bmap;
+	}
+	if (req->ctype == NIX_AQ_CTYPE_SQ) {
+		aq_req.sq.ena = 0;
+		aq_req.sq_mask.ena = 1;
+		q_cnt = pfvf->sq_ctx->qsize;
+		bmap = pfvf->sq_bmap;
+	}
+	if (req->ctype == NIX_AQ_CTYPE_RQ) {
+		aq_req.rq.ena = 0;
+		aq_req.rq_mask.ena = 1;
+		q_cnt = pfvf->rq_ctx->qsize;
+		bmap = pfvf->rq_bmap;
+	}
+
+	aq_req.ctype = req->ctype;
+	aq_req.op = NIX_AQ_INSTOP_WRITE;
+
+	for (qidx = 0; qidx < q_cnt; qidx++) {
+		if (!test_bit(qidx, bmap))
+			continue;
+		aq_req.qidx = qidx;
+		rc = rvu_nix_aq_enq_inst(rvu, &aq_req, NULL);
+		if (rc) {
+			err = rc;
+			dev_err(rvu->dev, "Failed to disable %s:%d context\n",
+				(req->ctype == NIX_AQ_CTYPE_CQ) ?
+				"CQ" : ((req->ctype == NIX_AQ_CTYPE_RQ) ?
+				"RQ" : "SQ"), qidx);
+		}
+	}
+
+	return err;
 }
 
 int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
@@ -381,6 +481,13 @@ int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
 				struct nix_aq_enq_rsp *rsp)
 {
 	return rvu_nix_aq_enq_inst(rvu, req, rsp);
+}
+
+int rvu_mbox_handler_NIX_HWCTX_DISABLE(struct rvu *rvu,
+				       struct hwctx_disable_req *req,
+				       struct msg_rsp *rsp)
+{
+	return nix_lf_hwctx_disable(rvu, req);
 }
 
 int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
@@ -437,6 +544,10 @@ int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
 	if (err)
 		goto free_mem;
 
+	pfvf->rq_bmap = kcalloc(req->rq_cnt, sizeof(long), GFP_KERNEL);
+	if (!pfvf->rq_bmap)
+		goto free_mem;
+
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_RQS_BASE(nixlf),
 		    (u64)pfvf->rq_ctx->iova);
 
@@ -450,6 +561,10 @@ int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
 	if (err)
 		goto free_mem;
 
+	pfvf->sq_bmap = kcalloc(req->sq_cnt, sizeof(long), GFP_KERNEL);
+	if (!pfvf->sq_bmap)
+		goto free_mem;
+
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_SQS_BASE(nixlf),
 		    (u64)pfvf->sq_ctx->iova);
 	cfg = BIT_ULL(36) | (req->sq_cnt - 1);
@@ -459,6 +574,10 @@ int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
 	hwctx_size = 1UL << ((ctx_cfg >> 8) & 0xF);
 	err = qmem_alloc(rvu->dev, &pfvf->cq_ctx, req->cq_cnt, hwctx_size);
 	if (err)
+		goto free_mem;
+
+	pfvf->cq_bmap = kcalloc(req->cq_cnt, sizeof(long), GFP_KERNEL);
+	if (!pfvf->cq_bmap)
 		goto free_mem;
 
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_CQS_BASE(nixlf),
