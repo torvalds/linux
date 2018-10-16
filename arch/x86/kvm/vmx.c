@@ -108,7 +108,7 @@ module_param_named(enable_shadow_vmcs, enable_shadow_vmcs, bool, S_IRUGO);
  * VMX and be a hypervisor for its own guests. If nested=0, guests may not
  * use VMX instructions.
  */
-static bool __read_mostly nested = 0;
+static bool __read_mostly nested = 1;
 module_param(nested, bool, S_IRUGO);
 
 static bool __read_mostly nested_early_check = 0;
