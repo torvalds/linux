@@ -1249,6 +1249,11 @@ static int tegra_xusb_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+	if (!pdev->dev.pm_domain) {
+		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBC);
+		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBA);
+	}
+
 	tegra_xusb_padctl_put(tegra->padctl);
 
 	return 0;
