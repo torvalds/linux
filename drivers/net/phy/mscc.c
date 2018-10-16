@@ -522,7 +522,7 @@ static int vsc85xx_mdix_set(struct phy_device *phydev, u8 mdix)
 
 static int vsc85xx_downshift_get(struct phy_device *phydev, u8 *count)
 {
-	u16 reg_val;
+	int reg_val;
 
 	reg_val = phy_read_paged(phydev, MSCC_PHY_PAGE_EXTENDED,
 				 MSCC_PHY_ACTIPHY_CNTL);
