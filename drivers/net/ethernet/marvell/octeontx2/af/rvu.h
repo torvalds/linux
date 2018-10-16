@@ -77,6 +77,8 @@ struct rvu_pfvf {
 	struct qmem	*aura_ctx;
 	struct qmem	*pool_ctx;
 	struct qmem	*npa_qints_ctx;
+	unsigned long	*aura_bmap;
+	unsigned long	*pool_bmap;
 };
 
 struct rvu_hwinfo {
@@ -216,6 +218,9 @@ void rvu_npa_freemem(struct rvu *rvu);
 int rvu_mbox_handler_NPA_AQ_ENQ(struct rvu *rvu,
 				struct npa_aq_enq_req *req,
 				struct npa_aq_enq_rsp *rsp);
+int rvu_mbox_handler_NPA_HWCTX_DISABLE(struct rvu *rvu,
+				       struct hwctx_disable_req *req,
+				       struct msg_rsp *rsp);
 int rvu_mbox_handler_NPA_LF_ALLOC(struct rvu *rvu,
 				  struct npa_lf_alloc_req *req,
 				  struct npa_lf_alloc_rsp *rsp);

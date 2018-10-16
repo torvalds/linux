@@ -63,6 +63,7 @@ static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 	struct admin_queue *aq;
 	struct rvu_pfvf *pfvf;
 	void *ctx, *mask;
+	bool ena;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	if (!pfvf->aura_ctx || req->aura_id >= pfvf->aura_ctx->qsize)
@@ -149,6 +150,35 @@ static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 		return rc;
 	}
 
+	/* Set aura bitmap if aura hw context is enabled */
+	if (req->ctype == NPA_AQ_CTYPE_AURA) {
+		if (req->op == NPA_AQ_INSTOP_INIT && req->aura.ena)
+			__set_bit(req->aura_id, pfvf->aura_bmap);
+		if (req->op == NPA_AQ_INSTOP_WRITE) {
+			ena = (req->aura.ena & req->aura_mask.ena) |
+				(test_bit(req->aura_id, pfvf->aura_bmap) &
+				~req->aura_mask.ena);
+			if (ena)
+				__set_bit(req->aura_id, pfvf->aura_bmap);
+			else
+				__clear_bit(req->aura_id, pfvf->aura_bmap);
+		}
+	}
+
+	/* Set pool bitmap if pool hw context is enabled */
+	if (req->ctype == NPA_AQ_CTYPE_POOL) {
+		if (req->op == NPA_AQ_INSTOP_INIT && req->pool.ena)
+			__set_bit(req->aura_id, pfvf->pool_bmap);
+		if (req->op == NPA_AQ_INSTOP_WRITE) {
+			ena = (req->pool.ena & req->pool_mask.ena) |
+				(test_bit(req->aura_id, pfvf->pool_bmap) &
+				~req->pool_mask.ena);
+			if (ena)
+				__set_bit(req->aura_id, pfvf->pool_bmap);
+			else
+				__clear_bit(req->aura_id, pfvf->pool_bmap);
+		}
+	}
 	spin_unlock(&aq->lock);
 
 	if (rsp) {
@@ -166,6 +196,51 @@ static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 	return 0;
 }
 
+static int npa_lf_hwctx_disable(struct rvu *rvu, struct hwctx_disable_req *req)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
+	struct npa_aq_enq_req aq_req;
+	unsigned long *bmap;
+	int id, cnt = 0;
+	int err = 0, rc;
+
+	if (!pfvf->pool_ctx || !pfvf->aura_ctx)
+		return NPA_AF_ERR_AQ_ENQUEUE;
+
+	memset(&aq_req, 0, sizeof(struct npa_aq_enq_req));
+	aq_req.hdr.pcifunc = req->hdr.pcifunc;
+
+	if (req->ctype == NPA_AQ_CTYPE_POOL) {
+		aq_req.pool.ena = 0;
+		aq_req.pool_mask.ena = 1;
+		cnt = pfvf->pool_ctx->qsize;
+		bmap = pfvf->pool_bmap;
+	} else if (req->ctype == NPA_AQ_CTYPE_AURA) {
+		aq_req.aura.ena = 0;
+		aq_req.aura_mask.ena = 1;
+		cnt = pfvf->aura_ctx->qsize;
+		bmap = pfvf->aura_bmap;
+	}
+
+	aq_req.ctype = req->ctype;
+	aq_req.op = NPA_AQ_INSTOP_WRITE;
+
+	for (id = 0; id < cnt; id++) {
+		if (!test_bit(id, bmap))
+			continue;
+		aq_req.aura_id = id;
+		rc = rvu_npa_aq_enq_inst(rvu, &aq_req, NULL);
+		if (rc) {
+			err = rc;
+			dev_err(rvu->dev, "Failed to disable %s:%d context\n",
+				(req->ctype == NPA_AQ_CTYPE_AURA) ?
+				"Aura" : "Pool", id);
+		}
+	}
+
+	return err;
+}
+
 int rvu_mbox_handler_NPA_AQ_ENQ(struct rvu *rvu,
 				struct npa_aq_enq_req *req,
 				struct npa_aq_enq_rsp *rsp)
@@ -173,10 +248,23 @@ int rvu_mbox_handler_NPA_AQ_ENQ(struct rvu *rvu,
 	return rvu_npa_aq_enq_inst(rvu, req, rsp);
 }
 
+int rvu_mbox_handler_NPA_HWCTX_DISABLE(struct rvu *rvu,
+				       struct hwctx_disable_req *req,
+				       struct msg_rsp *rsp)
+{
+	return npa_lf_hwctx_disable(rvu, req);
+}
+
 static void npa_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 {
+	kfree(pfvf->aura_bmap);
+	pfvf->aura_bmap = NULL;
+
 	qmem_free(rvu->dev, pfvf->aura_ctx);
 	pfvf->aura_ctx = NULL;
+
+	kfree(pfvf->pool_bmap);
+	pfvf->pool_bmap = NULL;
 
 	qmem_free(rvu->dev, pfvf->pool_ctx);
 	pfvf->pool_ctx = NULL;
@@ -227,10 +315,20 @@ int rvu_mbox_handler_NPA_LF_ALLOC(struct rvu *rvu,
 	if (err)
 		goto free_mem;
 
+	pfvf->aura_bmap = kcalloc(NPA_AURA_COUNT(req->aura_sz), sizeof(long),
+				  GFP_KERNEL);
+	if (!pfvf->aura_bmap)
+		goto free_mem;
+
 	/* Alloc memory for pool HW contexts */
 	hwctx_size = 1UL << ((ctx_cfg >> 4) & 0xF);
 	err = qmem_alloc(rvu->dev, &pfvf->pool_ctx, req->nr_pools, hwctx_size);
 	if (err)
+		goto free_mem;
+
+	pfvf->pool_bmap = kcalloc(NPA_AURA_COUNT(req->aura_sz), sizeof(long),
+				  GFP_KERNEL);
+	if (!pfvf->pool_bmap)
 		goto free_mem;
 
 	/* Get no of queue interrupts supported */

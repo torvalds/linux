@@ -142,6 +142,7 @@ M(CGX_INTLBK_DISABLE,	0x20B, msg_req, msg_rsp)			\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc_req, npa_lf_alloc_rsp)	\
 M(NPA_LF_FREE,		0x401, msg_req, msg_rsp)			\
 M(NPA_AQ_ENQ,		0x402, npa_aq_enq_req, npa_aq_enq_rsp)		\
+M(NPA_HWCTX_DISABLE,	0x403, hwctx_disable_req, msg_rsp)		\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
@@ -323,6 +324,12 @@ struct npa_aq_enq_rsp {
 		/* Valid when op == READ and ctype == POOL */
 		struct npa_pool_s pool;
 	};
+};
+
+/* Disable all contexts of type 'ctype' */
+struct hwctx_disable_req {
+	struct mbox_msghdr hdr;
+	u8 ctype;
 };
 
 #endif /* MBOX_H */
