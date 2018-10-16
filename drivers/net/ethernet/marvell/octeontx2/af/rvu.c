@@ -47,18 +47,18 @@ MODULE_DEVICE_TABLE(pci, rvu_id_table);
  */
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 {
+	unsigned long timeout = jiffies + usecs_to_jiffies(100);
 	void __iomem *reg;
-	int timeout = 100;
 	u64 reg_val;
 
 	reg = rvu->afreg_base + ((block << 28) | offset);
-	while (timeout) {
+	while (time_before(jiffies, timeout)) {
 		reg_val = readq(reg);
 		if (zero && !(reg_val & mask))
 			return 0;
 		if (!zero && (reg_val & mask))
 			return 0;
-		usleep_range(1, 2);
+		usleep_range(1, 5);
 		timeout--;
 	}
 	return -EBUSY;
