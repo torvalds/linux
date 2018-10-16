@@ -794,6 +794,10 @@ static void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
  * - wait t4                                           - wait t4
  */
 
+/*
+ * DSI port enable has to be done before pipe and plane enable, so we do it in
+ * the pre_enable hook instead of the enable hook.
+ */
 static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
@@ -893,17 +897,6 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 
 	intel_panel_enable_backlight(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
-}
-
-/*
- * DSI port enable has to be done before pipe and plane enable, so we do it in
- * the pre_enable hook.
- */
-static void intel_dsi_enable_nop(struct intel_encoder *encoder,
-				 const struct intel_crtc_state *pipe_config,
-				 const struct drm_connector_state *conn_state)
-{
-	DRM_DEBUG_KMS("\n");
 }
 
 /*
@@ -1764,7 +1757,6 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
-	intel_encoder->enable = intel_dsi_enable_nop;
 	intel_encoder->disable = intel_dsi_disable;
 	intel_encoder->post_disable = intel_dsi_post_disable;
 	intel_encoder->get_hw_state = intel_dsi_get_hw_state;
