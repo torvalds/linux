@@ -70,8 +70,18 @@ Good, intuitive naming (as always) helps code readability. Naming a completion
 Initializing completions:
 -------------------------
 
-Initialization of dynamically allocated completion objects, often embedded in
-other structures, is done via a call to init_completion():
+Dynamically allocated completion objects should preferably be embedded in data
+structures that are assured to be alive for the life-time of the function/driver,
+to prevent races with asynchronous complete() calls from occurring.
+
+Particular care should be taken when using the _timeout() or _killable()/_interruptible()
+variants of wait_for_completion(), as it must be assured that memory de-allocation
+does not happen until all related activities (complete() or reinit_completion())
+have taken place, even if these wait functions return prematurely due to a timeout
+or a signal triggering.
+
+Initializing of dynamically allocated completion objects is done via a call to
+init_completion():
 
 	init_completion(&dynamic_object->done);
 
@@ -99,16 +109,32 @@ Note that in this case the completion is boot time (or module load time)
 initialized to 'not done' and doesn't require an init_completion() call.
 
 When a completion is declared as a local variable within a function,
-then the initialization should always use:
+then the initialization should always use DECLARE_COMPLETION_ONSTACK()
+explicitly, not just to make lockdep happy, but also to make it clear
+that limited scope had been considered and is intentional:
 
 	DECLARE_COMPLETION_ONSTACK(setup_done)
 
-A simple DECLARE_COMPLETION() on the stack makes lockdep unhappy.
-
 Note that when using completion objects as local variables you must be
-aware of the short life time of the function stack: the function must
-not return to a calling context until all activities (such as waiting
-threads) have ceased and the completion is ... completely unused.
+acutely aware of the short life time of the function stack: the function
+must not return to a calling context until all activities (such as waiting
+threads) have ceased and the completion object is completely unused.
+
+To emphasise this again: in particular when using some of the waiting API variants
+with more complex outcomes, such as the timeout or signalling (_timeout(),
+_killable() and _interruptible()) variants, the wait might complete
+prematurely while the object might still be in use by another thread - and a return
+from the wait_on_completion*() caller function will deallocate the function
+stack and cause subtle data corruption if a complete() is done in some
+other thread. Simple testing might not trigger these kinds of races.
+
+If unsure, use dynamically allocated completion objects, preferably embedded
+in some other long lived object that has a boringly long life time which
+exceeds the life time of any helper threads using the completion object,
+or has a lock or other synchronization mechanism to make sure complete()
+is not called on a freed object.
+
+A naive DECLARE_COMPLETION() on the stack triggers a lockdep warning.
 
 Waiting for completions:
 ------------------------
