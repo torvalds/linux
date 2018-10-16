@@ -2458,10 +2458,13 @@ errout:
 static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = cb->nlh;
+	struct fib_dump_filter filter = {};
 
 	if (cb->strict_check) {
-		int err = ip_valid_fib_dump_req(nlh, cb->extack);
+		int err;
 
+		err = ip_valid_fib_dump_req(sock_net(skb->sk), nlh,
+					    &filter, cb->extack);
 		if (err < 0)
 			return err;
 	}

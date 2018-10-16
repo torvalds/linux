@@ -174,6 +174,7 @@ struct rt6_rtnl_dump_arg {
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	struct net *net;
+	struct fib_dump_filter filter;
 };
 
 int rt6_dump_route(struct fib6_info *f6i, void *p_arg);

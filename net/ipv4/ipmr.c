@@ -2527,9 +2527,13 @@ errout_free:
 
 static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	if (cb->strict_check) {
-		int err = ip_valid_fib_dump_req(cb->nlh, cb->extack);
+	struct fib_dump_filter filter = {};
 
+	if (cb->strict_check) {
+		int err;
+
+		err = ip_valid_fib_dump_req(sock_net(skb->sk), cb->nlh,
+					    &filter, cb->extack);
 		if (err < 0)
 			return err;
 	}

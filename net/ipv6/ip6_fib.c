@@ -569,17 +569,18 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
+	struct rt6_rtnl_dump_arg arg = {};
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
-	struct rt6_rtnl_dump_arg arg;
 	struct fib6_walker *w;
 	struct fib6_table *tb;
 	struct hlist_head *head;
 	int res = 0;
 
 	if (cb->strict_check) {
-		int err = ip_valid_fib_dump_req(nlh, cb->extack);
+		int err;
 
+		err = ip_valid_fib_dump_req(net, nlh, &arg.filter, cb->extack);
 		if (err < 0)
 			return err;
 	}

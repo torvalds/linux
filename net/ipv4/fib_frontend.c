@@ -802,7 +802,8 @@ errout:
 	return err;
 }
 
-int ip_valid_fib_dump_req(const struct nlmsghdr *nlh,
+int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
+			  struct fib_dump_filter *filter,
 			  struct netlink_ext_ack *extack)
 {
 	struct rtmsg *rtm;
@@ -837,6 +838,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
+	struct fib_dump_filter filter = {};
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
@@ -844,7 +846,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	int dumped = 0, err;
 
 	if (cb->strict_check) {
-		err = ip_valid_fib_dump_req(nlh, cb->extack);
+		err = ip_valid_fib_dump_req(net, nlh, &filter, cb->extack);
 		if (err < 0)
 			return err;
 	}

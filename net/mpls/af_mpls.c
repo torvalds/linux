@@ -2032,13 +2032,15 @@ nla_put_failure:
 }
 
 #if IS_ENABLED(CONFIG_INET)
-static int mpls_valid_fib_dump_req(const struct nlmsghdr *nlh,
+static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
+				   struct fib_dump_filter *filter,
 				   struct netlink_ext_ack *extack)
 {
-	return ip_valid_fib_dump_req(nlh, extack);
+	return ip_valid_fib_dump_req(net, nlh, filter, extack);
 }
 #else
-static int mpls_valid_fib_dump_req(const struct nlmsghdr *nlh,
+static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
+				   struct fib_dump_filter *filter,
 				   struct netlink_ext_ack *extack)
 {
 	struct rtmsg *rtm;
@@ -2070,14 +2072,16 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	struct mpls_route __rcu **platform_label;
+	struct fib_dump_filter filter = {};
 	size_t platform_labels;
 	unsigned int index;
 
 	ASSERT_RTNL();
 
 	if (cb->strict_check) {
-		int err = mpls_valid_fib_dump_req(nlh, cb->extack);
+		int err;
 
+		err = mpls_valid_fib_dump_req(net, nlh, &filter, cb->extack);
 		if (err < 0)
 			return err;
 	}
