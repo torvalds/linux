@@ -476,7 +476,7 @@ static int rk3328_platform_probe(struct platform_device *pdev)
 				   &rk3328->spk_depop_time);
 	if (ret < 0) {
 		dev_info(&pdev->dev, "spk_depop_time use default value.\n");
-		rk3328->spk_depop_time = 200;
+		rk3328->spk_depop_time = 100;
 	}
 
 	rk3328_analog_output(rk3328, 0);
