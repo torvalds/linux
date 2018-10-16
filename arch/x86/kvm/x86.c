@@ -402,7 +402,7 @@ static int exception_type(int vector)
 
 static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		unsigned nr, bool has_error, u32 error_code,
-		bool reinject)
+	        bool has_payload, unsigned long payload, bool reinject)
 {
 	u32 prev_nr;
 	int class1, class2;
@@ -424,6 +424,14 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 			 */
 			WARN_ON_ONCE(vcpu->arch.exception.pending);
 			vcpu->arch.exception.injected = true;
+			if (WARN_ON_ONCE(has_payload)) {
+				/*
+				 * A reinjected event has already
+				 * delivered its payload.
+				 */
+				has_payload = false;
+				payload = 0;
+			}
 		} else {
 			vcpu->arch.exception.pending = true;
 			vcpu->arch.exception.injected = false;
@@ -431,8 +439,8 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		vcpu->arch.exception.has_error_code = has_error;
 		vcpu->arch.exception.nr = nr;
 		vcpu->arch.exception.error_code = error_code;
-		vcpu->arch.exception.has_payload = false;
-		vcpu->arch.exception.payload = 0;
+		vcpu->arch.exception.has_payload = has_payload;
+		vcpu->arch.exception.payload = payload;
 		return;
 	}
 
@@ -468,13 +476,13 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 
 void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 {
-	kvm_multiple_exception(vcpu, nr, false, 0, false);
+	kvm_multiple_exception(vcpu, nr, false, 0, false, 0, false);
 }
 EXPORT_SYMBOL_GPL(kvm_queue_exception);
 
 void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 {
-	kvm_multiple_exception(vcpu, nr, false, 0, true);
+	kvm_multiple_exception(vcpu, nr, false, 0, false, 0, true);
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
@@ -521,13 +529,13 @@ EXPORT_SYMBOL_GPL(kvm_inject_nmi);
 
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
 {
-	kvm_multiple_exception(vcpu, nr, true, error_code, false);
+	kvm_multiple_exception(vcpu, nr, true, error_code, false, 0, false);
 }
 EXPORT_SYMBOL_GPL(kvm_queue_exception_e);
 
 void kvm_requeue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
 {
-	kvm_multiple_exception(vcpu, nr, true, error_code, true);
+	kvm_multiple_exception(vcpu, nr, true, error_code, false, 0, true);
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception_e);
 
