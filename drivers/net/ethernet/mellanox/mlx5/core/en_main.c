@@ -1623,12 +1623,14 @@ static int mlx5e_alloc_cq_common(struct mlx5_core_dev *mdev,
 	int err;
 	u32 i;
 
+	err = mlx5_vector2eqn(mdev, param->eq_ix, &eqn_not_used, &irqn);
+	if (err)
+		return err;
+
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
 			       &cq->wq_ctrl);
 	if (err)
 		return err;
-
-	mlx5_vector2eqn(mdev, param->eq_ix, &eqn_not_used, &irqn);
 
 	mcq->cqe_sz     = 64;
 	mcq->set_ci_db  = cq->wq_ctrl.db.db;
@@ -1687,6 +1689,10 @@ static int mlx5e_create_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 	int eqn;
 	int err;
 
+	err = mlx5_vector2eqn(mdev, param->eq_ix, &eqn, &irqn_not_used);
+	if (err)
+		return err;
+
 	inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
 		sizeof(u64) * cq->wq_ctrl.buf.npages;
 	in = kvzalloc(inlen, GFP_KERNEL);
@@ -1699,8 +1705,6 @@ static int mlx5e_create_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 
 	mlx5_fill_page_frag_array(&cq->wq_ctrl.buf,
 				  (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas));
-
-	mlx5_vector2eqn(mdev, param->eq_ix, &eqn, &irqn_not_used);
 
 	MLX5_SET(cqc,   cqc, cq_period_mode, param->cq_period_mode);
 	MLX5_SET(cqc,   cqc, c_eqn,         eqn);
@@ -1921,6 +1925,10 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	int err;
 	int eqn;
 
+	err = mlx5_vector2eqn(priv->mdev, ix, &eqn, &irq);
+	if (err)
+		return err;
+
 	c = kvzalloc_node(sizeof(*c), GFP_KERNEL, cpu_to_node(cpu));
 	if (!c)
 		return -ENOMEM;
@@ -1937,7 +1945,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->xdp      = !!params->xdp_prog;
 	c->stats    = &priv->channel_stats[ix].ch;
 
-	mlx5_vector2eqn(priv->mdev, ix, &eqn, &irq);
 	c->irq_desc = irq_to_desc(irq);
 
 	netif_napi_add(netdev, &c->napi, mlx5e_napi_poll, 64);
@@ -5010,10 +5017,20 @@ err_free_netdev:
 int mlx5e_attach_netdev(struct mlx5e_priv *priv)
 {
 	const struct mlx5e_profile *profile;
+	int max_nch;
 	int err;
 
 	profile = priv->profile;
 	clear_bit(MLX5E_STATE_DESTROYING, &priv->state);
+
+	/* max number of channels may have changed */
+	max_nch = mlx5e_get_max_num_channels(priv->mdev);
+	if (priv->channels.params.num_channels > max_nch) {
+		mlx5_core_warn(priv->mdev, "MLX5E: Reducing number of channels to %d\n", max_nch);
+		priv->channels.params.num_channels = max_nch;
+		mlx5e_build_default_indir_rqt(priv->channels.params.indirection_rqt,
+					      MLX5E_INDIR_RQT_SIZE, max_nch);
+	}
 
 	err = profile->init_tx(priv);
 	if (err)
