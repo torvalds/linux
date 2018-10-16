@@ -2733,6 +2733,21 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 	return DDI_BUF_TRANS_SELECT(level);
 }
 
+static inline
+uint32_t icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
+				   enum port port)
+{
+	if (intel_port_is_combophy(dev_priv, port)) {
+		return ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+	} else if (intel_port_is_tc(dev_priv, port)) {
+		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+
+		return ICL_DPCLKA_CFGCR0_TC_CLK_OFF(tc_port);
+	}
+
+	return 0;
+}
+
 void icl_map_plls_to_ports(struct drm_crtc *crtc,
 			   struct intel_crtc_state *crtc_state,
 			   struct drm_atomic_state *old_state)
@@ -2756,7 +2771,7 @@ void icl_map_plls_to_ports(struct drm_crtc *crtc,
 		mutex_lock(&dev_priv->dpll_lock);
 
 		val = I915_READ(DPCLKA_CFGCR0_ICL);
-		WARN_ON((val & DPCLKA_CFGCR0_DDI_CLK_OFF(port)) == 0);
+		WARN_ON((val & icl_dpclka_cfgcr0_clk_off(dev_priv, port)) == 0);
 
 		if (intel_port_is_combophy(dev_priv, port)) {
 			val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
@@ -2765,7 +2780,7 @@ void icl_map_plls_to_ports(struct drm_crtc *crtc,
 			POSTING_READ(DPCLKA_CFGCR0_ICL);
 		}
 
-		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+		val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, port);
 		I915_WRITE(DPCLKA_CFGCR0_ICL, val);
 
 		mutex_unlock(&dev_priv->dpll_lock);
@@ -2793,7 +2808,7 @@ void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
 		mutex_lock(&dev_priv->dpll_lock);
 		I915_WRITE(DPCLKA_CFGCR0_ICL,
 			   I915_READ(DPCLKA_CFGCR0_ICL) |
-			   DPCLKA_CFGCR0_DDI_CLK_OFF(port));
+			   icl_dpclka_cfgcr0_clk_off(dev_priv, port));
 		mutex_unlock(&dev_priv->dpll_lock);
 	}
 }
