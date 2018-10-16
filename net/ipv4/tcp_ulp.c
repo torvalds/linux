@@ -99,8 +99,10 @@ void tcp_cleanup_ulp(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	sock_owned_by_me(sk);
-
+	/* No sock_owned_by_me() check here as at the time the
+	 * stack calls this function, the socket is dead and
+	 * about to be destroyed.
+	 */
 	if (!icsk->icsk_ulp_ops)
 		return;
 
