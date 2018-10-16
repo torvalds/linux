@@ -7672,7 +7672,6 @@ IPX NETWORK LAYER
 L:	netdev@vger.kernel.org
 S:	Obsolete
 F:	include/uapi/linux/ipx.h
-F:	drivers/staging/ipx/
 
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
 M:	Marc Zyngier <marc.zyngier@arm.com>
