@@ -747,9 +747,9 @@ continue_subprog:
 
 static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 {
-	unsigned int stack_size, stack_needed;
 	struct bpf_subprog_info *info;
 	struct nfp_prog *nfp_prog;
+	unsigned int max_stack;
 	struct nfp_net *nn;
 	int i;
 
@@ -777,11 +777,12 @@ static int nfp_bpf_finalize(struct bpf_verifier_env *env)
 	}
 
 	nn = netdev_priv(env->prog->aux->offload->netdev);
-	stack_size = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
-	stack_needed = nfp_bpf_get_stack_usage(nfp_prog, env->prog->len);
-	if (stack_needed > stack_size) {
+	max_stack = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
+	nfp_prog->stack_size = nfp_bpf_get_stack_usage(nfp_prog,
+						       env->prog->len);
+	if (nfp_prog->stack_size > max_stack) {
 		pr_vlog(env, "stack too large: program %dB > FW stack %dB\n",
-			stack_needed, stack_size);
+			nfp_prog->stack_size, max_stack);
 		return -EOPNOTSUPP;
 	}
 

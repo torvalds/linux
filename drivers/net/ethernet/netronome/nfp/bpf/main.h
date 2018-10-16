@@ -441,6 +441,7 @@ struct nfp_bpf_subprog_info {
  * @prog: machine code
  * @prog_len: number of valid instructions in @prog array
  * @__prog_alloc_len: alloc size of @prog array
+ * @stack_size: total amount of stack used
  * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
  * @last_bpf_off: address of the last instruction translated from BPF
@@ -464,6 +465,8 @@ struct nfp_prog {
 	u64 *prog;
 	unsigned int prog_len;
 	unsigned int __prog_alloc_len;
+
+	unsigned int stack_size;
 
 	struct nfp_insn_meta *verifier_meta;
 

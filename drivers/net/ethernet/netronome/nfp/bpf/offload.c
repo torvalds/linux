@@ -489,7 +489,7 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 		 struct netlink_ext_ack *extack)
 {
 	struct nfp_prog *nfp_prog = prog->aux->offload->dev_priv;
-	unsigned int max_mtu;
+	unsigned int max_mtu, max_stack, max_prog_len;
 	dma_addr_t dma_addr;
 	void *img;
 	int err;
@@ -497,6 +497,18 @@ nfp_net_bpf_load(struct nfp_net *nn, struct bpf_prog *prog,
 	max_mtu = nn_readb(nn, NFP_NET_CFG_BPF_INL_MTU) * 64 - 32;
 	if (max_mtu < nn->dp.netdev->mtu) {
 		NL_SET_ERR_MSG_MOD(extack, "BPF offload not supported with MTU larger than HW packet split boundary");
+		return -EOPNOTSUPP;
+	}
+
+	max_stack = nn_readb(nn, NFP_NET_CFG_BPF_STACK_SZ) * 64;
+	if (nfp_prog->stack_size > max_stack) {
+		NL_SET_ERR_MSG_MOD(extack, "stack too large");
+		return -EOPNOTSUPP;
+	}
+
+	max_prog_len = nn_readw(nn, NFP_NET_CFG_BPF_MAX_LEN);
+	if (nfp_prog->prog_len > max_prog_len) {
+		NL_SET_ERR_MSG_MOD(extack, "program too long");
 		return -EOPNOTSUPP;
 	}
 
