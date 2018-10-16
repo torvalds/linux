@@ -419,8 +419,7 @@ struct hns3_nic_ring_data {
 
 struct hns3_nic_ops {
 	int (*fill_desc)(struct hns3_enet_ring *ring, void *priv,
-			 int size, dma_addr_t dma, int frag_end,
-			 enum hns_desc_type type);
+			 int size, int frag_end, enum hns_desc_type type);
 	int (*maybe_stop_tx)(struct sk_buff **out_skb,
 			     int *bnum, struct hns3_enet_ring *ring);
 	void (*get_rxd_bnum)(u32 bnum_flag, int *out_bnum);
