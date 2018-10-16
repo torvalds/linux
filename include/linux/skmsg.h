@@ -176,6 +176,7 @@ static inline void sk_msg_xfer(struct sk_msg *dst, struct sk_msg *src,
 {
 	dst->sg.data[which] = src->sg.data[which];
 	dst->sg.data[which].length  = size;
+	dst->sg.size		   += size;
 	src->sg.data[which].length -= size;
 	src->sg.data[which].offset += size;
 }
