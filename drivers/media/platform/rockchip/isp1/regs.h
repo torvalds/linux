@@ -36,6 +36,11 @@
 #define _RKISP1_REGS_H
 #include "dev.h"
 
+/* GRF */
+#define GRF_VI_CON0 				0x430
+#define ISP_CIF_DATA_WIDTH_MASK 		0x60006000
+#define ISP_CIF_DATA_WIDTH_12B 			(2 << 13 | 2 << 29)
+
 /* ISP_CTRL */
 #define CIF_ISP_CTRL_ISP_ENABLE			BIT(0)
 #define CIF_ISP_CTRL_ISP_MODE_RAW_PICT		(0 << 1)

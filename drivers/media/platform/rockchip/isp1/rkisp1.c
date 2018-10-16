@@ -34,6 +34,7 @@
 
 #include <linux/iopoll.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-event.h>
@@ -275,6 +276,15 @@ static int rkisp1_config_dvp(struct rkisp1_device *dev)
 
 	val = readl(base + CIF_ISP_ACQ_PROP);
 	writel(val | input_sel, base + CIF_ISP_ACQ_PROP);
+
+	if (!IS_ERR(dev->grf) &&
+		(dev->isp_ver == ISP_V12 ||
+		dev->isp_ver == ISP_V13))
+		/* config isp cif 12bit datawidth */
+		regmap_update_bits(dev->grf,
+			GRF_VI_CON0,
+			ISP_CIF_DATA_WIDTH_MASK,
+			ISP_CIF_DATA_WIDTH_12B);
 
 	return 0;
 }

@@ -34,12 +34,14 @@
 
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/regmap.h>
 #include <media/videobuf2-dma-contig.h>
 #include <linux/dma-iommu.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
@@ -701,6 +703,11 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, isp_dev);
 	isp_dev->dev = dev;
+
+	isp_dev->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+		"rockchip,grf");
+	if (IS_ERR(isp_dev->grf))
+		dev_warn(dev, "Missing rockchip,grf property\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	isp_dev->base_addr = devm_ioremap_resource(dev, res);
