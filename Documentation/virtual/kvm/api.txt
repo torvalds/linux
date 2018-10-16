@@ -4568,7 +4568,7 @@ hpage module parameter is not set to 1, -EINVAL is returned.
 While it is generally possible to create a huge page backed VM without
 this capability, the VM will not be able to run.
 
-7.14 KVM_CAP_MSR_PLATFORM_INFO
+7.15 KVM_CAP_MSR_PLATFORM_INFO
 
 Architectures: x86
 Parameters: args[0] whether feature should be enabled or not
@@ -4590,6 +4590,31 @@ can run using the CPU's supervisor mode (privileged non-hypervisor
 state).  Enabling this capability on a VM depends on the CPU having
 the necessary functionality and on the facility being enabled with a
 kvm-hv module parameter.
+
+7.17 KVM_CAP_EXCEPTION_PAYLOAD
+
+Architectures: x86
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability enabled, CR2 will not be modified prior to the
+emulated VM-exit when L1 intercepts a #PF exception that occurs in
+L2. Similarly, for kvm-intel only, DR6 will not be modified prior to
+the emulated VM-exit when L1 intercepts a #DB exception that occurs in
+L2. As a result, when KVM_GET_VCPU_EVENTS reports a pending #PF (or
+#DB) exception for L2, exception.has_payload will be set and the
+faulting address (or the new DR6 bits*) will be reported in the
+exception_payload field. Similarly, when userspace injects a #PF (or
+#DB) into L2 using KVM_SET_VCPU_EVENTS, it is expected to set
+exception.has_payload and to put the faulting address (or the new DR6
+bits*) in the exception_payload field.
+
+This capability also enables exception.pending in struct
+kvm_vcpu_events, which allows userspace to distinguish between pending
+and injected exceptions.
+
+
+* For the new DR6 bits, note that bit 16 is set iff the #DB exception
+  will clear DR6.RTM.
 
 8. Other capabilities.
 ----------------------

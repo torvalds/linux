@@ -3015,6 +3015,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_IMMEDIATE_EXIT:
 	case KVM_CAP_GET_MSR_FEATURES:
 	case KVM_CAP_MSR_PLATFORM_INFO:
+	case KVM_CAP_EXCEPTION_PAYLOAD:
 		r = 1;
 		break;
 	case KVM_CAP_SYNC_REGS:
@@ -4498,6 +4499,10 @@ split_irqchip_unlock:
 		break;
 	case KVM_CAP_MSR_PLATFORM_INFO:
 		kvm->arch.guest_can_read_msr_platform_info = cap->args[0];
+		r = 0;
+		break;
+	case KVM_CAP_EXCEPTION_PAYLOAD:
+		kvm->arch.exception_payload_enabled = cap->args[0];
 		r = 0;
 		break;
 	default:
