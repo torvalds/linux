@@ -148,6 +148,8 @@ M(NPA_HWCTX_DISABLE,	0x403, hwctx_disable_req, msg_rsp)		\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
+M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc_req, nix_lf_alloc_rsp)	\
+M(NIX_LF_FREE,		0x8001, msg_req, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -161,6 +163,8 @@ MBOX_UP_CGX_MESSAGES
 };
 
 /* Mailbox message formats */
+
+#define RVU_DEFAULT_PF_FUNC     0xFFFF
 
 /* Generic request msg used for those mbox messages which
  * don't send any data in the request.
@@ -330,6 +334,47 @@ struct npa_aq_enq_rsp {
 struct hwctx_disable_req {
 	struct mbox_msghdr hdr;
 	u8 ctype;
+};
+
+/* NIX mailbox error codes
+ * Range 401 - 500.
+ */
+enum nix_af_status {
+	NIX_AF_ERR_PARAM            = -401,
+	NIX_AF_ERR_AQ_FULL          = -402,
+	NIX_AF_ERR_AQ_ENQUEUE       = -403,
+	NIX_AF_ERR_AF_LF_INVALID    = -404,
+	NIX_AF_ERR_AF_LF_ALLOC      = -405,
+	NIX_AF_ERR_TLX_ALLOC_FAIL   = -406,
+	NIX_AF_ERR_TLX_INVALID      = -407,
+	NIX_AF_ERR_RSS_SIZE_INVALID = -408,
+	NIX_AF_ERR_RSS_GRPS_INVALID = -409,
+	NIX_AF_ERR_FRS_INVALID      = -410,
+	NIX_AF_ERR_RX_LINK_INVALID  = -411,
+	NIX_AF_INVAL_TXSCHQ_CFG     = -412,
+	NIX_AF_SMQ_FLUSH_FAILED     = -413,
+	NIX_AF_ERR_LF_RESET         = -414,
+};
+
+/* For NIX LF context alloc and init */
+struct nix_lf_alloc_req {
+	struct mbox_msghdr hdr;
+	int node;
+	u32 rq_cnt;   /* No of receive queues */
+	u32 sq_cnt;   /* No of send queues */
+	u32 cq_cnt;   /* No of completion queues */
+	u8  xqe_sz;
+	u16 rss_sz;
+	u8  rss_grps;
+	u16 npa_func;
+	u16 sso_func;
+	u64 rx_cfg;   /* See NIX_AF_LF(0..127)_RX_CFG */
+};
+
+struct nix_lf_alloc_rsp {
+	struct mbox_msghdr hdr;
+	u16	sqb_size;
+	u8      mac_addr[ETH_ALEN];
 };
 
 #endif /* MBOX_H */

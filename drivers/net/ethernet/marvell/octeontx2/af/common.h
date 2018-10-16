@@ -131,4 +131,14 @@ struct npa_aq_pool_res {
 	struct	npa_pool_s	pool_ctx;
 	struct	npa_pool_s	ctx_mask;
 };
+
+/* RSS info */
+#define MAX_RSS_GROUPS			8
+/* Group 0 has to be used in default pkt forwarding MCAM entries
+ * reserved for NIXLFs. Groups 1-7 can be used for RSS for ntuple
+ * filters.
+ */
+#define DEFAULT_RSS_CONTEXT_GROUP	0
+#define MAX_RSS_INDIR_TBL_SIZE		256 /* 1 << Max adder bits */
+
 #endif /* COMMON_H */

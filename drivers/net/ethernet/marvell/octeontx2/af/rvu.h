@@ -79,6 +79,16 @@ struct rvu_pfvf {
 	struct qmem	*npa_qints_ctx;
 	unsigned long	*aura_bmap;
 	unsigned long	*pool_bmap;
+
+	/* NIX contexts */
+	struct qmem	*rq_ctx;
+	struct qmem	*sq_ctx;
+	struct qmem	*cq_ctx;
+	struct qmem	*rss_ctx;
+	struct qmem	*cq_ints_ctx;
+	struct qmem	*nix_qints_ctx;
+
+	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
 };
 
 struct rvu_hwinfo {
@@ -230,4 +240,9 @@ int rvu_mbox_handler_NPA_LF_FREE(struct rvu *rvu, struct msg_req *req,
 /* NIX APIs */
 int rvu_nix_init(struct rvu *rvu);
 void rvu_nix_freemem(struct rvu *rvu);
+int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
+				  struct nix_lf_alloc_req *req,
+				  struct nix_lf_alloc_rsp *rsp);
+int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
+				 struct msg_rsp *rsp);
 #endif /* RVU_H */
