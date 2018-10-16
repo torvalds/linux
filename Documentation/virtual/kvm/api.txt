@@ -873,6 +873,7 @@ struct kvm_vcpu_events {
 		__u8 smm_inside_nmi;
 		__u8 latched_init;
 	} smi;
+	__u32 reserved[9];
 };
 
 Only two fields are defined in the flags field:
