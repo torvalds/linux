@@ -333,6 +333,10 @@
 		 */
 		marvell,reg-init = <3 16 0 0x1017>;
 		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp0_copper_eth_phy_reset>;
+		reset-gpios = <&cp1_gpio1 11 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10000>;
 	};
 
 	switch0: switch0@4 {
