@@ -763,6 +763,13 @@ static int ulite_probe(struct platform_device *pdev)
 	if (prop)
 		id = be32_to_cpup(prop);
 #endif
+	if (id < 0) {
+		/* Look for a serialN alias */
+		id = of_alias_get_id(pdev->dev.of_node, "serial");
+		if (id < 0)
+			id = 0;
+	}
+
 	if (!ulite_uart_driver.state) {
 		dev_dbg(&pdev->dev, "uartlite: calling uart_register_driver()\n");
 		ret = uart_register_driver(&ulite_uart_driver);
