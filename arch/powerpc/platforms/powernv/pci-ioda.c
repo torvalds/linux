@@ -2366,15 +2366,7 @@ found:
 	pe->table_group.tce32_size = tbl->it_size << tbl->it_page_shift;
 	iommu_init_table(tbl, phb->hose->node);
 
-	if (pe->flags & PNV_IODA_PE_DEV) {
-		/*
-		 * Setting table base here only for carrying iommu_group
-		 * further down to let iommu_add_device() do the job.
-		 * pnv_pci_ioda_dma_dev_setup will override it later anyway.
-		 */
-		set_iommu_table_base(&pe->pdev->dev, tbl);
-		iommu_add_device(&pe->pdev->dev);
-	} else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
+	if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
 		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
 
 	return;
