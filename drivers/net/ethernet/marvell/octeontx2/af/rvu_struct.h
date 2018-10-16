@@ -71,4 +71,69 @@ enum rvu_pf_int_vec_e {
 	RVU_PF_INT_VEC_CNT	  = 0x7,
 };
 
+/* NPA admin queue completion enumeration */
+enum npa_aq_comp {
+	NPA_AQ_COMP_NOTDONE    = 0x0,
+	NPA_AQ_COMP_GOOD       = 0x1,
+	NPA_AQ_COMP_SWERR      = 0x2,
+	NPA_AQ_COMP_CTX_POISON = 0x3,
+	NPA_AQ_COMP_CTX_FAULT  = 0x4,
+	NPA_AQ_COMP_LOCKERR    = 0x5,
+};
+
+/* NPA admin queue context types */
+enum npa_aq_ctype {
+	NPA_AQ_CTYPE_AURA = 0x0,
+	NPA_AQ_CTYPE_POOL = 0x1,
+};
+
+/* NPA admin queue instruction opcodes */
+enum npa_aq_instop {
+	NPA_AQ_INSTOP_NOP    = 0x0,
+	NPA_AQ_INSTOP_INIT   = 0x1,
+	NPA_AQ_INSTOP_WRITE  = 0x2,
+	NPA_AQ_INSTOP_READ   = 0x3,
+	NPA_AQ_INSTOP_LOCK   = 0x4,
+	NPA_AQ_INSTOP_UNLOCK = 0x5,
+};
+
+/* NPA admin queue instruction structure */
+struct npa_aq_inst_s {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 doneint               : 1;	/* W0 */
+	u64 reserved_44_62        : 19;
+	u64 cindex                : 20;
+	u64 reserved_17_23        : 7;
+	u64 lf                    : 9;
+	u64 ctype                 : 4;
+	u64 op                    : 4;
+#else
+	u64 op                    : 4;
+	u64 ctype                 : 4;
+	u64 lf                    : 9;
+	u64 reserved_17_23        : 7;
+	u64 cindex                : 20;
+	u64 reserved_44_62        : 19;
+	u64 doneint               : 1;
+#endif
+	u64 res_addr;			/* W1 */
+};
+
+/* NPA admin queue result structure */
+struct npa_aq_res_s {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 reserved_17_63        : 47; /* W0 */
+	u64 doneint               : 1;
+	u64 compcode              : 8;
+	u64 ctype                 : 4;
+	u64 op                    : 4;
+#else
+	u64 op                    : 4;
+	u64 ctype                 : 4;
+	u64 compcode              : 8;
+	u64 doneint               : 1;
+	u64 reserved_17_63        : 47;
+#endif
+	u64 reserved_64_127;		/* W1 */
+};
 #endif /* RVU_STRUCT_H */

@@ -552,6 +552,8 @@ static void rvu_free_hw_resources(struct rvu *rvu)
 	int id, max_msix;
 	u64 cfg;
 
+	rvu_npa_freemem(rvu);
+
 	/* Free block LF bitmaps */
 	for (id = 0; id < BLK_COUNT; id++) {
 		block = &hw->block[id];
@@ -755,6 +757,50 @@ init:
 		rvu_scan_block(rvu, block);
 	}
 
+	err = rvu_npa_init(rvu);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/* NPA and NIX admin queue APIs */
+void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq)
+{
+	if (!aq)
+		return;
+
+	qmem_free(rvu->dev, aq->inst);
+	qmem_free(rvu->dev, aq->res);
+	devm_kfree(rvu->dev, aq);
+}
+
+int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
+		 int qsize, int inst_size, int res_size)
+{
+	struct admin_queue *aq;
+	int err;
+
+	*ad_queue = devm_kzalloc(rvu->dev, sizeof(*aq), GFP_KERNEL);
+	if (!*ad_queue)
+		return -ENOMEM;
+	aq = *ad_queue;
+
+	/* Alloc memory for instructions i.e AQ */
+	err = qmem_alloc(rvu->dev, &aq->inst, qsize, inst_size);
+	if (err) {
+		devm_kfree(rvu->dev, aq);
+		return err;
+	}
+
+	/* Alloc memory for results */
+	err = qmem_alloc(rvu->dev, &aq->res, qsize, res_size);
+	if (err) {
+		rvu_aq_free(rvu, aq);
+		return err;
+	}
+
+	spin_lock_init(&aq->lock);
 	return 0;
 }
 

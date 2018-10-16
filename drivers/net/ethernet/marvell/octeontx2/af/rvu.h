@@ -12,6 +12,7 @@
 #define RVU_H
 
 #include "rvu_struct.h"
+#include "common.h"
 #include "mbox.h"
 
 /* PCI device IDs */
@@ -41,7 +42,8 @@ struct rsrc_bmap {
 };
 
 struct rvu_block {
-	struct rsrc_bmap lf;
+	struct rsrc_bmap	lf;
+	struct admin_queue	*aq; /* NIX/NPA AQ */
 	u16  *fn_map; /* LF to pcifunc mapping */
 	bool multislot;
 	bool implemented;
@@ -155,6 +157,11 @@ int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot);
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
+/* NPA/NIX AQ APIs */
+int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
+		 int qsize, int inst_size, int res_size);
+void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq);
+
 /* CGX APIs */
 static inline bool is_pf_cgxmapped(struct rvu *rvu, u8 pf)
 {
@@ -196,4 +203,8 @@ int rvu_mbox_handler_CGX_INTLBK_ENABLE(struct rvu *rvu, struct msg_req *req,
 				       struct msg_rsp *rsp);
 int rvu_mbox_handler_CGX_INTLBK_DISABLE(struct rvu *rvu, struct msg_req *req,
 					struct msg_rsp *rsp);
+
+/* NPA APIs */
+int rvu_npa_init(struct rvu *rvu);
+int rvu_npa_freemem(struct rvu *rvu);
 #endif /* RVU_H */
