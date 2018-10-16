@@ -279,7 +279,7 @@ static int aq_fw2x_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 	return err;
 }
 
-int aq_fw2x_update_stats(struct aq_hw_s *self)
+static int aq_fw2x_update_stats(struct aq_hw_s *self)
 {
 	int err = 0;
 	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
