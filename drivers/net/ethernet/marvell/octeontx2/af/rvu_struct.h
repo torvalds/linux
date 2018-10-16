@@ -136,4 +136,222 @@ struct npa_aq_res_s {
 #endif
 	u64 reserved_64_127;		/* W1 */
 };
+
+struct npa_aura_s {
+	u64 pool_addr;			/* W0 */
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W1 */
+	u64 avg_level             : 8;
+	u64 reserved_118_119      : 2;
+	u64 shift                 : 6;
+	u64 aura_drop             : 8;
+	u64 reserved_98_103       : 6;
+	u64 bp_ena                : 2;
+	u64 aura_drop_ena         : 1;
+	u64 pool_drop_ena         : 1;
+	u64 reserved_93           : 1;
+	u64 avg_con               : 9;
+	u64 pool_way_mask         : 16;
+	u64 pool_caching          : 1;
+	u64 reserved_65           : 2;
+	u64 ena                   : 1;
+#else
+	u64 ena                   : 1;
+	u64 reserved_65           : 2;
+	u64 pool_caching          : 1;
+	u64 pool_way_mask         : 16;
+	u64 avg_con               : 9;
+	u64 reserved_93           : 1;
+	u64 pool_drop_ena         : 1;
+	u64 aura_drop_ena         : 1;
+	u64 bp_ena                : 2;
+	u64 reserved_98_103       : 6;
+	u64 aura_drop             : 8;
+	u64 shift                 : 6;
+	u64 reserved_118_119      : 2;
+	u64 avg_level             : 8;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W2 */
+	u64 reserved_189_191      : 3;
+	u64 nix1_bpid             : 9;
+	u64 reserved_177_179      : 3;
+	u64 nix0_bpid             : 9;
+	u64 reserved_164_167      : 4;
+	u64 count                 : 36;
+#else
+	u64 count                 : 36;
+	u64 reserved_164_167      : 4;
+	u64 nix0_bpid             : 9;
+	u64 reserved_177_179      : 3;
+	u64 nix1_bpid             : 9;
+	u64 reserved_189_191      : 3;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W3 */
+	u64 reserved_252_255      : 4;
+	u64 fc_hyst_bits          : 4;
+	u64 fc_stype              : 2;
+	u64 fc_up_crossing        : 1;
+	u64 fc_ena                : 1;
+	u64 reserved_240_243      : 4;
+	u64 bp                    : 8;
+	u64 reserved_228_231      : 4;
+	u64 limit                 : 36;
+#else
+	u64 limit                 : 36;
+	u64 reserved_228_231      : 4;
+	u64 bp                    : 8;
+	u64 reserved_240_243      : 4;
+	u64 fc_ena                : 1;
+	u64 fc_up_crossing        : 1;
+	u64 fc_stype              : 2;
+	u64 fc_hyst_bits          : 4;
+	u64 reserved_252_255      : 4;
+#endif
+	u64 fc_addr;			/* W4 */
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W5 */
+	u64 reserved_379_383      : 5;
+	u64 err_qint_idx          : 7;
+	u64 reserved_371          : 1;
+	u64 thresh_qint_idx       : 7;
+	u64 reserved_363          : 1;
+	u64 thresh_up             : 1;
+	u64 thresh_int_ena        : 1;
+	u64 thresh_int            : 1;
+	u64 err_int_ena           : 8;
+	u64 err_int               : 8;
+	u64 update_time           : 16;
+	u64 pool_drop             : 8;
+#else
+	u64 pool_drop             : 8;
+	u64 update_time           : 16;
+	u64 err_int               : 8;
+	u64 err_int_ena           : 8;
+	u64 thresh_int            : 1;
+	u64 thresh_int_ena        : 1;
+	u64 thresh_up             : 1;
+	u64 reserved_363          : 1;
+	u64 thresh_qint_idx       : 7;
+	u64 reserved_371          : 1;
+	u64 err_qint_idx          : 7;
+	u64 reserved_379_383      : 5;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W6 */
+	u64 reserved_420_447      : 28;
+	u64 thresh                : 36;
+#else
+	u64 thresh                : 36;
+	u64 reserved_420_447      : 28;
+#endif
+	u64 reserved_448_511;		/* W7 */
+};
+
+struct npa_pool_s {
+	u64 stack_base;			/* W0 */
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W1 */
+	u64 reserved_115_127      : 13;
+	u64 buf_size              : 11;
+	u64 reserved_100_103      : 4;
+	u64 buf_offset            : 12;
+	u64 stack_way_mask        : 16;
+	u64 reserved_70_71        : 3;
+	u64 stack_caching         : 1;
+	u64 reserved_66_67        : 2;
+	u64 nat_align             : 1;
+	u64 ena                   : 1;
+#else
+	u64 ena                   : 1;
+	u64 nat_align             : 1;
+	u64 reserved_66_67        : 2;
+	u64 stack_caching         : 1;
+	u64 reserved_70_71        : 3;
+	u64 stack_way_mask        : 16;
+	u64 buf_offset            : 12;
+	u64 reserved_100_103      : 4;
+	u64 buf_size              : 11;
+	u64 reserved_115_127      : 13;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W2 */
+	u64 stack_pages           : 32;
+	u64 stack_max_pages       : 32;
+#else
+	u64 stack_max_pages       : 32;
+	u64 stack_pages           : 32;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W3 */
+	u64 reserved_240_255      : 16;
+	u64 op_pc                 : 48;
+#else
+	u64 op_pc                 : 48;
+	u64 reserved_240_255      : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W4 */
+	u64 reserved_316_319      : 4;
+	u64 update_time           : 16;
+	u64 reserved_297_299      : 3;
+	u64 fc_up_crossing        : 1;
+	u64 fc_hyst_bits          : 4;
+	u64 fc_stype              : 2;
+	u64 fc_ena                : 1;
+	u64 avg_con               : 9;
+	u64 avg_level             : 8;
+	u64 reserved_270_271      : 2;
+	u64 shift                 : 6;
+	u64 reserved_260_263      : 4;
+	u64 stack_offset          : 4;
+#else
+	u64 stack_offset          : 4;
+	u64 reserved_260_263      : 4;
+	u64 shift                 : 6;
+	u64 reserved_270_271      : 2;
+	u64 avg_level             : 8;
+	u64 avg_con               : 9;
+	u64 fc_ena                : 1;
+	u64 fc_stype              : 2;
+	u64 fc_hyst_bits          : 4;
+	u64 fc_up_crossing        : 1;
+	u64 reserved_297_299      : 3;
+	u64 update_time           : 16;
+	u64 reserved_316_319      : 4;
+#endif
+	u64 fc_addr;			/* W5 */
+	u64 ptr_start;			/* W6 */
+	u64 ptr_end;			/* W7 */
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W8 */
+	u64 reserved_571_575      : 5;
+	u64 err_qint_idx          : 7;
+	u64 reserved_563          : 1;
+	u64 thresh_qint_idx       : 7;
+	u64 reserved_555          : 1;
+	u64 thresh_up             : 1;
+	u64 thresh_int_ena        : 1;
+	u64 thresh_int            : 1;
+	u64 err_int_ena           : 8;
+	u64 err_int               : 8;
+	u64 reserved_512_535      : 24;
+#else
+	u64 reserved_512_535      : 24;
+	u64 err_int               : 8;
+	u64 err_int_ena           : 8;
+	u64 thresh_int            : 1;
+	u64 thresh_int_ena        : 1;
+	u64 thresh_up             : 1;
+	u64 reserved_555          : 1;
+	u64 thresh_qint_idx       : 7;
+	u64 reserved_563          : 1;
+	u64 err_qint_idx          : 7;
+	u64 reserved_571_575      : 5;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W9 */
+	u64 reserved_612_639      : 28;
+	u64 thresh                : 36;
+#else
+	u64 thresh                : 36;
+	u64 reserved_612_639      : 28;
+#endif
+	u64 reserved_640_703;		/* W10 */
+	u64 reserved_704_767;		/* W11 */
+	u64 reserved_768_831;		/* W12 */
+	u64 reserved_832_895;		/* W13 */
+	u64 reserved_896_959;		/* W14 */
+	u64 reserved_960_1023;		/* W15 */
+};
 #endif /* RVU_STRUCT_H */

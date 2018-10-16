@@ -118,4 +118,17 @@ enum npa_aura_sz {
 
 #define NPA_AURA_COUNT(x)	(1ULL << ((x) + 6))
 
+/* NPA AQ result structure for init/read/write of aura HW contexts */
+struct npa_aq_aura_res {
+	struct	npa_aq_res_s	res;
+	struct	npa_aura_s	aura_ctx;
+	struct	npa_aura_s	ctx_mask;
+};
+
+/* NPA AQ result structure for init/read/write of pool HW contexts */
+struct npa_aq_pool_res {
+	struct	npa_aq_res_s	res;
+	struct	npa_pool_s	pool_ctx;
+	struct	npa_pool_s	ctx_mask;
+};
 #endif /* COMMON_H */

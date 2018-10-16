@@ -141,6 +141,7 @@ M(CGX_INTLBK_DISABLE,	0x20B, msg_req, msg_rsp)			\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc_req, npa_lf_alloc_rsp)	\
 M(NPA_LF_FREE,		0x401, msg_req, msg_rsp)			\
+M(NPA_AQ_ENQ,		0x402, npa_aq_enq_req, npa_aq_enq_rsp)		\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
@@ -288,6 +289,40 @@ struct npa_lf_alloc_rsp {
 	u32 stack_pg_ptrs;  /* No of ptrs per stack page */
 	u32 stack_pg_bytes; /* Size of stack page */
 	u16 qints; /* NPA_AF_CONST::QINTS */
+};
+
+/* NPA AQ enqueue msg */
+struct npa_aq_enq_req {
+	struct mbox_msghdr hdr;
+	u32 aura_id;
+	u8 ctype;
+	u8 op;
+	union {
+		/* Valid when op == WRITE/INIT and ctype == AURA.
+		 * LF fills the pool_id in aura.pool_addr. AF will translate
+		 * the pool_id to pool context pointer.
+		 */
+		struct npa_aura_s aura;
+		/* Valid when op == WRITE/INIT and ctype == POOL */
+		struct npa_pool_s pool;
+	};
+	/* Mask data when op == WRITE (1=write, 0=don't write) */
+	union {
+		/* Valid when op == WRITE and ctype == AURA */
+		struct npa_aura_s aura_mask;
+		/* Valid when op == WRITE and ctype == POOL */
+		struct npa_pool_s pool_mask;
+	};
+};
+
+struct npa_aq_enq_rsp {
+	struct mbox_msghdr hdr;
+	union {
+		/* Valid when op == READ and ctype == AURA */
+		struct npa_aura_s aura;
+		/* Valid when op == READ and ctype == POOL */
+		struct npa_pool_s pool;
+	};
 };
 
 #endif /* MBOX_H */

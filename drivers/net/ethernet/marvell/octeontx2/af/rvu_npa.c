@@ -15,6 +15,164 @@
 #include "rvu_reg.h"
 #include "rvu.h"
 
+static int npa_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
+			       struct npa_aq_inst_s *inst)
+{
+	struct admin_queue *aq = block->aq;
+	struct npa_aq_res_s *result;
+	int timeout = 1000;
+	u64 reg, head;
+
+	result = (struct npa_aq_res_s *)aq->res->base;
+
+	/* Get current head pointer where to append this instruction */
+	reg = rvu_read64(rvu, block->addr, NPA_AF_AQ_STATUS);
+	head = (reg >> 4) & AQ_PTR_MASK;
+
+	memcpy((void *)(aq->inst->base + (head * aq->inst->entry_sz)),
+	       (void *)inst, aq->inst->entry_sz);
+	memset(result, 0, sizeof(*result));
+	/* sync into memory */
+	wmb();
+
+	/* Ring the doorbell and wait for result */
+	rvu_write64(rvu, block->addr, NPA_AF_AQ_DOOR, 1);
+	while (result->compcode == NPA_AQ_COMP_NOTDONE) {
+		cpu_relax();
+		udelay(1);
+		timeout--;
+		if (!timeout)
+			return -EBUSY;
+	}
+
+	if (result->compcode != NPA_AQ_COMP_GOOD)
+		/* TODO: Replace this with some error code */
+		return -EBUSY;
+
+	return 0;
+}
+
+static int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
+			       struct npa_aq_enq_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr, npalf, rc = 0;
+	struct npa_aq_inst_s inst;
+	struct rvu_block *block;
+	struct admin_queue *aq;
+	struct rvu_pfvf *pfvf;
+	void *ctx, *mask;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	if (!pfvf->aura_ctx || req->aura_id >= pfvf->aura_ctx->qsize)
+		return NPA_AF_ERR_AQ_ENQUEUE;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, pcifunc);
+	if (!pfvf->npalf || blkaddr < 0)
+		return NPA_AF_ERR_AF_LF_INVALID;
+
+	block = &hw->block[blkaddr];
+	aq = block->aq;
+	if (!aq) {
+		dev_warn(rvu->dev, "%s: NPA AQ not initialized\n", __func__);
+		return NPA_AF_ERR_AQ_ENQUEUE;
+	}
+
+	npalf = rvu_get_lf(rvu, block, pcifunc, 0);
+	if (npalf < 0)
+		return NPA_AF_ERR_AF_LF_INVALID;
+
+	memset(&inst, 0, sizeof(struct npa_aq_inst_s));
+	inst.cindex = req->aura_id;
+	inst.lf = npalf;
+	inst.ctype = req->ctype;
+	inst.op = req->op;
+	/* Currently we are not supporting enqueuing multiple instructions,
+	 * so always choose first entry in result memory.
+	 */
+	inst.res_addr = (u64)aq->res->iova;
+
+	/* Clean result + context memory */
+	memset(aq->res->base, 0, aq->res->entry_sz);
+	/* Context needs to be written at RES_ADDR + 128 */
+	ctx = aq->res->base + 128;
+	/* Mask needs to be written at RES_ADDR + 256 */
+	mask = aq->res->base + 256;
+
+	switch (req->op) {
+	case NPA_AQ_INSTOP_WRITE:
+		/* Copy context and write mask */
+		if (req->ctype == NPA_AQ_CTYPE_AURA) {
+			memcpy(mask, &req->aura_mask,
+			       sizeof(struct npa_aura_s));
+			memcpy(ctx, &req->aura, sizeof(struct npa_aura_s));
+		} else {
+			memcpy(mask, &req->pool_mask,
+			       sizeof(struct npa_pool_s));
+			memcpy(ctx, &req->pool, sizeof(struct npa_pool_s));
+		}
+		break;
+	case NPA_AQ_INSTOP_INIT:
+		if (req->ctype == NPA_AQ_CTYPE_AURA) {
+			if (req->aura.pool_addr >= pfvf->pool_ctx->qsize) {
+				rc = NPA_AF_ERR_AQ_FULL;
+				break;
+			}
+			/* Set pool's context address */
+			req->aura.pool_addr = pfvf->pool_ctx->iova +
+			(req->aura.pool_addr * pfvf->pool_ctx->entry_sz);
+			memcpy(ctx, &req->aura, sizeof(struct npa_aura_s));
+		} else { /* POOL's context */
+			memcpy(ctx, &req->pool, sizeof(struct npa_pool_s));
+		}
+		break;
+	case NPA_AQ_INSTOP_NOP:
+	case NPA_AQ_INSTOP_READ:
+	case NPA_AQ_INSTOP_LOCK:
+	case NPA_AQ_INSTOP_UNLOCK:
+		break;
+	default:
+		rc = NPA_AF_ERR_AQ_FULL;
+		break;
+	}
+
+	if (rc)
+		return rc;
+
+	spin_lock(&aq->lock);
+
+	/* Submit the instruction to AQ */
+	rc = npa_aq_enqueue_wait(rvu, block, &inst);
+	if (rc) {
+		spin_unlock(&aq->lock);
+		return rc;
+	}
+
+	spin_unlock(&aq->lock);
+
+	if (rsp) {
+		/* Copy read context into mailbox */
+		if (req->op == NPA_AQ_INSTOP_READ) {
+			if (req->ctype == NPA_AQ_CTYPE_AURA)
+				memcpy(&rsp->aura, ctx,
+				       sizeof(struct npa_aura_s));
+			else
+				memcpy(&rsp->pool, ctx,
+				       sizeof(struct npa_pool_s));
+		}
+	}
+
+	return 0;
+}
+
+int rvu_mbox_handler_NPA_AQ_ENQ(struct rvu *rvu,
+				struct npa_aq_enq_req *req,
+				struct npa_aq_enq_rsp *rsp)
+{
+	return rvu_npa_aq_enq_inst(rvu, req, rsp);
+}
+
 static void npa_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 {
 	qmem_free(rvu->dev, pfvf->aura_ctx);
