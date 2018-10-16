@@ -9,8 +9,6 @@
  *
  * Copyright (C) 2013 Tuomas Vainikka (tuomas.vainikka@aalto.fi) for
  *               Blizzard 1230 DMA and probe function fixes
- *
- * Copyright (C) 2017 Finn Thain for PIO code from Mac ESP driver adapted here
  */
 /*
  * ZORRO bus code from:
@@ -159,7 +157,6 @@ struct fastlane_dma_registers {
 struct zorro_esp_priv {
 	struct esp *esp;		/* our ESP instance - for Scsi_host* */
 	void __iomem *board_base;	/* virtual address (Zorro III board) */
-	int error;			/* PIO error flag */
 	int zorro3;			/* board is Zorro III */
 	unsigned char ctrl_data;	/* shadow copy of ctrl_reg */
 };
@@ -250,191 +247,28 @@ static void fastlane_esp_dma_invalidate(struct esp *esp)
 	z_writel(0, zep->board_base);
 }
 
-/*
- * Programmed IO routines follow.
- */
-
-static inline unsigned int zorro_esp_wait_for_fifo(struct esp *esp)
-{
-	int i = 500000;
-
-	do {
-		unsigned int fbytes = zorro_esp_read8(esp, ESP_FFLAGS)
-							& ESP_FF_FBYTES;
-
-		if (fbytes)
-			return fbytes;
-
-		udelay(2);
-	} while (--i);
-
-	pr_err("FIFO is empty (sreg %02x)\n",
-	       zorro_esp_read8(esp, ESP_STATUS));
-	return 0;
-}
-
-static inline int zorro_esp_wait_for_intr(struct esp *esp)
-{
-	struct zorro_esp_priv *zep = dev_get_drvdata(esp->dev);
-	int i = 500000;
-
-	do {
-		esp->sreg = zorro_esp_read8(esp, ESP_STATUS);
-		if (esp->sreg & ESP_STAT_INTR)
-			return 0;
-
-		udelay(2);
-	} while (--i);
-
-	pr_err("IRQ timeout (sreg %02x)\n", esp->sreg);
-	zep->error = 1;
-	return 1;
-}
-
-/*
- * PIO macros as used in mac_esp.c.
- * Note that addr and fifo arguments are local-scope variables declared
- * in zorro_esp_send_pio_cmd(), the macros are only used in that function,
- * and addr and fifo are referenced in each use of the macros so there
- * is no need to pass them as macro parameters.
- */
-#define ZORRO_ESP_PIO_LOOP(operands, reg1) \
-	asm volatile ( \
-	     "1:     moveb " operands "\n" \
-	     "       subqw #1,%1       \n" \
-	     "       jbne 1b           \n" \
-	     : "+a" (addr), "+r" (reg1) \
-	     : "a" (fifo));
-
-#define ZORRO_ESP_PIO_FILL(operands, reg1) \
-	asm volatile ( \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       moveb " operands "\n" \
-	     "       subqw #8,%1       \n" \
-	     "       subqw #8,%1       \n" \
-	     : "+a" (addr), "+r" (reg1) \
-	     : "a" (fifo));
-
-#define ZORRO_ESP_FIFO_SIZE 16
-
-static void zorro_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
-				 u32 dma_count, int write, u8 cmd)
-{
-	struct zorro_esp_priv *zep = dev_get_drvdata(esp->dev);
-	u8 __iomem *fifo = esp->regs + ESP_FDATA * 16;
-	u8 phase = esp->sreg & ESP_STAT_PMASK;
-
-	cmd &= ~ESP_CMD_DMA;
-
-	if (write) {
-		u8 *dst = (u8 *)addr;
-		u8 mask = ~(phase == ESP_MIP ? ESP_INTR_FDONE : ESP_INTR_BSERV);
-
-		scsi_esp_cmd(esp, cmd);
-
-		while (1) {
-			if (!zorro_esp_wait_for_fifo(esp))
-				break;
-
-			*dst++ = zorro_esp_read8(esp, ESP_FDATA);
-			--esp_count;
-
-			if (!esp_count)
-				break;
-
-			if (zorro_esp_wait_for_intr(esp))
-				break;
-
-			if ((esp->sreg & ESP_STAT_PMASK) != phase)
-				break;
-
-			esp->ireg = zorro_esp_read8(esp, ESP_INTRPT);
-			if (esp->ireg & mask) {
-				zep->error = 1;
-				break;
-			}
-
-			if (phase == ESP_MIP)
-				scsi_esp_cmd(esp, ESP_CMD_MOK);
-
-			scsi_esp_cmd(esp, ESP_CMD_TI);
-		}
-	} else {	/* unused, as long as we only handle MIP here */
-		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
-
-		if (esp_count >= ZORRO_ESP_FIFO_SIZE)
-			ZORRO_ESP_PIO_FILL("%0@+,%2@", esp_count)
-		else
-			ZORRO_ESP_PIO_LOOP("%0@+,%2@", esp_count)
-
-		scsi_esp_cmd(esp, cmd);
-
-		while (esp_count) {
-			unsigned int n;
-
-			if (zorro_esp_wait_for_intr(esp))
-				break;
-
-			if ((esp->sreg & ESP_STAT_PMASK) != phase)
-				break;
-
-			esp->ireg = zorro_esp_read8(esp, ESP_INTRPT);
-			if (esp->ireg & ~ESP_INTR_BSERV) {
-				zep->error = 1;
-				break;
-			}
-
-			n = ZORRO_ESP_FIFO_SIZE -
-			    (zorro_esp_read8(esp, ESP_FFLAGS) & ESP_FF_FBYTES);
-			if (n > esp_count)
-				n = esp_count;
-
-			if (n == ZORRO_ESP_FIFO_SIZE)
-				ZORRO_ESP_PIO_FILL("%0@+,%2@", esp_count)
-			else {
-				esp_count -= n;
-				ZORRO_ESP_PIO_LOOP("%0@+,%2@", n)
-			}
-
-			scsi_esp_cmd(esp, ESP_CMD_TI);
-		}
-	}
-}
-
 /* Blizzard 1230/60 SCSI-IV DMA */
 
 static void zorro_esp_send_blz1230_dma_cmd(struct esp *esp, u32 addr,
 			u32 esp_count, u32 dma_count, int write, u8 cmd)
 {
-	struct zorro_esp_priv *zep = dev_get_drvdata(esp->dev);
 	struct blz1230_dma_registers __iomem *dregs = esp->dma_regs;
 	u8 phase = esp->sreg & ESP_STAT_PMASK;
 
-	zep->error = 0;
 	/*
 	 * Use PIO if transferring message bytes to esp->command_block_dma.
 	 * PIO requires a virtual address, so substitute esp->command_block
 	 * for addr.
 	 */
 	if (phase == ESP_MIP && addr == esp->command_block_dma) {
-		zorro_esp_send_pio_cmd(esp, (u32) esp->command_block,
-					esp_count, dma_count, write, cmd);
+		esp_send_pio_cmd(esp, (u32)esp->command_block, esp_count,
+				 dma_count, write, cmd);
 		return;
 	}
+
+	/* Clear the results of a possible prior esp->ops->send_dma_cmd() */
+	esp->send_cmd_error = 0;
+	esp->send_cmd_residual = 0;
 
 	if (write)
 		/* DMA receive */
@@ -469,17 +303,18 @@ static void zorro_esp_send_blz1230_dma_cmd(struct esp *esp, u32 addr,
 static void zorro_esp_send_blz1230II_dma_cmd(struct esp *esp, u32 addr,
 			u32 esp_count, u32 dma_count, int write, u8 cmd)
 {
-	struct zorro_esp_priv *zep = dev_get_drvdata(esp->dev);
 	struct blz1230II_dma_registers __iomem *dregs = esp->dma_regs;
 	u8 phase = esp->sreg & ESP_STAT_PMASK;
 
-	zep->error = 0;
 	/* Use PIO if transferring message bytes to esp->command_block_dma */
 	if (phase == ESP_MIP && addr == esp->command_block_dma) {
-		zorro_esp_send_pio_cmd(esp, (u32) esp->command_block,
-					esp_count, dma_count, write, cmd);
+		esp_send_pio_cmd(esp, (u32)esp->command_block, esp_count,
+				 dma_count, write, cmd);
 		return;
 	}
+
+	esp->send_cmd_error = 0;
+	esp->send_cmd_residual = 0;
 
 	if (write)
 		/* DMA receive */
@@ -513,17 +348,18 @@ static void zorro_esp_send_blz1230II_dma_cmd(struct esp *esp, u32 addr,
 static void zorro_esp_send_blz2060_dma_cmd(struct esp *esp, u32 addr,
 			u32 esp_count, u32 dma_count, int write, u8 cmd)
 {
-	struct zorro_esp_priv *zep = dev_get_drvdata(esp->dev);
 	struct blz2060_dma_registers __iomem *dregs = esp->dma_regs;
 	u8 phase = esp->sreg & ESP_STAT_PMASK;
 
-	zep->error = 0;
 	/* Use PIO if transferring message bytes to esp->command_block_dma */
 	if (phase == ESP_MIP && addr == esp->command_block_dma) {
-		zorro_esp_send_pio_cmd(esp, (u32) esp->command_block,
-					esp_count, dma_count, write, cmd);
+		esp_send_pio_cmd(esp, (u32)esp->command_block, esp_count,
+				 dma_count, write, cmd);
 		return;
 	}
+
+	esp->send_cmd_error = 0;
+	esp->send_cmd_residual = 0;
 
 	if (write)
 		/* DMA receive */
@@ -562,13 +398,15 @@ static void zorro_esp_send_cyber_dma_cmd(struct esp *esp, u32 addr,
 	u8 phase = esp->sreg & ESP_STAT_PMASK;
 	unsigned char *ctrl_data = &zep->ctrl_data;
 
-	zep->error = 0;
 	/* Use PIO if transferring message bytes to esp->command_block_dma */
 	if (phase == ESP_MIP && addr == esp->command_block_dma) {
-		zorro_esp_send_pio_cmd(esp, (u32) esp->command_block,
-					esp_count, dma_count, write, cmd);
+		esp_send_pio_cmd(esp, (u32)esp->command_block, esp_count,
+				 dma_count, write, cmd);
 		return;
 	}
+
+	esp->send_cmd_error = 0;
+	esp->send_cmd_residual = 0;
 
 	zorro_esp_write8(esp, (esp_count >> 0) & 0xff, ESP_TCLOW);
 	zorro_esp_write8(esp, (esp_count >> 8) & 0xff, ESP_TCMED);
@@ -607,17 +445,18 @@ static void zorro_esp_send_cyber_dma_cmd(struct esp *esp, u32 addr,
 static void zorro_esp_send_cyberII_dma_cmd(struct esp *esp, u32 addr,
 			u32 esp_count, u32 dma_count, int write, u8 cmd)
 {
-	struct zorro_esp_priv *zep = dev_get_drvdata(esp->dev);
 	struct cyberII_dma_registers __iomem *dregs = esp->dma_regs;
 	u8 phase = esp->sreg & ESP_STAT_PMASK;
 
-	zep->error = 0;
 	/* Use PIO if transferring message bytes to esp->command_block_dma */
 	if (phase == ESP_MIP && addr == esp->command_block_dma) {
-		zorro_esp_send_pio_cmd(esp, (u32) esp->command_block,
-					esp_count, dma_count, write, cmd);
+		esp_send_pio_cmd(esp, (u32)esp->command_block, esp_count,
+				 dma_count, write, cmd);
 		return;
 	}
+
+	esp->send_cmd_error = 0;
+	esp->send_cmd_residual = 0;
 
 	zorro_esp_write8(esp, (esp_count >> 0) & 0xff, ESP_TCLOW);
 	zorro_esp_write8(esp, (esp_count >> 8) & 0xff, ESP_TCMED);
@@ -652,13 +491,15 @@ static void zorro_esp_send_fastlane_dma_cmd(struct esp *esp, u32 addr,
 	u8 phase = esp->sreg & ESP_STAT_PMASK;
 	unsigned char *ctrl_data = &zep->ctrl_data;
 
-	zep->error = 0;
 	/* Use PIO if transferring message bytes to esp->command_block_dma */
 	if (phase == ESP_MIP && addr == esp->command_block_dma) {
-		zorro_esp_send_pio_cmd(esp, (u32) esp->command_block,
-					esp_count, dma_count, write, cmd);
+		esp_send_pio_cmd(esp, (u32)esp->command_block, esp_count,
+				 dma_count, write, cmd);
 		return;
 	}
+
+	esp->send_cmd_error = 0;
+	esp->send_cmd_residual = 0;
 
 	zorro_esp_write8(esp, (esp_count >> 0) & 0xff, ESP_TCLOW);
 	zorro_esp_write8(esp, (esp_count >> 8) & 0xff, ESP_TCMED);
@@ -694,14 +535,7 @@ static void zorro_esp_send_fastlane_dma_cmd(struct esp *esp, u32 addr,
 
 static int zorro_esp_dma_error(struct esp *esp)
 {
-	struct zorro_esp_priv *zep = dev_get_drvdata(esp->dev);
-
-	/* check for error in case we've been doing PIO */
-	if (zep->error == 1)
-		return 1;
-
-	/* do nothing - there seems to be no way to check for DMA errors */
-	return 0;
+	return esp->send_cmd_error;
 }
 
 /* per-board ESP driver ops */
@@ -984,6 +818,8 @@ static int zorro_esp_probe(struct zorro_dev *z,
 		err = -ENOMEM;
 		goto fail_unmap_fastlane;
 	}
+
+	esp->fifo_reg = esp->regs + ESP_FDATA * 4;
 
 	/* Check whether a Blizzard 12x0 or CyberstormII really has SCSI */
 	if (zdd->scsi_option) {

@@ -2782,3 +2782,131 @@ MODULE_PARM_DESC(esp_debug,
 
 module_init(esp_init);
 module_exit(esp_exit);
+
+#ifdef CONFIG_SCSI_ESP_PIO
+static inline unsigned int esp_wait_for_fifo(struct esp *esp)
+{
+	int i = 500000;
+
+	do {
+		unsigned int fbytes = esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES;
+
+		if (fbytes)
+			return fbytes;
+
+		udelay(2);
+	} while (--i);
+
+	shost_printk(KERN_ERR, esp->host, "FIFO is empty. sreg [%02x]\n",
+		     esp_read8(ESP_STATUS));
+	return 0;
+}
+
+static inline int esp_wait_for_intr(struct esp *esp)
+{
+	int i = 500000;
+
+	do {
+		esp->sreg = esp_read8(ESP_STATUS);
+		if (esp->sreg & ESP_STAT_INTR)
+			return 0;
+
+		udelay(2);
+	} while (--i);
+
+	shost_printk(KERN_ERR, esp->host, "IRQ timeout. sreg [%02x]\n",
+		     esp->sreg);
+	return 1;
+}
+
+#define ESP_FIFO_SIZE 16
+
+void esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
+		      u32 dma_count, int write, u8 cmd)
+{
+	u8 phase = esp->sreg & ESP_STAT_PMASK;
+
+	cmd &= ~ESP_CMD_DMA;
+	esp->send_cmd_error = 0;
+
+	if (write) {
+		u8 *dst = (u8 *)addr;
+		u8 mask = ~(phase == ESP_MIP ? ESP_INTR_FDONE : ESP_INTR_BSERV);
+
+		scsi_esp_cmd(esp, cmd);
+
+		while (1) {
+			if (!esp_wait_for_fifo(esp))
+				break;
+
+			*dst++ = esp_read8(ESP_FDATA);
+			--esp_count;
+
+			if (!esp_count)
+				break;
+
+			if (esp_wait_for_intr(esp)) {
+				esp->send_cmd_error = 1;
+				break;
+			}
+
+			if ((esp->sreg & ESP_STAT_PMASK) != phase)
+				break;
+
+			esp->ireg = esp_read8(ESP_INTRPT);
+			if (esp->ireg & mask) {
+				esp->send_cmd_error = 1;
+				break;
+			}
+
+			if (phase == ESP_MIP)
+				scsi_esp_cmd(esp, ESP_CMD_MOK);
+
+			scsi_esp_cmd(esp, ESP_CMD_TI);
+		}
+	} else {
+		unsigned int n = ESP_FIFO_SIZE;
+		u8 *src = (u8 *)addr;
+
+		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
+
+		if (n > esp_count)
+			n = esp_count;
+		writesb(esp->fifo_reg, src, n);
+		src += n;
+		esp_count -= n;
+
+		scsi_esp_cmd(esp, cmd);
+
+		while (esp_count) {
+			if (esp_wait_for_intr(esp)) {
+				esp->send_cmd_error = 1;
+				break;
+			}
+
+			if ((esp->sreg & ESP_STAT_PMASK) != phase)
+				break;
+
+			esp->ireg = esp_read8(ESP_INTRPT);
+			if (esp->ireg & ~ESP_INTR_BSERV) {
+				esp->send_cmd_error = 1;
+				break;
+			}
+
+			n = ESP_FIFO_SIZE -
+			    (esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES);
+
+			if (n > esp_count)
+				n = esp_count;
+			writesb(esp->fifo_reg, src, n);
+			src += n;
+			esp_count -= n;
+
+			scsi_esp_cmd(esp, ESP_CMD_TI);
+		}
+	}
+
+	esp->send_cmd_residual = esp_count;
+}
+EXPORT_SYMBOL(esp_send_pio_cmd);
+#endif

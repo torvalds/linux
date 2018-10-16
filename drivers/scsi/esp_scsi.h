@@ -524,6 +524,9 @@ struct esp {
 	void			*dma;
 	int			dmarev;
 
+	/* These are used by esp_send_pio_cmd() */
+	u8 __iomem		*fifo_reg;
+	int			send_cmd_error;
 	u32			send_cmd_residual;
 };
 
@@ -563,5 +566,8 @@ extern int scsi_esp_register(struct esp *);
 extern void scsi_esp_unregister(struct esp *);
 extern irqreturn_t scsi_esp_intr(int, void *);
 extern void scsi_esp_cmd(struct esp *, u8);
+
+extern void esp_send_pio_cmd(struct esp *esp, u32 dma_addr, u32 esp_count,
+			     u32 dma_count, int write, u8 cmd);
 
 #endif /* !(_ESP_SCSI_H) */

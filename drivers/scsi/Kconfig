@@ -42,6 +42,9 @@ config SCSI_DMA
 	bool
 	default n
 
+config SCSI_ESP_PIO
+	bool
+
 config SCSI_NETLINK
 	bool
 	default	n
@@ -1362,6 +1365,7 @@ config SCSI_ZORRO_ESP
 	tristate "Zorro ESP SCSI support"
 	depends on ZORRO && SCSI
 	select SCSI_SPI_ATTRS
+	select SCSI_ESP_PIO
 	help
 	  Support for various NCR53C9x (ESP) based SCSI controllers on Zorro
 	  expansion boards for the Amiga.
@@ -1404,6 +1408,7 @@ config SCSI_MAC_ESP
 	tristate "Macintosh NCR53c9[46] SCSI"
 	depends on MAC && SCSI
 	select SCSI_SPI_ATTRS
+	select SCSI_ESP_PIO
 	help
 	  This is the NCR 53c9x SCSI controller found on most of the 68040
 	  based Macintoshes.
