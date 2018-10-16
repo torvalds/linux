@@ -111,25 +111,6 @@ extern bool isa_io_special;
 #define IO_SET_SYNC_FLAG()
 #endif
 
-/* gcc 4.0 and older doesn't have 'Z' constraint */
-#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ == 0)
-#define DEF_MMIO_IN_X(name, size, insn)				\
-static inline u##size name(const volatile u##size __iomem *addr)	\
-{									\
-	u##size ret;							\
-	__asm__ __volatile__("sync;"#insn" %0,0,%1;twi 0,%0,0;isync"	\
-		: "=r" (ret) : "r" (addr), "m" (*addr) : "memory");	\
-	return ret;							\
-}
-
-#define DEF_MMIO_OUT_X(name, size, insn)				\
-static inline void name(volatile u##size __iomem *addr, u##size val)	\
-{									\
-	__asm__ __volatile__("sync;"#insn" %1,0,%2"			\
-		: "=m" (*addr) : "r" (val), "r" (addr) : "memory");	\
-	IO_SET_SYNC_FLAG();						\
-}
-#else /* newer gcc */
 #define DEF_MMIO_IN_X(name, size, insn)				\
 static inline u##size name(const volatile u##size __iomem *addr)	\
 {									\
@@ -146,7 +127,6 @@ static inline void name(volatile u##size __iomem *addr, u##size val)	\
 		: "=Z" (*addr) : "r" (val) : "memory");			\
 	IO_SET_SYNC_FLAG();						\
 }
-#endif
 
 #define DEF_MMIO_IN_D(name, size, insn)				\
 static inline u##size name(const volatile u##size __iomem *addr)	\
