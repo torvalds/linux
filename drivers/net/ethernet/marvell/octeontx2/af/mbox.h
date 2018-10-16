@@ -139,6 +139,8 @@ M(CGX_GET_LINKINFO,	0x209, msg_req, cgx_link_info_msg)		\
 M(CGX_INTLBK_ENABLE,	0x20A, msg_req, msg_rsp)			\
 M(CGX_INTLBK_DISABLE,	0x20B, msg_req, msg_rsp)			\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
+M(NPA_LF_ALLOC,		0x400, npa_lf_alloc_req, npa_lf_alloc_rsp)	\
+M(NPA_LF_FREE,		0x401, msg_req, msg_rsp)			\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
@@ -258,4 +260,34 @@ struct cgx_link_info_msg {
 	struct mbox_msghdr hdr;
 	struct cgx_link_user_info link_info;
 };
+
+/* NPA mbox message formats */
+
+/* NPA mailbox error codes
+ * Range 301 - 400.
+ */
+enum npa_af_status {
+	NPA_AF_ERR_PARAM            = -301,
+	NPA_AF_ERR_AQ_FULL          = -302,
+	NPA_AF_ERR_AQ_ENQUEUE       = -303,
+	NPA_AF_ERR_AF_LF_INVALID    = -304,
+	NPA_AF_ERR_AF_LF_ALLOC      = -305,
+	NPA_AF_ERR_LF_RESET         = -306,
+};
+
+/* For NPA LF context alloc and init */
+struct npa_lf_alloc_req {
+	struct mbox_msghdr hdr;
+	int node;
+	int aura_sz;  /* No of auras */
+	u32 nr_pools; /* No of pools */
+};
+
+struct npa_lf_alloc_rsp {
+	struct mbox_msghdr hdr;
+	u32 stack_pg_ptrs;  /* No of ptrs per stack page */
+	u32 stack_pg_bytes; /* Size of stack page */
+	u16 qints; /* NPA_AF_CONST::QINTS */
+};
+
 #endif /* MBOX_H */

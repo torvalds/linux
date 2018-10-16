@@ -96,4 +96,26 @@ struct admin_queue {
 	spinlock_t	lock; /* Serialize inst enqueue from PFs */
 };
 
+/* NPA aura count */
+enum npa_aura_sz {
+	NPA_AURA_SZ_0,
+	NPA_AURA_SZ_128,
+	NPA_AURA_SZ_256,
+	NPA_AURA_SZ_512,
+	NPA_AURA_SZ_1K,
+	NPA_AURA_SZ_2K,
+	NPA_AURA_SZ_4K,
+	NPA_AURA_SZ_8K,
+	NPA_AURA_SZ_16K,
+	NPA_AURA_SZ_32K,
+	NPA_AURA_SZ_64K,
+	NPA_AURA_SZ_128K,
+	NPA_AURA_SZ_256K,
+	NPA_AURA_SZ_512K,
+	NPA_AURA_SZ_1M,
+	NPA_AURA_SZ_MAX,
+};
+
+#define NPA_AURA_COUNT(x)	(1ULL << ((x) + 6))
+
 #endif /* COMMON_H */

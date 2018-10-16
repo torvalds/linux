@@ -72,6 +72,11 @@ struct rvu_pfvf {
 	struct rsrc_bmap msix;      /* Bitmap for MSIX vector alloc */
 #define MSIX_BLKLF(blkaddr, lf) (((blkaddr) << 8) | ((lf) & 0xFF))
 	u16		 *msix_lfmap; /* Vector to block LF mapping */
+
+	/* NPA contexts */
+	struct qmem	*aura_ctx;
+	struct qmem	*pool_ctx;
+	struct qmem	*npa_qints_ctx;
 };
 
 struct rvu_hwinfo {
@@ -154,6 +159,7 @@ struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
 void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf);
 bool is_block_implemented(struct rvu_hwinfo *hw, int blkaddr);
 int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot);
+int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf);
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
@@ -206,5 +212,10 @@ int rvu_mbox_handler_CGX_INTLBK_DISABLE(struct rvu *rvu, struct msg_req *req,
 
 /* NPA APIs */
 int rvu_npa_init(struct rvu *rvu);
-int rvu_npa_freemem(struct rvu *rvu);
+void rvu_npa_freemem(struct rvu *rvu);
+int rvu_mbox_handler_NPA_LF_ALLOC(struct rvu *rvu,
+				  struct npa_lf_alloc_req *req,
+				  struct npa_lf_alloc_rsp *rsp);
+int rvu_mbox_handler_NPA_LF_FREE(struct rvu *rvu, struct msg_req *req,
+				 struct msg_rsp *rsp);
 #endif /* RVU_H */

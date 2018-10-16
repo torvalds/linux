@@ -361,6 +361,19 @@ static void rvu_check_block_implemented(struct rvu *rvu)
 	}
 }
 
+int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf)
+{
+	int err;
+
+	if (!block->implemented)
+		return 0;
+
+	rvu_write64(rvu, block->addr, block->lfreset_reg, lf | BIT_ULL(12));
+	err = rvu_poll_reg(rvu, block->addr, block->lfreset_reg, BIT_ULL(12),
+			   true);
+	return err;
+}
+
 static void rvu_block_reset(struct rvu *rvu, int blkaddr, u64 rst_reg)
 {
 	struct rvu_block *block = &rvu->hw->block[blkaddr];
