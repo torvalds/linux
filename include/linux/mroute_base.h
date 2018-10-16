@@ -7,6 +7,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/fib_notifier.h>
+#include <net/ip_fib.h>
 
 /**
  * struct vif_device - interface representor for multicast routing
@@ -288,7 +289,7 @@ int mr_table_dump(struct mr_table *mrt, struct sk_buff *skb,
 		  int (*fill)(struct mr_table *mrt, struct sk_buff *skb,
 			      u32 portid, u32 seq, struct mr_mfc *c,
 			      int cmd, int flags),
-		  spinlock_t *lock);
+		  spinlock_t *lock, struct fib_dump_filter *filter);
 int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 		     struct mr_table *(*iter)(struct net *net,
 					      struct mr_table *mrt),
@@ -296,7 +297,7 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 				 struct sk_buff *skb,
 				 u32 portid, u32 seq, struct mr_mfc *c,
 				 int cmd, int flags),
-		     spinlock_t *lock);
+		     spinlock_t *lock, struct fib_dump_filter *filter);
 
 int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 	    int (*rules_dump)(struct net *net,
@@ -346,7 +347,7 @@ mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 			     struct sk_buff *skb,
 			     u32 portid, u32 seq, struct mr_mfc *c,
 			     int cmd, int flags),
-		 spinlock_t *lock)
+		 spinlock_t *lock, struct fib_dump_filter *filter)
 {
 	return -EINVAL;
 }

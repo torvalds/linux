@@ -2528,18 +2528,30 @@ errout_free:
 static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct fib_dump_filter filter = {};
+	int err;
 
 	if (cb->strict_check) {
-		int err;
-
 		err = ip_valid_fib_dump_req(sock_net(skb->sk), cb->nlh,
 					    &filter, cb->extack);
 		if (err < 0)
 			return err;
 	}
 
+	if (filter.table_id) {
+		struct mr_table *mrt;
+
+		mrt = ipmr_get_table(sock_net(skb->sk), filter.table_id);
+		if (!mrt) {
+			NL_SET_ERR_MSG(cb->extack, "ipv4: MR table does not exist");
+			return -ENOENT;
+		}
+		err = mr_table_dump(mrt, skb, cb, _ipmr_fill_mroute,
+				    &mfc_unres_lock, &filter);
+		return skb->len ? : err;
+	}
+
 	return mr_rtm_dumproute(skb, cb, ipmr_mr_table_iter,
-				_ipmr_fill_mroute, &mfc_unres_lock);
+				_ipmr_fill_mroute, &mfc_unres_lock, &filter);
 }
 
 static const struct nla_policy rtm_ipmr_policy[RTA_MAX + 1] = {
