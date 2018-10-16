@@ -33,6 +33,7 @@
 
 #define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
 
+#define SMB_PATH_MAX 260
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
 
@@ -467,7 +468,8 @@ struct smb_version_operations {
 	int (*next_header)(char *);
 	/* ioctl passthrough for query_info */
 	int (*ioctl_query_info)(const unsigned int xid,
-				struct cifsFileInfo *file,
+				struct cifs_tcon *tcon,
+				__le16 *path, int is_dir,
 				unsigned long p);
 };
 

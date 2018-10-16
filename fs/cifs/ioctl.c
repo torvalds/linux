@@ -32,24 +32,49 @@
 #include "cifs_debug.h"
 #include "cifsfs.h"
 #include "cifs_ioctl.h"
+#include "smb2proto.h"
 #include <linux/btrfs.h>
 
 static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 				  unsigned long p)
 {
-	struct cifsFileInfo *pSMBFile = filep->private_data;
-	struct cifs_tcon *tcon;
+	struct inode *inode = file_inode(filep);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct dentry *dentry = filep->f_path.dentry;
+	unsigned char *path;
+	__le16 *utf16_path = NULL, root_path;
+	int rc = 0;
 
-	cifs_dbg(FYI, "%s %p\n", __func__, pSMBFile);
-	if (pSMBFile == NULL)
-		return -EISDIR;
-	tcon = tlink_tcon(pSMBFile->tlink);
+	path = build_path_from_dentry(dentry);
+	if (path == NULL)
+		return -ENOMEM;
+
+	cifs_dbg(FYI, "%s %s\n", __func__, path);
+
+	if (!path[0]) {
+		root_path = 0;
+		utf16_path = &root_path;
+	} else {
+		utf16_path = cifs_convert_path_to_utf16(path + 1, cifs_sb);
+		if (!utf16_path) {
+			rc = -ENOMEM;
+			goto ici_exit;
+		}
+	}
 
 	if (tcon->ses->server->ops->ioctl_query_info)
-		return tcon->ses->server->ops->ioctl_query_info(
-				xid, pSMBFile, p);
+		rc = tcon->ses->server->ops->ioctl_query_info(
+				xid, tcon, utf16_path,
+				filep->private_data ? 0 : 1, p);
 	else
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
+
+ ici_exit:
+	if (utf16_path != &root_path)
+		kfree(utf16_path);
+	kfree(path);
+	return rc;
 }
 
 static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
