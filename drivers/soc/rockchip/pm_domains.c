@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/regulator/consumer.h>
 #include <soc/rockchip/pm_domains.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <dt-bindings/power/px30-power.h>
@@ -76,6 +77,7 @@ struct rockchip_pm_domain {
 	int num_clks;
 	bool is_ignore_pwr;
 	bool is_qos_saved;
+	struct regulator *supply;
 	struct clk *clks[];
 };
 
@@ -392,6 +394,21 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 	rockchip_pmu_lock(pd);
 
 	if (rockchip_pmu_domain_is_on(pd) != power_on) {
+		if (IS_ERR_OR_NULL(pd->supply) &&
+		    PTR_ERR(pd->supply) != -ENODEV)
+			pd->supply = devm_regulator_get_optional(pd->pmu->dev,
+								 genpd->name);
+
+		if (power_on && !IS_ERR(pd->supply)) {
+			ret = regulator_enable(pd->supply);
+			if (ret < 0) {
+				dev_err(pd->pmu->dev, "failed to set vdd supply enable '%s',\n",
+					genpd->name);
+				rockchip_pmu_unlock(pd);
+				return ret;
+			}
+		}
+
 		for (i = 0; i < pd->num_clks; i++)
 			clk_enable(pd->clks[i]);
 
@@ -430,6 +447,9 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 out:
 		for (i = pd->num_clks - 1; i >= 0; i--)
 			clk_disable(pd->clks[i]);
+
+		if (!power_on && !IS_ERR(pd->supply))
+			ret = regulator_disable(pd->supply);
 	}
 
 	rockchip_pmu_unlock(pd);
