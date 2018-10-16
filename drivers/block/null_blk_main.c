@@ -606,11 +606,7 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
-	struct request_queue *q = NULL;
 	int queue_mode = cmd->nq->dev->queue_mode;
-
-	if (cmd->rq)
-		q = cmd->rq->q;
 
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
