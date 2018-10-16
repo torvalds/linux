@@ -473,7 +473,6 @@ struct esp {
 	u32			flags;
 #define ESP_FLAG_DIFFERENTIAL	0x00000001
 #define ESP_FLAG_RESETTING	0x00000002
-#define ESP_FLAG_DOING_SLOWCMD	0x00000004
 #define ESP_FLAG_WIDE_CAPABLE	0x00000008
 #define ESP_FLAG_QUICKIRQ_CHECK	0x00000010
 #define ESP_FLAG_DISABLE_SYNC	0x00000020
@@ -516,7 +515,7 @@ struct esp {
 	u32			min_period;
 	u32			radelay;
 
-	/* Slow command state.  */
+	/* ESP_CMD_SELAS command state */
 	u8			*cmd_bytes_ptr;
 	int			cmd_bytes_left;
 

@@ -482,17 +482,6 @@ static void esp_restore_pointers(struct esp *esp, struct esp_cmd_entry *ent)
 	spriv->tot_residue = ent->saved_tot_residue;
 }
 
-static void esp_check_command_len(struct esp *esp, struct scsi_cmnd *cmd)
-{
-	if (cmd->cmd_len == 6 ||
-	    cmd->cmd_len == 10 ||
-	    cmd->cmd_len == 12) {
-		esp->flags &= ~ESP_FLAG_DOING_SLOWCMD;
-	} else {
-		esp->flags |= ESP_FLAG_DOING_SLOWCMD;
-	}
-}
-
 static void esp_write_tgt_config3(struct esp *esp, int tgt)
 {
 	if (esp->rev > ESP100A) {
@@ -739,6 +728,7 @@ static void esp_maybe_execute_command(struct esp *esp)
 	struct scsi_device *dev;
 	struct scsi_cmnd *cmd;
 	struct esp_cmd_entry *ent;
+	bool select_and_stop = false;
 	int tgt, lun, i;
 	u32 val, start_cmd;
 	u8 *p;
@@ -769,7 +759,8 @@ static void esp_maybe_execute_command(struct esp *esp)
 	esp_map_dma(esp, cmd);
 	esp_save_pointers(esp, ent);
 
-	esp_check_command_len(esp, cmd);
+	if (!(cmd->cmd_len == 6 || cmd->cmd_len == 10 || cmd->cmd_len == 12))
+		select_and_stop = true;
 
 	p = esp->command_block;
 
@@ -810,9 +801,9 @@ static void esp_maybe_execute_command(struct esp *esp)
 			tp->flags &= ~ESP_TGT_CHECK_NEGO;
 		}
 
-		/* Process it like a slow command.  */
-		if (tp->flags & (ESP_TGT_NEGO_WIDE | ESP_TGT_NEGO_SYNC))
-			esp->flags |= ESP_FLAG_DOING_SLOWCMD;
+		/* If there are multiple message bytes, use Select and Stop */
+		if (esp->msg_out_len)
+			select_and_stop = true;
 	}
 
 build_identify:
@@ -822,23 +813,10 @@ build_identify:
 		/* ESP100 lacks select w/atn3 command, use select
 		 * and stop instead.
 		 */
-		esp->flags |= ESP_FLAG_DOING_SLOWCMD;
+		select_and_stop = true;
 	}
 
-	if (!(esp->flags & ESP_FLAG_DOING_SLOWCMD)) {
-		start_cmd = ESP_CMD_SELA;
-		if (ent->tag[0]) {
-			*p++ = ent->tag[0];
-			*p++ = ent->tag[1];
-
-			start_cmd = ESP_CMD_SA3;
-		}
-
-		for (i = 0; i < cmd->cmd_len; i++)
-			*p++ = cmd->cmnd[i];
-
-		esp->select_state = ESP_SELECT_BASIC;
-	} else {
+	if (select_and_stop) {
 		esp->cmd_bytes_left = cmd->cmd_len;
 		esp->cmd_bytes_ptr = &cmd->cmnd[0];
 
@@ -853,6 +831,19 @@ build_identify:
 
 		start_cmd = ESP_CMD_SELAS;
 		esp->select_state = ESP_SELECT_MSGOUT;
+	} else {
+		start_cmd = ESP_CMD_SELA;
+		if (ent->tag[0]) {
+			*p++ = ent->tag[0];
+			*p++ = ent->tag[1];
+
+			start_cmd = ESP_CMD_SA3;
+		}
+
+		for (i = 0; i < cmd->cmd_len; i++)
+			*p++ = cmd->cmnd[i];
+
+		esp->select_state = ESP_SELECT_BASIC;
 	}
 	val = tgt;
 	if (esp->rev == FASHME)
@@ -1260,7 +1251,6 @@ static int esp_finish_select(struct esp *esp)
 			esp_unmap_dma(esp, cmd);
 			esp_free_lun_tag(ent, cmd->device->hostdata);
 			tp->flags &= ~(ESP_TGT_NEGO_SYNC | ESP_TGT_NEGO_WIDE);
-			esp->flags &= ~ESP_FLAG_DOING_SLOWCMD;
 			esp->cmd_bytes_ptr = NULL;
 			esp->cmd_bytes_left = 0;
 		} else {
@@ -1308,9 +1298,8 @@ static int esp_finish_select(struct esp *esp)
 				esp_flush_fifo(esp);
 		}
 
-		/* If we are doing a slow command, negotiation, etc.
-		 * we'll do the right thing as we transition to the
-		 * next phase.
+		/* If we are doing a Select And Stop command, negotiation, etc.
+		 * we'll do the right thing as we transition to the next phase.
 		 */
 		esp_event(esp, ESP_EVENT_CHECK_PHASE);
 		return 0;
