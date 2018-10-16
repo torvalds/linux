@@ -93,6 +93,8 @@ struct rvu {
 	/* Mbox */
 	struct otx2_mbox	mbox;
 	struct rvu_work		*mbox_wrk;
+	struct otx2_mbox        mbox_up;
+	struct rvu_work		*mbox_wrk_up;
 	struct workqueue_struct *mbox_wq;
 
 	/* MSI-X */
@@ -109,6 +111,7 @@ struct rvu {
 	u16			*cgxlmac2pf_map; /* bitmap of mapped pfs for
 						  * every cgx lmac port
 						  */
+	unsigned long		pf_notify_bmap; /* Flags for PF notification */
 	void			**cgx_idmap; /* cgx id to cgx data map table */
 	struct			work_struct cgx_evh_work;
 	struct			workqueue_struct *cgx_evh_wq;
@@ -183,4 +186,10 @@ int rvu_mbox_handler_CGX_PROMISC_ENABLE(struct rvu *rvu, struct msg_req *req,
 					struct msg_rsp *rsp);
 int rvu_mbox_handler_CGX_PROMISC_DISABLE(struct rvu *rvu, struct msg_req *req,
 					 struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_START_LINKEVENTS(struct rvu *rvu, struct msg_req *req,
+					  struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_STOP_LINKEVENTS(struct rvu *rvu, struct msg_req *req,
+					 struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_GET_LINKINFO(struct rvu *rvu, struct msg_req *req,
+				      struct cgx_link_info_msg *rsp);
 #endif /* RVU_H */

@@ -1316,6 +1316,63 @@ static void rvu_mbox_handler(struct work_struct *work)
 	otx2_mbox_msg_send(mbox, pf);
 }
 
+static void rvu_mbox_up_handler(struct work_struct *work)
+{
+	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
+	struct rvu *rvu = mwork->rvu;
+	struct otx2_mbox_dev *mdev;
+	struct mbox_hdr *rsp_hdr;
+	struct mbox_msghdr *msg;
+	struct otx2_mbox *mbox;
+	int offset, id;
+	u16 pf;
+
+	mbox = &rvu->mbox_up;
+	pf = mwork - rvu->mbox_wrk_up;
+	mdev = &mbox->dev[pf];
+
+	rsp_hdr = mdev->mbase + mbox->rx_start;
+	if (rsp_hdr->num_msgs == 0) {
+		dev_warn(rvu->dev, "mbox up handler: num_msgs = 0\n");
+		return;
+	}
+
+	offset = mbox->rx_start + ALIGN(sizeof(*rsp_hdr), MBOX_MSG_ALIGN);
+
+	for (id = 0; id < rsp_hdr->num_msgs; id++) {
+		msg = mdev->mbase + offset;
+
+		if (msg->id >= MBOX_MSG_MAX) {
+			dev_err(rvu->dev,
+				"Mbox msg with unknown ID 0x%x\n", msg->id);
+			goto end;
+		}
+
+		if (msg->sig != OTX2_MBOX_RSP_SIG) {
+			dev_err(rvu->dev,
+				"Mbox msg with wrong signature %x, ID 0x%x\n",
+				msg->sig, msg->id);
+			goto end;
+		}
+
+		switch (msg->id) {
+		case MBOX_MSG_CGX_LINK_EVENT:
+			break;
+		default:
+			if (msg->rc)
+				dev_err(rvu->dev,
+					"Mbox msg response has err %d, ID 0x%x\n",
+					msg->rc, msg->id);
+			break;
+		}
+end:
+		offset = mbox->rx_start + msg->next_msgoff;
+		mdev->msgs_acked++;
+	}
+
+	otx2_mbox_reset(mbox, 0);
+}
+
 static int rvu_mbox_init(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -1333,6 +1390,13 @@ static int rvu_mbox_init(struct rvu *rvu)
 	rvu->mbox_wrk = devm_kcalloc(rvu->dev, hw->total_pfs,
 				     sizeof(struct rvu_work), GFP_KERNEL);
 	if (!rvu->mbox_wrk) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	rvu->mbox_wrk_up = devm_kcalloc(rvu->dev, hw->total_pfs,
+					sizeof(struct rvu_work), GFP_KERNEL);
+	if (!rvu->mbox_wrk_up) {
 		err = -ENOMEM;
 		goto exit;
 	}
@@ -1355,10 +1419,21 @@ static int rvu_mbox_init(struct rvu *rvu)
 	if (err)
 		goto exit;
 
+	err = otx2_mbox_init(&rvu->mbox_up, hwbase, rvu->pdev, rvu->afreg_base,
+			     MBOX_DIR_AFPF_UP, hw->total_pfs);
+	if (err)
+		goto exit;
+
 	for (pf = 0; pf < hw->total_pfs; pf++) {
 		mwork = &rvu->mbox_wrk[pf];
 		mwork->rvu = rvu;
 		INIT_WORK(&mwork->work, rvu_mbox_handler);
+	}
+
+	for (pf = 0; pf < hw->total_pfs; pf++) {
+		mwork = &rvu->mbox_wrk_up[pf];
+		mwork->rvu = rvu;
+		INIT_WORK(&mwork->work, rvu_mbox_up_handler);
 	}
 
 	return 0;
@@ -1381,6 +1456,7 @@ static void rvu_mbox_destroy(struct rvu *rvu)
 		iounmap((void __iomem *)rvu->mbox.hwbase);
 
 	otx2_mbox_destroy(&rvu->mbox);
+	otx2_mbox_destroy(&rvu->mbox_up);
 }
 
 static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
@@ -1407,6 +1483,12 @@ static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
 			if (hdr->num_msgs)
 				queue_work(rvu->mbox_wq,
 					   &rvu->mbox_wrk[pf].work);
+			mbox = &rvu->mbox_up;
+			mdev = &mbox->dev[pf];
+			hdr = mdev->mbase + mbox->rx_start;
+			if (hdr->num_msgs)
+				queue_work(rvu->mbox_wq,
+					   &rvu->mbox_wrk_up[pf].work);
 		}
 	}
 

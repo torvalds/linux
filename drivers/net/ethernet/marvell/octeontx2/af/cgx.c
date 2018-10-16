@@ -29,6 +29,7 @@
  * @wq_cmd_cmplt:	waitq to keep the process blocked until cmd completion
  * @cmd_lock:		Lock to serialize the command interface
  * @resp:		command response
+ * @link_info:		link related information
  * @event_cb:		callback for linkchange events
  * @cmd_pend:		flag set before new command is started
  *			flag cleared after command response is received
@@ -40,6 +41,7 @@ struct lmac {
 	wait_queue_head_t wq_cmd_cmplt;
 	struct mutex cmd_lock;
 	u64 resp;
+	struct cgx_link_user_info link_info;
 	struct cgx_event_cb event_cb;
 	bool cmd_pend;
 	struct cgx *cgx;
@@ -57,6 +59,12 @@ struct cgx {
 };
 
 static LIST_HEAD(cgx_list);
+
+/* Convert firmware speed encoding to user format(Mbps) */
+static u32 cgx_speed_mbps[CGX_LINK_SPEED_MAX];
+
+/* Convert firmware lmac type encoding to string */
+static char *cgx_lmactype_string[LMAC_MODE_MAX];
 
 /* Supported devices */
 static const struct pci_device_id cgx_id_table[] = {
@@ -119,6 +127,24 @@ void *cgx_get_pdata(int cgx_id)
 }
 EXPORT_SYMBOL(cgx_get_pdata);
 
+/* Ensure the required lock for event queue(where asynchronous events are
+ * posted) is acquired before calling this API. Else an asynchronous event(with
+ * latest link status) can reach the destination before this function returns
+ * and could make the link status appear wrong.
+ */
+int cgx_get_link_info(void *cgxd, int lmac_id,
+		      struct cgx_link_user_info *linfo)
+{
+	struct lmac *lmac = lmac_pdata(lmac_id, cgxd);
+
+	if (!lmac)
+		return -ENODEV;
+
+	*linfo = lmac->link_info;
+	return 0;
+}
+EXPORT_SYMBOL(cgx_get_link_info);
+
 static u64 mac2u64 (u8 *mac_addr)
 {
 	u64 mac = 0;
@@ -159,6 +185,14 @@ u64 cgx_lmac_addr_get(u8 cgx_id, u8 lmac_id)
 	return cfg & CGX_RX_DMAC_ADR_MASK;
 }
 EXPORT_SYMBOL(cgx_lmac_addr_get);
+
+static inline u8 cgx_get_lmac_type(struct cgx *cgx, int lmac_id)
+{
+	u64 cfg;
+
+	cfg = cgx_read(cgx, lmac_id, CGXX_CMRX_CFG);
+	return (cfg >> CGX_LMAC_TYPE_SHIFT) & CGX_LMAC_TYPE_MASK;
+}
 
 void cgx_lmac_promisc_config(int cgx_id, int lmac_id, bool enable)
 {
@@ -306,36 +340,79 @@ static inline int cgx_fwi_cmd_generic(u64 req, u64 *resp,
 	return err;
 }
 
+static inline void cgx_link_usertable_init(void)
+{
+	cgx_speed_mbps[CGX_LINK_NONE] = 0;
+	cgx_speed_mbps[CGX_LINK_10M] = 10;
+	cgx_speed_mbps[CGX_LINK_100M] = 100;
+	cgx_speed_mbps[CGX_LINK_1G] = 1000;
+	cgx_speed_mbps[CGX_LINK_2HG] = 2500;
+	cgx_speed_mbps[CGX_LINK_5G] = 5000;
+	cgx_speed_mbps[CGX_LINK_10G] = 10000;
+	cgx_speed_mbps[CGX_LINK_20G] = 20000;
+	cgx_speed_mbps[CGX_LINK_25G] = 25000;
+	cgx_speed_mbps[CGX_LINK_40G] = 40000;
+	cgx_speed_mbps[CGX_LINK_50G] = 50000;
+	cgx_speed_mbps[CGX_LINK_100G] = 100000;
+
+	cgx_lmactype_string[LMAC_MODE_SGMII] = "SGMII";
+	cgx_lmactype_string[LMAC_MODE_XAUI] = "XAUI";
+	cgx_lmactype_string[LMAC_MODE_RXAUI] = "RXAUI";
+	cgx_lmactype_string[LMAC_MODE_10G_R] = "10G_R";
+	cgx_lmactype_string[LMAC_MODE_40G_R] = "40G_R";
+	cgx_lmactype_string[LMAC_MODE_QSGMII] = "QSGMII";
+	cgx_lmactype_string[LMAC_MODE_25G_R] = "25G_R";
+	cgx_lmactype_string[LMAC_MODE_50G_R] = "50G_R";
+	cgx_lmactype_string[LMAC_MODE_100G_R] = "100G_R";
+	cgx_lmactype_string[LMAC_MODE_USXGMII] = "USXGMII";
+}
+
+static inline void link_status_user_format(u64 lstat,
+					   struct cgx_link_user_info *linfo,
+					   struct cgx *cgx, u8 lmac_id)
+{
+	char *lmac_string;
+
+	linfo->link_up = FIELD_GET(RESP_LINKSTAT_UP, lstat);
+	linfo->full_duplex = FIELD_GET(RESP_LINKSTAT_FDUPLEX, lstat);
+	linfo->speed = cgx_speed_mbps[FIELD_GET(RESP_LINKSTAT_SPEED, lstat)];
+	linfo->lmac_type_id = cgx_get_lmac_type(cgx, lmac_id);
+	lmac_string = cgx_lmactype_string[linfo->lmac_type_id];
+	strncpy(linfo->lmac_type, lmac_string, LMACTYPE_STR_LEN - 1);
+}
+
 /* Hardware event handlers */
 static inline void cgx_link_change_handler(u64 lstat,
 					   struct lmac *lmac)
 {
+	struct cgx_link_user_info *linfo;
 	struct cgx *cgx = lmac->cgx;
 	struct cgx_link_event event;
 	struct device *dev;
+	int err_type;
 
 	dev = &cgx->pdev->dev;
 
-	event.lstat.link_up = FIELD_GET(RESP_LINKSTAT_UP, lstat);
-	event.lstat.full_duplex = FIELD_GET(RESP_LINKSTAT_FDUPLEX, lstat);
-	event.lstat.speed = FIELD_GET(RESP_LINKSTAT_SPEED, lstat);
-	event.lstat.err_type = FIELD_GET(RESP_LINKSTAT_ERRTYPE, lstat);
+	link_status_user_format(lstat, &event.link_uinfo, cgx, lmac->lmac_id);
+	err_type = FIELD_GET(RESP_LINKSTAT_ERRTYPE, lstat);
 
 	event.cgx_id = cgx->cgx_id;
 	event.lmac_id = lmac->lmac_id;
 
+	/* update the local copy of link status */
+	lmac->link_info = event.link_uinfo;
+	linfo = &lmac->link_info;
+
 	if (!lmac->event_cb.notify_link_chg) {
 		dev_dbg(dev, "cgx port %d:%d Link change handler null",
 			cgx->cgx_id, lmac->lmac_id);
-		if (event.lstat.err_type != CGX_ERR_NONE) {
+		if (err_type != CGX_ERR_NONE) {
 			dev_err(dev, "cgx port %d:%d Link error %d\n",
-				cgx->cgx_id, lmac->lmac_id,
-				event.lstat.err_type);
+				cgx->cgx_id, lmac->lmac_id, err_type);
 		}
-		dev_info(dev, "cgx port %d:%d Link status %s, speed %x\n",
+		dev_info(dev, "cgx port %d:%d Link is %s %d Mbps\n",
 			 cgx->cgx_id, lmac->lmac_id,
-			event.lstat.link_up ? "UP" : "DOWN",
-			event.lstat.speed);
+			 linfo->link_up ? "UP" : "DOWN", linfo->speed);
 		return;
 	}
 
@@ -562,6 +639,8 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	list_add(&cgx->cgx_list, &cgx_list);
 	cgx->cgx_id = cgx_get_cgx_cnt() - 1;
+
+	cgx_link_usertable_init();
 
 	err = cgx_lmac_init(cgx);
 	if (err)

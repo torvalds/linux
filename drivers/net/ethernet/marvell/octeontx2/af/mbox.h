@@ -133,6 +133,9 @@ M(CGX_MAC_ADDR_GET,	0x204, cgx_mac_addr_set_or_get,			\
 				cgx_mac_addr_set_or_get)		\
 M(CGX_PROMISC_ENABLE,	0x205, msg_req, msg_rsp)			\
 M(CGX_PROMISC_DISABLE,	0x206, msg_req, msg_rsp)			\
+M(CGX_START_LINKEVENTS, 0x207, msg_req, msg_rsp)			\
+M(CGX_STOP_LINKEVENTS,	0x208, msg_req, msg_rsp)			\
+M(CGX_GET_LINKINFO,	0x209, msg_req, cgx_link_info_msg)		\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
@@ -140,9 +143,14 @@ M(CGX_PROMISC_DISABLE,	0x206, msg_req, msg_rsp)			\
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 
+/* Messages initiated by AF (range 0xC00 - 0xDFF) */
+#define MBOX_UP_CGX_MESSAGES						\
+M(CGX_LINK_EVENT,		0xC00, cgx_link_info_msg, msg_rsp)
+
 enum {
 #define M(_name, _id, _1, _2) MBOX_MSG_ ## _name = _id,
 MBOX_MESSAGES
+MBOX_UP_CGX_MESSAGES
 #undef M
 };
 
@@ -233,5 +241,19 @@ struct cgx_stats_rsp {
 struct cgx_mac_addr_set_or_get {
 	struct mbox_msghdr hdr;
 	u8 mac_addr[ETH_ALEN];
+};
+
+struct cgx_link_user_info {
+	uint64_t link_up:1;
+	uint64_t full_duplex:1;
+	uint64_t lmac_type_id:4;
+	uint64_t speed:20; /* speed in Mbps */
+#define LMACTYPE_STR_LEN 16
+	char lmac_type[LMACTYPE_STR_LEN];
+};
+
+struct cgx_link_info_msg {
+	struct mbox_msghdr hdr;
+	struct cgx_link_user_info link_info;
 };
 #endif /* MBOX_H */
