@@ -2794,7 +2794,7 @@ static inline unsigned int esp_wait_for_fifo(struct esp *esp)
 		if (fbytes)
 			return fbytes;
 
-		udelay(2);
+		udelay(1);
 	} while (--i);
 
 	shost_printk(KERN_ERR, esp->host, "FIFO is empty. sreg [%02x]\n",
@@ -2811,7 +2811,7 @@ static inline int esp_wait_for_intr(struct esp *esp)
 		if (esp->sreg & ESP_STAT_INTR)
 			return 0;
 
-		udelay(2);
+		udelay(1);
 	} while (--i);
 
 	shost_printk(KERN_ERR, esp->host, "IRQ timeout. sreg [%02x]\n",
@@ -2839,7 +2839,7 @@ void esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			if (!esp_wait_for_fifo(esp))
 				break;
 
-			*dst++ = esp_read8(ESP_FDATA);
+			*dst++ = readb(esp->fifo_reg);
 			--esp_count;
 
 			if (!esp_count)
@@ -2860,9 +2860,9 @@ void esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			}
 
 			if (phase == ESP_MIP)
-				scsi_esp_cmd(esp, ESP_CMD_MOK);
+				esp_write8(ESP_CMD_MOK, ESP_CMD);
 
-			scsi_esp_cmd(esp, ESP_CMD_TI);
+			esp_write8(ESP_CMD_TI, ESP_CMD);
 		}
 	} else {
 		unsigned int n = ESP_FIFO_SIZE;
@@ -2902,7 +2902,7 @@ void esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			src += n;
 			esp_count -= n;
 
-			scsi_esp_cmd(esp, ESP_CMD_TI);
+			esp_write8(ESP_CMD_TI, ESP_CMD);
 		}
 	}
 
