@@ -500,6 +500,9 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	u32 val, tx_alc, reg_val;
 
+	if (is_mt7630(dev))
+		return;
+
 	if (power_on) {
 		mt76x02_mcu_calibrate(dev, MCU_CAL_R, 0, false);
 		mt76x02_mcu_calibrate(dev, MCU_CAL_VCO, chan->hw_value,
