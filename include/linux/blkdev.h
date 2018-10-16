@@ -409,8 +409,6 @@ struct request_queue {
 
 	const struct blk_mq_ops	*mq_ops;
 
-	unsigned int		*mq_map;
-
 	/* sw queues */
 	struct blk_mq_ctx __percpu	*queue_ctx;
 	unsigned int		nr_queues;
