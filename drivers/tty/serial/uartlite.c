@@ -763,6 +763,15 @@ static int ulite_probe(struct platform_device *pdev)
 	if (prop)
 		id = be32_to_cpup(prop);
 #endif
+	if (!ulite_uart_driver.state) {
+		dev_dbg(&pdev->dev, "uartlite: calling uart_register_driver()\n");
+		ret = uart_register_driver(&ulite_uart_driver);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Failed to register driver\n");
+			return ret;
+		}
+	}
+
 	pdata = devm_kzalloc(&pdev->dev, sizeof(struct uartlite_data),
 			     GFP_KERNEL);
 	if (!pdata)
@@ -792,15 +801,6 @@ static int ulite_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare clock\n");
 		return ret;
-	}
-
-	if (!ulite_uart_driver.state) {
-		dev_dbg(&pdev->dev, "uartlite: calling uart_register_driver()\n");
-		ret = uart_register_driver(&ulite_uart_driver);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Failed to register driver\n");
-			return ret;
-		}
 	}
 
 	ret = ulite_assign(&pdev->dev, id, res->start, irq, pdata);
