@@ -642,13 +642,21 @@ static void rcu_read_unlock_special(struct task_struct *t)
 
 	local_irq_save(flags);
 	irqs_were_disabled = irqs_disabled_flags(flags);
-	if ((preempt_bh_were_disabled || irqs_were_disabled) &&
-	    t->rcu_read_unlock_special.b.blocked) {
+	if (preempt_bh_were_disabled || irqs_were_disabled) {
+		WRITE_ONCE(t->rcu_read_unlock_special.b.exp_hint, false);
 		/* Need to defer quiescent state until everything is enabled. */
-		raise_softirq_irqoff(RCU_SOFTIRQ);
+		if (irqs_were_disabled) {
+			/* Enabling irqs does not reschedule, so... */
+			raise_softirq_irqoff(RCU_SOFTIRQ);
+		} else {
+			/* Enabling BH or preempt does reschedule, so... */
+			set_tsk_need_resched(current);
+			set_preempt_need_resched();
+		}
 		local_irq_restore(flags);
 		return;
 	}
+	WRITE_ONCE(t->rcu_read_unlock_special.b.exp_hint, false);
 	rcu_preempt_deferred_qs_irqrestore(t, flags);
 }
 

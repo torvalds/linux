@@ -692,8 +692,10 @@ static void sync_rcu_exp_handler(void *unused)
 	 */
 	if (t->rcu_read_lock_nesting > 0) {
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
-		if (rnp->expmask & rdp->grpmask)
+		if (rnp->expmask & rdp->grpmask) {
 			rdp->deferred_qs = true;
+			WRITE_ONCE(t->rcu_read_unlock_special.b.exp_hint, true);
+		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 
