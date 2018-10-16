@@ -107,6 +107,11 @@ bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 	if (vmxon(vmx->vmxon_gpa))
 		return false;
 
+	return true;
+}
+
+bool load_vmcs(struct vmx_pages *vmx)
+{
 	/* Load a VMCS. */
 	*(uint32_t *)(vmx->vmcs) = vmcs_revision();
 	if (vmclear(vmx->vmcs_gpa))

@@ -94,6 +94,7 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	check_ia32_tsc_adjust(-1 * TSC_ADJUST_VALUE);
 
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
+	GUEST_ASSERT(load_vmcs(vmx_pages));
 
 	/* Prepare the VMCS for L2 execution. */
 	prepare_vmcs(vmx_pages, l2_guest_code,

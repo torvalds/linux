@@ -26,20 +26,20 @@ static bool have_nested_state;
 
 void l2_guest_code(void)
 {
-	GUEST_SYNC(5);
+	GUEST_SYNC(6);
 
         /* Exit to L1 */
 	vmcall();
 
 	/* L1 has now set up a shadow VMCS for us.  */
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
-	GUEST_SYNC(9);
+	GUEST_SYNC(10);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
 	GUEST_ASSERT(!vmwrite(GUEST_RIP, 0xc0fffee));
-	GUEST_SYNC(10);
+	GUEST_SYNC(11);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0fffee);
 	GUEST_ASSERT(!vmwrite(GUEST_RIP, 0xc0ffffee));
-	GUEST_SYNC(11);
+	GUEST_SYNC(12);
 
 	/* Done, exit to L1 and never come back.  */
 	vmcall();
@@ -52,15 +52,17 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 
 	GUEST_ASSERT(vmx_pages->vmcs_gpa);
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
+	GUEST_SYNC(3);
+	GUEST_ASSERT(load_vmcs(vmx_pages));
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 
-	GUEST_SYNC(3);
+	GUEST_SYNC(4);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 
 	prepare_vmcs(vmx_pages, l2_guest_code,
 		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
-	GUEST_SYNC(4);
+	GUEST_SYNC(5);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 	GUEST_ASSERT(!vmlaunch());
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
@@ -72,7 +74,7 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 
-	GUEST_SYNC(6);
+	GUEST_SYNC(7);
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 
 	GUEST_ASSERT(!vmresume());
@@ -85,12 +87,12 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 
 	GUEST_ASSERT(!vmptrld(vmx_pages->shadow_vmcs_gpa));
 	GUEST_ASSERT(vmlaunch());
-	GUEST_SYNC(7);
+	GUEST_SYNC(8);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(vmresume());
 
 	vmwrite(GUEST_RIP, 0xc0ffee);
-	GUEST_SYNC(8);
+	GUEST_SYNC(9);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
 
 	GUEST_ASSERT(!vmptrld(vmx_pages->vmcs_gpa));
@@ -101,7 +103,7 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffffee);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(vmresume());
-	GUEST_SYNC(12);
+	GUEST_SYNC(13);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffffee);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(vmresume());

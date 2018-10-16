@@ -548,5 +548,6 @@ struct vmx_pages {
 struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);
 bool prepare_for_vmx_operation(struct vmx_pages *vmx);
 void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp);
+bool load_vmcs(struct vmx_pages *vmx);
 
 #endif /* SELFTEST_KVM_VMX_H */
