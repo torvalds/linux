@@ -1324,49 +1324,25 @@ static int qcom_geni_serial_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused qcom_geni_serial_sys_suspend_noirq(struct device *dev)
+static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 {
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 
-	if (uart_console(uport)) {
-		uart_suspend_port(uport->private_data, uport);
-	} else {
-		struct uart_state *state = uport->state;
-		/*
-		 * If the port is open, deny system suspend.
-		 */
-		if (state->pm_state == UART_PM_STATE_ON)
-			return -EBUSY;
-	}
-
-	return 0;
+	return uart_suspend_port(uport->private_data, uport);
 }
 
-static int __maybe_unused qcom_geni_serial_sys_resume_noirq(struct device *dev)
+static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
 {
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
 
-	if (uart_console(uport) &&
-			console_suspend_enabled && uport->suspended) {
-		uart_resume_port(uport->private_data, uport);
-		/*
-		 * uart_suspend_port() invokes port shutdown which in turn
-		 * frees the irq. uart_resume_port invokes port startup which
-		 * performs request_irq. The request_irq auto-enables the IRQ.
-		 * In addition, resume_noirq implicitly enables the IRQ and
-		 * leads to an unbalanced IRQ enable warning. Disable the IRQ
-		 * before returning so that the warning is suppressed.
-		 */
-		disable_irq(uport->irq);
-	}
-	return 0;
+	return uart_resume_port(uport->private_data, uport);
 }
 
 static const struct dev_pm_ops qcom_geni_serial_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(qcom_geni_serial_sys_suspend_noirq,
-					qcom_geni_serial_sys_resume_noirq)
+	SET_SYSTEM_SLEEP_PM_OPS(qcom_geni_serial_sys_suspend,
+					qcom_geni_serial_sys_resume)
 };
 
 static const struct of_device_id qcom_geni_serial_match_table[] = {
