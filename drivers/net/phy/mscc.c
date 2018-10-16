@@ -1292,7 +1292,7 @@ static int vsc8574_config_pre_init(struct phy_device *phydev)
 				dev_err(dev,
 					"%s: failed to assert reset of micro\n",
 					__func__);
-				return ret;
+				goto out;
 			}
 		}
 	} else {
