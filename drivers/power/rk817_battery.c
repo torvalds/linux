@@ -1854,6 +1854,7 @@ static enum power_supply_property rk817_bat_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 };
 
 static int rk817_bat_get_usb_psy(struct device *dev, void *data)
@@ -1965,6 +1966,9 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		val->intval = battery->charge_count;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		val->intval = battery->pdata->design_capacity * 1000;/* uAh */
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		val->intval = 4500 * 1000;
