@@ -26,8 +26,6 @@
 #define GENERATED_SOURCE_MAX	6
 #define GENERATED_MAX_DIV	255
 
-#define GCK_ID_SSC0		43
-#define GCK_ID_SSC1		44
 #define GCK_ID_I2S0		54
 #define GCK_ID_I2S1		55
 #define GCK_ID_CLASSD		59
@@ -368,8 +366,7 @@ static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
 
 		if (of_device_is_compatible(np,
 					    "atmel,sama5d2-clk-generated")) {
-			if (gck->id == GCK_ID_SSC0 || gck->id == GCK_ID_SSC1 ||
-			    gck->id == GCK_ID_I2S0 || gck->id == GCK_ID_I2S1 ||
+			if (gck->id == GCK_ID_I2S0 || gck->id == GCK_ID_I2S1 ||
 			    gck->id == GCK_ID_CLASSD)
 				gck->audio_pll_allowed = true;
 			else
