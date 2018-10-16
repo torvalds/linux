@@ -830,7 +830,6 @@ struct amdgpu_device {
 	bool				need_dma32;
 	bool				need_swiotlb;
 	bool				accel_working;
-	struct work_struct		reset_work;
 	struct notifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
 	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];

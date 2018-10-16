@@ -4959,12 +4959,36 @@ static int gfx_v7_0_eop_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void gfx_v7_0_fault(struct amdgpu_device *adev,
+			   struct amdgpu_iv_entry *entry)
+{
+	struct amdgpu_ring *ring;
+	u8 me_id, pipe_id;
+	int i;
+
+	me_id = (entry->ring_id & 0x0c) >> 2;
+	pipe_id = (entry->ring_id & 0x03) >> 0;
+	switch (me_id) {
+	case 0:
+		drm_sched_fault(&adev->gfx.gfx_ring[0].sched);
+		break;
+	case 1:
+	case 2:
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			ring = &adev->gfx.compute_ring[i];
+			if ((ring->me == me_id) && (ring->pipe == pipe_id))
+				drm_sched_fault(&ring->sched);
+		}
+		break;
+	}
+}
+
 static int gfx_v7_0_priv_reg_irq(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
 	DRM_ERROR("Illegal register access in command stream\n");
-	schedule_work(&adev->reset_work);
+	gfx_v7_0_fault(adev, entry);
 	return 0;
 }
 
@@ -4974,7 +4998,7 @@ static int gfx_v7_0_priv_inst_irq(struct amdgpu_device *adev,
 {
 	DRM_ERROR("Illegal instruction in command stream\n");
 	// XXX soft reset the gfx block only
-	schedule_work(&adev->reset_work);
+	gfx_v7_0_fault(adev, entry);
 	return 0;
 }
 

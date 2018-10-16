@@ -1214,8 +1214,11 @@ static int cik_sdma_process_illegal_inst_irq(struct amdgpu_device *adev,
 					     struct amdgpu_irq_src *source,
 					     struct amdgpu_iv_entry *entry)
 {
+	u8 instance_id;
+
 	DRM_ERROR("Illegal instruction in SDMA command stream\n");
-	schedule_work(&adev->reset_work);
+	instance_id = (entry->ring_id & 0x3) >> 0;
+	drm_sched_fault(&adev->sdma.instance[instance_id].ring.sched);
 	return 0;
 }
 

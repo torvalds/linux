@@ -1717,11 +1717,28 @@ static int sdma_v4_0_process_illegal_inst_irq(struct amdgpu_device *adev,
 					      struct amdgpu_irq_src *source,
 					      struct amdgpu_iv_entry *entry)
 {
+	int instance;
+
 	DRM_ERROR("Illegal instruction in SDMA command stream\n");
-	schedule_work(&adev->reset_work);
+
+	switch (entry->client_id) {
+	case SOC15_IH_CLIENTID_SDMA0:
+		instance = 0;
+		break;
+	case SOC15_IH_CLIENTID_SDMA1:
+		instance = 1;
+		break;
+	default:
+		return 0;
+	}
+
+	switch (entry->ring_id) {
+	case 0:
+		drm_sched_fault(&adev->sdma.instance[instance].ring.sched);
+		break;
+	}
 	return 0;
 }
-
 
 static void sdma_v4_0_update_medium_grain_clock_gating(
 		struct amdgpu_device *adev,

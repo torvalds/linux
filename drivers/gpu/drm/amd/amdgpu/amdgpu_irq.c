@@ -94,23 +94,6 @@ static void amdgpu_hotplug_work_func(struct work_struct *work)
 }
 
 /**
- * amdgpu_irq_reset_work_func - execute GPU reset
- *
- * @work: work struct pointer
- *
- * Execute scheduled GPU reset (Cayman+).
- * This function is called when the IRQ handler thinks we need a GPU reset.
- */
-static void amdgpu_irq_reset_work_func(struct work_struct *work)
-{
-	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
-						  reset_work);
-
-	if (!amdgpu_sriov_vf(adev) && amdgpu_device_should_recover_gpu(adev))
-		amdgpu_device_gpu_recover(adev, NULL);
-}
-
-/**
  * amdgpu_irq_disable_all - disable *all* interrupts
  *
  * @adev: amdgpu device pointer
@@ -262,15 +245,12 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 				amdgpu_hotplug_work_func);
 	}
 
-	INIT_WORK(&adev->reset_work, amdgpu_irq_reset_work_func);
-
 	adev->irq.installed = true;
 	r = drm_irq_install(adev->ddev, adev->ddev->pdev->irq);
 	if (r) {
 		adev->irq.installed = false;
 		if (!amdgpu_device_has_dc_support(adev))
 			flush_work(&adev->hotplug_work);
-		cancel_work_sync(&adev->reset_work);
 		return r;
 	}
 	adev->ddev->max_vblank_count = 0x00ffffff;
@@ -299,7 +279,6 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 			pci_disable_msi(adev->pdev);
 		if (!amdgpu_device_has_dc_support(adev))
 			flush_work(&adev->hotplug_work);
-		cancel_work_sync(&adev->reset_work);
 	}
 
 	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
