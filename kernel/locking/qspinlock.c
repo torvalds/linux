@@ -397,6 +397,11 @@ pv_queue:
 	node += idx;
 
 	/*
+	 * Keep counts of non-zero index values:
+	 */
+	qstat_inc(qstat_lock_idx1 + idx - 1, idx);
+
+	/*
 	 * Ensure that we increment the head node->count before initialising
 	 * the actual node. If the compiler is kind enough to reorder these
 	 * stores, then an IRQ could overwrite our assignments.
