@@ -3305,21 +3305,17 @@ static int nested_vmx_check_exception(struct kvm_vcpu *vcpu, unsigned long *exit
 			*exit_qual = has_payload ? payload : vcpu->arch.cr2;
 			return 1;
 		}
-	} else {
-		/*
-		 * FIXME: we must not write DR6 when L1 intercepts an
-		 * L2 #DB exception.
-		 */
-		if (vmcs12->exception_bitmap & (1u << nr)) {
-			if (nr == DB_VECTOR) {
-				*exit_qual = vcpu->arch.dr6;
-				*exit_qual &= ~(DR6_FIXED_1 | DR6_BT);
-				*exit_qual ^= DR6_RTM;
-			} else {
-				*exit_qual = 0;
+	} else if (vmcs12->exception_bitmap & (1u << nr)) {
+		if (nr == DB_VECTOR) {
+			if (!has_payload) {
+				payload = vcpu->arch.dr6;
+				payload &= ~(DR6_FIXED_1 | DR6_BT);
+				payload ^= DR6_RTM;
 			}
-			return 1;
-		}
+			*exit_qual = payload;
+		} else
+			*exit_qual = 0;
+		return 1;
 	}
 
 	return 0;

@@ -410,6 +410,28 @@ void kvm_deliver_exception_payload(struct kvm_vcpu *vcpu)
 		return;
 
 	switch (nr) {
+	case DB_VECTOR:
+		/*
+		 * "Certain debug exceptions may clear bit 0-3.  The
+		 * remaining contents of the DR6 register are never
+		 * cleared by the processor".
+		 */
+		vcpu->arch.dr6 &= ~DR_TRAP_BITS;
+		/*
+		 * DR6.RTM is set by all #DB exceptions that don't clear it.
+		 */
+		vcpu->arch.dr6 |= DR6_RTM;
+		vcpu->arch.dr6 |= payload;
+		/*
+		 * Bit 16 should be set in the payload whenever the #DB
+		 * exception should clear DR6.RTM. This makes the payload
+		 * compatible with the pending debug exceptions under VMX.
+		 * Though not currently documented in the SDM, this also
+		 * makes the payload compatible with the exit qualification
+		 * for #DB exceptions under VMX.
+		 */
+		vcpu->arch.dr6 ^= payload & DR6_RTM;
+		break;
 	case PF_VECTOR:
 		vcpu->arch.cr2 = payload;
 		break;
@@ -464,11 +486,13 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		/*
 		 * In guest mode, payload delivery should be deferred,
 		 * so that the L1 hypervisor can intercept #PF before
-		 * CR2 is modified.  However, for ABI compatibility
-		 * with KVM_GET_VCPU_EVENTS and KVM_SET_VCPU_EVENTS,
-		 * we can't delay payload delivery unless userspace
-		 * has enabled this functionality via the per-VM
-		 * capability, KVM_CAP_EXCEPTION_PAYLOAD.
+		 * CR2 is modified (or intercept #DB before DR6 is
+		 * modified under nVMX).  However, for ABI
+		 * compatibility with KVM_GET_VCPU_EVENTS and
+		 * KVM_SET_VCPU_EVENTS, we can't delay payload
+		 * delivery unless userspace has enabled this
+		 * functionality via the per-VM capability,
+		 * KVM_CAP_EXCEPTION_PAYLOAD.
 		 */
 		if (!vcpu->kvm->arch.exception_payload_enabled ||
 		    !is_guest_mode(vcpu))
@@ -517,6 +541,12 @@ void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 	kvm_multiple_exception(vcpu, nr, false, 0, false, 0, true);
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
+
+static void kvm_queue_exception_p(struct kvm_vcpu *vcpu, unsigned nr,
+				  unsigned long payload)
+{
+	kvm_multiple_exception(vcpu, nr, false, 0, true, payload, false);
+}
 
 static void kvm_queue_exception_e_p(struct kvm_vcpu *vcpu, unsigned nr,
 				    u32 error_code, unsigned long payload)
@@ -6156,14 +6186,7 @@ static void kvm_vcpu_do_singlestep(struct kvm_vcpu *vcpu, int *r)
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
 		*r = EMULATE_USER_EXIT;
 	} else {
-		/*
-		 * "Certain debug exceptions may clear bit 0-3.  The
-		 * remaining contents of the DR6 register are never
-		 * cleared by the processor".
-		 */
-		vcpu->arch.dr6 &= ~15;
-		vcpu->arch.dr6 |= DR6_BS | DR6_RTM;
-		kvm_queue_exception(vcpu, DB_VECTOR);
+		kvm_queue_exception_p(vcpu, DB_VECTOR, DR6_BS);
 	}
 }
 
@@ -7102,10 +7125,22 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 			__kvm_set_rflags(vcpu, kvm_get_rflags(vcpu) |
 					     X86_EFLAGS_RF);
 
-		if (vcpu->arch.exception.nr == DB_VECTOR &&
-		    (vcpu->arch.dr7 & DR7_GD)) {
-			vcpu->arch.dr7 &= ~DR7_GD;
-			kvm_update_dr7(vcpu);
+		if (vcpu->arch.exception.nr == DB_VECTOR) {
+			/*
+			 * This code assumes that nSVM doesn't use
+			 * check_nested_events(). If it does, the
+			 * DR6/DR7 changes should happen before L1
+			 * gets a #VMEXIT for an intercepted #DB in
+			 * L2.  (Under VMX, on the other hand, the
+			 * DR6/DR7 changes should not happen in the
+			 * event of a VM-exit to L1 for an intercepted
+			 * #DB in L2.)
+			 */
+			kvm_deliver_exception_payload(vcpu);
+			if (vcpu->arch.dr7 & DR7_GD) {
+				vcpu->arch.dr7 &= ~DR7_GD;
+				kvm_update_dr7(vcpu);
+			}
 		}
 
 		kvm_x86_ops->queue_exception(vcpu);
