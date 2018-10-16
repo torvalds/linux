@@ -3704,7 +3704,7 @@ static const unsigned int vin0_clk_mux[] = {
 	VI0_CLK_MARK,
 };
 /* - VIN1 ------------------------------------------------------------------- */
-static const union vin_data vin1_data_pins = {
+static const union vin_data12 vin1_data_pins = {
 	.data12 = {
 		RCAR_GP_PIN(5, 12), RCAR_GP_PIN(5, 13),
 		RCAR_GP_PIN(5, 14), RCAR_GP_PIN(5, 15),
@@ -3714,7 +3714,7 @@ static const union vin_data vin1_data_pins = {
 		RCAR_GP_PIN(1, 12), RCAR_GP_PIN(1, 13),
 	},
 };
-static const union vin_data vin1_data_mux = {
+static const union vin_data12 vin1_data_mux = {
 	.data12 = {
 		VI1_DATA0_MARK, VI1_DATA1_MARK,
 		VI1_DATA2_MARK, VI1_DATA3_MARK,
