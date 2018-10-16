@@ -226,4 +226,8 @@ int rvu_mbox_handler_NPA_LF_ALLOC(struct rvu *rvu,
 				  struct npa_lf_alloc_rsp *rsp);
 int rvu_mbox_handler_NPA_LF_FREE(struct rvu *rvu, struct msg_req *req,
 				 struct msg_rsp *rsp);
+
+/* NIX APIs */
+int rvu_nix_init(struct rvu *rvu);
+void rvu_nix_freemem(struct rvu *rvu);
 #endif /* RVU_H */

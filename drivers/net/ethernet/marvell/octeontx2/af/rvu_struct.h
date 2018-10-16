@@ -354,4 +354,76 @@ struct npa_pool_s {
 	u64 reserved_896_959;		/* W14 */
 	u64 reserved_960_1023;		/* W15 */
 };
+
+/* NIX admin queue completion status */
+enum nix_aq_comp {
+	NIX_AQ_COMP_NOTDONE        = 0x0,
+	NIX_AQ_COMP_GOOD           = 0x1,
+	NIX_AQ_COMP_SWERR          = 0x2,
+	NIX_AQ_COMP_CTX_POISON     = 0x3,
+	NIX_AQ_COMP_CTX_FAULT      = 0x4,
+	NIX_AQ_COMP_LOCKERR        = 0x5,
+	NIX_AQ_COMP_SQB_ALLOC_FAIL = 0x6,
+};
+
+/* NIX admin queue context types */
+enum nix_aq_ctype {
+	NIX_AQ_CTYPE_RQ   = 0x0,
+	NIX_AQ_CTYPE_SQ   = 0x1,
+	NIX_AQ_CTYPE_CQ   = 0x2,
+	NIX_AQ_CTYPE_MCE  = 0x3,
+	NIX_AQ_CTYPE_RSS  = 0x4,
+	NIX_AQ_CTYPE_DYNO = 0x5,
+};
+
+/* NIX admin queue instruction opcodes */
+enum nix_aq_instop {
+	NIX_AQ_INSTOP_NOP    = 0x0,
+	NIX_AQ_INSTOP_INIT   = 0x1,
+	NIX_AQ_INSTOP_WRITE  = 0x2,
+	NIX_AQ_INSTOP_READ   = 0x3,
+	NIX_AQ_INSTOP_LOCK   = 0x4,
+	NIX_AQ_INSTOP_UNLOCK = 0x5,
+};
+
+/* NIX admin queue instruction structure */
+struct nix_aq_inst_s {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 doneint		: 1;	/* W0 */
+	u64 reserved_44_62	: 19;
+	u64 cindex		: 20;
+	u64 reserved_15_23	: 9;
+	u64 lf			: 7;
+	u64 ctype		: 4;
+	u64 op			: 4;
+#else
+	u64 op			: 4;
+	u64 ctype		: 4;
+	u64 lf			: 7;
+	u64 reserved_15_23	: 9;
+	u64 cindex		: 20;
+	u64 reserved_44_62	: 19;
+	u64 doneint		: 1;
+#endif
+	u64 res_addr;			/* W1 */
+};
+
+/* NIX admin queue result structure */
+struct nix_aq_res_s {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 reserved_17_63	: 47;	/* W0 */
+	u64 doneint		: 1;
+	u64 compcode		: 8;
+	u64 ctype		: 4;
+	u64 op			: 4;
+#else
+	u64 op			: 4;
+	u64 ctype		: 4;
+	u64 compcode		: 8;
+	u64 doneint		: 1;
+	u64 reserved_17_63	: 47;
+#endif
+	u64 reserved_64_127;		/* W1 */
+};
+
 #endif /* RVU_STRUCT_H */

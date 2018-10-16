@@ -566,6 +566,7 @@ static void rvu_free_hw_resources(struct rvu *rvu)
 	u64 cfg;
 
 	rvu_npa_freemem(rvu);
+	rvu_nix_freemem(rvu);
 
 	/* Free block LF bitmaps */
 	for (id = 0; id < BLK_COUNT; id++) {
@@ -771,6 +772,10 @@ init:
 	}
 
 	err = rvu_npa_init(rvu);
+	if (err)
+		return err;
+
+	err = rvu_nix_init(rvu);
 	if (err)
 		return err;
 
