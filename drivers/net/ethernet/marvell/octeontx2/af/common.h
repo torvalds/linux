@@ -132,6 +132,17 @@ struct npa_aq_pool_res {
 	struct	npa_pool_s	ctx_mask;
 };
 
+/* NIX Transmit schedulers */
+enum nix_scheduler {
+	NIX_TXSCH_LVL_SMQ = 0x0,
+	NIX_TXSCH_LVL_MDQ = 0x0,
+	NIX_TXSCH_LVL_TL4 = 0x1,
+	NIX_TXSCH_LVL_TL3 = 0x2,
+	NIX_TXSCH_LVL_TL2 = 0x3,
+	NIX_TXSCH_LVL_TL1 = 0x4,
+	NIX_TXSCH_LVL_CNT = 0x5,
+};
+
 /* NIX LSO format indices.
  * As of now TSO is the only one using, so statically assigning indices.
  */

@@ -346,6 +346,60 @@ int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+static inline struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
+{
+	if (blkaddr == BLKADDR_NIX0 && hw->nix0)
+		return hw->nix0;
+
+	return NULL;
+}
+
+static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
+{
+	struct nix_txsch *txsch;
+	u64 cfg, reg;
+	int err, lvl;
+
+	/* Get scheduler queue count of each type and alloc
+	 * bitmap for each for alloc/free/attach operations.
+	 */
+	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		txsch = &nix_hw->txsch[lvl];
+		txsch->lvl = lvl;
+		switch (lvl) {
+		case NIX_TXSCH_LVL_SMQ:
+			reg = NIX_AF_MDQ_CONST;
+			break;
+		case NIX_TXSCH_LVL_TL4:
+			reg = NIX_AF_TL4_CONST;
+			break;
+		case NIX_TXSCH_LVL_TL3:
+			reg = NIX_AF_TL3_CONST;
+			break;
+		case NIX_TXSCH_LVL_TL2:
+			reg = NIX_AF_TL2_CONST;
+			break;
+		case NIX_TXSCH_LVL_TL1:
+			reg = NIX_AF_TL1_CONST;
+			break;
+		}
+		cfg = rvu_read64(rvu, blkaddr, reg);
+		txsch->schq.max = cfg & 0xFFFF;
+		err = rvu_alloc_bitmap(&txsch->schq);
+		if (err)
+			return err;
+
+		/* Allocate memory for scheduler queues to
+		 * PF/VF pcifunc mapping info.
+		 */
+		txsch->pfvf_map = devm_kcalloc(rvu->dev, txsch->schq.max,
+					       sizeof(u16), GFP_KERNEL);
+		if (!txsch->pfvf_map)
+			return -ENOMEM;
+	}
+	return 0;
+}
+
 static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 {
 	int idx, err;
@@ -431,6 +485,7 @@ int rvu_nix_init(struct rvu *rvu)
 	struct rvu_hwinfo *hw = rvu->hw;
 	struct rvu_block *block;
 	int blkaddr, err;
+	u64 cfg;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
 	if (blkaddr < 0)
@@ -441,6 +496,14 @@ int rvu_nix_init(struct rvu *rvu)
 	err = nix_calibrate_x2p(rvu, blkaddr);
 	if (err)
 		return err;
+
+	/* Set num of links of each type */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST);
+	hw->cgx = (cfg >> 12) & 0xF;
+	hw->lmac_per_cgx = (cfg >> 8) & 0xF;
+	hw->cgx_links = hw->cgx * hw->lmac_per_cgx;
+	hw->lbk_links = 1;
+	hw->sdp_links = 1;
 
 	/* Initialize admin queue */
 	err = nix_aq_init(rvu, block);
@@ -453,6 +516,16 @@ int rvu_nix_init(struct rvu *rvu)
 	/* Configure segmentation offload formats */
 	nix_setup_lso(rvu, blkaddr);
 
+	if (blkaddr == BLKADDR_NIX0) {
+		hw->nix0 = devm_kzalloc(rvu->dev,
+					sizeof(struct nix_hw), GFP_KERNEL);
+		if (!hw->nix0)
+			return -ENOMEM;
+
+		err = nix_setup_txschq(rvu, hw->nix0, blkaddr);
+		if (err)
+			return err;
+	}
 	return 0;
 }
 
@@ -460,7 +533,9 @@ void rvu_nix_freemem(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
 	struct rvu_block *block;
-	int blkaddr;
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+	int blkaddr, lvl;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
 	if (blkaddr < 0)
@@ -468,4 +543,15 @@ void rvu_nix_freemem(struct rvu *rvu)
 
 	block = &hw->block[blkaddr];
 	rvu_aq_free(rvu, block->aq);
+
+	if (blkaddr == BLKADDR_NIX0) {
+		nix_hw = get_nix_hw(rvu->hw, blkaddr);
+		if (!nix_hw)
+			return;
+
+		for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+			txsch = &nix_hw->txsch[lvl];
+			kfree(txsch->schq.bmap);
+		}
+	}
 }

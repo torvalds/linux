@@ -91,12 +91,28 @@ struct rvu_pfvf {
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
 };
 
+struct nix_txsch {
+	struct rsrc_bmap schq;
+	u8   lvl;
+	u16  *pfvf_map;
+};
+
+struct nix_hw {
+	struct nix_txsch txsch[NIX_TXSCH_LVL_CNT]; /* Tx schedulers */
+};
+
 struct rvu_hwinfo {
 	u8	total_pfs;   /* MAX RVU PFs HW supports */
 	u16	total_vfs;   /* Max RVU VFs HW supports */
 	u16	max_vfs_per_pf; /* Max VFs that can be attached to a PF */
+	u8	cgx;
+	u8	lmac_per_cgx;
+	u8	cgx_links;
+	u8	lbk_links;
+	u8	sdp_links;
 
 	struct rvu_block block[BLK_COUNT]; /* Block info */
+	struct nix_hw    *nix0;
 };
 
 struct rvu {
