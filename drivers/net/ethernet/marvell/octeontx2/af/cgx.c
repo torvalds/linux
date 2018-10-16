@@ -119,6 +119,28 @@ void *cgx_get_pdata(int cgx_id)
 }
 EXPORT_SYMBOL(cgx_get_pdata);
 
+int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat)
+{
+	struct cgx *cgx = cgxd;
+
+	if (!cgx || lmac_id >= cgx->lmac_count)
+		return -ENODEV;
+	*rx_stat =  cgx_read(cgx, lmac_id, CGXX_CMRX_RX_STAT0 + (idx * 8));
+	return 0;
+}
+EXPORT_SYMBOL(cgx_get_rx_stats);
+
+int cgx_get_tx_stats(void *cgxd, int lmac_id, int idx, u64 *tx_stat)
+{
+	struct cgx *cgx = cgxd;
+
+	if (!cgx || lmac_id >= cgx->lmac_count)
+		return -ENODEV;
+	*tx_stat = cgx_read(cgx, lmac_id, CGXX_CMRX_TX_STAT0 + (idx * 8));
+	return 0;
+}
+EXPORT_SYMBOL(cgx_get_tx_stats);
+
 int cgx_lmac_rx_tx_enable(void *cgxd, int lmac_id, bool enable)
 {
 	struct cgx *cgx = cgxd;

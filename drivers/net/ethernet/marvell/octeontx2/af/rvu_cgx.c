@@ -224,3 +224,40 @@ int rvu_mbox_handler_CGX_STOP_RXTX(struct rvu *rvu, struct msg_req *req,
 	rvu_cgx_config_rxtx(rvu, req->hdr.pcifunc, false);
 	return 0;
 }
+
+int rvu_mbox_handler_CGX_STATS(struct rvu *rvu, struct msg_req *req,
+			       struct cgx_stats_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	int stat = 0, err = 0;
+	u64 tx_stat, rx_stat;
+	u8 cgx_idx, lmac;
+	void *cgxd;
+
+	if ((req->hdr.pcifunc & RVU_PFVF_FUNC_MASK) ||
+	    !is_pf_cgxmapped(rvu, pf))
+		return -ENODEV;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_idx, &lmac);
+	cgxd = rvu_cgx_pdata(cgx_idx, rvu);
+
+	/* Rx stats */
+	while (stat < CGX_RX_STATS_COUNT) {
+		err = cgx_get_rx_stats(cgxd, lmac, stat, &rx_stat);
+		if (err)
+			return err;
+		rsp->rx_stats[stat] = rx_stat;
+		stat++;
+	}
+
+	/* Tx stats */
+	stat = 0;
+	while (stat < CGX_TX_STATS_COUNT) {
+		err = cgx_get_tx_stats(cgxd, lmac, stat, &tx_stat);
+		if (err)
+			return err;
+		rsp->tx_stats[stat] = tx_stat;
+		stat++;
+	}
+	return 0;
+}

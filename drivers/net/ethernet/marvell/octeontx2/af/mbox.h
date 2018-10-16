@@ -126,6 +126,7 @@ M(MSIX_OFFSET,		0x004, msg_req, msix_offset_rsp)		\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
 M(CGX_START_RXTX,	0x200, msg_req, msg_rsp)			\
 M(CGX_STOP_RXTX,	0x201, msg_req, msg_rsp)			\
+M(CGX_STATS,		0x202, msg_req, cgx_stats_rsp)			\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
@@ -208,6 +209,16 @@ struct msix_offset_rsp {
 	u16  ssow_msixoff[MAX_RVU_BLKLF_CNT];
 	u16  timlf_msixoff[MAX_RVU_BLKLF_CNT];
 	u16  cptlf_msixoff[MAX_RVU_BLKLF_CNT];
+};
+
+/* CGX mbox message formats */
+
+struct cgx_stats_rsp {
+	struct mbox_msghdr hdr;
+#define CGX_RX_STATS_COUNT	13
+#define CGX_TX_STATS_COUNT	18
+	u64 rx_stats[CGX_RX_STATS_COUNT];
+	u64 tx_stats[CGX_TX_STATS_COUNT];
 };
 
 #endif /* MBOX_H */

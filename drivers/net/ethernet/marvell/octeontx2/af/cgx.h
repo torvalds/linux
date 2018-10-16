@@ -32,7 +32,9 @@
 #define  FW_CGX_INT				BIT_ULL(1)
 #define CGXX_CMRX_INT_ENA_W1S		0x058
 #define CGXX_CMRX_RX_ID_MAP		0x060
+#define CGXX_CMRX_RX_STAT0		0x070
 #define CGXX_CMRX_RX_LMACS		0x128
+#define CGXX_CMRX_TX_STAT0		0x700
 #define CGXX_SCRATCH0_REG		0x1050
 #define CGXX_SCRATCH1_REG		0x1058
 #define CGX_CONST			0x2000
@@ -66,5 +68,7 @@ int cgx_get_cgx_cnt(void);
 int cgx_get_lmac_cnt(void *cgxd);
 void *cgx_get_pdata(int cgx_id);
 int cgx_lmac_evh_register(struct cgx_event_cb *cb, void *cgxd, int lmac_id);
+int cgx_get_tx_stats(void *cgxd, int lmac_id, int idx, u64 *tx_stat);
+int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat);
 int cgx_lmac_rx_tx_enable(void *cgxd, int lmac_id, bool enable);
 #endif /* CGX_H */
