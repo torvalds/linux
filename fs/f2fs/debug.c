@@ -55,6 +55,9 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->max_vw_cnt = atomic_read(&sbi->max_vw_cnt);
 	si->nr_wb_cp_data = get_pages(sbi, F2FS_WB_CP_DATA);
 	si->nr_wb_data = get_pages(sbi, F2FS_WB_DATA);
+	si->nr_rd_data = get_pages(sbi, F2FS_RD_DATA);
+	si->nr_rd_node = get_pages(sbi, F2FS_RD_NODE);
+	si->nr_rd_meta = get_pages(sbi, F2FS_RD_META);
 	if (SM_I(sbi) && SM_I(sbi)->fcc_info) {
 		si->nr_flushed =
 			atomic_read(&SM_I(sbi)->fcc_info->issued_flush);
@@ -371,7 +374,9 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
 				si->ext_tree, si->zombie_tree, si->ext_node);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - IO (CP: %4d, Data: %4d, Flush: (%4d %4d %4d), "
+		seq_printf(s, "  - IO_R (Data: %4d, Node: %4d, Meta: %4d\n",
+			   si->nr_rd_data, si->nr_rd_node, si->nr_rd_meta);
+		seq_printf(s, "  - IO_W (CP: %4d, Data: %4d, Flush: (%4d %4d %4d), "
 			"Discard: (%4d %4d)) cmd: %4d undiscard:%4u\n",
 			   si->nr_wb_cp_data, si->nr_wb_data,
 			   si->nr_flushing, si->nr_flushed,
