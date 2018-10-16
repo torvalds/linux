@@ -736,7 +736,6 @@ static struct esp_cmd_entry *find_and_prep_issuable_command(struct esp *esp)
 static void esp_maybe_execute_command(struct esp *esp)
 {
 	struct esp_target_data *tp;
-	struct esp_lun_data *lp;
 	struct scsi_device *dev;
 	struct scsi_cmnd *cmd;
 	struct esp_cmd_entry *ent;
@@ -762,7 +761,6 @@ static void esp_maybe_execute_command(struct esp *esp)
 	tgt = dev->id;
 	lun = dev->lun;
 	tp = &esp->target[tgt];
-	lp = dev->hostdata;
 
 	list_move(&ent->list, &esp->active_cmds);
 
@@ -818,14 +816,7 @@ static void esp_maybe_execute_command(struct esp *esp)
 	}
 
 build_identify:
-	/* If we don't have a lun-data struct yet, we're probing
-	 * so do not disconnect.  Also, do not disconnect unless
-	 * we have a tag on this command.
-	 */
-	if (lp && (tp->flags & ESP_TGT_DISCONNECT) && ent->tag[0])
-		*p++ = IDENTIFY(1, lun);
-	else
-		*p++ = IDENTIFY(0, lun);
+	*p++ = IDENTIFY(tp->flags & ESP_TGT_DISCONNECT, lun);
 
 	if (ent->tag[0] && esp->rev == ESP100) {
 		/* ESP100 lacks select w/atn3 command, use select
