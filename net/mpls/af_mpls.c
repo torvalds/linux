@@ -2067,12 +2067,35 @@ static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 }
 #endif
 
+static bool mpls_rt_uses_dev(struct mpls_route *rt,
+			     const struct net_device *dev)
+{
+	struct net_device *nh_dev;
+
+	if (rt->rt_nhn == 1) {
+		struct mpls_nh *nh = rt->rt_nh;
+
+		nh_dev = rtnl_dereference(nh->nh_dev);
+		if (dev == nh_dev)
+			return true;
+	} else {
+		for_nexthops(rt) {
+			nh_dev = rtnl_dereference(nh->nh_dev);
+			if (nh_dev == dev)
+				return true;
+		} endfor_nexthops(rt);
+	}
+
+	return false;
+}
+
 static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
 	struct mpls_route __rcu **platform_label;
 	struct fib_dump_filter filter = {};
+	unsigned int flags = NLM_F_MULTI;
 	size_t platform_labels;
 	unsigned int index;
 
@@ -2084,6 +2107,14 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 		err = mpls_valid_fib_dump_req(net, nlh, &filter, cb->extack);
 		if (err < 0)
 			return err;
+
+		/* for MPLS, there is only 1 table with fixed type and flags.
+		 * If either are set in the filter then return nothing.
+		 */
+		if ((filter.table_id && filter.table_id != RT_TABLE_MAIN) ||
+		    (filter.rt_type && filter.rt_type != RTN_UNICAST) ||
+		     filter.flags)
+			return skb->len;
 	}
 
 	index = cb->args[0];
@@ -2092,15 +2123,24 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 
 	platform_label = rtnl_dereference(net->mpls.platform_label);
 	platform_labels = net->mpls.platform_labels;
+
+	if (filter.filter_set)
+		flags |= NLM_F_DUMP_FILTERED;
+
 	for (; index < platform_labels; index++) {
 		struct mpls_route *rt;
+
 		rt = rtnl_dereference(platform_label[index]);
 		if (!rt)
 			continue;
 
+		if ((filter.dev && !mpls_rt_uses_dev(rt, filter.dev)) ||
+		    (filter.protocol && rt->rt_protocol != filter.protocol))
+			continue;
+
 		if (mpls_dump_route(skb, NETLINK_CB(cb->skb).portid,
 				    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
-				    index, rt, NLM_F_MULTI) < 0)
+				    index, rt, flags) < 0)
 			break;
 	}
 	cb->args[0] = index;
