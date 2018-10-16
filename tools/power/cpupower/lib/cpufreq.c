@@ -28,7 +28,7 @@ static unsigned int sysfs_cpufreq_read_file(unsigned int cpu, const char *fname,
 
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/cpufreq/%s",
 			 cpu, fname);
-	return sysfs_read_file(path, buf, buflen);
+	return cpupower_read_sysfs(path, buf, buflen);
 }
 
 /* helper function to write a new value to a /sys file */
