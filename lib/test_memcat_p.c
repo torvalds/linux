@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Test cases for memcat_p() in lib/string.c
+ * Test cases for memcat_p() in lib/memcat_p.c
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
