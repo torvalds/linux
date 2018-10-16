@@ -136,6 +136,8 @@ M(CGX_PROMISC_DISABLE,	0x206, msg_req, msg_rsp)			\
 M(CGX_START_LINKEVENTS, 0x207, msg_req, msg_rsp)			\
 M(CGX_STOP_LINKEVENTS,	0x208, msg_req, msg_rsp)			\
 M(CGX_GET_LINKINFO,	0x209, msg_req, cgx_link_info_msg)		\
+M(CGX_INTLBK_ENABLE,	0x20A, msg_req, msg_rsp)			\
+M(CGX_INTLBK_DISABLE,	0x20B, msg_req, msg_rsp)			\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\

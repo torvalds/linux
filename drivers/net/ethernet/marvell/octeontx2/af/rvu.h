@@ -192,4 +192,8 @@ int rvu_mbox_handler_CGX_STOP_LINKEVENTS(struct rvu *rvu, struct msg_req *req,
 					 struct msg_rsp *rsp);
 int rvu_mbox_handler_CGX_GET_LINKINFO(struct rvu *rvu, struct msg_req *req,
 				      struct cgx_link_info_msg *rsp);
+int rvu_mbox_handler_CGX_INTLBK_ENABLE(struct rvu *rvu, struct msg_req *req,
+				       struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_INTLBK_DISABLE(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp);
 #endif /* RVU_H */

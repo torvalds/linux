@@ -194,6 +194,36 @@ static inline u8 cgx_get_lmac_type(struct cgx *cgx, int lmac_id)
 	return (cfg >> CGX_LMAC_TYPE_SHIFT) & CGX_LMAC_TYPE_MASK;
 }
 
+/* Configure CGX LMAC in internal loopback mode */
+int cgx_lmac_internal_loopback(void *cgxd, int lmac_id, bool enable)
+{
+	struct cgx *cgx = cgxd;
+	u8 lmac_type;
+	u64 cfg;
+
+	if (!cgx || lmac_id >= cgx->lmac_count)
+		return -ENODEV;
+
+	lmac_type = cgx_get_lmac_type(cgx, lmac_id);
+	if (lmac_type == LMAC_MODE_SGMII || lmac_type == LMAC_MODE_QSGMII) {
+		cfg = cgx_read(cgx, lmac_id, CGXX_GMP_PCS_MRX_CTL);
+		if (enable)
+			cfg |= CGXX_GMP_PCS_MRX_CTL_LBK;
+		else
+			cfg &= ~CGXX_GMP_PCS_MRX_CTL_LBK;
+		cgx_write(cgx, lmac_id, CGXX_GMP_PCS_MRX_CTL, cfg);
+	} else {
+		cfg = cgx_read(cgx, lmac_id, CGXX_SPUX_CONTROL1);
+		if (enable)
+			cfg |= CGXX_SPUX_CONTROL1_LBK;
+		else
+			cfg &= ~CGXX_SPUX_CONTROL1_LBK;
+		cgx_write(cgx, lmac_id, CGXX_SPUX_CONTROL1, cfg);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(cgx_lmac_internal_loopback);
+
 void cgx_lmac_promisc_config(int cgx_id, int lmac_id, bool enable)
 {
 	struct cgx *cgx = cgx_get_pdata(cgx_id);

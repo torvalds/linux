@@ -479,3 +479,34 @@ int rvu_mbox_handler_CGX_GET_LINKINFO(struct rvu *rvu, struct msg_req *req,
 				&rsp->link_info);
 	return err;
 }
+
+static int rvu_cgx_config_intlbk(struct rvu *rvu, u16 pcifunc, bool en)
+{
+	int pf = rvu_get_pf(pcifunc);
+	u8 cgx_id, lmac_id;
+
+	/* This msg is expected only from PFs that are mapped to CGX LMACs,
+	 * if received from other PF/VF simply ACK, nothing to do.
+	 */
+	if ((pcifunc & RVU_PFVF_FUNC_MASK) || !is_pf_cgxmapped(rvu, pf))
+		return -ENODEV;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+
+	return cgx_lmac_internal_loopback(rvu_cgx_pdata(cgx_id, rvu),
+					  lmac_id, en);
+}
+
+int rvu_mbox_handler_CGX_INTLBK_ENABLE(struct rvu *rvu, struct msg_req *req,
+				       struct msg_rsp *rsp)
+{
+	rvu_cgx_config_intlbk(rvu, req->hdr.pcifunc, true);
+	return 0;
+}
+
+int rvu_mbox_handler_CGX_INTLBK_DISABLE(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp)
+{
+	rvu_cgx_config_intlbk(rvu, req->hdr.pcifunc, false);
+	return 0;
+}

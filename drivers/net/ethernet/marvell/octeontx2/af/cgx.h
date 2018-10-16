@@ -50,6 +50,10 @@
 #define CGXX_SCRATCH0_REG		0x1050
 #define CGXX_SCRATCH1_REG		0x1058
 #define CGX_CONST			0x2000
+#define CGXX_SPUX_CONTROL1		0x10000
+#define  CGXX_SPUX_CONTROL1_LBK			BIT_ULL(14)
+#define CGXX_GMP_PCS_MRX_CTL		0x30000
+#define  CGXX_GMP_PCS_MRX_CTL_LBK		BIT_ULL(14)
 
 #define CGX_COMMAND_REG			CGXX_SCRATCH1_REG
 #define CGX_EVENT_REG			CGXX_SCRATCH0_REG
@@ -100,6 +104,7 @@ int cgx_lmac_rx_tx_enable(void *cgxd, int lmac_id, bool enable);
 int cgx_lmac_addr_set(u8 cgx_id, u8 lmac_id, u8 *mac_addr);
 u64 cgx_lmac_addr_get(u8 cgx_id, u8 lmac_id);
 void cgx_lmac_promisc_config(int cgx_id, int lmac_id, bool enable);
+int cgx_lmac_internal_loopback(void *cgxd, int lmac_id, bool enable);
 int cgx_get_link_info(void *cgxd, int lmac_id,
 		      struct cgx_link_user_info *linfo);
 #endif /* CGX_H */
