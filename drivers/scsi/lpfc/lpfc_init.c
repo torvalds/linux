@@ -7993,7 +7993,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	else
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3028 GET_FUNCTION_CONFIG: failed to find "
-				"Resrouce Descriptor:x%x\n",
+				"Resource Descriptor:x%x\n",
 				LPFC_RSRC_DESC_TYPE_FCFCOE);
 
 read_cfg_out:
