@@ -27,6 +27,7 @@ struct em_cap_state {
  * em_perf_domain - Performance domain
  * @table:		List of capacity states, in ascending order
  * @nr_cap_states:	Number of capacity states
+ * @kobj:		Kobject used to expose the domain in sysfs
  * @cpus:		Cpumask covering the CPUs of the domain
  *
  * A "performance domain" represents a group of CPUs whose performance is
@@ -37,6 +38,7 @@ struct em_cap_state {
 struct em_perf_domain {
 	struct em_cap_state *table;
 	int nr_cap_states;
+	struct kobject kobj;
 	unsigned long cpus[0];
 };
 
