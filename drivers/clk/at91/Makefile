@@ -3,7 +3,7 @@
 # Makefile for at91 specific clk
 #
 
-obj-y += pmc.o sckc.o
+obj-y += pmc.o sckc.o dt-compat.o
 obj-y += clk-slow.o clk-main.o clk-pll.o clk-plldiv.o clk-master.o
 obj-y += clk-system.o clk-peripheral.o clk-programmable.o
 

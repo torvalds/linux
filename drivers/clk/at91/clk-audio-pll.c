@@ -476,26 +476,6 @@ at91_clk_register_audio_pll_frac(struct regmap *regmap, const char *name,
 	return &frac_ck->hw;
 }
 
-static void __init of_sama5d2_clk_audio_pll_frac_setup(struct device_node *np)
-{
-	struct clk_hw *hw;
-	const char *name = np->name;
-	const char *parent_name;
-	struct regmap *regmap;
-
-	regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(regmap))
-		return;
-
-	parent_name = of_clk_get_parent_name(np, 0);
-
-	hw = at91_clk_register_audio_pll_frac(regmap, name, parent_name);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
-}
-
 struct clk_hw * __init
 at91_clk_register_audio_pll_pad(struct regmap *regmap, const char *name,
 				const char *parent_name)
@@ -525,26 +505,6 @@ at91_clk_register_audio_pll_pad(struct regmap *regmap, const char *name,
 	}
 
 	return &apad_ck->hw;
-}
-
-static void __init of_sama5d2_clk_audio_pll_pad_setup(struct device_node *np)
-{
-	struct clk_hw *hw;
-	const char *name = np->name;
-	const char *parent_name;
-	struct regmap *regmap;
-
-	regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(regmap))
-		return;
-
-	parent_name = of_clk_get_parent_name(np, 0);
-
-	hw = at91_clk_register_audio_pll_pad(regmap, name, parent_name);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
 
 struct clk_hw * __init
@@ -577,33 +537,3 @@ at91_clk_register_audio_pll_pmc(struct regmap *regmap, const char *name,
 
 	return &apmc_ck->hw;
 }
-
-static void __init of_sama5d2_clk_audio_pll_pmc_setup(struct device_node *np)
-{
-	struct clk_hw *hw;
-	const char *name = np->name;
-	const char *parent_name;
-	struct regmap *regmap;
-
-	regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(regmap))
-		return;
-
-	parent_name = of_clk_get_parent_name(np, 0);
-
-	hw = at91_clk_register_audio_pll_pmc(regmap, name, parent_name);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
-}
-
-CLK_OF_DECLARE(of_sama5d2_clk_audio_pll_frac_setup,
-	       "atmel,sama5d2-clk-audio-pll-frac",
-	       of_sama5d2_clk_audio_pll_frac_setup);
-CLK_OF_DECLARE(of_sama5d2_clk_audio_pll_pad_setup,
-	       "atmel,sama5d2-clk-audio-pll-pad",
-	       of_sama5d2_clk_audio_pll_pad_setup);
-CLK_OF_DECLARE(of_sama5d2_clk_audio_pll_pmc_setup,
-	       "atmel,sama5d2-clk-audio-pll-pmc",
-	       of_sama5d2_clk_audio_pll_pmc_setup);

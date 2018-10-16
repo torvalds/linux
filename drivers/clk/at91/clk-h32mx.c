@@ -115,25 +115,3 @@ at91_clk_register_h32mx(struct regmap *regmap, const char *name,
 
 	return &h32mxclk->hw;
 }
-
-static void __init of_sama5d4_clk_h32mx_setup(struct device_node *np)
-{
-	struct clk_hw *hw;
-	const char *name = np->name;
-	const char *parent_name;
-	struct regmap *regmap;
-
-	regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(regmap))
-		return;
-
-	parent_name = of_clk_get_parent_name(np, 0);
-
-	hw = at91_clk_register_h32mx(regmap, name, parent_name);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
-}
-CLK_OF_DECLARE(of_sama5d4_clk_h32mx_setup, "atmel,sama5d4-clk-h32mx",
-	       of_sama5d4_clk_h32mx_setup);

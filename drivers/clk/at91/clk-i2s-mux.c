@@ -16,8 +16,6 @@
 
 #include "pmc.h"
 
-#define	I2S_BUS_NR	2
-
 struct clk_i2s_mux {
 	struct clk_hw hw;
 	struct regmap *regmap;
@@ -80,39 +78,3 @@ at91_clk_i2s_mux_register(struct regmap *regmap, const char *name,
 
 	return &i2s_ck->hw;
 }
-
-static void __init of_sama5d2_clk_i2s_mux_setup(struct device_node *np)
-{
-	struct regmap *regmap_sfr;
-	u8 bus_id;
-	const char *parent_names[2];
-	struct device_node *i2s_mux_np;
-	struct clk_hw *hw;
-	int ret;
-
-	regmap_sfr = syscon_regmap_lookup_by_compatible("atmel,sama5d2-sfr");
-	if (IS_ERR(regmap_sfr))
-		return;
-
-	for_each_child_of_node(np, i2s_mux_np) {
-		if (of_property_read_u8(i2s_mux_np, "reg", &bus_id))
-			continue;
-
-		if (bus_id > I2S_BUS_NR)
-			continue;
-
-		ret = of_clk_parent_fill(i2s_mux_np, parent_names, 2);
-		if (ret != 2)
-			continue;
-
-		hw = at91_clk_i2s_mux_register(regmap_sfr, i2s_mux_np->name,
-					       parent_names, 2, bus_id);
-		if (IS_ERR(hw))
-			continue;
-
-		of_clk_add_hw_provider(i2s_mux_np, of_clk_hw_simple_get, hw);
-	}
-}
-
-CLK_OF_DECLARE(sama5d2_clk_i2s_mux, "atmel,sama5d2-clk-i2s-mux",
-	       of_sama5d2_clk_i2s_mux_setup);

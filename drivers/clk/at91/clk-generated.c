@@ -20,15 +20,8 @@
 
 #include "pmc.h"
 
-#define PERIPHERAL_MAX		64
-#define PERIPHERAL_ID_MIN	2
-
-#define GENERATED_SOURCE_MAX	6
 #define GENERATED_MAX_DIV	255
 
-#define GCK_ID_I2S0		54
-#define GCK_ID_I2S1		55
-#define GCK_ID_CLASSD		59
 #define GCK_INDEX_DT_AUDIO_PLL	5
 
 struct clk_generated {
@@ -318,61 +311,3 @@ at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 
 	return hw;
 }
-
-static void __init of_sama5d2_clk_generated_setup(struct device_node *np)
-{
-	int num;
-	u32 id;
-	const char *name;
-	struct clk_hw *hw;
-	unsigned int num_parents;
-	const char *parent_names[GENERATED_SOURCE_MAX];
-	struct device_node *gcknp;
-	struct clk_range range = CLK_RANGE(0, 0);
-	struct regmap *regmap;
-
-	num_parents = of_clk_get_parent_count(np);
-	if (num_parents == 0 || num_parents > GENERATED_SOURCE_MAX)
-		return;
-
-	of_clk_parent_fill(np, parent_names, num_parents);
-
-	num = of_get_child_count(np);
-	if (!num || num > PERIPHERAL_MAX)
-		return;
-
-	regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(regmap))
-		return;
-
-	for_each_child_of_node(np, gcknp) {
-		bool pll_audio = false;
-
-		if (of_property_read_u32(gcknp, "reg", &id))
-			continue;
-
-		if (id < PERIPHERAL_ID_MIN || id >= PERIPHERAL_MAX)
-			continue;
-
-		if (of_property_read_string(np, "clock-output-names", &name))
-			name = gcknp->name;
-
-		of_at91_get_clk_range(gcknp, "atmel,clk-output-range",
-				      &range);
-
-		if (of_device_is_compatible(np, "atmel,sama5d2-clk-generated") &&
-		    (id == GCK_ID_I2S0 || id == GCK_ID_I2S1 ||
-		     id == GCK_ID_CLASSD))
-			pll_audio = true;
-
-		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock, name,
-						  parent_names, num_parents,
-						  id, pll_audio, &range);
-		if (IS_ERR(hw))
-			continue;
-
-		of_clk_add_hw_provider(gcknp, of_clk_hw_simple_get, hw);
-	}
-}
-CLK_OF_DECLARE(of_sama5d2_clk_generated_setup, "atmel,sama5d2-clk-generated",
-	       of_sama5d2_clk_generated_setup);
