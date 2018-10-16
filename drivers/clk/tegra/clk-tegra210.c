@@ -27,6 +27,7 @@
 #include <dt-bindings/clock/tegra210-car.h>
 #include <dt-bindings/reset/tegra210-car.h>
 #include <linux/iopoll.h>
+#include <linux/sizes.h>
 #include <soc/tegra/pmc.h>
 
 #include "clk.h"
