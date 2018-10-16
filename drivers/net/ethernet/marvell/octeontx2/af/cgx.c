@@ -119,6 +119,81 @@ void *cgx_get_pdata(int cgx_id)
 }
 EXPORT_SYMBOL(cgx_get_pdata);
 
+static u64 mac2u64 (u8 *mac_addr)
+{
+	u64 mac = 0;
+	int index;
+
+	for (index = ETH_ALEN - 1; index >= 0; index--)
+		mac |= ((u64)*mac_addr++) << (8 * index);
+	return mac;
+}
+
+int cgx_lmac_addr_set(u8 cgx_id, u8 lmac_id, u8 *mac_addr)
+{
+	struct cgx *cgx_dev = cgx_get_pdata(cgx_id);
+	u64 cfg;
+
+	/* copy 6bytes from macaddr */
+	/* memcpy(&cfg, mac_addr, 6); */
+
+	cfg = mac2u64 (mac_addr);
+
+	cgx_write(cgx_dev, 0, (CGXX_CMRX_RX_DMAC_CAM0 + (lmac_id * 0x8)),
+		  cfg | CGX_DMAC_CAM_ADDR_ENABLE | ((u64)lmac_id << 49));
+
+	cfg = cgx_read(cgx_dev, lmac_id, CGXX_CMRX_RX_DMAC_CTL0);
+	cfg |= CGX_DMAC_CTL0_CAM_ENABLE;
+	cgx_write(cgx_dev, lmac_id, CGXX_CMRX_RX_DMAC_CTL0, cfg);
+
+	return 0;
+}
+EXPORT_SYMBOL(cgx_lmac_addr_set);
+
+u64 cgx_lmac_addr_get(u8 cgx_id, u8 lmac_id)
+{
+	struct cgx *cgx_dev = cgx_get_pdata(cgx_id);
+	u64 cfg;
+
+	cfg = cgx_read(cgx_dev, 0, CGXX_CMRX_RX_DMAC_CAM0 + lmac_id * 0x8);
+	return cfg & CGX_RX_DMAC_ADR_MASK;
+}
+EXPORT_SYMBOL(cgx_lmac_addr_get);
+
+void cgx_lmac_promisc_config(int cgx_id, int lmac_id, bool enable)
+{
+	struct cgx *cgx = cgx_get_pdata(cgx_id);
+	u64 cfg = 0;
+
+	if (!cgx)
+		return;
+
+	if (enable) {
+		/* Enable promiscuous mode on LMAC */
+		cfg = cgx_read(cgx, lmac_id, CGXX_CMRX_RX_DMAC_CTL0);
+		cfg &= ~(CGX_DMAC_CAM_ACCEPT | CGX_DMAC_MCAST_MODE);
+		cfg |= CGX_DMAC_BCAST_MODE;
+		cgx_write(cgx, lmac_id, CGXX_CMRX_RX_DMAC_CTL0, cfg);
+
+		cfg = cgx_read(cgx, 0,
+			       (CGXX_CMRX_RX_DMAC_CAM0 + lmac_id * 0x8));
+		cfg &= ~CGX_DMAC_CAM_ADDR_ENABLE;
+		cgx_write(cgx, 0,
+			  (CGXX_CMRX_RX_DMAC_CAM0 + lmac_id * 0x8), cfg);
+	} else {
+		/* Disable promiscuous mode */
+		cfg = cgx_read(cgx, lmac_id, CGXX_CMRX_RX_DMAC_CTL0);
+		cfg |= CGX_DMAC_CAM_ACCEPT | CGX_DMAC_MCAST_MODE;
+		cgx_write(cgx, lmac_id, CGXX_CMRX_RX_DMAC_CTL0, cfg);
+		cfg = cgx_read(cgx, 0,
+			       (CGXX_CMRX_RX_DMAC_CAM0 + lmac_id * 0x8));
+		cfg |= CGX_DMAC_CAM_ADDR_ENABLE;
+		cgx_write(cgx, 0,
+			  (CGXX_CMRX_RX_DMAC_CAM0 + lmac_id * 0x8), cfg);
+	}
+}
+EXPORT_SYMBOL(cgx_lmac_promisc_config);
+
 int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat)
 {
 	struct cgx *cgx = cgxd;

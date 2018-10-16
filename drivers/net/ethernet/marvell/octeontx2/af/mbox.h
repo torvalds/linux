@@ -127,6 +127,12 @@ M(MSIX_OFFSET,		0x004, msg_req, msix_offset_rsp)		\
 M(CGX_START_RXTX,	0x200, msg_req, msg_rsp)			\
 M(CGX_STOP_RXTX,	0x201, msg_req, msg_rsp)			\
 M(CGX_STATS,		0x202, msg_req, cgx_stats_rsp)			\
+M(CGX_MAC_ADDR_SET,	0x203, cgx_mac_addr_set_or_get,			\
+				cgx_mac_addr_set_or_get)		\
+M(CGX_MAC_ADDR_GET,	0x204, cgx_mac_addr_set_or_get,			\
+				cgx_mac_addr_set_or_get)		\
+M(CGX_PROMISC_ENABLE,	0x205, msg_req, msg_rsp)			\
+M(CGX_PROMISC_DISABLE,	0x206, msg_req, msg_rsp)			\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
@@ -221,4 +227,11 @@ struct cgx_stats_rsp {
 	u64 tx_stats[CGX_TX_STATS_COUNT];
 };
 
+/* Structure for requesting the operation for
+ * setting/getting mac address in the CGX interface
+ */
+struct cgx_mac_addr_set_or_get {
+	struct mbox_msghdr hdr;
+	u8 mac_addr[ETH_ALEN];
+};
 #endif /* MBOX_H */

@@ -173,4 +173,14 @@ int rvu_mbox_handler_CGX_STOP_RXTX(struct rvu *rvu, struct msg_req *req,
 				   struct msg_rsp *rsp);
 int rvu_mbox_handler_CGX_STATS(struct rvu *rvu, struct msg_req *req,
 			       struct cgx_stats_rsp *rsp);
+int rvu_mbox_handler_CGX_MAC_ADDR_SET(struct rvu *rvu,
+				      struct cgx_mac_addr_set_or_get *req,
+				      struct cgx_mac_addr_set_or_get *rsp);
+int rvu_mbox_handler_CGX_MAC_ADDR_GET(struct rvu *rvu,
+				      struct cgx_mac_addr_set_or_get *req,
+				      struct cgx_mac_addr_set_or_get *rsp);
+int rvu_mbox_handler_CGX_PROMISC_ENABLE(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_PROMISC_DISABLE(struct rvu *rvu, struct msg_req *req,
+					 struct msg_rsp *rsp);
 #endif /* RVU_H */
