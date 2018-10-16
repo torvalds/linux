@@ -9956,11 +9956,6 @@ NATSEMI ETHERNET DRIVER (DP8381x)
 S:	Orphan
 F:	drivers/net/ethernet/natsemi/natsemi.c
 
-NCP FILESYSTEM
-M:	Petr Vandrovec <petr@vandrovec.name>
-S:	Obsolete
-F:	drivers/staging/ncpfs/
-
 NCR 5380 SCSI DRIVERS
 M:	Finn Thain <fthain@telegraphics.com.au>
 M:	Michael Schmitz <schmitzmic@gmail.com>
