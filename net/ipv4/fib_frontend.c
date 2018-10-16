@@ -855,6 +855,17 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	    ((struct rtmsg *)nlmsg_data(nlh))->rtm_flags & RTM_F_CLONED)
 		return skb->len;
 
+	if (filter.table_id) {
+		tb = fib_get_table(net, filter.table_id);
+		if (!tb) {
+			NL_SET_ERR_MSG(cb->extack, "ipv4: FIB table does not exist");
+			return -ENOENT;
+		}
+
+		err = fib_table_dump(tb, skb, cb, &filter);
+		return skb->len ? : err;
+	}
+
 	s_h = cb->args[0];
 	s_e = cb->args[1];
 
@@ -869,7 +880,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			if (dumped)
 				memset(&cb->args[2], 0, sizeof(cb->args) -
 						 2 * sizeof(cb->args[0]));
-			err = fib_table_dump(tb, skb, cb);
+			err = fib_table_dump(tb, skb, cb, &filter);
 			if (err < 0) {
 				if (likely(skb->len))
 					goto out;
