@@ -147,6 +147,18 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
+enum pipe intel_connector_get_pipe(struct intel_connector *connector)
+{
+	struct drm_device *dev = connector->base.dev;
+
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+
+	if (!connector->base.state->crtc)
+		return INVALID_PIPE;
+
+	return to_intel_crtc(connector->base.state->crtc)->pipe;
+}
+
 /**
  * intel_connector_update_modes - update connector from edid
  * @connector: DRM connector device to use

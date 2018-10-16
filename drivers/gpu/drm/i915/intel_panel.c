@@ -505,7 +505,7 @@ static u32 _vlv_get_backlight(struct drm_i915_private *dev_priv, enum pipe pipe)
 static u32 vlv_get_backlight(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	enum pipe pipe = intel_get_pipe_from_connector(connector);
+	enum pipe pipe = intel_connector_get_pipe(connector);
 
 	return _vlv_get_backlight(dev_priv, pipe);
 }
