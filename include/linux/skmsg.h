@@ -187,16 +187,19 @@ static inline void sk_msg_xfer_full(struct sk_msg *dst, struct sk_msg *src)
 	sk_msg_init(src);
 }
 
-static inline u32 sk_msg_elem_used(const struct sk_msg *msg)
-{
-	return msg->sg.end >= msg->sg.start ?
-		msg->sg.end - msg->sg.start :
-		msg->sg.end + (MAX_MSG_FRAGS - msg->sg.start);
-}
-
 static inline bool sk_msg_full(const struct sk_msg *msg)
 {
 	return (msg->sg.end == msg->sg.start) && msg->sg.size;
+}
+
+static inline u32 sk_msg_elem_used(const struct sk_msg *msg)
+{
+	if (sk_msg_full(msg))
+		return MAX_MSG_FRAGS;
+
+	return msg->sg.end >= msg->sg.start ?
+		msg->sg.end - msg->sg.start :
+		msg->sg.end + (MAX_MSG_FRAGS - msg->sg.start);
 }
 
 static inline struct scatterlist *sk_msg_elem(struct sk_msg *msg, int which)
