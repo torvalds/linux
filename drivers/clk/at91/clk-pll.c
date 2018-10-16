@@ -34,20 +34,6 @@
 #define PLL_OUT_SHIFT		14
 #define PLL_MAX_ID		1
 
-struct clk_pll_characteristics {
-	struct clk_range input;
-	int num_output;
-	struct clk_range *output;
-	u16 *icpll;
-	u8 *out;
-};
-
-struct clk_pll_layout {
-	u32 pllr_mask;
-	u16 mul_mask;
-	u8 mul_shift;
-};
-
 #define to_clk_pll(hw) container_of(hw, struct clk_pll, hw)
 
 struct clk_pll {
@@ -285,7 +271,7 @@ static const struct clk_ops pll_ops = {
 	.set_rate = clk_pll_set_rate,
 };
 
-static struct clk_hw * __init
+struct clk_hw * __init
 at91_clk_register_pll(struct regmap *regmap, const char *name,
 		      const char *parent_name, u8 id,
 		      const struct clk_pll_layout *layout,
@@ -331,25 +317,25 @@ at91_clk_register_pll(struct regmap *regmap, const char *name,
 }
 
 
-static const struct clk_pll_layout at91rm9200_pll_layout = {
+const struct clk_pll_layout at91rm9200_pll_layout = {
 	.pllr_mask = 0x7FFFFFF,
 	.mul_shift = 16,
 	.mul_mask = 0x7FF,
 };
 
-static const struct clk_pll_layout at91sam9g45_pll_layout = {
+const struct clk_pll_layout at91sam9g45_pll_layout = {
 	.pllr_mask = 0xFFFFFF,
 	.mul_shift = 16,
 	.mul_mask = 0xFF,
 };
 
-static const struct clk_pll_layout at91sam9g20_pllb_layout = {
+const struct clk_pll_layout at91sam9g20_pllb_layout = {
 	.pllr_mask = 0x3FFFFF,
 	.mul_shift = 16,
 	.mul_mask = 0x3F,
 };
 
-static const struct clk_pll_layout sama5d3_pll_layout = {
+const struct clk_pll_layout sama5d3_pll_layout = {
 	.pllr_mask = 0x1FFFFFF,
 	.mul_shift = 18,
 	.mul_mask = 0x7F,

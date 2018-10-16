@@ -25,12 +25,6 @@
 #define PROG_PRES(layout, pckr)	((pckr >> layout->pres_shift) & PROG_PRES_MASK)
 #define PROG_MAX_RM9200_CSS	3
 
-struct clk_programmable_layout {
-	u8 pres_shift;
-	u8 css_mask;
-	u8 have_slck_mck;
-};
-
 struct clk_programmable {
 	struct clk_hw hw;
 	struct regmap *regmap;
@@ -170,7 +164,7 @@ static const struct clk_ops programmable_ops = {
 	.set_rate = clk_programmable_set_rate,
 };
 
-static struct clk_hw * __init
+struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap,
 			       const char *name, const char **parent_names,
 			       u8 num_parents, u8 id,
@@ -211,19 +205,19 @@ at91_clk_register_programmable(struct regmap *regmap,
 	return hw;
 }
 
-static const struct clk_programmable_layout at91rm9200_programmable_layout = {
+const struct clk_programmable_layout at91rm9200_programmable_layout = {
 	.pres_shift = 2,
 	.css_mask = 0x3,
 	.have_slck_mck = 0,
 };
 
-static const struct clk_programmable_layout at91sam9g45_programmable_layout = {
+const struct clk_programmable_layout at91sam9g45_programmable_layout = {
 	.pres_shift = 2,
 	.css_mask = 0x3,
 	.have_slck_mck = 1,
 };
 
-static const struct clk_programmable_layout at91sam9x5_programmable_layout = {
+const struct clk_programmable_layout at91sam9x5_programmable_layout = {
 	.pres_shift = 4,
 	.css_mask = 0x7,
 	.have_slck_mck = 0,

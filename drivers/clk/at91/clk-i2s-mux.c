@@ -14,6 +14,8 @@
 
 #include <soc/at91/atmel-sfr.h>
 
+#include "pmc.h"
+
 #define	I2S_BUS_NR	2
 
 struct clk_i2s_mux {
@@ -48,7 +50,7 @@ static const struct clk_ops clk_i2s_mux_ops = {
 	.determine_rate = __clk_mux_determine_rate,
 };
 
-static struct clk_hw * __init
+struct clk_hw * __init
 at91_clk_i2s_mux_register(struct regmap *regmap, const char *name,
 			  const char * const *parent_names,
 			  unsigned int num_parents, u8 bus_id)

@@ -24,17 +24,6 @@
 #define MASTER_DIV_SHIFT	8
 #define MASTER_DIV_MASK		0x3
 
-struct clk_master_characteristics {
-	struct clk_range output;
-	u32 divisors[4];
-	u8 have_div3_pres;
-};
-
-struct clk_master_layout {
-	u32 mask;
-	u8 pres_shift;
-};
-
 #define to_clk_master(hw) container_of(hw, struct clk_master, hw)
 
 struct clk_master {
@@ -120,7 +109,7 @@ static const struct clk_ops master_ops = {
 	.get_parent = clk_master_get_parent,
 };
 
-static struct clk_hw * __init
+struct clk_hw * __init
 at91_clk_register_master(struct regmap *regmap,
 		const char *name, int num_parents,
 		const char **parent_names,
@@ -161,12 +150,12 @@ at91_clk_register_master(struct regmap *regmap,
 }
 
 
-static const struct clk_master_layout at91rm9200_master_layout = {
+const struct clk_master_layout at91rm9200_master_layout = {
 	.mask = 0x31F,
 	.pres_shift = 2,
 };
 
-static const struct clk_master_layout at91sam9x5_master_layout = {
+const struct clk_master_layout at91sam9x5_master_layout = {
 	.mask = 0x373,
 	.pres_shift = 4,
 };
