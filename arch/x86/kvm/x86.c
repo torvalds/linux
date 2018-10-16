@@ -4068,11 +4068,13 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			break;
 
 		if (kvm_state.flags &
-		    ~(KVM_STATE_NESTED_RUN_PENDING | KVM_STATE_NESTED_GUEST_MODE))
+		    ~(KVM_STATE_NESTED_RUN_PENDING | KVM_STATE_NESTED_GUEST_MODE
+		      | KVM_STATE_NESTED_EVMCS))
 			break;
 
 		/* nested_run_pending implies guest_mode.  */
-		if (kvm_state.flags == KVM_STATE_NESTED_RUN_PENDING)
+		if ((kvm_state.flags & KVM_STATE_NESTED_RUN_PENDING)
+		    && !(kvm_state.flags & KVM_STATE_NESTED_GUEST_MODE))
 			break;
 
 		r = kvm_x86_ops->set_nested_state(vcpu, user_kvm_nested_state, &kvm_state);

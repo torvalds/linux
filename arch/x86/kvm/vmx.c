@@ -1618,7 +1618,8 @@ static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 	 * maximum supported version. KVM supports versions from 1 to
 	 * KVM_EVMCS_VERSION.
 	 */
-	*vmcs_version = (KVM_EVMCS_VERSION << 8) | 1;
+	if (vmcs_version)
+		*vmcs_version = (KVM_EVMCS_VERSION << 8) | 1;
 
 	vmx->nested.msrs.pinbased_ctls_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
 	vmx->nested.msrs.entry_ctls_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
@@ -9338,7 +9339,8 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
  * This is an equivalent of the nested hypervisor executing the vmptrld
  * instruction.
  */
-static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu)
+static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
+						 bool from_launch)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct hv_vp_assist_page assist_page;
@@ -9389,8 +9391,9 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu)
 		 * present in struct hv_enlightened_vmcs, ...). Make sure there
 		 * are no leftovers.
 		 */
-		memset(vmx->nested.cached_vmcs12, 0,
-		       sizeof(*vmx->nested.cached_vmcs12));
+		if (from_launch)
+			memset(vmx->nested.cached_vmcs12, 0,
+			       sizeof(*vmx->nested.cached_vmcs12));
 
 	}
 	return 1;
@@ -11147,6 +11150,15 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	}
 
 	if (vmx->nested.need_vmcs12_sync) {
+		/*
+		 * hv_evmcs may end up being not mapped after migration (when
+		 * L2 was running), map it here to make sure vmcs12 changes are
+		 * properly reflected.
+		 */
+		if (vmx->nested.enlightened_vmcs_enabled &&
+		    !vmx->nested.hv_evmcs)
+			nested_vmx_handle_enlightened_vmptrld(vcpu, false);
+
 		if (vmx->nested.hv_evmcs) {
 			copy_vmcs12_to_enlightened(vmx);
 			/* All fields are clean */
@@ -13424,7 +13436,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
 
-	if (!nested_vmx_handle_enlightened_vmptrld(vcpu))
+	if (!nested_vmx_handle_enlightened_vmptrld(vcpu, true))
 		return 1;
 
 	if (!vmx->nested.hv_evmcs && vmx->nested.current_vmptr == -1ull)
@@ -14711,6 +14723,20 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	/*
+	 * In case we do two consecutive get/set_nested_state()s while L2 was
+	 * running hv_evmcs may end up not being mapped (we map it from
+	 * nested_vmx_run()/vmx_vcpu_run()). Check is_guest_mode() as we always
+	 * have vmcs12 if it is true.
+	 */
+	return is_guest_mode(vcpu) || vmx->nested.current_vmptr != -1ull ||
+		vmx->nested.hv_evmcs;
+}
+
 static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 				struct kvm_nested_state __user *user_kvm_nested_state,
 				u32 user_data_size)
@@ -14731,16 +14757,15 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 	vmx = to_vmx(vcpu);
 	vmcs12 = get_vmcs12(vcpu);
 
-	/* FIXME: Enlightened VMCS is currently unsupported */
-	if (vmx->nested.hv_evmcs)
-		return -ENOTSUPP;
+	if (nested_vmx_allowed(vcpu) && vmx->nested.enlightened_vmcs_enabled)
+		kvm_state.flags |= KVM_STATE_NESTED_EVMCS;
 
 	if (nested_vmx_allowed(vcpu) &&
 	    (vmx->nested.vmxon || vmx->nested.smm.vmxon)) {
 		kvm_state.vmx.vmxon_pa = vmx->nested.vmxon_ptr;
 		kvm_state.vmx.vmcs_pa = vmx->nested.current_vmptr;
 
-		if (vmx->nested.current_vmptr != -1ull) {
+		if (vmx_has_valid_vmcs12(vcpu)) {
 			kvm_state.size += VMCS12_SIZE;
 
 			if (is_guest_mode(vcpu) &&
@@ -14769,20 +14794,24 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 	if (copy_to_user(user_kvm_nested_state, &kvm_state, sizeof(kvm_state)))
 		return -EFAULT;
 
-	if (vmx->nested.current_vmptr == -1ull)
+	if (!vmx_has_valid_vmcs12(vcpu))
 		goto out;
 
 	/*
 	 * When running L2, the authoritative vmcs12 state is in the
 	 * vmcs02. When running L1, the authoritative vmcs12 state is
-	 * in the shadow vmcs linked to vmcs01, unless
+	 * in the shadow or enlightened vmcs linked to vmcs01, unless
 	 * need_vmcs12_sync is set, in which case, the authoritative
 	 * vmcs12 state is in the vmcs12 already.
 	 */
-	if (is_guest_mode(vcpu))
+	if (is_guest_mode(vcpu)) {
 		sync_vmcs12(vcpu, vmcs12);
-	else if (enable_shadow_vmcs && !vmx->nested.need_vmcs12_sync)
-		copy_shadow_to_vmcs12(vmx);
+	} else if (!vmx->nested.need_vmcs12_sync) {
+		if (vmx->nested.hv_evmcs)
+			copy_enlightened_to_vmcs12(vmx);
+		else if (enable_shadow_vmcs)
+			copy_shadow_to_vmcs12(vmx);
+	}
 
 	if (copy_to_user(user_kvm_nested_state->data, vmcs12, sizeof(*vmcs12)))
 		return -EFAULT;
@@ -14809,6 +14838,9 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 
 	if (kvm_state->format != 0)
 		return -EINVAL;
+
+	if (kvm_state->flags & KVM_STATE_NESTED_EVMCS)
+		nested_enable_evmcs(vcpu, NULL);
 
 	if (!nested_vmx_allowed(vcpu))
 		return kvm_state->vmx.vmxon_pa == -1ull ? 0 : -EINVAL;
@@ -14860,11 +14892,21 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (kvm_state->size < sizeof(kvm_state) + sizeof(*vmcs12))
 		return 0;
 
-	if (kvm_state->vmx.vmcs_pa == kvm_state->vmx.vmxon_pa ||
-	    !page_address_valid(vcpu, kvm_state->vmx.vmcs_pa))
-		return -EINVAL;
+	if (kvm_state->vmx.vmcs_pa != -1ull) {
+		if (kvm_state->vmx.vmcs_pa == kvm_state->vmx.vmxon_pa ||
+		    !page_address_valid(vcpu, kvm_state->vmx.vmcs_pa))
+			return -EINVAL;
 
-	set_current_vmptr(vmx, kvm_state->vmx.vmcs_pa);
+		set_current_vmptr(vmx, kvm_state->vmx.vmcs_pa);
+	} else if (kvm_state->flags & KVM_STATE_NESTED_EVMCS) {
+		/*
+		 * Sync eVMCS upon entry as we may not have
+		 * HV_X64_MSR_VP_ASSIST_PAGE set up yet.
+		 */
+		vmx->nested.need_vmcs12_sync = true;
+	} else {
+		return -EINVAL;
+	}
 
 	if (kvm_state->vmx.smm.flags & KVM_STATE_NESTED_SMM_VMXON) {
 		vmx->nested.smm.vmxon = true;
