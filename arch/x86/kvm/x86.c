@@ -400,6 +400,26 @@ static int exception_type(int vector)
 	return EXCPT_FAULT;
 }
 
+void kvm_deliver_exception_payload(struct kvm_vcpu *vcpu)
+{
+	unsigned nr = vcpu->arch.exception.nr;
+	bool has_payload = vcpu->arch.exception.has_payload;
+	unsigned long payload = vcpu->arch.exception.payload;
+
+	if (!has_payload)
+		return;
+
+	switch (nr) {
+	case PF_VECTOR:
+		vcpu->arch.cr2 = payload;
+		break;
+	}
+
+	vcpu->arch.exception.has_payload = false;
+	vcpu->arch.exception.payload = 0;
+}
+EXPORT_SYMBOL_GPL(kvm_deliver_exception_payload);
+
 static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		unsigned nr, bool has_error, u32 error_code,
 	        bool has_payload, unsigned long payload, bool reinject)
@@ -441,6 +461,18 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		vcpu->arch.exception.error_code = error_code;
 		vcpu->arch.exception.has_payload = has_payload;
 		vcpu->arch.exception.payload = payload;
+		/*
+		 * In guest mode, payload delivery should be deferred,
+		 * so that the L1 hypervisor can intercept #PF before
+		 * CR2 is modified.  However, for ABI compatibility
+		 * with KVM_GET_VCPU_EVENTS and KVM_SET_VCPU_EVENTS,
+		 * we can't delay payload delivery unless userspace
+		 * has enabled this functionality via the per-VM
+		 * capability, KVM_CAP_EXCEPTION_PAYLOAD.
+		 */
+		if (!vcpu->kvm->arch.exception_payload_enabled ||
+		    !is_guest_mode(vcpu))
+			kvm_deliver_exception_payload(vcpu);
 		return;
 	}
 
@@ -486,6 +518,13 @@ void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
+static void kvm_queue_exception_e_p(struct kvm_vcpu *vcpu, unsigned nr,
+				    u32 error_code, unsigned long payload)
+{
+	kvm_multiple_exception(vcpu, nr, true, error_code,
+			       true, payload, false);
+}
+
 int kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err)
 {
 	if (err)
@@ -502,11 +541,13 @@ void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 	++vcpu->stat.pf_guest;
 	vcpu->arch.exception.nested_apf =
 		is_guest_mode(vcpu) && fault->async_page_fault;
-	if (vcpu->arch.exception.nested_apf)
+	if (vcpu->arch.exception.nested_apf) {
 		vcpu->arch.apf.nested_apf_token = fault->address;
-	else
-		vcpu->arch.cr2 = fault->address;
-	kvm_queue_exception_e(vcpu, PF_VECTOR, fault->error_code);
+		kvm_queue_exception_e(vcpu, PF_VECTOR, fault->error_code);
+	} else {
+		kvm_queue_exception_e_p(vcpu, PF_VECTOR, fault->error_code,
+					fault->address);
+	}
 }
 EXPORT_SYMBOL_GPL(kvm_inject_page_fault);
 

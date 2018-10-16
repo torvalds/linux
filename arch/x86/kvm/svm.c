@@ -805,6 +805,8 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu)
 	    nested_svm_check_exception(svm, nr, has_error_code, error_code))
 		return;
 
+	kvm_deliver_exception_payload(&svm->vcpu);
+
 	if (nr == BP_VECTOR && !static_cpu_has(X86_FEATURE_NRIPS)) {
 		unsigned long rip, old_rip = kvm_rip_read(&svm->vcpu);
 
@@ -2965,16 +2967,13 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 	svm->vmcb->control.exit_info_1 = error_code;
 
 	/*
-	 * FIXME: we should not write CR2 when L1 intercepts an L2 #PF exception.
-	 * The fix is to add the ancillary datum (CR2 or DR6) to structs
-	 * kvm_queued_exception and kvm_vcpu_events, so that CR2 and DR6 can be
-	 * written only when inject_pending_event runs (DR6 would written here
-	 * too).  This should be conditional on a new capability---if the
-	 * capability is disabled, kvm_multiple_exception would write the
-	 * ancillary information to CR2 or DR6, for backwards ABI-compatibility.
+	 * EXITINFO2 is undefined for all exception intercepts other
+	 * than #PF.
 	 */
 	if (svm->vcpu.arch.exception.nested_apf)
 		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.apf.nested_apf_token;
+	else if (svm->vcpu.arch.exception.has_payload)
+		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.exception.payload;
 	else
 		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
 
