@@ -104,8 +104,6 @@ struct dc_stream_state {
 	bool dpms_off;
 	bool apply_edp_fast_boot_optimization;
 
-	struct dc_stream_status status;
-
 	struct dc_cursor_attributes cursor_attributes;
 	struct dc_cursor_position cursor_position;
 	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode

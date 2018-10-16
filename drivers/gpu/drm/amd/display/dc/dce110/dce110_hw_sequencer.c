@@ -2282,7 +2282,7 @@ static void dce110_enable_per_frame_crtc_position_reset(
 	int i;
 
 	gsl_params.gsl_group = 0;
-	gsl_params.gsl_master = grouped_pipes[0]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst;
+	gsl_params.gsl_master = 0;
 
 	for (i = 0; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->setup_global_swap_lock(

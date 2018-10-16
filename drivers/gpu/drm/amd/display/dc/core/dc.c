@@ -328,7 +328,7 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
 	struct bit_depth_reduction_params params;
-	struct dc_link *link = stream->status.link;
+	struct dc_link *link = stream->sink->link;
 	struct pipe_ctx *pipes = NULL;
 	int i;
 

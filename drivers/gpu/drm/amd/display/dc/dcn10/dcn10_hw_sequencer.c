@@ -1400,7 +1400,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 		if (grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset)
 			grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
 					grouped_pipes[i]->stream_res.tg,
-					grouped_pipes[i]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst,
+					0,
 					&grouped_pipes[i]->stream->triggered_crtc_reset);
 
 	DC_SYNC_INFO("Waiting for trigger\n");
