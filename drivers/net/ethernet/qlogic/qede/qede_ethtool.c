@@ -518,6 +518,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
 	struct qed_link_params params;
+	u32 sup_caps;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev, "Link settings are not allowed to be changed\n");
@@ -544,60 +545,85 @@ static int qede_set_link_ksettings(struct net_device *dev,
 		params.forced_speed = base->speed;
 		switch (base->speed) {
 		case SPEED_1000:
-			if (!(current_link.supported_caps &
-			      QED_LM_1000baseT_Full_BIT)) {
+			sup_caps = QED_LM_1000baseT_Full_BIT |
+					QED_LM_1000baseKX_Full_BIT |
+					QED_LM_1000baseX_Full_BIT;
+			if (!(current_link.supported_caps & sup_caps)) {
 				DP_INFO(edev, "1G speed not supported\n");
 				return -EINVAL;
 			}
-			params.adv_speeds = QED_LM_1000baseT_Full_BIT;
+			params.adv_speeds = current_link.supported_caps &
+						sup_caps;
 			break;
 		case SPEED_10000:
-			if (!(current_link.supported_caps &
-			      QED_LM_10000baseKR_Full_BIT)) {
+			sup_caps = QED_LM_10000baseT_Full_BIT |
+					QED_LM_10000baseKR_Full_BIT |
+					QED_LM_10000baseKX4_Full_BIT |
+					QED_LM_10000baseR_FEC_BIT |
+					QED_LM_10000baseCR_Full_BIT |
+					QED_LM_10000baseSR_Full_BIT |
+					QED_LM_10000baseLR_Full_BIT |
+					QED_LM_10000baseLRM_Full_BIT;
+			if (!(current_link.supported_caps & sup_caps)) {
 				DP_INFO(edev, "10G speed not supported\n");
 				return -EINVAL;
 			}
-			params.adv_speeds = QED_LM_10000baseKR_Full_BIT;
+			params.adv_speeds = current_link.supported_caps &
+						sup_caps;
 			break;
 		case SPEED_20000:
 			if (!(current_link.supported_caps &
-			      QED_LM_20000baseKR2_Full_BIT)) {
+			    QED_LM_20000baseKR2_Full_BIT)) {
 				DP_INFO(edev, "20G speed not supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = QED_LM_20000baseKR2_Full_BIT;
 			break;
 		case SPEED_25000:
-			if (!(current_link.supported_caps &
-			      QED_LM_25000baseKR_Full_BIT)) {
+			sup_caps = QED_LM_25000baseKR_Full_BIT |
+					QED_LM_25000baseCR_Full_BIT |
+					QED_LM_25000baseSR_Full_BIT;
+			if (!(current_link.supported_caps & sup_caps)) {
 				DP_INFO(edev, "25G speed not supported\n");
 				return -EINVAL;
 			}
-			params.adv_speeds = QED_LM_25000baseKR_Full_BIT;
+			params.adv_speeds = current_link.supported_caps &
+						sup_caps;
 			break;
 		case SPEED_40000:
-			if (!(current_link.supported_caps &
-			      QED_LM_40000baseLR4_Full_BIT)) {
+			sup_caps = QED_LM_40000baseLR4_Full_BIT |
+					QED_LM_40000baseKR4_Full_BIT |
+					QED_LM_40000baseCR4_Full_BIT |
+					QED_LM_40000baseSR4_Full_BIT;
+			if (!(current_link.supported_caps & sup_caps)) {
 				DP_INFO(edev, "40G speed not supported\n");
 				return -EINVAL;
 			}
-			params.adv_speeds = QED_LM_40000baseLR4_Full_BIT;
+			params.adv_speeds = current_link.supported_caps &
+						sup_caps;
 			break;
 		case SPEED_50000:
-			if (!(current_link.supported_caps &
-			      QED_LM_50000baseKR2_Full_BIT)) {
+			sup_caps = QED_LM_50000baseKR2_Full_BIT |
+					QED_LM_50000baseCR2_Full_BIT |
+					QED_LM_50000baseSR2_Full_BIT;
+			if (!(current_link.supported_caps & sup_caps)) {
 				DP_INFO(edev, "50G speed not supported\n");
 				return -EINVAL;
 			}
-			params.adv_speeds = QED_LM_50000baseKR2_Full_BIT;
+			params.adv_speeds = current_link.supported_caps &
+						sup_caps;
 			break;
 		case SPEED_100000:
-			if (!(current_link.supported_caps &
-			      QED_LM_100000baseKR4_Full_BIT)) {
+			sup_caps = QED_LM_100000baseKR4_Full_BIT |
+					QED_LM_100000baseSR4_Full_BIT |
+					QED_LM_100000baseCR4_Full_BIT |
+					QED_LM_100000baseLR4_ER4_Full_BIT;
+			if (!(current_link.supported_caps & sup_caps)) {
 				DP_INFO(edev, "100G speed not supported\n");
 				return -EINVAL;
 			}
-			params.adv_speeds = QED_LM_100000baseKR4_Full_BIT;
+			params.adv_speeds = current_link.supported_caps &
+						sup_caps;
 			break;
 		default:
 			DP_INFO(edev, "Unsupported speed %u\n", base->speed);
