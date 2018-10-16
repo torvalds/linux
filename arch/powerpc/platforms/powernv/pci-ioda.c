@@ -517,8 +517,6 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 		phb->init_m64 = pnv_ioda1_init_m64;
 	else
 		phb->init_m64 = pnv_ioda2_init_m64;
-	phb->reserve_m64_pe = pnv_ioda_reserve_m64_pe;
-	phb->pick_m64_pe = pnv_ioda_pick_m64_pe;
 }
 
 static void pnv_ioda_freeze_pe(struct pnv_phb *phb, int pe_no)
@@ -1160,8 +1158,8 @@ static struct pnv_ioda_pe *pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 		pe = &phb->ioda.pe_array[phb->ioda.root_pe_idx];
 
 	/* Check if PE is determined by M64 */
-	if (!pe && phb->pick_m64_pe)
-		pe = phb->pick_m64_pe(bus, all);
+	if (!pe)
+		pe = pnv_ioda_pick_m64_pe(bus, all);
 
 	/* The PE number isn't pinned by M64 */
 	if (!pe)
@@ -3394,8 +3392,7 @@ static void pnv_pci_setup_bridge(struct pci_bus *bus, unsigned long type)
 		return;
 
 	/* Reserve PEs according to used M64 resources */
-	if (phb->reserve_m64_pe)
-		phb->reserve_m64_pe(bus, NULL, all);
+	pnv_ioda_reserve_m64_pe(bus, NULL, all);
 
 	/*
 	 * Assign PE. We might run here because of partial hotplug.
