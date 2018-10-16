@@ -119,6 +119,24 @@ void *cgx_get_pdata(int cgx_id)
 }
 EXPORT_SYMBOL(cgx_get_pdata);
 
+int cgx_lmac_rx_tx_enable(void *cgxd, int lmac_id, bool enable)
+{
+	struct cgx *cgx = cgxd;
+	u64 cfg;
+
+	if (!cgx || lmac_id >= cgx->lmac_count)
+		return -ENODEV;
+
+	cfg = cgx_read(cgx, lmac_id, CGXX_CMRX_CFG);
+	if (enable)
+		cfg |= CMR_EN | DATA_PKT_RX_EN | DATA_PKT_TX_EN;
+	else
+		cfg &= ~(CMR_EN | DATA_PKT_RX_EN | DATA_PKT_TX_EN);
+	cgx_write(cgx, lmac_id, CGXX_CMRX_CFG, cfg);
+	return 0;
+}
+EXPORT_SYMBOL(cgx_lmac_rx_tx_enable);
+
 /* CGX Firmware interface low level support */
 static int cgx_fwi_cmd_send(u64 req, u64 *resp, struct lmac *lmac)
 {

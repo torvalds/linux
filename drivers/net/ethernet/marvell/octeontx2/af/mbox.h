@@ -124,6 +124,8 @@ M(ATTACH_RESOURCES,	0x002, rsrc_attach, msg_rsp)			\
 M(DETACH_RESOURCES,	0x003, rsrc_detach, msg_rsp)			\
 M(MSIX_OFFSET,		0x004, msg_req, msix_offset_rsp)		\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
+M(CGX_START_RXTX,	0x200, msg_req, msg_rsp)			\
+M(CGX_STOP_RXTX,	0x201, msg_req, msg_rsp)			\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\

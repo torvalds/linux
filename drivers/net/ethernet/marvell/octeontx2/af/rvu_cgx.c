@@ -192,3 +192,35 @@ int rvu_cgx_probe(struct rvu *rvu)
 	cgx_lmac_event_handler_init(rvu);
 	return 0;
 }
+
+int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start)
+{
+	int pf = rvu_get_pf(pcifunc);
+	u8 cgx_id, lmac_id;
+
+	/* This msg is expected only from PFs that are mapped to CGX LMACs,
+	 * if received from other PF/VF simply ACK, nothing to do.
+	 */
+	if ((pcifunc & RVU_PFVF_FUNC_MASK) || !is_pf_cgxmapped(rvu, pf))
+		return -ENODEV;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+
+	cgx_lmac_rx_tx_enable(rvu_cgx_pdata(cgx_id, rvu), lmac_id, start);
+
+	return 0;
+}
+
+int rvu_mbox_handler_CGX_START_RXTX(struct rvu *rvu, struct msg_req *req,
+				    struct msg_rsp *rsp)
+{
+	rvu_cgx_config_rxtx(rvu, req->hdr.pcifunc, true);
+	return 0;
+}
+
+int rvu_mbox_handler_CGX_STOP_RXTX(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp)
+{
+	rvu_cgx_config_rxtx(rvu, req->hdr.pcifunc, false);
+	return 0;
+}

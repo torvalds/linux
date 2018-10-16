@@ -153,6 +153,22 @@ int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
 /* CGX APIs */
+static inline bool is_pf_cgxmapped(struct rvu *rvu, u8 pf)
+{
+	return (pf >= PF_CGXMAP_BASE && pf <= rvu->cgx_mapped_pfs);
+}
+
+static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
+{
+	*cgx_id = (map >> 4) & 0xF;
+	*lmac_id = (map & 0xF);
+}
+
 int rvu_cgx_probe(struct rvu *rvu);
 void rvu_cgx_wq_destroy(struct rvu *rvu);
+int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start);
+int rvu_mbox_handler_CGX_START_RXTX(struct rvu *rvu, struct msg_req *req,
+				    struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_STOP_RXTX(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp);
 #endif /* RVU_H */
