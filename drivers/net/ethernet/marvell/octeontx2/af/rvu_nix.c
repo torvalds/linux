@@ -16,6 +16,38 @@
 #include "rvu.h"
 #include "cgx.h"
 
+static inline struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
+{
+	if (blkaddr == BLKADDR_NIX0 && hw->nix0)
+		return hw->nix0;
+
+	return NULL;
+}
+
+static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
+			    int lvl, u16 pcifunc, u16 schq)
+{
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return false;
+
+	txsch = &nix_hw->txsch[lvl];
+	/* Check out of bounds */
+	if (schq >= txsch->schq.max)
+		return false;
+
+	spin_lock(&rvu->rsrc_lock);
+	if (txsch->pfvf_map[schq] != pcifunc) {
+		spin_unlock(&rvu->rsrc_lock);
+		return false;
+	}
+	spin_unlock(&rvu->rsrc_lock);
+	return true;
+}
+
 static void nix_setup_lso_tso_l3(struct rvu *rvu, int blkaddr,
 				 u64 format, bool v4, u64 *fidx)
 {
@@ -157,6 +189,198 @@ static int nixlf_rss_ctx_init(struct rvu *rvu, int blkaddr,
 		rvu_write64(rvu, blkaddr, NIX_AF_LFX_RSS_GRPX(nixlf, grp),
 			    ((ilog2(rss_sz) - 1) << 16) | (rss_sz * grp));
 	return 0;
+}
+
+static int nix_aq_enqueue_wait(struct rvu *rvu, struct rvu_block *block,
+			       struct nix_aq_inst_s *inst)
+{
+	struct admin_queue *aq = block->aq;
+	struct nix_aq_res_s *result;
+	int timeout = 1000;
+	u64 reg, head;
+
+	result = (struct nix_aq_res_s *)aq->res->base;
+
+	/* Get current head pointer where to append this instruction */
+	reg = rvu_read64(rvu, block->addr, NIX_AF_AQ_STATUS);
+	head = (reg >> 4) & AQ_PTR_MASK;
+
+	memcpy((void *)(aq->inst->base + (head * aq->inst->entry_sz)),
+	       (void *)inst, aq->inst->entry_sz);
+	memset(result, 0, sizeof(*result));
+	/* sync into memory */
+	wmb();
+
+	/* Ring the doorbell and wait for result */
+	rvu_write64(rvu, block->addr, NIX_AF_AQ_DOOR, 1);
+	while (result->compcode == NIX_AQ_COMP_NOTDONE) {
+		cpu_relax();
+		udelay(1);
+		timeout--;
+		if (!timeout)
+			return -EBUSY;
+	}
+
+	if (result->compcode != NIX_AQ_COMP_GOOD)
+		/* TODO: Replace this with some error code */
+		return -EBUSY;
+
+	return 0;
+}
+
+static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
+			       struct nix_aq_enq_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	int nixlf, blkaddr, rc = 0;
+	struct nix_aq_inst_s inst;
+	struct rvu_block *block;
+	struct admin_queue *aq;
+	struct rvu_pfvf *pfvf;
+	void *ctx, *mask;
+	u64 cfg;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	block = &hw->block[blkaddr];
+	aq = block->aq;
+	if (!aq) {
+		dev_warn(rvu->dev, "%s: NIX AQ not initialized\n", __func__);
+		return NIX_AF_ERR_AQ_ENQUEUE;
+	}
+
+	nixlf = rvu_get_lf(rvu, block, pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	switch (req->ctype) {
+	case NIX_AQ_CTYPE_RQ:
+		/* Check if index exceeds max no of queues */
+		if (!pfvf->rq_ctx || req->qidx >= pfvf->rq_ctx->qsize)
+			rc = NIX_AF_ERR_AQ_ENQUEUE;
+		break;
+	case NIX_AQ_CTYPE_SQ:
+		if (!pfvf->sq_ctx || req->qidx >= pfvf->sq_ctx->qsize)
+			rc = NIX_AF_ERR_AQ_ENQUEUE;
+		break;
+	case NIX_AQ_CTYPE_CQ:
+		if (!pfvf->cq_ctx || req->qidx >= pfvf->cq_ctx->qsize)
+			rc = NIX_AF_ERR_AQ_ENQUEUE;
+		break;
+	case NIX_AQ_CTYPE_RSS:
+		/* Check if RSS is enabled and qidx is within range */
+		cfg = rvu_read64(rvu, blkaddr, NIX_AF_LFX_RSS_CFG(nixlf));
+		if (!(cfg & BIT_ULL(4)) || !pfvf->rss_ctx ||
+		    (req->qidx >= (256UL << (cfg & 0xF))))
+			rc = NIX_AF_ERR_AQ_ENQUEUE;
+		break;
+	default:
+		rc = NIX_AF_ERR_AQ_ENQUEUE;
+	}
+
+	if (rc)
+		return rc;
+
+	/* Check if SQ pointed SMQ belongs to this PF/VF or not */
+	if (req->ctype == NIX_AQ_CTYPE_SQ &&
+	    req->op != NIX_AQ_INSTOP_WRITE) {
+		if (!is_valid_txschq(rvu, blkaddr, NIX_TXSCH_LVL_SMQ,
+				     pcifunc, req->sq.smq))
+			return NIX_AF_ERR_AQ_ENQUEUE;
+	}
+
+	memset(&inst, 0, sizeof(struct nix_aq_inst_s));
+	inst.lf = nixlf;
+	inst.cindex = req->qidx;
+	inst.ctype = req->ctype;
+	inst.op = req->op;
+	/* Currently we are not supporting enqueuing multiple instructions,
+	 * so always choose first entry in result memory.
+	 */
+	inst.res_addr = (u64)aq->res->iova;
+
+	/* Clean result + context memory */
+	memset(aq->res->base, 0, aq->res->entry_sz);
+	/* Context needs to be written at RES_ADDR + 128 */
+	ctx = aq->res->base + 128;
+	/* Mask needs to be written at RES_ADDR + 256 */
+	mask = aq->res->base + 256;
+
+	switch (req->op) {
+	case NIX_AQ_INSTOP_WRITE:
+		if (req->ctype == NIX_AQ_CTYPE_RQ)
+			memcpy(mask, &req->rq_mask,
+			       sizeof(struct nix_rq_ctx_s));
+		else if (req->ctype == NIX_AQ_CTYPE_SQ)
+			memcpy(mask, &req->sq_mask,
+			       sizeof(struct nix_sq_ctx_s));
+		else if (req->ctype == NIX_AQ_CTYPE_CQ)
+			memcpy(mask, &req->cq_mask,
+			       sizeof(struct nix_cq_ctx_s));
+		else if (req->ctype == NIX_AQ_CTYPE_RSS)
+			memcpy(mask, &req->rss_mask,
+			       sizeof(struct nix_rsse_s));
+		/* Fall through */
+	case NIX_AQ_INSTOP_INIT:
+		if (req->ctype == NIX_AQ_CTYPE_RQ)
+			memcpy(ctx, &req->rq, sizeof(struct nix_rq_ctx_s));
+		else if (req->ctype == NIX_AQ_CTYPE_SQ)
+			memcpy(ctx, &req->sq, sizeof(struct nix_sq_ctx_s));
+		else if (req->ctype == NIX_AQ_CTYPE_CQ)
+			memcpy(ctx, &req->cq, sizeof(struct nix_cq_ctx_s));
+		else if (req->ctype == NIX_AQ_CTYPE_RSS)
+			memcpy(ctx, &req->rss, sizeof(struct nix_rsse_s));
+		break;
+	case NIX_AQ_INSTOP_NOP:
+	case NIX_AQ_INSTOP_READ:
+	case NIX_AQ_INSTOP_LOCK:
+	case NIX_AQ_INSTOP_UNLOCK:
+		break;
+	default:
+		rc = NIX_AF_ERR_AQ_ENQUEUE;
+		return rc;
+	}
+
+	spin_lock(&aq->lock);
+
+	/* Submit the instruction to AQ */
+	rc = nix_aq_enqueue_wait(rvu, block, &inst);
+	if (rc) {
+		spin_unlock(&aq->lock);
+		return rc;
+	}
+
+	if (rsp) {
+		/* Copy read context into mailbox */
+		if (req->op == NIX_AQ_INSTOP_READ && !rc) {
+			if (req->ctype == NIX_AQ_CTYPE_RQ)
+				memcpy(&rsp->rq, ctx,
+				       sizeof(struct nix_rq_ctx_s));
+			else if (req->ctype == NIX_AQ_CTYPE_SQ)
+				memcpy(&rsp->sq, ctx,
+				       sizeof(struct nix_sq_ctx_s));
+			else if (req->ctype == NIX_AQ_CTYPE_CQ)
+				memcpy(&rsp->cq, ctx,
+				       sizeof(struct nix_cq_ctx_s));
+			else if (req->ctype == NIX_AQ_CTYPE_RSS)
+				memcpy(&rsp->rss, ctx,
+				       sizeof(struct nix_cq_ctx_s));
+		}
+	}
+
+	spin_unlock(&aq->lock);
+	return rc;
+}
+
+int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
+				struct nix_aq_enq_req *req,
+				struct nix_aq_enq_rsp *rsp)
+{
+	return rvu_nix_aq_enq_inst(rvu, req, rsp);
 }
 
 int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
@@ -344,14 +568,6 @@ int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
 	nix_ctx_free(rvu, pfvf);
 
 	return 0;
-}
-
-static inline struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
-{
-	if (blkaddr == BLKADDR_NIX0 && hw->nix0)
-		return hw->nix0;
-
-	return NULL;
 }
 
 static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)

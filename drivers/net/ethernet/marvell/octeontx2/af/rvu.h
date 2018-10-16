@@ -261,4 +261,7 @@ int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
 				  struct nix_lf_alloc_rsp *rsp);
 int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
 				 struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
+				struct nix_aq_enq_req *req,
+				struct nix_aq_enq_rsp *rsp);
 #endif /* RVU_H */

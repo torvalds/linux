@@ -149,7 +149,8 @@ M(NPA_HWCTX_DISABLE,	0x403, hwctx_disable_req, msg_rsp)		\
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc_req, nix_lf_alloc_rsp)	\
-M(NIX_LF_FREE,		0x8001, msg_req, msg_rsp)
+M(NIX_LF_FREE,		0x8001, msg_req, msg_rsp)			\
+M(NIX_AQ_ENQ,		0x8002, nix_aq_enq_req, nix_aq_enq_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -377,6 +378,39 @@ struct nix_lf_alloc_rsp {
 	u8	lso_tsov4_idx;
 	u8	lso_tsov6_idx;
 	u8      mac_addr[ETH_ALEN];
+};
+
+/* NIX AQ enqueue msg */
+struct nix_aq_enq_req {
+	struct mbox_msghdr hdr;
+	u32  qidx;
+	u8 ctype;
+	u8 op;
+	union {
+		struct nix_rq_ctx_s rq;
+		struct nix_sq_ctx_s sq;
+		struct nix_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+	};
+	union {
+		struct nix_rq_ctx_s rq_mask;
+		struct nix_sq_ctx_s sq_mask;
+		struct nix_cq_ctx_s cq_mask;
+		struct nix_rsse_s   rss_mask;
+		struct nix_rx_mce_s mce_mask;
+	};
+};
+
+struct nix_aq_enq_rsp {
+	struct mbox_msghdr hdr;
+	union {
+		struct nix_rq_ctx_s rq;
+		struct nix_sq_ctx_s sq;
+		struct nix_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+	};
 };
 
 #endif /* MBOX_H */

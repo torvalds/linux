@@ -426,6 +426,424 @@ struct nix_aq_res_s {
 	u64 reserved_64_127;		/* W1 */
 };
 
+/* NIX Completion queue context structure */
+struct nix_cq_ctx_s {
+	u64 base;
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W1 */
+	u64 wrptr		: 20;
+	u64 avg_con		: 9;
+	u64 cint_idx		: 7;
+	u64 cq_err		: 1;
+	u64 qint_idx		: 7;
+	u64 rsvd_81_83		: 3;
+	u64 bpid		: 9;
+	u64 rsvd_69_71		: 3;
+	u64 bp_ena		: 1;
+	u64 rsvd_64_67		: 4;
+#else
+	u64 rsvd_64_67		: 4;
+	u64 bp_ena		: 1;
+	u64 rsvd_69_71		: 3;
+	u64 bpid		: 9;
+	u64 rsvd_81_83		: 3;
+	u64 qint_idx		: 7;
+	u64 cq_err		: 1;
+	u64 cint_idx		: 7;
+	u64 avg_con		: 9;
+	u64 wrptr		: 20;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W2 */
+	u64 update_time		: 16;
+	u64 avg_level		: 8;
+	u64 head		: 20;
+	u64 tail		: 20;
+#else
+	u64 tail		: 20;
+	u64 head		: 20;
+	u64 avg_level		: 8;
+	u64 update_time		: 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W3 */
+	u64 cq_err_int_ena	: 8;
+	u64 cq_err_int		: 8;
+	u64 qsize		: 4;
+	u64 rsvd_233_235	: 3;
+	u64 caching		: 1;
+	u64 substream		: 20;
+	u64 rsvd_210_211	: 2;
+	u64 ena			: 1;
+	u64 drop_ena		: 1;
+	u64 drop		: 8;
+	u64 dp			: 8;
+#else
+	u64 dp			: 8;
+	u64 drop		: 8;
+	u64 drop_ena		: 1;
+	u64 ena			: 1;
+	u64 rsvd_210_211	: 2;
+	u64 substream		: 20;
+	u64 caching		: 1;
+	u64 rsvd_233_235	: 3;
+	u64 qsize		: 4;
+	u64 cq_err_int		: 8;
+	u64 cq_err_int_ena	: 8;
+#endif
+};
+
+/* NIX Receive queue context structure */
+struct nix_rq_ctx_s {
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W0 */
+	u64 wqe_aura      : 20;
+	u64 substream     : 20;
+	u64 cq            : 20;
+	u64 ena_wqwd      : 1;
+	u64 ipsech_ena    : 1;
+	u64 sso_ena       : 1;
+	u64 ena           : 1;
+#else
+	u64 ena           : 1;
+	u64 sso_ena       : 1;
+	u64 ipsech_ena    : 1;
+	u64 ena_wqwd      : 1;
+	u64 cq            : 20;
+	u64 substream     : 20;
+	u64 wqe_aura      : 20;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W1 */
+	u64 rsvd_127_122  : 6;
+	u64 lpb_drop_ena  : 1;
+	u64 spb_drop_ena  : 1;
+	u64 xqe_drop_ena  : 1;
+	u64 wqe_caching   : 1;
+	u64 pb_caching    : 2;
+	u64 sso_tt        : 2;
+	u64 sso_grp       : 10;
+	u64 lpb_aura      : 20;
+	u64 spb_aura      : 20;
+#else
+	u64 spb_aura      : 20;
+	u64 lpb_aura      : 20;
+	u64 sso_grp       : 10;
+	u64 sso_tt        : 2;
+	u64 pb_caching    : 2;
+	u64 wqe_caching   : 1;
+	u64 xqe_drop_ena  : 1;
+	u64 spb_drop_ena  : 1;
+	u64 lpb_drop_ena  : 1;
+	u64 rsvd_127_122  : 6;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W2 */
+	u64 xqe_hdr_split : 1;
+	u64 xqe_imm_copy  : 1;
+	u64 rsvd_189_184  : 6;
+	u64 xqe_imm_size  : 6;
+	u64 later_skip    : 6;
+	u64 rsvd_171      : 1;
+	u64 first_skip    : 7;
+	u64 lpb_sizem1    : 12;
+	u64 spb_ena       : 1;
+	u64 rsvd_150_148  : 3;
+	u64 wqe_skip      : 2;
+	u64 spb_sizem1    : 6;
+	u64 rsvd_139_128  : 12;
+#else
+	u64 rsvd_139_128  : 12;
+	u64 spb_sizem1    : 6;
+	u64 wqe_skip      : 2;
+	u64 rsvd_150_148  : 3;
+	u64 spb_ena       : 1;
+	u64 lpb_sizem1    : 12;
+	u64 first_skip    : 7;
+	u64 rsvd_171      : 1;
+	u64 later_skip    : 6;
+	u64 xqe_imm_size  : 6;
+	u64 rsvd_189_184  : 6;
+	u64 xqe_imm_copy  : 1;
+	u64 xqe_hdr_split : 1;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W3 */
+	u64 spb_pool_pass : 8;
+	u64 spb_pool_drop : 8;
+	u64 spb_aura_pass : 8;
+	u64 spb_aura_drop : 8;
+	u64 wqe_pool_pass : 8;
+	u64 wqe_pool_drop : 8;
+	u64 xqe_pass      : 8;
+	u64 xqe_drop      : 8;
+#else
+	u64 xqe_drop      : 8;
+	u64 xqe_pass      : 8;
+	u64 wqe_pool_drop : 8;
+	u64 wqe_pool_pass : 8;
+	u64 spb_aura_drop : 8;
+	u64 spb_aura_pass : 8;
+	u64 spb_pool_drop : 8;
+	u64 spb_pool_pass : 8;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W4 */
+	u64 rsvd_319_315  : 5;
+	u64 qint_idx      : 7;
+	u64 rq_int_ena    : 8;
+	u64 rq_int        : 8;
+	u64 rsvd_291_288  : 4;
+	u64 lpb_pool_pass : 8;
+	u64 lpb_pool_drop : 8;
+	u64 lpb_aura_pass : 8;
+	u64 lpb_aura_drop : 8;
+#else
+	u64 lpb_aura_drop : 8;
+	u64 lpb_aura_pass : 8;
+	u64 lpb_pool_drop : 8;
+	u64 lpb_pool_pass : 8;
+	u64 rsvd_291_288  : 4;
+	u64 rq_int        : 8;
+	u64 rq_int_ena    : 8;
+	u64 qint_idx      : 7;
+	u64 rsvd_319_315  : 5;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W5 */
+	u64 rsvd_383_366  : 18;
+	u64 flow_tagw     : 6;
+	u64 bad_utag      : 8;
+	u64 good_utag     : 8;
+	u64 ltag          : 24;
+#else
+	u64 ltag          : 24;
+	u64 good_utag     : 8;
+	u64 bad_utag      : 8;
+	u64 flow_tagw     : 6;
+	u64 rsvd_383_366  : 18;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W6 */
+	u64 rsvd_447_432  : 16;
+	u64 octs          : 48;
+#else
+	u64 octs          : 48;
+	u64 rsvd_447_432  : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W7 */
+	u64 rsvd_511_496  : 16;
+	u64 pkts          : 48;
+#else
+	u64 pkts          : 48;
+	u64 rsvd_511_496  : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W8 */
+	u64 rsvd_575_560  : 16;
+	u64 drop_octs     : 48;
+#else
+	u64 drop_octs     : 48;
+	u64 rsvd_575_560  : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W9 */
+	u64 rsvd_639_624  : 16;
+	u64 drop_pkts     : 48;
+#else
+	u64 drop_pkts     : 48;
+	u64 rsvd_639_624  : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)	/* W10 */
+	u64 rsvd_703_688  : 16;
+	u64 re_pkts       : 48;
+#else
+	u64 re_pkts       : 48;
+	u64 rsvd_703_688  : 16;
+#endif
+	u64 rsvd_767_704;		/* W11 */
+	u64 rsvd_831_768;		/* W12 */
+	u64 rsvd_895_832;		/* W13 */
+	u64 rsvd_959_896;		/* W14 */
+	u64 rsvd_1023_960;		/* W15 */
+};
+
+/* NIX sqe sizes */
+enum nix_maxsqesz {
+	NIX_MAXSQESZ_W16 = 0x0,
+	NIX_MAXSQESZ_W8  = 0x1,
+};
+
+/* NIX SQB caching type */
+enum nix_stype {
+	NIX_STYPE_STF = 0x0,
+	NIX_STYPE_STT = 0x1,
+	NIX_STYPE_STP = 0x2,
+};
+
+/* NIX Send queue context structure */
+struct nix_sq_ctx_s {
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W0 */
+	u64 sqe_way_mask          : 16;
+	u64 cq                    : 20;
+	u64 sdp_mcast             : 1;
+	u64 substream             : 20;
+	u64 qint_idx              : 6;
+	u64 ena                   : 1;
+#else
+	u64 ena                   : 1;
+	u64 qint_idx              : 6;
+	u64 substream             : 20;
+	u64 sdp_mcast             : 1;
+	u64 cq                    : 20;
+	u64 sqe_way_mask          : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W1 */
+	u64 sqb_count             : 16;
+	u64 default_chan          : 12;
+	u64 smq_rr_quantum        : 24;
+	u64 sso_ena               : 1;
+	u64 xoff                  : 1;
+	u64 cq_ena                : 1;
+	u64 smq                   : 9;
+#else
+	u64 smq                   : 9;
+	u64 cq_ena                : 1;
+	u64 xoff                  : 1;
+	u64 sso_ena               : 1;
+	u64 smq_rr_quantum        : 24;
+	u64 default_chan          : 12;
+	u64 sqb_count             : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W2 */
+	u64 rsvd_191              : 1;
+	u64 sqe_stype             : 2;
+	u64 sq_int_ena            : 8;
+	u64 sq_int                : 8;
+	u64 sqb_aura              : 20;
+	u64 smq_rr_count          : 25;
+#else
+	u64 smq_rr_count          : 25;
+	u64 sqb_aura              : 20;
+	u64 sq_int                : 8;
+	u64 sq_int_ena            : 8;
+	u64 sqe_stype             : 2;
+	u64 rsvd_191              : 1;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W3 */
+	u64 rsvd_255_253          : 3;
+	u64 smq_next_sq_vld       : 1;
+	u64 smq_pend              : 1;
+	u64 smenq_next_sqb_vld    : 1;
+	u64 head_offset           : 6;
+	u64 smenq_offset          : 6;
+	u64 tail_offset           : 6;
+	u64 smq_lso_segnum        : 8;
+	u64 smq_next_sq           : 20;
+	u64 mnq_dis               : 1;
+	u64 lmt_dis               : 1;
+	u64 cq_limit              : 8;
+	u64 max_sqe_size          : 2;
+#else
+	u64 max_sqe_size          : 2;
+	u64 cq_limit              : 8;
+	u64 lmt_dis               : 1;
+	u64 mnq_dis               : 1;
+	u64 smq_next_sq           : 20;
+	u64 smq_lso_segnum        : 8;
+	u64 tail_offset           : 6;
+	u64 smenq_offset          : 6;
+	u64 head_offset           : 6;
+	u64 smenq_next_sqb_vld    : 1;
+	u64 smq_pend              : 1;
+	u64 smq_next_sq_vld       : 1;
+	u64 rsvd_255_253          : 3;
+#endif
+	u64 next_sqb              : 64;/* W4 */
+	u64 tail_sqb              : 64;/* W5 */
+	u64 smenq_sqb             : 64;/* W6 */
+	u64 smenq_next_sqb        : 64;/* W7 */
+	u64 head_sqb              : 64;/* W8 */
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W9 */
+	u64 rsvd_639_630          : 10;
+	u64 vfi_lso_vld           : 1;
+	u64 vfi_lso_vlan1_ins_ena : 1;
+	u64 vfi_lso_vlan0_ins_ena : 1;
+	u64 vfi_lso_mps           : 14;
+	u64 vfi_lso_sb            : 8;
+	u64 vfi_lso_sizem1        : 3;
+	u64 vfi_lso_total         : 18;
+	u64 rsvd_583_576          : 8;
+#else
+	u64 rsvd_583_576          : 8;
+	u64 vfi_lso_total         : 18;
+	u64 vfi_lso_sizem1        : 3;
+	u64 vfi_lso_sb            : 8;
+	u64 vfi_lso_mps           : 14;
+	u64 vfi_lso_vlan0_ins_ena : 1;
+	u64 vfi_lso_vlan1_ins_ena : 1;
+	u64 vfi_lso_vld           : 1;
+	u64 rsvd_639_630          : 10;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD) /* W10 */
+	u64 rsvd_703_658          : 46;
+	u64 scm_lso_rem           : 18;
+#else
+	u64 scm_lso_rem           : 18;
+	u64 rsvd_703_658          : 46;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD) /* W11 */
+	u64 rsvd_767_752          : 16;
+	u64 octs                  : 48;
+#else
+	u64 octs                  : 48;
+	u64 rsvd_767_752          : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD) /* W12 */
+	u64 rsvd_831_816          : 16;
+	u64 pkts                  : 48;
+#else
+	u64 pkts                  : 48;
+	u64 rsvd_831_816          : 16;
+#endif
+	u64 rsvd_895_832          : 64;/* W13 */
+#if defined(__BIG_ENDIAN_BITFIELD) /* W14 */
+	u64 rsvd_959_944          : 16;
+	u64 dropped_octs          : 48;
+#else
+	u64 dropped_octs          : 48;
+	u64 rsvd_959_944          : 16;
+#endif
+#if defined(__BIG_ENDIAN_BITFIELD) /* W15 */
+	u64 rsvd_1023_1008        : 16;
+	u64 dropped_pkts          : 48;
+#else
+	u64 dropped_pkts          : 48;
+	u64 rsvd_1023_1008        : 16;
+#endif
+};
+
+/* NIX Receive side scaling entry structure*/
+struct nix_rsse_s {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	uint32_t reserved_20_31		: 12;
+	uint32_t rq			: 20;
+#else
+	uint32_t rq			: 20;
+	uint32_t reserved_20_31		: 12;
+
+#endif
+};
+
+/* NIX receive multicast/mirror entry structure */
+struct nix_rx_mce_s {
+#if defined(__BIG_ENDIAN_BITFIELD)  /* W0 */
+	uint64_t next       : 16;
+	uint64_t pf_func    : 16;
+	uint64_t rsvd_31_24 : 8;
+	uint64_t index      : 20;
+	uint64_t eol        : 1;
+	uint64_t rsvd_2     : 1;
+	uint64_t op         : 2;
+#else
+	uint64_t op         : 2;
+	uint64_t rsvd_2     : 1;
+	uint64_t eol        : 1;
+	uint64_t index      : 20;
+	uint64_t rsvd_31_24 : 8;
+	uint64_t pf_func    : 16;
+	uint64_t next       : 16;
+#endif
+};
+
 enum nix_lsoalg {
 	NIX_LSOALG_NOP,
 	NIX_LSOALG_ADD_SEGNUM,
