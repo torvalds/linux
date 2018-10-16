@@ -804,9 +804,14 @@ errout:
 
 int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 			  struct fib_dump_filter *filter,
-			  struct netlink_ext_ack *extack)
+			  struct netlink_callback *cb)
 {
+	struct netlink_ext_ack *extack = cb->extack;
+	struct nlattr *tb[RTA_MAX + 1];
 	struct rtmsg *rtm;
+	int err, i;
+
+	ASSERT_RTNL();
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
 		NL_SET_ERR_MSG(extack, "Invalid header for FIB dump request");
@@ -815,8 +820,7 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 
 	rtm = nlmsg_data(nlh);
 	if (rtm->rtm_dst_len || rtm->rtm_src_len  || rtm->rtm_tos   ||
-	    rtm->rtm_table   || rtm->rtm_protocol || rtm->rtm_scope ||
-	    rtm->rtm_type) {
+	    rtm->rtm_scope) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header for FIB dump request");
 		return -EINVAL;
 	}
@@ -825,9 +829,42 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 		return -EINVAL;
 	}
 
-	if (nlmsg_attrlen(nlh, sizeof(*rtm))) {
-		NL_SET_ERR_MSG(extack, "Invalid data after header in FIB dump request");
-		return -EINVAL;
+	filter->flags    = rtm->rtm_flags;
+	filter->protocol = rtm->rtm_protocol;
+	filter->rt_type  = rtm->rtm_type;
+	filter->table_id = rtm->rtm_table;
+
+	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+				 rtm_ipv4_policy, extack);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i <= RTA_MAX; ++i) {
+		int ifindex;
+
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case RTA_TABLE:
+			filter->table_id = nla_get_u32(tb[i]);
+			break;
+		case RTA_OIF:
+			ifindex = nla_get_u32(tb[i]);
+			filter->dev = __dev_get_by_index(net, ifindex);
+			if (!filter->dev)
+				return -ENODEV;
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Unsupported attribute in dump request");
+			return -EINVAL;
+		}
+	}
+
+	if (filter->flags || filter->protocol || filter->rt_type ||
+	    filter->table_id || filter->dev) {
+		filter->filter_set = 1;
+		cb->answer_flags = NLM_F_DUMP_FILTERED;
 	}
 
 	return 0;
@@ -846,7 +883,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	int dumped = 0, err;
 
 	if (cb->strict_check) {
-		err = ip_valid_fib_dump_req(net, nlh, &filter, cb->extack);
+		err = ip_valid_fib_dump_req(net, nlh, &filter, cb);
 		if (err < 0)
 			return err;
 	}

@@ -580,7 +580,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	if (cb->strict_check) {
 		int err;
 
-		err = ip_valid_fib_dump_req(net, nlh, &arg.filter, cb->extack);
+		err = ip_valid_fib_dump_req(net, nlh, &arg.filter, cb);
 		if (err < 0)
 			return err;
 	} else if (nlmsg_len(nlh) >= sizeof(struct rtmsg)) {

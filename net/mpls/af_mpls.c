@@ -2034,15 +2034,16 @@ nla_put_failure:
 #if IS_ENABLED(CONFIG_INET)
 static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 				   struct fib_dump_filter *filter,
-				   struct netlink_ext_ack *extack)
+				   struct netlink_callback *cb)
 {
-	return ip_valid_fib_dump_req(net, nlh, filter, extack);
+	return ip_valid_fib_dump_req(net, nlh, filter, cb);
 }
 #else
 static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 				   struct fib_dump_filter *filter,
-				   struct netlink_ext_ack *extack)
+				   struct netlink_callback *cb)
 {
+	struct netlink_ext_ack *extack = cb->extack;
 	struct rtmsg *rtm;
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*rtm))) {
@@ -2104,7 +2105,7 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	if (cb->strict_check) {
 		int err;
 
-		err = mpls_valid_fib_dump_req(net, nlh, &filter, cb->extack);
+		err = mpls_valid_fib_dump_req(net, nlh, &filter, cb);
 		if (err < 0)
 			return err;
 
