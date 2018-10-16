@@ -3373,19 +3373,33 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 					       struct kvm_vcpu_events *events)
 {
 	process_nmi(vcpu);
+
 	/*
-	 * FIXME: pass injected and pending separately.  This is only
-	 * needed for nested virtualization, whose state cannot be
-	 * migrated yet.  For now we can combine them.
+	 * The API doesn't provide the instruction length for software
+	 * exceptions, so don't report them. As long as the guest RIP
+	 * isn't advanced, we should expect to encounter the exception
+	 * again.
 	 */
-	events->exception.injected =
-		(vcpu->arch.exception.pending ||
-		 vcpu->arch.exception.injected) &&
-		!kvm_exception_is_soft(vcpu->arch.exception.nr);
+	if (kvm_exception_is_soft(vcpu->arch.exception.nr)) {
+		events->exception.injected = 0;
+		events->exception.pending = 0;
+	} else {
+		events->exception.injected = vcpu->arch.exception.injected;
+		events->exception.pending = vcpu->arch.exception.pending;
+		/*
+		 * For ABI compatibility, deliberately conflate
+		 * pending and injected exceptions when
+		 * KVM_CAP_EXCEPTION_PAYLOAD isn't enabled.
+		 */
+		if (!vcpu->kvm->arch.exception_payload_enabled)
+			events->exception.injected |=
+				vcpu->arch.exception.pending;
+	}
 	events->exception.nr = vcpu->arch.exception.nr;
 	events->exception.has_error_code = vcpu->arch.exception.has_error_code;
-	events->exception.pad = 0;
 	events->exception.error_code = vcpu->arch.exception.error_code;
+	events->exception_has_payload = vcpu->arch.exception.has_payload;
+	events->exception_payload = vcpu->arch.exception.payload;
 
 	events->interrupt.injected =
 		vcpu->arch.interrupt.injected && !vcpu->arch.interrupt.soft;
@@ -3409,6 +3423,9 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	events->flags = (KVM_VCPUEVENT_VALID_NMI_PENDING
 			 | KVM_VCPUEVENT_VALID_SHADOW
 			 | KVM_VCPUEVENT_VALID_SMM);
+	if (vcpu->kvm->arch.exception_payload_enabled)
+		events->flags |= KVM_VCPUEVENT_VALID_PAYLOAD;
+
 	memset(&events->reserved, 0, sizeof(events->reserved));
 }
 
@@ -3420,12 +3437,24 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 	if (events->flags & ~(KVM_VCPUEVENT_VALID_NMI_PENDING
 			      | KVM_VCPUEVENT_VALID_SIPI_VECTOR
 			      | KVM_VCPUEVENT_VALID_SHADOW
-			      | KVM_VCPUEVENT_VALID_SMM))
+			      | KVM_VCPUEVENT_VALID_SMM
+			      | KVM_VCPUEVENT_VALID_PAYLOAD))
 		return -EINVAL;
 
-	if (events->exception.injected &&
-	    (events->exception.nr > 31 || events->exception.nr == NMI_VECTOR ||
-	     is_guest_mode(vcpu)))
+	if (events->flags & KVM_VCPUEVENT_VALID_PAYLOAD) {
+		if (!vcpu->kvm->arch.exception_payload_enabled)
+			return -EINVAL;
+		if (events->exception.pending)
+			events->exception.injected = 0;
+		else
+			events->exception_has_payload = 0;
+	} else {
+		events->exception.pending = 0;
+		events->exception_has_payload = 0;
+	}
+
+	if ((events->exception.injected || events->exception.pending) &&
+	    (events->exception.nr > 31 || events->exception.nr == NMI_VECTOR))
 		return -EINVAL;
 
 	/* INITs are latched while in SMM */
@@ -3435,13 +3464,13 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	process_nmi(vcpu);
-	vcpu->arch.exception.injected = false;
-	vcpu->arch.exception.pending = events->exception.injected;
+	vcpu->arch.exception.injected = events->exception.injected;
+	vcpu->arch.exception.pending = events->exception.pending;
 	vcpu->arch.exception.nr = events->exception.nr;
 	vcpu->arch.exception.has_error_code = events->exception.has_error_code;
 	vcpu->arch.exception.error_code = events->exception.error_code;
-	vcpu->arch.exception.has_payload = false;
-	vcpu->arch.exception.payload = 0;
+	vcpu->arch.exception.has_payload = events->exception_has_payload;
+	vcpu->arch.exception.payload = events->exception_payload;
 
 	vcpu->arch.interrupt.injected = events->interrupt.injected;
 	vcpu->arch.interrupt.nr = events->interrupt.nr;
