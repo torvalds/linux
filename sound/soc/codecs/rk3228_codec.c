@@ -480,7 +480,7 @@ static int rk3228_platform_probe(struct platform_device *pdev)
 				   &rk3228->spk_depop_time);
 	if (ret < 0) {
 		dev_info(&pdev->dev, "spk_depop_time use default value.\n");
-		rk3228->spk_depop_time = 200;
+		rk3228->spk_depop_time = 100;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
