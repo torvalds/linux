@@ -618,3 +618,24 @@ void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 		jsonw_string_field(json_wtr, "ifname", name);
 	jsonw_end_object(json_wtr);
 }
+
+int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what)
+{
+	char *endptr;
+
+	NEXT_ARGP();
+
+	if (*val) {
+		p_err("%s already specified", what);
+		return -1;
+	}
+
+	*val = strtoul(**argv, &endptr, 0);
+	if (*endptr) {
+		p_err("can't parse %s as %s", **argv, what);
+		return -1;
+	}
+	NEXT_ARGP();
+
+	return 0;
+}

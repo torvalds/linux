@@ -22,11 +22,11 @@ SYNOPSIS
 	| { **-j** | **--json** } [{ **-p** | **--pretty** }] }
 
 	*MAP-COMMANDS* :=
-	{ **show** | **list** | **dump** | **update** | **lookup** | **getnext** | **delete**
-	| **pin** | **event_pipe** | **help** }
+	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext**
+	| **delete** | **pin** | **event_pipe** | **help** }
 
 	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin**
-	| **load** | **help** }
+	| **load** | **attach** | **detach** | **help** }
 
 	*CGROUP-COMMANDS* := { **show** | **list** | **attach** | **detach** | **help** }
 
@@ -56,6 +56,10 @@ OPTIONS
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
+
+	-m, --mapcompat
+		  Allow loading maps with unknown map definitions.
+
 
 SEE ALSO
 ========

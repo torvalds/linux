@@ -520,24 +520,6 @@ struct bpf_skb_data_end {
 	void *data_end;
 };
 
-struct sk_msg_buff {
-	void *data;
-	void *data_end;
-	__u32 apply_bytes;
-	__u32 cork_bytes;
-	int sg_copybreak;
-	int sg_start;
-	int sg_curr;
-	int sg_end;
-	struct scatterlist sg_data[MAX_SKB_FRAGS];
-	bool sg_copy[MAX_SKB_FRAGS];
-	__u32 flags;
-	struct sock *sk_redir;
-	struct sock *sk;
-	struct sk_buff *skb;
-	struct list_head list;
-};
-
 struct bpf_redirect_info {
 	u32 ifindex;
 	u32 flags;
@@ -832,9 +814,6 @@ int xdp_do_redirect(struct net_device *dev,
 void xdp_do_flush_map(void);
 
 void bpf_warn_invalid_xdp_action(u32 act);
-
-struct sock *do_sk_redirect_map(struct sk_buff *skb);
-struct sock *do_msg_redirect_map(struct sk_msg_buff *md);
 
 #ifdef CONFIG_INET
 struct sock *bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,

@@ -61,6 +61,8 @@ struct bpf_object_open_attr {
 
 struct bpf_object *bpf_object__open(const char *path);
 struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr);
+struct bpf_object *__bpf_object__open_xattr(struct bpf_object_open_attr *attr,
+					    int flags);
 struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 					   size_t obj_buf_sz,
 					   const char *name);

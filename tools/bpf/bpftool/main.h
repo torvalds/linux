@@ -74,7 +74,7 @@
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
 #define HELP_SPEC_OPTIONS						\
-	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} }"
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} | {-m|--mapcompat}"
 #define HELP_SPEC_MAP							\
 	"MAP := { id MAP_ID | pinned FILE }"
 
@@ -89,6 +89,7 @@ extern const char *bin_name;
 extern json_writer_t *json_wtr;
 extern bool json_output;
 extern bool show_pinned;
+extern int bpf_flags;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
 
@@ -138,6 +139,7 @@ int do_cgroup(int argc, char **arg);
 int do_perf(int argc, char **arg);
 int do_net(int argc, char **arg);
 
+int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);
 int map_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);

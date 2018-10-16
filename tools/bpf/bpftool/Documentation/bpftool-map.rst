@@ -15,13 +15,15 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **list** | **dump** | **update** | **lookup** | **getnext** | **delete**
-	| **pin** | **help** }
+	{ **show** | **list** | **create** | **dump** | **update** | **lookup** | **getnext**
+	| **delete** | **pin** | **help** }
 
 MAP COMMANDS
 =============
 
 |	**bpftool** **map { show | list }**   [*MAP*]
+|	**bpftool** **map create**     *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE* \
+|		**entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
 |	**bpftool** **map dump**       *MAP*
 |	**bpftool** **map update**     *MAP*  **key** *DATA*   **value** *VALUE* [*UPDATE_FLAGS*]
 |	**bpftool** **map lookup**     *MAP*  **key** *DATA*
@@ -36,6 +38,11 @@ MAP COMMANDS
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
 |	*VALUE* := { *DATA* | *MAP* | *PROG* }
 |	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
+|	*TYPE* := { **hash** | **array** | **prog_array** | **perf_event_array** | **percpu_hash**
+|		| **percpu_array** | **stack_trace** | **cgroup_array** | **lru_hash**
+|		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
+|		| **devmap** | **sockmap** | **cpumap** | **xskmap** | **sockhash**
+|		| **cgroup_storage** | **reuseport_sockarray** | **percpu_cgroup_storage** }
 
 DESCRIPTION
 ===========
@@ -46,6 +53,10 @@ DESCRIPTION
 
 		  Output will start with map ID followed by map type and
 		  zero or more named attributes (depending on kernel version).
+
+	**bpftool map create** *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE*  **entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**dev** *NAME*]
+		  Create a new map with given parameters and pin it to *bpffs*
+		  as *FILE*.
 
 	**bpftool map dump**    *MAP*
 		  Dump all entries in a given *MAP*.

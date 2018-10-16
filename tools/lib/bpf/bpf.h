@@ -69,6 +69,9 @@ struct bpf_load_program_attr {
 	__u32 prog_ifindex;
 };
 
+/* Flags to direct loading requirements */
+#define MAPS_RELAX_COMPAT	0x01
+
 /* Recommend log buffer size */
 #define BPF_LOG_BUF_SIZE (256 * 1024)
 int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
