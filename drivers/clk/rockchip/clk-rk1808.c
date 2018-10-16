@@ -1116,7 +1116,8 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_PMU_CLKSEL_CON(2), 7, 1, MFLAGS,
 			RK1808_PMU_CLKGATE_CON(1), 10, GFLAGS),
 
-	COMPOSITE_NOMUX(0, "clk_pciephy_src", "ppll", 0,
+	FACTOR(0, "clk_ppll_ph0", "ppll", 0, 1, 2),
+	COMPOSITE_NOMUX(0, "clk_pciephy_src", "clk_ppll_ph0", 0,
 			RK1808_PMU_CLKSEL_CON(7), 0, 2, DFLAGS,
 			RK1808_PMU_CLKGATE_CON(1), 11, GFLAGS),
 	COMPOSITE_NODIV(SCLK_PCIEPHY_REF, "clk_pciephy_ref", mux_pciephy_ref_p, CLK_SET_RATE_PARENT,
