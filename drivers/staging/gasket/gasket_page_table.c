@@ -477,7 +477,6 @@ static int gasket_perform_mapping(struct gasket_page_table *pg_tbl,
 	for (i = 0; i < num_pages; i++) {
 		page_addr = host_addr + i * PAGE_SIZE;
 		offset = page_addr & (PAGE_SIZE - 1);
-		dev_dbg(pg_tbl->device, "%s i %d\n", __func__, i);
 		if (is_coherent(pg_tbl, host_addr)) {
 			u64 off =
 				(u64)host_addr -
@@ -506,22 +505,9 @@ static int gasket_perform_mapping(struct gasket_page_table *pg_tbl,
 			ptes[i].dma_addr =
 				dma_map_page(pg_tbl->device, page, 0, PAGE_SIZE,
 					     DMA_BIDIRECTIONAL);
-			dev_dbg(pg_tbl->device,
-				"%s i %d pte %p pfn %p -> mapped %llx\n",
-				__func__, i, &ptes[i],
-				(void *)page_to_pfn(page),
-				(unsigned long long)ptes[i].dma_addr);
 
 			if (dma_mapping_error(pg_tbl->device,
 					      ptes[i].dma_addr)) {
-				dev_dbg(pg_tbl->device,
-					"%s i %d -> fail to map page %llx "
-					"[pfn %p ohys %p]\n",
-					__func__, i,
-					(unsigned long long)ptes[i].dma_addr,
-					(void *)page_to_pfn(page),
-					(void *)page_to_phys(page));
-
 				if (gasket_release_page(ptes[i].page))
 					--pg_tbl->num_active_pages;
 
@@ -892,11 +878,6 @@ static int gasket_alloc_extended_subtable(struct gasket_page_table *pg_tbl,
 	pte->dma_addr = dma_map_page(pg_tbl->device, pte->page, 0, PAGE_SIZE,
 				     DMA_TO_DEVICE);
 	if (dma_mapping_error(pg_tbl->device, pte->dma_addr)) {
-		dev_dbg(pg_tbl->device,
-			"%s: fail to map page [pfn %lx phys %llx]\n",
-			__func__, page_to_pfn(pte->page),
-			page_to_phys(pte->page));
-
 		free_page(page_addr);
 		vfree(pte->sublevel);
 		memset(pte, 0, sizeof(struct gasket_page_table_entry));
@@ -1050,11 +1031,6 @@ int gasket_page_table_map(struct gasket_page_table *pg_tbl, ulong host_addr,
 	}
 
 	mutex_unlock(&pg_tbl->mutex);
-
-	dev_dbg(pg_tbl->device,
-		"%s done: ha %llx daddr %llx num %d, ret %d\n",
-		__func__, (unsigned long long)host_addr,
-		(unsigned long long)dev_addr, num_pages, ret);
 	return ret;
 }
 EXPORT_SYMBOL(gasket_page_table_map);
