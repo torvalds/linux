@@ -268,6 +268,55 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(mr_fill_mroute);
 
+int mr_table_dump(struct mr_table *mrt, struct sk_buff *skb,
+		  struct netlink_callback *cb,
+		  int (*fill)(struct mr_table *mrt, struct sk_buff *skb,
+			      u32 portid, u32 seq, struct mr_mfc *c,
+			      int cmd, int flags),
+		  spinlock_t *lock)
+{
+	unsigned int e = 0, s_e = cb->args[1];
+	unsigned int flags = NLM_F_MULTI;
+	struct mr_mfc *mfc;
+	int err;
+
+	list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
+		if (e < s_e)
+			goto next_entry;
+
+		err = fill(mrt, skb, NETLINK_CB(cb->skb).portid,
+			   cb->nlh->nlmsg_seq, mfc, RTM_NEWROUTE, flags);
+		if (err < 0)
+			goto out;
+next_entry:
+		e++;
+	}
+	e = 0;
+	s_e = 0;
+
+	spin_lock_bh(lock);
+	list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
+		if (e < s_e)
+			goto next_entry2;
+
+		err = fill(mrt, skb, NETLINK_CB(cb->skb).portid,
+			   cb->nlh->nlmsg_seq, mfc, RTM_NEWROUTE, flags);
+		if (err < 0) {
+			spin_unlock_bh(lock);
+			goto out;
+		}
+next_entry2:
+		e++;
+	}
+	spin_unlock_bh(lock);
+	err = 0;
+	e = 0;
+
+out:
+	cb->args[1] = e;
+	return err;
+}
+
 int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 		     struct mr_table *(*iter)(struct net *net,
 					      struct mr_table *mrt),
@@ -277,51 +326,24 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 				 int cmd, int flags),
 		     spinlock_t *lock)
 {
-	unsigned int t = 0, e = 0, s_t = cb->args[0], s_e = cb->args[1];
+	unsigned int t = 0, s_t = cb->args[0];
 	struct net *net = sock_net(skb->sk);
 	struct mr_table *mrt;
-	struct mr_mfc *mfc;
+	int err;
 
 	rcu_read_lock();
 	for (mrt = iter(net, NULL); mrt; mrt = iter(net, mrt)) {
 		if (t < s_t)
 			goto next_table;
-		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
-			if (e < s_e)
-				goto next_entry;
-			if (fill(mrt, skb, NETLINK_CB(cb->skb).portid,
-				 cb->nlh->nlmsg_seq, mfc,
-				 RTM_NEWROUTE, NLM_F_MULTI) < 0)
-				goto done;
-next_entry:
-			e++;
-		}
-		e = 0;
-		s_e = 0;
 
-		spin_lock_bh(lock);
-		list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
-			if (e < s_e)
-				goto next_entry2;
-			if (fill(mrt, skb, NETLINK_CB(cb->skb).portid,
-				 cb->nlh->nlmsg_seq, mfc,
-				 RTM_NEWROUTE, NLM_F_MULTI) < 0) {
-				spin_unlock_bh(lock);
-				goto done;
-			}
-next_entry2:
-			e++;
-		}
-		spin_unlock_bh(lock);
-		e = 0;
-		s_e = 0;
+		err = mr_table_dump(mrt, skb, cb, fill, lock);
+		if (err < 0)
+			break;
 next_table:
 		t++;
 	}
-done:
 	rcu_read_unlock();
 
-	cb->args[1] = e;
 	cb->args[0] = t;
 
 	return skb->len;
