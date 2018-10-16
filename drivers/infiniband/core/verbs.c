@@ -2621,3 +2621,49 @@ void ib_drain_qp(struct ib_qp *qp)
 		ib_drain_rq(qp);
 }
 EXPORT_SYMBOL(ib_drain_qp);
+
+struct net_device *rdma_alloc_netdev(struct ib_device *device, u8 port_num,
+				     enum rdma_netdev_t type, const char *name,
+				     unsigned char name_assign_type,
+				     void (*setup)(struct net_device *))
+{
+	struct rdma_netdev_alloc_params params;
+	struct net_device *netdev;
+	int rc;
+
+	if (!device->rdma_netdev_get_params)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	rc = device->rdma_netdev_get_params(device, port_num, type, &params);
+	if (rc)
+		return ERR_PTR(rc);
+
+	netdev = alloc_netdev_mqs(params.sizeof_priv, name, name_assign_type,
+				  setup, params.txqs, params.rxqs);
+	if (!netdev)
+		return ERR_PTR(-ENOMEM);
+
+	return netdev;
+}
+EXPORT_SYMBOL(rdma_alloc_netdev);
+
+int rdma_init_netdev(struct ib_device *device, u8 port_num,
+		     enum rdma_netdev_t type, const char *name,
+		     unsigned char name_assign_type,
+		     void (*setup)(struct net_device *),
+		     struct net_device *netdev)
+{
+	struct rdma_netdev_alloc_params params;
+	int rc;
+
+	if (!device->rdma_netdev_get_params)
+		return -EOPNOTSUPP;
+
+	rc = device->rdma_netdev_get_params(device, port_num, type, &params);
+	if (rc)
+		return rc;
+
+	return params.initialize_rdma_netdev(device, port_num,
+					     netdev, params.param);
+}
+EXPORT_SYMBOL(rdma_init_netdev);

@@ -5163,22 +5163,14 @@ done:
 	return num_counters;
 }
 
-static struct net_device*
-mlx5_ib_alloc_rdma_netdev(struct ib_device *hca,
-			  u8 port_num,
-			  enum rdma_netdev_t type,
-			  const char *name,
-			  unsigned char name_assign_type,
-			  void (*setup)(struct net_device *))
+static int mlx5_ib_rn_get_params(struct ib_device *device, u8 port_num,
+				 enum rdma_netdev_t type,
+				 struct rdma_netdev_alloc_params *params)
 {
-	struct net_device *netdev;
-
 	if (type != RDMA_NETDEV_IPOIB)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
-	netdev = mlx5_rdma_netdev_alloc(to_mdev(hca)->mdev, hca,
-					name, setup);
-	return netdev;
+	return mlx5_rdma_rn_get_params(to_mdev(device)->mdev, device, params);
 }
 
 static void delay_drop_debugfs_cleanup(struct mlx5_ib_dev *dev)
@@ -5824,8 +5816,9 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 	dev->ib_dev.get_dev_fw_str      = get_dev_fw_str;
 	dev->ib_dev.get_vector_affinity	= mlx5_ib_get_vector_affinity;
-	if (MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads))
-		dev->ib_dev.alloc_rdma_netdev	= mlx5_ib_alloc_rdma_netdev;
+	if (MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads) &&
+	    IS_ENABLED(CONFIG_MLX5_CORE_IPOIB))
+		dev->ib_dev.rdma_netdev_get_params = mlx5_ib_rn_get_params;
 
 	if (mlx5_core_is_pf(mdev)) {
 		dev->ib_dev.get_vf_config	= mlx5_ib_get_vf_config;

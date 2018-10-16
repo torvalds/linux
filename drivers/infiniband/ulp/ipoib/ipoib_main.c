@@ -2115,82 +2115,58 @@ static const struct net_device_ops ipoib_netdev_default_pf = {
 	.ndo_stop		 = ipoib_ib_dev_stop_default,
 };
 
-static struct net_device
-*ipoib_create_netdev_default(struct ib_device *hca,
-			     const char *name,
-			     unsigned char name_assign_type,
-			     void (*setup)(struct net_device *))
+static struct net_device *ipoib_alloc_netdev(struct ib_device *hca, u8 port,
+					     const char *name)
 {
 	struct net_device *dev;
-	struct rdma_netdev *rn;
 
-	dev = alloc_netdev((int)sizeof(struct rdma_netdev),
-			   name,
-			   name_assign_type, setup);
+	dev = rdma_alloc_netdev(hca, port, RDMA_NETDEV_IPOIB, name,
+				NET_NAME_UNKNOWN, ipoib_setup_common);
+	if (!IS_ERR(dev) || PTR_ERR(dev) != -EOPNOTSUPP)
+		return dev;
+
+	dev = alloc_netdev(sizeof(struct rdma_netdev), name, NET_NAME_UNKNOWN,
+			   ipoib_setup_common);
 	if (!dev)
-		return NULL;
-
-	rn = netdev_priv(dev);
-
-	rn->send = ipoib_send;
-	rn->attach_mcast = ipoib_mcast_attach;
-	rn->detach_mcast = ipoib_mcast_detach;
-	rn->hca = hca;
-	dev->netdev_ops = &ipoib_netdev_default_pf;
-
+		return ERR_PTR(-ENOMEM);
 	return dev;
 }
 
-static struct net_device *ipoib_get_netdev(struct ib_device *hca, u8 port,
-					   const char *name)
+int ipoib_intf_init(struct ib_device *hca, u8 port, const char *name,
+		    struct net_device *dev)
 {
-	struct net_device *dev;
-
-	if (hca->alloc_rdma_netdev) {
-		dev = hca->alloc_rdma_netdev(hca, port,
-					     RDMA_NETDEV_IPOIB, name,
-					     NET_NAME_UNKNOWN,
-					     ipoib_setup_common);
-		if (IS_ERR_OR_NULL(dev) && PTR_ERR(dev) != -EOPNOTSUPP)
-			return NULL;
-	}
-
-	if (!hca->alloc_rdma_netdev || PTR_ERR(dev) == -EOPNOTSUPP)
-		dev = ipoib_create_netdev_default(hca, name, NET_NAME_UNKNOWN,
-						  ipoib_setup_common);
-
-	return dev;
-}
-
-struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
-					const char *name)
-{
-	struct net_device *dev;
+	struct rdma_netdev *rn = netdev_priv(dev);
 	struct ipoib_dev_priv *priv;
-	struct rdma_netdev *rn;
+	int rc;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return NULL;
+		return -ENOMEM;
 
 	priv->ca = hca;
 	priv->port = port;
 
-	dev = ipoib_get_netdev(hca, port, name);
-	if (!dev)
-		goto free_priv;
+	rc = rdma_init_netdev(hca, port, RDMA_NETDEV_IPOIB, name,
+			      NET_NAME_UNKNOWN, ipoib_setup_common, dev);
+	if (rc) {
+		if (rc != -EOPNOTSUPP)
+			goto out;
+
+		dev->netdev_ops = &ipoib_netdev_default_pf;
+		rn->send = ipoib_send;
+		rn->attach_mcast = ipoib_mcast_attach;
+		rn->detach_mcast = ipoib_mcast_detach;
+		rn->hca = hca;
+	}
 
 	priv->rn_ops = dev->netdev_ops;
 
-	/* fixme : should be after the query_cap */
-	if (priv->hca_caps & IB_DEVICE_VIRTUAL_FUNCTION)
+	if (hca->attrs.device_cap_flags & IB_DEVICE_VIRTUAL_FUNCTION)
 		dev->netdev_ops	= &ipoib_netdev_ops_vf;
 	else
 		dev->netdev_ops	= &ipoib_netdev_ops_pf;
 
-	rn = netdev_priv(dev);
 	rn->clnt_priv = priv;
-
 	/*
 	 * Only the child register_netdev flows can handle priv_destructor
 	 * being set, so we force it to NULL here and handle manually until it
@@ -2201,10 +2177,35 @@ struct ipoib_dev_priv *ipoib_intf_alloc(struct ib_device *hca, u8 port,
 
 	ipoib_build_priv(dev);
 
-	return priv;
-free_priv:
+	return 0;
+
+out:
 	kfree(priv);
-	return NULL;
+	return rc;
+}
+
+struct net_device *ipoib_intf_alloc(struct ib_device *hca, u8 port,
+				    const char *name)
+{
+	struct net_device *dev;
+	int rc;
+
+	dev = ipoib_alloc_netdev(hca, port, name);
+	if (IS_ERR(dev))
+		return dev;
+
+	rc = ipoib_intf_init(hca, port, name, dev);
+	if (rc) {
+		free_netdev(dev);
+		return ERR_PTR(rc);
+	}
+
+	/*
+	 * Upon success the caller must ensure ipoib_intf_free is called or
+	 * register_netdevice succeed'd and priv_destructor is set to
+	 * ipoib_intf_free.
+	 */
+	return dev;
 }
 
 void ipoib_intf_free(struct net_device *dev)
@@ -2387,16 +2388,19 @@ int ipoib_add_pkey_attr(struct net_device *dev)
 static struct net_device *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)
 {
+	struct rtnl_link_ops *ops = ipoib_get_link_ops();
+	struct rdma_netdev_alloc_params params;
 	struct ipoib_dev_priv *priv;
 	struct net_device *ndev;
 	int result;
 
-	priv = ipoib_intf_alloc(hca, port, format);
-	if (!priv) {
-		pr_warn("%s, %d: ipoib_intf_alloc failed\n", hca->name, port);
-		return ERR_PTR(-ENOMEM);
+	ndev = ipoib_intf_alloc(hca, port, format);
+	if (IS_ERR(ndev)) {
+		pr_warn("%s, %d: ipoib_intf_alloc failed %ld\n", hca->name, port,
+			PTR_ERR(ndev));
+		return ndev;
 	}
-	ndev = priv->dev;
+	priv = ipoib_priv(ndev);
 
 	INIT_IB_EVENT_HANDLER(&priv->event_handler,
 			      priv->ca, ipoib_event);
@@ -2417,6 +2421,14 @@ static struct net_device *ipoib_add_port(const char *format,
 		return ERR_PTR(result);
 	}
 
+	if (hca->rdma_netdev_get_params) {
+		int rc = hca->rdma_netdev_get_params(hca, port,
+						     RDMA_NETDEV_IPOIB,
+						     &params);
+
+		if (!rc && ops->priv_size < params.sizeof_priv)
+			ops->priv_size = params.sizeof_priv;
+	}
 	/*
 	 * We cannot set priv_destructor before register_netdev because we
 	 * need priv to be always valid during the error flow to execute

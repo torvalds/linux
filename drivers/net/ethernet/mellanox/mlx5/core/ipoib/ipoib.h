@@ -84,10 +84,11 @@ void mlx5i_dev_cleanup(struct net_device *dev);
 int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 /* Parent profile functions */
-void mlx5i_init(struct mlx5_core_dev *mdev,
-		struct net_device *netdev,
-		const struct mlx5e_profile *profile,
-		void *ppriv);
+int mlx5i_init(struct mlx5_core_dev *mdev,
+	       struct net_device *netdev,
+	       const struct mlx5e_profile *profile,
+	       void *ppriv);
+void mlx5i_cleanup(struct mlx5e_priv *priv);
 
 /* Get child interface nic profile */
 const struct mlx5e_profile *mlx5i_pkey_get_profile(void);
