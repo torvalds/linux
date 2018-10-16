@@ -1,10 +1,10 @@
 config QTNFMAC
 	tristate
-	depends on QTNFMAC_PEARL_PCIE
-	default m if QTNFMAC_PEARL_PCIE=m
-	default y if QTNFMAC_PEARL_PCIE=y
+	depends on QTNFMAC_PCIE
+	default m if QTNFMAC_PCIE=m
+	default y if QTNFMAC_PCIE=y
 
-config QTNFMAC_PEARL_PCIE
+config QTNFMAC_PCIE
 	tristate "Quantenna QSR10g PCIe support"
 	default n
 	depends on PCI && CFG80211
@@ -16,4 +16,4 @@ config QTNFMAC_PEARL_PCIE
 	  802.11ac QSR10g (aka Pearl) FullMAC chipset running over PCIe.
 
 	  If you choose to build it as a module, two modules will be built:
-	  qtnfmac.ko and qtnfmac_pearl_pcie.ko.
+	  qtnfmac.ko and qtnfmac_pcie.ko.
