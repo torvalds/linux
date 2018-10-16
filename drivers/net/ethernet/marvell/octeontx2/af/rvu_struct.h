@@ -426,4 +426,39 @@ struct nix_aq_res_s {
 	u64 reserved_64_127;		/* W1 */
 };
 
+enum nix_lsoalg {
+	NIX_LSOALG_NOP,
+	NIX_LSOALG_ADD_SEGNUM,
+	NIX_LSOALG_ADD_PAYLEN,
+	NIX_LSOALG_ADD_OFFSET,
+	NIX_LSOALG_TCP_FLAGS,
+};
+
+enum nix_txlayer {
+	NIX_TXLAYER_OL3,
+	NIX_TXLAYER_OL4,
+	NIX_TXLAYER_IL3,
+	NIX_TXLAYER_IL4,
+};
+
+struct nix_lso_format {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 rsvd_19_63		: 45;
+	u64 alg			: 3;
+	u64 rsvd_14_15		: 2;
+	u64 sizem1		: 2;
+	u64 rsvd_10_11		: 2;
+	u64 layer		: 2;
+	u64 offset		: 8;
+#else
+	u64 offset		: 8;
+	u64 layer		: 2;
+	u64 rsvd_10_11		: 2;
+	u64 sizem1		: 2;
+	u64 rsvd_14_15		: 2;
+	u64 alg			: 3;
+	u64 rsvd_19_63		: 45;
+#endif
+};
+
 #endif /* RVU_STRUCT_H */

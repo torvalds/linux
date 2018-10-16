@@ -132,6 +132,12 @@ struct npa_aq_pool_res {
 	struct	npa_pool_s	ctx_mask;
 };
 
+/* NIX LSO format indices.
+ * As of now TSO is the only one using, so statically assigning indices.
+ */
+#define NIX_LSO_FORMAT_IDX_TSOV4	0
+#define NIX_LSO_FORMAT_IDX_TSOV6	1
+
 /* RSS info */
 #define MAX_RSS_GROUPS			8
 /* Group 0 has to be used in default pkt forwarding MCAM entries

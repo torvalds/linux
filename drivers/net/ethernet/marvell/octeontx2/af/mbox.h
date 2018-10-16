@@ -374,6 +374,8 @@ struct nix_lf_alloc_req {
 struct nix_lf_alloc_rsp {
 	struct mbox_msghdr hdr;
 	u16	sqb_size;
+	u8	lso_tsov4_idx;
+	u8	lso_tsov6_idx;
 	u8      mac_addr[ETH_ALEN];
 };
 

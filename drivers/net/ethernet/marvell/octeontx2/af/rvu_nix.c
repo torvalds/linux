@@ -16,6 +16,96 @@
 #include "rvu.h"
 #include "cgx.h"
 
+static void nix_setup_lso_tso_l3(struct rvu *rvu, int blkaddr,
+				 u64 format, bool v4, u64 *fidx)
+{
+	struct nix_lso_format field = {0};
+
+	/* IP's Length field */
+	field.layer = NIX_TXLAYER_OL3;
+	/* In ipv4, length field is at offset 2 bytes, for ipv6 it's 4 */
+	field.offset = v4 ? 2 : 4;
+	field.sizem1 = 1; /* i.e 2 bytes */
+	field.alg = NIX_LSOALG_ADD_PAYLEN;
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_LSO_FORMATX_FIELDX(format, (*fidx)++),
+		    *(u64 *)&field);
+
+	/* No ID field in IPv6 header */
+	if (!v4)
+		return;
+
+	/* IP's ID field */
+	field.layer = NIX_TXLAYER_OL3;
+	field.offset = 4;
+	field.sizem1 = 1; /* i.e 2 bytes */
+	field.alg = NIX_LSOALG_ADD_SEGNUM;
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_LSO_FORMATX_FIELDX(format, (*fidx)++),
+		    *(u64 *)&field);
+}
+
+static void nix_setup_lso_tso_l4(struct rvu *rvu, int blkaddr,
+				 u64 format, u64 *fidx)
+{
+	struct nix_lso_format field = {0};
+
+	/* TCP's sequence number field */
+	field.layer = NIX_TXLAYER_OL4;
+	field.offset = 4;
+	field.sizem1 = 3; /* i.e 4 bytes */
+	field.alg = NIX_LSOALG_ADD_OFFSET;
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_LSO_FORMATX_FIELDX(format, (*fidx)++),
+		    *(u64 *)&field);
+
+	/* TCP's flags field */
+	field.layer = NIX_TXLAYER_OL4;
+	field.offset = 12;
+	field.sizem1 = 0; /* not needed */
+	field.alg = NIX_LSOALG_TCP_FLAGS;
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_LSO_FORMATX_FIELDX(format, (*fidx)++),
+		    *(u64 *)&field);
+}
+
+static void nix_setup_lso(struct rvu *rvu, int blkaddr)
+{
+	u64 cfg, idx, fidx = 0;
+
+	/* Enable LSO */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_LSO_CFG);
+	/* For TSO, set first and middle segment flags to
+	 * mask out PSH, RST & FIN flags in TCP packet
+	 */
+	cfg &= ~((0xFFFFULL << 32) | (0xFFFFULL << 16));
+	cfg |= (0xFFF2ULL << 32) | (0xFFF2ULL << 16);
+	rvu_write64(rvu, blkaddr, NIX_AF_LSO_CFG, cfg | BIT_ULL(63));
+
+	/* Configure format fields for TCPv4 segmentation offload */
+	idx = NIX_LSO_FORMAT_IDX_TSOV4;
+	nix_setup_lso_tso_l3(rvu, blkaddr, idx, true, &fidx);
+	nix_setup_lso_tso_l4(rvu, blkaddr, idx, &fidx);
+
+	/* Set rest of the fields to NOP */
+	for (; fidx < 8; fidx++) {
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_LSO_FORMATX_FIELDX(idx, fidx), 0x0ULL);
+	}
+
+	/* Configure format fields for TCPv6 segmentation offload */
+	idx = NIX_LSO_FORMAT_IDX_TSOV6;
+	fidx = 0;
+	nix_setup_lso_tso_l3(rvu, blkaddr, idx, false, &fidx);
+	nix_setup_lso_tso_l4(rvu, blkaddr, idx, &fidx);
+
+	/* Set rest of the fields to NOP */
+	for (; fidx < 8; fidx++) {
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_LSO_FORMATX_FIELDX(idx, fidx), 0x0ULL);
+	}
+}
+
 static void nix_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
 {
 	if (pfvf->rq_ctx)
@@ -219,6 +309,8 @@ exit:
 	/* set SQB size info */
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SQ_CONST);
 	rsp->sqb_size = (cfg >> 34) & 0xFFFF;
+	rsp->lso_tsov4_idx = NIX_LSO_FORMAT_IDX_TSOV4;
+	rsp->lso_tsov6_idx = NIX_LSO_FORMAT_IDX_TSOV6;
 	return rc;
 }
 
@@ -357,6 +449,9 @@ int rvu_nix_init(struct rvu *rvu)
 
 	/* Restore CINT timer delay to HW reset values */
 	rvu_write64(rvu, blkaddr, NIX_AF_CINT_DELAY, 0x0ULL);
+
+	/* Configure segmentation offload formats */
+	nix_setup_lso(rvu, blkaddr);
 
 	return 0;
 }
