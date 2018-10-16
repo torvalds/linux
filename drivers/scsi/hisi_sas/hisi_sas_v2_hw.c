@@ -806,8 +806,10 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 	while (1) {
 		start = find_next_zero_bit(bitmap,
 					hisi_hba->slot_index_count, start);
-		if (start >= end)
+		if (start >= end) {
+			spin_unlock_irqrestore(&hisi_hba->lock, flags);
 			return -SAS_QUEUE_FULL;
+		}
 		/*
 		  * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
 		  */
