@@ -68,8 +68,8 @@ static int vbox_ttm_global_init(struct vbox_private *vbox)
 	global_ref = &vbox->ttm.bo_global_ref.ref;
 	global_ref->global_type = DRM_GLOBAL_TTM_BO;
 	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
+	global_ref->init = &ttm_bo_global_ref_init;
+	global_ref->release = &ttm_bo_global_ref_release;
 
 	ret = drm_global_item_ref(global_ref);
 	if (ret) {

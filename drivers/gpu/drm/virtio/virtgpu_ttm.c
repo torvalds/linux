@@ -84,8 +84,8 @@ static int virtio_gpu_ttm_global_init(struct virtio_gpu_device *vgdev)
 	global_ref = &vgdev->mman.bo_global_ref.ref;
 	global_ref->global_type = DRM_GLOBAL_TTM_BO;
 	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
+	global_ref->init = &ttm_bo_global_ref_init;
+	global_ref->release = &ttm_bo_global_ref_release;
 	r = drm_global_item_ref(global_ref);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up TTM BO subsystem.\n");

@@ -59,8 +59,8 @@ static int hibmc_ttm_global_init(struct hibmc_drm_private *hibmc)
 		hibmc->mem_global_ref.object;
 	hibmc->bo_global_ref.ref.global_type = DRM_GLOBAL_TTM_BO;
 	hibmc->bo_global_ref.ref.size = sizeof(struct ttm_bo_global);
-	hibmc->bo_global_ref.ref.init = &ttm_bo_global_init;
-	hibmc->bo_global_ref.ref.release = &ttm_bo_global_release;
+	hibmc->bo_global_ref.ref.init = &ttm_bo_global_ref_init;
+	hibmc->bo_global_ref.ref.release = &ttm_bo_global_ref_release;
 	ret = drm_global_item_ref(&hibmc->bo_global_ref.ref);
 	if (ret) {
 		DRM_ERROR("failed setting up TTM BO subsystem: %d\n", ret);

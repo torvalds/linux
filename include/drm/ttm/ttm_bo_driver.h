@@ -578,8 +578,8 @@ void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
 void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem);
 
-void ttm_bo_global_release(struct drm_global_reference *ref);
-int ttm_bo_global_init(struct drm_global_reference *ref);
+void ttm_bo_global_ref_release(struct drm_global_reference *ref);
+int ttm_bo_global_ref_init(struct drm_global_reference *ref);
 
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
