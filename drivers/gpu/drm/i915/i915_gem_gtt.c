@@ -3637,7 +3637,7 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 }
 
 static struct scatterlist *
-rotate_pages(const dma_addr_t *in, unsigned int offset,
+rotate_pages(struct drm_i915_gem_object *obj, unsigned int offset,
 	     unsigned int width, unsigned int height,
 	     unsigned int stride,
 	     struct sg_table *st, struct scatterlist *sg)
@@ -3646,7 +3646,7 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 	unsigned int src_idx;
 
 	for (column = 0; column < width; column++) {
-		src_idx = stride * (height - 1) + column;
+		src_idx = stride * (height - 1) + column + offset;
 		for (row = 0; row < height; row++) {
 			st->nents++;
 			/* We don't need the pages, but need to initialize
@@ -3654,7 +3654,8 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 			 * The only thing we need are DMA addresses.
 			 */
 			sg_set_page(sg, NULL, I915_GTT_PAGE_SIZE, 0);
-			sg_dma_address(sg) = in[offset + src_idx];
+			sg_dma_address(sg) =
+				i915_gem_object_get_dma_address(obj, src_idx);
 			sg_dma_len(sg) = I915_GTT_PAGE_SIZE;
 			sg = sg_next(sg);
 			src_idx -= stride;
@@ -3668,22 +3669,11 @@ static noinline struct sg_table *
 intel_rotate_pages(struct intel_rotation_info *rot_info,
 		   struct drm_i915_gem_object *obj)
 {
-	const unsigned long n_pages = obj->base.size / I915_GTT_PAGE_SIZE;
 	unsigned int size = intel_rotation_info_size(rot_info);
-	struct sgt_iter sgt_iter;
-	dma_addr_t dma_addr;
-	unsigned long i;
-	dma_addr_t *page_addr_list;
 	struct sg_table *st;
 	struct scatterlist *sg;
 	int ret = -ENOMEM;
-
-	/* Allocate a temporary list of source pages for random access. */
-	page_addr_list = kvmalloc_array(n_pages,
-					sizeof(dma_addr_t),
-					GFP_KERNEL);
-	if (!page_addr_list)
-		return ERR_PTR(ret);
+	int i;
 
 	/* Allocate target SG list. */
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
@@ -3694,29 +3684,20 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	if (ret)
 		goto err_sg_alloc;
 
-	/* Populate source page list from the object. */
-	i = 0;
-	for_each_sgt_dma(dma_addr, sgt_iter, obj->mm.pages)
-		page_addr_list[i++] = dma_addr;
-
-	GEM_BUG_ON(i != n_pages);
 	st->nents = 0;
 	sg = st->sgl;
 
 	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++) {
-		sg = rotate_pages(page_addr_list, rot_info->plane[i].offset,
+		sg = rotate_pages(obj, rot_info->plane[i].offset,
 				  rot_info->plane[i].width, rot_info->plane[i].height,
 				  rot_info->plane[i].stride, st, sg);
 	}
-
-	kvfree(page_addr_list);
 
 	return st;
 
 err_sg_alloc:
 	kfree(st);
 err_st_alloc:
-	kvfree(page_addr_list);
 
 	DRM_DEBUG_DRIVER("Failed to create rotated mapping for object size %zu! (%ux%u tiles, %u pages)\n",
 			 obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
