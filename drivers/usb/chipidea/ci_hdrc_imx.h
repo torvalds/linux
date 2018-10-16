@@ -14,10 +14,13 @@ struct imx_usbmisc_data {
 	unsigned int oc_polarity:1; /* over current polarity if oc enabled */
 	unsigned int evdo:1; /* set external vbus divider option */
 	unsigned int ulpi:1; /* connected to an ULPI phy */
+	unsigned int hsic:1; /* HSIC controlller */
 };
 
-int imx_usbmisc_init(struct imx_usbmisc_data *);
-int imx_usbmisc_init_post(struct imx_usbmisc_data *);
-int imx_usbmisc_set_wakeup(struct imx_usbmisc_data *, bool);
+int imx_usbmisc_init(struct imx_usbmisc_data *data);
+int imx_usbmisc_init_post(struct imx_usbmisc_data *data);
+int imx_usbmisc_set_wakeup(struct imx_usbmisc_data *data, bool enabled);
+int imx_usbmisc_hsic_set_connect(struct imx_usbmisc_data *data);
+int imx_usbmisc_hsic_set_clk(struct imx_usbmisc_data *data, bool on);
 
 #endif /* __DRIVER_USB_CHIPIDEA_CI_HDRC_IMX_H */
