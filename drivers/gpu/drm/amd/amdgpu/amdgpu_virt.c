@@ -48,7 +48,7 @@ int amdgpu_allocate_static_csa(struct amdgpu_device *adev)
 
 	r = amdgpu_bo_create_kernel(adev, AMDGPU_CSA_SIZE, PAGE_SIZE,
 				AMDGPU_GEM_DOMAIN_VRAM, &adev->virt.csa_obj,
-				&adev->virt.csa_vmid0_addr, &ptr);
+				NULL, &ptr);
 	if (r)
 		return r;
 
@@ -58,7 +58,7 @@ int amdgpu_allocate_static_csa(struct amdgpu_device *adev)
 
 void amdgpu_free_static_csa(struct amdgpu_device *adev) {
 	amdgpu_bo_free_kernel(&adev->virt.csa_obj,
-						&adev->virt.csa_vmid0_addr,
+						NULL,
 						NULL);
 }
 
