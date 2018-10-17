@@ -533,10 +533,11 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 		/*
 		 * For data packets rate info comes from the fw. Only
-		 * set rate/antenna during connection establishment.
+		 * set rate/antenna during connection establishment or in case
+		 * no station is given.
 		 */
-		if (sta && (!ieee80211_is_data(hdr->frame_control) ||
-			    mvmsta->sta_state < IEEE80211_STA_AUTHORIZED)) {
+		if (!sta || !ieee80211_is_data(hdr->frame_control) ||
+		    mvmsta->sta_state < IEEE80211_STA_AUTHORIZED) {
 			flags |= IWL_TX_FLAGS_CMD_RATE;
 			rate_n_flags =
 				iwl_mvm_get_tx_rate_n_flags(mvm, info, sta,
