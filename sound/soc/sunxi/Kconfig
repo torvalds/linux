@@ -28,6 +28,14 @@ config SND_SUN8I_CODEC_ANALOG
 	  Say Y or M if you want to add support for the analog controls for
 	  the codec embedded in newer Allwinner SoCs.
 
+config SND_SUN50I_CODEC_ANALOG
+	tristate "Allwinner sun50i Codec Analog Controls Support"
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+	select SND_SUNXI_ADDA_PR_REGMAP
+	help
+	  Say Y or M if you want to add support for the analog controls for
+	  the codec embedded in Allwinner A64 SoC.
+
 config SND_SUN4I_I2S
 	tristate "Allwinner A10 I2S Support"
 	select SND_SOC_GENERIC_DMAENGINE_PCM
