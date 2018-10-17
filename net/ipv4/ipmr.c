@@ -2499,8 +2499,6 @@ static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 next_entry:
 			e++;
 		}
-		e = 0;
-		s_e = 0;
 
 		spin_lock_bh(&mfc_unres_lock);
 		list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
