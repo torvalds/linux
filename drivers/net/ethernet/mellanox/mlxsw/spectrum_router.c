@@ -4247,6 +4247,7 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_fib_entry *fib_entry)
 {
 	union mlxsw_sp_l3addr dip = { .addr4 = htonl(fen_info->dst) };
+	u32 tb_id = mlxsw_sp_fix_tb_id(fen_info->tb_id);
 	struct net_device *dev = fen_info->fi->fib_dev;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct fib_info *fi = fen_info->fi;
@@ -4260,6 +4261,15 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 			return mlxsw_sp_fib_entry_decap_init(mlxsw_sp,
 							     fib_entry,
 							     ipip_entry);
+		}
+		if (mlxsw_sp_nve_ipv4_route_is_decap(mlxsw_sp, tb_id,
+						     dip.addr4)) {
+			u32 t_index;
+
+			t_index = mlxsw_sp_nve_decap_tunnel_index_get(mlxsw_sp);
+			fib_entry->decap.tunnel_index = t_index;
+			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP;
+			return 0;
 		}
 		/* fall through */
 	case RTN_BROADCAST:
