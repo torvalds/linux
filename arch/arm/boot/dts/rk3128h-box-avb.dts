@@ -19,18 +19,15 @@
 	opp-330000000 {
 		status = "disabled";
 	};
-	opp-588000000 {
-		opp-hz = /bits/ 64 <588000000>;
-		opp-microvolt = <1100000>;
-		opp-microvolt-L0 = <1100000>;
-		opp-microvolt-L1 = <1050000>;
+	opp-666000000 {
+		status = "okay";
 	};
 };
 
 &dmc {
 	system-status-freq = <
 		/*system status freq(KHz)*/
-		SYS_STATUS_NORMAL	588000
+		SYS_STATUS_NORMAL	666000
 	>;
 };
 
