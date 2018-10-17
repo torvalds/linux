@@ -347,7 +347,7 @@ static inline __u16 sctp_data_size(struct sctp_chunk *chunk)
 	__u16 size;
 
 	size = ntohs(chunk->chunk_hdr->length);
-	size -= sctp_datahdr_len(&chunk->asoc->stream);
+	size -= sctp_datachk_len(&chunk->asoc->stream);
 
 	return size;
 }
