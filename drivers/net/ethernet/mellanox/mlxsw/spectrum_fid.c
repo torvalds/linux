@@ -113,6 +113,19 @@ static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
 };
 
+struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_vni(struct mlxsw_sp *mlxsw_sp,
+						__be32 vni)
+{
+	struct mlxsw_sp_fid *fid;
+
+	fid = rhashtable_lookup_fast(&mlxsw_sp->fid_core->vni_ht, &vni,
+				     mlxsw_sp_fid_vni_ht_params);
+	if (fid)
+		fid->ref_count++;
+
+	return fid;
+}
+
 int mlxsw_sp_fid_vni(const struct mlxsw_sp_fid *fid, __be32 *vni)
 {
 	if (!fid->vni_valid)
@@ -879,14 +892,12 @@ static const struct mlxsw_sp_fid_family *mlxsw_sp_fid_family_arr[] = {
 	[MLXSW_SP_FID_TYPE_DUMMY]	= &mlxsw_sp_fid_dummy_family,
 };
 
-static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
-					     enum mlxsw_sp_fid_type type,
-					     const void *arg)
+static struct mlxsw_sp_fid *mlxsw_sp_fid_lookup(struct mlxsw_sp *mlxsw_sp,
+						enum mlxsw_sp_fid_type type,
+						const void *arg)
 {
 	struct mlxsw_sp_fid_family *fid_family;
 	struct mlxsw_sp_fid *fid;
-	u16 fid_index;
-	int err;
 
 	fid_family = mlxsw_sp->fid_core->fid_family_arr[type];
 	list_for_each_entry(fid, &fid_family->fids_list, list) {
@@ -896,6 +907,23 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 		return fid;
 	}
 
+	return NULL;
+}
+
+static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
+					     enum mlxsw_sp_fid_type type,
+					     const void *arg)
+{
+	struct mlxsw_sp_fid_family *fid_family;
+	struct mlxsw_sp_fid *fid;
+	u16 fid_index;
+	int err;
+
+	fid = mlxsw_sp_fid_lookup(mlxsw_sp, type, arg);
+	if (fid)
+		return fid;
+
+	fid_family = mlxsw_sp->fid_core->fid_family_arr[type];
 	fid = kzalloc(fid_family->fid_size, GFP_KERNEL);
 	if (!fid)
 		return ERR_PTR(-ENOMEM);
@@ -953,6 +981,13 @@ struct mlxsw_sp_fid *mlxsw_sp_fid_8021d_get(struct mlxsw_sp *mlxsw_sp,
 					    int br_ifindex)
 {
 	return mlxsw_sp_fid_get(mlxsw_sp, MLXSW_SP_FID_TYPE_8021D, &br_ifindex);
+}
+
+struct mlxsw_sp_fid *mlxsw_sp_fid_8021d_lookup(struct mlxsw_sp *mlxsw_sp,
+					       int br_ifindex)
+{
+	return mlxsw_sp_fid_lookup(mlxsw_sp, MLXSW_SP_FID_TYPE_8021D,
+				   &br_ifindex);
 }
 
 struct mlxsw_sp_fid *mlxsw_sp_fid_rfid_get(struct mlxsw_sp *mlxsw_sp,
