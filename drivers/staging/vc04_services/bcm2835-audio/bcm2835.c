@@ -39,8 +39,6 @@ static int bcm2835_devm_add_vchi_ctx(struct device *dev)
 	if (!vchi_ctx)
 		return -ENOMEM;
 
-	memset(vchi_ctx, 0, sizeof(*vchi_ctx));
-
 	ret = bcm2835_new_vchi_ctx(dev, vchi_ctx);
 	if (ret) {
 		devres_free(vchi_ctx);
