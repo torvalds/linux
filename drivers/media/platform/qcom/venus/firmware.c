@@ -22,10 +22,43 @@
 #include <linux/sizes.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
+#include "core.h"
 #include "firmware.h"
+#include "hfi_venus_io.h"
 
 #define VENUS_PAS_ID			9
 #define VENUS_FW_MEM_SIZE		(6 * SZ_1M)
+#define VENUS_FW_START_ADDR		0x0
+
+static void venus_reset_cpu(struct venus_core *core)
+{
+	void __iomem *base = core->base;
+
+	writel(0, base + WRAPPER_FW_START_ADDR);
+	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_FW_END_ADDR);
+	writel(0, base + WRAPPER_CPA_START_ADDR);
+	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_CPA_END_ADDR);
+	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_NONPIX_START_ADDR);
+	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_NONPIX_END_ADDR);
+	writel(0x0, base + WRAPPER_CPU_CGC_DIS);
+	writel(0x0, base + WRAPPER_CPU_CLOCK_CONFIG);
+
+	/* Bring ARM9 out of reset */
+	writel(0, base + WRAPPER_A9SS_SW_RESET);
+}
+
+int venus_set_hw_state(struct venus_core *core, bool resume)
+{
+	if (core->use_tz)
+		return qcom_scm_set_remote_state(resume, 0);
+
+	if (resume)
+		venus_reset_cpu(core);
+	else
+		writel(1, core->base + WRAPPER_A9SS_SW_RESET);
+
+	return 0;
+}
 
 int venus_boot(struct device *dev, const char *fwname)
 {
