@@ -526,7 +526,7 @@ static const struct intel_pinctrl_soc_data *bxt_pinctrl_soc_data[] = {
 	&bxt_west_soc_data,
 	&bxt_southwest_soc_data,
 	&bxt_south_soc_data,
-	NULL,
+	NULL
 };
 
 /* APL */
@@ -990,7 +990,7 @@ static const struct intel_pinctrl_soc_data *apl_pinctrl_soc_data[] = {
 	&apl_northwest_soc_data,
 	&apl_west_soc_data,
 	&apl_southwest_soc_data,
-	NULL,
+	NULL
 };
 
 static const struct acpi_device_id bxt_pinctrl_acpi_match[] = {
@@ -1003,7 +1003,7 @@ MODULE_DEVICE_TABLE(acpi, bxt_pinctrl_acpi_match);
 static const struct platform_device_id bxt_pinctrl_platform_ids[] = {
 	{ "apollolake-pinctrl", (kernel_ulong_t)apl_pinctrl_soc_data },
 	{ "broxton-pinctrl", (kernel_ulong_t)bxt_pinctrl_soc_data },
-	{ },
+	{ }
 };
 
 static INTEL_PINCTRL_PM_OPS(bxt_pinctrl_pm_ops);
