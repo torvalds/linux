@@ -262,10 +262,10 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 
 	reg_set = instance->reg_set;
 
-	/* ventura FW does not fill outbound_scratch_pad_3 with queue depth */
+	/* ventura FW does not fill outbound_scratch_pad_2 with queue depth */
 	if (instance->adapter_type < VENTURA_SERIES)
 		cur_max_fw_cmds =
-		readl(&instance->reg_set->outbound_scratch_pad_3) & 0x00FFFF;
+		readl(&instance->reg_set->outbound_scratch_pad_2) & 0x00FFFF;
 
 	if (dual_qdepth_disable || !cur_max_fw_cmds)
 		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
@@ -974,7 +974,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	struct megasas_header *frame_hdr;
 	const char *sys_info;
 	MFI_CAPABILITIES *drv_ops;
-	u32 scratch_pad_2;
+	u32 scratch_pad_1;
 	ktime_t time;
 	bool cur_fw_64bit_dma_capable;
 
@@ -985,14 +985,14 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	cmd = fusion->ioc_init_cmd;
 
-	scratch_pad_2 = readl
-		(&instance->reg_set->outbound_scratch_pad_2);
+	scratch_pad_1 = readl
+		(&instance->reg_set->outbound_scratch_pad_1);
 
-	cur_rdpq_mode = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ? 1 : 0;
+	cur_rdpq_mode = (scratch_pad_1 & MR_RDPQ_MODE_OFFSET) ? 1 : 0;
 
 	if (instance->adapter_type == INVADER_SERIES) {
 		cur_fw_64bit_dma_capable =
-			(scratch_pad_2 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET) ? true : false;
+			(scratch_pad_1 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET) ? true : false;
 
 		if (instance->consistent_mask_64bit && !cur_fw_64bit_dma_capable) {
 			dev_err(&instance->pdev->dev, "Driver was operating on 64bit "
@@ -1010,7 +1010,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		goto fail_fw_init;
 	}
 
-	instance->fw_sync_cache_support = (scratch_pad_2 &
+	instance->fw_sync_cache_support = (scratch_pad_1 &
 		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
 	dev_info(&instance->pdev->dev, "FW supports sync cache\t: %s\n",
 		 instance->fw_sync_cache_support ? "Yes" : "No");
@@ -1642,7 +1642,7 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 {
 	struct megasas_register_set __iomem *reg_set;
 	struct fusion_context *fusion;
-	u32 scratch_pad_2;
+	u32 scratch_pad_1;
 	int i = 0, count;
 
 	fusion = instance->ctrl_context;
@@ -1659,20 +1659,20 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	megasas_configure_queue_sizes(instance);
 
-	scratch_pad_2 = readl(&instance->reg_set->outbound_scratch_pad_2);
-	/* If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
+	scratch_pad_1 = readl(&instance->reg_set->outbound_scratch_pad_1);
+	/* If scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
 	 * Firmware support extended IO chain frame which is 4 times more than
 	 * legacy Firmware.
 	 * Legacy Firmware - Frame size is (8 * 128) = 1K
 	 * 1M IO Firmware  - Frame size is (8 * 128 * 4)  = 4K
 	 */
-	if (scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK)
+	if (scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK)
 		instance->max_chain_frame_sz =
-			((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
+			((scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
 			MEGASAS_MAX_CHAIN_SHIFT) * MEGASAS_1MB_IO;
 	else
 		instance->max_chain_frame_sz =
-			((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
+			((scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_MASK) >>
 			MEGASAS_MAX_CHAIN_SHIFT) * MEGASAS_256K_IO;
 
 	if (instance->max_chain_frame_sz < MEGASAS_CHAIN_FRAME_SZ_MIN) {
@@ -3737,7 +3737,7 @@ megasas_release_fusion(struct megasas_instance *instance)
 static u32
 megasas_read_fw_status_reg_fusion(struct megasas_register_set __iomem *regs)
 {
-	return readl(&(regs)->outbound_scratch_pad);
+	return readl(&(regs)->outbound_scratch_pad_0);
 }
 
 /**
@@ -4869,8 +4869,8 @@ void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 				"crash dump and initiating OCR\n");
 			status_reg |= MFI_STATE_CRASH_DUMP_DONE;
 			writel(status_reg,
-				&instance->reg_set->outbound_scratch_pad);
-			readl(&instance->reg_set->outbound_scratch_pad);
+				&instance->reg_set->outbound_scratch_pad_0);
+			readl(&instance->reg_set->outbound_scratch_pad_0);
 			return;
 		}
 		megasas_alloc_host_crash_buffer(instance);
@@ -4908,8 +4908,8 @@ void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 			status_reg &= ~MFI_STATE_DMADONE;
 		}
 
-		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
-		readl(&instance->reg_set->outbound_scratch_pad);
+		writel(status_reg, &instance->reg_set->outbound_scratch_pad_0);
+		readl(&instance->reg_set->outbound_scratch_pad_0);
 
 		msleep(MEGASAS_WAIT_FOR_NEXT_DMA_MSECS);
 		status_reg = instance->instancet->read_fw_status_reg(
@@ -4922,8 +4922,8 @@ void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 		instance->fw_crash_buffer_size =  instance->drv_buf_index;
 		instance->fw_crash_state = AVAILABLE;
 		instance->drv_buf_index = 0;
-		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
-		readl(&instance->reg_set->outbound_scratch_pad);
+		writel(status_reg, &instance->reg_set->outbound_scratch_pad_0);
+		readl(&instance->reg_set->outbound_scratch_pad_0);
 		if (!partial_copy)
 			megasas_reset_fusion(instance->host, 0);
 	}

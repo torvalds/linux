@@ -1606,11 +1606,10 @@ struct megasas_register_set {
 
 	u32 	reserved_3[3];			/*00A4h*/
 
-	u32 	outbound_scratch_pad ;		/*00B0h*/
-	u32	outbound_scratch_pad_2;         /*00B4h*/
-	u32	outbound_scratch_pad_3;         /*00B8h*/
-	u32	outbound_scratch_pad_4;         /*00BCh*/
-
+	u32	outbound_scratch_pad_0;		/*00B0h*/
+	u32	outbound_scratch_pad_1;         /*00B4h*/
+	u32	outbound_scratch_pad_2;         /*00B8h*/
+	u32	outbound_scratch_pad_3;         /*00BCh*/
 
 	u32 	inbound_low_queue_port ;	/*00C0h*/
 

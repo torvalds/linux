@@ -595,7 +595,7 @@ megasas_disable_intr_ppc(struct megasas_instance *instance)
 static u32
 megasas_read_fw_status_reg_ppc(struct megasas_register_set __iomem * regs)
 {
-	return readl(&(regs)->outbound_scratch_pad);
+	return readl(&(regs)->outbound_scratch_pad_0);
 }
 
 /**
@@ -720,7 +720,7 @@ megasas_disable_intr_skinny(struct megasas_instance *instance)
 static u32
 megasas_read_fw_status_reg_skinny(struct megasas_register_set __iomem *regs)
 {
-	return readl(&(regs)->outbound_scratch_pad);
+	return readl(&(regs)->outbound_scratch_pad_0);
 }
 
 /**
@@ -865,7 +865,7 @@ megasas_disable_intr_gen2(struct megasas_instance *instance)
 static u32
 megasas_read_fw_status_reg_gen2(struct megasas_register_set __iomem *regs)
 {
-	return readl(&(regs)->outbound_scratch_pad);
+	return readl(&(regs)->outbound_scratch_pad_0);
 }
 
 /**
@@ -5299,7 +5299,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 {
 	u32 max_sectors_1;
 	u32 max_sectors_2, tmp_sectors, msix_enable;
-	u32 scratch_pad_2, scratch_pad_3, scratch_pad_4, status_reg;
+	u32 scratch_pad_1, scratch_pad_2, scratch_pad_3, status_reg;
 	resource_size_t base_addr;
 	struct megasas_register_set __iomem *reg_set;
 	struct megasas_ctrl_info *ctrl_info = NULL;
@@ -5395,9 +5395,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	fusion = instance->ctrl_context;
 
 	if (instance->adapter_type == VENTURA_SERIES) {
-		scratch_pad_3 =
-			readl(&instance->reg_set->outbound_scratch_pad_3);
-		instance->max_raid_mapsize = ((scratch_pad_3 >>
+		scratch_pad_2 =
+			readl(&instance->reg_set->outbound_scratch_pad_2);
+		instance->max_raid_mapsize = ((scratch_pad_2 >>
 			MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT) &
 			MR_MAX_RAID_MAP_SIZE_MASK);
 	}
@@ -5408,17 +5408,17 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (msix_enable && !msix_disable) {
 		int irq_flags = PCI_IRQ_MSIX;
 
-		scratch_pad_2 = readl
-			(&instance->reg_set->outbound_scratch_pad_2);
+		scratch_pad_1 = readl
+			(&instance->reg_set->outbound_scratch_pad_1);
 		/* Check max MSI-X vectors */
 		if (fusion) {
 			if (instance->adapter_type == THUNDERBOLT_SERIES) {
 				/* Thunderbolt Series*/
-				instance->msix_vectors = (scratch_pad_2
+				instance->msix_vectors = (scratch_pad_1
 					& MR_MAX_REPLY_QUEUES_OFFSET) + 1;
 				fw_msix_count = instance->msix_vectors;
 			} else {
-				instance->msix_vectors = ((scratch_pad_2
+				instance->msix_vectors = ((scratch_pad_1
 					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
 					>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
 
@@ -5442,7 +5442,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				}
 
 				if (rdpq_enable)
-					instance->is_rdpq = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ?
+					instance->is_rdpq = (scratch_pad_1 & MR_RDPQ_MODE_OFFSET) ?
 								1 : 0;
 				fw_msix_count = instance->msix_vectors;
 				/* Save 1-15 reply post index address to local memory
@@ -5518,12 +5518,12 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		goto fail_init_adapter;
 
 	if (instance->adapter_type == VENTURA_SERIES) {
-		scratch_pad_4 =
-			readl(&instance->reg_set->outbound_scratch_pad_4);
-		if ((scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK) >=
+		scratch_pad_3 =
+			readl(&instance->reg_set->outbound_scratch_pad_3);
+		if ((scratch_pad_3 & MR_NVME_PAGE_SIZE_MASK) >=
 			MR_DEFAULT_NVME_PAGE_SHIFT)
 			instance->nvme_page_size =
-				(1 << (scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK));
+				(1 << (scratch_pad_3 & MR_NVME_PAGE_SIZE_MASK));
 
 		dev_info(&instance->pdev->dev,
 			 "NVME page size\t: (%d)\n", instance->nvme_page_size);
@@ -6169,7 +6169,7 @@ megasas_set_dma_mask(struct megasas_instance *instance)
 {
 	u64 consistent_mask;
 	struct pci_dev *pdev;
-	u32 scratch_pad_2;
+	u32 scratch_pad_1;
 
 	pdev = instance->pdev;
 	consistent_mask = (instance->adapter_type == VENTURA_SERIES) ?
@@ -6187,10 +6187,10 @@ megasas_set_dma_mask(struct megasas_instance *instance)
 			 * If 32 bit DMA mask fails, then try for 64 bit mask
 			 * for FW capable of handling 64 bit DMA.
 			 */
-			scratch_pad_2 = readl
-				(&instance->reg_set->outbound_scratch_pad_2);
+			scratch_pad_1 = readl
+				(&instance->reg_set->outbound_scratch_pad_1);
 
-			if (!(scratch_pad_2 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET))
+			if (!(scratch_pad_1 & MR_CAN_HANDLE_64_BIT_DMA_OFFSET))
 				goto fail_set_dma_mask;
 			else if (dma_set_mask_and_coherent(&pdev->dev,
 							   DMA_BIT_MASK(64)))
