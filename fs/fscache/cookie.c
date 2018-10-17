@@ -70,7 +70,7 @@ void fscache_free_cookie(struct fscache_cookie *cookie)
 }
 
 /*
- * Set the index key in a cookie.  The cookie struct has space for a 12-byte
+ * Set the index key in a cookie.  The cookie struct has space for a 16-byte
  * key plus length and hash, but if that's not big enough, it's instead a
  * pointer to a buffer containing 3 bytes of hash, 1 byte of length and then
  * the key data.
@@ -80,10 +80,13 @@ static int fscache_set_key(struct fscache_cookie *cookie,
 {
 	unsigned long long h;
 	u32 *buf;
+	int bufs;
 	int i;
 
+	bufs = DIV_ROUND_UP(index_key_len, sizeof(*buf));
+
 	if (index_key_len > sizeof(cookie->inline_key)) {
-		buf = kzalloc(index_key_len, GFP_KERNEL);
+		buf = kcalloc(bufs, sizeof(*buf), GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 		cookie->key = buf;
@@ -98,7 +101,8 @@ static int fscache_set_key(struct fscache_cookie *cookie,
 	 */
 	h = (unsigned long)cookie->parent;
 	h += index_key_len + cookie->type;
-	for (i = 0; i < (index_key_len + sizeof(u32) - 1) / sizeof(u32); i++)
+
+	for (i = 0; i < bufs; i++)
 		h += buf[i];
 
 	cookie->key_hash = h ^ (h >> 32);
