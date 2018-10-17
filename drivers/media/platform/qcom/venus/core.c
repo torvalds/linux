@@ -284,6 +284,14 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_runtime_disable;
 
+	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (ret)
+		goto err_runtime_disable;
+
+	ret = venus_firmware_init(core);
+	if (ret)
+		goto err_runtime_disable;
+
 	ret = venus_boot(core);
 	if (ret)
 		goto err_runtime_disable;
@@ -307,10 +315,6 @@ static int venus_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(dev, &core->v4l2_dev);
 	if (ret)
 		goto err_core_deinit;
-
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	if (ret)
-		goto err_dev_unregister;
 
 	ret = pm_runtime_put_sync(dev);
 	if (ret)
@@ -346,6 +350,8 @@ static int venus_remove(struct platform_device *pdev)
 	hfi_destroy(core);
 	venus_shutdown(dev);
 	of_platform_depopulate(dev);
+
+	venus_firmware_deinit(core);
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);

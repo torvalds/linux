@@ -131,6 +131,9 @@ struct venus_core {
 	struct device *dev_dec;
 	struct device *dev_enc;
 	unsigned int use_tz;
+	struct video_firmware {
+		struct device *dev;
+	} fw;
 	struct mutex lock;
 	struct list_head instances;
 	atomic_t insts_count;
