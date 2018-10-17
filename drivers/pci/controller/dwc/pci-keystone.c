@@ -341,7 +341,7 @@ static int __init ks_add_pcie_port(struct keystone_pcie *ks_pcie,
 	}
 
 	pp->ops = &keystone_pcie_host_ops;
-	ret = ks_dw_pcie_host_init(ks_pcie, ks_pcie->msi_intc_np);
+	ret = ks_dw_pcie_host_init(ks_pcie);
 	if (ret) {
 		dev_err(dev, "failed to initialize host\n");
 		return ret;

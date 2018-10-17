@@ -41,8 +41,7 @@ void ks_dw_pcie_enable_legacy_irqs(struct keystone_pcie *ks_pcie);
 void ks_dw_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie, int offset);
 void ks_dw_pcie_enable_error_irq(struct keystone_pcie *ks_pcie);
 irqreturn_t ks_dw_pcie_handle_error_irq(struct keystone_pcie *ks_pcie);
-int  ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie,
-			struct device_node *msi_intc_np);
+int  ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie);
 int ks_dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 		unsigned int devfn, int where, int size, u32 val);
 int ks_dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
