@@ -93,7 +93,7 @@ struct vc_audio_msg {
 		struct vc_audio_write write;
 		struct vc_audio_result result;
 		struct vc_audio_complete complete;
-	} u;
+	};
 };
 
 #endif /* _VC_AUDIO_DEFS_H_ */
