@@ -25,7 +25,7 @@ LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(objtree)/arch/s390/boot/startup.a $(OBJECTS) FORCE
 	$(call if_changed,ld)
 
-OBJCOPYFLAGS_info.bin := -O binary --only-section=.vmlinux.info
+OBJCOPYFLAGS_info.bin := -O binary --only-section=.vmlinux.info --set-section-flags .vmlinux.info=load
 $(obj)/info.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
