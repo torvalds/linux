@@ -5637,26 +5637,24 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%r13, %c[r13](%[svm]) \n\t"
 		"mov %%r14, %c[r14](%[svm]) \n\t"
 		"mov %%r15, %c[r15](%[svm]) \n\t"
-#endif
 		/*
 		* Clear host registers marked as clobbered to prevent
 		* speculative use.
 		*/
-		"xor %%" _ASM_BX ", %%" _ASM_BX " \n\t"
-		"xor %%" _ASM_CX ", %%" _ASM_CX " \n\t"
-		"xor %%" _ASM_DX ", %%" _ASM_DX " \n\t"
-		"xor %%" _ASM_SI ", %%" _ASM_SI " \n\t"
-		"xor %%" _ASM_DI ", %%" _ASM_DI " \n\t"
-#ifdef CONFIG_X86_64
-		"xor %%r8, %%r8 \n\t"
-		"xor %%r9, %%r9 \n\t"
-		"xor %%r10, %%r10 \n\t"
-		"xor %%r11, %%r11 \n\t"
-		"xor %%r12, %%r12 \n\t"
-		"xor %%r13, %%r13 \n\t"
-		"xor %%r14, %%r14 \n\t"
-		"xor %%r15, %%r15 \n\t"
+		"xor %%r8d, %%r8d \n\t"
+		"xor %%r9d, %%r9d \n\t"
+		"xor %%r10d, %%r10d \n\t"
+		"xor %%r11d, %%r11d \n\t"
+		"xor %%r12d, %%r12d \n\t"
+		"xor %%r13d, %%r13d \n\t"
+		"xor %%r14d, %%r14d \n\t"
+		"xor %%r15d, %%r15d \n\t"
 #endif
+		"xor %%ebx, %%ebx \n\t"
+		"xor %%ecx, %%ecx \n\t"
+		"xor %%edx, %%edx \n\t"
+		"xor %%esi, %%esi \n\t"
+		"xor %%edi, %%edi \n\t"
 		"pop %%" _ASM_BP
 		:
 		: [svm]"a"(svm),

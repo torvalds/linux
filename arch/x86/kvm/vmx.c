@@ -62,7 +62,7 @@
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
-	____kvm_handle_fault_on_reboot(x, "xorl " reg " , " reg)
+	____kvm_handle_fault_on_reboot(x, "xor " reg ", " reg)
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -11285,6 +11285,10 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%r13, %c[r13](%0) \n\t"
 		"mov %%r14, %c[r14](%0) \n\t"
 		"mov %%r15, %c[r15](%0) \n\t"
+		/*
+		* Clear host registers marked as clobbered to prevent
+		* speculative use.
+		*/
 		"xor %%r8d,  %%r8d \n\t"
 		"xor %%r9d,  %%r9d \n\t"
 		"xor %%r10d, %%r10d \n\t"
