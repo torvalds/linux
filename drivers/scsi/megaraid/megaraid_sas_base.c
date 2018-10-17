@@ -2076,9 +2076,11 @@ void megaraid_sas_kill_hba(struct megasas_instance *instance)
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
 		(instance->adapter_type != MFI_SERIES)) {
-		writel(MFI_STOP_ADP, &instance->reg_set->doorbell);
-		/* Flush */
-		readl(&instance->reg_set->doorbell);
+		if (!instance->requestorId) {
+			writel(MFI_STOP_ADP, &instance->reg_set->doorbell);
+			/* Flush */
+			readl(&instance->reg_set->doorbell);
+		}
 		if (instance->requestorId && instance->peerIsPresent)
 			memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
 	} else {
