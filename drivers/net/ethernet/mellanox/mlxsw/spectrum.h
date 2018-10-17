@@ -55,6 +55,8 @@ enum mlxsw_sp_resource_id {
 struct mlxsw_sp_port;
 struct mlxsw_sp_rif;
 struct mlxsw_sp_span_entry;
+enum mlxsw_sp_l3proto;
+union mlxsw_sp_l3addr;
 
 struct mlxsw_sp_upper {
 	struct net_device *dev;
@@ -113,9 +115,11 @@ struct mlxsw_sp_acl;
 struct mlxsw_sp_counter_pool;
 struct mlxsw_sp_fid_core;
 struct mlxsw_sp_kvdl;
+struct mlxsw_sp_nve;
 struct mlxsw_sp_kvdl_ops;
 struct mlxsw_sp_mr_tcam_ops;
 struct mlxsw_sp_acl_tcam_ops;
+struct mlxsw_sp_nve_ops;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -132,6 +136,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
 	struct mlxsw_sp_kvdl *kvdl;
+	struct mlxsw_sp_nve *nve;
 	struct notifier_block netdevice_nb;
 
 	struct mlxsw_sp_counter_pool *counter_pool;
@@ -146,6 +151,7 @@ struct mlxsw_sp {
 	const struct mlxsw_afk_ops *afk_ops;
 	const struct mlxsw_sp_mr_tcam_ops *mr_tcam_ops;
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
+	const struct mlxsw_sp_nve_ops **nve_ops_arr;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -762,5 +768,40 @@ extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp1_mr_tcam_ops;
 
 /* spectrum2_mr_tcam.c */
 extern const struct mlxsw_sp_mr_tcam_ops mlxsw_sp2_mr_tcam_ops;
+
+/* spectrum_nve.c */
+enum mlxsw_sp_nve_type {
+	MLXSW_SP_NVE_TYPE_VXLAN,
+};
+
+struct mlxsw_sp_nve_params {
+	enum mlxsw_sp_nve_type type;
+	__be32 vni;
+	const struct net_device *dev;
+};
+
+extern const struct mlxsw_sp_nve_ops *mlxsw_sp1_nve_ops_arr[];
+extern const struct mlxsw_sp_nve_ops *mlxsw_sp2_nve_ops_arr[];
+
+int mlxsw_sp_nve_flood_ip_add(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_fid *fid,
+			      enum mlxsw_sp_l3proto proto,
+			      union mlxsw_sp_l3addr *addr);
+void mlxsw_sp_nve_flood_ip_del(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_fid *fid,
+			       enum mlxsw_sp_l3proto proto,
+			       union mlxsw_sp_l3addr *addr);
+u32 mlxsw_sp_nve_decap_tunnel_index_get(const struct mlxsw_sp *mlxsw_sp);
+bool mlxsw_sp_nve_ipv4_route_is_decap(const struct mlxsw_sp *mlxsw_sp,
+				      u32 tb_id, __be32 addr);
+int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
+			    struct mlxsw_sp_nve_params *params,
+			    struct netlink_ext_ack *extack);
+void mlxsw_sp_nve_fid_disable(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_fid *fid);
+int mlxsw_sp_port_nve_init(struct mlxsw_sp_port *mlxsw_sp_port);
+void mlxsw_sp_port_nve_fini(struct mlxsw_sp_port *mlxsw_sp_port);
+int mlxsw_sp_nve_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_nve_fini(struct mlxsw_sp *mlxsw_sp);
 
 #endif
