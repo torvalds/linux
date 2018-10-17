@@ -157,13 +157,6 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_copy_dsdt_locally, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
 
 /*
- * Optionally support group module level code.
- * NOTE, this is essentially obsolete and will be removed soon
- * (01/2018).
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_group_module_level_code, FALSE);
-
-/*
  * Optionally support module level code by parsing an entire table as
  * a method as it is loaded. Default is TRUE.
  * NOTE, this is essentially obsolete and will be removed soon
