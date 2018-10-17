@@ -400,6 +400,17 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		cr_own |= DEL;
 
 	/*
+	 * TDM Mode
+	 * see
+	 *	rsnd_ssiu_init_gen2()
+	 */
+	wsr = ssi->wsr;
+	if (is_tdm) {
+		wsr	|= WS_MODE;
+		cr_own	|= CHNL_8;
+	}
+
+	/*
 	 * We shouldn't exchange SWSP after running.
 	 * This means, parent needs to care it.
 	 */
@@ -429,16 +440,6 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 		cr_mode = DIEN;		/* PIO : enable Data interrupt */
 	}
 
-	/*
-	 * TDM Extend Mode
-	 * see
-	 *	rsnd_ssiu_init_gen2()
-	 */
-	wsr = ssi->wsr;
-	if (is_tdm) {
-		wsr	|= WS_MODE;
-		cr_own	|= CHNL_8;
-	}
 init_end:
 	ssi->cr_own	= cr_own;
 	ssi->cr_mode	= cr_mode;
