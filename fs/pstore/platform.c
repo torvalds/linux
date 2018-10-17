@@ -786,13 +786,21 @@ static int __init pstore_init(void)
 
 	pstore_choose_compression();
 
+	/*
+	 * Check if any pstore backends registered earlier but did not
+	 * initialize compression because crypto was not ready. If so,
+	 * initialize compression now.
+	 */
+	if (psinfo && !tfm)
+		allocate_buf_for_compression();
+
 	ret = pstore_init_fs();
 	if (ret)
 		return ret;
 
 	return 0;
 }
-module_init(pstore_init)
+late_initcall(pstore_init);
 
 static void __exit pstore_exit(void)
 {
