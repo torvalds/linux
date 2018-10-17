@@ -1433,7 +1433,7 @@ union bpf_attr {
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
- * int bpf_skb_adjust_room(struct sk_buff *skb, u32 len_diff, u32 mode, u64 flags)
+ * int bpf_skb_adjust_room(struct sk_buff *skb, s32 len_diff, u32 mode, u64 flags)
  * 	Description
  * 		Grow or shrink the room for data in the packet associated to
  * 		*skb* by *len_diff*, and according to the selected *mode*.
