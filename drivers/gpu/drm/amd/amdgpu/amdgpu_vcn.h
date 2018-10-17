@@ -87,6 +87,10 @@ struct dpg_pause_state {
 	enum internal_dpg_state jpeg;
 };
 
+struct amdgpu_vcn_reg{
+	unsigned	scratch9;
+};
+
 struct amdgpu_vcn {
 	struct amdgpu_bo	*vcpu_bo;
 	void			*cpu_addr;
@@ -102,6 +106,7 @@ struct amdgpu_vcn {
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
 	struct dpg_pause_state pause_state;
+	struct amdgpu_vcn_reg	internal, external;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
 		struct dpg_pause_state *new_state);
 };

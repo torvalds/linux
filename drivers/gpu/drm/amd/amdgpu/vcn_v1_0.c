@@ -128,6 +128,9 @@ static int vcn_v1_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	adev->vcn.internal.scratch9 = adev->vcn.external.scratch9 =
+		SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9);
+
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.ring_enc[i];
 		sprintf(ring->name, "vcn_enc%d", i);
