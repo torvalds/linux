@@ -28,6 +28,7 @@
 #include <linux/firmware.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/pci.h>
 #include <linux/suspend.h>
 #include <asm/unaligned.h>
 
@@ -2464,6 +2465,35 @@ static int btusb_set_bdaddr_marvell(struct hci_dev *hdev,
 	return 0;
 }
 
+#define BTUSB_EDGE_LED_COMMAND		0xfc77
+
+static void btusb_edge_set_led(struct hci_dev *hdev, bool state)
+{
+	struct sk_buff *skb;
+	u8 config_led[] = { 0x09, 0x00, 0x01, 0x01 };
+
+	if (state)
+		config_led[1] = 0x01;
+
+	skb = __hci_cmd_sync(hdev, BTUSB_EDGE_LED_COMMAND, sizeof(config_led), config_led, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb))
+		BT_ERR("%s fail to set LED (%ld)", hdev->name, PTR_ERR(skb));
+	else
+		kfree_skb(skb);
+}
+
+static int btusb_edge_post_init(struct hci_dev *hdev)
+{
+	btusb_edge_set_led(hdev, true);
+	return 0;
+}
+
+static int btusb_edge_shutdown(struct hci_dev *hdev)
+{
+	btusb_edge_set_led(hdev, false);
+	return 0;
+}
+
 static int btusb_set_bdaddr_ath3012(struct hci_dev *hdev,
 				    const bdaddr_t *bdaddr)
 {
@@ -3099,8 +3129,18 @@ static int btusb_probe(struct usb_interface *intf,
 		set_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks);
 	}
 
-	if (id->driver_info & BTUSB_MARVELL)
+	if (id->driver_info & BTUSB_MARVELL) {
+		struct pci_dev *pdev;
 		hdev->set_bdaddr = btusb_set_bdaddr_marvell;
+		pdev = pci_get_subsys(PCI_ANY_ID, PCI_ANY_ID, 0x1028, 0x0720, NULL);
+		if (!pdev)
+			pdev = pci_get_subsys(PCI_ANY_ID, PCI_ANY_ID, 0x1028, 0x0733, NULL);
+		if (pdev) {
+			pci_dev_put(pdev);
+			hdev->post_init = btusb_edge_post_init;
+			hdev->shutdown = btusb_edge_shutdown;
+		}
+	}
 
 	if (id->driver_info & BTUSB_SWAVE) {
 		set_bit(HCI_QUIRK_FIXUP_INQUIRY_MODE, &hdev->quirks);
