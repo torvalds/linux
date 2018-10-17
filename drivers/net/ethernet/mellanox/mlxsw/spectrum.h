@@ -431,6 +431,13 @@ struct mlxsw_sp_rif *mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 					      const struct net_device *dev);
 u8 mlxsw_sp_router_port(const struct mlxsw_sp *mlxsw_sp);
 struct mlxsw_sp_fid *mlxsw_sp_rif_fid(const struct mlxsw_sp_rif *rif);
+int mlxsw_sp_router_nve_promote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
+				      enum mlxsw_sp_l3proto ul_proto,
+				      const union mlxsw_sp_l3addr *ul_sip,
+				      u32 tunnel_index);
+void mlxsw_sp_router_nve_demote_decap(struct mlxsw_sp *mlxsw_sp, u32 ul_tb_id,
+				      enum mlxsw_sp_l3proto ul_proto,
+				      const union mlxsw_sp_l3addr *ul_sip);
 
 /* spectrum_kvdl.c */
 enum mlxsw_sp_kvdl_entry_type {
