@@ -1120,9 +1120,9 @@ static int add_port(struct ib_device *device, int port_num,
 	}
 
 	/*
-	 * If port == 0, it means we have only one port and the parent
-	 * device, not this port device, should be the holder of the
-	 * hw_counters
+	 * If port == 0, it means hw_counters are per device and not per
+	 * port, so holder should be device. Therefore skip per port conunter
+	 * initialization.
 	 */
 	if (device->alloc_hw_stats && port_num)
 		setup_hw_stats(device, p, port_num);
