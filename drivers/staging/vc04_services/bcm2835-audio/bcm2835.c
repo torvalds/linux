@@ -343,7 +343,7 @@ static const struct of_device_id snd_bcm2835_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, snd_bcm2835_of_match_table);
 
-static struct platform_driver bcm2835_alsa0_driver = {
+static struct platform_driver bcm2835_alsa_driver = {
 	.probe = snd_bcm2835_alsa_probe,
 #ifdef CONFIG_PM
 	.suspend = snd_bcm2835_alsa_suspend,
@@ -359,7 +359,7 @@ static int bcm2835_alsa_device_init(void)
 {
 	int retval;
 
-	retval = platform_driver_register(&bcm2835_alsa0_driver);
+	retval = platform_driver_register(&bcm2835_alsa_driver);
 	if (retval)
 		pr_err("Error registering bcm2835_audio driver %d .\n", retval);
 
@@ -368,7 +368,7 @@ static int bcm2835_alsa_device_init(void)
 
 static void bcm2835_alsa_device_exit(void)
 {
-	platform_driver_unregister(&bcm2835_alsa0_driver);
+	platform_driver_unregister(&bcm2835_alsa_driver);
 }
 
 late_initcall(bcm2835_alsa_device_init);
