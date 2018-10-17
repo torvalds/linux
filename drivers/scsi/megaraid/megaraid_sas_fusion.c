@@ -2627,19 +2627,22 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	u8 *raidLUN;
 	unsigned long spinlock_flags;
-	union RAID_CONTEXT_UNION *praid_context;
 	struct MR_LD_RAID *raid = NULL;
 	struct MR_PRIV_DEVICE *mrdev_priv;
+	struct RAID_CONTEXT *rctx;
+	struct RAID_CONTEXT_G35 *rctx_g35;
 
 	device_id = MEGASAS_DEV_INDEX(scp);
 
 	fusion = instance->ctrl_context;
 
 	io_request = cmd->io_request;
-	io_request->RaidContext.raid_context.virtual_disk_tgt_id =
-		cpu_to_le16(device_id);
-	io_request->RaidContext.raid_context.status = 0;
-	io_request->RaidContext.raid_context.ex_status = 0;
+	rctx = &io_request->RaidContext.raid_context;
+	rctx_g35 = &io_request->RaidContext.raid_context_g35;
+
+	rctx->virtual_disk_tgt_id = cpu_to_le16(device_id);
+	rctx->status = 0;
+	rctx->ex_status = 0;
 
 	req_desc = (union MEGASAS_REQUEST_DESCRIPTOR_UNION *)cmd->request_desc;
 
@@ -2715,19 +2718,16 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		raid = MR_LdRaidGet(ld, local_map_ptr);
 
 	if (!raid || (!fusion->fast_path_io)) {
-		io_request->RaidContext.raid_context.reg_lock_flags  = 0;
+		rctx->reg_lock_flags  = 0;
 		fp_possible = false;
 	} else {
-		if (MR_BuildRaidContext(instance, &io_info,
-					&io_request->RaidContext.raid_context,
+		if (MR_BuildRaidContext(instance, &io_info, rctx,
 					local_map_ptr, &raidLUN))
 			fp_possible = (io_info.fpOkForIo > 0) ? true : false;
 	}
 
 	cmd->request_desc->SCSIIO.MSIxIndex =
 		instance->reply_map[raw_smp_processor_id()];
-
-	praid_context = &io_request->RaidContext;
 
 	if (instance->adapter_type == VENTURA_SERIES) {
 		/* FP for Optimal raid level 1.
@@ -2765,17 +2765,17 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			/* In ventura if stream detected for a read and it is
 			 * read ahead capable make this IO as LDIO
 			 */
-			if (is_stream_detected(&io_request->RaidContext.raid_context_g35))
+			if (is_stream_detected(rctx_g35))
 				fp_possible = false;
 		}
 
 		/* If raid is NULL, set CPU affinity to default CPU0 */
 		if (raid)
-			megasas_set_raidflag_cpu_affinity(praid_context,
+			megasas_set_raidflag_cpu_affinity(&io_request->RaidContext,
 				raid, fp_possible, io_info.isRead,
 				scsi_buff_len);
 		else
-			praid_context->raid_context_g35.routing_flags |=
+			rctx_g35->routing_flags |=
 				(MR_RAID_CTX_CPUSEL_0 << MR_RAID_CTX_ROUTINGFLAGS_CPUSEL_SHIFT);
 	}
 
@@ -2787,25 +2787,20 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			(MPI2_REQ_DESCRIPT_FLAGS_FP_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (instance->adapter_type == INVADER_SERIES) {
-			if (io_request->RaidContext.raid_context.reg_lock_flags ==
-			    REGION_TYPE_UNUSED)
+			if (rctx->reg_lock_flags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.raid_context.type
-				= MPI2_TYPE_CUDA;
-			io_request->RaidContext.raid_context.nseg = 0x1;
+			rctx->type = MPI2_TYPE_CUDA;
+			rctx->nseg = 0x1;
 			io_request->IoFlags |= cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
-			io_request->RaidContext.raid_context.reg_lock_flags |=
+			rctx->reg_lock_flags |=
 			  (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
 			   MR_RL_FLAGS_SEQ_NUM_ENABLE);
 		} else if (instance->adapter_type == VENTURA_SERIES) {
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-						(1 << RAID_CONTEXT_NSEG_SHIFT);
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-						(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
-			io_request->RaidContext.raid_context_g35.routing_flags |=
-						(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+			rctx_g35->nseg_type |= (1 << RAID_CONTEXT_NSEG_SHIFT);
+			rctx_g35->nseg_type |= (MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+			rctx_g35->routing_flags |= (1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
 			io_request->IoFlags |=
 				cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
 		}
@@ -2819,11 +2814,9 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 			if (instance->adapter_type == VENTURA_SERIES)
-				io_request->RaidContext.raid_context_g35.span_arm
-					= io_info.span_arm;
+				rctx_g35->span_arm = io_info.span_arm;
 			else
-				io_request->RaidContext.raid_context.span_arm
-					= io_info.span_arm;
+				rctx->span_arm = io_info.span_arm;
 
 		} else
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
@@ -2846,31 +2839,26 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		/* populate the LUN field */
 		memcpy(io_request->LUN, raidLUN, 8);
 	} else {
-		io_request->RaidContext.raid_context.timeout_value =
+		rctx->timeout_value =
 			cpu_to_le16(local_map_ptr->raidMap.fpPdIoTimeoutSec);
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (instance->adapter_type == INVADER_SERIES) {
 			if (io_info.do_fp_rlbypass ||
-			(io_request->RaidContext.raid_context.reg_lock_flags
-					== REGION_TYPE_UNUSED))
+			(rctx->reg_lock_flags == REGION_TYPE_UNUSED))
 				cmd->request_desc->SCSIIO.RequestFlags =
 					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.raid_context.type
-				= MPI2_TYPE_CUDA;
-			io_request->RaidContext.raid_context.reg_lock_flags |=
+			rctx->type = MPI2_TYPE_CUDA;
+			rctx->reg_lock_flags |=
 				(MR_RL_FLAGS_GRANT_DESTINATION_CPU0 |
-				 MR_RL_FLAGS_SEQ_NUM_ENABLE);
-			io_request->RaidContext.raid_context.nseg = 0x1;
+					MR_RL_FLAGS_SEQ_NUM_ENABLE);
+			rctx->nseg = 0x1;
 		} else if (instance->adapter_type == VENTURA_SERIES) {
-			io_request->RaidContext.raid_context_g35.routing_flags |=
-					(1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-					(1 << RAID_CONTEXT_NSEG_SHIFT);
-			io_request->RaidContext.raid_context_g35.nseg_type |=
-					(MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
+			rctx_g35->routing_flags |= (1 << MR_RAID_CTX_ROUTINGFLAGS_SQN_SHIFT);
+			rctx_g35->nseg_type |= (1 << RAID_CONTEXT_NSEG_SHIFT);
+			rctx_g35->nseg_type |= (MPI2_TYPE_CUDA << RAID_CONTEXT_TYPE_SHIFT);
 		}
 		io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = cpu_to_le16(device_id);
