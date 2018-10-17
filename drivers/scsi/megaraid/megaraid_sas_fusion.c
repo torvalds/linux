@@ -1043,9 +1043,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	frame_hdr = &cmd->frame->hdr;
 	frame_hdr->cmd_status = 0xFF;
-	frame_hdr->flags = cpu_to_le16(
-		le16_to_cpu(frame_hdr->flags) |
-		MFI_FRAME_DONT_POST_IN_REPLY_QUEUE);
+	frame_hdr->flags |= cpu_to_le16(MFI_FRAME_DONT_POST_IN_REPLY_QUEUE);
 
 	init_frame->cmd	= MFI_CMD_INIT;
 	init_frame->cmd_status = 0xFF;
