@@ -39,17 +39,19 @@ static int tcp_bpf_wait_data(struct sock *sk, struct sk_psock *psock,
 }
 
 int __tcp_bpf_recvmsg(struct sock *sk, struct sk_psock *psock,
-		      struct msghdr *msg, int len)
+		      struct msghdr *msg, int len, int flags)
 {
 	struct iov_iter *iter = &msg->msg_iter;
+	int peek = flags & MSG_PEEK;
 	int i, ret, copied = 0;
+	struct sk_msg *msg_rx;
+
+	msg_rx = list_first_entry_or_null(&psock->ingress_msg,
+					  struct sk_msg, list);
 
 	while (copied != len) {
 		struct scatterlist *sge;
-		struct sk_msg *msg_rx;
 
-		msg_rx = list_first_entry_or_null(&psock->ingress_msg,
-						  struct sk_msg, list);
 		if (unlikely(!msg_rx))
 			break;
 
@@ -70,21 +72,29 @@ int __tcp_bpf_recvmsg(struct sock *sk, struct sk_psock *psock,
 			}
 
 			copied += copy;
-			sge->offset += copy;
-			sge->length -= copy;
-			sk_mem_uncharge(sk, copy);
-			msg_rx->sg.size -= copy;
-			if (!sge->length) {
-				i++;
-				if (i == MAX_SKB_FRAGS)
-					i = 0;
-				if (!msg_rx->skb)
-					put_page(page);
+			if (likely(!peek)) {
+				sge->offset += copy;
+				sge->length -= copy;
+				sk_mem_uncharge(sk, copy);
+				msg_rx->sg.size -= copy;
+
+				if (!sge->length) {
+					sk_msg_iter_var_next(i);
+					if (!msg_rx->skb)
+						put_page(page);
+				}
+			} else {
+				sk_msg_iter_var_next(i);
 			}
 
 			if (copied == len)
 				break;
 		} while (i != msg_rx->sg.end);
+
+		if (unlikely(peek)) {
+			msg_rx = list_next_entry(msg_rx, list);
+			continue;
+		}
 
 		msg_rx->sg.start = i;
 		if (!sge->length && msg_rx->sg.start == msg_rx->sg.end) {
@@ -93,6 +103,8 @@ int __tcp_bpf_recvmsg(struct sock *sk, struct sk_psock *psock,
 				consume_skb(msg_rx->skb);
 			kfree(msg_rx);
 		}
+		msg_rx = list_first_entry_or_null(&psock->ingress_msg,
+						  struct sk_msg, list);
 	}
 
 	return copied;
@@ -115,7 +127,7 @@ int tcp_bpf_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
 	lock_sock(sk);
 msg_bytes_ready:
-	copied = __tcp_bpf_recvmsg(sk, psock, msg, len);
+	copied = __tcp_bpf_recvmsg(sk, psock, msg, len, flags);
 	if (!copied) {
 		int data, err = 0;
 		long timeo;
