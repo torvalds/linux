@@ -679,6 +679,14 @@ int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct tc_prio_qopt_offload *p);
 
 /* spectrum_fid.c */
+int mlxsw_sp_fid_vni(const struct mlxsw_sp_fid *fid, __be32 *vni);
+int mlxsw_sp_fid_nve_flood_index_set(struct mlxsw_sp_fid *fid,
+				     u32 nve_flood_index);
+void mlxsw_sp_fid_nve_flood_index_clear(struct mlxsw_sp_fid *fid);
+bool mlxsw_sp_fid_nve_flood_index_is_set(const struct mlxsw_sp_fid *fid);
+int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni);
+void mlxsw_sp_fid_vni_clear(struct mlxsw_sp_fid *fid);
+bool mlxsw_sp_fid_vni_is_set(const struct mlxsw_sp_fid *fid);
 int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
 			   enum mlxsw_sp_flood_type packet_type, u8 local_port,
 			   bool member);
