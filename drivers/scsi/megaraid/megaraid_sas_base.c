@@ -4661,6 +4661,87 @@ static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 	fusion->drv_map_sz = sizeof(struct MR_DRV_RAID_MAP_ALL);
 }
 
+/*
+ * dcmd.opcode                - MR_DCMD_CTRL_SNAPDUMP_GET_PROPERTIES
+ * dcmd.hdr.length            - number of bytes to read
+ * dcmd.sge                   - Ptr to MR_SNAPDUMP_PROPERTIES
+ * Desc:			 Fill in snapdump properties
+ * Status:			 MFI_STAT_OK- Command successful
+ */
+void megasas_get_snapdump_properties(struct megasas_instance *instance)
+{
+	int ret = 0;
+	struct megasas_cmd *cmd;
+	struct megasas_dcmd_frame *dcmd;
+	struct MR_SNAPDUMP_PROPERTIES *ci;
+	dma_addr_t ci_h = 0;
+
+	ci = instance->snapdump_prop;
+	ci_h = instance->snapdump_prop_h;
+
+	if (!ci)
+		return;
+
+	cmd = megasas_get_cmd(instance);
+
+	if (!cmd) {
+		dev_dbg(&instance->pdev->dev, "Failed to get a free cmd\n");
+		return;
+	}
+
+	dcmd = &cmd->frame->dcmd;
+
+	memset(ci, 0, sizeof(*ci));
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = MFI_STAT_INVALID_STATUS;
+	dcmd->sge_count = 1;
+	dcmd->flags = MFI_FRAME_DIR_READ;
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = cpu_to_le32(sizeof(struct MR_SNAPDUMP_PROPERTIES));
+	dcmd->opcode = cpu_to_le32(MR_DCMD_CTRL_SNAPDUMP_GET_PROPERTIES);
+
+	megasas_set_dma_settings(instance, dcmd, ci_h,
+				 sizeof(struct MR_SNAPDUMP_PROPERTIES));
+
+	if (!instance->mask_interrupts) {
+		ret = megasas_issue_blocked_cmd(instance, cmd,
+						MFI_IO_TIMEOUT_SECS);
+	} else {
+		ret = megasas_issue_polled(instance, cmd);
+		cmd->flags |= DRV_DCMD_SKIP_REFIRE;
+	}
+
+	switch (ret) {
+	case DCMD_SUCCESS:
+		instance->snapdump_wait_time =
+			min_t(u8, ci->trigger_min_num_sec_before_ocr,
+				MEGASAS_MAX_SNAP_DUMP_WAIT_TIME);
+		break;
+
+	case DCMD_TIMEOUT:
+		switch (dcmd_timeout_ocr_possible(instance)) {
+		case INITIATE_OCR:
+			cmd->flags |= DRV_DCMD_SKIP_REFIRE;
+			megasas_reset_fusion(instance->host,
+				MFI_IO_TIMEOUT_OCR);
+			break;
+		case KILL_ADAPTER:
+			megaraid_sas_kill_hba(instance);
+			break;
+		case IGNORE_TIMEOUT:
+			dev_info(&instance->pdev->dev, "Ignore DCMD timeout: %s %d\n",
+				__func__, __LINE__);
+			break;
+		}
+	}
+
+	if (ret != DCMD_TIMEOUT)
+		megasas_return_cmd(instance, cmd);
+}
+
 /**
  * megasas_get_controller_info -	Returns FW's controller structure
  * @instance:				Adapter soft state
@@ -4720,6 +4801,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 		 * CPU endianness format.
 		 */
 		le32_to_cpus((u32 *)&ci->properties.OnOffProperties);
+		le16_to_cpus((u16 *)&ci->properties.on_off_properties2);
 		le32_to_cpus((u32 *)&ci->adapterOperations2);
 		le32_to_cpus((u32 *)&ci->adapterOperations3);
 		le16_to_cpus((u16 *)&ci->adapter_operations4);
@@ -4741,6 +4823,11 @@ megasas_get_ctrl_info(struct megasas_instance *instance)
 
 		/*Check whether controller is iMR or MR */
 		instance->is_imr = (ci->memory_size ? 0 : 1);
+
+		instance->snapdump_wait_time =
+			(ci->properties.on_off_properties2.enable_snap_dump ?
+			 MEGASAS_DEFAULT_SNAP_DUMP_WAIT_TIME : 0);
+
 		dev_info(&instance->pdev->dev,
 			"controller type\t: %s(%dMB)\n",
 			instance->is_imr ? "iMR" : "MR",
@@ -5539,6 +5626,11 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->crash_dump_buf = NULL;
 	}
 
+	if (instance->snapdump_wait_time) {
+		megasas_get_snapdump_properties(instance);
+		dev_info(&instance->pdev->dev, "Snap dump wait time\t: %d\n",
+			 instance->snapdump_wait_time);
+	}
 
 	dev_info(&instance->pdev->dev,
 		"pci id\t\t: (0x%04x)/(0x%04x)/(0x%04x)/(0x%04x)\n",
@@ -5552,7 +5644,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->crash_dump_drv_support ? "yes" : "no");
 	dev_info(&instance->pdev->dev, "jbod sync map		: %s\n",
 		instance->use_seqnum_jbod_fp ? "yes" : "no");
-
 
 	instance->max_sectors_per_req = instance->max_num_sge *
 						SGE_BUFFER_SIZE / 512;
@@ -6257,6 +6348,14 @@ int megasas_alloc_ctrl_dma_buffers(struct megasas_instance *instance)
 				"Failed to allocate PD list buffer\n");
 			return -ENOMEM;
 		}
+
+		instance->snapdump_prop = dma_alloc_coherent(&pdev->dev,
+				sizeof(struct MR_SNAPDUMP_PROPERTIES),
+				&instance->snapdump_prop_h, GFP_KERNEL);
+
+		if (!instance->snapdump_prop)
+			dev_err(&pdev->dev,
+				"Failed to allocate snapdump properties buffer\n");
 	}
 
 	instance->pd_list_buf =
@@ -6400,6 +6499,12 @@ void megasas_free_ctrl_dma_buffers(struct megasas_instance *instance)
 		dma_free_coherent(&pdev->dev, CRASH_DMA_BUF_SIZE,
 				    instance->crash_dump_buf,
 				    instance->crash_dump_h);
+
+	if (instance->snapdump_prop)
+		dma_free_coherent(&pdev->dev,
+				  sizeof(struct MR_SNAPDUMP_PROPERTIES),
+				  instance->snapdump_prop,
+				  instance->snapdump_prop_h);
 }
 
 /*
@@ -7763,8 +7868,15 @@ megasas_aen_polling(struct work_struct *work)
 			break;
 
 		case MR_EVT_CTRL_PROP_CHANGED:
-				dcmd_ret = megasas_get_ctrl_info(instance);
-				break;
+			dcmd_ret = megasas_get_ctrl_info(instance);
+			if (dcmd_ret == DCMD_SUCCESS &&
+			    instance->snapdump_wait_time) {
+				megasas_get_snapdump_properties(instance);
+				dev_info(&instance->pdev->dev,
+					 "Snap dump wait time\t: %d\n",
+					 instance->snapdump_wait_time);
+			}
+			break;
 		default:
 			doscan = 0;
 			break;

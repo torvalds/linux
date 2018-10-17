@@ -725,6 +725,7 @@ struct MPI2_IOC_INIT_REQUEST {
 #define MR_DCMD_CTRL_SHARED_HOST_MEM_ALLOC  0x010e8485   /* SR-IOV HB alloc*/
 #define MR_DCMD_LD_VF_MAP_GET_ALL_LDS_111   0x03200200
 #define MR_DCMD_LD_VF_MAP_GET_ALL_LDS       0x03150200
+#define MR_DCMD_CTRL_SNAPDUMP_GET_PROPERTIES	0x01200100
 
 struct MR_DEV_HANDLE_INFO {
 	__le16	curDevHdl;
@@ -1063,6 +1064,9 @@ struct MR_FW_RAID_MAP_DYNAMIC {
 #define MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP       (0x08)
 #define MPI26_IEEE_SGE_FLAGS_NSF_NVME_SGL       (0x10)
 
+#define MEGASAS_DEFAULT_SNAP_DUMP_WAIT_TIME 15
+#define MEGASAS_MAX_SNAP_DUMP_WAIT_TIME 60
+
 struct megasas_register_set;
 struct megasas_instance;
 
@@ -1348,6 +1352,14 @@ enum CMD_RET_VALUES {
 	REFIRE_CMD = 1,
 	COMPLETE_CMD = 2,
 	RETURN_CMD = 3,
+};
+
+struct  MR_SNAPDUMP_PROPERTIES {
+	u8       offload_num;
+	u8       max_num_supported;
+	u8       cur_num_supported;
+	u8       trigger_min_num_sec_before_ocr;
+	u8       reserved[12];
 };
 
 void megasas_free_cmds_fusion(struct megasas_instance *instance);

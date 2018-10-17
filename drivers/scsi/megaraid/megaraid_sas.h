@@ -142,6 +142,7 @@
  * CLR_HANDSHAKE: FW is waiting for HANDSHAKE from BIOS or Driver
  * HOTPLUG	: Resume from Hotplug
  * MFI_STOP_ADP	: Send signal to FW to stop processing
+ * MFI_ADP_TRIGGER_SNAP_DUMP: Inform firmware to initiate snap dump
  */
 #define WRITE_SEQUENCE_OFFSET		(0x0000000FC) /* I20 */
 #define HOST_DIAGNOSTIC_OFFSET		(0x000000F8)  /* I20 */
@@ -158,6 +159,7 @@
 #define MFI_RESET_FLAGS				MFI_INIT_READY| \
 						MFI_INIT_MFIMODE| \
 						MFI_INIT_ABORT
+#define MFI_ADP_TRIGGER_SNAP_DUMP		0x00000100
 #define MPI2_IOCINIT_MSGFLAG_RDPQ_ARRAY_MODE    (0x01)
 
 /*
@@ -860,8 +862,22 @@ struct megasas_ctrl_prop {
 		u32     reserved:18;
 #endif
 	} OnOffProperties;
-	u8 autoSnapVDSpace;
-	u8 viewSpace;
+
+	union {
+		u8 autoSnapVDSpace;
+		u8 viewSpace;
+		struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+			u16 reserved2:11;
+			u16 enable_snap_dump:1;
+			u16 reserved1:4;
+#else
+			u16 reserved1:4;
+			u16 enable_snap_dump:1;
+			u16 reserved2:11;
+#endif
+		} on_off_properties2;
+	};
 	__le16 spinDownTime;
 	u8  reserved[24];
 } __packed;
@@ -2185,6 +2201,9 @@ struct megasas_instance {
 	struct MR_LD_TARGETID_LIST *ld_targetid_list_buf;
 	dma_addr_t ld_targetid_list_buf_h;
 
+	struct MR_SNAPDUMP_PROPERTIES *snapdump_prop;
+	dma_addr_t snapdump_prop_h;
+
 	void *crash_buf[MAX_CRASH_DUMP_SIZE];
 	unsigned int    fw_crash_buffer_size;
 	unsigned int    fw_crash_state;
@@ -2316,6 +2335,7 @@ struct megasas_instance {
 	bool support_nvme_passthru;
 	u8 task_abort_tmo;
 	u8 max_reset_tmo;
+	u8 snapdump_wait_time;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
@@ -2541,6 +2561,7 @@ void megasas_set_dynamic_target_properties(struct scsi_device *sdev,
 					   bool is_target_prop);
 int megasas_get_target_prop(struct megasas_instance *instance,
 			    struct scsi_device *sdev);
+void megasas_get_snapdump_properties(struct megasas_instance *instance);
 
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);

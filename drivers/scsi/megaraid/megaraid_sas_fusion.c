@@ -3884,14 +3884,57 @@ megasas_check_reset_fusion(struct megasas_instance *instance,
 	return 0;
 }
 
+/**
+ * megasas_trigger_snap_dump -	Trigger snap dump in FW
+ * @instance:			Soft instance of adapter
+ */
+static inline void megasas_trigger_snap_dump(struct megasas_instance *instance)
+{
+	int j;
+	u32 fw_state;
+
+	if (!instance->disableOnlineCtrlReset) {
+		dev_info(&instance->pdev->dev, "Trigger snap dump\n");
+		writel(MFI_ADP_TRIGGER_SNAP_DUMP,
+		       &instance->reg_set->doorbell);
+		readl(&instance->reg_set->doorbell);
+	}
+
+	for (j = 0; j < instance->snapdump_wait_time; j++) {
+		fw_state = instance->instancet->read_fw_status_reg(
+			instance->reg_set) & MFI_STATE_MASK;
+		if (fw_state == MFI_STATE_FAULT) {
+			dev_err(&instance->pdev->dev,
+				"Found FW in FAULT state, after snap dump trigger\n");
+			return;
+		}
+		msleep(1000);
+	}
+}
+
 /* This function waits for outstanding commands on fusion to complete */
 int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 					int reason, int *convert)
 {
 	int i, outstanding, retval = 0, hb_seconds_missed = 0;
 	u32 fw_state;
+	u32 waittime_for_io_completion;
 
-	for (i = 0; i < resetwaittime; i++) {
+	waittime_for_io_completion =
+		min_t(u32, resetwaittime,
+			(resetwaittime - instance->snapdump_wait_time));
+
+	if (reason == MFI_IO_TIMEOUT_OCR) {
+		dev_info(&instance->pdev->dev,
+			"MFI command is timed out\n");
+		megasas_complete_cmd_dpc_fusion((unsigned long)instance);
+		if (instance->snapdump_wait_time)
+			megasas_trigger_snap_dump(instance);
+		retval = 1;
+		goto out;
+	}
+
+	for (i = 0; i < waittime_for_io_completion; i++) {
 		/* Check if firmware is in fault state */
 		fw_state = instance->instancet->read_fw_status_reg(
 			instance->reg_set) & MFI_STATE_MASK;
@@ -3912,13 +3955,6 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 			goto out;
 		}
 
-		if (reason == MFI_IO_TIMEOUT_OCR) {
-			dev_info(&instance->pdev->dev,
-				"MFI IO is timed out, initiating OCR\n");
-			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
-			retval = 1;
-			goto out;
-		}
 
 		/* If SR-IOV VF mode & heartbeat timeout, don't wait */
 		if (instance->requestorId && !reason) {
@@ -3963,6 +3999,12 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		msleep(1000);
 	}
 
+	if (instance->snapdump_wait_time) {
+		megasas_trigger_snap_dump(instance);
+		retval = 1;
+		goto out;
+	}
+
 	if (atomic_read(&instance->fw_outstanding)) {
 		dev_err(&instance->pdev->dev, "pending commands remain after waiting, "
 		       "will reset adapter scsi%d.\n",
@@ -3970,6 +4012,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		*convert = 1;
 		retval = 1;
 	}
+
 out:
 	return retval;
 }
@@ -4782,6 +4825,13 @@ transition_to_ready:
 			else
 				megasas_set_crash_dump_params(instance,
 					MR_CRASH_BUF_TURN_OFF);
+
+			if (instance->snapdump_wait_time) {
+				megasas_get_snapdump_properties(instance);
+				dev_info(&instance->pdev->dev,
+					 "Snap dump wait time\t: %d\n",
+					 instance->snapdump_wait_time);
+			}
 
 			retval = SUCCESS;
 
