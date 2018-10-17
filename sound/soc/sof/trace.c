@@ -226,9 +226,11 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 	sdev->dma_trace_pages = ret;
 	dev_dbg(sdev->dev, "dma_trace_pages: %d\n", sdev->dma_trace_pages);
 
-	ret = trace_debugfs_create(sdev);
-	if (ret < 0)
-		goto table_err;
+	if (sdev->first_boot) {
+		ret = trace_debugfs_create(sdev);
+		if (ret < 0)
+			goto table_err;
+	}
 
 	ret = snd_sof_init_trace_ipc(sdev);
 	if (ret < 0)
