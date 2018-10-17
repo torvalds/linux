@@ -1499,7 +1499,6 @@ enum FW_BOOT_CONTEXT {
 #define MEGASAS_IOCTL_CMD			0
 #define MEGASAS_DEFAULT_CMD_TIMEOUT		90
 #define MEGASAS_THROTTLE_QUEUE_DEPTH		16
-#define MEGASAS_BLOCKED_CMD_TIMEOUT		60
 #define MEGASAS_DEFAULT_TM_TIMEOUT		50
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
