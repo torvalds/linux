@@ -89,11 +89,6 @@ static int bcm2835_audio_send_simple(struct bcm2835_audio_instance *instance,
 	return bcm2835_audio_send_msg(instance, &m, wait);
 }
 
-static const u32 BCM2835_AUDIO_WRITE_COOKIE1 = ('B' << 24 | 'C' << 16 |
-						'M' << 8  | 'A');
-static const u32 BCM2835_AUDIO_WRITE_COOKIE2 = ('D' << 24 | 'A' << 16 |
-						'T' << 8  | 'A');
-
 static void audio_vchi_callback(void *param,
 				const VCHI_CALLBACK_REASON_T reason,
 				void *msg_handle)
@@ -112,8 +107,8 @@ static void audio_vchi_callback(void *param,
 		instance->result = m.u.result.success;
 		complete(&instance->msg_avail_comp);
 	} else if (m.type == VC_AUDIO_MSG_TYPE_COMPLETE) {
-		if (m.u.complete.cookie1 != BCM2835_AUDIO_WRITE_COOKIE1 ||
-		    m.u.complete.cookie2 != BCM2835_AUDIO_WRITE_COOKIE2)
+		if (m.u.complete.cookie1 != VC_AUDIO_WRITE_COOKIE1 ||
+		    m.u.complete.cookie2 != VC_AUDIO_WRITE_COOKIE2)
 			dev_err(instance->dev, "invalid cookie\n");
 		else
 			bcm2835_playback_fifo(instance->alsa_stream,
@@ -329,8 +324,8 @@ int bcm2835_audio_write(struct bcm2835_alsa_stream *alsa_stream,
 		.type = VC_AUDIO_MSG_TYPE_WRITE,
 		.u.write.count = size,
 		.u.write.max_packet = instance->max_packet,
-		.u.write.cookie1 = BCM2835_AUDIO_WRITE_COOKIE1,
-		.u.write.cookie2 = BCM2835_AUDIO_WRITE_COOKIE2,
+		.u.write.cookie1 = VC_AUDIO_WRITE_COOKIE1,
+		.u.write.cookie2 = VC_AUDIO_WRITE_COOKIE2,
 	};
 	unsigned int count;
 	int err, status;
