@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
+#include <linux/iommu.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -122,6 +123,56 @@ err_unmap:
 	return ret;
 }
 
+static int venus_boot_no_tz(struct venus_core *core, phys_addr_t mem_phys,
+			    size_t mem_size)
+{
+	struct iommu_domain *iommu;
+	struct device *dev;
+	int ret;
+
+	dev = core->fw.dev;
+	if (!dev)
+		return -EPROBE_DEFER;
+
+	iommu = core->fw.iommu_domain;
+
+	ret = iommu_map(iommu, VENUS_FW_START_ADDR, mem_phys, mem_size,
+			IOMMU_READ | IOMMU_WRITE | IOMMU_PRIV);
+	if (ret) {
+		dev_err(dev, "could not map video firmware region\n");
+		return ret;
+	}
+
+	venus_reset_cpu(core);
+
+	return 0;
+}
+
+static int venus_shutdown_no_tz(struct venus_core *core)
+{
+	struct iommu_domain *iommu;
+	size_t unmapped;
+	u32 reg;
+	struct device *dev = core->fw.dev;
+	void __iomem *base = core->base;
+
+	/* Assert the reset to ARM9 */
+	reg = readl_relaxed(base + WRAPPER_A9SS_SW_RESET);
+	reg |= WRAPPER_A9SS_SW_RESET_BIT;
+	writel_relaxed(reg, base + WRAPPER_A9SS_SW_RESET);
+
+	/* Make sure reset is asserted before the mapping is removed */
+	mb();
+
+	iommu = core->fw.iommu_domain;
+
+	unmapped = iommu_unmap(iommu, VENUS_FW_START_ADDR, VENUS_FW_MEM_SIZE);
+	if (unmapped != VENUS_FW_MEM_SIZE)
+		dev_err(dev, "failed to unmap firmware\n");
+
+	return 0;
+}
+
 int venus_boot(struct venus_core *core)
 {
 	struct device *dev = core->dev;
@@ -139,17 +190,30 @@ int venus_boot(struct venus_core *core)
 		return -EINVAL;
 	}
 
-	return qcom_scm_pas_auth_and_reset(VENUS_PAS_ID);
+	if (core->use_tz)
+		ret = qcom_scm_pas_auth_and_reset(VENUS_PAS_ID);
+	else
+		ret = venus_boot_no_tz(core, mem_phys, mem_size);
+
+	return ret;
 }
 
-int venus_shutdown(struct device *dev)
+int venus_shutdown(struct venus_core *core)
 {
-	return qcom_scm_pas_shutdown(VENUS_PAS_ID);
+	int ret;
+
+	if (core->use_tz)
+		ret = qcom_scm_pas_shutdown(VENUS_PAS_ID);
+	else
+		ret = venus_shutdown_no_tz(core);
+
+	return ret;
 }
 
 int venus_firmware_init(struct venus_core *core)
 {
 	struct platform_device_info info;
+	struct iommu_domain *iommu_dom;
 	struct platform_device *pdev;
 	struct device_node *np;
 	int ret;
@@ -182,10 +246,27 @@ int venus_firmware_init(struct venus_core *core)
 
 	core->fw.dev = &pdev->dev;
 
+	iommu_dom = iommu_domain_alloc(&platform_bus_type);
+	if (!iommu_dom) {
+		dev_err(core->fw.dev, "Failed to allocate iommu domain\n");
+		ret = -ENOMEM;
+		goto err_unregister;
+	}
+
+	ret = iommu_attach_device(iommu_dom, core->fw.dev);
+	if (ret) {
+		dev_err(core->fw.dev, "could not attach device\n");
+		goto err_iommu_free;
+	}
+
+	core->fw.iommu_domain = iommu_dom;
+
 	of_node_put(np);
 
 	return 0;
 
+err_iommu_free:
+	iommu_domain_free(iommu_dom);
 err_unregister:
 	platform_device_unregister(pdev);
 	of_node_put(np);
@@ -194,8 +275,15 @@ err_unregister:
 
 void venus_firmware_deinit(struct venus_core *core)
 {
+	struct iommu_domain *iommu;
+
 	if (!core->fw.dev)
 		return;
+
+	iommu = core->fw.iommu_domain;
+
+	iommu_detach_device(iommu, core->fw.dev);
+	iommu_domain_free(iommu);
 
 	platform_device_unregister(to_platform_device(core->fw.dev));
 }

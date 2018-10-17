@@ -133,6 +133,7 @@ struct venus_core {
 	unsigned int use_tz;
 	struct video_firmware {
 		struct device *dev;
+		struct iommu_domain *iommu_domain;
 	} fw;
 	struct mutex lock;
 	struct list_head instances;
