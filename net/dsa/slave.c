@@ -1478,6 +1478,7 @@ static void dsa_slave_switchdev_event_work(struct work_struct *work)
 			netdev_dbg(dev, "fdb add failed err=%d\n", err);
 			break;
 		}
+		fdb_info->offloaded = true;
 		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
 					 &fdb_info->info);
 		break;

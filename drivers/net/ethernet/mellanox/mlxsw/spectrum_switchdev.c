@@ -2090,12 +2090,13 @@ void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 static void
 mlxsw_sp_fdb_call_notifiers(enum switchdev_notifier_type type,
 			    const char *mac, u16 vid,
-			    struct net_device *dev)
+			    struct net_device *dev, bool offloaded)
 {
 	struct switchdev_notifier_fdb_info info;
 
 	info.addr = mac;
 	info.vid = vid;
+	info.offloaded = offloaded;
 	call_switchdev_notifiers(type, dev, &info.info);
 }
 
@@ -2147,7 +2148,7 @@ do_fdb_op:
 	if (!do_notification)
 		return;
 	type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
-	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev);
+	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev, adding);
 
 	return;
 
@@ -2207,7 +2208,7 @@ do_fdb_op:
 	if (!do_notification)
 		return;
 	type = adding ? SWITCHDEV_FDB_ADD_TO_BRIDGE : SWITCHDEV_FDB_DEL_TO_BRIDGE;
-	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev);
+	mlxsw_sp_fdb_call_notifiers(type, mac, vid, bridge_port->dev, adding);
 
 	return;
 
@@ -2312,7 +2313,7 @@ static void mlxsw_sp_switchdev_bridge_fdb_event_work(struct work_struct *work)
 			break;
 		mlxsw_sp_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED,
 					    fdb_info->addr,
-					    fdb_info->vid, dev);
+					    fdb_info->vid, dev, true);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
