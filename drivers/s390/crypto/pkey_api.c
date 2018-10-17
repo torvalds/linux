@@ -17,6 +17,7 @@
 #include <linux/kallsyms.h>
 #include <linux/debugfs.h>
 #include <linux/random.h>
+#include <linux/cpufeature.h>
 #include <asm/zcrypt.h>
 #include <asm/cpacf.h>
 #include <asm/pkey.h>
@@ -1704,5 +1705,5 @@ static void __exit pkey_exit(void)
 	pkey_debug_exit();
 }
 
-module_init(pkey_init);
+module_cpu_feature_match(MSA, pkey_init);
 module_exit(pkey_exit);
