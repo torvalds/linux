@@ -529,11 +529,17 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 		break;
 	case PCM3168A_FMT_LEFT_J:
 		sample_min  = 24;
-		channel_max =  8;
+		if (tx)
+			channel_max = 8;
+		else
+			channel_max = 6;
 		break;
 	case PCM3168A_FMT_I2S:
 		sample_min  = 24;
-		channel_max =  8;
+		if (tx)
+			channel_max = 8;
+		else
+			channel_max = 6;
 		break;
 	default:
 		sample_min  = 24;
@@ -559,6 +565,7 @@ static const struct snd_soc_dai_ops pcm3168a_dac_dai_ops = {
 };
 
 static const struct snd_soc_dai_ops pcm3168a_adc_dai_ops = {
+	.startup	= pcm3168a_startup,
 	.set_fmt	= pcm3168a_set_dai_fmt_adc,
 	.set_sysclk	= pcm3168a_set_dai_sysclk,
 	.hw_params	= pcm3168a_hw_params
