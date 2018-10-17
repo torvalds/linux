@@ -1564,9 +1564,7 @@ void megasas_configure_queue_sizes(struct megasas_instance *instance)
 	else
 		instance->max_mpt_cmds = instance->max_fw_cmds;
 
-	instance->max_scsi_cmds = instance->max_fw_cmds -
-			(MEGASAS_FUSION_INTERNAL_CMDS +
-			MEGASAS_FUSION_IOCTL_CMDS);
+	instance->max_scsi_cmds = instance->max_fw_cmds - instance->max_mfi_cmds;
 	instance->cur_can_queue = instance->max_scsi_cmds;
 	instance->host->can_queue = instance->cur_can_queue;
 
