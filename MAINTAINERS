@@ -9897,6 +9897,7 @@ M:	Hannes Reinecke <hare@kernel.org>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/myrb.*
+F:	drivers/scsi/myrs.*
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 M:	Chris Lee <christopher.lee@cspi.com>
