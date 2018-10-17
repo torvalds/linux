@@ -39,19 +39,19 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	    vmid > dev->vm_info.last_vmid_kfd)
 		return 0;
 
-	/* If there is no valid PASID, it's likely a firmware bug */
-	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
-	if (WARN_ONCE(pasid == 0, "FW bug: No PASID in KFD interrupt"))
-		return 0;
-
 	source_id = SOC15_SOURCE_ID_FROM_IH_ENTRY(ih_ring_entry);
 	client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
+	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
 
-	pr_debug("client id 0x%x, source id %d, pasid 0x%x. raw data:\n",
-		 client_id, source_id, pasid);
+	pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
+		 client_id, source_id, vmid, pasid);
 	pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
 		 data[0], data[1], data[2], data[3],
 		 data[4], data[5], data[6], data[7]);
+
+	/* If there is no valid PASID, it's likely a firmware bug */
+	if (WARN_ONCE(pasid == 0, "FW bug: No PASID in KFD interrupt"))
+		return 0;
 
 	/* Interrupt types we care about: various signals and faults.
 	 * They will be forwarded to a work queue (see below).
