@@ -392,7 +392,7 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 
 	if (rdai->bit_clk_inv)
 		cr_own |= SCKP;
-	if (rdai->frm_clk_inv ^ is_tdm)
+	if (rdai->frm_clk_inv && !is_tdm)
 		cr_own |= SWSP;
 	if (rdai->data_alignment)
 		cr_own |= SDTA;
