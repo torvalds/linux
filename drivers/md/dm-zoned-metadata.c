@@ -339,10 +339,11 @@ static void dmz_insert_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk)
 }
 
 /*
- * Lookup a metadata block in the rbtree.
+ * Lookup a metadata block in the rbtree. If the block is found, increment
+ * its reference count.
  */
-static struct dmz_mblock *dmz_lookup_mblock(struct dmz_metadata *zmd,
-					    sector_t mblk_no)
+static struct dmz_mblock *dmz_get_mblock_fast(struct dmz_metadata *zmd,
+					      sector_t mblk_no)
 {
 	struct rb_root *root = &zmd->mblk_rbtree;
 	struct rb_node *node = root->rb_node;
@@ -350,8 +351,17 @@ static struct dmz_mblock *dmz_lookup_mblock(struct dmz_metadata *zmd,
 
 	while (node) {
 		mblk = container_of(node, struct dmz_mblock, node);
-		if (mblk->no == mblk_no)
+		if (mblk->no == mblk_no) {
+			/*
+			 * If this is the first reference to the block,
+			 * remove it from the LRU list.
+			 */
+			mblk->ref++;
+			if (mblk->ref == 1 &&
+			    !test_bit(DMZ_META_DIRTY, &mblk->state))
+				list_del_init(&mblk->link);
 			return mblk;
+		}
 		node = (mblk->no < mblk_no) ? node->rb_left : node->rb_right;
 	}
 
@@ -382,25 +392,19 @@ static void dmz_mblock_bio_end_io(struct bio *bio)
 }
 
 /*
- * Read a metadata block from disk.
+ * Read an uncached metadata block from disk and add it to the cache.
  */
-static struct dmz_mblock *dmz_fetch_mblock(struct dmz_metadata *zmd,
-					   sector_t mblk_no)
+static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
+					      sector_t mblk_no)
 {
-	struct dmz_mblock *mblk;
+	struct dmz_mblock *mblk, *m;
 	sector_t block = zmd->sb[zmd->mblk_primary].block + mblk_no;
 	struct bio *bio;
 
-	/* Get block and insert it */
+	/* Get a new block and a BIO to read it */
 	mblk = dmz_alloc_mblock(zmd, mblk_no);
 	if (!mblk)
 		return NULL;
-
-	spin_lock(&zmd->mblk_lock);
-	mblk->ref++;
-	set_bit(DMZ_META_READING, &mblk->state);
-	dmz_insert_mblock(zmd, mblk);
-	spin_unlock(&zmd->mblk_lock);
 
 	bio = bio_alloc(GFP_NOIO, 1);
 	if (!bio) {
@@ -408,6 +412,27 @@ static struct dmz_mblock *dmz_fetch_mblock(struct dmz_metadata *zmd,
 		return NULL;
 	}
 
+	spin_lock(&zmd->mblk_lock);
+
+	/*
+	 * Make sure that another context did not start reading
+	 * the block already.
+	 */
+	m = dmz_get_mblock_fast(zmd, mblk_no);
+	if (m) {
+		spin_unlock(&zmd->mblk_lock);
+		dmz_free_mblock(zmd, mblk);
+		bio_put(bio);
+		return m;
+	}
+
+	mblk->ref++;
+	set_bit(DMZ_META_READING, &mblk->state);
+	dmz_insert_mblock(zmd, mblk);
+
+	spin_unlock(&zmd->mblk_lock);
+
+	/* Submit read BIO */
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
 	bio_set_dev(bio, zmd->dev->bdev);
 	bio->bi_private = mblk;
@@ -509,19 +534,12 @@ static struct dmz_mblock *dmz_get_mblock(struct dmz_metadata *zmd,
 
 	/* Check rbtree */
 	spin_lock(&zmd->mblk_lock);
-	mblk = dmz_lookup_mblock(zmd, mblk_no);
-	if (mblk) {
-		/* Cache hit: remove block from LRU list */
-		mblk->ref++;
-		if (mblk->ref == 1 &&
-		    !test_bit(DMZ_META_DIRTY, &mblk->state))
-			list_del_init(&mblk->link);
-	}
+	mblk = dmz_get_mblock_fast(zmd, mblk_no);
 	spin_unlock(&zmd->mblk_lock);
 
 	if (!mblk) {
 		/* Cache miss: read the block from disk */
-		mblk = dmz_fetch_mblock(zmd, mblk_no);
+		mblk = dmz_get_mblock_slow(zmd, mblk_no);
 		if (!mblk)
 			return ERR_PTR(-ENOMEM);
 	}
