@@ -3022,20 +3022,10 @@ static int ena_calc_io_queue_num(struct pci_dev *pdev,
 	int io_sq_num, io_queue_num;
 
 	/* In case of LLQ use the llq number in the get feature cmd */
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		io_sq_num = get_feat_ctx->max_queues.max_legacy_llq_num;
-
-		if (io_sq_num == 0) {
-			dev_err(&pdev->dev,
-				"Trying to use LLQ but llq_num is 0. Fall back into regular queues\n");
-
-			ena_dev->tx_mem_queue_type =
-				ENA_ADMIN_PLACEMENT_POLICY_HOST;
-			io_sq_num = get_feat_ctx->max_queues.max_sq_num;
-		}
-	} else {
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		io_sq_num = get_feat_ctx->llq.max_llq_num;
+	else
 		io_sq_num = get_feat_ctx->max_queues.max_sq_num;
-	}
 
 	io_queue_num = min_t(int, num_online_cpus(), ENA_MAX_NUM_IO_QUEUES);
 	io_queue_num = min_t(int, io_queue_num, io_sq_num);
@@ -3238,7 +3228,7 @@ static int ena_calc_queue_size(struct pci_dev *pdev,
 
 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
 		queue_size = min_t(u32, queue_size,
-				   get_feat_ctx->max_queues.max_legacy_llq_depth);
+				   get_feat_ctx->llq.max_llq_depth);
 
 	queue_size = rounddown_pow_of_two(queue_size);
 
