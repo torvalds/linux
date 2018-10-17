@@ -4,6 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <net/netevent.h>
+#include <net/vxlan.h>
 #include <linux/idr.h>
 #include <net/dst_metadata.h>
 #include <net/arp.h>
@@ -187,7 +188,7 @@ static bool nfp_tun_is_netdev_to_offload(struct net_device *netdev)
 		return false;
 	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
 		return true;
-	if (!strcmp(netdev->rtnl_link_ops->kind, "vxlan"))
+	if (netif_is_vxlan(netdev))
 		return true;
 
 	return false;
