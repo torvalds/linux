@@ -1437,6 +1437,9 @@ struct super_block {
 	/* Number of inodes with nlink == 0 but still referenced */
 	atomic_long_t s_remove_count;
 
+	/* Pending fsnotify inode refs */
+	atomic_long_t s_fsnotify_inode_refs;
+
 	/* Being remounted read-only */
 	int s_readonly_remount;
 
