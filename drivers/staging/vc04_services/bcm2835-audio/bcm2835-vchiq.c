@@ -94,9 +94,9 @@ static void audio_vchi_callback(void *param,
 				void *msg_handle)
 {
 	struct bcm2835_audio_instance *instance = param;
-	int status;
-	int msg_len;
 	struct vc_audio_msg m;
+	int msg_len;
+	int status;
 
 	if (reason != VCHI_CALLBACK_MSG_AVAILABLE)
 		return;

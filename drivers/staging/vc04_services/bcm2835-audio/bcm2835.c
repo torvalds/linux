@@ -161,8 +161,8 @@ static int snd_add_child_device(struct device *dev,
 				struct bcm2835_audio_driver *audio_driver,
 				u32 numchans)
 {
-	struct snd_card *card;
 	struct bcm2835_chip *chip;
+	struct snd_card *card;
 	int err;
 
 	err = snd_card_new(dev, -1, NULL, THIS_MODULE, sizeof(*chip), &card);
@@ -225,12 +225,12 @@ static int snd_add_child_device(struct device *dev,
 
 static int snd_add_child_devices(struct device *device, u32 numchans)
 {
-	int i;
-	int count_devices = 0;
-	int minchannels = 0;
-	int extrachannels = 0;
 	int extrachannels_per_driver = 0;
 	int extrachannels_remainder = 0;
+	int count_devices = 0;
+	int extrachannels = 0;
+	int minchannels = 0;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(children_devices); i++)
 		if (*children_devices[i].is_enabled)
@@ -258,9 +258,9 @@ static int snd_add_child_devices(struct device *device, u32 numchans)
 		extrachannels_remainder);
 
 	for (i = 0; i < ARRAY_SIZE(children_devices); i++) {
-		int err;
-		int numchannels_this_device;
 		struct bcm2835_audio_driver *audio_driver;
+		int numchannels_this_device;
+		int err;
 
 		if (!*children_devices[i].is_enabled)
 			continue;
