@@ -48,6 +48,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
+#include <linux/workqueue.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -95,6 +96,7 @@ static void megasas_free_rdpq_fusion(struct megasas_instance *instance);
 static void megasas_free_reply_fusion(struct megasas_instance *instance);
 static inline
 void megasas_configure_queue_sizes(struct megasas_instance *instance);
+static void megasas_fusion_crash_dump(struct megasas_instance *instance);
 
 /**
  * megasas_check_same_4gb_region -	check if allocation
@@ -1757,6 +1759,90 @@ fail_alloc_cmds:
 fail_alloc_mfi_cmds:
 	megasas_free_ioc_init_cmd(instance);
 	return 1;
+}
+
+/**
+ * megasas_fault_detect_work	-	Worker function of
+ *					FW fault handling workqueue.
+ */
+static void
+megasas_fault_detect_work(struct work_struct *work)
+{
+	struct megasas_instance *instance =
+		container_of(work, struct megasas_instance,
+			     fw_fault_work.work);
+	u32 fw_state, dma_state, status;
+
+	/* Check the fw state */
+	fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) &
+			MFI_STATE_MASK;
+
+	if (fw_state == MFI_STATE_FAULT) {
+		dma_state = instance->instancet->read_fw_status_reg(
+				instance->reg_set) & MFI_STATE_DMADONE;
+		/* Start collecting crash, if DMA bit is done */
+		if (instance->crash_dump_drv_support &&
+		    instance->crash_dump_app_support && dma_state) {
+			megasas_fusion_crash_dump(instance);
+		} else {
+			if (instance->unload == 0) {
+				status = megasas_reset_fusion(instance->host, 0);
+				if (status != SUCCESS) {
+					dev_err(&instance->pdev->dev,
+						"Failed from %s %d, do not re-arm timer\n",
+						__func__, __LINE__);
+					return;
+				}
+			}
+		}
+	}
+
+	if (instance->fw_fault_work_q)
+		queue_delayed_work(instance->fw_fault_work_q,
+			&instance->fw_fault_work,
+			msecs_to_jiffies(MEGASAS_WATCHDOG_THREAD_INTERVAL));
+}
+
+int
+megasas_fusion_start_watchdog(struct megasas_instance *instance)
+{
+	/* Check if the Fault WQ is already started */
+	if (instance->fw_fault_work_q)
+		return SUCCESS;
+
+	INIT_DELAYED_WORK(&instance->fw_fault_work, megasas_fault_detect_work);
+
+	snprintf(instance->fault_handler_work_q_name,
+		 sizeof(instance->fault_handler_work_q_name),
+		 "poll_megasas%d_status", instance->host->host_no);
+
+	instance->fw_fault_work_q =
+		create_singlethread_workqueue(instance->fault_handler_work_q_name);
+	if (!instance->fw_fault_work_q) {
+		dev_err(&instance->pdev->dev, "Failed from %s %d\n",
+			__func__, __LINE__);
+		return FAILED;
+	}
+
+	queue_delayed_work(instance->fw_fault_work_q,
+			   &instance->fw_fault_work,
+			   msecs_to_jiffies(MEGASAS_WATCHDOG_THREAD_INTERVAL));
+
+	return SUCCESS;
+}
+
+void
+megasas_fusion_stop_watchdog(struct megasas_instance *instance)
+{
+	struct workqueue_struct *wq;
+
+	if (instance->fw_fault_work_q) {
+		wq = instance->fw_fault_work_q;
+		instance->fw_fault_work_q = NULL;
+		if (!cancel_delayed_work_sync(&instance->fw_fault_work))
+			flush_workqueue(wq);
+		destroy_workqueue(wq);
+	}
 }
 
 /**
@@ -3525,7 +3611,7 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 {
 	struct megasas_irq_context *irq_context = devp;
 	struct megasas_instance *instance = irq_context->instance;
-	u32 mfiStatus, fw_state, dma_state;
+	u32 mfiStatus;
 
 	if (instance->mask_interrupts)
 		return IRQ_NONE;
@@ -3542,31 +3628,7 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 		return IRQ_HANDLED;
 	}
 
-	if (!complete_cmd_fusion(instance, irq_context->MSIxIndex)) {
-		instance->instancet->clear_intr(instance->reg_set);
-		/* If we didn't complete any commands, check for FW fault */
-		fw_state = instance->instancet->read_fw_status_reg(
-			instance->reg_set) & MFI_STATE_MASK;
-		dma_state = instance->instancet->read_fw_status_reg
-			(instance->reg_set) & MFI_STATE_DMADONE;
-		if (instance->crash_dump_drv_support &&
-			instance->crash_dump_app_support) {
-			/* Start collecting crash, if DMA bit is done */
-			if ((fw_state == MFI_STATE_FAULT) && dma_state)
-				schedule_work(&instance->crash_init);
-			else if (fw_state == MFI_STATE_FAULT) {
-				if (instance->unload == 0)
-					schedule_work(&instance->work_init);
-			}
-		} else if (fw_state == MFI_STATE_FAULT) {
-			dev_warn(&instance->pdev->dev, "Iop2SysDoorbellInt"
-			       "for scsi%d\n", instance->host->host_no);
-			if (instance->unload == 0)
-				schedule_work(&instance->work_init);
-		}
-	}
-
-	return IRQ_HANDLED;
+	return complete_cmd_fusion(instance, irq_context->MSIxIndex);
 }
 
 /**
@@ -4752,13 +4814,12 @@ out:
 	return retval;
 }
 
-/* Fusion Crash dump collection work queue */
-void  megasas_fusion_crash_dump_wq(struct work_struct *work)
+/* Fusion Crash dump collection */
+void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 {
-	struct megasas_instance *instance =
-		container_of(work, struct megasas_instance, crash_init);
 	u32 status_reg;
 	u8 partial_copy = 0;
+	int wait = 0;
 
 
 	status_reg = instance->instancet->read_fw_status_reg(instance->reg_set);
@@ -4786,21 +4847,42 @@ void  megasas_fusion_crash_dump_wq(struct work_struct *work)
 			"allocated: %d\n", instance->drv_buf_alloc);
 	}
 
-	/*
-	 * Driver has allocated max buffers, which can be allocated
-	 * and FW has more crash dump data, then driver will
-	 * ignore the data.
-	 */
-	if (instance->drv_buf_index >= (instance->drv_buf_alloc)) {
-		dev_info(&instance->pdev->dev, "Driver is done copying "
-			"the buffer: %d\n", instance->drv_buf_alloc);
-		status_reg |= MFI_STATE_CRASH_DUMP_DONE;
-		partial_copy = 1;
-	} else {
-		memcpy(instance->crash_buf[instance->drv_buf_index],
-			instance->crash_dump_buf, CRASH_DMA_BUF_SIZE);
-		instance->drv_buf_index++;
-		status_reg &= ~MFI_STATE_DMADONE;
+	while (!(status_reg & MFI_STATE_CRASH_DUMP_DONE) &&
+	       (wait < MEGASAS_WATCHDOG_WAIT_COUNT)) {
+		if (!(status_reg & MFI_STATE_DMADONE)) {
+			/*
+			 * Next crash dump buffer is not yet DMA'd by FW
+			 * Check after 10ms. Wait for 1 second for FW to
+			 * post the next buffer. If not bail out.
+			 */
+			wait++;
+			msleep(MEGASAS_WAIT_FOR_NEXT_DMA_MSECS);
+			status_reg = instance->instancet->read_fw_status_reg(
+					instance->reg_set);
+			continue;
+		}
+
+		wait = 0;
+		if (instance->drv_buf_index >= instance->drv_buf_alloc) {
+			dev_info(&instance->pdev->dev,
+				 "Driver is done copying the buffer: %d\n",
+				 instance->drv_buf_alloc);
+			status_reg |= MFI_STATE_CRASH_DUMP_DONE;
+			partial_copy = 1;
+			break;
+		} else {
+			memcpy(instance->crash_buf[instance->drv_buf_index],
+			       instance->crash_dump_buf, CRASH_DMA_BUF_SIZE);
+			instance->drv_buf_index++;
+			status_reg &= ~MFI_STATE_DMADONE;
+		}
+
+		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
+		readl(&instance->reg_set->outbound_scratch_pad);
+
+		msleep(MEGASAS_WAIT_FOR_NEXT_DMA_MSECS);
+		status_reg = instance->instancet->read_fw_status_reg(
+				instance->reg_set);
 	}
 
 	if (status_reg & MFI_STATE_CRASH_DUMP_DONE) {
@@ -4813,9 +4895,6 @@ void  megasas_fusion_crash_dump_wq(struct work_struct *work)
 		readl(&instance->reg_set->outbound_scratch_pad);
 		if (!partial_copy)
 			megasas_reset_fusion(instance->host, 0);
-	} else {
-		writel(status_reg, &instance->reg_set->outbound_scratch_pad);
-		readl(&instance->reg_set->outbound_scratch_pad);
 	}
 }
 

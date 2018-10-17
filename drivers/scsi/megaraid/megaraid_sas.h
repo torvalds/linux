@@ -1544,6 +1544,10 @@ enum FW_BOOT_CONTEXT {
 
 #define MR_CAN_HANDLE_64_BIT_DMA_OFFSET		(1 << 25)
 
+#define MEGASAS_WATCHDOG_THREAD_INTERVAL	1000
+#define MEGASAS_WAIT_FOR_NEXT_DMA_MSECS		20
+#define MEGASAS_WATCHDOG_WAIT_COUNT		50
+
 enum MR_ADAPTER_TYPE {
 	MFI_SERIES = 1,
 	THUNDERBOLT_SERIES = 2,
@@ -2250,7 +2254,9 @@ struct megasas_instance {
 	struct megasas_instance_template *instancet;
 	struct tasklet_struct isr_tasklet;
 	struct work_struct work_init;
-	struct work_struct crash_init;
+	struct delayed_work fw_fault_work;
+	struct workqueue_struct *fw_fault_work_q;
+	char fault_handler_work_q_name[48];
 
 	u8 flag;
 	u8 unload;
@@ -2539,7 +2545,6 @@ int megasas_get_target_prop(struct megasas_instance *instance,
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);
-void megasas_fusion_crash_dump_wq(struct work_struct *work);
 
 void megasas_return_cmd_fusion(struct megasas_instance *instance,
 	struct megasas_cmd_fusion *cmd);
@@ -2560,6 +2565,9 @@ int megasas_reset_target_fusion(struct scsi_cmnd *scmd);
 u32 mega_mod64(u64 dividend, u32 divisor);
 int megasas_alloc_fusion_context(struct megasas_instance *instance);
 void megasas_free_fusion_context(struct megasas_instance *instance);
+int megasas_fusion_start_watchdog(struct megasas_instance *instance);
+void megasas_fusion_stop_watchdog(struct megasas_instance *instance);
+
 void megasas_set_dma_settings(struct megasas_instance *instance,
 			      struct megasas_dcmd_frame *dcmd,
 			      dma_addr_t dma_addr, u32 dma_len);
