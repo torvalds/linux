@@ -18,7 +18,7 @@
 #include "mt76x02.h"
 #include "mt76x02_trace.h"
 
-enum mt76x02_cipher_type
+static enum mt76x02_cipher_type
 mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 {
 	memset(key_data, 0, 32);
@@ -43,7 +43,6 @@ mt76x02_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 		return MT_CIPHER_NONE;
 	}
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_get_key_info);
 
 int mt76x02_mac_shared_key_setup(struct mt76x02_dev *dev, u8 vif_idx,
 				 u8 key_idx, struct ieee80211_key_conf *key)
@@ -95,7 +94,6 @@ int mt76x02_mac_wcid_set_key(struct mt76x02_dev *dev, u8 idx,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_wcid_set_key);
 
 void mt76x02_mac_wcid_setup(struct mt76x02_dev *dev, u8 idx,
 			    u8 vif_idx, u8 *mac)
@@ -154,7 +152,6 @@ void mt76x02_txq_init(struct mt76x02_dev *dev, struct ieee80211_txq *txq)
 
 	mt76_txq_init(&dev->mt76, txq);
 }
-EXPORT_SYMBOL_GPL(mt76x02_txq_init);
 
 static __le16
 mt76x02_mac_tx_rate_val(struct mt76x02_dev *dev,
@@ -239,7 +236,6 @@ bool mt76x02_mac_load_tx_status(struct mt76x02_dev *dev,
 
 	return true;
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_load_tx_status);
 
 static int
 mt76x02_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
@@ -483,7 +479,6 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 out:
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL_GPL(mt76x02_send_tx_status);
 
 int
 mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate)
@@ -705,7 +700,6 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 		kfifo_put(&dev->txstatus_fifo, stat);
 	}
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_poll_tx_status);
 
 static void
 mt76x02_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,

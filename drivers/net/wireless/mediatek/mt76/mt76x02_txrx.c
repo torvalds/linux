@@ -110,7 +110,6 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 
 	return max_txpwr;
 }
-EXPORT_SYMBOL_GPL(mt76x02_tx_get_max_txpwr_adj);
 
 s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr, s8 max_txpwr_adj)
 {
@@ -125,7 +124,6 @@ s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr, s8 max_txpwr_adj)
 	else
 		return (txpwr < -16) ? 8 : (txpwr + 32) / 2;
 }
-EXPORT_SYMBOL_GPL(mt76x02_tx_get_txpwr_adj);
 
 void mt76x02_tx_set_txpwr_auto(struct mt76x02_dev *dev, s8 txpwr)
 {

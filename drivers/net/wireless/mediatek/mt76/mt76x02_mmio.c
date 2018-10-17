@@ -225,7 +225,6 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 	mt76_clear(dev, MT_WPDMA_GLO_CFG,
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 }
-EXPORT_SYMBOL_GPL(mt76x02_dma_enable);
 
 void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
 {

@@ -100,7 +100,7 @@ static u32 __mt76u_rr(struct mt76_dev *dev, u32 addr)
 	return data;
 }
 
-u32 mt76u_rr(struct mt76_dev *dev, u32 addr)
+static u32 mt76u_rr(struct mt76_dev *dev, u32 addr)
 {
 	u32 ret;
 
@@ -110,7 +110,6 @@ u32 mt76u_rr(struct mt76_dev *dev, u32 addr)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mt76u_rr);
 
 /* should be called with usb_ctrl_mtx locked */
 static void __mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
@@ -136,13 +135,12 @@ static void __mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
 	trace_usb_reg_wr(dev, addr, val);
 }
 
-void mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
+static void mt76u_wr(struct mt76_dev *dev, u32 addr, u32 val)
 {
 	mutex_lock(&dev->usb.usb_ctrl_mtx);
 	__mt76u_wr(dev, addr, val);
 	mutex_unlock(&dev->usb.usb_ctrl_mtx);
 }
-EXPORT_SYMBOL_GPL(mt76u_wr);
 
 static u32 mt76u_rmw(struct mt76_dev *dev, u32 addr,
 		     u32 mask, u32 val)
