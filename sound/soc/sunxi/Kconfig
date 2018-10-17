@@ -23,7 +23,7 @@ config SND_SUN8I_CODEC
 config SND_SUN8I_CODEC_ANALOG
 	tristate "Allwinner sun8i Codec Analog Controls Support"
 	depends on MACH_SUN8I || (ARM64 && ARCH_SUNXI) || COMPILE_TEST
-	select REGMAP
+	select SND_SUN8I_ADDA_PR_REGMAP
 	help
 	  Say Y or M if you want to add support for the analog controls for
 	  the codec embedded in newer Allwinner SoCs.
@@ -45,4 +45,9 @@ config SND_SUN4I_SPDIF
 	help
 	  Say Y or M to add support for the S/PDIF audio block in the Allwinner
 	  A10 and affiliated SoCs.
+
+config SND_SUN8I_ADDA_PR_REGMAP
+	tristate
+	select REGMAP
+
 endmenu
