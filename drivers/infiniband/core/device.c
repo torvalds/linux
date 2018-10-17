@@ -465,22 +465,8 @@ static u32 __dev_new_index(void)
 	}
 }
 
-/**
- * ib_register_device - Register an IB device with IB core
- * @device:Device to register
- *
- * Low-level drivers use ib_register_device() to register their
- * devices with the IB core.  All registered clients will receive a
- * callback for each device that is added. @device must be allocated
- * with ib_alloc_device().
- */
-int ib_register_device(struct ib_device *device, const char *name,
-		       int (*port_callback)(struct ib_device *, u8,
-					    struct kobject *))
+static void setup_dma_device(struct ib_device *device)
 {
-	int ret;
-	struct ib_client *client;
-	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 	struct device *parent = device->dev.parent;
 
 	WARN_ON_ONCE(device->dma_device);
@@ -512,6 +498,78 @@ int ib_register_device(struct ib_device *device, const char *name,
 		WARN_ON_ONCE(!parent);
 		device->dma_device = parent;
 	}
+}
+
+static void cleanup_device(struct ib_device *device)
+{
+	ib_cache_cleanup_one(device);
+	ib_cache_release_one(device);
+	kfree(device->port_pkey_list);
+	kfree(device->port_immutable);
+}
+
+static int setup_device(struct ib_device *device)
+{
+	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
+	int ret;
+
+	ret = ib_device_check_mandatory(device);
+	if (ret)
+		return ret;
+
+	ret = read_port_immutable(device);
+	if (ret) {
+		dev_warn(&device->dev,
+			 "Couldn't create per port immutable data\n");
+		return ret;
+	}
+
+	memset(&device->attrs, 0, sizeof(device->attrs));
+	ret = device->query_device(device, &device->attrs, &uhw);
+	if (ret) {
+		dev_warn(&device->dev,
+			 "Couldn't query the device attributes\n");
+		goto port_cleanup;
+	}
+
+	ret = setup_port_pkey_list(device);
+	if (ret) {
+		dev_warn(&device->dev, "Couldn't create per port_pkey_list\n");
+		goto port_cleanup;
+	}
+
+	ret = ib_cache_setup_one(device);
+	if (ret) {
+		dev_warn(&device->dev,
+			 "Couldn't set up InfiniBand P_Key/GID cache\n");
+		goto pkey_cleanup;
+	}
+	return 0;
+
+pkey_cleanup:
+	kfree(device->port_pkey_list);
+port_cleanup:
+	kfree(device->port_immutable);
+	return ret;
+}
+
+/**
+ * ib_register_device - Register an IB device with IB core
+ * @device:Device to register
+ *
+ * Low-level drivers use ib_register_device() to register their
+ * devices with the IB core.  All registered clients will receive a
+ * callback for each device that is added. @device must be allocated
+ * with ib_alloc_device().
+ */
+int ib_register_device(struct ib_device *device, const char *name,
+		       int (*port_callback)(struct ib_device *, u8,
+					    struct kobject *))
+{
+	int ret;
+	struct ib_client *client;
+
+	setup_dma_device(device);
 
 	mutex_lock(&device_mutex);
 
@@ -530,30 +588,9 @@ int ib_register_device(struct ib_device *device, const char *name,
 	}
 	strlcpy(device->name, dev_name(&device->dev), IB_DEVICE_NAME_MAX);
 
-	if (ib_device_check_mandatory(device)) {
-		ret = -EINVAL;
+	ret = setup_device(device);
+	if (ret)
 		goto out;
-	}
-
-	ret = read_port_immutable(device);
-	if (ret) {
-		dev_warn(&device->dev,
-			 "Couldn't create per port immutable data\n");
-		goto out;
-	}
-
-	ret = setup_port_pkey_list(device);
-	if (ret) {
-		dev_warn(&device->dev, "Couldn't create per port_pkey_list\n");
-		goto port_cleanup;
-	}
-
-	ret = ib_cache_setup_one(device);
-	if (ret) {
-		dev_warn(&device->dev,
-			 "Couldn't set up InfiniBand P_Key/GID cache\n");
-		goto pkey_cleanup;
-	}
 
 	device->index = __dev_new_index();
 
@@ -561,15 +598,7 @@ int ib_register_device(struct ib_device *device, const char *name,
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't register device with rdma cgroup\n");
-		goto cache_cleanup;
-	}
-
-	memset(&device->attrs, 0, sizeof(device->attrs));
-	ret = device->query_device(device, &device->attrs, &uhw);
-	if (ret) {
-		dev_warn(&device->dev,
-			 "Couldn't query the device attributes\n");
-		goto cg_cleanup;
+		goto dev_cleanup;
 	}
 
 	ret = ib_device_register_sysfs(device, port_callback);
@@ -593,13 +622,8 @@ int ib_register_device(struct ib_device *device, const char *name,
 
 cg_cleanup:
 	ib_device_unregister_rdmacg(device);
-cache_cleanup:
-	ib_cache_cleanup_one(device);
-	ib_cache_release_one(device);
-pkey_cleanup:
-	kfree(device->port_pkey_list);
-port_cleanup:
-	kfree(device->port_immutable);
+dev_cleanup:
+	cleanup_device(device);
 out:
 	mutex_unlock(&device_mutex);
 	return ret;
