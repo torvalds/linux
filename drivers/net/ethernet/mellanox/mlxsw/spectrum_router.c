@@ -742,6 +742,19 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_find(struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
+int mlxsw_sp_router_tb_id_vr_id(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
+				u16 *vr_id)
+{
+	struct mlxsw_sp_vr *vr;
+
+	vr = mlxsw_sp_vr_find(mlxsw_sp, tb_id);
+	if (!vr)
+		return -ESRCH;
+	*vr_id = vr->id;
+
+	return 0;
+}
+
 static struct mlxsw_sp_fib *mlxsw_sp_vr_fib(const struct mlxsw_sp_vr *vr,
 					    enum mlxsw_sp_l3proto proto)
 {
