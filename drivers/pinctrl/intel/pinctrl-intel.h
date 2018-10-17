@@ -173,8 +173,6 @@ struct intel_pinctrl_soc_data {
 	size_t ncommunities;
 };
 
-int intel_pinctrl_probe(struct platform_device *pdev,
-			const struct intel_pinctrl_soc_data *soc_data);
 int intel_pinctrl_probe_by_hid(struct platform_device *pdev);
 int intel_pinctrl_probe_by_uid(struct platform_device *pdev);
 
