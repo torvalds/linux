@@ -374,6 +374,20 @@ static const struct ieee80211_rate hwsim_rates[] = {
 	{ .bitrate = 540 }
 };
 
+static const u32 hwsim_ciphers[] = {
+	WLAN_CIPHER_SUITE_WEP40,
+	WLAN_CIPHER_SUITE_WEP104,
+	WLAN_CIPHER_SUITE_TKIP,
+	WLAN_CIPHER_SUITE_CCMP,
+	WLAN_CIPHER_SUITE_CCMP_256,
+	WLAN_CIPHER_SUITE_GCMP,
+	WLAN_CIPHER_SUITE_GCMP_256,
+	WLAN_CIPHER_SUITE_AES_CMAC,
+	WLAN_CIPHER_SUITE_BIP_CMAC_256,
+	WLAN_CIPHER_SUITE_BIP_GMAC_128,
+	WLAN_CIPHER_SUITE_BIP_GMAC_256,
+};
+
 #define OUI_QCA 0x001374
 #define QCA_NL80211_SUBCMD_TEST 1
 enum qca_nl80211_vendor_subcmds {
@@ -475,6 +489,8 @@ struct mac80211_hwsim_data {
 	struct ieee80211_iface_combination if_combination;
 	struct ieee80211_iface_limit if_limits[3];
 	int n_if_limits;
+
+	u32 ciphers[ARRAY_SIZE(hwsim_ciphers)];
 
 	struct mac_address addresses[2];
 	int channels, idx;
@@ -603,6 +619,7 @@ static const struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 	[HWSIM_ATTR_FREQ] = { .type = NLA_U32 },
 	[HWSIM_ATTR_PERM_ADDR] = { .type = NLA_UNSPEC, .len = ETH_ALEN },
 	[HWSIM_ATTR_IFTYPE_SUPPORT] = { .type = NLA_U32 },
+	[HWSIM_ATTR_CIPHER_SUPPORT] = { .type = NLA_BINARY },
 };
 
 static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
@@ -2376,6 +2393,8 @@ struct hwsim_new_radio_params {
 	bool no_vif;
 	const u8 *perm_addr;
 	u32 iftypes;
+	u32 *ciphers;
+	u8 n_ciphers;
 };
 
 static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
@@ -2747,6 +2766,13 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	hw->wiphy->iface_combinations = &data->if_combination;
 	hw->wiphy->n_iface_combinations = 1;
+
+	if (param->ciphers) {
+		memcpy(data->ciphers, param->ciphers,
+		       param->n_ciphers * sizeof(u32));
+		hw->wiphy->cipher_suites = data->ciphers;
+		hw->wiphy->n_cipher_suites = param->n_ciphers;
+	}
 
 	INIT_DELAYED_WORK(&data->roc_start, hw_roc_start);
 	INIT_DELAYED_WORK(&data->roc_done, hw_roc_done);
@@ -3296,6 +3322,29 @@ static int hwsim_register_received_nl(struct sk_buff *skb_2,
 	return 0;
 }
 
+/* ensures ciphers only include ciphers listed in 'hwsim_ciphers' array */
+static bool hwsim_known_ciphers(const u32 *ciphers, int n_ciphers)
+{
+	int i;
+
+	for (i = 0; i < n_ciphers; i++) {
+		int j;
+		int found = 0;
+
+		for (j = 0; j < ARRAY_SIZE(hwsim_ciphers); j++) {
+			if (ciphers[i] == hwsim_ciphers[j]) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found)
+			return false;
+	}
+
+	return true;
+}
+
 static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 {
 	struct hwsim_new_radio_params param = { 0 };
@@ -3375,6 +3424,36 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	    param.iftypes & BIT(NL80211_IFTYPE_P2P_DEVICE)) {
 		param.iftypes |= BIT(NL80211_IFTYPE_P2P_DEVICE);
 		param.p2p_device = true;
+	}
+
+	if (info->attrs[HWSIM_ATTR_CIPHER_SUPPORT]) {
+		u32 len = nla_len(info->attrs[HWSIM_ATTR_CIPHER_SUPPORT]);
+
+		param.ciphers =
+			nla_data(info->attrs[HWSIM_ATTR_CIPHER_SUPPORT]);
+
+		if (len % sizeof(u32)) {
+			NL_SET_ERR_MSG_ATTR(info->extack,
+					    info->attrs[HWSIM_ATTR_CIPHER_SUPPORT],
+					    "bad cipher list length");
+			return -EINVAL;
+		}
+
+		param.n_ciphers = len / sizeof(u32);
+
+		if (param.n_ciphers > ARRAY_SIZE(hwsim_ciphers)) {
+			NL_SET_ERR_MSG_ATTR(info->extack,
+					    info->attrs[HWSIM_ATTR_CIPHER_SUPPORT],
+					    "too many ciphers specified");
+			return -EINVAL;
+		}
+
+		if (!hwsim_known_ciphers(param.ciphers, param.n_ciphers)) {
+			NL_SET_ERR_MSG_ATTR(info->extack,
+					    info->attrs[HWSIM_ATTR_CIPHER_SUPPORT],
+					    "unsupported ciphers specified");
+			return -EINVAL;
+		}
 	}
 
 	if (info->attrs[HWSIM_ATTR_RADIO_NAME]) {
