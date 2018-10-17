@@ -291,7 +291,7 @@ static int snd_add_child_devices(struct device *device, u32 numchans)
 	return 0;
 }
 
-static int snd_bcm2835_alsa_probe_dt(struct platform_device *pdev)
+static int snd_bcm2835_alsa_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	u32 numchans;
@@ -344,7 +344,7 @@ static const struct of_device_id snd_bcm2835_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, snd_bcm2835_of_match_table);
 
 static struct platform_driver bcm2835_alsa0_driver = {
-	.probe = snd_bcm2835_alsa_probe_dt,
+	.probe = snd_bcm2835_alsa_probe,
 #ifdef CONFIG_PM
 	.suspend = snd_bcm2835_alsa_suspend,
 	.resume = snd_bcm2835_alsa_resume,
