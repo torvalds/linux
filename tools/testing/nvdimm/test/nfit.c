@@ -149,6 +149,7 @@ static const struct nd_intel_smart smart_def = {
 		| ND_INTEL_SMART_ALARM_VALID
 		| ND_INTEL_SMART_USED_VALID
 		| ND_INTEL_SMART_SHUTDOWN_VALID
+		| ND_INTEL_SMART_SHUTDOWN_COUNT_VALID
 		| ND_INTEL_SMART_MTEMP_VALID
 		| ND_INTEL_SMART_CTEMP_VALID,
 	.health = ND_INTEL_SMART_NON_CRITICAL_HEALTH,
@@ -161,8 +162,8 @@ static const struct nd_intel_smart smart_def = {
 	.ait_status = 1,
 	.life_used = 5,
 	.shutdown_state = 0,
+	.shutdown_count = 42,
 	.vendor_size = 0,
-	.shutdown_count = 100,
 };
 
 struct nfit_test_fw {
