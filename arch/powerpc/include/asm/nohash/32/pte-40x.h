@@ -73,11 +73,6 @@
 /* Until my rework is finished, 40x still needs atomic PTE updates */
 #define PTE_ATOMIC_UPDATES	1
 
-/* Mask of bits returned by pte_pgprot() */
-#define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
-			 _PAGE_WRITETHRU | _PAGE_USER | _PAGE_ACCESSED | \
-			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | _PAGE_EXEC)
-
 #define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #define _PAGE_BASE	(_PAGE_BASE_NC)
 

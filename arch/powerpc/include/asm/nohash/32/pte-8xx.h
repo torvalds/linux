@@ -55,11 +55,6 @@
 #define _PAGE_KERNEL_RW		(_PAGE_SH | _PAGE_DIRTY)
 #define _PAGE_KERNEL_RWX	(_PAGE_SH | _PAGE_DIRTY | _PAGE_EXEC)
 
-/* Mask of bits returned by pte_pgprot() */
-#define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
-			 _PAGE_ACCESSED | _PAGE_RO | _PAGE_NA | \
-			 _PAGE_SH | _PAGE_DIRTY | _PAGE_EXEC)
-
 #define _PMD_PRESENT	0x0001
 #define _PMD_PRESENT_MASK	_PMD_PRESENT
 #define _PMD_BAD	0x0fd0

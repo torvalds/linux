@@ -82,11 +82,6 @@
 #define _PTE_NONE_MASK	0
 #endif
 
-/* Mask of bits returned by pte_pgprot() */
-#define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
-			 _PAGE_WRITETHRU | _PAGE_USER | _PAGE_ACCESSED | \
-			 _PAGE_PRIVILEGED | _PAGE_RW | _PAGE_DIRTY | _PAGE_EXEC)
-
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
  * cacheable kernel and user pages) and one for non cacheable

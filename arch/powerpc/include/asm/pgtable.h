@@ -46,6 +46,16 @@ struct mm_struct;
 /* Keep these as a macros to avoid include dependency mess */
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
+/*
+ * Select all bits except the pfn
+ */
+static inline pgprot_t pte_pgprot(pte_t pte)
+{
+	unsigned long pte_flags;
+
+	pte_flags = pte_val(pte) & ~PTE_RPN_MASK;
+	return __pgprot(pte_flags);
+}
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used

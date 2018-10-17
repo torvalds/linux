@@ -129,13 +129,6 @@
 #define H_PTE_PKEY  (H_PTE_PKEY_BIT0 | H_PTE_PKEY_BIT1 | H_PTE_PKEY_BIT2 | \
 		     H_PTE_PKEY_BIT3 | H_PTE_PKEY_BIT4)
 /*
- * Mask of bits returned by pte_pgprot()
- */
-#define PAGE_PROT_BITS  (_PAGE_SAO | _PAGE_NON_IDEMPOTENT | _PAGE_TOLERANT | \
-			 H_PAGE_4K_PFN | _PAGE_PRIVILEGED | _PAGE_ACCESSED | \
-			 _PAGE_READ | _PAGE_WRITE |  _PAGE_DIRTY | _PAGE_EXEC | \
-			 _PAGE_SOFT_DIRTY | H_PTE_PKEY)
-/*
  * We define 2 sets of base prot bits, one for basic pages (ie,
  * cacheable kernel and user pages) and one for non cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
@@ -496,7 +489,6 @@ static inline bool pte_exec(pte_t pte)
 	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_EXEC));
 }
 
-static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
 
 #ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
 static inline bool pte_soft_dirty(pte_t pte)

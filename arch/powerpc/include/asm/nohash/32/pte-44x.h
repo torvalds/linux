@@ -93,11 +93,6 @@
 #define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW)
 #define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_EXEC)
 
-/* Mask of bits returned by pte_pgprot() */
-#define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
-			 _PAGE_WRITETHRU | _PAGE_USER | _PAGE_ACCESSED | \
-			 _PAGE_RW | _PAGE_DIRTY | _PAGE_EXEC)
-
 /* TODO: Add large page lowmem mapping support */
 #define _PMD_PRESENT	0
 #define _PMD_PRESENT_MASK (PAGE_MASK)

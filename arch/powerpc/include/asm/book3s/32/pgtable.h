@@ -48,11 +48,6 @@ static inline bool pte_user(pte_t pte)
 #define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HASHPTE | _PAGE_DIRTY | \
 			 _PAGE_ACCESSED | _PAGE_SPECIAL)
 
-/* Mask of bits returned by pte_pgprot() */
-#define PAGE_PROT_BITS	(_PAGE_GUARDED | _PAGE_COHERENT | _PAGE_NO_CACHE | \
-			 _PAGE_WRITETHRU | _PAGE_USER | _PAGE_ACCESSED | \
-			 _PAGE_RW | _PAGE_DIRTY)
-
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
  * cacheable kernel and user pages) and one for non cacheable
@@ -396,7 +391,6 @@ static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSE
 static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
 static inline bool pte_exec(pte_t pte)		{ return true; }
-static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
 
 static inline int pte_present(pte_t pte)
 {
