@@ -684,6 +684,12 @@ config SPI_SUN6I
 	help
 	  This enables using the SPI controller on the Allwinner A31 SoCs.
 
+config SPI_MXIC
+        tristate "Macronix MX25F0A SPI controller"
+        depends on SPI_MASTER
+        help
+          This selects the Macronix MX25F0A SPI controller driver.
+
 config SPI_MXS
 	tristate "Freescale MXS SPI controller"
 	depends on ARCH_MXS
