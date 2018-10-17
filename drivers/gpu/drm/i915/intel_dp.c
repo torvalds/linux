@@ -3734,7 +3734,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp)
 	uint32_t signal_levels, mask = 0;
 	uint8_t train_set = intel_dp->train_set[0];
 
-	if (IS_GEN9_LP(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	if (IS_GEN9_LP(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
 		signal_levels = bxt_signal_levels(intel_dp);
 	} else if (HAS_DDI(dev_priv)) {
 		signal_levels = ddi_signal_levels(intel_dp);
