@@ -1508,14 +1508,18 @@ static void rproc_coredump(struct rproc *rproc)
 		phdr->p_flags = PF_R | PF_W | PF_X;
 		phdr->p_align = 0;
 
-		ptr = rproc_da_to_va(rproc, segment->da, segment->size);
-		if (!ptr) {
-			dev_err(&rproc->dev,
-				"invalid coredump segment (%pad, %zu)\n",
-				&segment->da, segment->size);
-			memset(data + offset, 0xff, segment->size);
+		if (segment->dump) {
+			segment->dump(rproc, segment, data + offset);
 		} else {
-			memcpy(data + offset, ptr, segment->size);
+			ptr = rproc_da_to_va(rproc, segment->da, segment->size);
+			if (!ptr) {
+				dev_err(&rproc->dev,
+					"invalid coredump segment (%pad, %zu)\n",
+					&segment->da, segment->size);
+				memset(data + offset, 0xff, segment->size);
+			} else {
+				memcpy(data + offset, ptr, segment->size);
+			}
 		}
 
 		offset += phdr->p_filesz;
