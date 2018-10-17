@@ -85,8 +85,7 @@ MODULE_PARM_DESC(throttlequeuedepth,
 
 unsigned int resetwaittime = MEGASAS_RESET_WAIT_TIME;
 module_param(resetwaittime, int, S_IRUGO);
-MODULE_PARM_DESC(resetwaittime, "Wait time in seconds after I/O timeout "
-		 "before resetting adapter. Default: 180");
+MODULE_PARM_DESC(resetwaittime, "Wait time in (1-180s) after I/O timeout before resetting adapter. Default: 180s");
 
 int smp_affinity_enable = 1;
 module_param(smp_affinity_enable, int, S_IRUGO);
@@ -94,7 +93,7 @@ MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disable Defau
 
 int rdpq_enable = 1;
 module_param(rdpq_enable, int, S_IRUGO);
-MODULE_PARM_DESC(rdpq_enable, " Allocate reply queue in chunks for large queue depth enable/disable Default: disable(0)");
+MODULE_PARM_DESC(rdpq_enable, "Allocate reply queue in chunks for large queue depth enable/disable Default: enable(1)");
 
 unsigned int dual_qdepth_disable;
 module_param(dual_qdepth_disable, int, S_IRUGO);
