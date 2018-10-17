@@ -284,6 +284,13 @@ int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 */
 		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		return 0;
+	case ARM_EXCEPTION_IL:
+		/*
+		 * We attempted an illegal exception return.  Guest state must
+		 * have been corrupted somehow.  Give up.
+		 */
+		run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		return -EINVAL;
 	default:
 		kvm_pr_unimpl("Unsupported exception type: %d",
 			      exception_index);
