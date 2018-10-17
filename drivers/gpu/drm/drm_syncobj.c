@@ -214,6 +214,7 @@ static int drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
  * @file_private: drm file private pointer
  * @handle: sync object handle to lookup.
  * @point: timeline point
+ * @flags: DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT or not
  * @fence: out parameter for the fence
  *
  * This is just a convenience function that combines drm_syncobj_find() and
