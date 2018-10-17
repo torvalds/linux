@@ -705,7 +705,7 @@ static const struct byt_pinctrl_soc_data *byt_soc_data[] = {
 	&byt_score_soc_data,
 	&byt_sus_soc_data,
 	&byt_ncore_soc_data,
-	NULL,
+	NULL
 };
 
 static struct byt_community *byt_get_community(struct byt_gpio *vg,
