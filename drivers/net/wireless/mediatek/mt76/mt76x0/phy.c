@@ -20,7 +20,6 @@
 #include "mt76x0.h"
 #include "mcu.h"
 #include "eeprom.h"
-#include "trace.h"
 #include "phy.h"
 #include "initvals.h"
 #include "initvals_phy.h"
@@ -54,7 +53,7 @@ mt76x0_rf_csr_wr(struct mt76x02_dev *dev, u32 offset, u8 value)
 		FIELD_PREP(MT_RF_CSR_CFG_REG_ID, reg) |
 		MT_RF_CSR_CFG_WR |
 		MT_RF_CSR_CFG_KICK);
-	trace_mt76x0_rf_write(&dev->mt76, bank, offset, value);
+
 out:
 	mutex_unlock(&dev->phy_mutex);
 
@@ -95,10 +94,9 @@ static int mt76x0_rf_csr_rr(struct mt76x02_dev *dev, u32 offset)
 
 	val = mt76_rr(dev, MT_RF_CSR_CFG);
 	if (FIELD_GET(MT_RF_CSR_CFG_REG_ID, val) == reg &&
-	    FIELD_GET(MT_RF_CSR_CFG_REG_BANK, val) == bank) {
+	    FIELD_GET(MT_RF_CSR_CFG_REG_BANK, val) == bank)
 		ret = FIELD_GET(MT_RF_CSR_CFG_DATA, val);
-		trace_mt76x0_rf_read(&dev->mt76, bank, offset, ret);
-	}
+
 out:
 	mutex_unlock(&dev->phy_mutex);
 

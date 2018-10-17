@@ -16,7 +16,6 @@
 
 #include "mt76x0.h"
 #include "eeprom.h"
-#include "trace.h"
 #include "mcu.h"
 #include "initvals.h"
 

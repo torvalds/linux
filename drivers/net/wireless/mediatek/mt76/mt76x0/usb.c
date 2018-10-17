@@ -17,7 +17,6 @@
 
 #include "mt76x0.h"
 #include "mcu.h"
-#include "trace.h"
 #include "../mt76x02_usb.h"
 
 static struct usb_device_id mt76x0_device_table[] = {

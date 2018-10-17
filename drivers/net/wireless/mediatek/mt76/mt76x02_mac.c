@@ -234,6 +234,8 @@ bool mt76x02_mac_load_tx_status(struct mt76x02_dev *dev,
 	stat->retry = FIELD_GET(MT_TX_STAT_FIFO_EXT_RETRY, stat2);
 	stat->pktid = FIELD_GET(MT_TX_STAT_FIFO_EXT_PKTID, stat2);
 
+	trace_mac_txstat_fetch(dev, stat);
+
 	return true;
 }
 
@@ -689,8 +691,6 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 
 		if (!ret)
 			break;
-
-		trace_mac_txstat_fetch(dev, &stat);
 
 		if (!irq) {
 			mt76x02_send_tx_status(dev, &stat, &update);
