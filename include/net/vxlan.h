@@ -420,4 +420,16 @@ struct switchdev_notifier_vxlan_fdb_info {
 	__be32 vni;
 };
 
+#if IS_ENABLED(CONFIG_VXLAN)
+int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
+		      struct switchdev_notifier_vxlan_fdb_info *fdb_info);
+#else
+static inline int
+vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
+		  struct switchdev_notifier_vxlan_fdb_info *fdb_info)
+{
+	return -ENOENT;
+}
+#endif
+
 #endif

@@ -504,6 +504,46 @@ static struct vxlan_rdst *vxlan_fdb_find_rdst(struct vxlan_fdb *f,
 	return NULL;
 }
 
+int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
+		      struct switchdev_notifier_vxlan_fdb_info *fdb_info)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	u8 eth_addr[ETH_ALEN + 2] = { 0 };
+	struct vxlan_rdst *rdst;
+	struct vxlan_fdb *f;
+	int rc = 0;
+
+	if (is_multicast_ether_addr(mac) ||
+	    is_zero_ether_addr(mac))
+		return -EINVAL;
+
+	ether_addr_copy(eth_addr, mac);
+
+	rcu_read_lock();
+
+	f = __vxlan_find_mac(vxlan, eth_addr, vni);
+	if (!f) {
+		rc = -ENOENT;
+		goto out;
+	}
+
+	rdst = first_remote_rcu(f);
+
+	memset(fdb_info, 0, sizeof(*fdb_info));
+	fdb_info->info.dev = dev;
+	fdb_info->remote_ip = rdst->remote_ip;
+	fdb_info->remote_port = rdst->remote_port;
+	fdb_info->remote_vni = rdst->remote_vni;
+	fdb_info->remote_ifindex = rdst->remote_ifindex;
+	fdb_info->vni = vni;
+	ether_addr_copy(fdb_info->eth_addr, mac);
+
+out:
+	rcu_read_unlock();
+	return rc;
+}
+EXPORT_SYMBOL_GPL(vxlan_fdb_find_uc);
+
 /* Replace destination of unicast mac */
 static int vxlan_fdb_replace(struct vxlan_fdb *f,
 			     union vxlan_addr *ip, __be16 port, __be32 vni,
