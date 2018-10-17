@@ -168,6 +168,9 @@ struct q6v5 {
 	bool running;
 
 	bool dump_mba_loaded;
+	unsigned long dump_segment_mask;
+	unsigned long dump_complete_mask;
+
 	phys_addr_t mba_phys;
 	void *mba_region;
 	size_t mba_size;
@@ -961,6 +964,33 @@ release_firmware:
 	return ret < 0 ? ret : 0;
 }
 
+static void qcom_q6v5_dump_segment(struct rproc *rproc,
+				   struct rproc_dump_segment *segment,
+				   void *dest)
+{
+	int ret = 0;
+	struct q6v5 *qproc = rproc->priv;
+	unsigned long mask = BIT((unsigned long)segment->priv);
+	void *ptr = rproc_da_to_va(rproc, segment->da, segment->size);
+
+	/* Unlock mba before copying segments */
+	if (!qproc->dump_mba_loaded)
+		ret = q6v5_mba_load(qproc);
+
+	if (!ptr || ret)
+		memset(dest, 0xff, segment->size);
+	else
+		memcpy(dest, ptr, segment->size);
+
+	qproc->dump_segment_mask |= mask;
+
+	/* Reclaim mba after copying segments */
+	if (qproc->dump_segment_mask == qproc->dump_complete_mask) {
+		if (qproc->dump_mba_loaded)
+			q6v5_mba_reclaim(qproc);
+	}
+}
+
 static int q6v5_start(struct rproc *rproc)
 {
 	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
@@ -989,6 +1019,9 @@ static int q6v5_start(struct rproc *rproc)
 	if (xfermemop_ret)
 		dev_err(qproc->dev,
 			"Failed to reclaim mba buffer system may become unstable\n");
+
+	/* Reset Dump Segment Mask */
+	qproc->dump_segment_mask = 0;
 	qproc->running = true;
 
 	return 0;
