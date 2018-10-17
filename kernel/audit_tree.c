@@ -193,7 +193,7 @@ static inline struct list_head *chunk_hash(unsigned long key)
 	return chunk_hash_heads + n % HASH_SIZE;
 }
 
-/* hash_lock & entry->lock is held by caller */
+/* hash_lock & entry->group->mark_mutex is held by caller */
 static void insert_hash(struct audit_chunk *chunk)
 {
 	unsigned long key = chunk_to_key(chunk);
@@ -256,13 +256,11 @@ static void untag_chunk(struct node *p)
 		new = alloc_chunk(size);
 
 	mutex_lock(&entry->group->mark_mutex);
-	spin_lock(&entry->lock);
 	/*
 	 * mark_mutex protects mark from getting detached and thus also from
 	 * mark->connector->obj getting NULL.
 	 */
 	if (chunk->dead || !(entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED)) {
-		spin_unlock(&entry->lock);
 		mutex_unlock(&entry->group->mark_mutex);
 		if (new)
 			fsnotify_put_mark(&new->mark);
@@ -280,7 +278,6 @@ static void untag_chunk(struct node *p)
 		list_del_init(&p->list);
 		list_del_rcu(&chunk->hash);
 		spin_unlock(&hash_lock);
-		spin_unlock(&entry->lock);
 		mutex_unlock(&entry->group->mark_mutex);
 		fsnotify_destroy_mark(entry, audit_tree_group);
 		goto out;
@@ -323,7 +320,6 @@ static void untag_chunk(struct node *p)
 	list_for_each_entry(owner, &new->trees, same_root)
 		owner->root = new;
 	spin_unlock(&hash_lock);
-	spin_unlock(&entry->lock);
 	mutex_unlock(&entry->group->mark_mutex);
 	fsnotify_destroy_mark(entry, audit_tree_group);
 	fsnotify_put_mark(&new->mark);	/* drop initial reference */
@@ -340,7 +336,6 @@ Fallback:
 	p->owner = NULL;
 	put_tree(owner);
 	spin_unlock(&hash_lock);
-	spin_unlock(&entry->lock);
 	mutex_unlock(&entry->group->mark_mutex);
 out:
 	fsnotify_put_mark(entry);
@@ -360,12 +355,12 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 		return -ENOSPC;
 	}
 
-	spin_lock(&entry->lock);
+	mutex_lock(&entry->group->mark_mutex);
 	spin_lock(&hash_lock);
 	if (tree->goner) {
 		spin_unlock(&hash_lock);
 		chunk->dead = 1;
-		spin_unlock(&entry->lock);
+		mutex_unlock(&entry->group->mark_mutex);
 		fsnotify_destroy_mark(entry, audit_tree_group);
 		fsnotify_put_mark(entry);
 		return 0;
@@ -380,7 +375,7 @@ static int create_chunk(struct inode *inode, struct audit_tree *tree)
 	}
 	insert_hash(chunk);
 	spin_unlock(&hash_lock);
-	spin_unlock(&entry->lock);
+	mutex_unlock(&entry->group->mark_mutex);
 	fsnotify_put_mark(entry);	/* drop initial reference */
 	return 0;
 }
@@ -421,14 +416,12 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	chunk_entry = &chunk->mark;
 
 	mutex_lock(&old_entry->group->mark_mutex);
-	spin_lock(&old_entry->lock);
 	/*
 	 * mark_mutex protects mark from getting detached and thus also from
 	 * mark->connector->obj getting NULL.
 	 */
 	if (!(old_entry->flags & FSNOTIFY_MARK_FLAG_ATTACHED)) {
 		/* old_entry is being shot, lets just lie */
-		spin_unlock(&old_entry->lock);
 		mutex_unlock(&old_entry->group->mark_mutex);
 		fsnotify_put_mark(old_entry);
 		fsnotify_put_mark(&chunk->mark);
@@ -437,23 +430,16 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 
 	if (fsnotify_add_mark_locked(chunk_entry, old_entry->connector->obj,
 				     FSNOTIFY_OBJ_TYPE_INODE, 1)) {
-		spin_unlock(&old_entry->lock);
 		mutex_unlock(&old_entry->group->mark_mutex);
 		fsnotify_put_mark(chunk_entry);
 		fsnotify_put_mark(old_entry);
 		return -ENOSPC;
 	}
 
-	/* even though we hold old_entry->lock, this is safe since chunk_entry->lock could NEVER have been grabbed before */
-	spin_lock(&chunk_entry->lock);
 	spin_lock(&hash_lock);
-
-	/* we now hold old_entry->lock, chunk_entry->lock, and hash_lock */
 	if (tree->goner) {
 		spin_unlock(&hash_lock);
 		chunk->dead = 1;
-		spin_unlock(&chunk_entry->lock);
-		spin_unlock(&old_entry->lock);
 		mutex_unlock(&old_entry->group->mark_mutex);
 
 		fsnotify_destroy_mark(chunk_entry, audit_tree_group);
@@ -485,8 +471,6 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 		list_add(&tree->same_root, &chunk->trees);
 	}
 	spin_unlock(&hash_lock);
-	spin_unlock(&chunk_entry->lock);
-	spin_unlock(&old_entry->lock);
 	mutex_unlock(&old_entry->group->mark_mutex);
 	fsnotify_destroy_mark(old_entry, audit_tree_group);
 	fsnotify_put_mark(chunk_entry);	/* drop initial reference */
