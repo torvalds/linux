@@ -761,6 +761,9 @@ enum ath10k_fw_features {
 	/* Firmware load is done externally, not by bmi */
 	ATH10K_FW_FEATURE_NON_BMI = 19,
 
+	/* Firmware sends only one chan_info event per channel */
+	ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL = 20,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };

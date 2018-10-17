@@ -2554,12 +2554,89 @@ static int ath10k_wmi_10_4_op_pull_ch_info_ev(struct ath10k *ar,
 	return 0;
 }
 
+/*
+ * Handle the channel info event for firmware which only sends one
+ * chan_info event per scanned channel.
+ */
+static void ath10k_wmi_event_chan_info_unpaired(struct ath10k *ar,
+						struct chan_info_params *params)
+{
+	struct survey_info *survey;
+	int idx;
+
+	if (params->cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
+		ath10k_dbg(ar, ATH10K_DBG_WMI, "chan info report completed\n");
+		return;
+	}
+
+	idx = freq_to_idx(ar, params->freq);
+	if (idx >= ARRAY_SIZE(ar->survey)) {
+		ath10k_warn(ar, "chan info: invalid frequency %d (idx %d out of bounds)\n",
+			    params->freq, idx);
+		return;
+	}
+
+	survey = &ar->survey[idx];
+
+	if (!params->mac_clk_mhz || !survey)
+		return;
+
+	memset(survey, 0, sizeof(*survey));
+
+	survey->noise = params->noise_floor;
+	survey->time = (params->cycle_count / params->mac_clk_mhz) / 1000;
+	survey->time_busy = (params->rx_clear_count / params->mac_clk_mhz) / 1000;
+	survey->filled |= SURVEY_INFO_NOISE_DBM | SURVEY_INFO_TIME |
+			  SURVEY_INFO_TIME_BUSY;
+}
+
+/*
+ * Handle the channel info event for firmware which sends chan_info
+ * event in pairs(start and stop events) for every scanned channel.
+ */
+static void ath10k_wmi_event_chan_info_paired(struct ath10k *ar,
+					      struct chan_info_params *params)
+{
+	struct survey_info *survey;
+	int idx;
+
+	idx = freq_to_idx(ar, params->freq);
+	if (idx >= ARRAY_SIZE(ar->survey)) {
+		ath10k_warn(ar, "chan info: invalid frequency %d (idx %d out of bounds)\n",
+			    params->freq, idx);
+		return;
+	}
+
+	if (params->cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
+		if (ar->ch_info_can_report_survey) {
+			survey = &ar->survey[idx];
+			survey->noise = params->noise_floor;
+			survey->filled = SURVEY_INFO_NOISE_DBM;
+
+			ath10k_hw_fill_survey_time(ar,
+						   survey,
+						   params->cycle_count,
+						   params->rx_clear_count,
+						   ar->survey_last_cycle_count,
+						   ar->survey_last_rx_clear_count);
+		}
+
+		ar->ch_info_can_report_survey = false;
+	} else {
+		ar->ch_info_can_report_survey = true;
+	}
+
+	if (!(params->cmd_flags & WMI_CHAN_INFO_FLAG_PRE_COMPLETE)) {
+		ar->survey_last_rx_clear_count = params->rx_clear_count;
+		ar->survey_last_cycle_count = params->cycle_count;
+	}
+}
+
 void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 {
+	struct chan_info_params ch_info_param;
 	struct wmi_ch_info_ev_arg arg = {};
-	struct survey_info *survey;
-	u32 err_code, freq, cmd_flags, noise_floor, rx_clear_count, cycle_count;
-	int idx, ret;
+	int ret;
 
 	ret = ath10k_wmi_pull_ch_info(ar, skb, &arg);
 	if (ret) {
@@ -2567,17 +2644,19 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	}
 
-	err_code = __le32_to_cpu(arg.err_code);
-	freq = __le32_to_cpu(arg.freq);
-	cmd_flags = __le32_to_cpu(arg.cmd_flags);
-	noise_floor = __le32_to_cpu(arg.noise_floor);
-	rx_clear_count = __le32_to_cpu(arg.rx_clear_count);
-	cycle_count = __le32_to_cpu(arg.cycle_count);
+	ch_info_param.err_code = __le32_to_cpu(arg.err_code);
+	ch_info_param.freq = __le32_to_cpu(arg.freq);
+	ch_info_param.cmd_flags = __le32_to_cpu(arg.cmd_flags);
+	ch_info_param.noise_floor = __le32_to_cpu(arg.noise_floor);
+	ch_info_param.rx_clear_count = __le32_to_cpu(arg.rx_clear_count);
+	ch_info_param.cycle_count = __le32_to_cpu(arg.cycle_count);
+	ch_info_param.mac_clk_mhz = __le32_to_cpu(arg.mac_clk_mhz);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "chan info err_code %d freq %d cmd_flags %d noise_floor %d rx_clear_count %d cycle_count %d\n",
-		   err_code, freq, cmd_flags, noise_floor, rx_clear_count,
-		   cycle_count);
+		   ch_info_param.err_code, ch_info_param.freq, ch_info_param.cmd_flags,
+		   ch_info_param.noise_floor, ch_info_param.rx_clear_count,
+		   ch_info_param.cycle_count);
 
 	spin_lock_bh(&ar->data_lock);
 
@@ -2591,36 +2670,11 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 
-	idx = freq_to_idx(ar, freq);
-	if (idx >= ARRAY_SIZE(ar->survey)) {
-		ath10k_warn(ar, "chan info: invalid frequency %d (idx %d out of bounds)\n",
-			    freq, idx);
-		goto exit;
-	}
-
-	if (cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
-		if (ar->ch_info_can_report_survey) {
-			survey = &ar->survey[idx];
-			survey->noise = noise_floor;
-			survey->filled = SURVEY_INFO_NOISE_DBM;
-
-			ath10k_hw_fill_survey_time(ar,
-						   survey,
-						   cycle_count,
-						   rx_clear_count,
-						   ar->survey_last_cycle_count,
-						   ar->survey_last_rx_clear_count);
-		}
-
-		ar->ch_info_can_report_survey = false;
-	} else {
-		ar->ch_info_can_report_survey = true;
-	}
-
-	if (!(cmd_flags & WMI_CHAN_INFO_FLAG_PRE_COMPLETE)) {
-		ar->survey_last_rx_clear_count = rx_clear_count;
-		ar->survey_last_cycle_count = cycle_count;
-	}
+	if (test_bit(ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL,
+		     ar->running_fw->fw_file.fw_features))
+		ath10k_wmi_event_chan_info_unpaired(ar, &ch_info_param);
+	else
+		ath10k_wmi_event_chan_info_paired(ar, &ch_info_param);
 
 exit:
 	spin_unlock_bh(&ar->data_lock);
