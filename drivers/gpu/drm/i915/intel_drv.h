@@ -1982,7 +1982,7 @@ int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 			    u32 *out_value);
 
 /* intel_quirks.c */
-void intel_init_quirks(struct drm_device *dev);
+void intel_init_quirks(struct drm_i915_private *dev_priv);
 
 /* intel_runtime_pm.c */
 int intel_power_domains_init(struct drm_i915_private *);

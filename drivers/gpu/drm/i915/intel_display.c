@@ -14935,7 +14935,7 @@ int intel_modeset_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->atomic_helper.free_work,
 		  intel_atomic_helper_free_state_worker);
 
-	intel_init_quirks(dev);
+	intel_init_quirks(dev_priv);
 
 	intel_init_pm(dev_priv);
 

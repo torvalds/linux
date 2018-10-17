@@ -10,10 +10,9 @@
 /*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
  */
-static void quirk_ssc_force_disable(struct drm_device *dev)
+static void quirk_ssc_force_disable(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	dev_priv->quirks |= QUIRK_LVDS_SSC_DISABLE;
+	i915->quirks |= QUIRK_LVDS_SSC_DISABLE;
 	DRM_INFO("applying lvds SSC disable quirk\n");
 }
 
@@ -21,29 +20,25 @@ static void quirk_ssc_force_disable(struct drm_device *dev)
  * A machine (e.g. Acer Aspire 5734Z) may need to invert the panel backlight
  * brightness value
  */
-static void quirk_invert_brightness(struct drm_device *dev)
+static void quirk_invert_brightness(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	dev_priv->quirks |= QUIRK_INVERT_BRIGHTNESS;
+	i915->quirks |= QUIRK_INVERT_BRIGHTNESS;
 	DRM_INFO("applying inverted panel brightness quirk\n");
 }
 
 /* Some VBT's incorrectly indicate no backlight is present */
-static void quirk_backlight_present(struct drm_device *dev)
+static void quirk_backlight_present(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	dev_priv->quirks |= QUIRK_BACKLIGHT_PRESENT;
+	i915->quirks |= QUIRK_BACKLIGHT_PRESENT;
 	DRM_INFO("applying backlight present quirk\n");
 }
 
 /* Toshiba Satellite P50-C-18C requires T12 delay to be min 800ms
  * which is 300 ms greater than eDP spec T12 min.
  */
-static void quirk_increase_t12_delay(struct drm_device *dev)
+static void quirk_increase_t12_delay(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	dev_priv->quirks |= QUIRK_INCREASE_T12_DELAY;
+	i915->quirks |= QUIRK_INCREASE_T12_DELAY;
 	DRM_INFO("Applying T12 delay quirk\n");
 }
 
@@ -51,11 +46,9 @@ static void quirk_increase_t12_delay(struct drm_device *dev)
  * GeminiLake NUC HDMI outputs require additional off time
  * this allows the onboard retimer to correctly sync to signal
  */
-static void quirk_increase_ddi_disabled_time(struct drm_device *dev)
+static void quirk_increase_ddi_disabled_time(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	dev_priv->quirks |= QUIRK_INCREASE_DDI_DISABLED_TIME;
+	i915->quirks |= QUIRK_INCREASE_DDI_DISABLED_TIME;
 	DRM_INFO("Applying Increase DDI Disabled quirk\n");
 }
 
@@ -63,12 +56,12 @@ struct intel_quirk {
 	int device;
 	int subsystem_vendor;
 	int subsystem_device;
-	void (*hook)(struct drm_device *dev);
+	void (*hook)(struct drm_i915_private *i915);
 };
 
 /* For systems that don't have a meaningful PCI subdevice/subvendor ID */
 struct intel_dmi_quirk {
-	void (*hook)(struct drm_device *dev);
+	void (*hook)(struct drm_i915_private *i915);
 	const struct dmi_system_id (*dmi_id_list)[];
 };
 
@@ -154,9 +147,9 @@ static struct intel_quirk intel_quirks[] = {
 	{ 0x3184, 0x1849, 0x2212, quirk_increase_ddi_disabled_time },
 };
 
-void intel_init_quirks(struct drm_device *dev)
+void intel_init_quirks(struct drm_i915_private *i915)
 {
-	struct pci_dev *d = dev->pdev;
+	struct pci_dev *d = i915->drm.pdev;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
@@ -167,10 +160,10 @@ void intel_init_quirks(struct drm_device *dev)
 		     q->subsystem_vendor == PCI_ANY_ID) &&
 		    (d->subsystem_device == q->subsystem_device ||
 		     q->subsystem_device == PCI_ANY_ID))
-			q->hook(dev);
+			q->hook(i915);
 	}
 	for (i = 0; i < ARRAY_SIZE(intel_dmi_quirks); i++) {
 		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
-			intel_dmi_quirks[i].hook(dev);
+			intel_dmi_quirks[i].hook(i915);
 	}
 }
