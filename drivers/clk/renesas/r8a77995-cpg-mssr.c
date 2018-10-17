@@ -191,14 +191,14 @@ static const unsigned int r8a77995_crit_mod_clks[] __initconst = {
  * MD19		EXTAL (MHz)	PLL0		PLL1		PLL3
  *--------------------------------------------------------------------
  * 0		48 x 1		x250/4		x100/3		x100/3
- * 1		48 x 1		x250/4		x100/3		x116/6
+ * 1		48 x 1		x250/4		x100/3		x58/3
  */
 #define CPG_PLL_CONFIG_INDEX(md)	(((md) & BIT(19)) >> 19)
 
 static const struct rcar_gen3_cpg_pll_config cpg_pll_configs[2] __initconst = {
 	/* EXTAL div	PLL1 mult/div	PLL3 mult/div */
 	{ 1,		100,	3,	100,	3,	},
-	{ 1,		100,	3,	116,	6,	},
+	{ 1,		100,	3,	58,	3,	},
 };
 
 static int __init r8a77995_cpg_mssr_init(struct device *dev)
