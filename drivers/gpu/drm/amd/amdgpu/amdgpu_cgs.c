@@ -330,7 +330,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 			case CHIP_TOPAZ:
 				if (((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x81)) ||
 				    ((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x83)) ||
-				    ((adev->pdev->device == 0x6907) && (adev->pdev->revision == 0x87))) {
+				    ((adev->pdev->device == 0x6907) && (adev->pdev->revision == 0x87)) ||
+				    ((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0xD1)) ||
+				    ((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0xD3))) {
 					info->is_kicker = true;
 					strcpy(fw_name, "amdgpu/topaz_k_smc.bin");
 				} else
@@ -351,7 +353,6 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				if (type == CGS_UCODE_ID_SMU) {
 					if (((adev->pdev->device == 0x67ef) &&
 					     ((adev->pdev->revision == 0xe0) ||
-					      (adev->pdev->revision == 0xe2) ||
 					      (adev->pdev->revision == 0xe5))) ||
 					    ((adev->pdev->device == 0x67ff) &&
 					     ((adev->pdev->revision == 0xcf) ||
@@ -359,8 +360,13 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					      (adev->pdev->revision == 0xff)))) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris11_k_smc.bin");
-					} else
+					} else if ((adev->pdev->device == 0x67ef) &&
+						   (adev->pdev->revision == 0xe2)) {
+						info->is_kicker = true;
+						strcpy(fw_name, "amdgpu/polaris11_k2_smc.bin");
+					} else {
 						strcpy(fw_name, "amdgpu/polaris11_smc.bin");
+					}
 				} else if (type == CGS_UCODE_ID_SMU_SK) {
 					strcpy(fw_name, "amdgpu/polaris11_smc_sk.bin");
 				}
@@ -378,14 +384,31 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					     (adev->pdev->revision == 0xef))) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris10_k_smc.bin");
-					} else
+					} else if ((adev->pdev->device == 0x67df) &&
+						   ((adev->pdev->revision == 0xe1) ||
+						    (adev->pdev->revision == 0xf7))) {
+						info->is_kicker = true;
+						strcpy(fw_name, "amdgpu/polaris10_k2_smc.bin");
+					} else {
 						strcpy(fw_name, "amdgpu/polaris10_smc.bin");
+					}
 				} else if (type == CGS_UCODE_ID_SMU_SK) {
 					strcpy(fw_name, "amdgpu/polaris10_smc_sk.bin");
 				}
 				break;
 			case CHIP_POLARIS12:
-				strcpy(fw_name, "amdgpu/polaris12_smc.bin");
+				if (((adev->pdev->device == 0x6987) &&
+				     ((adev->pdev->revision == 0xc0) ||
+				      (adev->pdev->revision == 0xc3))) ||
+				    ((adev->pdev->device == 0x6981) &&
+				     ((adev->pdev->revision == 0x00) ||
+				      (adev->pdev->revision == 0x01) ||
+				      (adev->pdev->revision == 0x10)))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "amdgpu/polaris12_k_smc.bin");
+				} else {
+					strcpy(fw_name, "amdgpu/polaris12_smc.bin");
+				}
 				break;
 			case CHIP_VEGAM:
 				strcpy(fw_name, "amdgpu/vegam_smc.bin");
