@@ -4633,9 +4633,9 @@ static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 	}
 
 	dev_info(&instance->pdev->dev,
-		"firmware type\t: %s\n",
-		instance->supportmax256vd ? "Extended VD(240 VD)firmware" :
-		"Legacy(64 VD) firmware");
+		"FW provided supportMaxExtLDs: %d\tmax_lds: %d\n",
+		instance->ctrl_info_buf->adapterOperations3.supportMaxExtLDs ? 1 : 0,
+		instance->ctrl_info_buf->max_lds);
 
 	if (instance->max_raid_mapsize) {
 		ventura_map_sz = instance->max_raid_mapsize *
