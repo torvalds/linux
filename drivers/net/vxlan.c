@@ -272,6 +272,8 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	ndm->ndm_state = fdb->state;
 	ndm->ndm_ifindex = vxlan->dev->ifindex;
 	ndm->ndm_flags = fdb->flags;
+	if (rdst->offloaded)
+		ndm->ndm_flags |= NTF_OFFLOADED;
 	ndm->ndm_type = RTN_UNICAST;
 
 	if (!net_eq(dev_net(vxlan->dev), vxlan->net) &&
@@ -373,6 +375,7 @@ static void vxlan_fdb_switchdev_call_notifiers(struct vxlan_dev *vxlan,
 		.remote_vni = rd->remote_vni,
 		.remote_ifindex = rd->remote_ifindex,
 		.vni = fdb->vni,
+		.offloaded = rd->offloaded,
 	};
 	memcpy(info.eth_addr, fdb->eth_addr, ETH_ALEN);
 
@@ -536,6 +539,7 @@ int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
 	fdb_info->remote_vni = rdst->remote_vni;
 	fdb_info->remote_ifindex = rdst->remote_ifindex;
 	fdb_info->vni = vni;
+	fdb_info->offloaded = rdst->offloaded;
 	ether_addr_copy(fdb_info->eth_addr, mac);
 
 out:
@@ -589,6 +593,7 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 
 	rd->remote_ip = *ip;
 	rd->remote_port = port;
+	rd->offloaded = false;
 	rd->remote_vni = vni;
 	rd->remote_ifindex = ifindex;
 
@@ -3817,6 +3822,51 @@ static struct notifier_block vxlan_notifier_block __read_mostly = {
 	.notifier_call = vxlan_netdevice_event,
 };
 
+static void
+vxlan_fdb_offloaded_set(struct net_device *dev,
+			struct switchdev_notifier_vxlan_fdb_info *fdb_info)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_rdst *rdst;
+	struct vxlan_fdb *f;
+
+	spin_lock_bh(&vxlan->hash_lock);
+
+	f = vxlan_find_mac(vxlan, fdb_info->eth_addr, fdb_info->vni);
+	if (!f)
+		goto out;
+
+	rdst = vxlan_fdb_find_rdst(f, &fdb_info->remote_ip,
+				   fdb_info->remote_port,
+				   fdb_info->remote_vni,
+				   fdb_info->remote_ifindex);
+	if (!rdst)
+		goto out;
+
+	rdst->offloaded = fdb_info->offloaded;
+
+out:
+	spin_unlock_bh(&vxlan->hash_lock);
+}
+
+static int vxlan_switchdev_event(struct notifier_block *unused,
+				 unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+
+	switch (event) {
+	case SWITCHDEV_VXLAN_FDB_OFFLOADED:
+		vxlan_fdb_offloaded_set(dev, ptr);
+		break;
+	}
+
+	return 0;
+}
+
+static struct notifier_block vxlan_switchdev_notifier_block __read_mostly = {
+	.notifier_call = vxlan_switchdev_event,
+};
+
 static __net_init int vxlan_init_net(struct net *net)
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
@@ -3890,11 +3940,17 @@ static int __init vxlan_init_module(void)
 	if (rc)
 		goto out2;
 
-	rc = rtnl_link_register(&vxlan_link_ops);
+	rc = register_switchdev_notifier(&vxlan_switchdev_notifier_block);
 	if (rc)
 		goto out3;
 
+	rc = rtnl_link_register(&vxlan_link_ops);
+	if (rc)
+		goto out4;
+
 	return 0;
+out4:
+	unregister_switchdev_notifier(&vxlan_switchdev_notifier_block);
 out3:
 	unregister_netdevice_notifier(&vxlan_notifier_block);
 out2:
@@ -3907,6 +3963,7 @@ late_initcall(vxlan_init_module);
 static void __exit vxlan_cleanup_module(void)
 {
 	rtnl_link_unregister(&vxlan_link_ops);
+	unregister_switchdev_notifier(&vxlan_switchdev_notifier_block);
 	unregister_netdevice_notifier(&vxlan_notifier_block);
 	unregister_pernet_subsys(&vxlan_net_ops);
 	/* rcu_barrier() is called by netns */

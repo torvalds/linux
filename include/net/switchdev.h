@@ -148,6 +148,7 @@ enum switchdev_notifier_type {
 
 	SWITCHDEV_VXLAN_FDB_ADD_TO_DEVICE,
 	SWITCHDEV_VXLAN_FDB_DEL_TO_DEVICE,
+	SWITCHDEV_VXLAN_FDB_OFFLOADED,
 };
 
 struct switchdev_notifier_info {

@@ -192,6 +192,7 @@ union vxlan_addr {
 struct vxlan_rdst {
 	union vxlan_addr	 remote_ip;
 	__be16			 remote_port;
+	u8			 offloaded:1;
 	__be32			 remote_vni;
 	u32			 remote_ifindex;
 	struct list_head	 list;
@@ -418,6 +419,7 @@ struct switchdev_notifier_vxlan_fdb_info {
 	u32 remote_ifindex;
 	u8 eth_addr[ETH_ALEN];
 	__be32 vni;
+	bool offloaded;
 };
 
 #if IS_ENABLED(CONFIG_VXLAN)
