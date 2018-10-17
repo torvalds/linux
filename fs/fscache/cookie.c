@@ -70,19 +70,6 @@ void fscache_free_cookie(struct fscache_cookie *cookie)
 }
 
 /*
- * initialise an cookie jar slab element prior to any use
- */
-void fscache_cookie_init_once(void *_cookie)
-{
-	struct fscache_cookie *cookie = _cookie;
-
-	memset(cookie, 0, sizeof(*cookie));
-	spin_lock_init(&cookie->lock);
-	spin_lock_init(&cookie->stores_lock);
-	INIT_HLIST_HEAD(&cookie->backing_objects);
-}
-
-/*
  * Set the index key in a cookie.  The cookie struct has space for a 12-byte
  * key plus length and hash, but if that's not big enough, it's instead a
  * pointer to a buffer containing 3 bytes of hash, 1 byte of length and then
@@ -95,8 +82,6 @@ static int fscache_set_key(struct fscache_cookie *cookie,
 	u32 *buf;
 	int i;
 
-	cookie->key_len = index_key_len;
-
 	if (index_key_len > sizeof(cookie->inline_key)) {
 		buf = kzalloc(index_key_len, GFP_KERNEL);
 		if (!buf)
@@ -104,9 +89,6 @@ static int fscache_set_key(struct fscache_cookie *cookie,
 		cookie->key = buf;
 	} else {
 		buf = (u32 *)cookie->inline_key;
-		buf[0] = 0;
-		buf[1] = 0;
-		buf[2] = 0;
 	}
 
 	memcpy(buf, index_key, index_key_len);
@@ -161,7 +143,7 @@ struct fscache_cookie *fscache_alloc_cookie(
 	struct fscache_cookie *cookie;
 
 	/* allocate and initialise a cookie */
-	cookie = kmem_cache_alloc(fscache_cookie_jar, GFP_KERNEL);
+	cookie = kmem_cache_zalloc(fscache_cookie_jar, GFP_KERNEL);
 	if (!cookie)
 		return NULL;
 
@@ -192,6 +174,9 @@ struct fscache_cookie *fscache_alloc_cookie(
 	cookie->netfs_data	= netfs_data;
 	cookie->flags		= (1 << FSCACHE_COOKIE_NO_DATA_YET);
 	cookie->type		= def->type;
+	spin_lock_init(&cookie->lock);
+	spin_lock_init(&cookie->stores_lock);
+	INIT_HLIST_HEAD(&cookie->backing_objects);
 
 	/* radix tree insertion won't use the preallocation pool unless it's
 	 * told it may not wait */
