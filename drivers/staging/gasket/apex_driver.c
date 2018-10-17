@@ -225,7 +225,6 @@ static struct gasket_interrupt_desc apex_interrupts[] = {
 	},
 };
 
-
 /* Allows device to enter power save upon driver close(). */
 static int allow_power_save = 1;
 
