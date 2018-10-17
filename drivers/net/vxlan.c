@@ -843,12 +843,15 @@ static void vxlan_fdb_free(struct rcu_head *head)
 static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
 			      bool do_notify)
 {
+	struct vxlan_rdst *rd;
+
 	netdev_dbg(vxlan->dev,
 		    "delete %pM\n", f->eth_addr);
 
 	--vxlan->addrcnt;
 	if (do_notify)
-		vxlan_fdb_notify(vxlan, f, first_remote_rtnl(f), RTM_DELNEIGH);
+		list_for_each_entry(rd, &f->remotes, list)
+			vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH);
 
 	hlist_del_rcu(&f->hlist);
 	call_rcu(&f->rcu, vxlan_fdb_free);
