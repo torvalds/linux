@@ -16,6 +16,7 @@
 #include <net/psample.h>
 #include <net/pkt_cls.h>
 #include <net/red.h>
+#include <net/vxlan.h>
 
 #include "port.h"
 #include "core.h"
@@ -241,6 +242,25 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_acl_block *eg_acl_block;
 };
 
+static inline struct net_device *
+mlxsw_sp_bridge_vxlan_dev_find(struct net_device *br_dev)
+{
+	struct net_device *dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(br_dev, dev, iter) {
+		if (netif_is_vxlan(dev))
+			return dev;
+	}
+
+	return NULL;
+}
+
+static inline bool mlxsw_sp_bridge_has_vxlan(struct net_device *br_dev)
+{
+	return !!mlxsw_sp_bridge_vxlan_dev_find(br_dev);
+}
+
 static inline bool
 mlxsw_sp_port_is_pause_en(const struct mlxsw_sp_port *mlxsw_sp_port)
 {
@@ -336,6 +356,13 @@ void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 				struct net_device *br_dev);
 bool mlxsw_sp_bridge_device_is_offloaded(const struct mlxsw_sp *mlxsw_sp,
 					 const struct net_device *br_dev);
+int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
+			       const struct net_device *br_dev,
+			       const struct net_device *vxlan_dev,
+			       struct netlink_ext_ack *extack);
+void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
+				 const struct net_device *br_dev,
+				 const struct net_device *vxlan_dev);
 
 /* spectrum.c */
 int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,

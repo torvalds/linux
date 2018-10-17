@@ -4587,6 +4587,41 @@ static void mlxsw_sp_port_ovs_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
 }
 
+static bool mlxsw_sp_bridge_has_multiple_vxlans(struct net_device *br_dev)
+{
+	unsigned int num_vxlans = 0;
+	struct net_device *dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(br_dev, dev, iter) {
+		if (netif_is_vxlan(dev))
+			num_vxlans++;
+	}
+
+	return num_vxlans > 1;
+}
+
+static bool mlxsw_sp_bridge_vxlan_is_valid(struct net_device *br_dev,
+					   struct netlink_ext_ack *extack)
+{
+	if (br_multicast_enabled(br_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Multicast can not be enabled on a bridge with a VxLAN device");
+		return false;
+	}
+
+	if (br_vlan_enabled(br_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "VLAN filtering can not be enabled on a bridge with a VxLAN device");
+		return false;
+	}
+
+	if (mlxsw_sp_bridge_has_multiple_vxlans(br_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Multiple VxLAN devices are not supported in a VLAN-unaware bridge");
+		return false;
+	}
+
+	return true;
+}
+
 static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 					       struct net_device *dev,
 					       unsigned long event, void *ptr)
@@ -4616,6 +4651,11 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		}
 		if (!info->linking)
 			break;
+		if (netif_is_bridge_master(upper_dev) &&
+		    !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp, upper_dev) &&
+		    mlxsw_sp_bridge_has_vxlan(upper_dev) &&
+		    !mlxsw_sp_bridge_vxlan_is_valid(upper_dev, extack))
+			return -EOPNOTSUPP;
 		if (netdev_has_any_upper_dev(upper_dev) &&
 		    (!netif_is_bridge_master(upper_dev) ||
 		     !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp,
@@ -4773,6 +4813,11 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 		}
 		if (!info->linking)
 			break;
+		if (netif_is_bridge_master(upper_dev) &&
+		    !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp, upper_dev) &&
+		    mlxsw_sp_bridge_has_vxlan(upper_dev) &&
+		    !mlxsw_sp_bridge_vxlan_is_valid(upper_dev, extack))
+			return -EOPNOTSUPP;
 		if (netdev_has_any_upper_dev(upper_dev) &&
 		    (!netif_is_bridge_master(upper_dev) ||
 		     !mlxsw_sp_bridge_device_is_offloaded(mlxsw_sp,
@@ -4919,6 +4964,63 @@ static bool mlxsw_sp_is_vrf_event(unsigned long event, void *ptr)
 	return netif_is_l3_master(info->upper_dev);
 }
 
+static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
+					  struct net_device *dev,
+					  unsigned long event, void *ptr)
+{
+	struct netdev_notifier_changeupper_info *cu_info;
+	struct netdev_notifier_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *upper_dev;
+
+	extack = netdev_notifier_info_to_extack(info);
+
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		cu_info = container_of(info,
+				       struct netdev_notifier_changeupper_info,
+				       info);
+		upper_dev = cu_info->upper_dev;
+		if (!netif_is_bridge_master(upper_dev))
+			return 0;
+		if (!mlxsw_sp_lower_get(upper_dev))
+			return 0;
+		if (!mlxsw_sp_bridge_vxlan_is_valid(upper_dev, extack))
+			return -EOPNOTSUPP;
+		if (cu_info->linking) {
+			if (!netif_running(dev))
+				return 0;
+			return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev,
+							  dev, extack);
+		} else {
+			mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, upper_dev, dev);
+		}
+		break;
+	case NETDEV_PRE_UP:
+		upper_dev = netdev_master_upper_dev_get(dev);
+		if (!upper_dev)
+			return 0;
+		if (!netif_is_bridge_master(upper_dev))
+			return 0;
+		if (!mlxsw_sp_lower_get(upper_dev))
+			return 0;
+		return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev, dev,
+						  extack);
+	case NETDEV_DOWN:
+		upper_dev = netdev_master_upper_dev_get(dev);
+		if (!upper_dev)
+			return 0;
+		if (!netif_is_bridge_master(upper_dev))
+			return 0;
+		if (!mlxsw_sp_lower_get(upper_dev))
+			return 0;
+		mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, upper_dev, dev);
+		break;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 				    unsigned long event, void *ptr)
 {
@@ -4935,6 +5037,8 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 	}
 	mlxsw_sp_span_respin(mlxsw_sp);
 
+	if (netif_is_vxlan(dev))
+		err = mlxsw_sp_netdevice_vxlan_event(mlxsw_sp, dev, event, ptr);
 	if (mlxsw_sp_netdev_is_ipip_ol(mlxsw_sp, dev))
 		err = mlxsw_sp_netdevice_ipip_ol_event(mlxsw_sp, dev,
 						       event, ptr);
