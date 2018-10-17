@@ -1113,7 +1113,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	megasas_fire_cmd_fusion(instance, &req_desc);
 
-	wait_and_poll(instance, cmd, MFI_POLL_TIMEOUT_SECS);
+	wait_and_poll(instance, cmd, MFI_IO_TIMEOUT_SECS);
 
 	frame_hdr = &cmd->frame->hdr;
 	if (frame_hdr->cmd_status != 0) {
