@@ -167,11 +167,18 @@ if [ -t 1 -a "$ncolors" -a "$ncolors" -ge 8 ]; then
   color_blue="\e[34m"
 fi
 
+strip_esc() {
+  # busybox sed implementation doesn't accept "\x1B", so use [:cntrl:] instead.
+  sed -E "s/[[:cntrl:]]\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"
+}
+
 prlog() { # messages
-  [ -z "$LOG_FILE" ] && echo -e "$@" || echo -e "$@" | tee -a $LOG_FILE
+  echo -e "$@"
+  [ "$LOG_FILE" ] && echo -e "$@" | strip_esc >> $LOG_FILE
 }
 catlog() { #file
-  [ -z "$LOG_FILE" ] && cat $1 || cat $1 | tee -a $LOG_FILE
+  cat $1
+  [ "$LOG_FILE" ] && cat $1 | strip_esc >> $LOG_FILE
 }
 prlog "=== Ftrace unit tests ==="
 
