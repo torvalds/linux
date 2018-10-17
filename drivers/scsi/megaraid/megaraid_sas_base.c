@@ -5694,10 +5694,12 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	/* Launch SR-IOV heartbeat timer */
 	if (instance->requestorId) {
-		if (!megasas_sriov_start_heartbeat(instance, 1))
+		if (!megasas_sriov_start_heartbeat(instance, 1)) {
 			megasas_start_timer(instance);
-		else
+		} else {
 			instance->skip_heartbeat_timer_del = 1;
+			goto fail_get_ld_pd_list;
+		}
 	}
 
 	/*
