@@ -327,8 +327,8 @@ static inline size_t vxlan_nlmsg_size(void)
 		+ nla_total_size(sizeof(struct nda_cacheinfo));
 }
 
-static void vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
-			     struct vxlan_rdst *rd, int type)
+static void __vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
+			       struct vxlan_rdst *rd, int type)
 {
 	struct net *net = dev_net(vxlan->dev);
 	struct sk_buff *skb;
@@ -351,6 +351,48 @@ static void vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
+}
+
+static void vxlan_fdb_switchdev_call_notifiers(struct vxlan_dev *vxlan,
+					       struct vxlan_fdb *fdb,
+					       struct vxlan_rdst *rd,
+					       bool adding)
+{
+	struct switchdev_notifier_vxlan_fdb_info info;
+	enum switchdev_notifier_type notifier_type;
+
+	if (WARN_ON(!rd))
+		return;
+
+	notifier_type = adding ? SWITCHDEV_VXLAN_FDB_ADD_TO_DEVICE
+			       : SWITCHDEV_VXLAN_FDB_DEL_TO_DEVICE;
+
+	info = (struct switchdev_notifier_vxlan_fdb_info){
+		.remote_ip = rd->remote_ip,
+		.remote_port = rd->remote_port,
+		.remote_vni = rd->remote_vni,
+		.remote_ifindex = rd->remote_ifindex,
+		.vni = fdb->vni,
+	};
+	memcpy(info.eth_addr, fdb->eth_addr, ETH_ALEN);
+
+	call_switchdev_notifiers(notifier_type, vxlan->dev,
+				 &info.info);
+}
+
+static void vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
+			     struct vxlan_rdst *rd, int type)
+{
+	switch (type) {
+	case RTM_NEWNEIGH:
+		vxlan_fdb_switchdev_call_notifiers(vxlan, fdb, rd, true);
+		break;
+	case RTM_DELNEIGH:
+		vxlan_fdb_switchdev_call_notifiers(vxlan, fdb, rd, false);
+		break;
+	}
+
+	__vxlan_fdb_notify(vxlan, fdb, rd, type);
 }
 
 static void vxlan_ip_miss(struct net_device *dev, union vxlan_addr *ipa)
