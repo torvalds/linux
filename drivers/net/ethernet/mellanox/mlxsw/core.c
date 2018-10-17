@@ -1055,6 +1055,7 @@ int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 err_driver_init:
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 err_thermal_init:
+	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 err_hwmon_init:
 	if (!reload)
 		devlink_unregister(devlink);
@@ -1088,6 +1089,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
+	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 	if (!reload)
 		devlink_unregister(devlink);
 	mlxsw_emad_fini(mlxsw_core);
