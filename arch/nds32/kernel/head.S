@@ -130,14 +130,12 @@ _image_size_check:
          *
          * direct mapping is not supported now.
          */
-        li      $r2, 't'
         beqz    $r6, __error                 ! MMU_CFG.TBW = 0 is direct mappin
         addi    $r0, $r0, #0x2               ! MMU_CFG.TBS value -> meaning
         sll     $r0, $r6, $r0                ! entries = k-way * n-set
         mul     $r6, $r0, $r5                ! max size = entries * page size
         /* check kernel image size */
         la      $r3, (_end - PAGE_OFFSET)
-        li      $r2, 's'
         bgt     $r3, $r6, __error
 
 	li      $r2, #(PHYS_OFFSET + TLB_DATA_kernel_text_attr)
