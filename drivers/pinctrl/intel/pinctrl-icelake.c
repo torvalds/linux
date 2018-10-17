@@ -407,7 +407,7 @@ static INTEL_PINCTRL_PM_OPS(icl_pinctrl_pm_ops);
 
 static const struct acpi_device_id icl_pinctrl_acpi_match[] = {
 	{ "INT3455", (kernel_ulong_t)&icllp_soc_data },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, icl_pinctrl_acpi_match);
 
