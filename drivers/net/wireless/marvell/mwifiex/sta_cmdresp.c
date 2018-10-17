@@ -1404,6 +1404,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_ROBUST_COEX:
 		ret = mwifiex_ret_robust_coex(priv, resp, data_buf);
 		break;
+	case HostCmd_CMD_802_11_LED_CONTROL:
+		break;
 	case HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG:
 		break;
 	case HostCmd_CMD_CHAN_REGION_CFG:

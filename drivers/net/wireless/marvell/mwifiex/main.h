@@ -131,6 +131,10 @@ enum {
 
 #define PKT_TYPE_MGMT	0xE5
 
+#define MWIFIEX_LED_ON		1
+#define MWIFIEX_LED_OFF		0
+#define MWIFIEX_LED_MAX		3
+
 /*
  * Do not check for data_received for USB, as data_received
  * is handled in mwifiex_usb_recv for USB
@@ -699,6 +703,7 @@ struct mwifiex_private {
 	struct mwifiex_user_scan_chan hidden_chan[MWIFIEX_USER_SCAN_CHAN_MAX];
 	u8 assoc_resp_ht_param;
 	bool ht_param_present;
+	bool is_edge_gateway;
 };
 
 
@@ -1505,6 +1510,7 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
 				struct cmd_ctrl_node *cmd_queued);
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		      struct cfg80211_ssid *req_ssid);
+int mwifiex_set_led(struct mwifiex_adapter *adapter, int on);
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter);
 int mwifiex_disable_auto_ds(struct mwifiex_private *priv);

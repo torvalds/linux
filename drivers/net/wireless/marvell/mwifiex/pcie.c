@@ -233,6 +233,8 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 					const struct pci_device_id *ent)
 {
 	struct pcie_service_card *card;
+	struct mwifiex_private *priv;
+	struct pci_dev *pdev_host;
 	int ret;
 
 	pr_debug("info: vendor=0x%4.04X device=0x%4.04X rev=%d\n",
@@ -271,6 +273,14 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		return -1;
 	}
 
+	priv = mwifiex_get_priv(card->adapter, MWIFIEX_BSS_ROLE_STA);
+	pdev_host = pci_get_subsys(PCI_ANY_ID, PCI_ANY_ID, 0x1028, 0x0720, NULL);
+	if (!pdev_host)
+		pdev_host = pci_get_subsys(PCI_ANY_ID, PCI_ANY_ID, 0x1028, 0x0733, NULL);
+	if (pdev_host) {
+		priv->is_edge_gateway = true;
+		pci_dev_put(pdev_host);
+	}
 	return 0;
 }
 
