@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 TEST_PROGS := signal signal_tm
 
-all: $(TEST_PROGS)
-
 $(TEST_PROGS): ../harness.c ../utils.c signal.S
 
 CFLAGS += -maltivec
