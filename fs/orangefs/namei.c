@@ -58,7 +58,6 @@ static int orangefs_create(struct inode *dir,
 		goto out;
 
 	ref = new_op->downcall.resp.create.refn;
-	op_release(new_op);
 
 	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0, &ref);
 	if (IS_ERR(inode)) {
@@ -92,6 +91,7 @@ static int orangefs_create(struct inode *dir,
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
+	op_release(new_op);
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: %pd: returning %d\n",
 		     __func__,
@@ -269,7 +269,6 @@ static int orangefs_symlink(struct inode *dir,
 	}
 
 	ref = new_op->downcall.resp.sym.refn;
-	op_release(new_op);
 
 	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0, &ref);
 	if (IS_ERR(inode)) {
@@ -307,6 +306,7 @@ static int orangefs_symlink(struct inode *dir,
 	mark_inode_dirty_sync(dir);
 	ret = 0;
 out:
+	op_release(new_op);
 	return ret;
 }
 
@@ -346,7 +346,6 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	}
 
 	ref = new_op->downcall.resp.mkdir.refn;
-	op_release(new_op);
 
 	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0, &ref);
 	if (IS_ERR(inode)) {
@@ -379,6 +378,7 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	orangefs_inode_setattr(dir, &iattr);
 	mark_inode_dirty_sync(dir);
 out:
+	op_release(new_op);
 	return ret;
 }
 
