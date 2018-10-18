@@ -869,7 +869,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	struct snd_soc_pcm_runtime *rtd;
 
 	list_for_each_entry(rtd, &card->rtd_list, list) {
-		dev_dbg(sdev->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
+		dev_vdbg(sdev->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
 			w->name,  w->sname, rtd->dai_link->stream_name);
 
 		if (!w->sname || !rtd->dai_link->stream_name)
