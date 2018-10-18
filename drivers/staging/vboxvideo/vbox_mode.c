@@ -84,7 +84,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	}
 
 	flags = VBVA_SCREEN_F_ACTIVE;
-	flags |= (fb && crtc->state->active) ? 0 : VBVA_SCREEN_F_BLANK;
+	flags |= (fb && crtc->state->enable) ? 0 : VBVA_SCREEN_F_BLANK;
 	flags |= vbox_crtc->disconnected ? VBVA_SCREEN_F_DISABLED : 0;
 	hgsmi_process_display_info(vbox->guest_pool, vbox_crtc->crtc_id,
 				   x_offset, y_offset,
