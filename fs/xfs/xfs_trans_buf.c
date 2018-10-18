@@ -350,6 +350,19 @@ xfs_trans_read_buf_map(
 
 }
 
+/* Has this buffer been dirtied by anyone? */
+bool
+xfs_trans_buf_is_dirty(
+	struct xfs_buf		*bp)
+{
+	struct xfs_buf_log_item	*bip = bp->b_log_item;
+
+	if (!bip)
+		return false;
+	ASSERT(bip->bli_item.li_type == XFS_LI_BUF);
+	return test_bit(XFS_LI_DIRTY, &bip->bli_item.li_flags);
+}
+
 /*
  * Release a buffer previously joined to the transaction. If the buffer is
  * modified within this transaction, decrement the recursion count but do not

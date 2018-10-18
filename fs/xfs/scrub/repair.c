@@ -29,6 +29,8 @@
 #include "xfs_ag_resv.h"
 #include "xfs_trans_space.h"
 #include "xfs_quota.h"
+#include "xfs_attr.h"
+#include "xfs_reflink.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -699,7 +701,7 @@ xrep_findroot_block(
 	struct xfs_btree_block		*btblock;
 	xfs_daddr_t			daddr;
 	int				block_level;
-	int				error;
+	int				error = 0;
 
 	daddr = XFS_AGB_TO_DADDR(mp, ri->sc->sa.agno, agbno);
 
@@ -718,28 +720,69 @@ xrep_findroot_block(
 			return error;
 	}
 
+	/*
+	 * Read the buffer into memory so that we can see if it's a match for
+	 * our btree type.  We have no clue if it is beforehand, and we want to
+	 * avoid xfs_trans_read_buf's behavior of dumping the DONE state (which
+	 * will cause needless disk reads in subsequent calls to this function)
+	 * and logging metadata verifier failures.
+	 *
+	 * Therefore, pass in NULL buffer ops.  If the buffer was already in
+	 * memory from some other caller it will already have b_ops assigned.
+	 * If it was in memory from a previous unsuccessful findroot_block
+	 * call, the buffer won't have b_ops but it should be clean and ready
+	 * for us to try to verify if the read call succeeds.  The same applies
+	 * if the buffer wasn't in memory at all.
+	 *
+	 * Note: If we never match a btree type with this buffer, it will be
+	 * left in memory with NULL b_ops.  This shouldn't be a problem unless
+	 * the buffer gets written.
+	 */
 	error = xfs_trans_read_buf(mp, ri->sc->tp, mp->m_ddev_targp, daddr,
 			mp->m_bsize, 0, &bp, NULL);
 	if (error)
 		return error;
 
-	/*
-	 * Does this look like a block matching our fs and higher than any
-	 * other block we've found so far?  If so, reattach buffer verifiers
-	 * so the AIL won't complain if the buffer is also dirty.
-	 */
+	/* Ensure the block magic matches the btree type we're looking for. */
 	btblock = XFS_BUF_TO_BLOCK(bp);
 	if (be32_to_cpu(btblock->bb_magic) != fab->magic)
 		goto out;
-	if (xfs_sb_version_hascrc(&mp->m_sb) &&
-	    !uuid_equal(&btblock->bb_u.s.bb_uuid, &mp->m_sb.sb_meta_uuid))
-		goto out;
-	bp->b_ops = fab->buf_ops;
 
-	/* Make sure we pass the verifiers. */
-	bp->b_ops->verify_read(bp);
-	if (bp->b_error)
-		goto out;
+	/*
+	 * If the buffer already has ops applied and they're not the ones for
+	 * this btree type, we know this block doesn't match the btree and we
+	 * can bail out.
+	 *
+	 * If the buffer ops match ours, someone else has already validated
+	 * the block for us, so we can move on to checking if this is a root
+	 * block candidate.
+	 *
+	 * If the buffer does not have ops, nobody has successfully validated
+	 * the contents and the buffer cannot be dirty.  If the magic, uuid,
+	 * and structure match this btree type then we'll move on to checking
+	 * if it's a root block candidate.  If there is no match, bail out.
+	 */
+	if (bp->b_ops) {
+		if (bp->b_ops != fab->buf_ops)
+			goto out;
+	} else {
+		ASSERT(!xfs_trans_buf_is_dirty(bp));
+		if (!uuid_equal(&btblock->bb_u.s.bb_uuid,
+				&mp->m_sb.sb_meta_uuid))
+			goto out;
+		fab->buf_ops->verify_read(bp);
+		if (bp->b_error) {
+			bp->b_error = 0;
+			goto out;
+		}
+
+		/*
+		 * Some read verifiers will (re)set b_ops, so we must be
+		 * careful not to blow away any such assignment.
+		 */
+		if (!bp->b_ops)
+			bp->b_ops = fab->buf_ops;
+	}
 
 	/*
 	 * This block passes the magic/uuid and verifier tests for this btree
