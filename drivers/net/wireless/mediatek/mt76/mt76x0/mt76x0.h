@@ -33,8 +33,10 @@
 
 static inline bool is_mt7610e(struct mt76x02_dev *dev)
 {
-	/* TODO */
-	return false;
+	if (!mt76_is_mmio(dev))
+		return false;
+
+	return mt76_chip(&dev->mt76) == 0x7610;
 }
 
 static inline bool is_mt7630(struct mt76x02_dev *dev)

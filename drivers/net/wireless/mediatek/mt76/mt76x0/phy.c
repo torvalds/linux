@@ -742,13 +742,56 @@ static void mt76x0_phy_calibration_work(struct work_struct *work)
 				     MT_CALIBRATE_INTERVAL);
 }
 
+static void mt76x0_rf_patch_reg_array(struct mt76x02_dev *dev,
+				      const struct mt76_reg_pair *rp, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		u32 reg = rp[i].reg;
+		u8 val = rp[i].value;
+
+		switch (reg) {
+		case MT_RF(0, 3):
+			if (mt76_is_mmio(dev)) {
+				if (is_mt7630(dev))
+					val = 0x70;
+				else
+					val = 0x63;
+			} else {
+				val = 0x73;
+			}
+			break;
+		case MT_RF(0, 21):
+			if (is_mt7610e(dev))
+				val = 0x10;
+			else
+				val = 0x12;
+			break;
+		case MT_RF(5, 2):
+			if (is_mt7630(dev))
+				val = 0x1d;
+			else if (is_mt7610e(dev))
+				val = 0x00;
+			else
+				val = 0x0c;
+			break;
+		default:
+			break;
+		}
+		mt76x0_rf_wr(dev, reg, val);
+	}
+}
+
 static void mt76x0_phy_rf_init(struct mt76x02_dev *dev)
 {
 	int i;
 	u8 val;
 
-	RF_RANDOM_WRITE(dev, mt76x0_rf_central_tab);
-	RF_RANDOM_WRITE(dev, mt76x0_rf_2g_channel_0_tab);
+	mt76x0_rf_patch_reg_array(dev, mt76x0_rf_central_tab,
+				  ARRAY_SIZE(mt76x0_rf_central_tab));
+	mt76x0_rf_patch_reg_array(dev, mt76x0_rf_2g_channel_0_tab,
+				  ARRAY_SIZE(mt76x0_rf_2g_channel_0_tab));
 	RF_RANDOM_WRITE(dev, mt76x0_rf_5g_channel_0_tab);
 	RF_RANDOM_WRITE(dev, mt76x0_rf_vga_channel_0_tab);
 
