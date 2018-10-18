@@ -1532,6 +1532,94 @@ struct atom_smc_dpm_info_v4_3
   uint32_t boardreserved[10];
 };
 
+struct smudpm_i2ccontrollerconfig_t {
+  uint32_t  enabled;
+  uint32_t  slaveaddress;
+  uint32_t  controllerport;
+  uint32_t  controllername;
+  uint32_t  thermalthrottler;
+  uint32_t  i2cprotocol;
+  uint32_t  i2cspeed;
+};
+
+struct atom_smc_dpm_info_v4_4
+{
+  struct   atom_common_table_header  table_header;
+  uint32_t  i2c_padding[3];
+
+  uint16_t maxvoltagestepgfx;
+  uint16_t maxvoltagestepsoc;
+
+  uint8_t  vddgfxvrmapping;
+  uint8_t  vddsocvrmapping;
+  uint8_t  vddmem0vrmapping;
+  uint8_t  vddmem1vrmapping;
+
+  uint8_t  gfxulvphasesheddingmask;
+  uint8_t  soculvphasesheddingmask;
+  uint8_t  externalsensorpresent;
+  uint8_t  padding8_v;
+
+  uint16_t gfxmaxcurrent;
+  uint8_t  gfxoffset;
+  uint8_t  padding_telemetrygfx;
+
+  uint16_t socmaxcurrent;
+  uint8_t  socoffset;
+  uint8_t  padding_telemetrysoc;
+
+  uint16_t mem0maxcurrent;
+  uint8_t  mem0offset;
+  uint8_t  padding_telemetrymem0;
+
+  uint16_t mem1maxcurrent;
+  uint8_t  mem1offset;
+  uint8_t  padding_telemetrymem1;
+
+
+  uint8_t  acdcgpio;
+  uint8_t  acdcpolarity;
+  uint8_t  vr0hotgpio;
+  uint8_t  vr0hotpolarity;
+
+  uint8_t  vr1hotgpio;
+  uint8_t  vr1hotpolarity;
+  uint8_t  padding1;
+  uint8_t  padding2;
+
+
+  uint8_t  ledpin0;
+  uint8_t  ledpin1;
+  uint8_t  ledpin2;
+  uint8_t  padding8_4;
+
+
+  uint8_t  pllgfxclkspreadenabled;
+  uint8_t  pllgfxclkspreadpercent;
+  uint16_t pllgfxclkspreadfreq;
+
+
+  uint8_t  uclkspreadenabled;
+  uint8_t  uclkspreadpercent;
+  uint16_t uclkspreadfreq;
+
+
+  uint8_t  fclkspreadenabled;
+  uint8_t  fclkspreadpercent;
+  uint16_t fclkspreadfreq;
+
+
+  uint8_t  fllgfxclkspreadenabled;
+  uint8_t  fllgfxclkspreadpercent;
+  uint16_t fllgfxclkspreadfreq;
+
+
+  struct smudpm_i2ccontrollerconfig_t  i2ccontrollers[7];
+
+
+  uint32_t boardreserved[10];
+};
+
 /* 
   ***************************************************************************
     Data Table asic_profiling_info  structure

@@ -97,6 +97,7 @@ MODULE_FIRMWARE("amdgpu/raven2_rlc.bin");
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000400),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG3, 0x80000000, 0x80000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_GPU_ID, 0x0000000f, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3, 0x00000003, 0x82400024),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE, 0x3fffffff, 0x00000001),
@@ -4904,7 +4905,20 @@ static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev)
 static void gfx_v9_0_set_gds_init(struct amdgpu_device *adev)
 {
 	/* init asci gds info */
-	adev->gds.mem.total_size = RREG32_SOC15(GC, 0, mmGDS_VMID0_SIZE);
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+		adev->gds.mem.total_size = 0x10000;
+		break;
+	case CHIP_RAVEN:
+		adev->gds.mem.total_size = 0x1000;
+		break;
+	default:
+		adev->gds.mem.total_size = 0x10000;
+		break;
+	}
+
 	adev->gds.gws.total_size = 64;
 	adev->gds.oa.total_size = 16;
 

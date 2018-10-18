@@ -3175,6 +3175,34 @@ static int vega20_power_off_asic(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+static int conv_power_profile_to_pplib_workload(int power_profile)
+{
+	int pplib_workload = 0;
+
+	switch (power_profile) {
+	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
+		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_POWERSAVING:
+		pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VIDEO:
+		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VR:
+		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_COMPUTE:
+		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_CUSTOM:
+		pplib_workload = WORKLOAD_PPLIB_CUSTOM_BIT;
+		break;
+	}
+
+	return pplib_workload;
+}
+
 static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
@@ -3210,7 +3238,7 @@ static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-		workload_type = i + 1;
+		workload_type = conv_power_profile_to_pplib_workload(i);
 		result = vega20_get_activity_monitor_coeff(hwmgr,
 				(uint8_t *)(&activity_monitor), workload_type);
 		PP_ASSERT_WITH_CODE(!result,
@@ -3283,9 +3311,14 @@ static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
-	int result = 0;
+	int workload_type, result = 0;
 
 	hwmgr->power_profile_mode = input[size];
+
+	if (hwmgr->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", hwmgr->power_profile_mode);
+		return -EINVAL;
+	}
 
 	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 		if (size < 10)
@@ -3353,8 +3386,11 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 				return result);
 	}
 
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type =
+		conv_power_profile_to_pplib_workload(hwmgr->power_profile_mode);
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
-						1 << hwmgr->power_profile_mode);
+						1 << workload_type);
 
 	return 0;
 }
