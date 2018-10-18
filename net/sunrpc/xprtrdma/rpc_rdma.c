@@ -71,7 +71,6 @@ static unsigned int rpcrdma_max_call_header_size(unsigned int maxsegs)
 	size = RPCRDMA_HDRLEN_MIN;
 
 	/* Maximum Read list size */
-	maxsegs += 2;	/* segment for head and tail buffers */
 	size = maxsegs * rpcrdma_readchunk_maxsz * sizeof(__be32);
 
 	/* Minimal Read chunk size */
@@ -97,7 +96,6 @@ static unsigned int rpcrdma_max_reply_header_size(unsigned int maxsegs)
 	size = RPCRDMA_HDRLEN_MIN;
 
 	/* Maximum Write list size */
-	maxsegs += 2;	/* segment for head and tail buffers */
 	size = sizeof(__be32);		/* segment count */
 	size += maxsegs * rpcrdma_segment_maxsz * sizeof(__be32);
 	size += sizeof(__be32);	/* list discriminator */
@@ -805,7 +803,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		struct rpcrdma_mr *mr;
 
 		mr = rpcrdma_mr_pop(&req->rl_registered);
-		rpcrdma_mr_defer_recovery(mr);
+		rpcrdma_mr_recycle(mr);
 	}
 
 	/* This implementation supports the following combinations
@@ -1216,7 +1214,6 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	struct rpc_rqst *rqst = rep->rr_rqst;
-	unsigned long cwnd;
 	int status;
 
 	xprt->reestablish_timeout = 0;
@@ -1239,11 +1236,6 @@ void rpcrdma_complete_rqst(struct rpcrdma_rep *rep)
 
 out:
 	spin_lock(&xprt->queue_lock);
-	cwnd = xprt->cwnd;
-	xprt->cwnd = r_xprt->rx_buf.rb_credits << RPC_CWNDSHIFT;
-	if (xprt->cwnd > cwnd)
-		xprt_release_rqst_cong(rqst->rq_task);
-
 	xprt_complete_rqst(rqst->rq_task, status);
 	xprt_unpin_rqst(rqst);
 	spin_unlock(&xprt->queue_lock);
@@ -1350,14 +1342,18 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	if (!rqst)
 		goto out_norqst;
 	xprt_pin_rqst(rqst);
+	spin_unlock(&xprt->queue_lock);
 
 	if (credits == 0)
 		credits = 1;	/* don't deadlock */
 	else if (credits > buf->rb_max_requests)
 		credits = buf->rb_max_requests;
-	buf->rb_credits = credits;
-
-	spin_unlock(&xprt->queue_lock);
+	if (buf->rb_credits != credits) {
+		spin_lock_bh(&xprt->transport_lock);
+		buf->rb_credits = credits;
+		xprt->cwnd = credits << RPC_CWNDSHIFT;
+		spin_unlock_bh(&xprt->transport_lock);
+	}
 
 	req = rpcr_to_rdmar(rqst);
 	req->rl_reply = rep;
