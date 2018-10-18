@@ -4150,7 +4150,7 @@ static int ixgbevf_xmit_frame_ring(struct sk_buff *skb,
 	first->tx_flags = tx_flags;
 	first->protocol = vlan_get_protocol(skb);
 
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBEVF_IPSEC
 	if (skb->sp && !ixgbevf_ipsec_tx(tx_ring, first, &ipsec_tx))
 		goto out_drop;
 #endif
