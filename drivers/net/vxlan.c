@@ -2194,11 +2194,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		ndst = &rt->dst;
-		if (skb_dst(skb)) {
-			int mtu = dst_mtu(ndst) - VXLAN_HEADROOM;
-
-			skb_dst_update_pmtu(skb, mtu);
-		}
+		skb_tunnel_check_pmtu(skb, ndst, VXLAN_HEADROOM);
 
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
@@ -2235,11 +2231,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				goto out_unlock;
 		}
 
-		if (skb_dst(skb)) {
-			int mtu = dst_mtu(ndst) - VXLAN6_HEADROOM;
-
-			skb_dst_update_pmtu(skb, mtu);
-		}
+		skb_tunnel_check_pmtu(skb, ndst, VXLAN6_HEADROOM);
 
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip6_dst_hoplimit(ndst);
