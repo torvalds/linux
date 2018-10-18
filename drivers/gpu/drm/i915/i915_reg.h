@@ -6499,6 +6499,7 @@ enum {
 #define   PLANE_CTL_KEY_ENABLE_DESTINATION	(2 << 21)
 #define   PLANE_CTL_ORDER_BGRX			(0 << 20)
 #define   PLANE_CTL_ORDER_RGBX			(1 << 20)
+#define   PLANE_CTL_YUV420_Y_PLANE		(1 << 19)
 #define   PLANE_CTL_YUV_TO_RGB_CSC_FORMAT_BT709	(1 << 18)
 #define   PLANE_CTL_YUV422_ORDER_MASK		(0x3 << 16)
 #define   PLANE_CTL_YUV422_YUYV			(0 << 16)

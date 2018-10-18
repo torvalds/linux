@@ -362,22 +362,22 @@ skl_program_scaler(struct drm_i915_private *dev_priv,
 }
 
 static void
-skl_update_plane(struct intel_plane *plane,
-		 const struct intel_crtc_state *crtc_state,
-		 const struct intel_plane_state *plane_state)
+skl_program_plane(struct intel_plane *plane,
+		  const struct intel_crtc_state *crtc_state,
+		  const struct intel_plane_state *plane_state,
+		  int color_plane, bool slave, u32 plane_ctl)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
-	u32 plane_ctl = plane_state->ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
-	u32 surf_addr = plane_state->color_plane[0].offset;
-	u32 stride = skl_plane_stride(plane_state, 0);
+	u32 surf_addr = plane_state->color_plane[color_plane].offset;
+	u32 stride = skl_plane_stride(plane_state, color_plane);
 	u32 aux_stride = skl_plane_stride(plane_state, 1);
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
-	uint32_t x = plane_state->color_plane[0].x;
-	uint32_t y = plane_state->color_plane[0].y;
+	uint32_t x = plane_state->color_plane[color_plane].x;
+	uint32_t y = plane_state->color_plane[color_plane].y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	struct intel_plane *linked = plane_state->linked_plane;
@@ -441,7 +441,9 @@ skl_update_plane(struct intel_plane *plane,
 
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
-		skl_program_scaler(dev_priv, plane, crtc_state, plane_state);
+		if (!slave)
+			skl_program_scaler(dev_priv, plane,
+					   crtc_state, plane_state);
 
 		I915_WRITE_FW(PLANE_POS(pipe, plane_id), 0);
 	} else {
@@ -456,7 +458,32 @@ skl_update_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
+void
+skl_update_plane(struct intel_plane *plane,
+		 const struct intel_crtc_state *crtc_state,
+		 const struct intel_plane_state *plane_state)
+{
+	int color_plane = 0;
+
+	if (plane_state->linked_plane) {
+		/* Program the UV plane */
+		color_plane = 1;
+	}
+
+	skl_program_plane(plane, crtc_state, plane_state,
+			  color_plane, false, plane_state->ctl);
+}
+
 static void
+icl_update_slave(struct intel_plane *plane,
+		 const struct intel_crtc_state *crtc_state,
+		 const struct intel_plane_state *plane_state)
+{
+	skl_program_plane(plane, crtc_state, plane_state, 0, true,
+			  plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE);
+}
+
+void
 skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
@@ -1934,6 +1961,8 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->disable_plane = skl_disable_plane;
 	plane->get_hw_state = skl_plane_get_hw_state;
 	plane->check_plane = skl_plane_check;
+	if (icl_is_nv12_y_plane(plane_id))
+		plane->update_slave = icl_update_slave;
 
 	if (skl_plane_has_planar(dev_priv, pipe, plane_id)) {
 		formats = skl_planar_formats;
