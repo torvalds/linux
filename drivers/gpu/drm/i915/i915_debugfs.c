@@ -4197,7 +4197,7 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & (DROP_ACTIVE | DROP_RETIRE | DROP_RESET_SEQNO)) {
 		ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 		if (ret)
-			return ret;
+			goto out;
 
 		if (val & DROP_ACTIVE)
 			ret = i915_gem_wait_for_idle(i915,
@@ -4244,6 +4244,7 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_FREED)
 		i915_gem_drain_freed_objects(i915);
 
+out:
 	intel_runtime_pm_put(i915);
 
 	return ret;
