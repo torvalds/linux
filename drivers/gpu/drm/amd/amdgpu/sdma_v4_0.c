@@ -1150,6 +1150,15 @@ static int sdma_v4_0_start(struct amdgpu_device *adev)
 			return r;
 		}
 
+		if (adev->sdma.has_page_queue) {
+			ring = &adev->sdma.instance[i].page;
+			r = amdgpu_ring_test_ring(ring);
+			if (r) {
+				ring->ready = false;
+				return r;
+			}
+		}
+
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
