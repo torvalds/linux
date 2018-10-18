@@ -2476,4 +2476,5 @@ static void __exit gcc_sdm660_exit(void)
 }
 module_exit(gcc_sdm660_exit);
 
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("QCOM GCC sdm660 Driver");
