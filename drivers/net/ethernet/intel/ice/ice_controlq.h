@@ -19,11 +19,10 @@
 
 /* Defines that help manage the driver vs FW API checks.
  * Take a look at ice_aq_ver_check in ice_controlq.c for actual usage.
- *
  */
 #define EXP_FW_API_VER_BRANCH		0x00
-#define EXP_FW_API_VER_MAJOR		0x00
-#define EXP_FW_API_VER_MINOR		0x01
+#define EXP_FW_API_VER_MAJOR		0x01
+#define EXP_FW_API_VER_MINOR		0x03
 
 /* Different control queue types: These are mainly for SW consumption. */
 enum ice_ctl_q {
