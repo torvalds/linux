@@ -157,6 +157,12 @@
 #define VPINT_ALLOC_LAST_S			12
 #define VPINT_ALLOC_LAST_M			ICE_M(0x7FF, 12)
 #define VPINT_ALLOC_VALID_M			BIT(31)
+#define VPINT_ALLOC_PCI(_VF)			(0x0009D000 + ((_VF) * 4))
+#define VPINT_ALLOC_PCI_FIRST_S			0
+#define VPINT_ALLOC_PCI_FIRST_M			ICE_M(0x7FF, 0)
+#define VPINT_ALLOC_PCI_LAST_S			12
+#define VPINT_ALLOC_PCI_LAST_M			ICE_M(0x7FF, 12)
+#define VPINT_ALLOC_PCI_VALID_M			BIT(31)
 #define GLLAN_RCTL_0				0x002941F8
 #define QRX_CONTEXT(_i, _QRX)			(0x00280000 + ((_i) * 8192 + (_QRX) * 4))
 #define QRX_CTRL(_QRX)				(0x00120000 + ((_QRX) * 4))
