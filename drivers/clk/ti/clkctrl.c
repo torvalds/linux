@@ -259,8 +259,8 @@ _ti_clkctrl_clk_register(struct omap_clkctrl_provider *provider,
 	struct omap_clkctrl_clk *clkctrl_clk;
 	int ret = 0;
 
-	init.name = kasprintf(GFP_KERNEL, "%s:%s:%04x:%d", node->parent->name,
-			      node->name, offset, bit);
+	init.name = kasprintf(GFP_KERNEL, "%pOFn:%pOFn:%04x:%d", node->parent,
+			      node, offset, bit);
 	clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
 	if (!init.name || !clkctrl_clk) {
 		ret = -ENOMEM;
@@ -492,8 +492,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 
 	provider->base = of_iomap(node, 0);
 
-	provider->clkdm_name = kmalloc(strlen(node->parent->name) + 3,
-				       GFP_KERNEL);
+	provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFnxxx", node->parent);
 	if (!provider->clkdm_name) {
 		kfree(provider);
 		return;
@@ -503,8 +502,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	 * Create default clkdm name, replace _cm from end of parent node
 	 * name with _clkdm
 	 */
-	strcpy(provider->clkdm_name, node->parent->name);
-	provider->clkdm_name[strlen(provider->clkdm_name) - 2] = 0;
+	provider->clkdm_name[strlen(provider->clkdm_name) - 5] = 0;
 	strcat(provider->clkdm_name, "clkdm");
 
 	INIT_LIST_HEAD(&provider->clocks);
@@ -539,8 +537,8 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		init.flags = 0;
 		if (reg_data->flags & CLKF_SET_RATE_PARENT)
 			init.flags |= CLK_SET_RATE_PARENT;
-		init.name = kasprintf(GFP_KERNEL, "%s:%s:%04x:%d",
-				      node->parent->name, node->name,
+		init.name = kasprintf(GFP_KERNEL, "%pOFn:%pOFn:%04x:%d",
+				      node->parent, node,
 				      reg_data->offset, 0);
 		clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
 		if (!init.name || !clkctrl_clk)

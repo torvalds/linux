@@ -219,7 +219,7 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 	}
 
 out:
-	pr_err("%s: error initializing pll %s\n", __func__, node->name);
+	pr_err("%s: error initializing pll %pOFn\n", __func__, node);
 	kfree(pll_data);
 }
 

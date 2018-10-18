@@ -186,7 +186,7 @@ static void of_mux_clk_setup(struct device_node *node)
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents < 2) {
-		pr_err("mux-clock %s must have parents\n", node->name);
+		pr_err("mux-clock %pOFn must have parents\n", node);
 		return;
 	}
 	parent_names = kzalloc((sizeof(char *) * num_parents), GFP_KERNEL);
@@ -278,7 +278,7 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 	num_parents = of_clk_get_parent_count(node);
 
 	if (num_parents < 2) {
-		pr_err("%s must have parents\n", node->name);
+		pr_err("%pOFn must have parents\n", node);
 		goto cleanup;
 	}
 

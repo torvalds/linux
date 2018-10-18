@@ -492,7 +492,7 @@ __init ti_clk_get_div_table(struct device_node *node)
 	}
 
 	if (!valid_div) {
-		pr_err("no valid dividers for %s table\n", node->name);
+		pr_err("no valid dividers for %pOFn table\n", node);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -530,7 +530,7 @@ static int _get_divider_width(struct device_node *node,
 			min_div = 1;
 
 		if (of_property_read_u32(node, "ti,max-div", &max_div)) {
-			pr_err("no max-div for %s!\n", node->name);
+			pr_err("no max-div for %pOFn!\n", node);
 			return -EINVAL;
 		}
 
