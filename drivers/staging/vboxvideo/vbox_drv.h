@@ -89,11 +89,11 @@ struct vbox_private {
 	struct vbva_buf_ctx *vbva_info;
 	bool any_pitch;
 	u32 num_crtcs;
-	/** Amount of available VRAM, including space used for buffers. */
+	/* Amount of available VRAM, including space used for buffers. */
 	u32 full_vram_size;
-	/** Amount of available VRAM, not including space used for buffers. */
+	/* Amount of available VRAM, not including space used for buffers. */
 	u32 available_vram_size;
-	/** Array of structures for receiving mode hints. */
+	/* Array of structures for receiving mode hints. */
 	struct vbva_modehint *last_mode_hints;
 
 	int fb_mtrr;
@@ -105,7 +105,7 @@ struct vbox_private {
 	} ttm;
 
 	struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
-	/**
+	/*
 	 * We decide whether or not user-space supports display hot-plug
 	 * depending on whether they react to a hot-plug event after the initial
 	 * mode query.
@@ -114,7 +114,7 @@ struct vbox_private {
 	struct work_struct hotplug_work;
 	u32 input_mapping_width;
 	u32 input_mapping_height;
-	/**
+	/*
 	 * Is user-space using an X.Org-style layout of one large frame-buffer
 	 * encompassing all screen ones or is the fbdev console active?
 	 */

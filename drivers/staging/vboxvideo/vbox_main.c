@@ -92,7 +92,7 @@ void vbox_report_caps(struct vbox_private *vbox)
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
 }
 
-/**
+/*
  * Send information about dirty rectangles to VBVA.  If necessary we enable
  * VBVA first, as this is normally disabled after a change of master in case
  * the new master does not send dirty rectangle information (is this even
@@ -214,7 +214,7 @@ static void vbox_accel_fini(struct vbox_private *vbox)
 	pci_iounmap(vbox->ddev.pdev, vbox->vbva_buffers);
 }
 
-/** Do we support the 4.3 plus mode hint reporting interface? */
+/* Do we support the 4.3 plus mode hint reporting interface? */
 static bool have_hgsmi_mode_hints(struct vbox_private *vbox)
 {
 	u32 have_hints, have_cursor;
@@ -245,10 +245,6 @@ bool vbox_check_supported(u16 id)
 	return dispi_id == id;
 }
 
-/**
- * Set up our heaps and data exchange buffers in VRAM before handing the rest
- * to the memory manager.
- */
 int vbox_hw_init(struct vbox_private *vbox)
 {
 	int ret = -ENOMEM;

@@ -36,29 +36,14 @@ struct hgsmi_buffer_location {
 } __packed;
 
 /* HGSMI setup and configuration data structures. */
-/* host->guest commands pending, should be accessed under FIFO lock only */
+
 #define HGSMIHOSTFLAGS_COMMANDS_PENDING    0x01u
-/* IRQ is fired, should be accessed under VGAState::lock only  */
 #define HGSMIHOSTFLAGS_IRQ                 0x02u
-/* vsync interrupt flag, should be accessed under VGAState::lock only */
 #define HGSMIHOSTFLAGS_VSYNC               0x10u
-/** monitor hotplug flag, should be accessed under VGAState::lock only */
 #define HGSMIHOSTFLAGS_HOTPLUG             0x20u
-/**
- * Cursor capability state change flag, should be accessed under
- * VGAState::lock only. @see vbva_conf32.
- */
 #define HGSMIHOSTFLAGS_CURSOR_CAPABILITIES 0x40u
 
 struct hgsmi_host_flags {
-	/*
-	 * Host flags can be accessed and modified in multiple threads
-	 * concurrently, e.g. CrOpenGL HGCM and GUI threads when completing
-	 * HGSMI 3D and Video Accel respectively, EMT thread when dealing with
-	 * HGSMI command processing, etc.
-	 * Besides settings/cleaning flags atomically, some flags have their
-	 * own special sync restrictions, see comments for flags above.
-	 */
 	u32 host_flags;
 	u32 reserved[3];
 } __packed;

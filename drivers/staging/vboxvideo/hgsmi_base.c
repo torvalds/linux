@@ -29,9 +29,9 @@
 
 /**
  * Inform the host of the location of the host flags in VRAM via an HGSMI cmd.
- * @param    ctx          the context of the guest heap to use.
- * @param    location     the offset chosen for the flags within guest VRAM.
- * @returns 0 on success, -errno on failure
+ * Return: 0 or negative errno value.
+ * @ctx:        The context of the guest heap to use.
+ * @location:   The offset chosen for the flags within guest VRAM.
  */
 int hgsmi_report_flags_location(struct gen_pool *ctx, u32 location)
 {
@@ -53,9 +53,9 @@ int hgsmi_report_flags_location(struct gen_pool *ctx, u32 location)
 
 /**
  * Notify the host of HGSMI-related guest capabilities via an HGSMI command.
- * @param    ctx                 the context of the guest heap to use.
- * @param    caps                the capabilities to report, see vbva_caps.
- * @returns 0 on success, -errno on failure
+ * Return: 0 or negative errno value.
+ * @ctx:        The context of the guest heap to use.
+ * @caps:       The capabilities to report, see vbva_caps.
  */
 int hgsmi_send_caps_info(struct gen_pool *ctx, u32 caps)
 {
@@ -91,11 +91,10 @@ int hgsmi_test_query_conf(struct gen_pool *ctx)
 
 /**
  * Query the host for an HGSMI configuration parameter via an HGSMI command.
- * @param  ctx        the context containing the heap used
- * @param  index      the index of the parameter to query,
- *                    @see vbva_conf32::index
- * @param  value_ret  where to store the value of the parameter on success
- * @returns 0 on success, -errno on failure
+ * Return: 0 or negative errno value.
+ * @ctx:        The context containing the heap used.
+ * @index:      The index of the parameter to query.
+ * @value_ret:  Where to store the value of the parameter on success.
  */
 int hgsmi_query_conf(struct gen_pool *ctx, u32 index, u32 *value_ret)
 {
@@ -120,16 +119,15 @@ int hgsmi_query_conf(struct gen_pool *ctx, u32 index, u32 *value_ret)
 
 /**
  * Pass the host a new mouse pointer shape via an HGSMI command.
- *
- * @param  ctx      the context containing the heap to be used
- * @param  flags    cursor flags, @see VMMDevReqMousePointer::flags
- * @param  hot_x    horizontal position of the hot spot
- * @param  hot_y    vertical position of the hot spot
- * @param  width    width in pixels of the cursor
- * @param  height   height in pixels of the cursor
- * @param  pixels   pixel data, @see VMMDevReqMousePointer for the format
- * @param  len      size in bytes of the pixel data
- * @returns 0 on success, -errno on failure
+ * Return: 0 or negative errno value.
+ * @ctx:        The context containing the heap to be used.
+ * @flags:      Cursor flags.
+ * @hot_x:      Horizontal position of the hot spot.
+ * @hot_y:      Vertical position of the hot spot.
+ * @width:      Width in pixels of the cursor.
+ * @height:     Height in pixels of the cursor.
+ * @pixels:     Pixel data, @see VMMDevReqMousePointer for the format.
+ * @len:        Size in bytes of the pixel data.
  */
 int hgsmi_update_pointer_shape(struct gen_pool *ctx, u32 flags,
 			       u32 hot_x, u32 hot_y, u32 width, u32 height,
@@ -195,13 +193,13 @@ int hgsmi_update_pointer_shape(struct gen_pool *ctx, u32 flags,
  * Report the guest cursor position.  The host may wish to use this information
  * to re-position its own cursor (though this is currently unlikely).  The
  * current host cursor position is returned.
- * @param  ctx              The context containing the heap used.
- * @param  report_position  Are we reporting a position?
- * @param  x                Guest cursor X position.
- * @param  y                Guest cursor Y position.
- * @param  x_host           Host cursor X position is stored here.  Optional.
- * @param  y_host           Host cursor Y position is stored here.  Optional.
- * @returns 0 on success, -errno on failure
+ * Return: 0 or negative errno value.
+ * @ctx:              The context containing the heap used.
+ * @report_position:  Are we reporting a position?
+ * @x:                Guest cursor X position.
+ * @y:                Guest cursor Y position.
+ * @x_host:           Host cursor X position is stored here.  Optional.
+ * @y_host:           Host cursor Y position is stored here.  Optional.
  */
 int hgsmi_cursor_position(struct gen_pool *ctx, bool report_position,
 			  u32 x, u32 y, u32 *x_host, u32 *y_host)
@@ -226,21 +224,3 @@ int hgsmi_cursor_position(struct gen_pool *ctx, bool report_position,
 
 	return 0;
 }
-
-/**
- * @todo Mouse pointer position to be read from VMMDev memory, address of the
- * memory region can be queried from VMMDev via an IOCTL. This VMMDev memory
- * region will contain host information which is needed by the guest.
- *
- * Reading will not cause a switch to the host.
- *
- * Have to take into account:
- *  * synchronization: host must write to the memory only from EMT,
- *    large structures must be read under flag, which tells the host
- *    that the guest is currently reading the memory (OWNER flag?).
- *  * guest writes: may be allocate a page for the host info and make
- *    the page readonly for the guest.
- *  * the information should be available only for additions drivers.
- *  * VMMDev additions driver will inform the host which version of the info
- *    it expects, host must support all versions.
- */

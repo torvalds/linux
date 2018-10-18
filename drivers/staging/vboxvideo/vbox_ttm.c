@@ -45,9 +45,7 @@ static void vbox_ttm_mem_global_release(struct drm_global_reference *ref)
 	ttm_mem_global_release(ref->object);
 }
 
-/**
- * Adds the vbox memory manager object/structures to the global memory manager.
- */
+/* Add the vbox memory manager object/structures to the global memory manager */
 static int vbox_ttm_global_init(struct vbox_private *vbox)
 {
 	struct drm_global_reference *global_ref;
@@ -81,9 +79,7 @@ static int vbox_ttm_global_init(struct vbox_private *vbox)
 	return 0;
 }
 
-/**
- * Removes the vbox memory manager object from the global memory manager.
- */
+/* Remove the vbox memory manager object from the global memory manager */
 static void vbox_ttm_global_release(struct vbox_private *vbox)
 {
 	drm_global_item_unref(&vbox->ttm.bo_global_ref.ref);

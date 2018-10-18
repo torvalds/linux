@@ -72,7 +72,7 @@ irqreturn_t vbox_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * Check that the position hints provided by the host are suitable for GNOME
  * shell (i.e. all screens disjoint and hints for all enabled screens) and if
  * not replace them with default ones.  Providing valid hints improves the
@@ -118,9 +118,7 @@ static void validate_or_set_position_hints(struct vbox_private *vbox)
 		}
 }
 
-/**
- * Query the host for the most recent video mode hints.
- */
+/* Query the host for the most recent video mode hints. */
 static void vbox_update_mode_hints(struct vbox_private *vbox)
 {
 	struct drm_device *dev = &vbox->ddev;

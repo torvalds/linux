@@ -25,11 +25,6 @@
 
 /* GUEST <-> HOST Communication API */
 
-/**
- * @todo FIXME: Either dynamicly ask host for this or put somewhere high in
- *              physical memory like 0xE0000000.
- */
-
 #define VBE_DISPI_BANK_ADDRESS          0xA0000
 #define VBE_DISPI_BANK_SIZE_KB          64
 
@@ -71,12 +66,6 @@
 #define VBE_DISPI_ENABLED               0x01
 #define VBE_DISPI_GETCAPS               0x02
 #define VBE_DISPI_8BIT_DAC              0x20
-/**
- * @note this definition is a BOCHS legacy, used only in the video BIOS
- * code and ignored by the emulated hardware.
- */
-#define VBE_DISPI_LFB_ENABLED           0x40
-#define VBE_DISPI_NOCLEARMEM            0x80
 
 #define VGA_PORT_HGSMI_HOST             0x3b0
 #define VGA_PORT_HGSMI_GUEST            0x3d0

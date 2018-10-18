@@ -41,7 +41,7 @@
 #include "vboxvideo.h"
 #include "hgsmi_channels.h"
 
-/**
+/*
  * Set a graphics mode.  Poke any required values into registers, do an HGSMI
  * mode set and tell the host we support advanced graphics functions.
  */
@@ -380,7 +380,7 @@ static int vbox_cursor_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-/**
+/*
  * Copy the ARGB image and generate the mask, which is needed in case the host
  * does not support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
  * if the corresponding alpha value in the ARGB image is greater than 0xF0.
@@ -674,11 +674,11 @@ static struct drm_encoder *vbox_encoder_init(struct drm_device *dev,
 	return &vbox_encoder->base;
 }
 
-/**
+/*
  * Generate EDID data with a mode-unique serial number for the virtual
- *  monitor to try to persuade Unity that different modes correspond to
- *  different monitors and it should not try to force the same resolution on
- *  them.
+ * monitor to try to persuade Unity that different modes correspond to
+ * different monitors and it should not try to force the same resolution on
+ * them.
  */
 static void vbox_set_edid(struct drm_connector *connector, int width,
 			  int height)
