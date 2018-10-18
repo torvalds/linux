@@ -211,12 +211,10 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	new_drvdata->hw_rev = hw_rev->rev;
 
 	if (hw_rev->rev >= CC_HW_REV_712) {
-		new_drvdata->hash_len_sz = HASH_LEN_SIZE_712;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP);
 		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_712);
 		new_drvdata->ver_offset = CC_REG(HOST_VERSION_712);
 	} else {
-		new_drvdata->hash_len_sz = HASH_LEN_SIZE_630;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP8);
 		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_630);
 		new_drvdata->ver_offset = CC_REG(HOST_VERSION_630);
@@ -466,6 +464,14 @@ int cc_clk_on(struct cc_drvdata *drvdata)
 		return rc;
 
 	return 0;
+}
+
+unsigned int cc_get_default_hash_len(struct cc_drvdata *drvdata)
+{
+	if (drvdata->hw_rev >= CC_HW_REV_712)
+		return HASH_LEN_SIZE_712;
+	else
+		return HASH_LEN_SIZE_630;
 }
 
 void cc_clk_off(struct cc_drvdata *drvdata)
