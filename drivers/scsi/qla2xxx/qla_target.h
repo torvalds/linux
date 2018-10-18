@@ -771,14 +771,6 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define	FC_TM_REJECT                4
 #define FC_TM_FAILED                5
 
-#if (BITS_PER_LONG > 32) || defined(CONFIG_HIGHMEM64G)
-#define pci_dma_lo32(a) (a & 0xffffffff)
-#define pci_dma_hi32(a) ((((a) >> 16)>>16) & 0xffffffff)
-#else
-#define pci_dma_lo32(a) (a & 0xffffffff)
-#define pci_dma_hi32(a) 0
-#endif
-
 #define QLA_TGT_SENSE_VALID(sense)  ((sense != NULL) && \
 				(((const uint8_t *)(sense))[0] & 0x70) == 0x70)
 
