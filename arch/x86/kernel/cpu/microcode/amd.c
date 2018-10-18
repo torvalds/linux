@@ -175,16 +175,18 @@ static bool verify_patch_section(const u8 *buf, size_t buf_size, bool early)
 }
 
 /*
- * Check whether the passed remaining file @size is large enough to contain a
- * patch of the indicated @patch_size (and also whether this size does not
- * exceed the per-family maximum).
+ * Check whether the passed remaining file @buf_size is large enough to contain
+ * a patch of the indicated @sh_psize (and also whether this size does not
+ * exceed the per-family maximum). @sh_psize is the size read from the section
+ * header.
  */
-static unsigned int verify_patch_size(u8 family, u32 patch_size, unsigned int size)
+static unsigned int
+verify_patch_size(u8 family, u32 sh_psize, unsigned int buf_size)
 {
 	u32 max_size;
 
 	if (family >= 0x15)
-		return min_t(u32, patch_size, size);
+		return min_t(u32, sh_psize, buf_size);
 
 #define F1XH_MPB_MAX_SIZE 2048
 #define F14H_MPB_MAX_SIZE 1824
@@ -202,12 +204,12 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size, unsigned int si
 		break;
 	}
 
-	if (patch_size > min_t(u32, size, max_size)) {
+	if (sh_psize > min_t(u32, buf_size, max_size)) {
 		pr_err("patch size mismatch\n");
 		return 0;
 	}
 
-	return patch_size;
+	return sh_psize;
 }
 
 /*
@@ -693,14 +695,14 @@ static void cleanup(void)
  */
 static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 {
+	unsigned int sh_psize, crnt_size, ret;
 	struct microcode_header_amd *mc_hdr;
 	struct ucode_patch *patch;
-	unsigned int patch_size, crnt_size, ret;
 	u32 proc_fam;
 	u16 proc_id;
 
-	patch_size  = *(u32 *)(fw + 4);
-	crnt_size   = patch_size + SECTION_HDR_SIZE;
+	sh_psize    = *(u32 *)(fw + 4);
+	crnt_size   = sh_psize + SECTION_HDR_SIZE;
 	mc_hdr	    = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
 	proc_id	    = mc_hdr->processor_rev_id;
 
@@ -726,7 +728,7 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	 * but is present in the leftover file length so we need to subtract
 	 * it before passing this value to the function below.
 	 */
-	ret = verify_patch_size(family, patch_size, leftover - SECTION_HDR_SIZE);
+	ret = verify_patch_size(family, sh_psize, leftover - SECTION_HDR_SIZE);
 	if (!ret) {
 		pr_err("Patch-ID 0x%08x: size mismatch.\n", mc_hdr->patch_id);
 		return crnt_size;
@@ -738,7 +740,7 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 		return -EINVAL;
 	}
 
-	patch->data = kmemdup(fw + SECTION_HDR_SIZE, patch_size, GFP_KERNEL);
+	patch->data = kmemdup(fw + SECTION_HDR_SIZE, sh_psize, GFP_KERNEL);
 	if (!patch->data) {
 		pr_err("Patch data allocation failure.\n");
 		kfree(patch);
