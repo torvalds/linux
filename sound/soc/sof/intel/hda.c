@@ -406,8 +406,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	/* (2) probe i915 and HDA codecs, HDMI codecs */
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
 		ret = hda_codec_i915_init(sdev);
-		if (ret < 0)
-			return ret;
+		dev_dbg(&pci->dev, "no HDMI audio devices found\n");
 	}
 
 	/* only HDA analog codec is detected in step (1) and
