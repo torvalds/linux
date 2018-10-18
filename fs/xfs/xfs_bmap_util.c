@@ -406,10 +406,10 @@ xfs_getbmap_report_one(
 	struct xfs_bmbt_irec	*got)
 {
 	struct kgetbmap		*p = out + bmv->bmv_entries;
-	bool			shared = false, trimmed = false;
+	bool			shared = false;
 	int			error;
 
-	error = xfs_reflink_trim_around_shared(ip, got, &shared, &trimmed);
+	error = xfs_reflink_trim_around_shared(ip, got, &shared);
 	if (error)
 		return error;
 
