@@ -752,18 +752,22 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 
 	BUILD_BUG_ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
 
-	/*
-	 * Skylake and Broxton currently don't expose the topmost plane as its
-	 * use is exclusive with the legacy cursor and we only want to expose
-	 * one of those, not both. Until we can safely expose the topmost plane
-	 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
-	 * we don't expose the topmost plane at all to prevent ABI breakage
-	 * down the line.
-	 */
-	if (IS_GEN10(dev_priv) || IS_GEMINILAKE(dev_priv))
+	if (IS_GEN11(dev_priv))
+		for_each_pipe(dev_priv, pipe)
+			info->num_sprites[pipe] = 6;
+	else if (IS_GEN10(dev_priv) || IS_GEMINILAKE(dev_priv))
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 3;
 	else if (IS_BROXTON(dev_priv)) {
+		/*
+		 * Skylake and Broxton currently don't expose the topmost plane as its
+		 * use is exclusive with the legacy cursor and we only want to expose
+		 * one of those, not both. Until we can safely expose the topmost plane
+		 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
+		 * we don't expose the topmost plane at all to prevent ABI breakage
+		 * down the line.
+		 */
+
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
