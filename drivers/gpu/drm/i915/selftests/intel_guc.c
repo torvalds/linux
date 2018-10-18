@@ -217,48 +217,6 @@ static int igt_guc_clients(void *args)
 	if (err)
 		goto out;
 
-	/*
-	 * Negative test - a client with no doorbell (invalid db id).
-	 * After destroying the doorbell, the db id is changed to
-	 * GUC_DOORBELL_INVALID and the firmware will reject any attempt to
-	 * allocate a doorbell with an invalid id (db has to be reserved before
-	 * allocation).
-	 */
-	destroy_doorbell(guc->execbuf_client);
-	if (client_doorbell_in_sync(guc->execbuf_client)) {
-		pr_err("destroy db did not work\n");
-		err = -EINVAL;
-		goto out;
-	}
-
-	unreserve_doorbell(guc->execbuf_client);
-
-	__create_doorbell(guc->execbuf_client);
-	err = __guc_allocate_doorbell(guc, guc->execbuf_client->stage_id);
-	if (err != -EIO) {
-		pr_err("unexpected (err = %d)", err);
-		goto out_db;
-	}
-
-	if (!available_dbs(guc, guc->execbuf_client->priority)) {
-		pr_err("doorbell not available when it should\n");
-		err = -EIO;
-		goto out_db;
-	}
-
-out_db:
-	/* clean after test */
-	__destroy_doorbell(guc->execbuf_client);
-	err = reserve_doorbell(guc->execbuf_client);
-	if (err) {
-		pr_err("failed to reserve back the doorbell back\n");
-	}
-	err = create_doorbell(guc->execbuf_client);
-	if (err) {
-		pr_err("recreate doorbell failed\n");
-		goto out;
-	}
-
 out:
 	/*
 	 * Leave clean state for other test, plus the driver always destroy the
