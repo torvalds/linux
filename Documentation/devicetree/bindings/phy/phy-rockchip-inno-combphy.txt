@@ -1,0 +1,48 @@
+ROCKCHIP PCIE/USB3 COMBPHY WITH INNO IP BLOCK
+
+Required properties:
+ - compatible: Should be one of the listed compatibles:
+	       "rockchip,rk1808-combphy"
+ - reg: Should be the address space for COMBPHY registers.
+ - #phy-cells: Should be 1. The cell number is used to select the
+	       phy mode as defined in <dt-bindings/phy/phy.h>,
+	       <&combphy PHY_TYPE_USB3> for USB3 PHY
+	       <&combphy PHY_TYPE_PCIE> for PCIE PHY
+ - clocks: The phandle to clock provider and clock specifier pair.
+ - clock-names: Must be "refclk", the reference clock of COMBPHY.
+ - resets: The phandle to reset controller and reset specifier pair.
+ - reset-names: The string reset names, must be:
+		"otg-rst", "combphy-por",
+		"combphy-apb", "combphy-pipe".
+ - rockchip,combphygrf: The grf for COMBPHY configuration and state
+			registers.
+
+Refer to phy/phy-bindings.txt for the generic PHY binding properties.
+Optional properties:
+ - assigned-clocks: The phandle of COMBPHY reference clock.
+ - assigned-clock-rates: The COMBPHY reference clock frequency,
+			 the default clock frequency is 24MHz,
+			 can be set to 25000000 or 50000000.
+
+Examples:
+
+combphy_grf: syscon@fe018000 {
+	compatible = "rockchip,usb3phy-grf", "syscon";
+	reg = <0x0 0xfe018000 0x0 0x8000>;
+};
+
+combphy: phy@ff380000 {
+	compatible = "rockchip,rk1808-combphy";
+	reg = <0x0 0xff380000 0x0 0x10000>;
+	#phy-cells = <1>;
+	clocks = <&cru SCLK_PCIEPHY_REF>;
+	clock-names = "refclk";
+	assigned-clocks = <&cru SCLK_PCIEPHY_REF>;
+	assigned-clock-rates = <25000000>;
+	resets = <&cru SRST_USB3_OTG_A>, <&cru SRST_PCIEPHY_POR>,
+		 <&cru SRST_PCIEPHY_P>, <&cru SRST_PCIEPHY_PIPE>;
+	reset-names = "otg-rst", "combphy-por",
+		      "combphy-apb", "combphy-pipe";
+	rockchip,combphygrf = <&combphy_grf>;
+	status = "disabled";
+};
