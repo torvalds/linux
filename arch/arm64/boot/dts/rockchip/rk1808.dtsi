@@ -6,6 +6,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/rk1808-power.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 
 / {
@@ -231,6 +232,11 @@
 		};
 	};
 
+	combphy_grf: syscon@fe018000 {
+		compatible = "rockchip,usb3phy-grf", "syscon";
+		reg = <0x0 0xfe018000 0x0 0x8000>;
+	};
+
 	pmugrf: syscon@fe020000 {
 		compatible = "rockchip,rk1808-pmugrf", "syscon", "simple-mfd";
 		reg = <0x0 0xfe020000 0x0 0x1000>;
@@ -391,6 +397,22 @@
 		reset-names = "apb";
 		#phy-cells = <0>;
 		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
+	combphy: phy@ff380000 {
+		compatible = "rockchip,rk1808-combphy";
+		reg = <0x0 0xff380000 0x0 0x10000>;
+		#phy-cells = <1>;
+		clocks = <&cru SCLK_PCIEPHY_REF>;
+		clock-names = "refclk";
+		assigned-clocks = <&cru SCLK_PCIEPHY_REF>;
+		assigned-clock-rates = <25000000>;
+		resets = <&cru SRST_USB3_OTG_A>, <&cru SRST_PCIEPHY_POR>,
+			 <&cru SRST_PCIEPHY_P>, <&cru SRST_PCIEPHY_PIPE>;
+		reset-names = "otg-rst", "combphy-por",
+			      "combphy-apb", "combphy-pipe";
+		rockchip,combphygrf = <&combphy_grf>;
 		status = "disabled";
 	};
 
