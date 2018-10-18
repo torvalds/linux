@@ -33,9 +33,19 @@
 #define	TICK_PRIV_BIT	(1ULL << 63)
 #endif
 
+#ifdef	CONFIG_SPARC64
 #define SYSCALL_STRING							\
 	"ta	0x6d;"							\
-	"sub	%%g0, %%o0, %%o0;"					\
+	"bcs,a	1f;"							\
+	" sub	%%g0, %%o0, %%o0;"					\
+	"1:"
+#else
+#define SYSCALL_STRING							\
+	"ta	0x10;"							\
+	"bcs,a	1f;"							\
+	" sub	%%g0, %%o0, %%o0;"					\
+	"1:"
+#endif
 
 #define SYSCALL_CLOBBERS						\
 	"f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",			\

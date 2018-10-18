@@ -1081,6 +1081,7 @@ void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max
 	}
 
 	*size += sizeof(struct cpu_map_data);
+	*size = PERF_ALIGN(*size, sizeof(u64));
 	return zalloc(*size);
 }
 
@@ -1560,7 +1561,9 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 		return NULL;
 	}
+#if 0
 try_again:
+#endif
 	al->map = map_groups__find(mg, al->addr);
 	if (al->map == NULL) {
 		/*
@@ -1572,6 +1575,7 @@ try_again:
 		 * "[vdso]" dso, but for now lets use the old trick of looking
 		 * in the whole kernel symbol list.
 		 */
+#if 0
 		if (cpumode == PERF_RECORD_MISC_USER && machine &&
 		    mg != &machine->kmaps &&
 		    machine__kernel_ip(machine, al->addr)) {
@@ -1579,6 +1583,7 @@ try_again:
 			load_map = true;
 			goto try_again;
 		}
+#endif
 	} else {
 		/*
 		 * Kernel maps might be changed when loading symbols so loading
