@@ -157,7 +157,7 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 		     new_op->downcall.resp.lookup.refn.fs_id,
 		     ret);
 
-	if (ret >= 0) {
+	if (ret == 0) {
 		orangefs_set_timeout(dentry);
 		inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
 	} else if (ret == -ENOENT) {
