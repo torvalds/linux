@@ -190,7 +190,6 @@ static bool vbox_set_up_input_mapping(struct vbox_private *vbox)
 
 static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 					struct drm_framebuffer *fb,
-					struct drm_display_mode *mode,
 					int x, int y)
 {
 	struct vbox_bo *bo = gem_to_vbox_bo(to_vbox_framebuffer(fb)->obj);
@@ -200,8 +199,11 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 
 	mutex_lock(&vbox->hw_mutex);
 
-	vbox_crtc->width = mode->hdisplay;
-	vbox_crtc->height = mode->vdisplay;
+	if (crtc->state->enable) {
+		vbox_crtc->width = crtc->state->mode.hdisplay;
+		vbox_crtc->height = crtc->state->mode.vdisplay;
+	}
+
 	vbox_crtc->x = x;
 	vbox_crtc->y = y;
 	vbox_crtc->fb_offset = vbox_bo_gpu_offset(bo);
@@ -301,7 +303,7 @@ static void vbox_primary_atomic_update(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc;
 	struct drm_framebuffer *fb = plane->state->fb;
 
-	vbox_crtc_set_base_and_mode(crtc, fb, &crtc->state->mode,
+	vbox_crtc_set_base_and_mode(crtc, fb,
 				    plane->state->src_x >> 16,
 				    plane->state->src_y >> 16);
 }
@@ -312,7 +314,7 @@ static void vbox_primary_atomic_disable(struct drm_plane *plane,
 	struct drm_crtc *crtc = old_state->crtc;
 
 	/* vbox_do_modeset checks plane->state->fb and will disable if NULL */
-	vbox_crtc_set_base_and_mode(crtc, old_state->fb, &crtc->state->mode,
+	vbox_crtc_set_base_and_mode(crtc, old_state->fb,
 				    old_state->src_x >> 16,
 				    old_state->src_y >> 16);
 }
