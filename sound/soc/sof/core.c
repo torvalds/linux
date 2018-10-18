@@ -212,7 +212,7 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 		u32 pfn = snd_sgbuf_get_addr(dmab, i * PAGE_SIZE) >> PAGE_SHIFT;
 		u32 *pg_table;
 
-		dev_dbg(sdev->dev, "pfn i %i idx %d pfn %x\n", i, idx, pfn);
+		dev_vdbg(sdev->dev, "pfn i %i idx %d pfn %x\n", i, idx, pfn);
 
 		pg_table = (u32 *)(page_table + idx);
 
