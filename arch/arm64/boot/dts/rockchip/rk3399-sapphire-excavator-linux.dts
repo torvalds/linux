@@ -108,6 +108,13 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
+	ext_cam_clk: external-camera-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <27000000>;
+		clock-output-names = "CLK_CAMERA_27MHZ";
+		#clock-cells = <0>;
+	};
+
 	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;
@@ -309,6 +316,29 @@
 		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	};
 
+	tc358749x: tc358749x@f {
+		compatible = "toshiba,tc358749";
+		reg = <0xf>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "refclk";
+		reset-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_gpios>;
+		status = "disabled";
+		port {
+			hdmiin_out0: endpoint {
+				/* Unlinked mipi dphy rx0 */
+				//remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+				clock-noncontinuous;
+				link-frequencies =
+					/bits/ 64 <297000000>;
+			};
+		};
+	};
+
 	ov13850: ov13850@10 {
 		compatible = "ovti,ov13850";
 		status = "okay";
@@ -375,11 +405,12 @@
 	hdmiin {
 		hdmiin_gpios: hdmiin-gpios {
 			rockchip,pins =
-				<2 5 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 5 RK_FUNC_GPIO &pcfg_output_high>,
+				<2 6 RK_FUNC_GPIO &pcfg_output_high>,
 				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 8 RK_FUNC_GPIO &pcfg_pull_none>,
-				<2 9 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 8 RK_FUNC_GPIO &pcfg_output_high>,
+				<2 9 RK_FUNC_GPIO &pcfg_output_high>,
+				<2 10 RK_FUNC_GPIO &pcfg_output_low>,
 				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
