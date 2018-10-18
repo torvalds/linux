@@ -722,7 +722,7 @@ static void dsa_slave_netpoll_cleanup(struct net_device *dev)
 
 	p->netpoll = NULL;
 
-	__netpoll_free_async(netpoll);
+	__netpoll_free(netpoll);
 }
 
 static void dsa_slave_poll_controller(struct net_device *dev)

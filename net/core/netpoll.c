@@ -57,7 +57,6 @@ DEFINE_STATIC_SRCU(netpoll_srcu);
 	 MAX_UDP_CHUNK)
 
 static void zap_completion_queue(void);
-static void netpoll_async_cleanup(struct work_struct *work);
 
 static unsigned int carrier_timeout = 4;
 module_param(carrier_timeout, uint, 0644);
@@ -589,7 +588,6 @@ int __netpoll_setup(struct netpoll *np, struct net_device *ndev)
 
 	np->dev = ndev;
 	strlcpy(np->dev_name, ndev->name, IFNAMSIZ);
-	INIT_WORK(&np->cleanup_work, netpoll_async_cleanup);
 
 	if (ndev->priv_flags & IFF_DISABLE_NETPOLL) {
 		np_err(np, "%s doesn't support polling, aborting\n",
@@ -788,10 +786,6 @@ void __netpoll_cleanup(struct netpoll *np)
 {
 	struct netpoll_info *npinfo;
 
-	/* rtnl_dereference would be preferable here but
-	 * rcu_cleanup_netpoll path can put us in here safely without
-	 * holding the rtnl, so plain rcu_dereference it is
-	 */
 	npinfo = rtnl_dereference(np->dev->npinfo);
 	if (!npinfo)
 		return;
@@ -812,21 +806,16 @@ void __netpoll_cleanup(struct netpoll *np)
 }
 EXPORT_SYMBOL_GPL(__netpoll_cleanup);
 
-static void netpoll_async_cleanup(struct work_struct *work)
+void __netpoll_free(struct netpoll *np)
 {
-	struct netpoll *np = container_of(work, struct netpoll, cleanup_work);
+	ASSERT_RTNL();
 
-	rtnl_lock();
+	/* Wait for transmitting packets to finish before freeing. */
+	synchronize_rcu_bh();
 	__netpoll_cleanup(np);
-	rtnl_unlock();
 	kfree(np);
 }
-
-void __netpoll_free_async(struct netpoll *np)
-{
-	schedule_work(&np->cleanup_work);
-}
-EXPORT_SYMBOL_GPL(__netpoll_free_async);
+EXPORT_SYMBOL_GPL(__netpoll_free);
 
 void netpoll_cleanup(struct netpoll *np)
 {
