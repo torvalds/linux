@@ -75,6 +75,11 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 		return -EINVAL;
 	}
 
+	if (!stream_state) {
+		DRM_ERROR("No stream state for CRTC%d\n", crtc->index);
+		return -EINVAL;
+	}
+
 	/* When enabling CRC, we should also disable dithering. */
 	if (source == AMDGPU_DM_PIPE_CRC_SOURCE_AUTO) {
 		if (dc_stream_configure_crc(stream_state->ctx->dc,
