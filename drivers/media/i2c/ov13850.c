@@ -91,7 +91,7 @@ struct regval {
 struct ov13850_mode {
 	u32 width;
 	u32 height;
-	u32 max_fps;
+	struct v4l2_fract max_fps;
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
@@ -624,7 +624,10 @@ static const struct ov13850_mode supported_modes[] = {
 	{
 		.width = 2112,
 		.height = 1568,
-		.max_fps = 30,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
 		.exp_def = 0x0600,
 		.hts_def = 0x12c0,
 		.vts_def = 0x0680,
@@ -632,7 +635,10 @@ static const struct ov13850_mode supported_modes[] = {
 	},{
 		.width = 4224,
 		.height = 3136,
-		.max_fps = 7,
+		.max_fps = {
+			.numerator = 20000,
+			.denominator = 150000,
+		},
 		.exp_def = 0x0600,
 		.hts_def = 0x12c0,
 		.vts_def = 0x0d00,
@@ -872,8 +878,7 @@ static int ov13850_g_frame_interval(struct v4l2_subdev *sd,
 	const struct ov13850_mode *mode = ov13850->cur_mode;
 
 	mutex_lock(&ov13850->mutex);
-	fi->interval.numerator = 10000;
-	fi->interval.denominator = mode->max_fps * 10000;
+	fi->interval = mode->max_fps;
 	mutex_unlock(&ov13850->mutex);
 
 	return 0;
