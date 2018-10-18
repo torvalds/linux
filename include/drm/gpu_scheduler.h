@@ -264,6 +264,7 @@ struct drm_sched_backend_ops {
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
  *              guilty and it will be considered for scheduling further.
  * @num_jobs: the number of jobs in queue in the scheduler
+ * @ready: marks if the underlying HW is ready to work
  *
  * One scheduler is implemented for each hardware ring.
  */
@@ -283,12 +284,14 @@ struct drm_gpu_scheduler {
 	spinlock_t			job_list_lock;
 	int				hang_limit;
 	atomic_t                        num_jobs;
+	bool			ready;
 };
 
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_backend_ops *ops,
 		   uint32_t hw_submission, unsigned hang_limit, long timeout,
 		   const char *name);
+
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 int drm_sched_job_init(struct drm_sched_job *job,
 		       struct drm_sched_entity *entity,

@@ -420,6 +420,9 @@ int drm_sched_job_init(struct drm_sched_job *job,
 	struct drm_gpu_scheduler *sched;
 
 	drm_sched_entity_select_rq(entity);
+	if (!entity->rq)
+		return -ENOENT;
+
 	sched = entity->rq->sched;
 
 	job->sched = sched;
@@ -633,6 +636,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 		return PTR_ERR(sched->thread);
 	}
 
+	sched->ready = true;
 	return 0;
 }
 EXPORT_SYMBOL(drm_sched_init);
@@ -648,5 +652,7 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 {
 	if (sched->thread)
 		kthread_stop(sched->thread);
+
+	sched->ready = false;
 }
 EXPORT_SYMBOL(drm_sched_fini);
