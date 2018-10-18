@@ -226,6 +226,10 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&combphy {
+	status = "okay";
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
