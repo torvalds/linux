@@ -671,7 +671,7 @@
 
 	i2c5: i2c@ff510000 {
 		compatible = "rockchip,rk3399-i2c";
-		reg = <0x0 0xff100000 0x0 0x1000>;
+		reg = <0x0 0xff510000 0x0 0x1000>;
 		clocks = <&cru SCLK_I2C5>, <&cru PCLK_I2C5>;
 		clock-names = "i2c", "pclk";
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
