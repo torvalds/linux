@@ -448,7 +448,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 
 	inode = new_inode(sb);
 	if (!inode)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	orangefs_set_inode(inode, ref);
 	inode->i_ino = hash;	/* needed for stat etc */
