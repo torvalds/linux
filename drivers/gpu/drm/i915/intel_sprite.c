@@ -1405,6 +1405,10 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
+	/* HW only has 8 bits pixel precision, disable plane if invisible */
+	if (!(plane_state->base.alpha >> 8))
+		plane_state->base.visible = false;
+
 	plane_state->ctl = skl_plane_ctl(crtc_state, plane_state);
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))

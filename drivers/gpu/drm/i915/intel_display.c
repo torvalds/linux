@@ -3113,10 +3113,6 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	if (ret)
 		return ret;
 
-	/* HW only has 8 bits pixel precision, disable plane if invisible */
-	if (!(plane_state->base.alpha >> 8))
-		plane_state->base.visible = false;
-
 	if (!plane_state->base.visible)
 		return 0;
 
