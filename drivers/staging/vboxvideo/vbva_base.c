@@ -20,8 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/vbox_err.h>
 #include "vbox_drv.h"
-#include "vbox_err.h"
 #include "vboxvideo_guest.h"
 #include "hgsmi_channels.h"
 
@@ -144,7 +144,7 @@ static bool vbva_inform_host(struct vbva_buf_ctx *vbva_ctx,
 	hgsmi_buffer_submit(ctx, p);
 
 	if (enable)
-		ret = RT_SUCCESS(p->base.result);
+		ret = p->base.result >= 0;
 	else
 		ret = true;
 

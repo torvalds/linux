@@ -20,8 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/vbox_err.h>
 #include "vbox_drv.h"
-#include "vbox_err.h"
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
 #include "hgsmi_channels.h"
@@ -70,7 +70,7 @@ int hgsmi_send_caps_info(struct gen_pool *ctx, u32 caps)
 
 	hgsmi_buffer_submit(ctx, p);
 
-	WARN_ON_ONCE(RT_FAILURE(p->rc));
+	WARN_ON_ONCE(p->rc < 0);
 
 	hgsmi_buffer_free(ctx, p);
 

@@ -27,11 +27,12 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
+
+#include <linux/vbox_err.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "vbox_drv.h"
-#include "vbox_err.h"
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
 

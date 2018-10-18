@@ -20,8 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/vbox_err.h>
 #include "vbox_drv.h"
-#include "vbox_err.h"
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
 #include "hgsmi_channels.h"
@@ -130,7 +130,7 @@ int hgsmi_get_mode_hints(struct gen_pool *ctx, unsigned int screens,
 
 	hgsmi_buffer_submit(ctx, p);
 
-	if (RT_FAILURE(p->rc)) {
+	if (p->rc < 0) {
 		hgsmi_buffer_free(ctx, p);
 		return -EIO;
 	}
