@@ -104,6 +104,8 @@ void hinic_wq_free(struct hinic_wqs *wqs, struct hinic_wq *wq);
 struct hinic_hw_wqe *hinic_get_wqe(struct hinic_wq *wq, unsigned int wqe_size,
 				   u16 *prod_idx);
 
+void hinic_return_wqe(struct hinic_wq *wq, unsigned int wqe_size);
+
 void hinic_put_wqe(struct hinic_wq *wq, unsigned int wqe_size);
 
 struct hinic_hw_wqe *hinic_read_wqe(struct hinic_wq *wq, unsigned int wqe_size,
