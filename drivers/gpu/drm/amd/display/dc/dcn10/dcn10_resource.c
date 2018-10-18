@@ -438,6 +438,7 @@ static const struct dcn_optc_mask tg_mask = {
 
 
 static const struct bios_registers bios_regs = {
+		NBIO_SR(BIOS_SCRATCH_0),
 		NBIO_SR(BIOS_SCRATCH_3),
 		NBIO_SR(BIOS_SCRATCH_6)
 };
