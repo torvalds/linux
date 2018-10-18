@@ -499,7 +499,7 @@ resizer_configure_in_continuous_mode(struct vpfe_resizer_device *resizer)
 	configure_resizer_out_params(resizer, RSZ_A,
 				     &cont_config->output1, 1, 0);
 	param->rsz_en[RSZ_B] = DISABLE;
-	param->oper_mode = RESIZER_MODE_CONTINIOUS;
+	param->oper_mode = RESIZER_MODE_CONTINUOUS;
 
 	if (resizer->resizer_b.output == RESIZER_OUTPUT_MEMORY) {
 		struct v4l2_mbus_framefmt *outformat2;
