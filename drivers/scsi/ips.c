@@ -6926,7 +6926,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	 * it!  Also, don't use 64bit addressing if dma addresses
 	 * are guaranteed to be < 4G.
 	 */
-	if (IPS_ENABLE_DMA64 && IPS_HAS_ENH_SGLIST(ha) &&
+	if (sizeof(dma_addr_t) > 4 && IPS_HAS_ENH_SGLIST(ha) &&
 	    !dma_set_mask(&ha->pcidev->dev, DMA_BIT_MASK(64))) {
 		(ha)->flags |= IPS_HA_ENH_SG;
 	} else {
