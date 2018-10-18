@@ -3,8 +3,12 @@ config DRM_ANALOGIX_DP
 	tristate
 	depends on DRM
 
+config DRM_ANALOGIX_DP_I2C
+	tristate
+
 config DRM_ANALOGIX_ANX78XX
 	tristate "Analogix ANX78XX bridge"
+	select DRM_ANALOGIX_DP_I2C
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	---help---
