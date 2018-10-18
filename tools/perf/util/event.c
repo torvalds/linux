@@ -1081,6 +1081,7 @@ void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max
 	}
 
 	*size += sizeof(struct cpu_map_data);
+	*size = PERF_ALIGN(*size, sizeof(u64));
 	return zalloc(*size);
 }
 
@@ -1560,26 +1561,9 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 		return NULL;
 	}
-try_again:
+
 	al->map = map_groups__find(mg, al->addr);
-	if (al->map == NULL) {
-		/*
-		 * If this is outside of all known maps, and is a negative
-		 * address, try to look it up in the kernel dso, as it might be
-		 * a vsyscall or vdso (which executes in user-mode).
-		 *
-		 * XXX This is nasty, we should have a symbol list in the
-		 * "[vdso]" dso, but for now lets use the old trick of looking
-		 * in the whole kernel symbol list.
-		 */
-		if (cpumode == PERF_RECORD_MISC_USER && machine &&
-		    mg != &machine->kmaps &&
-		    machine__kernel_ip(machine, al->addr)) {
-			mg = &machine->kmaps;
-			load_map = true;
-			goto try_again;
-		}
-	} else {
+	if (al->map != NULL) {
 		/*
 		 * Kernel maps might be changed when loading symbols so loading
 		 * must be done prior to using kernel maps.
