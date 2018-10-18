@@ -19,9 +19,6 @@
 #include "mt76x0.h"
 #include "mcu.h"
 
-#define MT7610E_FIRMWARE	"mediatek/mt7610e.bin"
-#define MT7650E_FIRMWARE	"mediatek/mt7650e.bin"
-
 #define MT_MCU_IVB_ADDR		(MT_MCU_ILM_ADDR + 0x54000 - MT_MCU_IVB_SIZE)
 
 static int mt76x0e_load_firmware(struct mt76x02_dev *dev)
