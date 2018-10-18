@@ -290,6 +290,16 @@ static inline unsigned int ovl_xino_bits(struct super_block *sb)
 	return ofs->xino_bits;
 }
 
+static inline int ovl_inode_lock(struct inode *inode)
+{
+	return mutex_lock_interruptible(&OVL_I(inode)->lock);
+}
+
+static inline void ovl_inode_unlock(struct inode *inode)
+{
+	mutex_unlock(&OVL_I(inode)->lock);
+}
+
 
 /* namei.c */
 int ovl_check_fh_len(struct ovl_fh *fh, int fh_len);
