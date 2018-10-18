@@ -180,6 +180,17 @@
 		reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_LOW>;
 	};
 
+	vcc_otg_vbus: otg-vbus-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "vcc_otg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+	};
+
 	vcc5v0_sys: vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
@@ -637,6 +648,7 @@
 
 &u2phy_otg {
 	status = "okay";
+	vbus-supply = <&vcc_otg_vbus>;
 };
 
 &usb_host0_ehci {
@@ -687,6 +699,12 @@
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
 				<4 RK_PC0 0 &pcfg_pull_none>;
+		};
+	};
+
+	usb2 {
+		otg_vbus_drv: otg-vbus-drv {
+			rockchip,pins = <0 RK_PB7 0 &pcfg_pull_none>;
 		};
 	};
 
