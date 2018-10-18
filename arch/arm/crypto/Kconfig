@@ -69,6 +69,15 @@ config CRYPTO_AES_ARM
 	help
 	  Use optimized AES assembler routines for ARM platforms.
 
+	  On ARM processors without the Crypto Extensions, this is the
+	  fastest AES implementation for single blocks.  For multiple
+	  blocks, the NEON bit-sliced implementation is usually faster.
+
+	  This implementation may be vulnerable to cache timing attacks,
+	  since it uses lookup tables.  However, as countermeasures it
+	  disables IRQs and preloads the tables; it is hoped this makes
+	  such attacks very difficult.
+
 config CRYPTO_AES_ARM_BS
 	tristate "Bit sliced AES using NEON instructions"
 	depends on KERNEL_MODE_NEON
