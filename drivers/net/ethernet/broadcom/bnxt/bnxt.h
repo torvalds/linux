@@ -1471,7 +1471,7 @@ struct bnxt {
 	struct rx_port_stats	*hw_rx_port_stats;
 	struct tx_port_stats	*hw_tx_port_stats;
 	struct rx_port_stats_ext	*hw_rx_port_stats_ext;
-	struct rx_port_stats_ext	*hw_tx_port_stats_ext;
+	struct tx_port_stats_ext	*hw_tx_port_stats_ext;
 	dma_addr_t		hw_rx_port_stats_map;
 	dma_addr_t		hw_tx_port_stats_map;
 	dma_addr_t		hw_rx_port_stats_ext_map;
