@@ -433,7 +433,7 @@ int ice_vsi_clear(struct ice_vsi *vsi)
  * @irq: interrupt number
  * @data: pointer to a q_vector
  */
-irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
+static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
 {
 	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
 
