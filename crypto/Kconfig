@@ -1006,7 +1006,8 @@ config CRYPTO_AES_TI
 	  8 for decryption), this implementation only uses just two S-boxes of
 	  256 bytes each, and attempts to eliminate data dependent latencies by
 	  prefetching the entire table into the cache at the start of each
-	  block.
+	  block. Interrupts are also disabled to avoid races where cachelines
+	  are evicted when the CPU is interrupted to do something else.
 
 config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
