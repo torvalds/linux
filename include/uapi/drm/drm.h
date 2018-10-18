@@ -717,6 +717,7 @@ struct drm_prime_handle {
 struct drm_syncobj_create {
 	__u32 handle;
 #define DRM_SYNCOBJ_CREATE_SIGNALED (1 << 0)
+#define DRM_SYNCOBJ_CREATE_TYPE_TIMELINE (1 << 1)
 	__u32 flags;
 };
 
