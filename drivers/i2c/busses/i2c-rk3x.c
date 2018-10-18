@@ -77,7 +77,7 @@ enum {
 #define REG_INT_START     BIT(4) /* START condition generated */
 #define REG_INT_STOP      BIT(5) /* STOP condition generated */
 #define REG_INT_NAKRCV    BIT(6) /* NACK received */
-#define REG_INT_ALL       0x7f
+#define REG_INT_ALL       0xff
 
 /* Constants */
 #define WAIT_TIMEOUT      1000 /* ms */
