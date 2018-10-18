@@ -10,6 +10,14 @@ config PHY_ROCKCHIP_USB
 	help
 	  Enable this to support the Rockchip USB 2.0 PHY.
 
+config PHY_ROCKCHIP_INNO_COMBPHY
+	tristate "Rockchip INNO USB 3.0 and PCIe COMBPHY Driver"
+	depends on (ARCH_ROCKCHIP && OF) || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip SoCs COMBPHY.
+	  If unsure, say N.
+
 config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on ARCH_ROCKCHIP && OF
