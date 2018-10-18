@@ -34,7 +34,7 @@
 struct ti_clk_ll_ops *ti_clk_ll_ops;
 static struct device_node *clocks_node_ptr[CLK_MAX_MEMMAPS];
 
-static struct ti_clk_features ti_clk_features;
+struct ti_clk_features ti_clk_features;
 
 struct clk_iomap {
 	struct regmap *regmap;
@@ -140,6 +140,9 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 	int ret;
 	static bool clkctrl_nodes_missing;
 	static bool has_clkctrl_data;
+	static bool compat_mode;
+
+	compat_mode = ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT;
 
 	for (c = oclks; c->node_name != NULL; c++) {
 		strcpy(buf, c->node_name);
@@ -164,7 +167,7 @@ void __init ti_dt_clocks_register(struct ti_dt_clk oclks[])
 			continue;
 
 		node = of_find_node_by_name(NULL, buf);
-		if (num_args) {
+		if (num_args && compat_mode) {
 			parent = node;
 			node = of_get_child_by_name(parent, "clk");
 			of_node_put(parent);
