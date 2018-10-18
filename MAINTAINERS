@@ -15745,7 +15745,7 @@ F:	include/linux/regulator/
 
 VRF
 M:	David Ahern <dsa@cumulusnetworks.com>
-M:	Shrijeet Mukherjee <shm@cumulusnetworks.com>
+M:	Shrijeet Mukherjee <shrijeet@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/vrf.c
