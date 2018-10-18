@@ -2529,6 +2529,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	vsi->hw_base_vector = 0;
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi, false);
+	ice_dev_onetime_setup(&vsi->back->hw);
 	ice_vsi_set_num_qs(vsi);
 
 	/* Initialize VSI struct elements and create VSI in FW */
