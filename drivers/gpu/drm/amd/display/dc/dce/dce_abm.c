@@ -276,6 +276,17 @@ static unsigned int dce_abm_get_current_backlight(struct abm *abm)
 	return backlight;
 }
 
+static unsigned int dce_abm_get_target_backlight(struct abm *abm)
+{
+	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+	unsigned int backlight = REG_READ(BL1_PWM_TARGET_ABM_LEVEL);
+
+	/* return backlight in hardware format which is unsigned 17 bits, with
+	 * 1 bit integer and 16 bit fractional
+	 */
+	return backlight;
+}
+
 static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
@@ -410,6 +421,7 @@ static const struct abm_funcs dce_funcs = {
 	.init_backlight = dce_abm_init_backlight,
 	.set_backlight_level_pwm = dce_abm_set_backlight_level_pwm,
 	.get_current_backlight = dce_abm_get_current_backlight,
+	.get_target_backlight = dce_abm_get_target_backlight,
 	.set_abm_immediate_disable = dce_abm_immediate_disable
 };
 

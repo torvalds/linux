@@ -58,6 +58,7 @@ struct abm_funcs {
 			bool use_smooth_brightness);
 
 	unsigned int (*get_current_backlight)(struct abm *abm);
+	unsigned int (*get_target_backlight)(struct abm *abm);
 };
 
 #endif
