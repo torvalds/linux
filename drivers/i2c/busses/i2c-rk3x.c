@@ -79,6 +79,9 @@ enum {
 #define REG_INT_NAKRCV    BIT(6) /* NACK received */
 #define REG_INT_ALL       0xff
 
+/* Disable i2c all irqs */
+#define IEN_ALL_DISABLE   0
+
 /* Constants */
 #define WAIT_TIMEOUT      1000 /* ms */
 #define DEFAULT_SCL_RATE  (100 * 1000) /* Hz */
@@ -243,6 +246,11 @@ static inline u32 i2c_readl(struct rk3x_i2c *i2c, unsigned int offset)
 static inline void rk3x_i2c_clean_ipd(struct rk3x_i2c *i2c)
 {
 	i2c_writel(i2c, REG_INT_ALL, REG_IPD);
+}
+
+static inline void rk3x_i2c_disable_irq(struct rk3x_i2c *i2c)
+{
+	i2c_writel(i2c, IEN_ALL_DISABLE, REG_IEN);
 }
 
 static inline void rk3x_i2c_disable(struct rk3x_i2c *i2c)
@@ -1107,7 +1115,7 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 				i2c_readl(i2c, REG_IPD), i2c->state);
 
 			/* Force a STOP condition without interrupt */
-			i2c_writel(i2c, 0, REG_IEN);
+			rk3x_i2c_disable_irq(i2c);
 			val = i2c_readl(i2c, REG_CON) & REG_CON_TUNING_MASK;
 			val |= REG_CON_EN | REG_CON_STOP;
 			i2c_writel(i2c, val, REG_CON);
@@ -1123,6 +1131,10 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 			break;
 		}
 	}
+
+	/* Interrupt is disabled when i2c transfer is timeout */
+	if (timeout != 0)
+		rk3x_i2c_disable_irq(i2c);
 
 	rk3x_i2c_disable(i2c);
 
