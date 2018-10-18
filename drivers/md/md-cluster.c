@@ -1323,6 +1323,19 @@ static int resync_start(struct mddev *mddev)
 	return dlm_lock_sync_interruptible(cinfo->resync_lockres, DLM_LOCK_EX, mddev);
 }
 
+static void resync_info_get(struct mddev *mddev, sector_t *lo, sector_t *hi)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct suspend_info *s;
+
+	spin_lock_irq(&cinfo->suspend_lock);
+	list_for_each_entry(s, &cinfo->suspend_list, list) {
+		*lo = s->lo;
+		*hi = s->hi;
+	}
+	spin_unlock_irq(&cinfo->suspend_lock);
+}
+
 static int resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
@@ -1562,6 +1575,7 @@ static struct md_cluster_operations cluster_ops = {
 	.resync_start = resync_start,
 	.resync_finish = resync_finish,
 	.resync_info_update = resync_info_update,
+	.resync_info_get = resync_info_get,
 	.metadata_update_start = metadata_update_start,
 	.metadata_update_finish = metadata_update_finish,
 	.metadata_update_cancel = metadata_update_cancel,

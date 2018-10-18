@@ -4785,8 +4785,14 @@ static void end_reshape(struct r10conf *conf)
 static void raid10_update_reshape_pos(struct mddev *mddev)
 {
 	struct r10conf *conf = mddev->private;
+	sector_t lo, hi;
 
-	conf->reshape_progress = mddev->reshape_position;
+	md_cluster_ops->resync_info_get(mddev, &lo, &hi);
+	if (((mddev->reshape_position <= hi) && (mddev->reshape_position >= lo))
+	    || mddev->reshape_position == MaxSector)
+		conf->reshape_progress = mddev->reshape_position;
+	else
+		WARN_ON_ONCE(1);
 }
 
 static int handle_reshape_read_error(struct mddev *mddev,
