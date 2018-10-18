@@ -600,7 +600,7 @@ static void stack_map_free(struct bpf_map *map)
 	put_callchain_buffers();
 }
 
-const struct bpf_map_ops stack_map_ops = {
+const struct bpf_map_ops stack_trace_map_ops = {
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
 	.map_get_next_key = stack_map_get_next_key,
