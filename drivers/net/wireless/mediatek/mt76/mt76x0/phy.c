@@ -429,21 +429,47 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x02_dev *dev, u16 rf_bw_band)
 
 static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	u16 ee_ant = mt76x02_eeprom_get(dev, MT_EE_ANTENNA);
+	u16 nic_conf2 = mt76x02_eeprom_get(dev, MT_EE_NIC_CONF_2);
+	u32 wlan, coex3, cmb;
+	bool ant_div;
 
-	/* single antenna mode */
-	if (chan->band == NL80211_BAND_2GHZ) {
-		mt76_rmw(dev, MT_COEXCFG3,
-			 BIT(5) | BIT(4) | BIT(3) | BIT(2), BIT(1));
-		mt76_rmw(dev, MT_WLAN_FUN_CTRL, BIT(5), BIT(6));
+	wlan = mt76_rr(dev, MT_WLAN_FUN_CTRL);
+	cmb = mt76_rr(dev, MT_CMB_CTRL);
+	coex3 = mt76_rr(dev, MT_COEXCFG3);
+
+	cmb   &= ~(BIT(14) | BIT(12));
+	wlan  &= ~(BIT(6) | BIT(5));
+	coex3 &= ~GENMASK(5, 2);
+
+	if (ee_ant & MT_EE_ANTENNA_DUAL) {
+		/* dual antenna mode */
+		ant_div = !(nic_conf2 & MT_EE_NIC_CONF_2_ANT_OPT) &&
+			  (nic_conf2 & MT_EE_NIC_CONF_2_ANT_DIV);
+		if (ant_div)
+			cmb |= BIT(12);
+		else
+			coex3 |= BIT(4);
+		coex3 |= BIT(3);
+		if (dev->mt76.cap.has_2ghz)
+			wlan |= BIT(6);
 	} else {
-		mt76_rmw(dev, MT_COEXCFG3, BIT(5) | BIT(2),
-			 BIT(4) | BIT(3));
-		mt76_clear(dev, MT_WLAN_FUN_CTRL,
-			   BIT(6) | BIT(5));
+		/* sigle antenna mode */
+		if (dev->mt76.cap.has_5ghz) {
+			coex3 |= BIT(3) | BIT(4);
+		} else {
+			wlan |= BIT(6);
+			coex3 |= BIT(1);
+		}
 	}
-	mt76_clear(dev, MT_CMB_CTRL, BIT(14) | BIT(12));
+
+	if (is_mt7630(dev))
+		cmb |= BIT(14) | BIT(11);
+
+	mt76_wr(dev, MT_WLAN_FUN_CTRL, wlan);
+	mt76_wr(dev, MT_CMB_CTRL, cmb);
 	mt76_clear(dev, MT_COEXCFG0, BIT(2));
+	mt76_wr(dev, MT_COEXCFG3, coex3);
 }
 
 static void
@@ -610,7 +636,6 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 	mt76x02_phy_set_bw(dev, chandef->width, ch_group_index);
 	mt76x02_phy_set_band(dev, chandef->chan->band,
 			     ch_group_index & 1);
-	mt76x0_phy_ant_select(dev);
 
 	mt76_rmw(dev, MT_EXT_CCA_CFG,
 		 (MT_EXT_CCA_CFG_CCA0 |
@@ -836,6 +861,7 @@ void mt76x0_phy_init(struct mt76x02_dev *dev)
 {
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x0_phy_calibration_work);
 
+	mt76x0_phy_ant_select(dev);
 	mt76x0_phy_rf_init(dev);
 	mt76x02_phy_set_rxpath(dev);
 	mt76x02_phy_set_txdac(dev);
