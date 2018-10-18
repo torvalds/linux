@@ -1600,7 +1600,7 @@ static int amdgpu_device_fw_loading(struct amdgpu_device *adev)
 		}
 	}
 
-	if (adev->powerplay.pp_funcs->load_firmware) {
+	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->load_firmware) {
 		r = adev->powerplay.pp_funcs->load_firmware(adev->powerplay.pp_handle);
 		if (r) {
 			pr_err("firmware loading failed\n");
