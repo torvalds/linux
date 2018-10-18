@@ -69,3 +69,5 @@ BPF_MAP_TYPE(BPF_MAP_TYPE_XSKMAP, xsk_map_ops)
 BPF_MAP_TYPE(BPF_MAP_TYPE_REUSEPORT_SOCKARRAY, reuseport_array_ops)
 #endif
 #endif
+BPF_MAP_TYPE(BPF_MAP_TYPE_QUEUE, queue_map_ops)
+BPF_MAP_TYPE(BPF_MAP_TYPE_STACK, stack_map_ops)
