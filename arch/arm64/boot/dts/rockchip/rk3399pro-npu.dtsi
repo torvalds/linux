@@ -16,6 +16,7 @@
 	#size-cells = <2>;
 
 	aliases {
+		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		serial2 = &uart2;
 	};
@@ -67,6 +68,15 @@
 		clock-frequency = <24000000>;
 		clock-output-names = "xin24m";
 		#clock-cells = <0>;
+	};
+
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&clkin_32k>;
 	};
 
 	usbdrd3: usb {
@@ -346,6 +356,19 @@
 		};
 	};
 
+	i2c0: i2c@ff410000 {
+		compatible = "rockchip,rk3399-i2c";
+		reg = <0x0 0xff410000 0x0 0x1000>;
+		clocks =  <&cru SCLK_PMU_I2C0>, <&cru PCLK_I2C0_PMU>;
+		clock-names = "i2c", "pclk";
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_xfer>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	dmac: dmac@ff4e0000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x0 0xff4e0000 0x0 0x4000>;
@@ -487,6 +510,25 @@
 			input-schmitt-enable;
 		};
 
+		pcfg_output_high: pcfg-output-high {
+			output-high;
+		};
+
+		pcfg_input_smt: pcfg-input-smt {
+			input-enable;
+			input-schmitt-enable;
+		};
+
+		i2c0 {
+			i2c0_xfer: i2c0-xfer {
+				rockchip,pins =
+					/* i2c0_sda */
+					<0 RK_PB1 1 &pcfg_pull_none_smt>,
+					/* i2c0_scl */
+					<0 RK_PB0 1 &pcfg_pull_none_smt>;
+			};
+		};
+
 		i2c1 {
 			i2c1_xfer: i2c1-xfer {
 				rockchip,pins =
@@ -554,6 +596,18 @@
 			tsadc_otp_out: tsadc-otp-out {
 				rockchip,pins =
 					<0 RK_PA6 2 &pcfg_pull_none>;
+			};
+		};
+
+		xin32k {
+			clkin_32k: clkin-32k {
+				rockchip,pins =
+					<0 RK_PC2 1 &pcfg_input_smt>;
+			};
+
+			clkout_32k: clkout-32k {
+				rockchip,pins =
+					<0 RK_PC2 1 &pcfg_output_high>;
 			};
 		};
 	};
