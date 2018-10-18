@@ -172,7 +172,8 @@ static int sprd_rtc_lock_alarm(struct sprd_rtc *rtc, bool lock)
 		return ret;
 	}
 
-	return 0;
+	return regmap_write(rtc->regmap, rtc->base + SPRD_RTC_INT_CLR,
+			    SPRD_RTC_SPG_UPD_EN);
 }
 
 static int sprd_rtc_get_secs(struct sprd_rtc *rtc, enum sprd_rtc_reg_types type,
