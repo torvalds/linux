@@ -1312,9 +1312,9 @@ static struct Scsi_Host *sym_attach(struct scsi_host_template *tpnt, int unit,
 	sprintf(np->s.inst_name, "sym%d", np->s.unit);
 
 	if ((SYM_CONF_DMA_ADDRESSING_MODE > 0) && (np->features & FE_DAC) &&
-			!pci_set_dma_mask(pdev, DMA_DAC_MASK)) {
+			!dma_set_mask(&pdev->dev, DMA_DAC_MASK)) {
 		set_dac(np);
-	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	} else if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printf_warning("%s: No suitable DMA available\n", sym_name(np));
 		goto attach_failed;
 	}
