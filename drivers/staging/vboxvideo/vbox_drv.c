@@ -207,21 +207,6 @@ static int vbox_master_set(struct drm_device *dev,
 	 */
 	vbox->initial_mode_queried = false;
 
-	mutex_lock(&vbox->hw_mutex);
-	/*
-	 * Disable VBVA when someone releases master in case the next person
-	 * tries tries to do VESA.
-	 */
-	/** @todo work out if anyone is likely to and whether it will work. */
-	/*
-	 * Update: we also disable it because if the new master does not do
-	 * dirty rectangle reporting (e.g. old versions of Plymouth) then at
-	 * least the first screen will still be updated. We enable it as soon
-	 * as we receive a dirty rectangle report.
-	 */
-	vbox_disable_accel(vbox);
-	mutex_unlock(&vbox->hw_mutex);
-
 	return 0;
 }
 
@@ -231,10 +216,6 @@ static void vbox_master_drop(struct drm_device *dev, struct drm_file *file_priv)
 
 	/* See vbox_master_set() */
 	vbox->initial_mode_queried = false;
-
-	mutex_lock(&vbox->hw_mutex);
-	vbox_disable_accel(vbox);
-	mutex_unlock(&vbox->hw_mutex);
 }
 
 static struct drm_driver driver = {

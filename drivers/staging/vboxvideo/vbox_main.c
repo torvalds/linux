@@ -27,40 +27,6 @@ static void vbox_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	kfree(fb);
 }
 
-void vbox_enable_accel(struct vbox_private *vbox)
-{
-	unsigned int i;
-	struct vbva_buffer *vbva;
-
-	if (!vbox->vbva_info || !vbox->vbva_buffers) {
-		/* Should never happen... */
-		DRM_ERROR("vboxvideo: failed to set up VBVA.\n");
-		return;
-	}
-
-	for (i = 0; i < vbox->num_crtcs; ++i) {
-		if (vbox->vbva_info[i].vbva)
-			continue;
-
-		vbva = (void __force *)vbox->vbva_buffers +
-			i * VBVA_MIN_BUFFER_SIZE;
-		if (!vbva_enable(&vbox->vbva_info[i],
-				 vbox->guest_pool, vbva, i)) {
-			/* very old host or driver error. */
-			DRM_ERROR("vboxvideo: vbva_enable failed\n");
-			return;
-		}
-	}
-}
-
-void vbox_disable_accel(struct vbox_private *vbox)
-{
-	unsigned int i;
-
-	for (i = 0; i < vbox->num_crtcs; ++i)
-		vbva_disable(&vbox->vbva_info[i], vbox->guest_pool, i);
-}
-
 void vbox_report_caps(struct vbox_private *vbox)
 {
 	u32 caps = VBVACAPS_DISABLE_CURSOR_INTEGRATION |
@@ -72,12 +38,7 @@ void vbox_report_caps(struct vbox_private *vbox)
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
 }
 
-/*
- * Send information about dirty rectangles to VBVA.  If necessary we enable
- * VBVA first, as this is normally disabled after a change of master in case
- * the new master does not send dirty rectangle information (is this even
- * allowed?)
- */
+/* Send information about dirty rectangles to VBVA. */
 void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 				       struct drm_clip_rect *rects,
 				       unsigned int num_rects)
@@ -96,8 +57,6 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 		mode = &crtc->state->mode;
 		crtc_x = crtc->primary->state->src_x >> 16;
 		crtc_y = crtc->primary->state->src_y >> 16;
-
-		vbox_enable_accel(vbox);
 
 		for (i = 0; i < num_rects; ++i) {
 			struct vbva_cmd_hdr cmd_hdr;
@@ -162,6 +121,7 @@ int vbox_framebuffer_init(struct vbox_private *vbox,
 
 static int vbox_accel_init(struct vbox_private *vbox)
 {
+	struct vbva_buffer *vbva;
 	unsigned int i;
 
 	vbox->vbva_info = devm_kcalloc(vbox->ddev.dev, vbox->num_crtcs,
@@ -179,18 +139,30 @@ static int vbox_accel_init(struct vbox_private *vbox)
 	if (!vbox->vbva_buffers)
 		return -ENOMEM;
 
-	for (i = 0; i < vbox->num_crtcs; ++i)
+	for (i = 0; i < vbox->num_crtcs; ++i) {
 		vbva_setup_buffer_context(&vbox->vbva_info[i],
 					  vbox->available_vram_size +
 					  i * VBVA_MIN_BUFFER_SIZE,
 					  VBVA_MIN_BUFFER_SIZE);
+		vbva = (void __force *)vbox->vbva_buffers +
+			i * VBVA_MIN_BUFFER_SIZE;
+		if (!vbva_enable(&vbox->vbva_info[i],
+				 vbox->guest_pool, vbva, i)) {
+			/* very old host or driver error. */
+			DRM_ERROR("vboxvideo: vbva_enable failed\n");
+		}
+	}
 
 	return 0;
 }
 
 static void vbox_accel_fini(struct vbox_private *vbox)
 {
-	vbox_disable_accel(vbox);
+	unsigned int i;
+
+	for (i = 0; i < vbox->num_crtcs; ++i)
+		vbva_disable(&vbox->vbva_info[i], vbox->guest_pool, i);
+
 	pci_iounmap(vbox->ddev.pdev, vbox->vbva_buffers);
 }
 
