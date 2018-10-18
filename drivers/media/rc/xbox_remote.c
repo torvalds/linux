@@ -55,7 +55,7 @@ struct xbox_remote {
 	struct usb_interface *interface;
 
 	struct urb *irq_urb;
-	unsigned char inbuf[DATA_BUFSIZE];
+	unsigned char inbuf[DATA_BUFSIZE] __aligned(sizeof(u16));
 
 	char rc_name[NAME_BUFSIZE];
 	char rc_phys[NAME_BUFSIZE];
@@ -95,7 +95,7 @@ static void xbox_remote_input_report(struct urb *urb)
 	 * data[0] = 0x00
 	 * data[1] = length - always 0x06
 	 * data[2] = the key code
-	 * data[3] = high part of key code? - always 0x0a
+	 * data[3] = high part of key code
 	 * data[4] = last_press_ms (low)
 	 * data[5] = last_press_ms (high)
 	 */
@@ -107,7 +107,8 @@ static void xbox_remote_input_report(struct urb *urb)
 		return;
 	}
 
-	rc_keydown(xbox_remote->rdev, RC_PROTO_UNKNOWN, data[2], 0);
+	rc_keydown(xbox_remote->rdev, RC_PROTO_UNKNOWN,
+		   le16_to_cpup((__le16 *)(data + 2)), 0);
 }
 
 /*
