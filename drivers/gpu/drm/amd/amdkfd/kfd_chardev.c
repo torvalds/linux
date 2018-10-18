@@ -835,7 +835,7 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 	dev = kfd_device_by_id(args->gpu_id);
 	if (dev)
 		/* Reading GPU clock counter from KGD */
-		args->gpu_clock_counter = get_gpu_clock_counter(dev->kgd);
+		args->gpu_clock_counter = amdgpu_amdkfd_get_gpu_clock_counter(dev->kgd);
 	else
 		/* Node without GPU resource */
 		args->gpu_clock_counter = 0;
@@ -1240,7 +1240,7 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 	if (dev->device_info->needs_iommu_device)
 		return false;
 
-	get_local_mem_info(dev->kgd, &mem_info);
+	amdgpu_amdkfd_get_local_mem_info(dev->kgd, &mem_info);
 	if (mem_info.local_mem_size_private == 0 &&
 			mem_info.local_mem_size_public > 0)
 		return true;
