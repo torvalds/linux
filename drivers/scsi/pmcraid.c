@@ -2491,17 +2491,15 @@ static void pmcraid_request_sense(struct pmcraid_cmd *cmd)
 /**
  * pmcraid_cancel_all - cancel all outstanding IOARCBs as part of error recovery
  * @cmd: command that failed
- * @sense: true if request_sense is required after cancel all
+ * @need_sense: true if request_sense is required after cancel all
  *
  * This function sends a cancel all to a device to clear the queue.
  */
-static void pmcraid_cancel_all(struct pmcraid_cmd *cmd, u32 sense)
+static void pmcraid_cancel_all(struct pmcraid_cmd *cmd, bool need_sense)
 {
 	struct scsi_cmnd *scsi_cmd = cmd->scsi_cmd;
 	struct pmcraid_ioarcb *ioarcb = &cmd->ioa_cb->ioarcb;
 	struct pmcraid_resource_entry *res = scsi_cmd->device->hostdata;
-	void (*cmd_done) (struct pmcraid_cmd *) = sense ? pmcraid_erp_done
-							: pmcraid_request_sense;
 
 	memset(ioarcb->cdb, 0, PMCRAID_MAX_CDB_LEN);
 	ioarcb->request_flags0 = SYNC_OVERRIDE;
@@ -2519,7 +2517,8 @@ static void pmcraid_cancel_all(struct pmcraid_cmd *cmd, u32 sense)
 	/* writing to IOARRIN must be protected by host_lock, as mid-layer
 	 * schedule queuecommand while we are doing this
 	 */
-	pmcraid_send_cmd(cmd, cmd_done,
+	pmcraid_send_cmd(cmd, need_sense ?
+			 pmcraid_erp_done : pmcraid_request_sense,
 			 PMCRAID_REQUEST_SENSE_TIMEOUT,
 			 pmcraid_timeout_handler);
 }
@@ -2612,7 +2611,7 @@ static int pmcraid_error_handler(struct pmcraid_cmd *cmd)
 	struct pmcraid_ioasa *ioasa = &cmd->ioa_cb->ioasa;
 	u32 ioasc = le32_to_cpu(ioasa->ioasc);
 	u32 masked_ioasc = ioasc & PMCRAID_IOASC_SENSE_MASK;
-	u32 sense_copied = 0;
+	bool sense_copied = false;
 
 	if (!res) {
 		pmcraid_info("resource pointer is NULL\n");
@@ -2684,7 +2683,7 @@ static int pmcraid_error_handler(struct pmcraid_cmd *cmd)
 			memcpy(scsi_cmd->sense_buffer,
 			       ioasa->sense_data,
 			       data_size);
-			sense_copied = 1;
+			sense_copied = true;
 		}
 
 		if (RES_IS_GSCSI(res->cfg_entry))
