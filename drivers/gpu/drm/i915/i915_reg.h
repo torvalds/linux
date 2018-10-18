@@ -6550,6 +6550,19 @@ enum {
 #define _PLANE_AUX_DIST_2_A			0x702c0
 #define _PLANE_AUX_OFFSET_1_A			0x701c4
 #define _PLANE_AUX_OFFSET_2_A			0x702c4
+#define _PLANE_CUS_CTL_1_A			0x701c8
+#define _PLANE_CUS_CTL_2_A			0x702c8
+#define  PLANE_CUS_ENABLE			(1 << 31)
+#define  PLANE_CUS_PLANE_6			(0 << 30)
+#define  PLANE_CUS_PLANE_7			(1 << 30)
+#define  PLANE_CUS_HPHASE_SIGN_NEGATIVE		(1 << 19)
+#define  PLANE_CUS_HPHASE_0			(0 << 16)
+#define  PLANE_CUS_HPHASE_0_25			(1 << 16)
+#define  PLANE_CUS_HPHASE_0_5			(2 << 16)
+#define  PLANE_CUS_VPHASE_SIGN_NEGATIVE		(1 << 15)
+#define  PLANE_CUS_VPHASE_0			(0 << 12)
+#define  PLANE_CUS_VPHASE_0_25			(1 << 12)
+#define  PLANE_CUS_VPHASE_0_5			(2 << 12)
 #define _PLANE_COLOR_CTL_1_A			0x701CC /* GLK+ */
 #define _PLANE_COLOR_CTL_2_A			0x702CC /* GLK+ */
 #define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
@@ -6686,6 +6699,15 @@ enum {
 		_PIPE(pipe, _PLANE_AUX_OFFSET_2_A, _PLANE_AUX_OFFSET_2_B)
 #define PLANE_AUX_OFFSET(pipe, plane)   \
 	_MMIO_PLANE(plane, _PLANE_AUX_OFFSET_1(pipe), _PLANE_AUX_OFFSET_2(pipe))
+
+#define _PLANE_CUS_CTL_1_B		0x711c8
+#define _PLANE_CUS_CTL_2_B		0x712c8
+#define _PLANE_CUS_CTL_1(pipe)       \
+		_PIPE(pipe, _PLANE_CUS_CTL_1_A, _PLANE_CUS_CTL_1_B)
+#define _PLANE_CUS_CTL_2(pipe)       \
+		_PIPE(pipe, _PLANE_CUS_CTL_2_A, _PLANE_CUS_CTL_2_B)
+#define PLANE_CUS_CTL(pipe, plane)   \
+	_MMIO_PLANE(plane, _PLANE_CUS_CTL_1(pipe), _PLANE_CUS_CTL_2(pipe))
 
 #define _PLANE_COLOR_CTL_1_B			0x711CC
 #define _PLANE_COLOR_CTL_2_B			0x712CC

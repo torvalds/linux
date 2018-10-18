@@ -380,6 +380,7 @@ skl_update_plane(struct intel_plane *plane,
 	uint32_t y = plane_state->color_plane[0].y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	struct intel_plane *linked = plane_state->linked_plane;
 	unsigned long irqflags;
 	u32 keymsk = 0, keymax = 0;
 
@@ -416,6 +417,27 @@ skl_update_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_AUX_OFFSET(pipe, plane_id),
 		      (plane_state->color_plane[1].y << 16) |
 		      plane_state->color_plane[1].x);
+
+	if (icl_is_hdr_plane(plane)) {
+		u32 cus_ctl = 0;
+
+		if (linked) {
+			/* Enable and use MPEG-2 chroma siting */
+			cus_ctl = PLANE_CUS_ENABLE |
+				PLANE_CUS_HPHASE_0 |
+				PLANE_CUS_VPHASE_SIGN_NEGATIVE |
+				PLANE_CUS_VPHASE_0_25;
+
+			if (linked->id == PLANE_SPRITE5)
+				cus_ctl |= PLANE_CUS_PLANE_7;
+			else if (linked->id == PLANE_SPRITE4)
+				cus_ctl |= PLANE_CUS_PLANE_6;
+			else
+				MISSING_CASE(linked->id);
+		}
+
+		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), cus_ctl);
+	}
 
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
