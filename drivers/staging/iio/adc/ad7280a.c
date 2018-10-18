@@ -6,6 +6,7 @@
  * Licensed under the GPL-2.
  */
 
+#include <linux/crc8.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -121,8 +122,6 @@ static unsigned int ad7280a_devaddr(unsigned int addr)
  * P(x) = x^8 + x^5 + x^3 + x^2 + x^1 + x^0 = 0b100101111 => 0x2F
  */
 #define POLYNOM		0x2F
-#define POLYNOM_ORDER	8
-#define HIGHBIT		(1 << (POLYNOM_ORDER - 1))
 
 struct ad7280_state {
 	struct spi_device		*spi;
@@ -131,7 +130,7 @@ struct ad7280_state {
 	int				slave_num;
 	int				scan_cnt;
 	int				readback_delay_us;
-	unsigned char			crc_tab[256];
+	unsigned char			crc_tab[CRC8_TABLE_SIZE];
 	unsigned char			ctrl_hb;
 	unsigned char			ctrl_lb;
 	unsigned char			cell_threshhigh;
@@ -143,23 +142,6 @@ struct ad7280_state {
 
 	__be32				buf[2] ____cacheline_aligned;
 };
-
-static void ad7280_crc8_build_table(unsigned char *crc_tab)
-{
-	unsigned char bit, crc;
-	int cnt, i;
-
-	for (cnt = 0; cnt < 256; cnt++) {
-		crc = cnt;
-		for (i = 0; i < 8; i++) {
-			bit = crc & HIGHBIT;
-			crc <<= 1;
-			if (bit)
-				crc ^= POLYNOM;
-		}
-		crc_tab[cnt] = crc;
-	}
-}
 
 static unsigned char ad7280_calc_crc8(unsigned char *crc_tab, unsigned int val)
 {
@@ -866,7 +848,7 @@ static int ad7280_probe(struct spi_device *spi)
 	if (!pdata)
 		pdata = &ad7793_default_pdata;
 
-	ad7280_crc8_build_table(st->crc_tab);
+	crc8_populate_msb(st->crc_tab, POLYNOM);
 
 	st->spi->max_speed_hz = AD7280A_MAX_SPI_CLK_HZ;
 	st->spi->mode = SPI_MODE_1;
