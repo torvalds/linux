@@ -6845,7 +6845,7 @@ enum {
 #define SKL_PS_SCALER_MODE_HQ  (1 << 28)
 #define SKL_PS_SCALER_MODE_NV12 (2 << 28)
 #define PS_SCALER_MODE_PLANAR (1 << 29)
-#define PS_SCALER_MODE_PACKED (0 << 29)
+#define PS_SCALER_MODE_NORMAL (0 << 29)
 #define PS_PLANE_SEL_MASK  (7 << 25)
 #define PS_PLANE_SEL(plane) (((plane) + 1) << 25)
 #define PS_FILTER_MASK         (3 << 23)
@@ -6862,6 +6862,8 @@ enum {
 #define PS_VADAPT_MODE_LEAST_ADAPT (0 << 5)
 #define PS_VADAPT_MODE_MOD_ADAPT   (1 << 5)
 #define PS_VADAPT_MODE_MOST_ADAPT  (3 << 5)
+#define PS_PLANE_Y_SEL_MASK  (7 << 5)
+#define PS_PLANE_Y_SEL(plane) (((plane) + 1) << 5)
 
 #define _PS_PWR_GATE_1A     0x68160
 #define _PS_PWR_GATE_2A     0x68260

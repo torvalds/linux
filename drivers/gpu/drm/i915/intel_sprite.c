@@ -332,7 +332,8 @@ skl_program_scaler(struct drm_i915_private *dev_priv,
 	crtc_h--;
 
 	/* TODO: handle sub-pixel coordinates */
-	if (plane_state->base.fb->format->format == DRM_FORMAT_NV12) {
+	if (plane_state->base.fb->format->format == DRM_FORMAT_NV12 &&
+	    !icl_is_hdr_plane(plane)) {
 		y_hphase = skl_scaler_calc_phase(1, false);
 		y_vphase = skl_scaler_calc_phase(1, false);
 

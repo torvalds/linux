@@ -4807,8 +4807,7 @@ static int
 skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		  unsigned int scaler_user, int *scaler_id,
 		  int src_w, int src_h, int dst_w, int dst_h,
-		  bool plane_scaler_check,
-		  uint32_t pixel_format)
+		  const struct drm_format_info *format, bool need_scaler)
 {
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
@@ -4817,22 +4816,14 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
-	int need_scaling;
 
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
 	 * GTT mapping), hence no need to account for rotation here.
 	 */
-	need_scaling = src_w != dst_w || src_h != dst_h;
-
-	if (plane_scaler_check)
-		if (pixel_format == DRM_FORMAT_NV12)
-			need_scaling = true;
-
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
-	    scaler_user == SKL_CRTC_INDEX)
-		need_scaling = true;
+	if (src_w != dst_w || src_h != dst_h)
+		need_scaler = true;
 
 	/*
 	 * Scaling/fitting not supported in IF-ID mode in GEN9+
@@ -4841,7 +4832,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 * for NV12.
 	 */
 	if (INTEL_GEN(dev_priv) >= 9 && crtc_state->base.enable &&
-	    need_scaling && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+	    need_scaler && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("Pipe/Plane scaling not supported with IF-ID mode\n");
 		return -EINVAL;
 	}
@@ -4856,7 +4847,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 * update to free the scaler is done in plane/panel-fit programming.
 	 * For this purpose crtc/plane_state->scaler_id isn't reset here.
 	 */
-	if (force_detach || !need_scaling) {
+	if (force_detach || !need_scaler) {
 		if (*scaler_id >= 0) {
 			scaler_state->scaler_users &= ~(1 << scaler_user);
 			scaler_state->scalers[*scaler_id].in_use = 0;
@@ -4870,7 +4861,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		return 0;
 	}
 
-	if (plane_scaler_check && pixel_format == DRM_FORMAT_NV12 &&
+	if (format && format->format == DRM_FORMAT_NV12 &&
 	    (src_h < SKL_MIN_YUV_420_SRC_H || src_w < SKL_MIN_YUV_420_SRC_W)) {
 		DRM_DEBUG_KMS("NV12: src dimensions not met\n");
 		return -EINVAL;
@@ -4913,12 +4904,16 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 int skl_update_scaler_crtc(struct intel_crtc_state *state)
 {
 	const struct drm_display_mode *adjusted_mode = &state->base.adjusted_mode;
+	bool need_scaler = false;
+
+	if (state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		need_scaler = true;
 
 	return skl_update_scaler(state, !state->base.active, SKL_CRTC_INDEX,
 				 &state->scaler_state.scaler_id,
 				 state->pipe_src_w, state->pipe_src_h,
 				 adjusted_mode->crtc_hdisplay,
-				 adjusted_mode->crtc_vdisplay, false, 0);
+				 adjusted_mode->crtc_vdisplay, NULL, need_scaler);
 }
 
 /**
@@ -4933,13 +4928,17 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state)
 static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 				   struct intel_plane_state *plane_state)
 {
-
 	struct intel_plane *intel_plane =
 		to_intel_plane(plane_state->base.plane);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int ret;
-
 	bool force_detach = !fb || !plane_state->base.visible;
+	bool need_scaler = false;
+
+	/* Pre-gen11 and SDR planes always need a scaler for planar formats. */
+	if (!icl_is_hdr_plane(intel_plane) &&
+	    fb && fb->format->format == DRM_FORMAT_NV12)
+		need_scaler = true;
 
 	ret = skl_update_scaler(crtc_state, force_detach,
 				drm_plane_index(&intel_plane->base),
@@ -4948,7 +4947,7 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 				drm_rect_height(&plane_state->base.src) >> 16,
 				drm_rect_width(&plane_state->base.dst),
 				drm_rect_height(&plane_state->base.dst),
-				fb ? true : false, fb ? fb->format->format : 0);
+				fb ? fb->format : NULL, need_scaler);
 
 	if (ret || plane_state->scaler_id < 0)
 		return ret;
