@@ -96,6 +96,10 @@
 	status = "okay";
 };
 
+&combphy {
+	status = "okay";
+};
+
 &u2phy {
 	status = "okay";
 };

@@ -6,6 +6,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/rk1808-power.h>
+#include <dt-bindings/phy/phy.h>
 
 / {
 	compatible = "rockchip,rk3399pro-npu";
@@ -74,6 +75,8 @@
 			 <&cru SCLK_USB3_OTG0_SUSPEND>;
 		clock-names = "ref_clk", "bus_clk",
 			      "suspend_clk";
+		assigned-clocks = <&cru SCLK_USB3_OTG0_SUSPEND>;
+		assigned-clock-rates = <24000000>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -84,12 +87,13 @@
 			reg = <0x0 0xfd000000 0x0 0x200000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "peripheral";
-			phys = <&u2phy_otg>;
-			phy-names = "usb2-phy";
+			phys = <&u2phy_otg>, <&combphy PHY_TYPE_USB3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
 			snps,dis-u2-freeclk-exists-quirk;
 			snps,dis_u2_susphy_quirk;
+			snps,dis_u3_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
 			power-domains = <&power RK1808_PD_PCIE>;
@@ -139,6 +143,11 @@
 				status = "disabled";
 			};
 		};
+	};
+
+	combphy_grf: syscon@fe018000 {
+		compatible = "rockchip,usb3phy-grf", "syscon";
+		reg = <0x0 0xfe018000 0x0 0x8000>;
 	};
 
 	pmugrf: syscon@fe020000 {
@@ -233,6 +242,22 @@
 			<200000000>, <100000000>,
 			<300000000>, <200000000>,
 			<100000000>;
+	};
+
+	combphy: phy@ff380000 {
+		compatible = "rockchip,rk1808-combphy";
+		reg = <0x0 0xff380000 0x0 0x10000>;
+		#phy-cells = <1>;
+		clocks = <&cru SCLK_PCIEPHY_REF>;
+		clock-names = "refclk";
+		assigned-clocks = <&cru SCLK_PCIEPHY_REF>;
+		assigned-clock-rates = <25000000>;
+		resets = <&cru SRST_USB3_OTG_A>, <&cru SRST_PCIEPHY_POR>,
+			 <&cru SRST_PCIEPHY_P>, <&cru SRST_PCIEPHY_PIPE>;
+		reset-names = "otg-rst", "combphy-por",
+			      "combphy-apb", "combphy-pipe";
+		rockchip,combphygrf = <&combphy_grf>;
+		status = "disabled";
 	};
 
 	tsadc: tsadc@ff3a0000 {
