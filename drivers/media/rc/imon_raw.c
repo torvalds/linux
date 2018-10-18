@@ -14,51 +14,50 @@ struct imon {
 	struct device *dev;
 	struct urb *ir_urb;
 	struct rc_dev *rcdev;
-	u8 ir_buf[8];
+	u8 ir_buf[8] __aligned(__alignof__(u64));
 	char phys[64];
 };
 
 /*
- * ffs/find_next_bit() searches in the wrong direction, so open-code our own.
+ * The first 5 bytes of data represent IR pulse or space. Each bit, starting
+ * from highest bit in the first byte, represents 250µs of data. It is 1
+ * for space and 0 for pulse.
+ *
+ * The station sends 10 packets, and the 7th byte will be number 1 to 10, so
+ * when we receive 10 we assume all the data has arrived.
  */
-static inline int is_bit_set(const u8 *buf, int bit)
-{
-	return buf[bit / 8] & (0x80 >> (bit & 7));
-}
-
 static void imon_ir_data(struct imon *imon)
 {
 	struct ir_raw_event rawir = {};
-	int offset = 0, size = 5 * 8;
+	u64 d = be64_to_cpup((__be64 *)imon->ir_buf) >> 24;
+	int offset = 40;
 	int bit;
 
 	dev_dbg(imon->dev, "data: %*ph", 8, imon->ir_buf);
 
-	while (offset < size) {
-		bit = offset;
-		while (!is_bit_set(imon->ir_buf, bit) && bit < size)
-			bit++;
-		dev_dbg(imon->dev, "pulse: %d bits", bit - offset);
-		if (bit > offset) {
+	do {
+		bit = fls64(d & (BIT_ULL(offset) - 1));
+		if (bit < offset) {
+			dev_dbg(imon->dev, "pulse: %d bits", offset - bit);
 			rawir.pulse = true;
-			rawir.duration = (bit - offset) * BIT_DURATION;
+			rawir.duration = (offset - bit) * BIT_DURATION;
 			ir_raw_event_store_with_filter(imon->rcdev, &rawir);
+
+			if (bit == 0)
+				break;
+
+			offset = bit;
 		}
 
-		if (bit >= size)
-			break;
-
-		offset = bit;
-		while (is_bit_set(imon->ir_buf, bit) && bit < size)
-			bit++;
-		dev_dbg(imon->dev, "space: %d bits", bit - offset);
+		bit = fls64(~d & (BIT_ULL(offset) - 1));
+		dev_dbg(imon->dev, "space: %d bits", offset - bit);
 
 		rawir.pulse = false;
-		rawir.duration = (bit - offset) * BIT_DURATION;
+		rawir.duration = (offset - bit) * BIT_DURATION;
 		ir_raw_event_store_with_filter(imon->rcdev, &rawir);
 
 		offset = bit;
-	}
+	} while (offset > 0);
 
 	if (imon->ir_buf[7] == 0x0a) {
 		ir_raw_event_set_idle(imon->rcdev, true);
