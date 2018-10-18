@@ -19,34 +19,18 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
+#include <linux/clk.h>
 #include <linux/crc32.h>
+#include <linux/etherdevice.h>
+#include <linux/module.h>
+#include <linux/of_net.h>
+#include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#include <linux/clk.h>
-#include <linux/workqueue.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/phy.h>
-#include <linux/dma-mapping.h>
-#include <linux/of.h>
-#include <linux/of_net.h>
-#include <linux/types.h>
 
-#include <linux/io.h>
 #include <mach/board.h>
-#include <mach/platform.h>
 #include <mach/hardware.h>
+#include <mach/platform.h>
 
 #define MODNAME "lpc-eth"
 #define DRV_VERSION "1.00"
