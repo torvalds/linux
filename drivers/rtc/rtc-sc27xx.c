@@ -563,6 +563,32 @@ static int sprd_rtc_check_power_down(struct sprd_rtc *rtc)
 	return 0;
 }
 
+static int sprd_rtc_check_alarm_int(struct sprd_rtc *rtc)
+{
+	u32 val;
+	int ret;
+
+	ret = regmap_read(rtc->regmap, rtc->base + SPRD_RTC_SPG_VALUE, &val);
+	if (ret)
+		return ret;
+
+	/*
+	 * The SPRD_RTC_INT_EN register is not put in always-power-on region
+	 * supplied by VDDRTC, so we should check if we need enable the alarm
+	 * interrupt when system booting.
+	 *
+	 * If we have set SPRD_RTC_POWEROFF_ALM_FLAG which is saved in
+	 * always-power-on region, that means we have set one alarm last time,
+	 * so we should enable the alarm interrupt to help RTC core to see if
+	 * there is an alarm already set in RTC hardware.
+	 */
+	if (!(val & SPRD_RTC_POWEROFF_ALM_FLAG))
+		return 0;
+
+	return regmap_update_bits(rtc->regmap, rtc->base + SPRD_RTC_INT_EN,
+				  SPRD_RTC_ALARM_EN, SPRD_RTC_ALARM_EN);
+}
+
 static int sprd_rtc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -595,6 +621,13 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 
 	rtc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, rtc);
+
+	/* check if we need set the alarm interrupt */
+	ret = sprd_rtc_check_alarm_int(rtc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to check RTC alarm interrupt\n");
+		return ret;
+	}
 
 	/* check if RTC time values are valid */
 	ret = sprd_rtc_check_power_down(rtc);
