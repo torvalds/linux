@@ -631,16 +631,18 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	rtc->rtc->ops = &sprd_rtc_ops;
 	rtc->rtc->range_min = 0;
 	rtc->rtc->range_max = 5662310399LL;
 	ret = rtc_register_device(rtc->rtc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register rtc device\n");
+		device_init_wakeup(&pdev->dev, 0);
 		return ret;
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
 	return 0;
 }
 
