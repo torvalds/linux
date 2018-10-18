@@ -908,12 +908,14 @@ struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(struct v4l2_m2m_dev *m2m_dev,
 	if (ret)
 		goto err;
 	/*
-	 * If both queues use same mutex assign it as the common buffer
-	 * queues lock to the m2m context. This lock is used in the
-	 * v4l2_m2m_ioctl_* helpers.
+	 * Both queues should use same the mutex to lock the m2m context.
+	 * This lock is used in some v4l2_m2m_* helpers.
 	 */
-	if (out_q_ctx->q.lock == cap_q_ctx->q.lock)
-		m2m_ctx->q_lock = out_q_ctx->q.lock;
+	if (WARN_ON(out_q_ctx->q.lock != cap_q_ctx->q.lock)) {
+		ret = -EINVAL;
+		goto err;
+	}
+	m2m_ctx->q_lock = out_q_ctx->q.lock;
 
 	return m2m_ctx;
 err:
