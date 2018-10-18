@@ -569,10 +569,8 @@ xfs_file_iomap_begin_delay(
 		if (xfs_is_reflink_inode(ip) &&
 		    ((flags & IOMAP_WRITE) ||
 		     got.br_state != XFS_EXT_UNWRITTEN)) {
-			bool		shared;
-
 			xfs_trim_extent(&got, offset_fsb, end_fsb - offset_fsb);
-			error = xfs_reflink_reserve_cow(ip, &got, &shared);
+			error = xfs_reflink_reserve_cow(ip, &got);
 			if (error)
 				goto out_unlock;
 		}
@@ -1097,7 +1095,7 @@ xfs_file_iomap_begin(
 			if (error)
 				goto out_unlock;
 		} else {
-			error = xfs_reflink_reserve_cow(ip, &imap, &shared);
+			error = xfs_reflink_reserve_cow(ip, &imap);
 			if (error)
 				goto out_unlock;
 		}
