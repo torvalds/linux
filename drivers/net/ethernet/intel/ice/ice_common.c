@@ -1531,9 +1531,7 @@ ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 	if (!status)
 		ice_parse_caps(hw, buf, le32_to_cpu(cmd->count), opc);
 	else if (hw->adminq.sq_last_status == ICE_AQ_RC_ENOMEM)
-		*cap_count =
-			DIV_ROUND_UP(le16_to_cpu(desc.datalen),
-				     sizeof(struct ice_aqc_list_caps_elem));
+		*cap_count = le32_to_cpu(cmd->count);
 	return status;
 }
 
