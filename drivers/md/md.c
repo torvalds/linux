@@ -8370,9 +8370,17 @@ void md_do_sync(struct md_thread *thread)
 		else if (!mddev->bitmap)
 			j = mddev->recovery_cp;
 
-	} else if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
+	} else if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery)) {
 		max_sectors = mddev->resync_max_sectors;
-	else {
+		/*
+		 * If the original node aborts reshaping then we continue the
+		 * reshaping, so set j again to avoid restart reshape from the
+		 * first beginning
+		 */
+		if (mddev_is_clustered(mddev) &&
+		    mddev->reshape_position != MaxSector)
+			j = mddev->reshape_position;
+	} else {
 		/* recovery follows the physical size of devices */
 		max_sectors = mddev->dev_sectors;
 		j = MaxSector;

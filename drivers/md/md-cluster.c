@@ -333,6 +333,12 @@ static void recover_bitmaps(struct md_thread *thread)
 			}
 		spin_unlock_irq(&cinfo->suspend_lock);
 
+		/* Kick off a reshape if needed */
+		if (test_bit(MD_RESYNCING_REMOTE, &mddev->recovery) &&
+		    test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
+		    mddev->reshape_position != MaxSector)
+			md_wakeup_thread(mddev->sync_thread);
+
 		if (hi > 0) {
 			if (lo < mddev->recovery_cp)
 				mddev->recovery_cp = lo;
@@ -1020,10 +1026,17 @@ static int leave(struct mddev *mddev)
 	if (!cinfo)
 		return 0;
 
-	/* BITMAP_NEEDS_SYNC message should be sent when node
+	/*
+	 * BITMAP_NEEDS_SYNC message should be sent when node
 	 * is leaving the cluster with dirty bitmap, also we
-	 * can only deliver it when dlm connection is available */
-	if (cinfo->slot_number > 0 && mddev->recovery_cp != MaxSector)
+	 * can only deliver it when dlm connection is available.
+	 *
+	 * Also, we should send BITMAP_NEEDS_SYNC message in
+	 * case reshaping is interrupted.
+	 */
+	if ((cinfo->slot_number > 0 && mddev->recovery_cp != MaxSector) ||
+	    (mddev->reshape_position != MaxSector &&
+	     test_bit(MD_CLOSING, &mddev->flags)))
 		resync_bitmap(mddev);
 
 	set_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
