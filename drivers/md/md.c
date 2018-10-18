@@ -9218,8 +9218,12 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 		}
 
 		if (role != rdev2->raid_disk) {
-			/* got activated */
-			if (rdev2->raid_disk == -1 && role != 0xffff) {
+			/*
+			 * got activated except reshape is happening.
+			 */
+			if (rdev2->raid_disk == -1 && role != 0xffff &&
+			    !(le32_to_cpu(sb->feature_map) &
+			      MD_FEATURE_RESHAPE_ACTIVE)) {
 				rdev2->saved_raid_disk = role;
 				ret = remove_and_add_spares(mddev, rdev2);
 				pr_info("Activated spare: %s\n",
