@@ -383,10 +383,7 @@
 
 #include "qla1280.h"
 
-#ifndef BITS_PER_LONG
-#error "BITS_PER_LONG not defined!"
-#endif
-#if (BITS_PER_LONG == 64) || defined CONFIG_HIGHMEM
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 #define QLA_64BIT_PTR	1
 #endif
 
