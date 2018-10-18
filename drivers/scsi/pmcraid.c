@@ -846,16 +846,9 @@ static void pmcraid_erp_done(struct pmcraid_cmd *cmd)
 			    cmd->ioa_cb->ioarcb.cdb[0], ioasc);
 	}
 
-	/* if we had allocated sense buffers for request sense, copy the sense
-	 * release the buffers
-	 */
-	if (cmd->sense_buffer != NULL) {
-		memcpy(scsi_cmd->sense_buffer,
-		       cmd->sense_buffer,
-		       SCSI_SENSE_BUFFERSIZE);
-		pci_free_consistent(pinstance->pdev,
-				    SCSI_SENSE_BUFFERSIZE,
-				    cmd->sense_buffer, cmd->sense_buffer_dma);
+	if (cmd->sense_buffer) {
+		dma_unmap_single(&pinstance->pdev->dev, cmd->sense_buffer_dma,
+				 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 		cmd->sense_buffer = NULL;
 		cmd->sense_buffer_dma = 0;
 	}
@@ -2444,13 +2437,12 @@ static void pmcraid_request_sense(struct pmcraid_cmd *cmd)
 {
 	struct pmcraid_ioarcb *ioarcb = &cmd->ioa_cb->ioarcb;
 	struct pmcraid_ioadl_desc *ioadl = ioarcb->add_data.u.ioadl;
+	struct device *dev = &cmd->drv_inst->pdev->dev;
 
-	/* allocate DMAable memory for sense buffers */
-	cmd->sense_buffer = pci_alloc_consistent(cmd->drv_inst->pdev,
-						 SCSI_SENSE_BUFFERSIZE,
-						 &cmd->sense_buffer_dma);
-
-	if (cmd->sense_buffer == NULL) {
+	cmd->sense_buffer = cmd->scsi_cmd->sense_buffer;
+	cmd->sense_buffer_dma = dma_map_single(dev, cmd->sense_buffer,
+			SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, cmd->sense_buffer_dma)) {
 		pmcraid_err
 			("couldn't allocate sense buffer for request sense\n");
 		pmcraid_erp_done(cmd);
