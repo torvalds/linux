@@ -2271,9 +2271,9 @@ static void ice_remove(struct pci_dev *pdev)
  *   Class, Class Mask, private data (not used) }
  */
 static const struct pci_device_id ice_pci_tbl[] = {
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_BACKPLANE), 0 },
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_QSFP), 0 },
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_QSFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_SFP), 0 },
 	/* required last entry */
 	{ 0, }
 };
