@@ -2035,7 +2035,7 @@ int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
 		break;
 	default:
-		DP_INFO(p_hwfn, "Unknown transcevier type 0x%x\n",
+		DP_INFO(p_hwfn, "Unknown transceiver type 0x%x\n",
 			transceiver_type);
 		*p_speed_mask = 0xff;
 		break;
