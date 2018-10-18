@@ -3049,28 +3049,6 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	return 0;
 }
 
-static int
-skl_check_nv12_surface(struct intel_plane_state *plane_state)
-{
-	/* Display WA #1106 */
-	if (plane_state->base.rotation !=
-	    (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90) &&
-	    plane_state->base.rotation != DRM_MODE_ROTATE_270)
-		return 0;
-
-	/*
-	 * src coordinates are rotated here.
-	 * We check height but report it as width
-	 */
-	if (((drm_rect_height(&plane_state->base.src) >> 16) % 4) != 0) {
-		DRM_DEBUG_KMS("src width must be multiple "
-			      "of 4 for rotated NV12\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
@@ -3153,9 +3131,6 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	 * the main surface setup depends on it.
 	 */
 	if (fb->format->format == DRM_FORMAT_NV12) {
-		ret = skl_check_nv12_surface(plane_state);
-		if (ret)
-			return ret;
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;

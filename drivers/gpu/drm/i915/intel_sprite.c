@@ -1342,6 +1342,23 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 	return 0;
 }
 
+static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	int src_w = drm_rect_width(&plane_state->base.src) >> 16;
+
+	/* Display WA #1106 */
+	if (fb->format->format == DRM_FORMAT_NV12 && src_w & 3 &&
+	    (rotation == DRM_MODE_ROTATE_270 ||
+	     rotation == (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90))) {
+		DRM_DEBUG_KMS("src width must be multiple of 4 for rotated NV12\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int skl_plane_check(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state)
 {
@@ -1377,6 +1394,10 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	ret = intel_plane_check_src_coordinates(plane_state);
+	if (ret)
+		return ret;
+
+	ret = skl_plane_check_nv12_rotation(plane_state);
 	if (ret)
 		return ret;
 
