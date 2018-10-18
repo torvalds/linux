@@ -780,8 +780,31 @@ void __init pstore_choose_compression(void)
 	}
 }
 
+static int __init pstore_init(void)
+{
+	int ret;
+
+	pstore_choose_compression();
+
+	ret = pstore_init_fs();
+	if (ret)
+		return ret;
+
+	return 0;
+}
+module_init(pstore_init)
+
+static void __exit pstore_exit(void)
+{
+	pstore_exit_fs();
+}
+module_exit(pstore_exit)
+
 module_param(compress, charp, 0444);
 MODULE_PARM_DESC(compress, "Pstore compression to use");
 
 module_param(backend, charp, 0444);
 MODULE_PARM_DESC(backend, "Pstore backend to use");
+
+MODULE_AUTHOR("Tony Luck <tony.luck@intel.com>");
+MODULE_LICENSE("GPL");
