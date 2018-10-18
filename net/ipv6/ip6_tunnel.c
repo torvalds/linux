@@ -1184,11 +1184,6 @@ route_lookup:
 	}
 	skb_dst_set(skb, dst);
 
-	if (encap_limit >= 0) {
-		init_tel_txopt(&opt, encap_limit);
-		ipv6_push_frag_opts(skb, &opt.ops, &proto);
-	}
-
 	if (hop_limit == 0) {
 		if (skb->protocol == htons(ETH_P_IP))
 			hop_limit = ip_hdr(skb)->ttl;
@@ -1209,6 +1204,11 @@ route_lookup:
 	err = ip6_tnl_encap(skb, t, &proto, fl6);
 	if (err)
 		return err;
+
+	if (encap_limit >= 0) {
+		init_tel_txopt(&opt, encap_limit);
+		ipv6_push_frag_opts(skb, &opt.ops, &proto);
+	}
 
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
