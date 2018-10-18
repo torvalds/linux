@@ -129,19 +129,6 @@ static int sprd_rtc_clear_alarm_ints(struct sprd_rtc *rtc)
 			    SPRD_RTC_ALM_INT_MASK);
 }
 
-static int sprd_rtc_disable_ints(struct sprd_rtc *rtc)
-{
-	int ret;
-
-	ret = regmap_update_bits(rtc->regmap, rtc->base + SPRD_RTC_INT_EN,
-				 SPRD_RTC_INT_MASK, 0);
-	if (ret)
-		return ret;
-
-	return regmap_write(rtc->regmap, rtc->base + SPRD_RTC_INT_CLR,
-			    SPRD_RTC_INT_MASK);
-}
-
 static int sprd_rtc_lock_alarm(struct sprd_rtc *rtc, bool lock)
 {
 	int ret;
@@ -608,13 +595,6 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 
 	rtc->dev = &pdev->dev;
 	platform_set_drvdata(pdev, rtc);
-
-	/* clear all RTC interrupts and disable all RTC interrupts */
-	ret = sprd_rtc_disable_ints(rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to disable RTC interrupts\n");
-		return ret;
-	}
 
 	/* check if RTC time values are valid */
 	ret = sprd_rtc_check_power_down(rtc);
