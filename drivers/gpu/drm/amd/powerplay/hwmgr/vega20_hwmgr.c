@@ -2046,6 +2046,8 @@ static int vega20_notify_smc_display_config_after_ps_adjustment(
 {
 	struct vega20_hwmgr *data =
 			(struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_single_dpm_table *dpm_table =
+			&data->dpm_table.mem_table;
 	struct PP_Clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
 	int ret = 0;
@@ -2074,6 +2076,15 @@ static int vega20_notify_smc_display_config_after_ps_adjustment(
 		} else {
 			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
 		}
+	}
+
+	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
+		dpm_table->dpm_state.hard_min_level = min_clocks.memoryClock / 100;
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetHardMinByFreq,
+				(PPCLK_UCLK << 16 ) | dpm_table->dpm_state.hard_min_level)),
+				"[SetHardMinFreq] Set hard min uclk failed!",
+				return ret);
 	}
 
 	return 0;
