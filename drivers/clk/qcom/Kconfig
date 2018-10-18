@@ -243,6 +243,15 @@ config SDM_CAMCC_845
 	  Support for the camera clock controller on SDM845 devices.
 	  Say Y if you want to support camera devices and camera functionality.
 
+config SDM_GCC_660
+	tristate "SDM660 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SDM660 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2C, USB, UFS, SDDC, PCIe, etc.
+
 config SDM_GCC_845
 	tristate "SDM845 Global Clock Controller"
 	select QCOM_GDSC
