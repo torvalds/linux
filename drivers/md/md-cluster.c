@@ -457,12 +457,13 @@ static void remove_suspend_info(struct mddev *mddev, int slot)
 	mddev->pers->quiesce(mddev, 0);
 }
 
-
 static void process_suspend_info(struct mddev *mddev,
 		int slot, sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	struct suspend_info *s;
+	struct mdp_superblock_1 *sb = NULL;
+	struct md_rdev *rdev;
 
 	if (!hi) {
 		/*
@@ -476,6 +477,12 @@ static void process_suspend_info(struct mddev *mddev,
 		return;
 	}
 
+	rdev_for_each(rdev, mddev)
+		if (rdev->raid_disk > -1 && !test_bit(Faulty, &rdev->flags)) {
+			sb = page_address(rdev->sb_page);
+			break;
+		}
+
 	/*
 	 * The bitmaps are not same for different nodes
 	 * if RESYNCING is happening in one node, then
@@ -488,12 +495,18 @@ static void process_suspend_info(struct mddev *mddev,
 	 * sync_low/hi is used to record the region which
 	 * arrived in the previous RESYNCING message,
 	 *
-	 * Call bitmap_sync_with_cluster to clear
-	 * NEEDED_MASK and set RESYNC_MASK since
-	 * resync thread is running in another node,
-	 * so we don't need to do the resync again
-	 * with the same section */
-	md_bitmap_sync_with_cluster(mddev, cinfo->sync_low, cinfo->sync_hi, lo, hi);
+	 * Call md_bitmap_sync_with_cluster to clear NEEDED_MASK
+	 * and set RESYNC_MASK since  resync thread is running
+	 * in another node, so we don't need to do the resync
+	 * again with the same section.
+	 *
+	 * Skip md_bitmap_sync_with_cluster in case reshape
+	 * happening, because reshaping region is small and
+	 * we don't want to trigger lots of WARN.
+	 */
+	if (sb && !(le32_to_cpu(sb->feature_map) & MD_FEATURE_RESHAPE_ACTIVE))
+		md_bitmap_sync_with_cluster(mddev, cinfo->sync_low,
+					    cinfo->sync_hi, lo, hi);
 	cinfo->sync_low = lo;
 	cinfo->sync_hi = hi;
 
