@@ -9,6 +9,7 @@ config PCI_MVEBU
 	depends on MVEBU_MBUS
 	depends on ARM
 	depends on OF
+	select PCI_BRIDGE_EMUL
 
 config PCI_AARDVARK
 	bool "Aardvark PCIe controller"
