@@ -98,6 +98,9 @@ config PCI_ECAM
 config PCI_LOCKLESS_CONFIG
 	bool
 
+config PCI_BRIDGE_EMUL
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
