@@ -258,6 +258,12 @@ err_out:
 }
 EXPORT_SYMBOL(mlx5_fc_create);
 
+u32 mlx5_fc_id(struct mlx5_fc *counter)
+{
+	return counter->id;
+}
+EXPORT_SYMBOL(mlx5_fc_id);
+
 void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 {
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
