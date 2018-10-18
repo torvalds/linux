@@ -125,66 +125,26 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 }
 
 /* Copy RSA signature from the fw image to HW for verification */
-static int guc_xfer_rsa(struct intel_guc *guc, struct i915_vma *vma)
+static void guc_xfer_rsa(struct intel_guc *guc, struct i915_vma *vma)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_uc_fw *guc_fw = &guc->fw;
-	struct sg_table *sg = vma->pages;
 	u32 rsa[UOS_RSA_SCRATCH_COUNT];
 	int i;
 
-	if (sg_pcopy_to_buffer(sg->sgl, sg->nents, rsa, sizeof(rsa),
-			       guc_fw->rsa_offset) != sizeof(rsa))
-		return -EINVAL;
+	sg_pcopy_to_buffer(vma->pages->sgl, vma->pages->nents,
+			   rsa, sizeof(rsa), guc->fw.rsa_offset);
 
 	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
-
-	return 0;
 }
 
-/*
- * Transfer the firmware image to RAM for execution by the microcontroller.
- *
- * Architecturally, the DMA engine is bidirectional, and can potentially even
- * transfer between GTT locations. This functionality is left out of the API
- * for now as there is no need for it.
- */
-static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
+static bool guc_xfer_completed(struct intel_guc *guc, u32 *status)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_uc_fw *guc_fw = &guc->fw;
-	unsigned long offset;
-	u32 status;
-	int ret;
 
-	/*
-	 * The header plus uCode will be copied to WOPCM via DMA, excluding any
-	 * other components
-	 */
-	I915_WRITE(DMA_COPY_SIZE, guc_fw->header_size + guc_fw->ucode_size);
-
-	/* Set the source address for the new blob */
-	offset = intel_guc_ggtt_offset(guc, vma) + guc_fw->header_offset;
-	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
-	I915_WRITE(DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
-
-	/*
-	 * Set the DMA destination. Current uCode expects the code to be
-	 * loaded at 8k; locations below this are used for the stack.
-	 */
-	I915_WRITE(DMA_ADDR_1_LOW, 0x2000);
-	I915_WRITE(DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
-
-	/* Finally start the DMA */
-	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
-
-	/* Wait for DMA to finish */
-	ret = __intel_wait_for_register_fw(dev_priv, DMA_CTRL, START_DMA, 0,
-					   2, 100, &status);
-	DRM_DEBUG_DRIVER("GuC DMA status %#x\n", status);
-
-	return ret;
+	/* Did we complete the xfer? */
+	*status = I915_READ(DMA_CTRL);
+	return !(*status & START_DMA);
 }
 
 /*
@@ -228,9 +188,51 @@ static int guc_wait_ucode(struct intel_guc *guc)
 		ret = -ENOEXEC;
 	}
 
+	if (ret == 0 && !guc_xfer_completed(guc, &status)) {
+		DRM_ERROR("GuC is ready, but the xfer %08x is incomplete\n",
+			  status);
+		ret = -ENXIO;
+	}
+
 	return ret;
 }
 
+/*
+ * Transfer the firmware image to RAM for execution by the microcontroller.
+ *
+ * Architecturally, the DMA engine is bidirectional, and can potentially even
+ * transfer between GTT locations. This functionality is left out of the API
+ * for now as there is no need for it.
+ */
+static int guc_xfer_ucode(struct intel_guc *guc, struct i915_vma *vma)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_uc_fw *guc_fw = &guc->fw;
+	unsigned long offset;
+
+	/*
+	 * The header plus uCode will be copied to WOPCM via DMA, excluding any
+	 * other components
+	 */
+	I915_WRITE(DMA_COPY_SIZE, guc_fw->header_size + guc_fw->ucode_size);
+
+	/* Set the source address for the new blob */
+	offset = intel_guc_ggtt_offset(guc, vma) + guc_fw->header_offset;
+	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
+	I915_WRITE(DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
+
+	/*
+	 * Set the DMA destination. Current uCode expects the code to be
+	 * loaded at 8k; locations below this are used for the stack.
+	 */
+	I915_WRITE(DMA_ADDR_1_LOW, 0x2000);
+	I915_WRITE(DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
+
+	/* Finally start the DMA */
+	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
+
+	return guc_wait_ucode(guc);
+}
 /*
  * Load the GuC firmware blob into the MinuteIA.
  */
@@ -251,17 +253,9 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
 	 * by the DMA engine in one operation, whereas the RSA signature is
 	 * loaded via MMIO.
 	 */
-	ret = guc_xfer_rsa(guc, vma);
-	if (ret)
-		DRM_WARN("GuC firmware signature xfer error %d\n", ret);
+	guc_xfer_rsa(guc, vma);
 
 	ret = guc_xfer_ucode(guc, vma);
-	if (ret)
-		DRM_WARN("GuC firmware code xfer error %d\n", ret);
-
-	ret = guc_wait_ucode(guc);
-	if (ret)
-		DRM_ERROR("GuC firmware xfer error %d\n", ret);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
