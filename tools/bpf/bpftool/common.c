@@ -554,7 +554,9 @@ static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
 	return read_sysfs_hex_int(full_path);
 }
 
-const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
+const char *
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+		      const char **opt)
 {
 	char devname[IF_NAMESIZE];
 	int vendor_id;
@@ -579,6 +581,7 @@ const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
 		    device_id != 0x6000 &&
 		    device_id != 0x6003)
 			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
+		*opt = "ctx4";
 		return "NFP-6xxx";
 	default:
 		p_err("Can't get bfd arch name for device vendor id 0x%04x",
