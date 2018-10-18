@@ -98,23 +98,6 @@ void cedrus_dst_format_set(struct cedrus_dev *dev,
 	}
 }
 
-static irqreturn_t cedrus_bh(int irq, void *data)
-{
-	struct cedrus_dev *dev = data;
-	struct cedrus_ctx *ctx;
-
-	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
-	if (!ctx) {
-		v4l2_err(&dev->v4l2_dev,
-			 "Instance released before the end of transaction\n");
-		return IRQ_HANDLED;
-	}
-
-	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t cedrus_irq(int irq, void *data)
 {
 	struct cedrus_dev *dev = data;
@@ -165,7 +148,9 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 
 	spin_unlock_irqrestore(&dev->irq_lock, flags);
 
-	return IRQ_WAKE_THREAD;
+	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
+
+	return IRQ_HANDLED;
 }
 
 int cedrus_hw_probe(struct cedrus_dev *dev)
@@ -187,9 +172,8 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 		return irq_dec;
 	}
-	ret = devm_request_threaded_irq(dev->dev, irq_dec, cedrus_irq,
-					cedrus_bh, 0, dev_name(dev->dev),
-					dev);
+	ret = devm_request_irq(dev->dev, irq_dec, cedrus_irq,
+			       0, dev_name(dev->dev), dev);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to request IRQ\n");
 
