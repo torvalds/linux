@@ -1309,11 +1309,11 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 
 	/* Enable 64bit DMA if possible */
 	iop_ops = (struct hptiop_adapter_ops *)id->driver_data;
-	if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(iop_ops->hw_dma_bit_mask))) {
-		if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(32))) {
-			printk(KERN_ERR "hptiop: fail to set dma_mask\n");
-			goto disable_pci_device;
-		}
+	if (dma_set_mask(&pcidev->dev,
+			 DMA_BIT_MASK(iop_ops->hw_dma_bit_mask)) ||
+	    dma_set_mask(&pcidev->dev, DMA_BIT_MASK(32))) {
+		printk(KERN_ERR "hptiop: fail to set dma_mask\n");
+		goto disable_pci_device;
 	}
 
 	if (pci_request_regions(pcidev, driver_name)) {
