@@ -1801,13 +1801,13 @@ ips_fill_scb_sg_single(ips_ha_t * ha, dma_addr_t busaddr,
 	}
 	if (IPS_USE_ENH_SGLIST(ha)) {
 		scb->sg_list.enh_list[indx].address_lo =
-		    cpu_to_le32(pci_dma_lo32(busaddr));
+		    cpu_to_le32(lower_32_bits(busaddr));
 		scb->sg_list.enh_list[indx].address_hi =
-		    cpu_to_le32(pci_dma_hi32(busaddr));
+		    cpu_to_le32(upper_32_bits(busaddr));
 		scb->sg_list.enh_list[indx].length = cpu_to_le32(e_len);
 	} else {
 		scb->sg_list.std_list[indx].address =
-		    cpu_to_le32(pci_dma_lo32(busaddr));
+		    cpu_to_le32(lower_32_bits(busaddr));
 		scb->sg_list.std_list[indx].length = cpu_to_le32(e_len);
 	}
 
