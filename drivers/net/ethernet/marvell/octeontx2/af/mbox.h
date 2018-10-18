@@ -124,20 +124,49 @@ M(ATTACH_RESOURCES,	0x002, rsrc_attach, msg_rsp)			\
 M(DETACH_RESOURCES,	0x003, rsrc_detach, msg_rsp)			\
 M(MSIX_OFFSET,		0x004, msg_req, msix_offset_rsp)		\
 /* CGX mbox IDs (range 0x200 - 0x3FF) */				\
+M(CGX_START_RXTX,	0x200, msg_req, msg_rsp)			\
+M(CGX_STOP_RXTX,	0x201, msg_req, msg_rsp)			\
+M(CGX_STATS,		0x202, msg_req, cgx_stats_rsp)			\
+M(CGX_MAC_ADDR_SET,	0x203, cgx_mac_addr_set_or_get,			\
+				cgx_mac_addr_set_or_get)		\
+M(CGX_MAC_ADDR_GET,	0x204, cgx_mac_addr_set_or_get,			\
+				cgx_mac_addr_set_or_get)		\
+M(CGX_PROMISC_ENABLE,	0x205, msg_req, msg_rsp)			\
+M(CGX_PROMISC_DISABLE,	0x206, msg_req, msg_rsp)			\
+M(CGX_START_LINKEVENTS, 0x207, msg_req, msg_rsp)			\
+M(CGX_STOP_LINKEVENTS,	0x208, msg_req, msg_rsp)			\
+M(CGX_GET_LINKINFO,	0x209, msg_req, cgx_link_info_msg)		\
+M(CGX_INTLBK_ENABLE,	0x20A, msg_req, msg_rsp)			\
+M(CGX_INTLBK_DISABLE,	0x20B, msg_req, msg_rsp)			\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
+M(NPA_LF_ALLOC,		0x400, npa_lf_alloc_req, npa_lf_alloc_rsp)	\
+M(NPA_LF_FREE,		0x401, msg_req, msg_rsp)			\
+M(NPA_AQ_ENQ,		0x402, npa_aq_enq_req, npa_aq_enq_rsp)		\
+M(NPA_HWCTX_DISABLE,	0x403, hwctx_disable_req, msg_rsp)		\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
 /* NPC mbox IDs (range 0x6000 - 0x7FFF) */				\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
+M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc_req, nix_lf_alloc_rsp)	\
+M(NIX_LF_FREE,		0x8001, msg_req, msg_rsp)			\
+M(NIX_AQ_ENQ,		0x8002, nix_aq_enq_req, nix_aq_enq_rsp)		\
+M(NIX_HWCTX_DISABLE,	0x8003, hwctx_disable_req, msg_rsp)
+
+/* Messages initiated by AF (range 0xC00 - 0xDFF) */
+#define MBOX_UP_CGX_MESSAGES						\
+M(CGX_LINK_EVENT,		0xC00, cgx_link_info_msg, msg_rsp)
 
 enum {
 #define M(_name, _id, _1, _2) MBOX_MSG_ ## _name = _id,
 MBOX_MESSAGES
+MBOX_UP_CGX_MESSAGES
 #undef M
 };
 
 /* Mailbox message formats */
+
+#define RVU_DEFAULT_PF_FUNC     0xFFFF
 
 /* Generic request msg used for those mbox messages which
  * don't send any data in the request.
@@ -206,6 +235,183 @@ struct msix_offset_rsp {
 	u16  ssow_msixoff[MAX_RVU_BLKLF_CNT];
 	u16  timlf_msixoff[MAX_RVU_BLKLF_CNT];
 	u16  cptlf_msixoff[MAX_RVU_BLKLF_CNT];
+};
+
+/* CGX mbox message formats */
+
+struct cgx_stats_rsp {
+	struct mbox_msghdr hdr;
+#define CGX_RX_STATS_COUNT	13
+#define CGX_TX_STATS_COUNT	18
+	u64 rx_stats[CGX_RX_STATS_COUNT];
+	u64 tx_stats[CGX_TX_STATS_COUNT];
+};
+
+/* Structure for requesting the operation for
+ * setting/getting mac address in the CGX interface
+ */
+struct cgx_mac_addr_set_or_get {
+	struct mbox_msghdr hdr;
+	u8 mac_addr[ETH_ALEN];
+};
+
+struct cgx_link_user_info {
+	uint64_t link_up:1;
+	uint64_t full_duplex:1;
+	uint64_t lmac_type_id:4;
+	uint64_t speed:20; /* speed in Mbps */
+#define LMACTYPE_STR_LEN 16
+	char lmac_type[LMACTYPE_STR_LEN];
+};
+
+struct cgx_link_info_msg {
+	struct mbox_msghdr hdr;
+	struct cgx_link_user_info link_info;
+};
+
+/* NPA mbox message formats */
+
+/* NPA mailbox error codes
+ * Range 301 - 400.
+ */
+enum npa_af_status {
+	NPA_AF_ERR_PARAM            = -301,
+	NPA_AF_ERR_AQ_FULL          = -302,
+	NPA_AF_ERR_AQ_ENQUEUE       = -303,
+	NPA_AF_ERR_AF_LF_INVALID    = -304,
+	NPA_AF_ERR_AF_LF_ALLOC      = -305,
+	NPA_AF_ERR_LF_RESET         = -306,
+};
+
+/* For NPA LF context alloc and init */
+struct npa_lf_alloc_req {
+	struct mbox_msghdr hdr;
+	int node;
+	int aura_sz;  /* No of auras */
+	u32 nr_pools; /* No of pools */
+};
+
+struct npa_lf_alloc_rsp {
+	struct mbox_msghdr hdr;
+	u32 stack_pg_ptrs;  /* No of ptrs per stack page */
+	u32 stack_pg_bytes; /* Size of stack page */
+	u16 qints; /* NPA_AF_CONST::QINTS */
+};
+
+/* NPA AQ enqueue msg */
+struct npa_aq_enq_req {
+	struct mbox_msghdr hdr;
+	u32 aura_id;
+	u8 ctype;
+	u8 op;
+	union {
+		/* Valid when op == WRITE/INIT and ctype == AURA.
+		 * LF fills the pool_id in aura.pool_addr. AF will translate
+		 * the pool_id to pool context pointer.
+		 */
+		struct npa_aura_s aura;
+		/* Valid when op == WRITE/INIT and ctype == POOL */
+		struct npa_pool_s pool;
+	};
+	/* Mask data when op == WRITE (1=write, 0=don't write) */
+	union {
+		/* Valid when op == WRITE and ctype == AURA */
+		struct npa_aura_s aura_mask;
+		/* Valid when op == WRITE and ctype == POOL */
+		struct npa_pool_s pool_mask;
+	};
+};
+
+struct npa_aq_enq_rsp {
+	struct mbox_msghdr hdr;
+	union {
+		/* Valid when op == READ and ctype == AURA */
+		struct npa_aura_s aura;
+		/* Valid when op == READ and ctype == POOL */
+		struct npa_pool_s pool;
+	};
+};
+
+/* Disable all contexts of type 'ctype' */
+struct hwctx_disable_req {
+	struct mbox_msghdr hdr;
+	u8 ctype;
+};
+
+/* NIX mailbox error codes
+ * Range 401 - 500.
+ */
+enum nix_af_status {
+	NIX_AF_ERR_PARAM            = -401,
+	NIX_AF_ERR_AQ_FULL          = -402,
+	NIX_AF_ERR_AQ_ENQUEUE       = -403,
+	NIX_AF_ERR_AF_LF_INVALID    = -404,
+	NIX_AF_ERR_AF_LF_ALLOC      = -405,
+	NIX_AF_ERR_TLX_ALLOC_FAIL   = -406,
+	NIX_AF_ERR_TLX_INVALID      = -407,
+	NIX_AF_ERR_RSS_SIZE_INVALID = -408,
+	NIX_AF_ERR_RSS_GRPS_INVALID = -409,
+	NIX_AF_ERR_FRS_INVALID      = -410,
+	NIX_AF_ERR_RX_LINK_INVALID  = -411,
+	NIX_AF_INVAL_TXSCHQ_CFG     = -412,
+	NIX_AF_SMQ_FLUSH_FAILED     = -413,
+	NIX_AF_ERR_LF_RESET         = -414,
+};
+
+/* For NIX LF context alloc and init */
+struct nix_lf_alloc_req {
+	struct mbox_msghdr hdr;
+	int node;
+	u32 rq_cnt;   /* No of receive queues */
+	u32 sq_cnt;   /* No of send queues */
+	u32 cq_cnt;   /* No of completion queues */
+	u8  xqe_sz;
+	u16 rss_sz;
+	u8  rss_grps;
+	u16 npa_func;
+	u16 sso_func;
+	u64 rx_cfg;   /* See NIX_AF_LF(0..127)_RX_CFG */
+};
+
+struct nix_lf_alloc_rsp {
+	struct mbox_msghdr hdr;
+	u16	sqb_size;
+	u8	lso_tsov4_idx;
+	u8	lso_tsov6_idx;
+	u8      mac_addr[ETH_ALEN];
+};
+
+/* NIX AQ enqueue msg */
+struct nix_aq_enq_req {
+	struct mbox_msghdr hdr;
+	u32  qidx;
+	u8 ctype;
+	u8 op;
+	union {
+		struct nix_rq_ctx_s rq;
+		struct nix_sq_ctx_s sq;
+		struct nix_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+	};
+	union {
+		struct nix_rq_ctx_s rq_mask;
+		struct nix_sq_ctx_s sq_mask;
+		struct nix_cq_ctx_s cq_mask;
+		struct nix_rsse_s   rss_mask;
+		struct nix_rx_mce_s mce_mask;
+	};
+};
+
+struct nix_aq_enq_rsp {
+	struct mbox_msghdr hdr;
+	union {
+		struct nix_rq_ctx_s rq;
+		struct nix_sq_ctx_s sq;
+		struct nix_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+	};
 };
 
 #endif /* MBOX_H */

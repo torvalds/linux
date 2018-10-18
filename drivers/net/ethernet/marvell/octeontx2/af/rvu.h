@@ -12,6 +12,7 @@
 #define RVU_H
 
 #include "rvu_struct.h"
+#include "common.h"
 #include "mbox.h"
 
 /* PCI device IDs */
@@ -41,7 +42,8 @@ struct rsrc_bmap {
 };
 
 struct rvu_block {
-	struct rsrc_bmap lf;
+	struct rsrc_bmap	lf;
+	struct admin_queue	*aq; /* NIX/NPA AQ */
 	u16  *fn_map; /* LF to pcifunc mapping */
 	bool multislot;
 	bool implemented;
@@ -70,14 +72,50 @@ struct rvu_pfvf {
 	struct rsrc_bmap msix;      /* Bitmap for MSIX vector alloc */
 #define MSIX_BLKLF(blkaddr, lf) (((blkaddr) << 8) | ((lf) & 0xFF))
 	u16		 *msix_lfmap; /* Vector to block LF mapping */
+
+	/* NPA contexts */
+	struct qmem	*aura_ctx;
+	struct qmem	*pool_ctx;
+	struct qmem	*npa_qints_ctx;
+	unsigned long	*aura_bmap;
+	unsigned long	*pool_bmap;
+
+	/* NIX contexts */
+	struct qmem	*rq_ctx;
+	struct qmem	*sq_ctx;
+	struct qmem	*cq_ctx;
+	struct qmem	*rss_ctx;
+	struct qmem	*cq_ints_ctx;
+	struct qmem	*nix_qints_ctx;
+	unsigned long	*sq_bmap;
+	unsigned long	*rq_bmap;
+	unsigned long	*cq_bmap;
+
+	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
+};
+
+struct nix_txsch {
+	struct rsrc_bmap schq;
+	u8   lvl;
+	u16  *pfvf_map;
+};
+
+struct nix_hw {
+	struct nix_txsch txsch[NIX_TXSCH_LVL_CNT]; /* Tx schedulers */
 };
 
 struct rvu_hwinfo {
 	u8	total_pfs;   /* MAX RVU PFs HW supports */
 	u16	total_vfs;   /* Max RVU VFs HW supports */
 	u16	max_vfs_per_pf; /* Max VFs that can be attached to a PF */
+	u8	cgx;
+	u8	lmac_per_cgx;
+	u8	cgx_links;
+	u8	lbk_links;
+	u8	sdp_links;
 
 	struct rvu_block block[BLK_COUNT]; /* Block info */
+	struct nix_hw    *nix0;
 };
 
 struct rvu {
@@ -93,6 +131,8 @@ struct rvu {
 	/* Mbox */
 	struct otx2_mbox	mbox;
 	struct rvu_work		*mbox_wrk;
+	struct otx2_mbox        mbox_up;
+	struct rvu_work		*mbox_wrk_up;
 	struct workqueue_struct *mbox_wq;
 
 	/* MSI-X */
@@ -109,6 +149,7 @@ struct rvu {
 	u16			*cgxlmac2pf_map; /* bitmap of mapped pfs for
 						  * every cgx lmac port
 						  */
+	unsigned long		pf_notify_bmap; /* Flags for PF notification */
 	void			**cgx_idmap; /* cgx id to cgx data map table */
 	struct			work_struct cgx_evh_work;
 	struct			workqueue_struct *cgx_evh_wq;
@@ -149,10 +190,84 @@ struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
 void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf);
 bool is_block_implemented(struct rvu_hwinfo *hw, int blkaddr);
 int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot);
+int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf);
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
+/* NPA/NIX AQ APIs */
+int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
+		 int qsize, int inst_size, int res_size);
+void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq);
+
 /* CGX APIs */
+static inline bool is_pf_cgxmapped(struct rvu *rvu, u8 pf)
+{
+	return (pf >= PF_CGXMAP_BASE && pf <= rvu->cgx_mapped_pfs);
+}
+
+static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
+{
+	*cgx_id = (map >> 4) & 0xF;
+	*lmac_id = (map & 0xF);
+}
+
 int rvu_cgx_probe(struct rvu *rvu);
 void rvu_cgx_wq_destroy(struct rvu *rvu);
+int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start);
+int rvu_mbox_handler_CGX_START_RXTX(struct rvu *rvu, struct msg_req *req,
+				    struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_STOP_RXTX(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_STATS(struct rvu *rvu, struct msg_req *req,
+			       struct cgx_stats_rsp *rsp);
+int rvu_mbox_handler_CGX_MAC_ADDR_SET(struct rvu *rvu,
+				      struct cgx_mac_addr_set_or_get *req,
+				      struct cgx_mac_addr_set_or_get *rsp);
+int rvu_mbox_handler_CGX_MAC_ADDR_GET(struct rvu *rvu,
+				      struct cgx_mac_addr_set_or_get *req,
+				      struct cgx_mac_addr_set_or_get *rsp);
+int rvu_mbox_handler_CGX_PROMISC_ENABLE(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_PROMISC_DISABLE(struct rvu *rvu, struct msg_req *req,
+					 struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_START_LINKEVENTS(struct rvu *rvu, struct msg_req *req,
+					  struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_STOP_LINKEVENTS(struct rvu *rvu, struct msg_req *req,
+					 struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_GET_LINKINFO(struct rvu *rvu, struct msg_req *req,
+				      struct cgx_link_info_msg *rsp);
+int rvu_mbox_handler_CGX_INTLBK_ENABLE(struct rvu *rvu, struct msg_req *req,
+				       struct msg_rsp *rsp);
+int rvu_mbox_handler_CGX_INTLBK_DISABLE(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp);
+
+/* NPA APIs */
+int rvu_npa_init(struct rvu *rvu);
+void rvu_npa_freemem(struct rvu *rvu);
+int rvu_mbox_handler_NPA_AQ_ENQ(struct rvu *rvu,
+				struct npa_aq_enq_req *req,
+				struct npa_aq_enq_rsp *rsp);
+int rvu_mbox_handler_NPA_HWCTX_DISABLE(struct rvu *rvu,
+				       struct hwctx_disable_req *req,
+				       struct msg_rsp *rsp);
+int rvu_mbox_handler_NPA_LF_ALLOC(struct rvu *rvu,
+				  struct npa_lf_alloc_req *req,
+				  struct npa_lf_alloc_rsp *rsp);
+int rvu_mbox_handler_NPA_LF_FREE(struct rvu *rvu, struct msg_req *req,
+				 struct msg_rsp *rsp);
+
+/* NIX APIs */
+int rvu_nix_init(struct rvu *rvu);
+void rvu_nix_freemem(struct rvu *rvu);
+int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
+				  struct nix_lf_alloc_req *req,
+				  struct nix_lf_alloc_rsp *rsp);
+int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
+				 struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
+				struct nix_aq_enq_req *req,
+				struct nix_aq_enq_rsp *rsp);
+int rvu_mbox_handler_NIX_HWCTX_DISABLE(struct rvu *rvu,
+				       struct hwctx_disable_req *req,
+				       struct msg_rsp *rsp);
 #endif /* RVU_H */

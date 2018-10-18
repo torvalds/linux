@@ -47,18 +47,18 @@ MODULE_DEVICE_TABLE(pci, rvu_id_table);
  */
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero)
 {
+	unsigned long timeout = jiffies + usecs_to_jiffies(100);
 	void __iomem *reg;
-	int timeout = 100;
 	u64 reg_val;
 
 	reg = rvu->afreg_base + ((block << 28) | offset);
-	while (timeout) {
+	while (time_before(jiffies, timeout)) {
 		reg_val = readq(reg);
 		if (zero && !(reg_val & mask))
 			return 0;
 		if (!zero && (reg_val & mask))
 			return 0;
-		usleep_range(1, 2);
+		usleep_range(1, 5);
 		timeout--;
 	}
 	return -EBUSY;
@@ -361,6 +361,19 @@ static void rvu_check_block_implemented(struct rvu *rvu)
 	}
 }
 
+int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf)
+{
+	int err;
+
+	if (!block->implemented)
+		return 0;
+
+	rvu_write64(rvu, block->addr, block->lfreset_reg, lf | BIT_ULL(12));
+	err = rvu_poll_reg(rvu, block->addr, block->lfreset_reg, BIT_ULL(12),
+			   true);
+	return err;
+}
+
 static void rvu_block_reset(struct rvu *rvu, int blkaddr, u64 rst_reg)
 {
 	struct rvu_block *block = &rvu->hw->block[blkaddr];
@@ -551,6 +564,9 @@ static void rvu_free_hw_resources(struct rvu *rvu)
 	struct rvu_pfvf  *pfvf;
 	int id, max_msix;
 	u64 cfg;
+
+	rvu_npa_freemem(rvu);
+	rvu_nix_freemem(rvu);
 
 	/* Free block LF bitmaps */
 	for (id = 0; id < BLK_COUNT; id++) {
@@ -755,6 +771,54 @@ init:
 		rvu_scan_block(rvu, block);
 	}
 
+	err = rvu_npa_init(rvu);
+	if (err)
+		return err;
+
+	err = rvu_nix_init(rvu);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/* NPA and NIX admin queue APIs */
+void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq)
+{
+	if (!aq)
+		return;
+
+	qmem_free(rvu->dev, aq->inst);
+	qmem_free(rvu->dev, aq->res);
+	devm_kfree(rvu->dev, aq);
+}
+
+int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
+		 int qsize, int inst_size, int res_size)
+{
+	struct admin_queue *aq;
+	int err;
+
+	*ad_queue = devm_kzalloc(rvu->dev, sizeof(*aq), GFP_KERNEL);
+	if (!*ad_queue)
+		return -ENOMEM;
+	aq = *ad_queue;
+
+	/* Alloc memory for instructions i.e AQ */
+	err = qmem_alloc(rvu->dev, &aq->inst, qsize, inst_size);
+	if (err) {
+		devm_kfree(rvu->dev, aq);
+		return err;
+	}
+
+	/* Alloc memory for results */
+	err = qmem_alloc(rvu->dev, &aq->res, qsize, res_size);
+	if (err) {
+		rvu_aq_free(rvu, aq);
+		return err;
+	}
+
+	spin_lock_init(&aq->lock);
 	return 0;
 }
 
@@ -1316,6 +1380,63 @@ static void rvu_mbox_handler(struct work_struct *work)
 	otx2_mbox_msg_send(mbox, pf);
 }
 
+static void rvu_mbox_up_handler(struct work_struct *work)
+{
+	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
+	struct rvu *rvu = mwork->rvu;
+	struct otx2_mbox_dev *mdev;
+	struct mbox_hdr *rsp_hdr;
+	struct mbox_msghdr *msg;
+	struct otx2_mbox *mbox;
+	int offset, id;
+	u16 pf;
+
+	mbox = &rvu->mbox_up;
+	pf = mwork - rvu->mbox_wrk_up;
+	mdev = &mbox->dev[pf];
+
+	rsp_hdr = mdev->mbase + mbox->rx_start;
+	if (rsp_hdr->num_msgs == 0) {
+		dev_warn(rvu->dev, "mbox up handler: num_msgs = 0\n");
+		return;
+	}
+
+	offset = mbox->rx_start + ALIGN(sizeof(*rsp_hdr), MBOX_MSG_ALIGN);
+
+	for (id = 0; id < rsp_hdr->num_msgs; id++) {
+		msg = mdev->mbase + offset;
+
+		if (msg->id >= MBOX_MSG_MAX) {
+			dev_err(rvu->dev,
+				"Mbox msg with unknown ID 0x%x\n", msg->id);
+			goto end;
+		}
+
+		if (msg->sig != OTX2_MBOX_RSP_SIG) {
+			dev_err(rvu->dev,
+				"Mbox msg with wrong signature %x, ID 0x%x\n",
+				msg->sig, msg->id);
+			goto end;
+		}
+
+		switch (msg->id) {
+		case MBOX_MSG_CGX_LINK_EVENT:
+			break;
+		default:
+			if (msg->rc)
+				dev_err(rvu->dev,
+					"Mbox msg response has err %d, ID 0x%x\n",
+					msg->rc, msg->id);
+			break;
+		}
+end:
+		offset = mbox->rx_start + msg->next_msgoff;
+		mdev->msgs_acked++;
+	}
+
+	otx2_mbox_reset(mbox, 0);
+}
+
 static int rvu_mbox_init(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -1333,6 +1454,13 @@ static int rvu_mbox_init(struct rvu *rvu)
 	rvu->mbox_wrk = devm_kcalloc(rvu->dev, hw->total_pfs,
 				     sizeof(struct rvu_work), GFP_KERNEL);
 	if (!rvu->mbox_wrk) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	rvu->mbox_wrk_up = devm_kcalloc(rvu->dev, hw->total_pfs,
+					sizeof(struct rvu_work), GFP_KERNEL);
+	if (!rvu->mbox_wrk_up) {
 		err = -ENOMEM;
 		goto exit;
 	}
@@ -1355,10 +1483,21 @@ static int rvu_mbox_init(struct rvu *rvu)
 	if (err)
 		goto exit;
 
+	err = otx2_mbox_init(&rvu->mbox_up, hwbase, rvu->pdev, rvu->afreg_base,
+			     MBOX_DIR_AFPF_UP, hw->total_pfs);
+	if (err)
+		goto exit;
+
 	for (pf = 0; pf < hw->total_pfs; pf++) {
 		mwork = &rvu->mbox_wrk[pf];
 		mwork->rvu = rvu;
 		INIT_WORK(&mwork->work, rvu_mbox_handler);
+	}
+
+	for (pf = 0; pf < hw->total_pfs; pf++) {
+		mwork = &rvu->mbox_wrk_up[pf];
+		mwork->rvu = rvu;
+		INIT_WORK(&mwork->work, rvu_mbox_up_handler);
 	}
 
 	return 0;
@@ -1381,6 +1520,7 @@ static void rvu_mbox_destroy(struct rvu *rvu)
 		iounmap((void __iomem *)rvu->mbox.hwbase);
 
 	otx2_mbox_destroy(&rvu->mbox);
+	otx2_mbox_destroy(&rvu->mbox_up);
 }
 
 static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
@@ -1407,6 +1547,12 @@ static irqreturn_t rvu_mbox_intr_handler(int irq, void *rvu_irq)
 			if (hdr->num_msgs)
 				queue_work(rvu->mbox_wq,
 					   &rvu->mbox_wrk[pf].work);
+			mbox = &rvu->mbox_up;
+			mdev = &mbox->dev[pf];
+			hdr = mdev->mbase + mbox->rx_start;
+			if (hdr->num_msgs)
+				queue_work(rvu->mbox_wq,
+					   &rvu->mbox_wrk_up[pf].work);
 		}
 	}
 
