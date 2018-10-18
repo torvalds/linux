@@ -150,10 +150,10 @@ static void ida_check_conv(struct ida *ida)
 	IDA_BUG_ON(ida, !ida_is_empty(ida));
 }
 
+static DEFINE_IDA(ida);
+
 static int ida_checks(void)
 {
-	DEFINE_IDA(ida);
-
 	IDA_BUG_ON(&ida, !ida_is_empty(&ida));
 	ida_check_alloc(&ida);
 	ida_check_destroy(&ida);
