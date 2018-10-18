@@ -880,40 +880,37 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
-	u8 vdbox_disable, vebox_disable;
 	u32 media_fuse;
-	int i;
+	unsigned int i;
 
 	if (INTEL_GEN(dev_priv) < 11)
 		return;
 
-	media_fuse = I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
+	media_fuse = ~I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
 
-	vdbox_disable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	vebox_disable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-			GEN11_GT_VEBOX_DISABLE_SHIFT;
+	info->vdbox_enable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	info->vebox_enable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+			     GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	DRM_DEBUG_DRIVER("vdbox disable: %04x\n", vdbox_disable);
+	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", info->vdbox_enable);
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VCS(i)))
 			continue;
 
-		if (!(BIT(i) & vdbox_disable))
-			continue;
-
-		info->ring_mask &= ~ENGINE_MASK(_VCS(i));
-		DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+		if (!(BIT(i) & info->vdbox_enable)) {
+			info->ring_mask &= ~ENGINE_MASK(_VCS(i));
+			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+		}
 	}
 
-	DRM_DEBUG_DRIVER("vebox disable: %04x\n", vebox_disable);
+	DRM_DEBUG_DRIVER("vebox enable: %04x\n", info->vebox_enable);
 	for (i = 0; i < I915_MAX_VECS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VECS(i)))
 			continue;
 
-		if (!(BIT(i) & vebox_disable))
-			continue;
-
-		info->ring_mask &= ~ENGINE_MASK(_VECS(i));
-		DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+		if (!(BIT(i) & info->vebox_enable)) {
+			info->ring_mask &= ~ENGINE_MASK(_VECS(i));
+			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+		}
 	}
 }

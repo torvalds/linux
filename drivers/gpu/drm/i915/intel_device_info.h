@@ -185,6 +185,10 @@ struct intel_device_info {
 
 	u32 cs_timestamp_frequency_khz;
 
+	/* Enabled (not fused off) media engine bitmasks. */
+	u8 vdbox_enable;
+	u8 vebox_enable;
+
 	struct color_luts {
 		u16 degamma_lut_size;
 		u16 gamma_lut_size;
