@@ -9230,6 +9230,30 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 	if (mddev->raid_disks != le32_to_cpu(sb->raid_disks))
 		update_raid_disks(mddev, le32_to_cpu(sb->raid_disks));
 
+	/*
+	 * Since mddev->delta_disks has already updated in update_raid_disks,
+	 * so it is time to check reshape.
+	 */
+	if (test_bit(MD_RESYNCING_REMOTE, &mddev->recovery) &&
+	    (le32_to_cpu(sb->feature_map) & MD_FEATURE_RESHAPE_ACTIVE)) {
+		/*
+		 * reshape is happening in the remote node, we need to
+		 * update reshape_position and call start_reshape.
+		 */
+		mddev->reshape_position = sb->reshape_position;
+		if (mddev->pers->update_reshape_pos)
+			mddev->pers->update_reshape_pos(mddev);
+		if (mddev->pers->start_reshape)
+			mddev->pers->start_reshape(mddev);
+	} else if (test_bit(MD_RESYNCING_REMOTE, &mddev->recovery) &&
+		   mddev->reshape_position != MaxSector &&
+		   !(le32_to_cpu(sb->feature_map) & MD_FEATURE_RESHAPE_ACTIVE)) {
+		/* reshape is just done in another node. */
+		mddev->reshape_position = MaxSector;
+		if (mddev->pers->update_reshape_pos)
+			mddev->pers->update_reshape_pos(mddev);
+	}
+
 	/* Finally set the event to be up to date */
 	mddev->events = le64_to_cpu(sb->events);
 }

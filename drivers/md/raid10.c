@@ -4605,6 +4605,32 @@ read_more:
 	r10_bio->master_bio = read_bio;
 	r10_bio->read_slot = r10_bio->devs[r10_bio->read_slot].devnum;
 
+	/*
+	 * Broadcast RESYNC message to other nodes, so all nodes would not
+	 * write to the region to avoid conflict.
+	*/
+	if (mddev_is_clustered(mddev) && conf->cluster_sync_high <= sector_nr) {
+		struct mdp_superblock_1 *sb = NULL;
+		int sb_reshape_pos = 0;
+
+		conf->cluster_sync_low = sector_nr;
+		conf->cluster_sync_high = sector_nr + CLUSTER_RESYNC_WINDOW_SECTORS;
+		sb = page_address(rdev->sb_page);
+		if (sb) {
+			sb_reshape_pos = le64_to_cpu(sb->reshape_position);
+			/*
+			 * Set cluster_sync_low again if next address for array
+			 * reshape is less than cluster_sync_low. Since we can't
+			 * update cluster_sync_low until it has finished reshape.
+			 */
+			if (sb_reshape_pos < conf->cluster_sync_low)
+				conf->cluster_sync_low = sb_reshape_pos;
+		}
+
+		md_cluster_ops->resync_info_update(mddev, conf->cluster_sync_low,
+							  conf->cluster_sync_high);
+	}
+
 	/* Now find the locations in the new layout */
 	__raid10_find_phys(&conf->geo, r10_bio);
 
@@ -4754,6 +4780,13 @@ static void end_reshape(struct r10conf *conf)
 			conf->mddev->queue->backing_dev_info->ra_pages = 2 * stripe;
 	}
 	conf->fullsync = 0;
+}
+
+static void raid10_update_reshape_pos(struct mddev *mddev)
+{
+	struct r10conf *conf = mddev->private;
+
+	conf->reshape_progress = mddev->reshape_position;
 }
 
 static int handle_reshape_read_error(struct mddev *mddev,
@@ -4924,6 +4957,7 @@ static struct md_personality raid10_personality =
 	.check_reshape	= raid10_check_reshape,
 	.start_reshape	= raid10_start_reshape,
 	.finish_reshape	= raid10_finish_reshape,
+	.update_reshape_pos = raid10_update_reshape_pos,
 	.congested	= raid10_congested,
 };
 
