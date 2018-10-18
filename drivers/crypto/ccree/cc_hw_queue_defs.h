@@ -42,6 +42,7 @@
 #define WORD3_QUEUE_LAST_IND	CC_GENMASK(3, QUEUE_LAST_IND)
 #define WORD4_ACK_NEEDED	CC_GENMASK(4, ACK_NEEDED)
 #define WORD4_AES_SEL_N_HASH	CC_GENMASK(4, AES_SEL_N_HASH)
+#define WORD4_AES_XOR_CRYPTO_KEY CC_GENMASK(4, AES_XOR_CRYPTO_KEY)
 #define WORD4_BYTES_SWAP	CC_GENMASK(4, BYTES_SWAP)
 #define WORD4_CIPHER_CONF0	CC_GENMASK(4, CIPHER_CONF0)
 #define WORD4_CIPHER_CONF1	CC_GENMASK(4, CIPHER_CONF1)
@@ -397,6 +398,16 @@ static inline void set_aes_not_hash_mode(struct cc_hw_desc *pdesc)
 }
 
 /*
+ * Set aes xor crypto key, this in some secenrios select SM3 engine
+ *
+ * @pdesc: pointer HW descriptor struct
+ */
+static inline void set_aes_xor_crypto_key(struct cc_hw_desc *pdesc)
+{
+	pdesc->word[4] |= FIELD_PREP(WORD4_AES_XOR_CRYPTO_KEY, 1);
+}
+
+/*
  * Set the DOUT field of a HW descriptors to SRAM mode
  * Note: No need to check SRAM alignment since host requests do not use SRAM and
  * adaptor will enforce alignment check.
@@ -469,6 +480,8 @@ static inline void set_hash_cipher_mode(struct cc_hw_desc *pdesc,
 					enum drv_hash_mode hash_mode)
 {
 	set_cipher_mode(pdesc, cipher_mode);
+	if (hash_mode == DRV_HASH_SM3)
+		set_aes_xor_crypto_key(pdesc);
 }
 
 /*
