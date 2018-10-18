@@ -33,13 +33,6 @@ struct dlm_lock_resource {
 	int mode;
 };
 
-struct suspend_info {
-	int slot;
-	sector_t lo;
-	sector_t hi;
-	struct list_head list;
-};
-
 struct resync_info {
 	__le64 lo;
 	__le64 hi;
@@ -80,7 +73,13 @@ struct md_cluster_info {
 	struct dlm_lock_resource **other_bitmap_lockres;
 	struct dlm_lock_resource *resync_lockres;
 	struct list_head suspend_list;
+
 	spinlock_t suspend_lock;
+	/* record the region which write should be suspended */
+	sector_t suspend_lo;
+	sector_t suspend_hi;
+	int suspend_from; /* the slot which broadcast suspend_lo/hi */
+
 	struct md_thread *recovery_thread;
 	unsigned long recovery_map;
 	/* communication loc resources */
@@ -271,25 +270,22 @@ static void add_resync_info(struct dlm_lock_resource *lockres,
 	ri->hi = cpu_to_le64(hi);
 }
 
-static struct suspend_info *read_resync_info(struct mddev *mddev, struct dlm_lock_resource *lockres)
+static int read_resync_info(struct mddev *mddev,
+			    struct dlm_lock_resource *lockres)
 {
 	struct resync_info ri;
-	struct suspend_info *s = NULL;
-	sector_t hi = 0;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	int ret = 0;
 
 	dlm_lock_sync(lockres, DLM_LOCK_CR);
 	memcpy(&ri, lockres->lksb.sb_lvbptr, sizeof(struct resync_info));
-	hi = le64_to_cpu(ri.hi);
-	if (hi > 0) {
-		s = kzalloc(sizeof(struct suspend_info), GFP_KERNEL);
-		if (!s)
-			goto out;
-		s->hi = hi;
-		s->lo = le64_to_cpu(ri.lo);
+	if (le64_to_cpu(ri.hi) > 0) {
+		cinfo->suspend_hi = le64_to_cpu(ri.hi);
+		cinfo->suspend_lo = le64_to_cpu(ri.lo);
+		ret = 1;
 	}
 	dlm_unlock_sync(lockres);
-out:
-	return s;
+	return ret;
 }
 
 static void recover_bitmaps(struct md_thread *thread)
@@ -299,7 +295,6 @@ static void recover_bitmaps(struct md_thread *thread)
 	struct dlm_lock_resource *bm_lockres;
 	char str[64];
 	int slot, ret;
-	struct suspend_info *s, *tmp;
 	sector_t lo, hi;
 
 	while (cinfo->recovery_map) {
@@ -326,11 +321,9 @@ static void recover_bitmaps(struct md_thread *thread)
 
 		/* Clear suspend_area associated with the bitmap */
 		spin_lock_irq(&cinfo->suspend_lock);
-		list_for_each_entry_safe(s, tmp, &cinfo->suspend_list, list)
-			if (slot == s->slot) {
-				list_del(&s->list);
-				kfree(s);
-			}
+		cinfo->suspend_hi = 0;
+		cinfo->suspend_lo = 0;
+		cinfo->suspend_from = -1;
 		spin_unlock_irq(&cinfo->suspend_lock);
 
 		/* Kick off a reshape if needed */
@@ -441,24 +434,13 @@ static void ack_bast(void *arg, int mode)
 	}
 }
 
-static void __remove_suspend_info(struct md_cluster_info *cinfo, int slot)
-{
-	struct suspend_info *s, *tmp;
-
-	list_for_each_entry_safe(s, tmp, &cinfo->suspend_list, list)
-		if (slot == s->slot) {
-			list_del(&s->list);
-			kfree(s);
-			break;
-		}
-}
-
 static void remove_suspend_info(struct mddev *mddev, int slot)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	mddev->pers->quiesce(mddev, 1);
 	spin_lock_irq(&cinfo->suspend_lock);
-	__remove_suspend_info(cinfo, slot);
+	cinfo->suspend_hi = 0;
+	cinfo->suspend_lo = 0;
 	spin_unlock_irq(&cinfo->suspend_lock);
 	mddev->pers->quiesce(mddev, 0);
 }
@@ -467,7 +449,6 @@ static void process_suspend_info(struct mddev *mddev,
 		int slot, sector_t lo, sector_t hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-	struct suspend_info *s;
 	struct mdp_superblock_1 *sb = NULL;
 	struct md_rdev *rdev;
 
@@ -516,17 +497,11 @@ static void process_suspend_info(struct mddev *mddev,
 	cinfo->sync_low = lo;
 	cinfo->sync_hi = hi;
 
-	s = kzalloc(sizeof(struct suspend_info), GFP_KERNEL);
-	if (!s)
-		return;
-	s->slot = slot;
-	s->lo = lo;
-	s->hi = hi;
 	mddev->pers->quiesce(mddev, 1);
 	spin_lock_irq(&cinfo->suspend_lock);
-	/* Remove existing entry (if exists) before adding */
-	__remove_suspend_info(cinfo, slot);
-	list_add(&s->list, &cinfo->suspend_list);
+	cinfo->suspend_from = slot;
+	cinfo->suspend_lo = lo;
+	cinfo->suspend_hi = hi;
 	spin_unlock_irq(&cinfo->suspend_lock);
 	mddev->pers->quiesce(mddev, 0);
 }
@@ -825,7 +800,6 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	int i, ret = 0;
 	struct dlm_lock_resource *bm_lockres;
-	struct suspend_info *s;
 	char str[64];
 	sector_t lo, hi;
 
@@ -844,16 +818,13 @@ static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 		bm_lockres->flags |= DLM_LKF_NOQUEUE;
 		ret = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
 		if (ret == -EAGAIN) {
-			s = read_resync_info(mddev, bm_lockres);
-			if (s) {
+			if (read_resync_info(mddev, bm_lockres)) {
 				pr_info("%s:%d Resync[%llu..%llu] in progress on %d\n",
 						__func__, __LINE__,
-						(unsigned long long) s->lo,
-						(unsigned long long) s->hi, i);
-				spin_lock_irq(&cinfo->suspend_lock);
-				s->slot = i;
-				list_add(&s->list, &cinfo->suspend_list);
-				spin_unlock_irq(&cinfo->suspend_lock);
+					(unsigned long long) cinfo->suspend_lo,
+					(unsigned long long) cinfo->suspend_hi,
+					i);
+				cinfo->suspend_from = i;
 			}
 			ret = 0;
 			lockres_free(bm_lockres);
@@ -1352,13 +1323,10 @@ static int resync_start(struct mddev *mddev)
 static void resync_info_get(struct mddev *mddev, sector_t *lo, sector_t *hi)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
-	struct suspend_info *s;
 
 	spin_lock_irq(&cinfo->suspend_lock);
-	list_for_each_entry(s, &cinfo->suspend_list, list) {
-		*lo = s->lo;
-		*hi = s->hi;
-	}
+	*lo = cinfo->suspend_lo;
+	*hi = cinfo->suspend_hi;
 	spin_unlock_irq(&cinfo->suspend_lock);
 }
 
@@ -1414,21 +1382,14 @@ static int area_resyncing(struct mddev *mddev, int direction,
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 	int ret = 0;
-	struct suspend_info *s;
 
 	if ((direction == READ) &&
 		test_bit(MD_CLUSTER_SUSPEND_READ_BALANCING, &cinfo->state))
 		return 1;
 
 	spin_lock_irq(&cinfo->suspend_lock);
-	if (list_empty(&cinfo->suspend_list))
-		goto out;
-	list_for_each_entry(s, &cinfo->suspend_list, list)
-		if (hi > s->lo && lo < s->hi) {
-			ret = 1;
-			break;
-		}
-out:
+	if (hi > cinfo->suspend_lo && lo < cinfo->suspend_hi)
+		ret = 1;
 	spin_unlock_irq(&cinfo->suspend_lock);
 	return ret;
 }
