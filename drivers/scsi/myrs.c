@@ -1978,7 +1978,8 @@ myrs_get_resync(struct device *dev)
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct myrs_hba *cs = shost_priv(sdev->host);
 	struct myrs_ldev_info *ldev_info = sdev->hostdata;
-	u8 percent_complete = 0, status;
+	u64 percent_complete = 0;
+	u8 status;
 
 	if (sdev->channel < cs->ctlr_info->physchan_present || !ldev_info)
 		return;
@@ -1986,8 +1987,8 @@ myrs_get_resync(struct device *dev)
 		unsigned short ldev_num = ldev_info->ldev_num;
 
 		status = myrs_get_ldev_info(cs, ldev_num, ldev_info);
-		percent_complete = ldev_info->rbld_lba * 100 /
-			ldev_info->cfg_devsize;
+		percent_complete = ldev_info->rbld_lba * 100;
+		do_div(percent_complete, ldev_info->cfg_devsize);
 	}
 	raid_set_resync(myrs_raid_template, dev, percent_complete);
 }
