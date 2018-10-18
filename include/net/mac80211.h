@@ -3239,6 +3239,11 @@ enum ieee80211_reconfig_type {
  *	When the scan finishes, ieee80211_scan_completed() must be called;
  *	note that it also must be called when the scan cannot finish due to
  *	any error unless this callback returned a negative error code.
+ *	This callback is also allowed to return the special return value 1,
+ *	this indicates that hardware scan isn't desirable right now and a
+ *	software scan should be done instead. A driver wishing to use this
+ *	capability must ensure its (hardware) scan capabilities aren't
+ *	advertised as more capable than mac80211's software scan is.
  *	The callback can sleep.
  *
  * @cancel_hw_scan: Ask the low-level tp cancel the active hw scan.
