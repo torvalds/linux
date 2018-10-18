@@ -355,12 +355,11 @@ cont:
 
 static void nft_rbtree_gc(struct work_struct *work)
 {
+	struct nft_rbtree_elem *rbe, *rbe_end = NULL, *rbe_prev = NULL;
 	struct nft_set_gc_batch *gcb = NULL;
-	struct rb_node *node, *prev = NULL;
-	struct nft_rbtree_elem *rbe;
 	struct nft_rbtree *priv;
+	struct rb_node *node;
 	struct nft_set *set;
-	int i;
 
 	priv = container_of(work, struct nft_rbtree, gc_work.work);
 	set  = nft_set_container_of(priv);
@@ -371,7 +370,7 @@ static void nft_rbtree_gc(struct work_struct *work)
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
 
 		if (nft_rbtree_interval_end(rbe)) {
-			prev = node;
+			rbe_end = rbe;
 			continue;
 		}
 		if (!nft_set_elem_expired(&rbe->ext))
@@ -379,29 +378,30 @@ static void nft_rbtree_gc(struct work_struct *work)
 		if (nft_set_elem_mark_busy(&rbe->ext))
 			continue;
 
+		if (rbe_prev) {
+			rb_erase(&rbe_prev->node, &priv->root);
+			rbe_prev = NULL;
+		}
 		gcb = nft_set_gc_batch_check(set, gcb, GFP_ATOMIC);
 		if (!gcb)
 			break;
 
 		atomic_dec(&set->nelems);
 		nft_set_gc_batch_add(gcb, rbe);
+		rbe_prev = rbe;
 
-		if (prev) {
-			rbe = rb_entry(prev, struct nft_rbtree_elem, node);
+		if (rbe_end) {
 			atomic_dec(&set->nelems);
-			nft_set_gc_batch_add(gcb, rbe);
-			prev = NULL;
+			nft_set_gc_batch_add(gcb, rbe_end);
+			rb_erase(&rbe_end->node, &priv->root);
+			rbe_end = NULL;
 		}
 		node = rb_next(node);
 		if (!node)
 			break;
 	}
-	if (gcb) {
-		for (i = 0; i < gcb->head.cnt; i++) {
-			rbe = gcb->elems[i];
-			rb_erase(&rbe->node, &priv->root);
-		}
-	}
+	if (rbe_prev)
+		rb_erase(&rbe_prev->node, &priv->root);
 	write_seqcount_end(&priv->count);
 	write_unlock_bh(&priv->lock);
 

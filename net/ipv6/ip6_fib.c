@@ -196,6 +196,8 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 				*ppcpu_rt = NULL;
 			}
 		}
+
+		free_percpu(f6i->rt6i_pcpu);
 	}
 
 	lwtstate_put(f6i->fib6_nh.nh_lwtstate);

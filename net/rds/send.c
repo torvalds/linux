@@ -1007,7 +1007,8 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 	return ret;
 }
 
-static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
+static int rds_send_mprds_hash(struct rds_sock *rs,
+			       struct rds_connection *conn, int nonblock)
 {
 	int hash;
 
@@ -1023,10 +1024,16 @@ static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
 		 * used.  But if we are interrupted, we have to use the zero
 		 * c_path in case the connection ends up being non-MP capable.
 		 */
-		if (conn->c_npaths == 0)
+		if (conn->c_npaths == 0) {
+			/* Cannot wait for the connection be made, so just use
+			 * the base c_path.
+			 */
+			if (nonblock)
+				return 0;
 			if (wait_event_interruptible(conn->c_hs_waitq,
 						     conn->c_npaths != 0))
 				hash = 0;
+		}
 		if (conn->c_npaths == 1)
 			hash = 0;
 	}
@@ -1256,7 +1263,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	}
 
 	if (conn->c_trans->t_mp_capable)
-		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn)];
+		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn, nonblock)];
 	else
 		cpath = &conn->c_path[0];
 

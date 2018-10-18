@@ -2337,8 +2337,8 @@ late_initcall(ubifs_init);
 
 static void __exit ubifs_exit(void)
 {
-	WARN_ON(list_empty(&ubifs_infos));
-	WARN_ON(atomic_long_read(&ubifs_clean_zn_cnt) == 0);
+	WARN_ON(!list_empty(&ubifs_infos));
+	WARN_ON(atomic_long_read(&ubifs_clean_zn_cnt) != 0);
 
 	dbg_debugfs_exit();
 	ubifs_compressors_exit();

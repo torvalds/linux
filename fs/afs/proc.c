@@ -33,9 +33,8 @@ static inline struct afs_net *afs_seq2net_single(struct seq_file *m)
 static int afs_proc_cells_show(struct seq_file *m, void *v)
 {
 	struct afs_cell *cell = list_entry(v, struct afs_cell, proc_link);
-	struct afs_net *net = afs_seq2net(m);
 
-	if (v == &net->proc_cells) {
+	if (v == SEQ_START_TOKEN) {
 		/* display header on line 1 */
 		seq_puts(m, "USE NAME\n");
 		return 0;
@@ -50,12 +49,12 @@ static void *afs_proc_cells_start(struct seq_file *m, loff_t *_pos)
 	__acquires(rcu)
 {
 	rcu_read_lock();
-	return seq_list_start_head(&afs_seq2net(m)->proc_cells, *_pos);
+	return seq_hlist_start_head_rcu(&afs_seq2net(m)->proc_cells, *_pos);
 }
 
 static void *afs_proc_cells_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	return seq_list_next(v, &afs_seq2net(m)->proc_cells, pos);
+	return seq_hlist_next_rcu(v, &afs_seq2net(m)->proc_cells, pos);
 }
 
 static void afs_proc_cells_stop(struct seq_file *m, void *v)

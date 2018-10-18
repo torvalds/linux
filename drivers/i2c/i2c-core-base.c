@@ -2270,7 +2270,7 @@ EXPORT_SYMBOL(i2c_put_adapter);
  *
  * Return: NULL if a DMA safe buffer was not obtained. Use msg->buf with PIO.
  *	   Or a valid pointer to be used with DMA. After use, release it by
- *	   calling i2c_release_dma_safe_msg_buf().
+ *	   calling i2c_put_dma_safe_msg_buf().
  *
  * This function must only be called from process context!
  */
