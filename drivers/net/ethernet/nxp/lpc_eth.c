@@ -1244,7 +1244,6 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev;
 	struct netdata_local *pldat;
-	struct phy_device *phydev;
 	dma_addr_t dma_handle;
 	int irq, ret;
 	u32 tmp;
@@ -1409,8 +1408,6 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 
 	netdev_info(ndev, "LPC mac at 0x%08x irq %d\n",
 	       res->start, ndev->irq);
-
-	phydev = ndev->phydev;
 
 	device_init_wakeup(&pdev->dev, 1);
 	device_set_wakeup_enable(&pdev->dev, 0);
