@@ -141,6 +141,8 @@
 			 <&cru SCLK_USB3_OTG0_SUSPEND>;
 		clock-names = "ref_clk", "bus_clk",
 			      "suspend_clk";
+		assigned-clocks = <&cru SCLK_USB3_OTG0_SUSPEND>;
+		assigned-clock-rates = <24000000>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
