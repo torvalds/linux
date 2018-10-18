@@ -1521,6 +1521,16 @@
 			};
 		};
 
+		i2c2m1 {
+			i2c2m1_xfer: i2c2m1-xfer {
+				rockchip,pins =
+					/* i2c2m1_sda */
+					<1 RK_PB5 2 &pcfg_pull_none_smt>,
+					/* i2c2m1_scl */
+					<1 RK_PB4 2 &pcfg_pull_none_smt>;
+			};
+		};
+
 		i2c3 {
 			i2c3_xfer: i2c3-xfer {
 				rockchip,pins =
