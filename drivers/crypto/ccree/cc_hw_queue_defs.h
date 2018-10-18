@@ -458,6 +458,20 @@ static inline void set_cipher_mode(struct cc_hw_desc *pdesc, int mode)
 }
 
 /*
+ * Set the cipher mode for hash algorithms.
+ *
+ * @pdesc: pointer HW descriptor struct
+ * @cipher_mode:  Any one of the modes defined in [CC7x-DESC]
+ * @hash_mode: specifies which hash is being handled
+ */
+static inline void set_hash_cipher_mode(struct cc_hw_desc *pdesc,
+					enum drv_cipher_mode cipher_mode,
+					enum drv_hash_mode hash_mode)
+{
+	set_cipher_mode(pdesc, cipher_mode);
+}
+
+/*
  * Set the cipher configuration fields.
  *
  * @pdesc: pointer HW descriptor struct

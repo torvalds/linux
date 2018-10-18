@@ -322,7 +322,7 @@ static int cc_fin_result(struct cc_hw_desc *desc, struct ahash_request *req,
 
 	/* Get final MAC result */
 	hw_desc_init(&desc[idx]);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 	/* TODO */
 	set_dout_dlli(&desc[idx], state->digest_result_dma_addr, digestsize,
 		      NS_BIT, 1);
@@ -441,7 +441,7 @@ static int cc_hash_digest(struct ahash_request *req)
 	 * digest
 	 */
 	hw_desc_init(&desc[idx]);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 	if (is_hmac) {
 		set_din_type(&desc[idx], DMA_DLLI, state->digest_buff_dma_addr,
 			     ctx->inter_digestsize, NS_BIT);
@@ -455,7 +455,7 @@ static int cc_hash_digest(struct ahash_request *req)
 
 	/* Load the hash current length */
 	hw_desc_init(&desc[idx]);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 
 	if (is_hmac) {
 		set_din_type(&desc[idx], DMA_DLLI,
@@ -505,7 +505,7 @@ static int cc_restore_hash(struct cc_hw_desc *desc, struct cc_hash_ctx *ctx,
 {
 	/* Restore hash digest */
 	hw_desc_init(&desc[idx]);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 	set_din_type(&desc[idx], DMA_DLLI, state->digest_buff_dma_addr,
 		     ctx->inter_digestsize, NS_BIT);
 	set_flow_mode(&desc[idx], S_DIN_to_HASH);
@@ -514,7 +514,7 @@ static int cc_restore_hash(struct cc_hw_desc *desc, struct cc_hash_ctx *ctx,
 
 	/* Restore hash current length */
 	hw_desc_init(&desc[idx]);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 	set_cipher_config1(&desc[idx], HASH_PADDING_DISABLED);
 	set_din_type(&desc[idx], DMA_DLLI, state->digest_bytes_len_dma_addr,
 		     ctx->hash_len, NS_BIT);
@@ -577,7 +577,7 @@ static int cc_hash_update(struct ahash_request *req)
 
 	/* store the hash digest result in context */
 	hw_desc_init(&desc[idx]);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 	set_dout_dlli(&desc[idx], state->digest_buff_dma_addr,
 		      ctx->inter_digestsize, NS_BIT, 0);
 	set_flow_mode(&desc[idx], S_HASH_to_DOUT);
@@ -586,7 +586,7 @@ static int cc_hash_update(struct ahash_request *req)
 
 	/* store current hash length in context */
 	hw_desc_init(&desc[idx]);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 	set_dout_dlli(&desc[idx], state->digest_bytes_len_dma_addr,
 		      ctx->hash_len, NS_BIT, 1);
 	set_queue_last_ind(ctx->drvdata, &desc[idx]);
@@ -650,7 +650,7 @@ static int cc_do_finup(struct ahash_request *req, bool update)
 	/* Pad the hash */
 	hw_desc_init(&desc[idx]);
 	set_cipher_do(&desc[idx], DO_PAD);
-	set_cipher_mode(&desc[idx], ctx->hw_mode);
+	set_hash_cipher_mode(&desc[idx], ctx->hw_mode, ctx->hash_mode);
 	set_dout_dlli(&desc[idx], state->digest_bytes_len_dma_addr,
 		      ctx->hash_len, NS_BIT, 0);
 	set_setup_mode(&desc[idx], SETUP_WRITE_STATE1);
@@ -2035,7 +2035,7 @@ static void cc_setup_xcbc(struct ahash_request *areq, struct cc_hw_desc desc[],
 					    XCBC_MAC_K1_OFFSET),
 		     CC_AES_128_BIT_KEY_SIZE, NS_BIT);
 	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
-	set_cipher_mode(&desc[idx], DRV_CIPHER_XCBC_MAC);
+	set_hash_cipher_mode(&desc[idx], DRV_CIPHER_XCBC_MAC, ctx->hash_mode);
 	set_cipher_config0(&desc[idx], DESC_DIRECTION_ENCRYPT_ENCRYPT);
 	set_key_size_aes(&desc[idx], CC_AES_128_BIT_KEY_SIZE);
 	set_flow_mode(&desc[idx], S_DIN_to_AES);
