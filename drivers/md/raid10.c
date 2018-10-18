@@ -25,6 +25,7 @@
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
 #include <linux/kthread.h>
+#include <linux/raid/md_p.h>
 #include <trace/events/block.h>
 #include "md.h"
 #include "raid10.h"
@@ -4288,12 +4289,46 @@ static int raid10_start_reshape(struct mddev *mddev)
 	spin_unlock_irq(&conf->device_lock);
 
 	if (mddev->delta_disks && mddev->bitmap) {
-		ret = md_bitmap_resize(mddev->bitmap,
-				       raid10_size(mddev, 0, conf->geo.raid_disks),
-				       0, 0);
+		struct mdp_superblock_1 *sb = NULL;
+		sector_t oldsize, newsize;
+
+		oldsize = raid10_size(mddev, 0, 0);
+		newsize = raid10_size(mddev, 0, conf->geo.raid_disks);
+
+		if (!mddev_is_clustered(mddev)) {
+			ret = md_bitmap_resize(mddev->bitmap, newsize, 0, 0);
+			if (ret)
+				goto abort;
+			else
+				goto out;
+		}
+
+		rdev_for_each(rdev, mddev) {
+			if (rdev->raid_disk > -1 &&
+			    !test_bit(Faulty, &rdev->flags))
+				sb = page_address(rdev->sb_page);
+		}
+
+		/*
+		 * some node is already performing reshape, and no need to
+		 * call md_bitmap_resize again since it should be called when
+		 * receiving BITMAP_RESIZE msg
+		 */
+		if ((sb && (le32_to_cpu(sb->feature_map) &
+			    MD_FEATURE_RESHAPE_ACTIVE)) || (oldsize == newsize))
+			goto out;
+
+		ret = md_bitmap_resize(mddev->bitmap, newsize, 0, 0);
 		if (ret)
 			goto abort;
+
+		ret = md_cluster_ops->resize_bitmaps(mddev, newsize, oldsize);
+		if (ret) {
+			md_bitmap_resize(mddev->bitmap, oldsize, 0, 0);
+			goto abort;
+		}
 	}
+out:
 	if (mddev->delta_disks > 0) {
 		rdev_for_each(rdev, mddev)
 			if (rdev->raid_disk < 0 &&

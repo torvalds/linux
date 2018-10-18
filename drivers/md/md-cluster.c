@@ -105,6 +105,7 @@ enum msg_type {
 	RE_ADD,
 	BITMAP_NEEDS_SYNC,
 	CHANGE_CAPACITY,
+	BITMAP_RESIZE,
 };
 
 struct cluster_msg {
@@ -612,6 +613,11 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	case BITMAP_NEEDS_SYNC:
 		__recover_slot(mddev, le32_to_cpu(msg->slot));
 		break;
+	case BITMAP_RESIZE:
+		if (le64_to_cpu(msg->high) != mddev->pers->size(mddev, 0, 0))
+			ret = md_bitmap_resize(mddev->bitmap,
+					    le64_to_cpu(msg->high), 0, 0);
+		break;
 	default:
 		ret = -1;
 		pr_warn("%s:%d Received unknown message from %d\n",
@@ -1102,6 +1108,80 @@ static void metadata_update_cancel(struct mddev *mddev)
 	unlock_comm(cinfo);
 }
 
+static int update_bitmap_size(struct mddev *mddev, sector_t size)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg = {0};
+	int ret;
+
+	cmsg.type = cpu_to_le32(BITMAP_RESIZE);
+	cmsg.high = cpu_to_le64(size);
+	ret = sendmsg(cinfo, &cmsg, 0);
+	if (ret)
+		pr_err("%s:%d: failed to send BITMAP_RESIZE message (%d)\n",
+			__func__, __LINE__, ret);
+	return ret;
+}
+
+static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsize)
+{
+	struct bitmap_counts *counts;
+	char str[64];
+	struct dlm_lock_resource *bm_lockres;
+	struct bitmap *bitmap = mddev->bitmap;
+	unsigned long my_pages = bitmap->counts.pages;
+	int i, rv;
+
+	/*
+	 * We need to ensure all the nodes can grow to a larger
+	 * bitmap size before make the reshaping.
+	 */
+	rv = update_bitmap_size(mddev, newsize);
+	if (rv)
+		return rv;
+
+	for (i = 0; i < mddev->bitmap_info.nodes; i++) {
+		if (i == md_cluster_ops->slot_number(mddev))
+			continue;
+
+		bitmap = get_bitmap_from_slot(mddev, i);
+		if (IS_ERR(bitmap)) {
+			pr_err("can't get bitmap from slot %d\n", i);
+			goto out;
+		}
+		counts = &bitmap->counts;
+
+		/*
+		 * If we can hold the bitmap lock of one node then
+		 * the slot is not occupied, update the pages.
+		 */
+		snprintf(str, 64, "bitmap%04d", i);
+		bm_lockres = lockres_init(mddev, str, NULL, 1);
+		if (!bm_lockres) {
+			pr_err("Cannot initialize %s lock\n", str);
+			goto out;
+		}
+		bm_lockres->flags |= DLM_LKF_NOQUEUE;
+		rv = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
+		if (!rv)
+			counts->pages = my_pages;
+		lockres_free(bm_lockres);
+
+		if (my_pages != counts->pages)
+			/*
+			 * Let's revert the bitmap size if one node
+			 * can't resize bitmap
+			 */
+			goto out;
+	}
+
+	return 0;
+out:
+	md_bitmap_free(bitmap);
+	update_bitmap_size(mddev, oldsize);
+	return -1;
+}
+
 /*
  * return 0 if all the bitmaps have the same sync_size
  */
@@ -1492,6 +1572,7 @@ static struct md_cluster_operations cluster_ops = {
 	.remove_disk = remove_disk,
 	.load_bitmaps = load_bitmaps,
 	.gather_bitmaps = gather_bitmaps,
+	.resize_bitmaps = resize_bitmaps,
 	.lock_all_bitmaps = lock_all_bitmaps,
 	.unlock_all_bitmaps = unlock_all_bitmaps,
 	.update_size = update_size,

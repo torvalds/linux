@@ -26,6 +26,7 @@ struct md_cluster_operations {
 	int (*remove_disk)(struct mddev *mddev, struct md_rdev *rdev);
 	void (*load_bitmaps)(struct mddev *mddev, int total_slots);
 	int (*gather_bitmaps)(struct md_rdev *rdev);
+	int (*resize_bitmaps)(struct mddev *mddev, sector_t newsize, sector_t oldsize);
 	int (*lock_all_bitmaps)(struct mddev *mddev);
 	void (*unlock_all_bitmaps)(struct mddev *mddev);
 	void (*update_size)(struct mddev *mddev, sector_t old_dev_sectors);
