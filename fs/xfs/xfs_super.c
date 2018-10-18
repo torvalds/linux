@@ -43,6 +43,7 @@
 #include <linux/dax.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/magic.h>
 #include <linux/mount.h>
 #include <linux/mempool.h>
 #include <linux/writeback.h>
@@ -1128,7 +1129,7 @@ xfs_fs_statfs(
 	xfs_extlen_t		lsize;
 	int64_t			ffree;
 
-	statp->f_type = XFS_SB_MAGIC;
+	statp->f_type = XFS_SUPER_MAGIC;
 	statp->f_namelen = MAXNAMELEN - 1;
 
 	id = huge_encode_dev(mp->m_ddev_targp->bt_dev);
@@ -1681,7 +1682,7 @@ xfs_fs_fill_super(
 	 * we must configure the block size in the superblock before we run the
 	 * full mount process as the mount process can lookup and cache inodes.
 	 */
-	sb->s_magic = XFS_SB_MAGIC;
+	sb->s_magic = XFS_SUPER_MAGIC;
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
 	sb->s_blocksize_bits = ffs(sb->s_blocksize) - 1;
 	sb->s_maxbytes = xfs_max_file_offset(sb->s_blocksize_bits);
