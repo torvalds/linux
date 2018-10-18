@@ -2624,7 +2624,7 @@ qlafx00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
  * qlafx00_multistatus_entry() - Process Multi response queue entries.
  * @vha: SCSI driver HA context
  * @rsp: response queue
- * @pkt:
+ * @pkt: received packet
  */
 static void
 qlafx00_multistatus_entry(struct scsi_qla_host *vha,
@@ -2867,7 +2867,7 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 /**
  * qlafx00x_mbx_completion() - Process mailbox command completions.
  * @vha: SCSI driver HA context
- * @mb0:
+ * @mb0: value to be written into mailbox register 0
  */
 static void
 qlafx00_mbx_completion(scsi_qla_host_t *vha, uint32_t mb0)
@@ -2893,7 +2893,7 @@ qlafx00_mbx_completion(scsi_qla_host_t *vha, uint32_t mb0)
 
 /**
  * qlafx00_intr_handler() - Process interrupts for the ISPFX00.
- * @irq:
+ * @irq: interrupt number
  * @dev_id: SCSI driver HA context
  *
  * Called by system whenever the host adapter generates an interrupt.
