@@ -738,14 +738,14 @@ fail:
  * Operations that change overlay inode and upper inode nlink need to be
  * synchronized with copy up for persistent nlink accounting.
  */
-int ovl_nlink_start(struct dentry *dentry, bool *locked)
+int ovl_nlink_start(struct dentry *dentry)
 {
 	struct ovl_inode *oi = OVL_I(d_inode(dentry));
 	const struct cred *old_cred;
 	int err;
 
-	if (!d_inode(dentry))
-		return 0;
+	if (WARN_ON(!d_inode(dentry)))
+		return -ENOENT;
 
 	/*
 	 * With inodes index is enabled, we store the union overlay nlink
@@ -787,26 +787,22 @@ int ovl_nlink_start(struct dentry *dentry, bool *locked)
 out:
 	if (err)
 		mutex_unlock(&oi->lock);
-	else
-		*locked = true;
 
 	return err;
 }
 
-void ovl_nlink_end(struct dentry *dentry, bool locked)
+void ovl_nlink_end(struct dentry *dentry)
 {
-	if (locked) {
-		if (ovl_test_flag(OVL_INDEX, d_inode(dentry)) &&
-		    d_inode(dentry)->i_nlink == 0) {
-			const struct cred *old_cred;
+	if (ovl_test_flag(OVL_INDEX, d_inode(dentry)) &&
+	    d_inode(dentry)->i_nlink == 0) {
+		const struct cred *old_cred;
 
-			old_cred = ovl_override_creds(dentry->d_sb);
-			ovl_cleanup_index(dentry);
-			revert_creds(old_cred);
-		}
-
-		mutex_unlock(&OVL_I(d_inode(dentry))->lock);
+		old_cred = ovl_override_creds(dentry->d_sb);
+		ovl_cleanup_index(dentry);
+		revert_creds(old_cred);
 	}
+
+	mutex_unlock(&OVL_I(d_inode(dentry))->lock);
 }
 
 int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir)
