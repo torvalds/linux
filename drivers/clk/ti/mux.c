@@ -91,10 +91,39 @@ static int ti_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
+/**
+ * clk_mux_save_context - Save the parent selcted in the mux
+ * @hw: pointer  struct clk_hw
+ *
+ * Save the parent mux value.
+ */
+static int clk_mux_save_context(struct clk_hw *hw)
+{
+	struct clk_omap_mux *mux = to_clk_omap_mux(hw);
+
+	mux->saved_parent = ti_clk_mux_get_parent(hw);
+	return 0;
+}
+
+/**
+ * clk_mux_restore_context - Restore the parent in the mux
+ * @hw: pointer  struct clk_hw
+ *
+ * Restore the saved parent mux value.
+ */
+static void clk_mux_restore_context(struct clk_hw *hw)
+{
+	struct clk_omap_mux *mux = to_clk_omap_mux(hw);
+
+	ti_clk_mux_set_parent(hw, mux->saved_parent);
+}
+
 const struct clk_ops ti_clk_mux_ops = {
 	.get_parent = ti_clk_mux_get_parent,
 	.set_parent = ti_clk_mux_set_parent,
 	.determine_rate = __clk_mux_determine_rate,
+	.save_context = clk_mux_save_context,
+	.restore_context = clk_mux_restore_context,
 };
 
 static struct clk *_register_mux(struct device *dev, const char *name,
