@@ -151,6 +151,9 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	struct sof_ipc_reply ipc_reply;
 	int ret;
 
+	if (sdev->dtrace_is_enabled)
+		return;
+
 	/* set IPC parameters */
 	params.hdr.size = sizeof(params);
 	params.hdr.cmd = SOF_IPC_GLB_TRACE_MSG | SOF_IPC_TRACE_DMA_PARAMS;
@@ -289,7 +292,15 @@ void snd_sof_release_trace(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev,
 			"error: fail in snd_sof_dma_trace_release %d\n", ret);
 
+	sdev->dtrace_is_enabled = false;
+}
+EXPORT_SYMBOL(snd_sof_release_trace);
+
+void snd_sof_free_trace(struct snd_sof_dev *sdev)
+{
+	snd_sof_release_trace(sdev);
+
 	snd_dma_free_pages(&sdev->dmatb);
 	snd_dma_free_pages(&sdev->dmatp);
 }
-EXPORT_SYMBOL(snd_sof_release_trace);
+EXPORT_SYMBOL(snd_sof_free_trace);

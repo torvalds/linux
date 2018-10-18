@@ -286,8 +286,8 @@ static int sof_resume(struct device *dev, int runtime_resume)
 		return ret;
 	}
 
-	/* init DMA trace */
-	ret = snd_sof_init_trace(sdev);
+	/* resume DMA trace, only need send ipc */
+	ret = snd_sof_init_trace_ipc(sdev);
 	if (ret < 0) {
 		/* non fatal */
 		dev_warn(sdev->dev,
