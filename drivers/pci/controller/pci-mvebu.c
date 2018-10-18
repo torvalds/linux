@@ -111,11 +111,6 @@ struct mvebu_sw_pci_bridge {
 	u8 intline;
 	u8 intpin;
 	u16 bridgectrl;
-
-	/* PCI express capability */
-	u32 pcie_sltcap;
-	u16 pcie_devctl;
-	u16 pcie_rtctl;
 };
 
 struct mvebu_pcie_port;
@@ -588,7 +583,6 @@ static int mvebu_sw_pci_bridge_read(struct mvebu_pcie_port *port,
 		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_DEVCTL) &
 				 ~(PCI_EXP_DEVCTL_URRE | PCI_EXP_DEVCTL_FERE |
 				   PCI_EXP_DEVCTL_NFERE | PCI_EXP_DEVCTL_CERE);
-		*value |= bridge->pcie_devctl;
 		break;
 
 	case PCISWCAP_EXP_LNKCAP:
@@ -604,16 +598,8 @@ static int mvebu_sw_pci_bridge_read(struct mvebu_pcie_port *port,
 		*value = mvebu_readl(port, PCIE_CAP_PCIEXP + PCI_EXP_LNKCTL);
 		break;
 
-	case PCISWCAP_EXP_SLTCAP:
-		*value = bridge->pcie_sltcap;
-		break;
-
 	case PCISWCAP_EXP_SLTCTL:
 		*value = PCI_EXP_SLTSTA_PDS << 16;
-		break;
-
-	case PCISWCAP_EXP_RTCTL:
-		*value = bridge->pcie_rtctl;
 		break;
 
 	case PCISWCAP_EXP_RTSTA:
