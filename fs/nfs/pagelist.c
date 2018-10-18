@@ -1174,10 +1174,6 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	return 1;
 
 out_failed:
-	/* remember fatal errors */
-	if (nfs_error_is_fatal(desc->pg_error))
-		nfs_context_set_write_error(req->wb_context,
-						desc->pg_error);
 	nfs_pageio_error_cleanup(desc);
 	return 0;
 }
