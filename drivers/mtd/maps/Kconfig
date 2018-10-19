@@ -66,8 +66,8 @@ config MTD_PHYSMAP_BANKWIDTH
 	  used internally by the CFI drivers.
 
 config MTD_PHYSMAP_OF
-	tristate "Memory device in physical memory map based on OF description"
-	depends on OF && (MTD_CFI || MTD_JEDECPROBE || MTD_ROM || MTD_RAM)
+	bool "Memory device in physical memory map based on OF description"
+	depends on OF && MTD_PHYSMAP
 	help
 	  This provides a 'mapping' driver which allows the NOR Flash, ROM
 	  and RAM driver code to communicate with chips which are mapped

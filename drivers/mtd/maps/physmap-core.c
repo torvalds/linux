@@ -6,6 +6,13 @@
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  *
  * 031022 - [jsun] add run-time configure and partition setup
+ *
+ * Device tree support:
+ *    Copyright (C) 2006 MontaVista Software Inc.
+ *    Author: Vitaly Wool <vwool@ru.mvista.com>
+ *
+ *    Revised to handle newer style flash binding by:
+ *    Copyright (C) 2007 David Gibson, IBM Corporation.
  */
 
 #include <linux/module.h>
@@ -20,7 +27,12 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/concat.h>
+#include <linux/mtd/cfi_endian.h>
 #include <linux/io.h>
+#include <linux/of_device.h>
+
+#include "physmap_of_gemini.h"
+#include "physmap_of_versatile.h"
 
 struct physmap_flash_info {
 	unsigned int		nmaps;
@@ -29,6 +41,10 @@ struct physmap_flash_info {
 	struct map_info		*maps;
 	spinlock_t		vpp_lock;
 	int			vpp_refcnt;
+	const char		*probe_type;
+	const char * const	*part_types;
+	unsigned int		nparts;
+	const struct mtd_partition *parts;
 };
 
 static int physmap_flash_remove(struct platform_device *dev)
@@ -40,8 +56,6 @@ static int physmap_flash_remove(struct platform_device *dev)
 	info = platform_get_drvdata(dev);
 	if (!info)
 		return 0;
-
-	physmap_data = dev_get_platdata(&dev->dev);
 
 	if (info->cmtd) {
 		err = mtd_device_unregister(info->cmtd);
@@ -57,7 +71,8 @@ static int physmap_flash_remove(struct platform_device *dev)
 			map_destroy(info->mtds[i]);
 	}
 
-	if (physmap_data->exit)
+	physmap_data = dev_get_platdata(&dev->dev);
+	if (physmap_data && physmap_data->exit)
 		physmap_data->exit(dev);
 
 	return 0;
@@ -89,6 +104,172 @@ static void physmap_set_vpp(struct map_info *map, int state)
 	spin_unlock_irqrestore(&info->vpp_lock, flags);
 }
 
+#if IS_ENABLED(CONFIG_MTD_PHYSMAP_OF)
+static const struct of_device_id of_flash_match[] = {
+	{
+		.compatible = "cfi-flash",
+		.data = "cfi_probe",
+	},
+	{
+		/*
+		 * FIXME: JEDEC chips can't be safely and reliably
+		 * probed, although the mtd code gets it right in
+		 * practice most of the time.  We should use the
+		 * vendor and device ids specified by the binding to
+		 * bypass the heuristic probe code, but the mtd layer
+		 * provides, at present, no interface for doing so
+		 * :(.
+		 */
+		.compatible = "jedec-flash",
+		.data = "jedec_probe",
+	},
+	{
+		.compatible = "mtd-ram",
+		.data = "map_ram",
+	},
+	{
+		.compatible = "mtd-rom",
+		.data = "map_rom",
+	},
+	{
+		.type = "rom",
+		.compatible = "direct-mapped"
+	},
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, of_flash_match);
+
+static const char * const of_default_part_probes[] = {
+	"cmdlinepart", "RedBoot", "ofpart", "ofoldpart", NULL
+};
+
+static const char * const *of_get_part_probes(struct platform_device *dev)
+{
+	struct device_node *dp = dev->dev.of_node;
+	const char **res;
+	int count;
+
+	count = of_property_count_strings(dp, "linux,part-probe");
+	if (count < 0)
+		return of_default_part_probes;
+
+	res = devm_kcalloc(&dev->dev, count + 1, sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return NULL;
+
+	count = of_property_read_string_array(dp, "linux,part-probe", res,
+					      count);
+	if (count < 0)
+		return NULL;
+
+	return res;
+}
+
+static const char *of_select_probe_type(struct platform_device *dev)
+{
+	struct device_node *dp = dev->dev.of_node;
+	const struct of_device_id *match;
+	const char *probe_type;
+
+	match = of_match_device(of_flash_match, &dev->dev);
+	probe_type = match->data;
+	if (probe_type)
+		return probe_type;
+
+	dev_warn(&dev->dev,
+		 "Device tree uses obsolete \"direct-mapped\" flash binding\n");
+
+	of_property_read_string(dp, "probe-type", &probe_type);
+	if (!probe_type)
+		return NULL;
+
+	if (!strcmp(probe_type, "CFI")) {
+		probe_type = "cfi_probe";
+	} else if (!strcmp(probe_type, "JEDEC")) {
+		probe_type = "jedec_probe";
+	} else if (!strcmp(probe_type, "ROM")) {
+		probe_type = "map_rom";
+	} else {
+		dev_warn(&dev->dev,
+			 "obsolete_probe: don't know probe type '%s', mapping as rom\n",
+			 probe_type);
+		probe_type = "map_rom";
+	}
+
+	return probe_type;
+}
+
+static int physmap_flash_of_init(struct platform_device *dev)
+{
+	struct physmap_flash_info *info = platform_get_drvdata(dev);
+	struct device_node *dp = dev->dev.of_node;
+	const char *mtd_name = NULL;
+	int err, swap = 0;
+	bool map_indirect;
+	unsigned int i;
+	u32 bankwidth;
+
+	if (!dp)
+		return -EINVAL;
+
+	info->probe_type = of_select_probe_type(dev);
+
+	info->part_types = of_get_part_probes(dev);
+	if (!info->part_types)
+		return -ENOMEM;
+
+	of_property_read_string(dp, "linux,mtd-name", &mtd_name);
+
+	map_indirect = of_property_read_bool(dp, "no-unaligned-direct-access");
+
+	err = of_property_read_u32(dp, "bank-width", &bankwidth);
+	if (err) {
+		dev_err(&dev->dev, "Can't get bank width from device tree\n");
+		return err;
+	}
+
+	if (of_property_read_bool(dp, "big-endian"))
+		swap = CFI_BIG_ENDIAN;
+	else if (of_property_read_bool(dp, "little-endian"))
+		swap = CFI_LITTLE_ENDIAN;
+
+	for (i = 0; i < info->nmaps; i++) {
+		info->maps[i].name = mtd_name;
+		info->maps[i].swap = swap;
+		info->maps[i].bankwidth = bankwidth;
+		info->maps[i].device_node = dp;
+
+		err = of_flash_probe_gemini(dev, dp, &info->maps[i]);
+		if (err)
+			return err;
+
+		err = of_flash_probe_versatile(dev, dp, &info->maps[i]);
+		if (err)
+			return err;
+
+		/*
+		 * On some platforms (e.g. MPC5200) a direct 1:1 mapping
+		 * may cause problems with JFFS2 usage, as the local bus (LPB)
+		 * doesn't support unaligned accesses as implemented in the
+		 * JFFS2 code via memcpy(). By setting NO_XIP, the
+		 * flash will not be exposed directly to the MTD users
+		 * (e.g. JFFS2) any more.
+		 */
+		if (map_indirect)
+			info->maps[i].phys = NO_XIP;
+	}
+
+	return 0;
+}
+#else /* IS_ENABLED(CONFIG_MTD_PHYSMAP_OF) */
+#define of_flash_match NULL
+
+static int physmap_flash_of_init(struct platform_device *dev)
+{
+	return -ENOTSUPP;
+}
+#endif /* IS_ENABLED(CONFIG_MTD_PHYSMAP_OF) */
+
 static const char * const rom_probe_types[] = {
 	"cfi_probe", "jedec_probe", "qinfo_probe", "map_rom", NULL
 };
@@ -97,18 +278,46 @@ static const char * const part_probe_types[] = {
 	"cmdlinepart", "RedBoot", "afs", NULL
 };
 
-static int physmap_flash_probe(struct platform_device *dev)
+static int physmap_flash_pdata_init(struct platform_device *dev)
 {
+	struct physmap_flash_info *info = platform_get_drvdata(dev);
 	struct physmap_flash_data *physmap_data;
-	struct physmap_flash_info *info;
-	const char * const *probe_type;
-	const char * const *part_types;
-	int err = 0;
-	int i;
+	unsigned int i;
+	int err;
 
 	physmap_data = dev_get_platdata(&dev->dev);
 	if (!physmap_data)
-		return -ENODEV;
+		return -EINVAL;
+
+	info->probe_type = physmap_data->probe_type;
+	info->part_types = physmap_data->part_probe_types ? : part_probe_types;
+	info->parts = physmap_data->parts;
+	info->nparts = physmap_data->nr_parts;
+
+	if (physmap_data->init) {
+		err = physmap_data->init(dev);
+		if (err)
+			return err;
+	}
+
+	for (i = 0; i < info->nmaps; i++) {
+		info->maps[i].bankwidth = physmap_data->width;
+		info->maps[i].pfow_base = physmap_data->pfow_base;
+		info->maps[i].set_vpp = physmap_set_vpp;
+	}
+
+	return 0;
+}
+
+static int physmap_flash_probe(struct platform_device *dev)
+{
+	struct physmap_flash_info *info;
+	const char * const *probe_type;
+	int err = 0;
+	int i;
+
+	if (!dev->dev.of_node && !dev_get_platdata(&dev->dev))
+		return -EINVAL;
 
 	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -132,13 +341,15 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (!info->mtds)
 		return -ENOMEM;
 
-	if (physmap_data->init) {
-		err = physmap_data->init(dev);
-		if (err)
-			goto err_out;
-	}
-
 	platform_set_drvdata(dev, info);
+
+	if (dev->dev.of_node)
+		err = physmap_flash_of_init(dev);
+	else
+		err = physmap_flash_pdata_init(dev);
+
+	if (err)
+		return err;
 
 	for (i = 0; i < info->nmaps; i++) {
 		struct resource *res;
@@ -154,22 +365,22 @@ static int physmap_flash_probe(struct platform_device *dev)
 			   res);
 
 		info->maps[i].name = dev_name(&dev->dev);
-		info->maps[i].phys = res->start;
+
+		if (!info->maps[i].phys)
+			info->maps[i].phys = res->start;
+
 		info->maps[i].size = resource_size(res);
-		info->maps[i].bankwidth = physmap_data->width;
-		info->maps[i].set_vpp = physmap_set_vpp;
-		info->maps[i].pfow_base = physmap_data->pfow_base;
 		info->maps[i].map_priv_1 = (unsigned long)dev;
 
 		simple_map_init(&info->maps[i]);
 
 		probe_type = rom_probe_types;
-		if (!physmap_data->probe_type) {
+		if (!info->probe_type) {
 			for (; !info->mtds[i] && *probe_type; probe_type++)
 				info->mtds[i] = do_map_probe(*probe_type,
 							     &info->maps[i]);
 		} else {
-			info->mtds[i] = do_map_probe(physmap_data->probe_type,
+			info->mtds[i] = do_map_probe(info->probe_type,
 						     &info->maps[i]);
 		}
 
@@ -197,11 +408,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	spin_lock_init(&info->vpp_lock);
 
-	part_types = physmap_data->part_probe_types ? : part_probe_types;
-
-	err = mtd_device_parse_register(info->cmtd, part_types, NULL,
-					physmap_data->parts,
-					physmap_data->nr_parts);
+	mtd_set_of_node(info->cmtd, dev->dev.of_node);
+	err = mtd_device_parse_register(info->cmtd, info->part_types, NULL,
+					info->parts, info->nparts);
 	if (err)
 		goto err_out;
 
@@ -232,6 +441,7 @@ static struct platform_driver physmap_flash_driver = {
 	.shutdown	= physmap_flash_shutdown,
 	.driver		= {
 		.name	= "physmap-flash",
+		.of_match_table = of_flash_match,
 	},
 };
 
@@ -286,6 +496,7 @@ module_exit(physmap_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
+MODULE_AUTHOR("Vitaly Wool <vwool@ru.mvista.com>");
 MODULE_DESCRIPTION("Generic configurable MTD map driver");
 
 /* legacy platform drivers can't hotplug or coldplg */
