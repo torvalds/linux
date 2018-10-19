@@ -417,10 +417,9 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 				       struct ch_filter_specification *fs)
 {
 	const struct tc_action *a;
-	LIST_HEAD(actions);
+	int i;
 
-	tcf_exts_to_list(cls->exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	tcf_exts_for_each_action(i, a, cls->exts) {
 		if (is_tcf_gact_ok(a)) {
 			fs->action = FILTER_PASS;
 		} else if (is_tcf_gact_shot(a)) {
@@ -591,10 +590,9 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 	bool act_redir = false;
 	bool act_pedit = false;
 	bool act_vlan = false;
-	LIST_HEAD(actions);
+	int i;
 
-	tcf_exts_to_list(cls->exts, &actions);
-	list_for_each_entry(a, &actions, list) {
+	tcf_exts_for_each_action(i, a, cls->exts) {
 		if (is_tcf_gact_ok(a)) {
 			/* Do nothing */
 		} else if (is_tcf_gact_shot(a)) {

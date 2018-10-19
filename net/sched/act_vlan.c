@@ -296,13 +296,6 @@ static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
-static int tcf_vlan_delete(struct net *net, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
-
-	return tcf_idr_delete_index(tn, index);
-}
-
 static struct tc_action_ops act_vlan_ops = {
 	.kind		=	"vlan",
 	.type		=	TCA_ACT_VLAN,
@@ -313,7 +306,6 @@ static struct tc_action_ops act_vlan_ops = {
 	.cleanup	=	tcf_vlan_cleanup,
 	.walk		=	tcf_vlan_walker,
 	.lookup		=	tcf_vlan_search,
-	.delete		=	tcf_vlan_delete,
 	.size		=	sizeof(struct tcf_vlan),
 };
 

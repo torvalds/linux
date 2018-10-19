@@ -198,6 +198,8 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 		}
 	}
 
+	lwtstate_put(f6i->fib6_nh.nh_lwtstate);
+
 	if (f6i->fib6_nh.nh_dev)
 		dev_put(f6i->fib6_nh.nh_dev);
 

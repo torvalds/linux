@@ -901,7 +901,7 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		case ice_aqc_opc_get_link_status:
 			if (ice_handle_link_event(pf))
 				dev_err(&pf->pdev->dev,
-					"Could not handle link event");
+					"Could not handle link event\n");
 			break;
 		default:
 			dev_dbg(&pf->pdev->dev,
@@ -917,13 +917,27 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 }
 
 /**
+ * ice_ctrlq_pending - check if there is a difference between ntc and ntu
+ * @hw: pointer to hardware info
+ * @cq: control queue information
+ *
+ * returns true if there are pending messages in a queue, false if there aren't
+ */
+static bool ice_ctrlq_pending(struct ice_hw *hw, struct ice_ctl_q_info *cq)
+{
+	u16 ntu;
+
+	ntu = (u16)(rd32(hw, cq->rq.head) & cq->rq.head_mask);
+	return cq->rq.next_to_clean != ntu;
+}
+
+/**
  * ice_clean_adminq_subtask - clean the AdminQ rings
  * @pf: board private structure
  */
 static void ice_clean_adminq_subtask(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
-	u32 val;
 
 	if (!test_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state))
 		return;
@@ -933,9 +947,13 @@ static void ice_clean_adminq_subtask(struct ice_pf *pf)
 
 	clear_bit(__ICE_ADMINQ_EVENT_PENDING, pf->state);
 
-	/* re-enable Admin queue interrupt causes */
-	val = rd32(hw, PFINT_FW_CTL);
-	wr32(hw, PFINT_FW_CTL, (val | PFINT_FW_CTL_CAUSE_ENA_M));
+	/* There might be a situation where new messages arrive to a control
+	 * queue between processing the last message and clearing the
+	 * EVENT_PENDING bit. So before exiting, check queue head again (using
+	 * ice_ctrlq_pending) and process new messages if any.
+	 */
+	if (ice_ctrlq_pending(hw, &hw->adminq))
+		__ice_clean_ctrlq(pf, ICE_CTL_Q_ADMIN);
 
 	ice_flush(hw);
 }
@@ -1295,11 +1313,8 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 		qcount = numq_tc;
 	}
 
-	/* find higher power-of-2 of qcount */
-	pow = ilog2(qcount);
-
-	if (!is_power_of_2(qcount))
-		pow++;
+	/* find the (rounded up) power-of-2 of qcount */
+	pow = order_base_2(qcount);
 
 	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
 		if (!(vsi->tc_cfg.ena_tc & BIT(i))) {
@@ -1352,14 +1367,15 @@ static void ice_set_dflt_vsi_ctx(struct ice_vsi_ctx *ctxt)
 	ctxt->info.sw_flags = ICE_AQ_VSI_SW_FLAG_SRC_PRUNE;
 	/* Traffic from VSI can be sent to LAN */
 	ctxt->info.sw_flags2 = ICE_AQ_VSI_SW_FLAG_LAN_ENA;
-	/* Allow all packets untagged/tagged */
-	ctxt->info.port_vlan_flags = ((ICE_AQ_VSI_PVLAN_MODE_ALL &
-				       ICE_AQ_VSI_PVLAN_MODE_M) >>
-				      ICE_AQ_VSI_PVLAN_MODE_S);
-	/* Show VLAN/UP from packets in Rx descriptors */
-	ctxt->info.port_vlan_flags |= ((ICE_AQ_VSI_PVLAN_EMOD_STR_BOTH &
-					ICE_AQ_VSI_PVLAN_EMOD_M) >>
-				       ICE_AQ_VSI_PVLAN_EMOD_S);
+
+	/* By default bits 3 and 4 in vlan_flags are 0's which results in legacy
+	 * behavior (show VLAN, DEI, and UP) in descriptor. Also, allow all
+	 * packets untagged/tagged.
+	 */
+	ctxt->info.vlan_flags = ((ICE_AQ_VSI_VLAN_MODE_ALL &
+				  ICE_AQ_VSI_VLAN_MODE_M) >>
+				 ICE_AQ_VSI_VLAN_MODE_S);
+
 	/* Have 1:1 UP mapping for both ingress/egress tables */
 	table |= ICE_UP_TABLE_TRANSLATE(0, 0);
 	table |= ICE_UP_TABLE_TRANSLATE(1, 1);
@@ -1688,15 +1704,12 @@ static void ice_ena_misc_vector(struct ice_pf *pf)
 	wr32(hw, PFINT_OICR_ENA, 0);	/* disable all */
 	rd32(hw, PFINT_OICR);		/* read to clear */
 
-	val = (PFINT_OICR_HLP_RDY_M |
-	       PFINT_OICR_CPM_RDY_M |
-	       PFINT_OICR_ECC_ERR_M |
+	val = (PFINT_OICR_ECC_ERR_M |
 	       PFINT_OICR_MAL_DETECT_M |
 	       PFINT_OICR_GRST_M |
 	       PFINT_OICR_PCI_EXCEPTION_M |
-	       PFINT_OICR_GPIO_M |
-	       PFINT_OICR_STORM_DETECT_M |
-	       PFINT_OICR_HMC_ERR_M);
+	       PFINT_OICR_HMC_ERR_M |
+	       PFINT_OICR_PE_CRITERR_M);
 
 	wr32(hw, PFINT_OICR_ENA, val);
 
@@ -2058,15 +2071,13 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 skip_req_irq:
 	ice_ena_misc_vector(pf);
 
-	val = (pf->oicr_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
-	      (ICE_RX_ITR & PFINT_OICR_CTL_ITR_INDX_M) |
-	      PFINT_OICR_CTL_CAUSE_ENA_M;
+	val = ((pf->oicr_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
+	       PFINT_OICR_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_OICR_CTL, val);
 
 	/* This enables Admin queue Interrupt causes */
-	val = (pf->oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
-	      (ICE_RX_ITR & PFINT_FW_CTL_ITR_INDX_M) |
-	      PFINT_FW_CTL_CAUSE_ENA_M;
+	val = ((pf->oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
+	       PFINT_FW_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_FW_CTL, val);
 
 	itr_gran = hw->itr_gran_200;
@@ -3246,8 +3257,10 @@ static void ice_clear_interrupt_scheme(struct ice_pf *pf)
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 		ice_dis_msix(pf);
 
-	devm_kfree(&pf->pdev->dev, pf->irq_tracker);
-	pf->irq_tracker = NULL;
+	if (pf->irq_tracker) {
+		devm_kfree(&pf->pdev->dev, pf->irq_tracker);
+		pf->irq_tracker = NULL;
+	}
 }
 
 /**
@@ -3271,7 +3284,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = pcim_iomap_regions(pdev, BIT(ICE_BAR0), pci_name(pdev));
 	if (err) {
-		dev_err(&pdev->dev, "I/O map error %d\n", err);
+		dev_err(&pdev->dev, "BAR0 I/O map error %d\n", err);
 		return err;
 	}
 
@@ -3720,10 +3733,10 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 	enum ice_status status;
 
 	/* Here we are configuring the VSI to let the driver add VLAN tags by
-	 * setting port_vlan_flags to ICE_AQ_VSI_PVLAN_MODE_ALL. The actual VLAN
-	 * tag insertion happens in the Tx hot path, in ice_tx_map.
+	 * setting vlan_flags to ICE_AQ_VSI_VLAN_MODE_ALL. The actual VLAN tag
+	 * insertion happens in the Tx hot path, in ice_tx_map.
 	 */
-	ctxt.info.port_vlan_flags = ICE_AQ_VSI_PVLAN_MODE_ALL;
+	ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_ALL;
 
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
 	ctxt.vsi_num = vsi->vsi_num;
@@ -3735,7 +3748,7 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 		return -EIO;
 	}
 
-	vsi->info.port_vlan_flags = ctxt.info.port_vlan_flags;
+	vsi->info.vlan_flags = ctxt.info.vlan_flags;
 	return 0;
 }
 
@@ -3757,11 +3770,14 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	 */
 	if (ena) {
 		/* Strip VLAN tag from Rx packet and put it in the desc */
-		ctxt.info.port_vlan_flags = ICE_AQ_VSI_PVLAN_EMOD_STR_BOTH;
+		ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_STR_BOTH;
 	} else {
 		/* Disable stripping. Leave tag in packet */
-		ctxt.info.port_vlan_flags = ICE_AQ_VSI_PVLAN_EMOD_NOTHING;
+		ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_EMOD_NOTHING;
 	}
+
+	/* Allow all packets untagged/tagged */
+	ctxt.info.vlan_flags |= ICE_AQ_VSI_VLAN_MODE_ALL;
 
 	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_VLAN_VALID);
 	ctxt.vsi_num = vsi->vsi_num;
@@ -3773,7 +3789,7 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 		return -EIO;
 	}
 
-	vsi->info.port_vlan_flags = ctxt.info.port_vlan_flags;
+	vsi->info.vlan_flags = ctxt.info.vlan_flags;
 	return 0;
 }
 
@@ -3986,7 +4002,7 @@ static int ice_setup_rx_ctx(struct ice_ring *ring)
 	/* clear the context structure first */
 	memset(&rlan_ctx, 0, sizeof(rlan_ctx));
 
-	rlan_ctx.base = ring->dma >> 7;
+	rlan_ctx.base = ring->dma >> ICE_RLAN_BASE_S;
 
 	rlan_ctx.qlen = ring->count;
 
@@ -4098,11 +4114,12 @@ static int ice_vsi_cfg(struct ice_vsi *vsi)
 {
 	int err;
 
-	ice_set_rx_mode(vsi->netdev);
-
-	err = ice_restore_vlan(vsi);
-	if (err)
-		return err;
+	if (vsi->netdev) {
+		ice_set_rx_mode(vsi->netdev);
+		err = ice_restore_vlan(vsi);
+		if (err)
+			return err;
+	}
 
 	err = ice_vsi_cfg_txqs(vsi);
 	if (!err)
@@ -4868,7 +4885,7 @@ int ice_down(struct ice_vsi *vsi)
  */
 static int ice_vsi_setup_tx_rings(struct ice_vsi *vsi)
 {
-	int i, err;
+	int i, err = 0;
 
 	if (!vsi->num_txq) {
 		dev_err(&vsi->back->pdev->dev, "VSI %d has 0 Tx queues\n",
@@ -4893,7 +4910,7 @@ static int ice_vsi_setup_tx_rings(struct ice_vsi *vsi)
  */
 static int ice_vsi_setup_rx_rings(struct ice_vsi *vsi)
 {
-	int i, err;
+	int i, err = 0;
 
 	if (!vsi->num_rxq) {
 		dev_err(&vsi->back->pdev->dev, "VSI %d has 0 Rx queues\n",
@@ -5235,7 +5252,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	u8 count = 0;
 
 	if (new_mtu == netdev->mtu) {
-		netdev_warn(netdev, "mtu is already %d\n", netdev->mtu);
+		netdev_warn(netdev, "mtu is already %u\n", netdev->mtu);
 		return 0;
 	}
 

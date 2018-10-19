@@ -404,36 +404,6 @@ static void __init palmtreo_leds_init(void)
 }
 
 /******************************************************************************
- * diskonchip docg4 flash
- ******************************************************************************/
-#if defined(CONFIG_MACH_TREO680)
-/* REVISIT: does the centro have this device also? */
-#if IS_ENABLED(CONFIG_MTD_NAND_DOCG4)
-static struct resource docg4_resources[] = {
-	{
-		.start	= 0x00000000,
-		.end	= 0x00001FFF,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device treo680_docg4_flash = {
-	.name   = "docg4",
-	.id     = -1,
-	.resource = docg4_resources,
-	.num_resources = ARRAY_SIZE(docg4_resources),
-};
-
-static void __init treo680_docg4_flash_init(void)
-{
-	platform_device_register(&treo680_docg4_flash);
-}
-#else
-static inline void treo680_docg4_flash_init(void) {}
-#endif
-#endif
-
-/******************************************************************************
  * Machine init
  ******************************************************************************/
 static void __init treo_reserve(void)
@@ -517,7 +487,6 @@ static void __init treo680_init(void)
 	treo680_gpio_init();
 	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, GPIO_NR_TREO680_SD_READONLY,
 			GPIO_NR_TREO680_SD_POWER, 0);
-	treo680_docg4_flash_init();
 }
 #endif
 

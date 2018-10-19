@@ -84,6 +84,18 @@ MODULE_PARM_DESC(max_persistent_grants,
                  "Maximum number of grants to map persistently");
 
 /*
+ * How long a persistent grant is allowed to remain allocated without being in
+ * use. The time is in seconds, 0 means indefinitely long.
+ */
+
+static unsigned int xen_blkif_pgrant_timeout = 60;
+module_param_named(persistent_grant_unused_seconds, xen_blkif_pgrant_timeout,
+		   uint, 0644);
+MODULE_PARM_DESC(persistent_grant_unused_seconds,
+		 "Time in seconds an unused persistent grant is allowed to "
+		 "remain allocated. Default is 60, 0 means unlimited.");
+
+/*
  * Maximum number of rings/queues blkback supports, allow as many queues as there
  * are CPUs if user has not specified a value.
  */
@@ -122,6 +134,13 @@ module_param(log_stats, int, 0644);
 
 /* Number of free pages to remove on each call to gnttab_free_pages */
 #define NUM_BATCH_FREE_PAGES 10
+
+static inline bool persistent_gnt_timeout(struct persistent_gnt *persistent_gnt)
+{
+	return xen_blkif_pgrant_timeout &&
+	       (jiffies - persistent_gnt->last_used >=
+		HZ * xen_blkif_pgrant_timeout);
+}
 
 static inline int get_free_page(struct xen_blkif_ring *ring, struct page **page)
 {
@@ -236,8 +255,7 @@ static int add_persistent_gnt(struct xen_blkif_ring *ring,
 		}
 	}
 
-	bitmap_zero(persistent_gnt->flags, PERSISTENT_GNT_FLAGS_SIZE);
-	set_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
+	persistent_gnt->active = true;
 	/* Add new node and rebalance tree. */
 	rb_link_node(&(persistent_gnt->node), parent, new);
 	rb_insert_color(&(persistent_gnt->node), &ring->persistent_gnts);
@@ -261,11 +279,11 @@ static struct persistent_gnt *get_persistent_gnt(struct xen_blkif_ring *ring,
 		else if (gref > data->gnt)
 			node = node->rb_right;
 		else {
-			if(test_bit(PERSISTENT_GNT_ACTIVE, data->flags)) {
+			if (data->active) {
 				pr_alert_ratelimited("requesting a grant already in use\n");
 				return NULL;
 			}
-			set_bit(PERSISTENT_GNT_ACTIVE, data->flags);
+			data->active = true;
 			atomic_inc(&ring->persistent_gnt_in_use);
 			return data;
 		}
@@ -276,10 +294,10 @@ static struct persistent_gnt *get_persistent_gnt(struct xen_blkif_ring *ring,
 static void put_persistent_gnt(struct xen_blkif_ring *ring,
                                struct persistent_gnt *persistent_gnt)
 {
-	if(!test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+	if (!persistent_gnt->active)
 		pr_alert_ratelimited("freeing a grant already unused\n");
-	set_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
-	clear_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
+	persistent_gnt->last_used = jiffies;
+	persistent_gnt->active = false;
 	atomic_dec(&ring->persistent_gnt_in_use);
 }
 
@@ -371,26 +389,26 @@ static void purge_persistent_gnt(struct xen_blkif_ring *ring)
 	struct persistent_gnt *persistent_gnt;
 	struct rb_node *n;
 	unsigned int num_clean, total;
-	bool scan_used = false, clean_used = false;
+	bool scan_used = false;
 	struct rb_root *root;
-
-	if (ring->persistent_gnt_c < xen_blkif_max_pgrants ||
-	    (ring->persistent_gnt_c == xen_blkif_max_pgrants &&
-	    !ring->blkif->vbd.overflow_max_grants)) {
-		goto out;
-	}
 
 	if (work_busy(&ring->persistent_purge_work)) {
 		pr_alert_ratelimited("Scheduled work from previous purge is still busy, cannot purge list\n");
 		goto out;
 	}
 
-	num_clean = (xen_blkif_max_pgrants / 100) * LRU_PERCENT_CLEAN;
-	num_clean = ring->persistent_gnt_c - xen_blkif_max_pgrants + num_clean;
-	num_clean = min(ring->persistent_gnt_c, num_clean);
-	if ((num_clean == 0) ||
-	    (num_clean > (ring->persistent_gnt_c - atomic_read(&ring->persistent_gnt_in_use))))
-		goto out;
+	if (ring->persistent_gnt_c < xen_blkif_max_pgrants ||
+	    (ring->persistent_gnt_c == xen_blkif_max_pgrants &&
+	    !ring->blkif->vbd.overflow_max_grants)) {
+		num_clean = 0;
+	} else {
+		num_clean = (xen_blkif_max_pgrants / 100) * LRU_PERCENT_CLEAN;
+		num_clean = ring->persistent_gnt_c - xen_blkif_max_pgrants +
+			    num_clean;
+		num_clean = min(ring->persistent_gnt_c, num_clean);
+		pr_debug("Going to purge at least %u persistent grants\n",
+			 num_clean);
+	}
 
 	/*
 	 * At this point, we can assure that there will be no calls
@@ -401,9 +419,7 @@ static void purge_persistent_gnt(struct xen_blkif_ring *ring)
          * number of grants.
 	 */
 
-	total = num_clean;
-
-	pr_debug("Going to purge %u persistent grants\n", num_clean);
+	total = 0;
 
 	BUG_ON(!list_empty(&ring->persistent_purge_list));
 	root = &ring->persistent_gnts;
@@ -412,46 +428,37 @@ purge_list:
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 
-		if (clean_used) {
-			clear_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
+		if (persistent_gnt->active)
 			continue;
-		}
-
-		if (test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+		if (!scan_used && !persistent_gnt_timeout(persistent_gnt))
 			continue;
-		if (!scan_used &&
-		    (test_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags)))
+		if (scan_used && total >= num_clean)
 			continue;
 
 		rb_erase(&persistent_gnt->node, root);
 		list_add(&persistent_gnt->remove_node,
 			 &ring->persistent_purge_list);
-		if (--num_clean == 0)
-			goto finished;
+		total++;
 	}
 	/*
-	 * If we get here it means we also need to start cleaning
+	 * Check whether we also need to start cleaning
 	 * grants that were used since last purge in order to cope
 	 * with the requested num
 	 */
-	if (!scan_used && !clean_used) {
-		pr_debug("Still missing %u purged frames\n", num_clean);
+	if (!scan_used && total < num_clean) {
+		pr_debug("Still missing %u purged frames\n", num_clean - total);
 		scan_used = true;
 		goto purge_list;
 	}
-finished:
-	if (!clean_used) {
-		pr_debug("Finished scanning for grants to clean, removing used flag\n");
-		clean_used = true;
-		goto purge_list;
+
+	if (total) {
+		ring->persistent_gnt_c -= total;
+		ring->blkif->vbd.overflow_max_grants = 0;
+
+		/* We can defer this work */
+		schedule_work(&ring->persistent_purge_work);
+		pr_debug("Purged %u/%u\n", num_clean, total);
 	}
-
-	ring->persistent_gnt_c -= (total - num_clean);
-	ring->blkif->vbd.overflow_max_grants = 0;
-
-	/* We can defer this work */
-	schedule_work(&ring->persistent_purge_work);
-	pr_debug("Purged %u/%u\n", (total - num_clean), total);
 
 out:
 	return;

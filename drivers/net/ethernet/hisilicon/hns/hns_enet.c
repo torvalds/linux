@@ -406,113 +406,13 @@ out_net_tx_busy:
 	return NETDEV_TX_BUSY;
 }
 
-/**
- * hns_nic_get_headlen - determine size of header for RSC/LRO/GRO/FCOE
- * @data: pointer to the start of the headers
- * @max: total length of section to find headers in
- *
- * This function is meant to determine the length of headers that will
- * be recognized by hardware for LRO, GRO, and RSC offloads.  The main
- * motivation of doing this is to only perform one pull for IPv4 TCP
- * packets so that we can do basic things like calculating the gso_size
- * based on the average data per packet.
- **/
-static unsigned int hns_nic_get_headlen(unsigned char *data, u32 flag,
-					unsigned int max_size)
-{
-	unsigned char *network;
-	u8 hlen;
-
-	/* this should never happen, but better safe than sorry */
-	if (max_size < ETH_HLEN)
-		return max_size;
-
-	/* initialize network frame pointer */
-	network = data;
-
-	/* set first protocol and move network header forward */
-	network += ETH_HLEN;
-
-	/* handle any vlan tag if present */
-	if (hnae_get_field(flag, HNS_RXD_VLAN_M, HNS_RXD_VLAN_S)
-		== HNS_RX_FLAG_VLAN_PRESENT) {
-		if ((typeof(max_size))(network - data) > (max_size - VLAN_HLEN))
-			return max_size;
-
-		network += VLAN_HLEN;
-	}
-
-	/* handle L3 protocols */
-	if (hnae_get_field(flag, HNS_RXD_L3ID_M, HNS_RXD_L3ID_S)
-		== HNS_RX_FLAG_L3ID_IPV4) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct iphdr)))
-			return max_size;
-
-		/* access ihl as a u8 to avoid unaligned access on ia64 */
-		hlen = (network[0] & 0x0F) << 2;
-
-		/* verify hlen meets minimum size requirements */
-		if (hlen < sizeof(struct iphdr))
-			return network - data;
-
-		/* record next protocol if header is present */
-	} else if (hnae_get_field(flag, HNS_RXD_L3ID_M, HNS_RXD_L3ID_S)
-		== HNS_RX_FLAG_L3ID_IPV6) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct ipv6hdr)))
-			return max_size;
-
-		/* record next protocol */
-		hlen = sizeof(struct ipv6hdr);
-	} else {
-		return network - data;
-	}
-
-	/* relocate pointer to start of L4 header */
-	network += hlen;
-
-	/* finally sort out TCP/UDP */
-	if (hnae_get_field(flag, HNS_RXD_L4ID_M, HNS_RXD_L4ID_S)
-		== HNS_RX_FLAG_L4ID_TCP) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct tcphdr)))
-			return max_size;
-
-		/* access doff as a u8 to avoid unaligned access on ia64 */
-		hlen = (network[12] & 0xF0) >> 2;
-
-		/* verify hlen meets minimum size requirements */
-		if (hlen < sizeof(struct tcphdr))
-			return network - data;
-
-		network += hlen;
-	} else if (hnae_get_field(flag, HNS_RXD_L4ID_M, HNS_RXD_L4ID_S)
-		== HNS_RX_FLAG_L4ID_UDP) {
-		if ((typeof(max_size))(network - data) >
-		    (max_size - sizeof(struct udphdr)))
-			return max_size;
-
-		network += sizeof(struct udphdr);
-	}
-
-	/* If everything has gone correctly network should be the
-	 * data section of the packet and will be the end of the header.
-	 * If not then it probably represents the end of the last recognized
-	 * header.
-	 */
-	if ((typeof(max_size))(network - data) < max_size)
-		return network - data;
-	else
-		return max_size;
-}
-
 static void hns_nic_reuse_page(struct sk_buff *skb, int i,
 			       struct hnae_ring *ring, int pull_len,
 			       struct hnae_desc_cb *desc_cb)
 {
 	struct hnae_desc *desc;
-	int truesize, size;
+	u32 truesize;
+	int size;
 	int last_offset;
 	bool twobufs;
 
@@ -530,7 +430,7 @@ static void hns_nic_reuse_page(struct sk_buff *skb, int i,
 	}
 
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
-			size - pull_len, truesize - pull_len);
+			size - pull_len, truesize);
 
 	 /* avoid re-using remote pages,flag default unreuse */
 	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
@@ -695,7 +595,7 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 	} else {
 		ring->stats.seg_pkt_cnt++;
 
-		pull_len = hns_nic_get_headlen(va, bnum_flag, HNS_RX_HEAD_SIZE);
+		pull_len = eth_get_headlen(va, HNS_RX_HEAD_SIZE);
 		memcpy(__skb_put(skb, pull_len), va,
 		       ALIGN(pull_len, sizeof(long)));
 

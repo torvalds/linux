@@ -110,16 +110,14 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 				 struct tcf_exts *tc_exts)
 {
 	const struct tc_action *tc_act;
-	LIST_HEAD(tc_actions);
-	int rc;
+	int i, rc;
 
 	if (!tcf_exts_has_actions(tc_exts)) {
 		netdev_info(bp->dev, "no actions");
 		return -EINVAL;
 	}
 
-	tcf_exts_to_list(tc_exts, &tc_actions);
-	list_for_each_entry(tc_act, &tc_actions, list) {
+	tcf_exts_for_each_action(i, tc_act, tc_exts) {
 		/* Drop action */
 		if (is_tcf_gact_shot(tc_act)) {
 			actions->flags |= BNXT_TC_ACTION_FLAG_DROP;
