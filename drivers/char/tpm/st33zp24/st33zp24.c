@@ -649,7 +649,7 @@ int st33zp24_pm_resume(struct device *dev)
 	} else {
 		ret = tpm_pm_resume(dev);
 		if (!ret)
-			tpm_do_selftest(chip);
+			tpm1_do_selftest(chip);
 	}
 	return ret;
 } /* st33zp24_pm_resume() */

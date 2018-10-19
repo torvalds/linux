@@ -524,3 +524,145 @@ int tpm1_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 
 	return total ? total : -EIO;
 }
+
+#define TPM_ORDINAL_PCRREAD 21
+#define READ_PCR_RESULT_SIZE 30
+#define READ_PCR_RESULT_BODY_SIZE 20
+static const struct tpm_input_header pcrread_header = {
+	.tag = cpu_to_be16(TPM_TAG_RQU_COMMAND),
+	.length = cpu_to_be32(14),
+	.ordinal = cpu_to_be32(TPM_ORDINAL_PCRREAD)
+};
+
+int tpm1_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
+{
+	int rc;
+	struct tpm_cmd_t cmd;
+
+	cmd.header.in = pcrread_header;
+	cmd.params.pcrread_in.pcr_idx = cpu_to_be32(pcr_idx);
+	rc = tpm_transmit_cmd(chip, NULL, &cmd, READ_PCR_RESULT_SIZE,
+			      READ_PCR_RESULT_BODY_SIZE, 0,
+			      "attempting to read a pcr value");
+
+	if (rc == 0)
+		memcpy(res_buf, cmd.params.pcrread_out.pcr_result,
+		       TPM_DIGEST_SIZE);
+	return rc;
+}
+
+#define TPM_ORD_CONTINUE_SELFTEST 83
+#define CONTINUE_SELFTEST_RESULT_SIZE 10
+static const struct tpm_input_header continue_selftest_header = {
+	.tag = cpu_to_be16(TPM_TAG_RQU_COMMAND),
+	.length = cpu_to_be32(10),
+	.ordinal = cpu_to_be32(TPM_ORD_CONTINUE_SELFTEST),
+};
+
+/**
+ * tpm_continue_selftest -- run TPM's selftest
+ * @chip: TPM chip to use
+ *
+ * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
+ * a TPM error code.
+ */
+static int tpm1_continue_selftest(struct tpm_chip *chip)
+{
+	int rc;
+	struct tpm_cmd_t cmd;
+
+	cmd.header.in = continue_selftest_header;
+	rc = tpm_transmit_cmd(chip, NULL, &cmd, CONTINUE_SELFTEST_RESULT_SIZE,
+			      0, 0, "continue selftest");
+	return rc;
+}
+
+/**
+ * tpm1_do_selftest - have the TPM continue its selftest and wait until it
+ *                   can receive further commands
+ * @chip: TPM chip to use
+ *
+ * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
+ * a TPM error code.
+ */
+int tpm1_do_selftest(struct tpm_chip *chip)
+{
+	int rc;
+	unsigned int loops;
+	unsigned int delay_msec = 100;
+	unsigned long duration;
+	u8 dummy[TPM_DIGEST_SIZE];
+
+	duration = tpm1_calc_ordinal_duration(chip, TPM_ORD_CONTINUE_SELFTEST);
+
+	loops = jiffies_to_msecs(duration) / delay_msec;
+
+	rc = tpm1_continue_selftest(chip);
+	if (rc == TPM_ERR_INVALID_POSTINIT) {
+		chip->flags |= TPM_CHIP_FLAG_ALWAYS_POWERED;
+		dev_info(&chip->dev, "TPM not ready (%d)\n", rc);
+	}
+	/* This may fail if there was no TPM driver during a suspend/resume
+	 * cycle; some may return 10 (BAD_ORDINAL), others 28 (FAILEDSELFTEST)
+	 */
+	if (rc)
+		return rc;
+
+	do {
+		/* Attempt to read a PCR value */
+		rc = tpm1_pcr_read_dev(chip, 0, dummy);
+
+		/* Some buggy TPMs will not respond to tpm_tis_ready() for
+		 * around 300ms while the self test is ongoing, keep trying
+		 * until the self test duration expires.
+		 */
+		if (rc == -ETIME) {
+			dev_info(&chip->dev, HW_ERR "TPM command timed out during continue self test");
+			tpm_msleep(delay_msec);
+			continue;
+		}
+
+		if (rc == TPM_ERR_DISABLED || rc == TPM_ERR_DEACTIVATED) {
+			dev_info(&chip->dev, "TPM is disabled/deactivated (0x%X)\n",
+				 rc);
+			/* TPM is disabled and/or deactivated; driver can
+			 * proceed and TPM does handle commands for
+			 * suspend/resume correctly
+			 */
+			return 0;
+		}
+		if (rc != TPM_WARN_DOING_SELFTEST)
+			return rc;
+		tpm_msleep(delay_msec);
+	} while (--loops > 0);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm1_do_selftest);
+
+/**
+ * tpm1_auto_startup - Perform the standard automatic TPM initialization
+ *                     sequence
+ * @chip: TPM chip to use
+ *
+ * Returns 0 on success, < 0 in case of fatal error.
+ */
+int tpm1_auto_startup(struct tpm_chip *chip)
+{
+	int rc;
+
+	rc = tpm1_get_timeouts(chip);
+	if (rc)
+		goto out;
+	rc = tpm1_do_selftest(chip);
+	if (rc) {
+		dev_err(&chip->dev, "TPM self test failed\n");
+		goto out;
+	}
+
+	return rc;
+out:
+	if (rc > 0)
+		rc = -ENODEV;
+	return rc;
+}

@@ -1056,7 +1056,7 @@ int tpm_tis_resume(struct device *dev)
 	 * an error code but for unknown reason it isn't handled.
 	 */
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
-		tpm_do_selftest(chip);
+		tpm1_do_selftest(chip);
 
 	return 0;
 }
