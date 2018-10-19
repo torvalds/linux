@@ -31,6 +31,8 @@
 #define MT7610E_FIRMWARE		"mediatek/mt7610e.bin"
 #define MT7650E_FIRMWARE		"mediatek/mt7650e.bin"
 
+#define MT7610U_FIRMWARE		"mediatek/mt7610u.bin"
+
 #define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
 #define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
 
