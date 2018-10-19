@@ -25,6 +25,26 @@
 
 #include "virtgpu_drv.h"
 
+static void virtio_gpu_resource_id_get(struct virtio_gpu_device *vgdev,
+				       uint32_t *resid)
+{
+	int handle;
+
+	idr_preload(GFP_KERNEL);
+	spin_lock(&vgdev->resource_idr_lock);
+	handle = idr_alloc(&vgdev->resource_idr, NULL, 1, 0, GFP_NOWAIT);
+	spin_unlock(&vgdev->resource_idr_lock);
+	idr_preload_end();
+	*resid = handle;
+}
+
+static void virtio_gpu_resource_id_put(struct virtio_gpu_device *vgdev, uint32_t id)
+{
+	spin_lock(&vgdev->resource_idr_lock);
+	idr_remove(&vgdev->resource_idr, id);
+	spin_unlock(&vgdev->resource_idr_lock);
+}
+
 static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct virtio_gpu_object *bo;
@@ -40,6 +60,7 @@ static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	if (bo->vmap)
 		virtio_gpu_object_kunmap(bo);
 	drm_gem_object_release(&bo->gem_base);
+	virtio_gpu_resource_id_put(vgdev, bo->hw_res_handle);
 	kfree(bo);
 }
 
@@ -81,9 +102,11 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	bo = kzalloc(sizeof(struct virtio_gpu_object), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
+	virtio_gpu_resource_id_get(vgdev, &bo->hw_res_handle);
 	size = roundup(size, PAGE_SIZE);
 	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, size);
 	if (ret != 0) {
+		virtio_gpu_resource_id_put(vgdev, bo->hw_res_handle);
 		kfree(bo);
 		return ret;
 	}
