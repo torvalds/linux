@@ -1366,11 +1366,11 @@ static ssize_t processor_show(struct device *dev,
 			       first_processor, info->cpu[0].cpu_count,
 			       info->cpu[1].cpu_name,
 			       second_processor, info->cpu[1].cpu_count);
-	else if (!second_processor)
+	else if (first_processor && !second_processor)
 		ret = snprintf(buf, 64, "1: %s (%s, %d cpus)\n2: absent\n",
 			       info->cpu[0].cpu_name,
 			       first_processor, info->cpu[0].cpu_count);
-	else if (!first_processor)
+	else if (!first_processor && second_processor)
 		ret = snprintf(buf, 64, "1: absent\n2: %s (%s, %d cpus)\n",
 			       info->cpu[1].cpu_name,
 			       second_processor, info->cpu[1].cpu_count);
