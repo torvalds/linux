@@ -548,6 +548,27 @@ static inline void bpf_compute_data_pointers(struct sk_buff *skb)
 	cb->data_end  = skb->data + skb_headlen(skb);
 }
 
+/* Similar to bpf_compute_data_pointers(), except that save orginal
+ * data in cb->data and cb->meta_data for restore.
+ */
+static inline void bpf_compute_and_save_data_end(
+	struct sk_buff *skb, void **saved_data_end)
+{
+	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+
+	*saved_data_end = cb->data_end;
+	cb->data_end  = skb->data + skb_headlen(skb);
+}
+
+/* Restore data saved by bpf_compute_data_pointers(). */
+static inline void bpf_restore_data_end(
+	struct sk_buff *skb, void *saved_data_end)
+{
+	struct bpf_skb_data_end *cb = (struct bpf_skb_data_end *)skb->cb;
+
+	cb->data_end = saved_data_end;
+}
+
 static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 {
 	/* eBPF programs may read/write skb->cb[] area to transfer meta

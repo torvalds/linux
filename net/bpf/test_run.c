@@ -10,6 +10,8 @@
 #include <linux/etherdevice.h>
 #include <linux/filter.h>
 #include <linux/sched/signal.h>
+#include <net/sock.h>
+#include <net/tcp.h>
 
 static __always_inline u32 bpf_test_run_one(struct bpf_prog *prog, void *ctx,
 		struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE])
@@ -115,6 +117,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 	u32 retval, duration;
 	int hh_len = ETH_HLEN;
 	struct sk_buff *skb;
+	struct sock *sk;
 	void *data;
 	int ret;
 
@@ -137,11 +140,21 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 		break;
 	}
 
-	skb = build_skb(data, 0);
-	if (!skb) {
+	sk = kzalloc(sizeof(struct sock), GFP_USER);
+	if (!sk) {
 		kfree(data);
 		return -ENOMEM;
 	}
+	sock_net_set(sk, current->nsproxy->net_ns);
+	sock_init_data(NULL, sk);
+
+	skb = build_skb(data, 0);
+	if (!skb) {
+		kfree(data);
+		kfree(sk);
+		return -ENOMEM;
+	}
+	skb->sk = sk;
 
 	skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
 	__skb_put(skb, size);
@@ -159,6 +172,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 
 			if (pskb_expand_head(skb, nhead, 0, GFP_USER)) {
 				kfree_skb(skb);
+				kfree(sk);
 				return -ENOMEM;
 			}
 		}
@@ -171,6 +185,7 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 		size = skb_headlen(skb);
 	ret = bpf_test_finish(kattr, uattr, skb->data, size, retval, duration);
 	kfree_skb(skb);
+	kfree(sk);
 	return ret;
 }
 
