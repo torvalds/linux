@@ -1517,6 +1517,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 				    struct intel_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
+bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port);
 bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port);
 enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
 			      enum port port);
@@ -2140,6 +2141,7 @@ unsigned int skl_plane_max_stride(struct intel_plane *plane,
 				  unsigned int rotation);
 int skl_plane_check(struct intel_crtc_state *crtc_state,
 		    struct intel_plane_state *plane_state);
+int intel_plane_check_stride(const struct intel_plane_state *plane_state);
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state);
 int chv_plane_check_rotation(const struct intel_plane_state *plane_state);
 

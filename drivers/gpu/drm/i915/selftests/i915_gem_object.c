@@ -501,6 +501,8 @@ static bool assert_mmap_offset(struct drm_i915_private *i915,
 
 static void disable_retire_worker(struct drm_i915_private *i915)
 {
+	i915_gem_shrinker_unregister(i915);
+
 	mutex_lock(&i915->drm.struct_mutex);
 	if (!i915->gt.active_requests++) {
 		intel_runtime_pm_get(i915);
@@ -613,6 +615,7 @@ out_park:
 	else
 		queue_delayed_work(i915->wq, &i915->gt.idle_work, 0);
 	mutex_unlock(&i915->drm.struct_mutex);
+	i915_gem_shrinker_register(i915);
 	return err;
 err_obj:
 	i915_gem_object_put(obj);
