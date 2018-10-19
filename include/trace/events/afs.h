@@ -137,6 +137,7 @@ enum afs_io_error {
 	afs_io_error_extract,
 	afs_io_error_fs_probe_fail,
 	afs_io_error_vl_lookup_fail,
+	afs_io_error_vl_probe_fail,
 };
 
 enum afs_file_error {
@@ -261,7 +262,8 @@ enum afs_file_error {
 	EM(afs_io_error_cm_reply,		"CM_REPLY")		\
 	EM(afs_io_error_extract,		"EXTRACT")		\
 	EM(afs_io_error_fs_probe_fail,		"FS_PROBE_FAIL")	\
-	E_(afs_io_error_vl_lookup_fail,		"VL_LOOKUP_FAIL")
+	EM(afs_io_error_vl_lookup_fail,		"VL_LOOKUP_FAIL")	\
+	E_(afs_io_error_vl_probe_fail,		"VL_PROBE_FAIL")
 
 #define afs_file_errors							\
 	EM(afs_file_error_dir_bad_magic,	"DIR_BAD_MAGIC")	\

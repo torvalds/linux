@@ -2006,7 +2006,6 @@ int afs_fs_give_up_all_callbacks(struct afs_net *net,
  */
 static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 {
-	struct afs_server *server = call->reply[0];
 	u32 count;
 	int ret;
 
@@ -2042,13 +2041,16 @@ static int afs_deliver_fs_get_capabilities(struct afs_call *call)
 		break;
 	}
 
-	if (call->service_id == YFS_FS_SERVICE)
-		set_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
-	else
-		clear_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
-
 	_leave(" = 0 [done]");
 	return 0;
+}
+
+static void afs_destroy_fs_get_capabilities(struct afs_call *call)
+{
+	struct afs_server *server = call->reply[0];
+
+	afs_put_server(call->net, server);
+	afs_flat_call_destructor(call);
 }
 
 /*
@@ -2058,7 +2060,8 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
 	.name		= "FS.GetCapabilities",
 	.op		= afs_FS_GetCapabilities,
 	.deliver	= afs_deliver_fs_get_capabilities,
-	.destructor	= afs_flat_call_destructor,
+	.done		= afs_fileserver_probe_result,
+	.destructor	= afs_destroy_fs_get_capabilities,
 };
 
 /*
@@ -2068,7 +2071,9 @@ static const struct afs_call_type afs_RXFSGetCapabilities = {
 int afs_fs_get_capabilities(struct afs_net *net,
 			    struct afs_server *server,
 			    struct afs_addr_cursor *ac,
-			    struct key *key)
+			    struct key *key,
+			    unsigned int server_index,
+			    bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -2080,8 +2085,10 @@ int afs_fs_get_capabilities(struct afs_net *net,
 		return -ENOMEM;
 
 	call->key = key;
-	call->reply[0] = server;
+	call->reply[0] = afs_get_server(server);
+	call->reply[1] = (void *)(long)server_index;
 	call->upgrade = true;
+	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -2089,7 +2096,7 @@ int afs_fs_get_capabilities(struct afs_net *net,
 
 	/* Can't take a ref on server */
 	trace_afs_make_fs_call(call, NULL);
-	return afs_make_call(ac, call, GFP_NOFS, false);
+	return afs_make_call(ac, call, GFP_NOFS, async);
 }
 
 /*

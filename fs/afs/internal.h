@@ -76,12 +76,13 @@ struct afs_addr_list {
 	u32			version;	/* Version */
 	unsigned char		max_addrs;
 	unsigned char		nr_addrs;
-	unsigned char		index;		/* Address currently in use */
+	unsigned char		preferred;	/* Preferred address */
 	unsigned char		nr_ipv4;	/* Number of IPv4 addresses */
 	enum dns_record_source	source:8;
 	enum dns_lookup_status	status:8;
 	unsigned long		probed;		/* Mask of servers that have been probed */
-	unsigned long		yfs;		/* Mask of servers that are YFS */
+	unsigned long		failed;		/* Mask of addrs that failed locally/ICMP */
+	unsigned long		responded;	/* Mask of addrs that responded */
 	struct sockaddr_rxrpc	addrs[];
 #define AFS_MAX_ADDRESSES ((unsigned int)(sizeof(unsigned long) * 8))
 };
@@ -91,6 +92,7 @@ struct afs_addr_list {
  */
 struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
+	struct afs_addr_list	*alist;		/* Address is alist[addr_ix] */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
 	struct work_struct	async_work;	/* async I/O processor */
 	struct work_struct	work;		/* actual work processor */
@@ -116,6 +118,7 @@ struct afs_call {
 	spinlock_t		state_lock;
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
+	u32			epoch;
 	unsigned		request_size;	/* size of request data */
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		first_offset;	/* offset into mapping[first] */
@@ -125,13 +128,14 @@ struct afs_call {
 		unsigned	count2;		/* count used in unmarshalling */
 	};
 	unsigned char		unmarshall;	/* unmarshalling phase */
+	unsigned char		addr_ix;	/* Address in ->alist */
 	bool			incoming;	/* T if incoming call */
 	bool			send_pages;	/* T if data from mapping should be sent */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
 	bool			ret_reply0;	/* T if should return reply[0] on success */
 	bool			upgrade;	/* T to request service upgrade */
-	bool			want_reply_time;	/* T if want reply_time */
+	bool			want_reply_time; /* T if want reply_time */
 	u16			service_id;	/* Actual service ID (after upgrade) */
 	unsigned int		debug_id;	/* Trace ID */
 	u32			operation_ID;	/* operation ID for an incoming call */
@@ -162,6 +166,9 @@ struct afs_call_type {
 
 	/* Work function */
 	void (*work)(struct work_struct *work);
+
+	/* Call done function (gets called immediately on success or failure) */
+	void (*done)(struct afs_call *call);
 };
 
 /*
@@ -376,10 +383,27 @@ struct afs_vlserver {
 	unsigned long		flags;
 #define AFS_VLSERVER_FL_PROBED	0		/* The VL server has been probed */
 #define AFS_VLSERVER_FL_PROBING	1		/* VL server is being probed */
+#define AFS_VLSERVER_FL_IS_YFS	2		/* Server is YFS not AFS */
 	rwlock_t		lock;		/* Lock on addresses */
 	atomic_t		usage;
-	u16			name_len;	/* Length of name */
+
+	/* Probe state */
+	wait_queue_head_t	probe_wq;
+	atomic_t		probe_outstanding;
+	spinlock_t		probe_lock;
+	struct {
+		unsigned int	rtt;		/* RTT as ktime/64 */
+		u32		abort_code;
+		short		error;
+		bool		have_result;
+		bool		responded:1;
+		bool		is_yfs:1;
+		bool		not_yfs:1;
+		bool		local_failure:1;
+	} probe;
+
 	u16			port;
+	u16			name_len;	/* Length of name */
 	char			name[];		/* Server name, case-flattened */
 };
 
@@ -399,6 +423,7 @@ struct afs_vlserver_list {
 	atomic_t		usage;
 	u8			nr_servers;
 	u8			index;		/* Server currently in use */
+	u8			preferred;	/* Preferred server */
 	enum dns_record_source	source:8;
 	enum dns_lookup_status	status:8;
 	rwlock_t		lock;
@@ -461,8 +486,10 @@ struct afs_server {
 #define AFS_SERVER_FL_MAY_HAVE_CB 8		/* May have callbacks on this fileserver */
 #define AFS_SERVER_FL_IS_YFS	9		/* Server is YFS not AFS */
 #define AFS_SERVER_FL_NO_RM2	10		/* Fileserver doesn't support YFS.RemoveFile2 */
+#define AFS_SERVER_FL_HAVE_EPOCH 11		/* ->epoch is valid */
 	atomic_t		usage;
 	u32			addr_version;	/* Address list version */
+	u32			cm_epoch;	/* Server RxRPC epoch */
 
 	/* file service access */
 	rwlock_t		fs_lock;	/* access lock */
@@ -471,6 +498,26 @@ struct afs_server {
 	struct hlist_head	cb_volumes;	/* List of volume interests on this server */
 	unsigned		cb_s_break;	/* Break-everything counter. */
 	rwlock_t		cb_break_lock;	/* Volume finding lock */
+
+	/* Probe state */
+	wait_queue_head_t	probe_wq;
+	atomic_t		probe_outstanding;
+	spinlock_t		probe_lock;
+	struct {
+		unsigned int	rtt;		/* RTT as ktime/64 */
+		u32		abort_code;
+		u32		cm_epoch;
+		short		error;
+		bool		have_result;
+		bool		responded:1;
+		bool		is_yfs:1;
+		bool		not_yfs:1;
+		bool		local_failure:1;
+		bool		no_epoch:1;
+		bool		cm_probed:1;
+		bool		said_rebooted:1;
+		bool		said_inconsistent:1;
+	} probe;
 };
 
 /*
@@ -505,8 +552,8 @@ struct afs_server_entry {
 
 struct afs_server_list {
 	refcount_t		usage;
-	unsigned short		nr_servers;
-	unsigned short		index;		/* Server currently in use */
+	unsigned char		nr_servers;
+	unsigned char		preferred;	/* Preferred server */
 	unsigned short		vnovol_mask;	/* Servers to be skipped due to VNOVOL */
 	unsigned int		seq;		/* Set to ->servers_seq when installed */
 	rwlock_t		lock;
@@ -653,13 +700,12 @@ struct afs_interface {
  */
 struct afs_addr_cursor {
 	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
-	u32			abort_code;
-	unsigned short		start;		/* Starting point in alist->addrs[] */
-	unsigned short		index;		/* Wrapping offset from start to current addr */
-	short			error;
-	bool			begun;		/* T if we've begun iteration */
+	unsigned long		tried;		/* Tried addresses */
+	signed char		index;		/* Current address */
 	bool			responded;	/* T if the current address responded */
 	unsigned short		nr_iterations;	/* Number of address iterations */
+	short			error;
+	u32			abort_code;
 };
 
 /*
@@ -669,9 +715,10 @@ struct afs_vl_cursor {
 	struct afs_addr_cursor	ac;
 	struct afs_cell		*cell;		/* The cell we're querying */
 	struct afs_vlserver_list *server_list;	/* Current server list (pins ref) */
+	struct afs_vlserver	*server;	/* Server on which this resides */
 	struct key		*key;		/* Key for the server */
-	unsigned char		start;		/* Initial index in server list */
-	unsigned char		index;		/* Number of servers tried beyond start */
+	unsigned long		untried;	/* Bitmask of untried servers */
+	short			index;		/* Current server */
 	short			error;
 	unsigned short		flags;
 #define AFS_VL_CURSOR_STOP	0x0001		/* Set to cease iteration */
@@ -689,10 +736,10 @@ struct afs_fs_cursor {
 	struct afs_server_list	*server_list;	/* Current server list (pins ref) */
 	struct afs_cb_interest	*cbi;		/* Server on which this resides (pins ref) */
 	struct key		*key;		/* Key for the server */
+	unsigned long		untried;	/* Bitmask of untried servers */
 	unsigned int		cb_break;	/* cb_break + cb_s_break before the call */
 	unsigned int		cb_break_2;	/* cb_break + cb_s_break (2nd vnode) */
-	unsigned char		start;		/* Initial index in server list */
-	unsigned char		index;		/* Number of servers tried beyond start */
+	short			index;		/* Current server */
 	short			error;
 	unsigned short		flags;
 #define AFS_FS_CURSOR_STOP	0x0001		/* Set to cease iteration */
@@ -888,7 +935,7 @@ extern int afs_fs_release_lock(struct afs_fs_cursor *);
 extern int afs_fs_give_up_all_callbacks(struct afs_net *, struct afs_server *,
 					struct afs_addr_cursor *, struct key *);
 extern int afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
-				   struct afs_addr_cursor *, struct key *);
+				   struct afs_addr_cursor *, struct key *, unsigned int, bool);
 extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
 				     struct afs_fid *, struct afs_file_status *,
 				     struct afs_callback *, unsigned int,
@@ -896,6 +943,13 @@ extern int afs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
 extern int afs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
 			       struct afs_fid *, struct afs_file_status *,
 			       struct afs_callback *, struct afs_volsync *);
+
+/*
+ * fs_probe.c
+ */
+extern void afs_fileserver_probe_result(struct afs_call *);
+extern int afs_probe_fileservers(struct afs_net *, struct key *, struct afs_server_list *);
+extern int afs_wait_for_fs_probes(struct afs_server_list *, unsigned long);
 
 /*
  * inode.c
@@ -1013,7 +1067,6 @@ extern int __net_init afs_open_socket(struct afs_net *);
 extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
-extern int afs_queue_call_work(struct afs_call *);
 extern long afs_make_call(struct afs_addr_cursor *, struct afs_call *, gfp_t, bool);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
@@ -1130,7 +1183,6 @@ extern void afs_put_server(struct afs_net *, struct afs_server *);
 extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);
 extern void __net_exit afs_purge_servers(struct afs_net *);
-extern bool afs_probe_fileserver(struct afs_fs_cursor *);
 extern bool afs_check_server_record(struct afs_fs_cursor *, struct afs_server *);
 
 /*
@@ -1160,8 +1212,16 @@ extern void afs_fs_exit(void);
 extern struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *,
 							 const char *, int);
 extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *, const uuid_t *);
-extern int afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *, struct key *);
+extern int afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *, struct key *,
+				   struct afs_vlserver *, unsigned int, bool);
 extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *, const uuid_t *);
+
+/*
+ * vl_probe.c
+ */
+extern void afs_vlserver_probe_result(struct afs_call *);
+extern int afs_send_vl_probes(struct afs_net *, struct key *, struct afs_vlserver_list *);
+extern int afs_wait_for_vl_probes(struct afs_vlserver_list *, unsigned long);
 
 /*
  * vl_rotate.c

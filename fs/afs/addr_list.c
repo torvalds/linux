@@ -303,6 +303,8 @@ void afs_merge_fs_addr4(struct afs_addr_list *alist, __be32 xdr, u16 port)
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
 	srx = &alist->addrs[i];
+	srx->srx_family = AF_RXRPC;
+	srx->transport_type = SOCK_DGRAM;
 	srx->transport_len = sizeof(srx->transport.sin);
 	srx->transport.sin.sin_family = AF_INET;
 	srx->transport.sin.sin_port = htons(port);
@@ -341,6 +343,8 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
 			sizeof(alist->addrs[0]) * (alist->nr_addrs - i));
 
 	srx = &alist->addrs[i];
+	srx->srx_family = AF_RXRPC;
+	srx->transport_type = SOCK_DGRAM;
 	srx->transport_len = sizeof(srx->transport.sin6);
 	srx->transport.sin6.sin6_family = AF_INET6;
 	srx->transport.sin6.sin6_port = htons(port);
@@ -353,23 +357,32 @@ void afs_merge_fs_addr6(struct afs_addr_list *alist, __be32 *xdr, u16 port)
  */
 bool afs_iterate_addresses(struct afs_addr_cursor *ac)
 {
-	_enter("%hu+%hd", ac->start, (short)ac->index);
+	unsigned long set, failed;
+	int index;
 
 	if (!ac->alist)
 		return false;
 
+	set = ac->alist->responded;
+	failed = ac->alist->failed;
+	_enter("%lx-%lx-%lx,%d", set, failed, ac->tried, ac->index);
+
 	ac->nr_iterations++;
 
-	if (ac->begun) {
-		ac->index++;
-		if (ac->index == ac->alist->nr_addrs)
-			ac->index = 0;
+	set &= ~(failed | ac->tried);
 
-		if (ac->index == ac->start)
-			return false;
-	}
+	if (!set)
+		return false;
 
-	ac->begun = true;
+	index = READ_ONCE(ac->alist->preferred);
+	if (test_bit(index, &set))
+		goto selected;
+
+	index = __ffs(set);
+
+selected:
+	ac->index = index;
+	set_bit(index, &ac->tried);
 	ac->responded = false;
 	return true;
 }
@@ -383,12 +396,13 @@ int afs_end_cursor(struct afs_addr_cursor *ac)
 
 	alist = ac->alist;
 	if (alist) {
-		if (ac->responded && ac->index != ac->start)
-			WRITE_ONCE(alist->index, ac->index);
+		if (ac->responded &&
+		    ac->index != alist->preferred &&
+		    test_bit(ac->alist->preferred, &ac->tried))
+			WRITE_ONCE(alist->preferred, ac->index);
 		afs_put_addrlist(alist);
+		ac->alist = NULL;
 	}
 
-	ac->alist = NULL;
-	ac->begun = false;
 	return ac->error;
 }

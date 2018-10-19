@@ -43,7 +43,6 @@ int afs_open_socket(struct afs_net *net)
 	struct sockaddr_rxrpc srx;
 	struct socket *socket;
 	unsigned int min_level;
-	u16 service_upgrade[2];
 	int ret;
 
 	_enter("");
@@ -82,13 +81,12 @@ int afs_open_socket(struct afs_net *net)
 	if (ret < 0)
 		goto error_2;
 
-	service_upgrade[0] = CM_SERVICE;
-	service_upgrade[1] = YFS_CM_SERVICE;
-	ret = kernel_setsockopt(socket, SOL_RXRPC, RXRPC_UPGRADEABLE_SERVICE,
-				(void *)service_upgrade, sizeof(service_upgrade));
-	if (ret < 0)
-		goto error_2;
-
+	/* Ideally, we'd turn on service upgrade here, but we can't because
+	 * OpenAFS is buggy and leaks the userStatus field from packet to
+	 * packet and between FS packets and CB packets - so if we try to do an
+	 * upgrade on an FS packet, OpenAFS will leak that into the CB packet
+	 * it sends back to us.
+	 */
 
 	rxrpc_kernel_new_call_notification(socket, afs_rx_new_call,
 					   afs_rx_discard_new_call);
@@ -192,6 +190,7 @@ void afs_put_call(struct afs_call *call)
 
 		afs_put_server(call->net, call->cm_server);
 		afs_put_cb_interest(call->net, call->cbi);
+		afs_put_addrlist(call->alist);
 		kfree(call->request);
 
 		trace_afs_call(call, afs_call_trace_free, 0, o,
@@ -205,21 +204,22 @@ void afs_put_call(struct afs_call *call)
 }
 
 /*
- * Queue the call for actual work.  Returns 0 unconditionally for convenience.
+ * Queue the call for actual work.
  */
-int afs_queue_call_work(struct afs_call *call)
+static void afs_queue_call_work(struct afs_call *call)
 {
-	int u = atomic_inc_return(&call->usage);
+	if (call->type->work) {
+		int u = atomic_inc_return(&call->usage);
 
-	trace_afs_call(call, afs_call_trace_work, u,
-		       atomic_read(&call->net->nr_outstanding_calls),
-		       __builtin_return_address(0));
+		trace_afs_call(call, afs_call_trace_work, u,
+			       atomic_read(&call->net->nr_outstanding_calls),
+			       __builtin_return_address(0));
 
-	INIT_WORK(&call->work, call->type->work);
+		INIT_WORK(&call->work, call->type->work);
 
-	if (!queue_work(afs_wq, &call->work))
-		afs_put_call(call);
-	return 0;
+		if (!queue_work(afs_wq, &call->work))
+			afs_put_call(call);
+	}
 }
 
 /*
@@ -376,6 +376,8 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 	       atomic_read(&call->net->nr_outstanding_calls));
 
 	call->async = async;
+	call->addr_ix = ac->index;
+	call->alist = afs_get_addrlist(ac->alist);
 
 	/* Work out the length we're going to transmit.  This is awkward for
 	 * calls such as FS.StoreData where there's an extra injection of data
@@ -407,6 +409,7 @@ long afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call,
 					 call->debug_id);
 	if (IS_ERR(rxcall)) {
 		ret = PTR_ERR(rxcall);
+		call->error = ret;
 		goto error_kill_call;
 	}
 
@@ -458,6 +461,8 @@ error_do_abort:
 	call->error = ret;
 	trace_afs_call_done(call);
 error_kill_call:
+	if (call->type->done)
+		call->type->done(call);
 	afs_put_call(call);
 	ac->error = ret;
 	_leave(" = %d", ret);
@@ -509,6 +514,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 		state = READ_ONCE(call->state);
 		switch (ret) {
 		case 0:
+			afs_queue_call_work(call);
 			if (state == AFS_CALL_CL_PROC_REPLY) {
 				if (call->cbi)
 					set_bit(AFS_SERVER_FL_MAY_HAVE_CB,
@@ -546,6 +552,8 @@ static void afs_deliver_to_call(struct afs_call *call)
 	}
 
 done:
+	if (call->type->done)
+		call->type->done(call);
 	if (state == AFS_CALL_COMPLETE && call->incoming)
 		afs_put_call(call);
 out:

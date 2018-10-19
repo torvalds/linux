@@ -82,22 +82,6 @@ static struct afs_vldb_entry *afs_vl_lookup_vldb(struct afs_cell *cell,
 		return ERR_PTR(-ERESTARTSYS);
 
 	while (afs_select_vlserver(&vc)) {
-		if (!test_bit(vc.ac.index, &vc.ac.alist->probed)) {
-			ret = afs_vl_get_capabilities(cell->net, &vc.ac, key);
-			switch (ret) {
-			case VL_SERVICE:
-				clear_bit(vc.ac.index, &vc.ac.alist->yfs);
-				set_bit(vc.ac.index, &vc.ac.alist->probed);
-				vc.ac.alist->addrs[vc.ac.index].srx_service = ret;
-				break;
-			case YFS_VL_SERVICE:
-				set_bit(vc.ac.index, &vc.ac.alist->yfs);
-				set_bit(vc.ac.index, &vc.ac.alist->probed);
-				vc.ac.alist->addrs[vc.ac.index].srx_service = ret;
-				break;
-			}
-		}
-
 		vldb = afs_vl_get_entry_by_name_u(&vc, volname, volnamesz);
 	}
 

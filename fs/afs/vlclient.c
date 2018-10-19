@@ -348,10 +348,16 @@ static int afs_deliver_vl_get_capabilities(struct afs_call *call)
 		break;
 	}
 
-	call->reply[0] = (void *)(unsigned long)call->service_id;
-
 	_leave(" = 0 [done]");
 	return 0;
+}
+
+static void afs_destroy_vl_get_capabilities(struct afs_call *call)
+{
+	struct afs_vlserver *server = call->reply[0];
+
+	afs_put_vlserver(call->net, server);
+	afs_flat_call_destructor(call);
 }
 
 /*
@@ -361,7 +367,8 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
 	.name		= "VL.GetCapabilities",
 	.op		= afs_VL_GetCapabilities,
 	.deliver	= afs_deliver_vl_get_capabilities,
-	.destructor	= afs_flat_call_destructor,
+	.done		= afs_vlserver_probe_result,
+	.destructor	= afs_destroy_vl_get_capabilities,
 };
 
 /*
@@ -371,8 +378,12 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
  * We use this to probe for service upgrade to determine what the server at the
  * other end supports.
  */
-int afs_vl_get_capabilities(struct afs_net *net, struct afs_addr_cursor *ac,
-			    struct key *key)
+int afs_vl_get_capabilities(struct afs_net *net,
+			    struct afs_addr_cursor *ac,
+			    struct key *key,
+			    struct afs_vlserver *server,
+			    unsigned int server_index,
+			    bool async)
 {
 	struct afs_call *call;
 	__be32 *bp;
@@ -384,9 +395,10 @@ int afs_vl_get_capabilities(struct afs_net *net, struct afs_addr_cursor *ac,
 		return -ENOMEM;
 
 	call->key = key;
-	call->upgrade = true; /* Let's see if this is a YFS server */
-	call->reply[0] = (void *)VLGETCAPABILITIES;
-	call->ret_reply0 = true;
+	call->reply[0] = afs_get_vlserver(server);
+	call->reply[1] = (void *)(long)server_index;
+	call->upgrade = true;
+	call->want_reply_time = true;
 
 	/* marshall the parameters */
 	bp = call->request;
@@ -394,7 +406,7 @@ int afs_vl_get_capabilities(struct afs_net *net, struct afs_addr_cursor *ac,
 
 	/* Can't take a ref on server */
 	trace_afs_make_vl_call(call);
-	return afs_make_call(ac, call, GFP_KERNEL, false);
+	return afs_make_call(ac, call, GFP_KERNEL, async);
 }
 
 /*
@@ -591,11 +603,6 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 	}
 
 	alist = call->reply[0];
-
-	/* Start with IPv6 if available. */
-	if (alist->nr_ipv4 < alist->nr_addrs)
-		alist->index = alist->nr_ipv4;
-
 	_leave(" = 0 [done]");
 	return 0;
 }

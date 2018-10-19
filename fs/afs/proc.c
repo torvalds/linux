@@ -312,7 +312,7 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 	if (alist) {
 		for (i = 0; i < alist->nr_addrs; i++)
 			seq_printf(m, " %c %pISpc\n",
-				   alist->index == i ? '>' : '-',
+				   alist->preferred == i ? '>' : '-',
 				   &alist->addrs[i].transport);
 	}
 	return 0;
@@ -391,11 +391,11 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   &server->uuid,
 		   atomic_read(&server->usage),
 		   &alist->addrs[0].transport,
-		   alist->index == 0 ? "*" : "");
+		   alist->preferred == 0 ? "*" : "");
 	for (i = 1; i < alist->nr_addrs; i++)
 		seq_printf(m, "                                         %pISpc%s\n",
 			   &alist->addrs[i].transport,
-			   alist->index == i ? "*" : "");
+			   alist->preferred == i ? "*" : "");
 	return 0;
 }
 

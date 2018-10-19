@@ -23,6 +23,8 @@ struct afs_vlserver *afs_alloc_vlserver(const char *name, size_t name_len,
 	if (vlserver) {
 		atomic_set(&vlserver->usage, 1);
 		rwlock_init(&vlserver->lock);
+		init_waitqueue_head(&vlserver->probe_wq);
+		spin_lock_init(&vlserver->probe_lock);
 		vlserver->name_len = name_len;
 		vlserver->port = port;
 		memcpy(vlserver->name, name, name_len);
@@ -141,7 +143,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(const u8 **_b, const u8 *end,
 
 	/* Start with IPv6 if available. */
 	if (alist->nr_ipv4 < alist->nr_addrs)
-		alist->index = alist->nr_ipv4;
+		alist->preferred = alist->nr_ipv4;
 
 	*_b = b;
 	return alist;
@@ -306,6 +308,8 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 				vllist->servers + j,
 				(vllist->nr_servers - j) * sizeof(struct afs_vlserver_entry));
 		}
+
+		clear_bit(AFS_VLSERVER_FL_PROBED, &server->flags);
 
 		vllist->servers[j].priority = bs.priority;
 		vllist->servers[j].weight = bs.weight;
