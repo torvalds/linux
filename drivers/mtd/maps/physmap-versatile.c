@@ -28,7 +28,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/bitops.h>
-#include "physmap_of_versatile.h"
+#include "physmap-versatile.h"
 
 static struct regmap *syscon_regmap;
 

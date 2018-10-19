@@ -13,7 +13,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/bitops.h>
-#include "physmap_of_gemini.h"
+#include "physmap-gemini.h"
 
 /*
  * The Flash-relevant parts of the global status register

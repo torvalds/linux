@@ -31,8 +31,8 @@
 #include <linux/io.h>
 #include <linux/of_device.h>
 
-#include "physmap_of_gemini.h"
-#include "physmap_of_versatile.h"
+#include "physmap-gemini.h"
+#include "physmap-versatile.h"
 
 struct physmap_flash_info {
 	unsigned int		nmaps;
