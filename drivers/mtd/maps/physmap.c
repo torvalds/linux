@@ -122,23 +122,28 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, info);
 
-	for (i = 0; i < dev->num_resources; i++) {
-		printk(KERN_NOTICE "physmap platform flash device: %.8llx at %.8llx\n",
-		       (unsigned long long)resource_size(&dev->resource[i]),
-		       (unsigned long long)dev->resource[i].start);
+	for (i = 0; i < MAX_RESOURCES; i++) {
+		struct resource *res;
 
-		if (!devm_request_mem_region(&dev->dev,
-			dev->resource[i].start,
-			resource_size(&dev->resource[i]),
-			dev_name(&dev->dev))) {
+		res = platform_get_resource(dev, IORESOURCE_MEM, i);
+		if (!res)
+			break;
+
+		printk(KERN_NOTICE "physmap platform flash device: %.8llx at %.8llx\n",
+		       (unsigned long long)resource_size(res),
+		       (unsigned long long)res->start);
+
+		if (!devm_request_mem_region(&dev->dev, res->start,
+					     resource_size(res),
+					     dev_name(&dev->dev))) {
 			dev_err(&dev->dev, "Could not reserve memory region\n");
 			err = -ENOMEM;
 			goto err_out;
 		}
 
 		info->maps[i].name = dev_name(&dev->dev);
-		info->maps[i].phys = dev->resource[i].start;
-		info->maps[i].size = resource_size(&dev->resource[i]);
+		info->maps[i].phys = res->start;
+		info->maps[i].size = resource_size(res);
 		info->maps[i].bankwidth = physmap_data->width;
 		info->maps[i].set_vpp = physmap_set_vpp;
 		info->maps[i].pfow_base = physmap_data->pfow_base;
@@ -172,9 +177,11 @@ static int physmap_flash_probe(struct platform_device *dev)
 		info->mtds[i]->dev.parent = &dev->dev;
 	}
 
-	if (devices_found == 1) {
+	if (!devices_found) {
+		err = -ENODEV;
+	} else if (devices_found == 1) {
 		info->cmtd = info->mtds[0];
-	} else if (devices_found > 1) {
+	} else {
 		/*
 		 * We detected multiple devices. Concatenate them together.
 		 */
