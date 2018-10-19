@@ -16,6 +16,7 @@
 #include <linux/ip.h>
 #include "internal.h"
 #include "afs_cm.h"
+#include "protocol_yfs.h"
 
 static int afs_deliver_cb_init_call_back_state(struct afs_call *);
 static int afs_deliver_cb_init_call_back_state3(struct afs_call *);
@@ -29,6 +30,8 @@ static void SRXAFSCB_InitCallBackState(struct work_struct *);
 static void SRXAFSCB_Probe(struct work_struct *);
 static void SRXAFSCB_ProbeUuid(struct work_struct *);
 static void SRXAFSCB_TellMeAboutYourself(struct work_struct *);
+
+static int afs_deliver_yfs_cb_callback(struct afs_call *);
 
 #define CM_NAME(name) \
 	const char afs_SRXCB##name##_name[] __tracepoint_string =	\
@@ -101,12 +104,23 @@ static const struct afs_call_type afs_SRXCBTellMeAboutYourself = {
 };
 
 /*
+ * YFS CB.CallBack operation type
+ */
+static CM_NAME(YFS_CallBack);
+static const struct afs_call_type afs_SRXYFSCB_CallBack = {
+	.name		= afs_SRXCBYFS_CallBack_name,
+	.deliver	= afs_deliver_yfs_cb_callback,
+	.destructor	= afs_cm_destructor,
+	.work		= SRXAFSCB_CallBack,
+};
+
+/*
  * route an incoming cache manager call
  * - return T if supported, F if not
  */
 bool afs_cm_incoming_call(struct afs_call *call)
 {
-	_enter("{CB.OP %u}", call->operation_ID);
+	_enter("{%u, CB.OP %u}", call->service_id, call->operation_ID);
 
 	switch (call->operation_ID) {
 	case CBCallBack:
@@ -126,6 +140,11 @@ bool afs_cm_incoming_call(struct afs_call *call)
 		return true;
 	case CBTellMeAboutYourself:
 		call->type = &afs_SRXCBTellMeAboutYourself;
+		return true;
+	case YFSCBCallBack:
+		if (call->service_id != YFS_CM_SERVICE)
+			return false;
+		call->type = &afs_SRXYFSCB_CallBack;
 		return true;
 	default:
 		return false;
@@ -567,6 +586,88 @@ static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *call)
 
 	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
 		return afs_io_error(call, afs_io_error_cm_reply);
+
+	return afs_queue_call_work(call);
+}
+
+/*
+ * deliver request data to a YFS CB.CallBack call
+ */
+static int afs_deliver_yfs_cb_callback(struct afs_call *call)
+{
+	struct afs_callback_break *cb;
+	struct sockaddr_rxrpc srx;
+	struct yfs_xdr_YFSFid *bp;
+	size_t size;
+	int ret, loop;
+
+	_enter("{%u}", call->unmarshall);
+
+	switch (call->unmarshall) {
+	case 0:
+		afs_extract_to_tmp(call);
+		call->unmarshall++;
+
+		/* extract the FID array and its count in two steps */
+	case 1:
+		_debug("extract FID count");
+		ret = afs_extract_data(call, true);
+		if (ret < 0)
+			return ret;
+
+		call->count = ntohl(call->tmp);
+		_debug("FID count: %u", call->count);
+		if (call->count > YFSCBMAX)
+			return afs_protocol_error(call, -EBADMSG,
+						  afs_eproto_cb_fid_count);
+
+		size = array_size(call->count, sizeof(struct yfs_xdr_YFSFid));
+		call->buffer = kmalloc(size, GFP_KERNEL);
+		if (!call->buffer)
+			return -ENOMEM;
+		afs_extract_to_buf(call, size);
+		call->unmarshall++;
+
+	case 2:
+		_debug("extract FID array");
+		ret = afs_extract_data(call, false);
+		if (ret < 0)
+			return ret;
+
+		_debug("unmarshall FID array");
+		call->request = kcalloc(call->count,
+					sizeof(struct afs_callback_break),
+					GFP_KERNEL);
+		if (!call->request)
+			return -ENOMEM;
+
+		cb = call->request;
+		bp = call->buffer;
+		for (loop = call->count; loop > 0; loop--, cb++) {
+			cb->fid.vid	= xdr_to_u64(bp->volume);
+			cb->fid.vnode	= xdr_to_u64(bp->vnode.lo);
+			cb->fid.vnode_hi = ntohl(bp->vnode.hi);
+			cb->fid.unique	= ntohl(bp->vnode.unique);
+			bp++;
+		}
+
+		afs_extract_to_tmp(call);
+		call->unmarshall++;
+
+	case 3:
+		break;
+	}
+
+	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
+		return afs_io_error(call, afs_io_error_cm_reply);
+
+	/* We'll need the file server record as that tells us which set of
+	 * vnodes to operate upon.
+	 */
+	rxrpc_kernel_get_peer(call->net->socket, call->rxcall, &srx);
+	call->cm_server = afs_find_server(call->net, &srx);
+	if (!call->cm_server)
+		trace_afs_cm_no_server(call, &srx);
 
 	return afs_queue_call_work(call);
 }
