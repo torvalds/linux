@@ -181,12 +181,19 @@ struct flexi_crypto_context {
 	struct auth_keys auth;
 };
 
+struct crypto_ctx_hdr {
+	struct dma_pool *pool;
+	dma_addr_t dma;
+	void *vaddr;
+};
+
 struct nitrox_crypto_ctx {
 	struct nitrox_device *ndev;
 	union {
 		u64 ctx_handle;
 		struct flexi_crypto_context *fctx;
 	} u;
+	struct crypto_ctx_hdr *chdr;
 };
 
 struct nitrox_kcrypt_request {
