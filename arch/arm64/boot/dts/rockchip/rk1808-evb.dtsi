@@ -252,6 +252,7 @@
 
 &i2c0 {
 	status = "okay";
+	clock-frequency = <400000>;
 
 	vdd_npu: syr837@40 {
 		compatible = "silergy,syr827";
