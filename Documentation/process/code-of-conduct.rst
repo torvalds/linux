@@ -1,3 +1,5 @@
+.. _code_of_conduct:
+
 Contributor Covenant Code of Conduct
 ++++++++++++++++++++++++++++++++++++
 
@@ -75,3 +77,9 @@ Attribution
 
 This Code of Conduct is adapted from the Contributor Covenant, version 1.4,
 available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.html
+
+Interpretation
+==============
+
+See the :ref:`code_of_conduct_interpretation` document for how the Linux
+kernel community will be interpreting this document.

@@ -1,7 +1,9 @@
+.. _code_of_conduct_interpretation:
+
 Linux Kernel Contributor Covenant Code of Conduct Interpretation
 ================================================================
 
-The Contributor Covenant Code of Conduct is a general document meant to
+The :ref:`code_of_conduct` is a general document meant to
 provide a set of rules for almost any open source community.  Every
 open-source community is unique and the Linux kernel is no exception.
 Because of this, this document describes how we in the Linux kernel
