@@ -371,7 +371,7 @@ static void rocker_desc_cookie_ptr_set(const struct rocker_desc_info *desc_info,
 static struct rocker_desc_info *
 rocker_desc_head_get(const struct rocker_dma_ring_info *info)
 {
-	static struct rocker_desc_info *desc_info;
+	struct rocker_desc_info *desc_info;
 	u32 head = __pos_inc(info->head, info->size);
 
 	desc_info = &info->desc_info[info->head];
@@ -402,7 +402,7 @@ static void rocker_desc_head_set(const struct rocker *rocker,
 static struct rocker_desc_info *
 rocker_desc_tail_get(struct rocker_dma_ring_info *info)
 {
-	static struct rocker_desc_info *desc_info;
+	struct rocker_desc_info *desc_info;
 
 	if (info->tail == info->head)
 		return NULL; /* nothing to be done between head and tail */
