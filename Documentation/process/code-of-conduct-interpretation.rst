@@ -45,11 +45,11 @@ regarding conduct issues.
 
 Maintainers should be willing to help when problems occur, and work with
 others in the community when needed.  Do not be afraid to reach out to
-the TAB or other maintainers if you're uncertain how to handle
-situations that come up.  It will not be considered a violation report
-unless you want it to be.  If you are uncertain about approaching the
-TAB or any other maintainers, please reach out to our conflict mediator,
-Mishi Choudhary <mishi@linux.com>.
+the Technical Advisory Board (TAB) or other maintainers if you're
+uncertain how to handle situations that come up.  It will not be
+considered a violation report unless you want it to be.  If you are
+uncertain about approaching the TAB or any other maintainers, please
+reach out to our conflict mediator, Mishi Choudhary <mishi@linux.com>.
 
 In the end, "be kind to each other" is really what the end goal is for
 everybody.  We know everyone is human and we all fail at times, but the
@@ -125,9 +125,9 @@ are listed at <URL>.  Members can not access reports made before they
 joined or after they have left the committee.
 
 The initial Code of Conduct Committee consists of volunteer members of
-the Technical Advisory Board (TAB), as well as a professional mediator
-acting as a neutral third party.  The first task of the committee is to
-establish documented processes, which will be made public.
+the TAB, as well as a professional mediator acting as a neutral third
+party.  The first task of the committee is to establish documented
+processes, which will be made public.
 
 Any member of the committee, including the mediator, can be contacted
 directly if a reporter does not wish to include the full committee in a
