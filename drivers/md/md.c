@@ -5906,14 +5906,6 @@ static void __md_stop(struct mddev *mddev)
 		mddev->to_remove = &md_redundancy_group;
 	module_put(pers->owner);
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-}
-
-void md_stop(struct mddev *mddev)
-{
-	/* stop the array and free an attached data structures.
-	 * This is called from dm-raid
-	 */
-	__md_stop(mddev);
 	if (mddev->flush_bio_pool) {
 		mempool_destroy(mddev->flush_bio_pool);
 		mddev->flush_bio_pool = NULL;
@@ -5922,6 +5914,14 @@ void md_stop(struct mddev *mddev)
 		mempool_destroy(mddev->flush_pool);
 		mddev->flush_pool = NULL;
 	}
+}
+
+void md_stop(struct mddev *mddev)
+{
+	/* stop the array and free an attached data structures.
+	 * This is called from dm-raid
+	 */
+	__md_stop(mddev);
 	bioset_exit(&mddev->bio_set);
 	bioset_exit(&mddev->sync_set);
 }
