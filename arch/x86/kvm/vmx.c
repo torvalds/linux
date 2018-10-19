@@ -12715,6 +12715,7 @@ static void prepare_vmcs02_full(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	if (!hv_evmcs || !(hv_evmcs->hv_clean_fields &
 			   HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP2)) {
 		vmcs_write16(GUEST_ES_SELECTOR, vmcs12->guest_es_selector);
+		vmcs_write16(GUEST_CS_SELECTOR, vmcs12->guest_cs_selector);
 		vmcs_write16(GUEST_SS_SELECTOR, vmcs12->guest_ss_selector);
 		vmcs_write16(GUEST_DS_SELECTOR, vmcs12->guest_ds_selector);
 		vmcs_write16(GUEST_FS_SELECTOR, vmcs12->guest_fs_selector);
@@ -12722,6 +12723,7 @@ static void prepare_vmcs02_full(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		vmcs_write16(GUEST_LDTR_SELECTOR, vmcs12->guest_ldtr_selector);
 		vmcs_write16(GUEST_TR_SELECTOR, vmcs12->guest_tr_selector);
 		vmcs_write32(GUEST_ES_LIMIT, vmcs12->guest_es_limit);
+		vmcs_write32(GUEST_CS_LIMIT, vmcs12->guest_cs_limit);
 		vmcs_write32(GUEST_SS_LIMIT, vmcs12->guest_ss_limit);
 		vmcs_write32(GUEST_DS_LIMIT, vmcs12->guest_ds_limit);
 		vmcs_write32(GUEST_FS_LIMIT, vmcs12->guest_fs_limit);
@@ -12731,12 +12733,13 @@ static void prepare_vmcs02_full(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 		vmcs_write32(GUEST_GDTR_LIMIT, vmcs12->guest_gdtr_limit);
 		vmcs_write32(GUEST_IDTR_LIMIT, vmcs12->guest_idtr_limit);
 		vmcs_write32(GUEST_ES_AR_BYTES, vmcs12->guest_es_ar_bytes);
-		vmcs_write32(GUEST_SS_AR_BYTES, vmcs12->guest_ss_ar_bytes);
 		vmcs_write32(GUEST_DS_AR_BYTES, vmcs12->guest_ds_ar_bytes);
 		vmcs_write32(GUEST_FS_AR_BYTES, vmcs12->guest_fs_ar_bytes);
 		vmcs_write32(GUEST_GS_AR_BYTES, vmcs12->guest_gs_ar_bytes);
 		vmcs_write32(GUEST_LDTR_AR_BYTES, vmcs12->guest_ldtr_ar_bytes);
 		vmcs_write32(GUEST_TR_AR_BYTES, vmcs12->guest_tr_ar_bytes);
+		vmcs_writel(GUEST_ES_BASE, vmcs12->guest_es_base);
+		vmcs_writel(GUEST_CS_BASE, vmcs12->guest_cs_base);
 		vmcs_writel(GUEST_SS_BASE, vmcs12->guest_ss_base);
 		vmcs_writel(GUEST_DS_BASE, vmcs12->guest_ds_base);
 		vmcs_writel(GUEST_FS_BASE, vmcs12->guest_fs_base);
@@ -12838,11 +12841,8 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	 */
 	if (!hv_evmcs || !(hv_evmcs->hv_clean_fields &
 			   HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP2)) {
-		vmcs_write16(GUEST_CS_SELECTOR, vmcs12->guest_cs_selector);
-		vmcs_write32(GUEST_CS_LIMIT, vmcs12->guest_cs_limit);
 		vmcs_write32(GUEST_CS_AR_BYTES, vmcs12->guest_cs_ar_bytes);
-		vmcs_writel(GUEST_ES_BASE, vmcs12->guest_es_base);
-		vmcs_writel(GUEST_CS_BASE, vmcs12->guest_cs_base);
+		vmcs_write32(GUEST_SS_AR_BYTES, vmcs12->guest_ss_ar_bytes);
 	}
 
 	if (vmx->nested.nested_run_pending &&
