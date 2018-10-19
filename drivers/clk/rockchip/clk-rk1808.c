@@ -334,9 +334,9 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 4
 	 */
-	COMPOSITE_NOGATE(0, "clk_npu_div", mux_gpll_cpll_apll_p, 0,
+	COMPOSITE_NOGATE(0, "clk_npu_div", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE,
 			RK1808_CLKSEL_CON(1), 8, 2, MFLAGS, 0, 4, DFLAGS),
-	COMPOSITE_NOGATE_HALFDIV(0, "clk_npu_np5", mux_gpll_cpll_apll_p, 0,
+	COMPOSITE_NOGATE_HALFDIV(0, "clk_npu_np5", mux_gpll_cpll_p, CLK_KEEP_REQ_RATE,
 			RK1808_CLKSEL_CON(1), 10, 2, MFLAGS, 4, 4, DFLAGS),
 	MUX(0, "clk_npu_pre", mux_npu_p, CLK_SET_RATE_PARENT,
 			RK1808_CLKSEL_CON(1), 15, 1, MFLAGS),
