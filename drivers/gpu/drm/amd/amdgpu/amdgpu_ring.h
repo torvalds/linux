@@ -189,7 +189,6 @@ struct amdgpu_ring {
 	uint64_t		gpu_addr;
 	uint64_t		ptr_mask;
 	uint32_t		buf_mask;
-	bool			ready;
 	u32			idx;
 	u32			me;
 	u32			pipe;
@@ -312,5 +311,7 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw -= count_dw;
 }
+
+int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
 #endif

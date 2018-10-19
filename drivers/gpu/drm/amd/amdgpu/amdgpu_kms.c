@@ -336,7 +336,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_GFX:
 		type = AMD_IP_BLOCK_TYPE_GFX;
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-			if (adev->gfx.gfx_ring[i].ready)
+			if (adev->gfx.gfx_ring[i].sched.ready)
 				++num_rings;
 		ib_start_alignment = 32;
 		ib_size_alignment = 32;
@@ -344,7 +344,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_COMPUTE:
 		type = AMD_IP_BLOCK_TYPE_GFX;
 		for (i = 0; i < adev->gfx.num_compute_rings; i++)
-			if (adev->gfx.compute_ring[i].ready)
+			if (adev->gfx.compute_ring[i].sched.ready)
 				++num_rings;
 		ib_start_alignment = 32;
 		ib_size_alignment = 32;
@@ -352,7 +352,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_DMA:
 		type = AMD_IP_BLOCK_TYPE_SDMA;
 		for (i = 0; i < adev->sdma.num_instances; i++)
-			if (adev->sdma.instance[i].ring.ready)
+			if (adev->sdma.instance[i].ring.sched.ready)
 				++num_rings;
 		ib_start_alignment = 256;
 		ib_size_alignment = 4;
@@ -363,7 +363,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			if (adev->uvd.harvest_config & (1 << i))
 				continue;
 
-			if (adev->uvd.inst[i].ring.ready)
+			if (adev->uvd.inst[i].ring.sched.ready)
 				++num_rings;
 		}
 		ib_start_alignment = 64;
@@ -372,7 +372,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_VCE:
 		type = AMD_IP_BLOCK_TYPE_VCE;
 		for (i = 0; i < adev->vce.num_rings; i++)
-			if (adev->vce.ring[i].ready)
+			if (adev->vce.ring[i].sched.ready)
 				++num_rings;
 		ib_start_alignment = 4;
 		ib_size_alignment = 1;
@@ -384,7 +384,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 				continue;
 
 			for (j = 0; j < adev->uvd.num_enc_rings; j++)
-				if (adev->uvd.inst[i].ring_enc[j].ready)
+				if (adev->uvd.inst[i].ring_enc[j].sched.ready)
 					++num_rings;
 		}
 		ib_start_alignment = 64;
@@ -392,7 +392,7 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 		break;
 	case AMDGPU_HW_IP_VCN_DEC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		if (adev->vcn.ring_dec.ready)
+		if (adev->vcn.ring_dec.sched.ready)
 			++num_rings;
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;
@@ -400,14 +400,14 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_VCN_ENC:
 		type = AMD_IP_BLOCK_TYPE_VCN;
 		for (i = 0; i < adev->vcn.num_enc_rings; i++)
-			if (adev->vcn.ring_enc[i].ready)
+			if (adev->vcn.ring_enc[i].sched.ready)
 				++num_rings;
 		ib_start_alignment = 64;
 		ib_size_alignment = 1;
 		break;
 	case AMDGPU_HW_IP_VCN_JPEG:
 		type = AMD_IP_BLOCK_TYPE_VCN;
-		if (adev->vcn.ring_jpeg.ready)
+		if (adev->vcn.ring_jpeg.sched.ready)
 			++num_rings;
 		ib_start_alignment = 16;
 		ib_size_alignment = 16;

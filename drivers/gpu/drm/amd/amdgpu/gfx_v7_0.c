@@ -2403,7 +2403,7 @@ static void gfx_v7_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 	} else {
 		WREG32(mmCP_ME_CNTL, (CP_ME_CNTL__ME_HALT_MASK | CP_ME_CNTL__PFP_HALT_MASK | CP_ME_CNTL__CE_HALT_MASK));
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-			adev->gfx.gfx_ring[i].ready = false;
+			adev->gfx.gfx_ring[i].sched.ready = false;
 	}
 	udelay(50);
 }
@@ -2613,12 +2613,9 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 
 	/* start the ring */
 	gfx_v7_0_cp_gfx_start(adev);
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }
@@ -2675,7 +2672,7 @@ static void gfx_v7_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 	} else {
 		WREG32(mmCP_MEC_CNTL, (CP_MEC_CNTL__MEC_ME1_HALT_MASK | CP_MEC_CNTL__MEC_ME2_HALT_MASK));
 		for (i = 0; i < adev->gfx.num_compute_rings; i++)
-			adev->gfx.compute_ring[i].ready = false;
+			adev->gfx.compute_ring[i].sched.ready = false;
 	}
 	udelay(50);
 }
@@ -3106,10 +3103,7 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
-		ring->ready = true;
-		r = amdgpu_ring_test_ring(ring);
-		if (r)
-			ring->ready = false;
+		amdgpu_ring_test_helper(ring);
 	}
 
 	return 0;

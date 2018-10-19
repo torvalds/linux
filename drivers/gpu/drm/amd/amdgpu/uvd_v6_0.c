@@ -476,12 +476,9 @@ static int uvd_v6_0_hw_init(void *handle)
 	uvd_v6_0_set_clockgating_state(adev, AMD_CG_STATE_UNGATE);
 	uvd_v6_0_enable_mgcg(adev, true);
 
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
 		goto done;
-	}
 
 	r = amdgpu_ring_alloc(ring, 10);
 	if (r) {
@@ -513,12 +510,9 @@ static int uvd_v6_0_hw_init(void *handle)
 	if (uvd_v6_0_enc_support(adev)) {
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 			ring = &adev->uvd.inst->ring_enc[i];
-			ring->ready = true;
-			r = amdgpu_ring_test_ring(ring);
-			if (r) {
-				ring->ready = false;
+			r = amdgpu_ring_test_helper(ring);
+			if (r)
 				goto done;
-			}
 		}
 	}
 
@@ -548,7 +542,7 @@ static int uvd_v6_0_hw_fini(void *handle)
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v6_0_stop(adev);
 
-	ring->ready = false;
+	ring->sched.ready = false;
 
 	return 0;
 }

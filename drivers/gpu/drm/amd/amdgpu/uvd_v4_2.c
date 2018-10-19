@@ -162,12 +162,9 @@ static int uvd_v4_2_hw_init(void *handle)
 	uvd_v4_2_enable_mgcg(adev, true);
 	amdgpu_asic_set_uvd_clocks(adev, 10000, 10000);
 
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
 		goto done;
-	}
 
 	r = amdgpu_ring_alloc(ring, 10);
 	if (r) {
@@ -218,7 +215,7 @@ static int uvd_v4_2_hw_fini(void *handle)
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v4_2_stop(adev);
 
-	ring->ready = false;
+	ring->sched.ready = false;
 
 	return 0;
 }

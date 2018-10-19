@@ -146,7 +146,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		fence_ctx = 0;
 	}
 
-	if (!ring->ready) {
+	if (!ring->sched.ready) {
 		dev_err(adev->dev, "couldn't schedule ib on ring <%s>\n", ring->name);
 		return -EINVAL;
 	}
@@ -351,7 +351,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		struct amdgpu_ring *ring = adev->rings[i];
 		long tmo;
 
-		if (!ring || !ring->ready)
+		if (!ring || !ring->sched.ready)
 			continue;
 
 		/* skip IB tests for KIQ in general for the below reasons:
@@ -375,7 +375,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 		r = amdgpu_ring_test_ib(ring, tmo);
 		if (r) {
-			ring->ready = false;
+			ring->sched.ready = false;
 
 			if (ring == &adev->gfx.gfx_ring[0]) {
 				/* oh, oh, that's really bad */

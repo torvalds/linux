@@ -634,8 +634,8 @@ static void sdma_v4_0_gfx_stop(struct amdgpu_device *adev)
 		WREG32_SDMA(i, mmSDMA0_GFX_IB_CNTL, ib_cntl);
 	}
 
-	sdma0->ready = false;
-	sdma1->ready = false;
+	sdma0->sched.ready = false;
+	sdma1->sched.ready = false;
 }
 
 /**
@@ -675,8 +675,8 @@ static void sdma_v4_0_page_stop(struct amdgpu_device *adev)
 		WREG32_SDMA(i, mmSDMA0_PAGE_IB_CNTL, ib_cntl);
 	}
 
-	sdma0->ready = false;
-	sdma1->ready = false;
+	sdma0->sched.ready = false;
+	sdma1->sched.ready = false;
 }
 
 /**
@@ -863,7 +863,7 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	/* enable DMA IBs */
 	WREG32_SDMA(i, mmSDMA0_GFX_IB_CNTL, ib_cntl);
 
-	ring->ready = true;
+	ring->sched.ready = true;
 }
 
 /**
@@ -956,7 +956,7 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 	/* enable DMA IBs */
 	WREG32_SDMA(i, mmSDMA0_PAGE_IB_CNTL, ib_cntl);
 
-	ring->ready = true;
+	ring->sched.ready = true;
 }
 
 static void
@@ -1144,20 +1144,16 @@ static int sdma_v4_0_start(struct amdgpu_device *adev)
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
 
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->ready = false;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			return r;
-		}
 
 		if (adev->sdma.has_page_queue) {
 			struct amdgpu_ring *page = &adev->sdma.instance[i].page;
 
-			r = amdgpu_ring_test_ring(page);
-			if (r) {
-				page->ready = false;
+			r = amdgpu_ring_test_helper(page);
+			if (r)
 				return r;
-			}
 		}
 
 		if (adev->mman.buffer_funcs_ring == ring)

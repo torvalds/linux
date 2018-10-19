@@ -523,8 +523,8 @@ static void sdma_v3_0_gfx_stop(struct amdgpu_device *adev)
 		ib_cntl = REG_SET_FIELD(ib_cntl, SDMA0_GFX_IB_CNTL, IB_ENABLE, 0);
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 	}
-	sdma0->ready = false;
-	sdma1->ready = false;
+	sdma0->sched.ready = false;
+	sdma1->sched.ready = false;
 }
 
 /**
@@ -739,7 +739,7 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		/* enable DMA IBs */
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 
-		ring->ready = true;
+		ring->sched.ready = true;
 	}
 
 	/* unhalt the MEs */
@@ -749,11 +749,9 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->ready = false;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			return r;
-		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, true);

@@ -786,7 +786,7 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	if (adev->in_gpu_reset)
 		return -EIO;
 
-	if (ring->ready)
+	if (ring->sched.ready)
 		return invalidate_tlbs_with_kiq(adev, pasid);
 
 	for (vmid = 0; vmid < 16; vmid++) {

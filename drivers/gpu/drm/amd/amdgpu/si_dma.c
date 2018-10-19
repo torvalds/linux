@@ -122,7 +122,7 @@ static void si_dma_stop(struct amdgpu_device *adev)
 
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-		ring->ready = false;
+		ring->sched.ready = false;
 	}
 }
 
@@ -175,13 +175,11 @@ static int si_dma_start(struct amdgpu_device *adev)
 		WREG32(DMA_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl | DMA_RB_ENABLE);
 
-		ring->ready = true;
+		ring->sched.ready = true;
 
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->ready = false;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			return r;
-		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, true);

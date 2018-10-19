@@ -176,30 +176,22 @@ static int vcn_v1_0_hw_init(void *handle)
 	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
 	int i, r;
 
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
 		goto done;
-	}
 
 	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
 		ring = &adev->vcn.ring_enc[i];
-		ring->ready = true;
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->ready = false;
+		ring->sched.ready = true;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			goto done;
-		}
 	}
 
 	ring = &adev->vcn.ring_jpeg;
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r) {
-		ring->ready = false;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
 		goto done;
-	}
 
 done:
 	if (!r)
@@ -224,7 +216,7 @@ static int vcn_v1_0_hw_fini(void *handle)
 	if (RREG32_SOC15(VCN, 0, mmUVD_STATUS))
 		vcn_v1_0_stop(adev);
 
-	ring->ready = false;
+	ring->sched.ready = false;
 
 	return 0;
 }

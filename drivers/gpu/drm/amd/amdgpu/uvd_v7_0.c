@@ -540,12 +540,9 @@ static int uvd_v7_0_hw_init(void *handle)
 		ring = &adev->uvd.inst[j].ring;
 
 		if (!amdgpu_sriov_vf(adev)) {
-			ring->ready = true;
-			r = amdgpu_ring_test_ring(ring);
-			if (r) {
-				ring->ready = false;
+			r = amdgpu_ring_test_helper(ring);
+			if (r)
 				goto done;
-			}
 
 			r = amdgpu_ring_alloc(ring, 10);
 			if (r) {
@@ -582,12 +579,9 @@ static int uvd_v7_0_hw_init(void *handle)
 
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 			ring = &adev->uvd.inst[j].ring_enc[i];
-			ring->ready = true;
-			r = amdgpu_ring_test_ring(ring);
-			if (r) {
-				ring->ready = false;
+			r = amdgpu_ring_test_helper(ring);
+			if (r)
 				goto done;
-			}
 		}
 	}
 done:
@@ -619,7 +613,7 @@ static int uvd_v7_0_hw_fini(void *handle)
 	for (i = 0; i < adev->uvd.num_uvd_inst; ++i) {
 		if (adev->uvd.harvest_config & (1 << i))
 			continue;
-		adev->uvd.inst[i].ring.ready = false;
+		adev->uvd.inst[i].ring.sched.ready = false;
 	}
 
 	return 0;

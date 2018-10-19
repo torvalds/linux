@@ -1629,7 +1629,7 @@ static int gfx_v8_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 		return 0;
 
 	/* bail if the compute ring is not ready */
-	if (!ring->ready)
+	if (!ring->sched.ready)
 		return 0;
 
 	tmp = RREG32(mmGB_EDC_MODE);
@@ -4197,7 +4197,7 @@ static void gfx_v8_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, 1);
 		tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, 1);
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++)
-			adev->gfx.gfx_ring[i].ready = false;
+			adev->gfx.gfx_ring[i].sched.ready = false;
 	}
 	WREG32(mmCP_ME_CNTL, tmp);
 	udelay(50);
@@ -4379,10 +4379,8 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* start the ring */
 	amdgpu_ring_clear_ring(ring);
 	gfx_v8_0_cp_gfx_start(adev);
-	ring->ready = true;
-	r = amdgpu_ring_test_ring(ring);
-	if (r)
-		ring->ready = false;
+	ring->sched.ready = true;
+	r = amdgpu_ring_test_helper(ring);
 
 	return r;
 }
@@ -4396,8 +4394,8 @@ static void gfx_v8_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 	} else {
 		WREG32(mmCP_MEC_CNTL, (CP_MEC_CNTL__MEC_ME1_HALT_MASK | CP_MEC_CNTL__MEC_ME2_HALT_MASK));
 		for (i = 0; i < adev->gfx.num_compute_rings; i++)
-			adev->gfx.compute_ring[i].ready = false;
-		adev->gfx.kiq.ring.ready = false;
+			adev->gfx.compute_ring[i].sched.ready = false;
+		adev->gfx.kiq.ring.sched.ready = false;
 	}
 	udelay(50);
 }
@@ -4473,11 +4471,9 @@ static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
 		amdgpu_ring_write(kiq_ring, upper_32_bits(wptr_addr));
 	}
 
-	r = amdgpu_ring_test_ring(kiq_ring);
-	if (r) {
+	r = amdgpu_ring_test_helper(kiq_ring);
+	if (r)
 		DRM_ERROR("KCQ enable failed\n");
-		kiq_ring->ready = false;
-	}
 	return r;
 }
 
@@ -4781,7 +4777,7 @@ static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 	amdgpu_bo_kunmap(ring->mqd_obj);
 	ring->mqd_ptr = NULL;
 	amdgpu_bo_unreserve(ring->mqd_obj);
-	ring->ready = true;
+	ring->sched.ready = true;
 	return 0;
 }
 
@@ -4820,10 +4816,7 @@ static int gfx_v8_0_kcq_resume(struct amdgpu_device *adev)
 	 */
 	for (i = adev->gfx.num_compute_rings - 1; i >= 0; i--) {
 		ring = &adev->gfx.compute_ring[i];
-		ring->ready = true;
-		r = amdgpu_ring_test_ring(ring);
-		if (r)
-			ring->ready = false;
+		r = amdgpu_ring_test_helper(ring);
 	}
 
 done:
@@ -4899,7 +4892,7 @@ static int gfx_v8_0_kcq_disable(struct amdgpu_device *adev)
 		amdgpu_ring_write(kiq_ring, 0);
 		amdgpu_ring_write(kiq_ring, 0);
 	}
-	r = amdgpu_ring_test_ring(kiq_ring);
+	r = amdgpu_ring_test_helper(kiq_ring);
 	if (r)
 		DRM_ERROR("KCQ disable failed\n");
 
