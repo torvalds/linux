@@ -39,11 +39,6 @@ u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq)
 	return (u32)wq->fbc.sz_m1 + 1;
 }
 
-u16 mlx5_wq_cyc_get_frag_size(struct mlx5_wq_cyc *wq)
-{
-	return wq->fbc.frag_sz_m1 + 1;
-}
-
 u32 mlx5_cqwq_get_size(struct mlx5_cqwq *wq)
 {
 	return wq->fbc.sz_m1 + 1;

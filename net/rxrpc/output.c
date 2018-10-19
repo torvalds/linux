@@ -572,7 +572,8 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 			whdr.flags	^= RXRPC_CLIENT_INITIATED;
 			whdr.flags	&= RXRPC_CLIENT_INITIATED;
 
-			ret = kernel_sendmsg(local->socket, &msg, iov, 2, size);
+			ret = kernel_sendmsg(local->socket, &msg,
+					     iov, ioc, size);
 			if (ret < 0)
 				trace_rxrpc_tx_fail(local->debug_id, 0, ret,
 						    rxrpc_tx_point_reject);

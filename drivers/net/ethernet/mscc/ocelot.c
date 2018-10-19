@@ -133,9 +133,9 @@ static inline int ocelot_vlant_wait_for_completion(struct ocelot *ocelot)
 {
 	unsigned int val, timeout = 10;
 
-	/* Wait for the issued mac table command to be completed, or timeout.
-	 * When the command read from ANA_TABLES_MACACCESS is
-	 * MACACCESS_CMD_IDLE, the issued command completed successfully.
+	/* Wait for the issued vlan table command to be completed, or timeout.
+	 * When the command read from ANA_TABLES_VLANACCESS is
+	 * VLANACCESS_CMD_IDLE, the issued command completed successfully.
 	 */
 	do {
 		val = ocelot_read(ocelot, ANA_TABLES_VLANACCESS);

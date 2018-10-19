@@ -120,6 +120,12 @@ void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
 			sctp_assoc_sync_pmtu(asoc);
 	}
 
+	if (asoc->pmtu_pending) {
+		if (asoc->param_flags & SPP_PMTUD_ENABLE)
+			sctp_assoc_sync_pmtu(asoc);
+		asoc->pmtu_pending = 0;
+	}
+
 	/* If there a is a prepend chunk stick it on the list before
 	 * any other chunks get appended.
 	 */
