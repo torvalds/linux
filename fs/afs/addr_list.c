@@ -64,19 +64,25 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr,
 /*
  * Parse a text string consisting of delimited addresses.
  */
-struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
-					   char delim,
-					   unsigned short service,
-					   unsigned short port)
+struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *net,
+					       const char *text, size_t len,
+					       char delim,
+					       unsigned short service,
+					       unsigned short port)
 {
+	struct afs_vlserver_list *vllist;
 	struct afs_addr_list *alist;
 	const char *p, *end = text + len;
+	const char *problem;
 	unsigned int nr = 0;
+	int ret = -ENOMEM;
 
 	_enter("%*.*s,%c", (int)len, (int)len, text, delim);
 
-	if (!len)
+	if (!len) {
+		_leave(" = -EDESTADDRREQ [empty]");
 		return ERR_PTR(-EDESTADDRREQ);
+	}
 
 	if (delim == ':' && (memchr(text, ',', len) || !memchr(text, '.', len)))
 		delim = ',';
@@ -84,18 +90,24 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 	/* Count the addresses */
 	p = text;
 	do {
-		if (!*p)
-			return ERR_PTR(-EINVAL);
+		if (!*p) {
+			problem = "nul";
+			goto inval;
+		}
 		if (*p == delim)
 			continue;
 		nr++;
 		if (*p == '[') {
 			p++;
-			if (p == end)
-				return ERR_PTR(-EINVAL);
+			if (p == end) {
+				problem = "brace1";
+				goto inval;
+			}
 			p = memchr(p, ']', end - p);
-			if (!p)
-				return ERR_PTR(-EINVAL);
+			if (!p) {
+				problem = "brace2";
+				goto inval;
+			}
 			p++;
 			if (p >= end)
 				break;
@@ -109,9 +121,18 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 
 	_debug("%u/%u addresses", nr, AFS_MAX_ADDRESSES);
 
-	alist = afs_alloc_addrlist(nr, service, port);
-	if (!alist)
+	vllist = afs_alloc_vlserver_list(1);
+	if (!vllist)
 		return ERR_PTR(-ENOMEM);
+
+	vllist->nr_servers = 1;
+	vllist->servers[0].server = afs_alloc_vlserver("<dummy>", 7, AFS_VL_PORT);
+	if (!vllist->servers[0].server)
+		goto error_vl;
+
+	alist = afs_alloc_addrlist(nr, service, AFS_VL_PORT);
+	if (!alist)
+		goto error;
 
 	/* Extract the addresses */
 	p = text;
@@ -135,17 +156,21 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 					break;
 		}
 
-		if (in4_pton(p, q - p, (u8 *)&x[0], -1, &stop))
+		if (in4_pton(p, q - p, (u8 *)&x[0], -1, &stop)) {
 			family = AF_INET;
-		else if (in6_pton(p, q - p, (u8 *)x, -1, &stop))
+		} else if (in6_pton(p, q - p, (u8 *)x, -1, &stop)) {
 			family = AF_INET6;
-		else
+		} else {
+			problem = "family";
 			goto bad_address;
-
-		if (stop != q)
-			goto bad_address;
+		}
 
 		p = q;
+		if (stop != p) {
+			problem = "nostop";
+			goto bad_address;
+		}
+
 		if (q < end && *q == ']')
 			p++;
 
@@ -154,18 +179,23 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 				/* Port number specification "+1234" */
 				xport = 0;
 				p++;
-				if (p >= end || !isdigit(*p))
+				if (p >= end || !isdigit(*p)) {
+					problem = "port";
 					goto bad_address;
+				}
 				do {
 					xport *= 10;
 					xport += *p - '0';
-					if (xport > 65535)
+					if (xport > 65535) {
+						problem = "pval";
 						goto bad_address;
+					}
 					p++;
 				} while (p < end && isdigit(*p));
 			} else if (*p == delim) {
 				p++;
 			} else {
+				problem = "weird";
 				goto bad_address;
 			}
 		}
@@ -177,12 +207,23 @@ struct afs_addr_list *afs_parse_text_addrs(const char *text, size_t len,
 
 	} while (p < end);
 
+	rcu_assign_pointer(vllist->servers[0].server->addresses, alist);
 	_leave(" = [nr %u]", alist->nr_addrs);
-	return alist;
+	return vllist;
 
-bad_address:
-	kfree(alist);
+inval:
+	_leave(" = -EINVAL [%s %zu %*.*s]",
+	       problem, p - text, (int)len, (int)len, text);
 	return ERR_PTR(-EINVAL);
+bad_address:
+	_leave(" = -EINVAL [%s %zu %*.*s]",
+	       problem, p - text, (int)len, (int)len, text);
+	ret = -EINVAL;
+error:
+	afs_put_addrlist(alist);
+error_vl:
+	afs_put_vlserverlist(net, vllist);
+	return ERR_PTR(ret);
 }
 
 /*
@@ -201,30 +242,34 @@ static int afs_cmp_addr_list(const struct afs_addr_list *a1,
 /*
  * Perform a DNS query for VL servers and build a up an address list.
  */
-struct afs_addr_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
+struct afs_vlserver_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
 {
-	struct afs_addr_list *alist;
-	char *vllist = NULL;
+	struct afs_vlserver_list *vllist;
+	char *result = NULL;
 	int ret;
 
 	_enter("%s", cell->name);
 
-	ret = dns_query("afsdb", cell->name, cell->name_len,
-			"", &vllist, _expiry);
-	if (ret < 0)
+	ret = dns_query("afsdb", cell->name, cell->name_len, "srv=1",
+			&result, _expiry);
+	if (ret < 0) {
+		_leave(" = %d [dns]", ret);
 		return ERR_PTR(ret);
-
-	alist = afs_parse_text_addrs(vllist, strlen(vllist), ',',
-				     VL_SERVICE, AFS_VL_PORT);
-	if (IS_ERR(alist)) {
-		kfree(vllist);
-		if (alist != ERR_PTR(-ENOMEM))
-			pr_err("Failed to parse DNS data\n");
-		return alist;
 	}
 
-	kfree(vllist);
-	return alist;
+	if (*_expiry == 0)
+		*_expiry = ktime_get_real_seconds() + 60;
+
+	if (ret > 1 && result[0] == 0)
+		vllist = afs_extract_vlserver_list(cell, result, ret);
+	else
+		vllist = afs_parse_text_addrs(cell->net, result, ret, ',',
+					      VL_SERVICE, AFS_VL_PORT);
+	kfree(result);
+	if (IS_ERR(vllist) && vllist != ERR_PTR(-ENOMEM))
+		pr_err("Failed to parse DNS data %ld\n", PTR_ERR(vllist));
+
+	return vllist;
 }
 
 /*
@@ -346,44 +391,4 @@ int afs_end_cursor(struct afs_addr_cursor *ac)
 	ac->alist = NULL;
 	ac->begun = false;
 	return ac->error;
-}
-
-/*
- * Set the address cursor for iterating over VL servers.
- */
-int afs_set_vl_cursor(struct afs_addr_cursor *ac, struct afs_cell *cell)
-{
-	struct afs_addr_list *alist;
-	int ret;
-
-	if (!rcu_access_pointer(cell->vl_addrs)) {
-		ret = wait_on_bit(&cell->flags, AFS_CELL_FL_NO_LOOKUP_YET,
-				  TASK_INTERRUPTIBLE);
-		if (ret < 0)
-			return ret;
-
-		if (!rcu_access_pointer(cell->vl_addrs) &&
-		    ktime_get_real_seconds() < cell->dns_expiry)
-			return cell->error;
-	}
-
-	read_lock(&cell->vl_addrs_lock);
-	alist = rcu_dereference_protected(cell->vl_addrs,
-					  lockdep_is_held(&cell->vl_addrs_lock));
-	if (alist->nr_addrs > 0)
-		afs_get_addrlist(alist);
-	else
-		alist = NULL;
-	read_unlock(&cell->vl_addrs_lock);
-
-	if (!alist)
-		return -EDESTADDRREQ;
-
-	ac->alist = alist;
-	ac->addr = NULL;
-	ac->start = READ_ONCE(alist->index);
-	ac->index = ac->start;
-	ac->error = 0;
-	ac->begun = false;
-	return 0;
 }

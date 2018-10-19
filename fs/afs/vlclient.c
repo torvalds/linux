@@ -128,14 +128,13 @@ static const struct afs_call_type afs_RXVLGetEntryByNameU = {
  * Dispatch a get volume entry by name or ID operation (uuid variant).  If the
  * volname is a decimal number then it's a volume ID not a volume name.
  */
-struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_net *net,
-						  struct afs_addr_cursor *ac,
-						  struct key *key,
+struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 						  const char *volname,
 						  int volnamesz)
 {
 	struct afs_vldb_entry *entry;
 	struct afs_call *call;
+	struct afs_net *net = vc->cell->net;
 	size_t reqsz, padsz;
 	__be32 *bp;
 
@@ -155,7 +154,7 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_net *net,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	call->key = key;
+	call->key = vc->key;
 	call->reply[0] = entry;
 	call->ret_reply0 = true;
 
@@ -168,7 +167,7 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_net *net,
 		memset((void *)bp + volnamesz, 0, padsz);
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_vldb_entry *)afs_make_call(ac, call, GFP_KERNEL, false);
+	return (struct afs_vldb_entry *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
 }
 
 /*
@@ -266,14 +265,13 @@ static const struct afs_call_type afs_RXVLGetAddrsU = {
  * Dispatch an operation to get the addresses for a server, where the server is
  * nominated by UUID.
  */
-struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
-					 struct afs_addr_cursor *ac,
-					 struct key *key,
+struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 					 const uuid_t *uuid)
 {
 	struct afs_ListAddrByAttributes__xdr *r;
 	const struct afs_uuid *u = (const struct afs_uuid *)uuid;
 	struct afs_call *call;
+	struct afs_net *net = vc->cell->net;
 	__be32 *bp;
 	int i;
 
@@ -285,7 +283,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
 	if (!call)
 		return ERR_PTR(-ENOMEM);
 
-	call->key = key;
+	call->key = vc->key;
 	call->reply[0] = NULL;
 	call->ret_reply0 = true;
 
@@ -306,7 +304,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *net,
 		r->uuid.node[i] = htonl(u->node[i]);
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
+	return (struct afs_addr_list *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
 }
 
 /*
@@ -367,14 +365,13 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
 };
 
 /*
- * Probe a fileserver for the capabilities that it supports.  This can
+ * Probe a volume server for the capabilities that it supports.  This can
  * return up to 196 words.
  *
  * We use this to probe for service upgrade to determine what the server at the
  * other end supports.
  */
-int afs_vl_get_capabilities(struct afs_net *net,
-			    struct afs_addr_cursor *ac,
+int afs_vl_get_capabilities(struct afs_net *net, struct afs_addr_cursor *ac,
 			    struct key *key)
 {
 	struct afs_call *call;
@@ -617,12 +614,11 @@ static const struct afs_call_type afs_YFSVLGetEndpoints = {
  * Dispatch an operation to get the addresses for a server, where the server is
  * nominated by UUID.
  */
-struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_net *net,
-					      struct afs_addr_cursor *ac,
-					      struct key *key,
+struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 					      const uuid_t *uuid)
 {
 	struct afs_call *call;
+	struct afs_net *net = vc->cell->net;
 	__be32 *bp;
 
 	_enter("");
@@ -633,7 +629,7 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_net *net,
 	if (!call)
 		return ERR_PTR(-ENOMEM);
 
-	call->key = key;
+	call->key = vc->key;
 	call->reply[0] = NULL;
 	call->ret_reply0 = true;
 
@@ -644,5 +640,5 @@ struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_net *net,
 	memcpy(bp, uuid, sizeof(*uuid)); /* Type opr_uuid */
 
 	trace_afs_make_vl_call(call);
-	return (struct afs_addr_list *)afs_make_call(ac, call, GFP_KERNEL, false);
+	return (struct afs_addr_list *)afs_make_call(&vc->ac, call, GFP_KERNEL, false);
 }

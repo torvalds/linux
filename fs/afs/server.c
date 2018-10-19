@@ -246,41 +246,23 @@ enomem:
 static struct afs_addr_list *afs_vl_lookup_addrs(struct afs_cell *cell,
 						 struct key *key, const uuid_t *uuid)
 {
-	struct afs_addr_cursor ac;
-	struct afs_addr_list *alist;
+	struct afs_vl_cursor vc;
+	struct afs_addr_list *alist = NULL;
 	int ret;
 
-	ret = afs_set_vl_cursor(&ac, cell);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	while (afs_iterate_addresses(&ac)) {
-		if (test_bit(ac.index, &ac.alist->yfs))
-			alist = afs_yfsvl_get_endpoints(cell->net, &ac, key, uuid);
-		else
-			alist = afs_vl_get_addrs_u(cell->net, &ac, key, uuid);
-		switch (ac.error) {
-		case 0:
-			afs_end_cursor(&ac);
-			return alist;
-		case -ECONNABORTED:
-			ac.error = afs_abort_to_error(ac.abort_code);
-			goto error;
-		case -ENOMEM:
-		case -ENONET:
-			goto error;
-		case -ENETUNREACH:
-		case -EHOSTUNREACH:
-		case -ECONNREFUSED:
-			break;
-		default:
-			ac.error = -EIO;
-			goto error;
+	ret = -ERESTARTSYS;
+	if (afs_begin_vlserver_operation(&vc, cell, key)) {
+		while (afs_select_vlserver(&vc)) {
+			if (test_bit(vc.ac.index, &vc.ac.alist->yfs))
+				alist = afs_yfsvl_get_endpoints(&vc, uuid);
+			else
+				alist = afs_vl_get_addrs_u(&vc, uuid);
 		}
+
+		ret = afs_end_vlserver_operation(&vc);
 	}
 
-error:
-	return ERR_PTR(afs_end_cursor(&ac));
+	return ret < 0 ? ERR_PTR(ret) : alist;
 }
 
 /*

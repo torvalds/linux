@@ -74,55 +74,35 @@ static struct afs_vldb_entry *afs_vl_lookup_vldb(struct afs_cell *cell,
 						 const char *volname,
 						 size_t volnamesz)
 {
-	struct afs_addr_cursor ac;
-	struct afs_vldb_entry *vldb;
+	struct afs_vldb_entry *vldb = ERR_PTR(-EDESTADDRREQ);
+	struct afs_vl_cursor vc;
 	int ret;
 
-	ret = afs_set_vl_cursor(&ac, cell);
-	if (ret < 0)
-		return ERR_PTR(ret);
+	if (!afs_begin_vlserver_operation(&vc, cell, key))
+		return ERR_PTR(-ERESTARTSYS);
 
-	while (afs_iterate_addresses(&ac)) {
-		if (!test_bit(ac.index, &ac.alist->probed)) {
-			ret = afs_vl_get_capabilities(cell->net, &ac, key);
+	while (afs_select_vlserver(&vc)) {
+		if (!test_bit(vc.ac.index, &vc.ac.alist->probed)) {
+			ret = afs_vl_get_capabilities(cell->net, &vc.ac, key);
 			switch (ret) {
 			case VL_SERVICE:
-				clear_bit(ac.index, &ac.alist->yfs);
-				set_bit(ac.index, &ac.alist->probed);
-				ac.addr->srx_service = ret;
+				clear_bit(vc.ac.index, &vc.ac.alist->yfs);
+				set_bit(vc.ac.index, &vc.ac.alist->probed);
+				vc.ac.addr->srx_service = ret;
 				break;
 			case YFS_VL_SERVICE:
-				set_bit(ac.index, &ac.alist->yfs);
-				set_bit(ac.index, &ac.alist->probed);
-				ac.addr->srx_service = ret;
+				set_bit(vc.ac.index, &vc.ac.alist->yfs);
+				set_bit(vc.ac.index, &vc.ac.alist->probed);
+				vc.ac.addr->srx_service = ret;
 				break;
 			}
 		}
 		
-		vldb = afs_vl_get_entry_by_name_u(cell->net, &ac, key,
-						  volname, volnamesz);
-		switch (ac.error) {
-		case 0:
-			afs_end_cursor(&ac);
-			return vldb;
-		case -ECONNABORTED:
-			ac.error = afs_abort_to_error(ac.abort_code);
-			goto error;
-		case -ENOMEM:
-		case -ENONET:
-			goto error;
-		case -ENETUNREACH:
-		case -EHOSTUNREACH:
-		case -ECONNREFUSED:
-			break;
-		default:
-			ac.error = -EIO;
-			goto error;
-		}
+		vldb = afs_vl_get_entry_by_name_u(&vc, volname, volnamesz);
 	}
 
-error:
-	return ERR_PTR(afs_end_cursor(&ac));
+	ret = afs_end_vlserver_operation(&vc);
+	return ret < 0 ? ERR_PTR(ret) : vldb;
 }
 
 /*

@@ -22,6 +22,7 @@
 #include <linux/backing-dev.h>
 #include <linux/uuid.h>
 #include <linux/mm_types.h>
+#include <linux/dns_resolver.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/sock.h>
@@ -77,6 +78,8 @@ struct afs_addr_list {
 	unsigned char		nr_addrs;
 	unsigned char		index;		/* Address currently in use */
 	unsigned char		nr_ipv4;	/* Number of IPv4 addresses */
+	enum dns_record_source	source:8;
+	enum dns_lookup_status	status:8;
 	unsigned long		probed;		/* Mask of servers that have been probed */
 	unsigned long		yfs;		/* Mask of servers that are YFS */
 	struct sockaddr_rxrpc	addrs[];
@@ -355,10 +358,49 @@ struct afs_cell {
 	rwlock_t		proc_lock;
 
 	/* VL server list. */
-	rwlock_t		vl_addrs_lock;	/* Lock on vl_addrs */
-	struct afs_addr_list	__rcu *vl_addrs; /* List of VL servers */
+	rwlock_t		vl_servers_lock; /* Lock on vl_servers */
+	struct afs_vlserver_list __rcu *vl_servers;
+
 	u8			name_len;	/* Length of name */
 	char			name[64 + 1];	/* Cell name, case-flattened and NUL-padded */
+};
+
+/*
+ * Volume Location server record.
+ */
+struct afs_vlserver {
+	struct rcu_head		rcu;
+	struct afs_addr_list	__rcu *addresses; /* List of addresses for this VL server */
+	unsigned long		flags;
+#define AFS_VLSERVER_FL_PROBED	0		/* The VL server has been probed */
+#define AFS_VLSERVER_FL_PROBING	1		/* VL server is being probed */
+	rwlock_t		lock;		/* Lock on addresses */
+	atomic_t		usage;
+	u16			name_len;	/* Length of name */
+	u16			port;
+	char			name[];		/* Server name, case-flattened */
+};
+
+/*
+ * Weighted list of Volume Location servers.
+ */
+struct afs_vlserver_entry {
+	u16			priority;	/* Preference (as SRV) */
+	u16			weight;		/* Weight (as SRV) */
+	enum dns_record_source	source:8;
+	enum dns_lookup_status	status:8;
+	struct afs_vlserver	*server;
+};
+
+struct afs_vlserver_list {
+	struct rcu_head		rcu;
+	atomic_t		usage;
+	u8			nr_servers;
+	u8			index;		/* Server currently in use */
+	enum dns_record_source	source:8;
+	enum dns_lookup_status	status:8;
+	rwlock_t		lock;
+	struct afs_vlserver_entry servers[];
 };
 
 /*
@@ -617,6 +659,23 @@ struct afs_addr_cursor {
 };
 
 /*
+ * Cursor for iterating over a set of volume location servers.
+ */
+struct afs_vl_cursor {
+	struct afs_addr_cursor	ac;
+	struct afs_cell		*cell;		/* The cell we're querying */
+	struct afs_vlserver_list *server_list;	/* Current server list (pins ref) */
+	struct key		*key;		/* Key for the server */
+	unsigned char		start;		/* Initial index in server list */
+	unsigned char		index;		/* Number of servers tried beyond start */
+	short			error;
+	unsigned short		flags;
+#define AFS_VL_CURSOR_STOP	0x0001		/* Set to cease iteration */
+#define AFS_VL_CURSOR_RETRY	0x0002		/* Set to do a retry */
+#define AFS_VL_CURSOR_RETRIED	0x0004		/* Set if started a retry */
+};
+
+/*
  * Cursor for iterating over a set of fileservers.
  */
 struct afs_fs_cursor {
@@ -662,12 +721,12 @@ extern struct afs_addr_list *afs_alloc_addrlist(unsigned int,
 						unsigned short,
 						unsigned short);
 extern void afs_put_addrlist(struct afs_addr_list *);
-extern struct afs_addr_list *afs_parse_text_addrs(const char *, size_t, char,
-						  unsigned short, unsigned short);
-extern struct afs_addr_list *afs_dns_query(struct afs_cell *, time64_t *);
+extern struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *,
+						      const char *, size_t, char,
+						      unsigned short, unsigned short);
+extern struct afs_vlserver_list *afs_dns_query(struct afs_cell *, time64_t *);
 extern bool afs_iterate_addresses(struct afs_addr_cursor *);
 extern int afs_end_cursor(struct afs_addr_cursor *);
-extern int afs_set_vl_cursor(struct afs_addr_cursor *, struct afs_cell *);
 
 extern void afs_merge_fs_addr4(struct afs_addr_list *, __be32, u16);
 extern void afs_merge_fs_addr6(struct afs_addr_list *, __be32 *, u16);
@@ -1088,14 +1147,43 @@ extern void afs_fs_exit(void);
 /*
  * vlclient.c
  */
-extern struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_net *,
-							 struct afs_addr_cursor *,
-							 struct key *, const char *, int);
-extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_net *, struct afs_addr_cursor *,
-						struct key *, const uuid_t *);
+extern struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *,
+							 const char *, int);
+extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *, const uuid_t *);
 extern int afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *, struct key *);
-extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_net *, struct afs_addr_cursor *,
-						     struct key *, const uuid_t *);
+extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *, const uuid_t *);
+
+/*
+ * vl_rotate.c
+ */
+extern bool afs_begin_vlserver_operation(struct afs_vl_cursor *,
+					 struct afs_cell *, struct key *);
+extern bool afs_select_vlserver(struct afs_vl_cursor *);
+extern bool afs_select_current_vlserver(struct afs_vl_cursor *);
+extern int afs_end_vlserver_operation(struct afs_vl_cursor *);
+
+/*
+ * vlserver_list.c
+ */
+static inline struct afs_vlserver *afs_get_vlserver(struct afs_vlserver *vlserver)
+{
+	atomic_inc(&vlserver->usage);
+	return vlserver;
+}
+
+static inline struct afs_vlserver_list *afs_get_vlserverlist(struct afs_vlserver_list *vllist)
+{
+	if (vllist)
+		atomic_inc(&vllist->usage);
+	return vllist;
+}
+
+extern struct afs_vlserver *afs_alloc_vlserver(const char *, size_t, unsigned short);
+extern void afs_put_vlserver(struct afs_net *, struct afs_vlserver *);
+extern struct afs_vlserver_list *afs_alloc_vlserver_list(unsigned int);
+extern void afs_put_vlserverlist(struct afs_net *, struct afs_vlserver_list *);
+extern struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *,
+							   const void *, size_t);
 
 /*
  * volume.c

@@ -17,6 +17,11 @@
 #include <linux/uaccess.h>
 #include "internal.h"
 
+struct afs_vl_seq_net_private {
+	struct seq_net_private		seq;	/* Must be first */
+	struct afs_vlserver_list	*vllist;
+};
+
 static inline struct afs_net *afs_seq2net(struct seq_file *m)
 {
 	return afs_net(seq_file_net(m));
@@ -247,61 +252,102 @@ static const struct seq_operations afs_proc_cell_volumes_ops = {
 	.show	= afs_proc_cell_volumes_show,
 };
 
+static const char *const dns_record_sources[NR__dns_record_source + 1] = {
+	[DNS_RECORD_UNAVAILABLE]	= "unav",
+	[DNS_RECORD_FROM_CONFIG]	= "cfg",
+	[DNS_RECORD_FROM_DNS_A]		= "A",
+	[DNS_RECORD_FROM_DNS_AFSDB]	= "AFSDB",
+	[DNS_RECORD_FROM_DNS_SRV]	= "SRV",
+	[DNS_RECORD_FROM_NSS]		= "nss",
+	[NR__dns_record_source]		= "[weird]"
+};
+
+static const char *const dns_lookup_statuses[NR__dns_lookup_status + 1] = {
+	[DNS_LOOKUP_NOT_DONE]		= "no-lookup",
+	[DNS_LOOKUP_GOOD]		= "good",
+	[DNS_LOOKUP_GOOD_WITH_BAD]	= "good/bad",
+	[DNS_LOOKUP_BAD]		= "bad",
+	[DNS_LOOKUP_GOT_NOT_FOUND]	= "not-found",
+	[DNS_LOOKUP_GOT_LOCAL_FAILURE]	= "local-failure",
+	[DNS_LOOKUP_GOT_TEMP_FAILURE]	= "temp-failure",
+	[DNS_LOOKUP_GOT_NS_FAILURE]	= "ns-failure",
+	[NR__dns_lookup_status]		= "[weird]"
+};
+
 /*
  * Display the list of Volume Location servers we're using for a cell.
  */
 static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 {
-	struct sockaddr_rxrpc *addr = v;
+	const struct afs_vl_seq_net_private *priv = m->private;
+	const struct afs_vlserver_list *vllist = priv->vllist;
+	const struct afs_vlserver_entry *entry;
+	const struct afs_vlserver *vlserver;
+	const struct afs_addr_list *alist;
+	int i;
 
-	/* display header on line 1 */
-	if (v == (void *)1) {
-		seq_puts(m, "ADDRESS\n");
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(m, "# source %s, status %s\n",
+			   dns_record_sources[vllist->source],
+			   dns_lookup_statuses[vllist->status]);
 		return 0;
 	}
 
-	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%pISp\n", &addr->transport);
+	entry = v;
+	vlserver = entry->server;
+	alist = rcu_dereference(vlserver->addresses);
+
+	seq_printf(m, "%s [p=%hu w=%hu s=%s,%s]:\n",
+		   vlserver->name, entry->priority, entry->weight,
+		   dns_record_sources[alist ? alist->source : entry->source],
+		   dns_lookup_statuses[alist ? alist->status : entry->status]);
+	if (alist) {
+		for (i = 0; i < alist->nr_addrs; i++)
+			seq_printf(m, " %c %pISpc\n",
+				   alist->index == i ? '>' : '-',
+				   &alist->addrs[i].transport);
+	}
 	return 0;
 }
 
 static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 	__acquires(rcu)
 {
-	struct afs_addr_list *alist;
+	struct afs_vl_seq_net_private *priv = m->private;
+	struct afs_vlserver_list *vllist;
 	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
 	loff_t pos = *_pos;
 
 	rcu_read_lock();
 
-	alist = rcu_dereference(cell->vl_addrs);
+	vllist = rcu_dereference(cell->vl_servers);
+	priv->vllist = vllist;
 
-	/* allow for the header line */
-	if (!pos)
-		return (void *) 1;
-	pos--;
+	if (pos < 0)
+		*_pos = pos = 0;
+	if (pos == 0)
+		return SEQ_START_TOKEN;
 
-	if (!alist || pos >= alist->nr_addrs)
+	if (!vllist || pos - 1 >= vllist->nr_servers)
 		return NULL;
 
-	return alist->addrs + pos;
+	return &vllist->servers[pos - 1];
 }
 
 static void *afs_proc_cell_vlservers_next(struct seq_file *m, void *v,
 					  loff_t *_pos)
 {
-	struct afs_addr_list *alist;
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+	struct afs_vl_seq_net_private *priv = m->private;
+	struct afs_vlserver_list *vllist = priv->vllist;
 	loff_t pos;
 
-	alist = rcu_dereference(cell->vl_addrs);
-
 	pos = *_pos;
-	(*_pos)++;
-	if (!alist || pos >= alist->nr_addrs)
+	pos++;
+	*_pos = pos;
+	if (!vllist || pos - 1 >= vllist->nr_servers)
 		return NULL;
 
-	return alist->addrs + pos;
+	return &vllist->servers[pos - 1];
 }
 
 static void afs_proc_cell_vlservers_stop(struct seq_file *m, void *v)
@@ -562,7 +608,7 @@ int afs_proc_cell_setup(struct afs_cell *cell)
 
 	if (!proc_create_net_data("vlservers", 0444, dir,
 				  &afs_proc_cell_vlservers_ops,
-				  sizeof(struct seq_net_private),
+				  sizeof(struct afs_vl_seq_net_private),
 				  cell) ||
 	    !proc_create_net_data("volumes", 0444, dir,
 				  &afs_proc_cell_volumes_ops,

@@ -29,6 +29,8 @@ kafs-y := \
 	super.o \
 	netdevices.o \
 	vlclient.o \
+	vl_rotate.o \
+	vl_list.o \
 	volume.o \
 	write.o \
 	xattr.o
