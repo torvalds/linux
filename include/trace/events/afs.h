@@ -207,17 +207,16 @@ afs_edit_dir_reasons;
 #define EM(a, b)	{ a, b },
 #define E_(a, b)	{ a, b }
 
-TRACE_EVENT(afs_recv_data,
-	    TP_PROTO(struct afs_call *call, unsigned count, unsigned offset,
+TRACE_EVENT(afs_receive_data,
+	    TP_PROTO(struct afs_call *call, struct iov_iter *iter,
 		     bool want_more, int ret),
 
-	    TP_ARGS(call, count, offset, want_more, ret),
+	    TP_ARGS(call, iter, want_more, ret),
 
 	    TP_STRUCT__entry(
+		    __field(loff_t,			remain		)
 		    __field(unsigned int,		call		)
 		    __field(enum afs_call_state,	state		)
-		    __field(unsigned int,		count		)
-		    __field(unsigned int,		offset		)
 		    __field(unsigned short,		unmarshall	)
 		    __field(bool,			want_more	)
 		    __field(int,			ret		)
@@ -227,17 +226,18 @@ TRACE_EVENT(afs_recv_data,
 		    __entry->call	= call->debug_id;
 		    __entry->state	= call->state;
 		    __entry->unmarshall	= call->unmarshall;
-		    __entry->count	= count;
-		    __entry->offset	= offset;
+		    __entry->remain	= iov_iter_count(iter);
 		    __entry->want_more	= want_more;
 		    __entry->ret	= ret;
 			   ),
 
-	    TP_printk("c=%08x s=%u u=%u %u/%u wm=%u ret=%d",
+	    TP_printk("c=%08x r=%llu u=%u w=%u s=%u ret=%d",
 		      __entry->call,
-		      __entry->state, __entry->unmarshall,
-		      __entry->offset, __entry->count,
-		      __entry->want_more, __entry->ret)
+		      __entry->remain,
+		      __entry->unmarshall,
+		      __entry->want_more,
+		      __entry->state,
+		      __entry->ret)
 	    );
 
 TRACE_EVENT(afs_notify_call,
