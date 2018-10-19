@@ -914,18 +914,9 @@ static int rvu_detach_rsrcs(struct rvu *rvu, struct rsrc_detach *detach,
 			    u16 pcifunc)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
-	bool is_pf, detach_all = true;
+	bool detach_all = true;
 	struct rvu_block *block;
-	int devnum, blkid;
-
-	/* Check if this is for a RVU PF or VF */
-	if (pcifunc & RVU_PFVF_FUNC_MASK) {
-		is_pf = false;
-		devnum = rvu_get_hwvf(rvu, pcifunc);
-	} else {
-		is_pf = true;
-		devnum = rvu_get_pf(pcifunc);
-	}
+	int blkid;
 
 	spin_lock(&rvu->rsrc_lock);
 
@@ -1114,21 +1105,11 @@ static int rvu_mbox_handler_ATTACH_RESOURCES(struct rvu *rvu,
 					     struct msg_rsp *rsp)
 {
 	u16 pcifunc = attach->hdr.pcifunc;
-	int devnum, err;
-	bool is_pf;
+	int err;
 
 	/* If first request, detach all existing attached resources */
 	if (!attach->modify)
 		rvu_detach_rsrcs(rvu, NULL, pcifunc);
-
-	/* Check if this is for a RVU PF or VF */
-	if (pcifunc & RVU_PFVF_FUNC_MASK) {
-		is_pf = false;
-		devnum = rvu_get_hwvf(rvu, pcifunc);
-	} else {
-		is_pf = true;
-		devnum = rvu_get_pf(pcifunc);
-	}
 
 	spin_lock(&rvu->rsrc_lock);
 
