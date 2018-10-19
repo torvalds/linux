@@ -130,19 +130,18 @@ typedef u32 afs_access_t;
 struct afs_file_status {
 	u64			size;		/* file size */
 	afs_dataversion_t	data_version;	/* current data version */
-	time_t			mtime_client;	/* last time client changed data */
-	time_t			mtime_server;	/* last time server changed data */
-	unsigned		abort_code;	/* Abort if bulk-fetching this failed */
-
-	afs_file_type_t		type;		/* file type */
-	unsigned		nlink;		/* link count */
-	u32			author;		/* author ID */
-	u32			owner;		/* owner ID */
-	u32			group;		/* group ID */
+	struct timespec64	mtime_client;	/* Last time client changed data */
+	struct timespec64	mtime_server;	/* Last time server changed data */
+	s64			author;		/* author ID */
+	s64			owner;		/* owner ID */
+	s64			group;		/* group ID */
 	afs_access_t		caller_access;	/* access rights for authenticated caller */
 	afs_access_t		anon_access;	/* access rights for unauthenticated caller */
 	umode_t			mode;		/* UNIX mode */
+	afs_file_type_t		type;		/* file type */
+	u32			nlink;		/* link count */
 	s32			lock_count;	/* file lock count (0=UNLK -1=WRLCK +ve=#RDLCK */
+	u32			abort_code;	/* Abort if bulk-fetching this failed */
 };
 
 /*
@@ -159,25 +158,27 @@ struct afs_file_status {
  * AFS volume synchronisation information
  */
 struct afs_volsync {
-	time_t			creation;	/* volume creation time */
+	time64_t		creation;	/* volume creation time */
 };
 
 /*
  * AFS volume status record
  */
 struct afs_volume_status {
-	u32			vid;		/* volume ID */
-	u32			parent_id;	/* parent volume ID */
+	afs_volid_t		vid;		/* volume ID */
+	afs_volid_t		parent_id;	/* parent volume ID */
 	u8			online;		/* true if volume currently online and available */
 	u8			in_service;	/* true if volume currently in service */
 	u8			blessed;	/* same as in_service */
 	u8			needs_salvage;	/* true if consistency checking required */
 	u32			type;		/* volume type (afs_voltype_t) */
-	u32			min_quota;	/* minimum space set aside (blocks) */
-	u32			max_quota;	/* maximum space this volume may occupy (blocks) */
-	u32			blocks_in_use;	/* space this volume currently occupies (blocks) */
-	u32			part_blocks_avail; /* space available in volume's partition */
-	u32			part_max_blocks; /* size of volume's partition */
+	u64			min_quota;	/* minimum space set aside (blocks) */
+	u64			max_quota;	/* maximum space this volume may occupy (blocks) */
+	u64			blocks_in_use;	/* space this volume currently occupies (blocks) */
+	u64			part_blocks_avail; /* space available in volume's partition */
+	u64			part_max_blocks; /* size of volume's partition */
+	s64			vol_copy_date;
+	s64			vol_backup_date;
 };
 
 #define AFS_BLOCK_SIZE	1024
