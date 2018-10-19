@@ -229,6 +229,11 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 	BUG();
 }
 
+/* patch sites */
+extern s32 patch__itlbmiss_linmem_top;
+extern s32 patch__dtlbmiss_linmem_top, patch__dtlbmiss_immr_jmp;
+extern s32 patch__fixupdar_linmem_top;
+
 #endif /* !__ASSEMBLY__ */
 
 #if defined(CONFIG_PPC_4K_PAGES)

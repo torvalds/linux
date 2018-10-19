@@ -97,22 +97,13 @@ static void __init mmu_mapin_immr(void)
 		map_kernel_page(v + offset, p + offset, PAGE_KERNEL_NCG);
 }
 
-/* Address of instructions to patch */
-#ifndef CONFIG_PIN_TLB_IMMR
-extern unsigned int DTLBMiss_jmp;
-#endif
-extern unsigned int DTLBMiss_cmp, FixupDAR_cmp;
-#ifndef CONFIG_PIN_TLB_TEXT
-extern unsigned int ITLBMiss_cmp;
-#endif
-
-static void __init mmu_patch_cmp_limit(unsigned int *addr, unsigned long mapped)
+static void __init mmu_patch_cmp_limit(s32 *site, unsigned long mapped)
 {
-	unsigned int instr = *addr;
+	unsigned int instr = *(unsigned int *)patch_site_addr(site);
 
 	instr &= 0xffff0000;
 	instr |= (unsigned long)__va(mapped) >> 16;
-	patch_instruction(addr, instr);
+	patch_instruction_site(site, instr);
 }
 
 unsigned long __init mmu_mapin_ram(unsigned long top)
@@ -123,17 +114,17 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 		mapped = 0;
 		mmu_mapin_immr();
 #ifndef CONFIG_PIN_TLB_IMMR
-		patch_instruction(&DTLBMiss_jmp, PPC_INST_NOP);
+		patch_instruction_site(&patch__dtlbmiss_immr_jmp, PPC_INST_NOP);
 #endif
 #ifndef CONFIG_PIN_TLB_TEXT
-		mmu_patch_cmp_limit(&ITLBMiss_cmp, 0);
+		mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, 0);
 #endif
 	} else {
 		mapped = top & ~(LARGE_PAGE_SIZE_8M - 1);
 	}
 
-	mmu_patch_cmp_limit(&DTLBMiss_cmp, mapped);
-	mmu_patch_cmp_limit(&FixupDAR_cmp, mapped);
+	mmu_patch_cmp_limit(&patch__dtlbmiss_linmem_top, mapped);
+	mmu_patch_cmp_limit(&patch__fixupdar_linmem_top, mapped);
 
 	/* If the size of RAM is not an exact power of two, we may not
 	 * have covered RAM in its entirety with 8 MiB

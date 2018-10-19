@@ -31,6 +31,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/export.h>
+#include <asm/code-patching-asm.h>
 
 #if CONFIG_TASK_SIZE <= 0x80000000 && CONFIG_PAGE_OFFSET >= 0x80000000
 /* By simply checking Address >= 0x80000000, we know if its a kernel address */
@@ -318,8 +319,8 @@ InstructionTLBMiss:
 	cmpli	cr0, r11, PAGE_OFFSET@h
 #ifndef CONFIG_PIN_TLB_TEXT
 	/* It is assumed that kernel code fits into the first 8M page */
-_ENTRY(ITLBMiss_cmp)
-	cmpli	cr7, r11, (PAGE_OFFSET + 0x0800000)@h
+0:	cmpli	cr7, r11, (PAGE_OFFSET + 0x0800000)@h
+	patch_site	0b, patch__itlbmiss_linmem_top
 #endif
 #endif
 #endif
@@ -436,11 +437,11 @@ DataStoreTLBMiss:
 #ifndef CONFIG_PIN_TLB_IMMR
 	cmpli	cr0, r11, VIRT_IMMR_BASE@h
 #endif
-_ENTRY(DTLBMiss_cmp)
-	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
+0:	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
+	patch_site	0b, patch__dtlbmiss_linmem_top
 #ifndef CONFIG_PIN_TLB_IMMR
-_ENTRY(DTLBMiss_jmp)
-	beq-	DTLBMissIMMR
+0:	beq-	DTLBMissIMMR
+	patch_site	0b, patch__dtlbmiss_immr_jmp
 #endif
 	blt	cr7, DTLBMissLinear
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
@@ -714,8 +715,10 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
 	blt+	3f
 	rlwinm	r11, r10, 16, 0xfff8
-_ENTRY(FixupDAR_cmp)
-	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
+
+0:	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
+	patch_site	0b, patch__fixupdar_linmem_top
+
 	/* create physical page address from effective address */
 	tophys(r11, r10)
 	blt-	cr7, 201f
