@@ -83,6 +83,8 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 		return false;
 	}
 
+	vc->nr_iterations++;
+
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (error) {
 	case SHRT_MAX:
@@ -235,11 +237,62 @@ failed:
 }
 
 /*
+ * Dump cursor state in the case of the error being EDESTADDRREQ.
+ */
+static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
+{
+	static int count;
+	int i;
+
+	if (!IS_ENABLED(CONFIG_AFS_DEBUG_CURSOR) || count > 3)
+		return;
+	count++;
+
+	rcu_read_lock();
+	pr_notice("EDESTADDR occurred\n");
+	pr_notice("VC: st=%u ix=%u ni=%hu fl=%hx err=%hd\n",
+		  vc->start, vc->index, vc->nr_iterations, vc->flags, vc->error);
+
+	if (vc->server_list) {
+		const struct afs_vlserver_list *sl = vc->server_list;
+		pr_notice("VC: SL nr=%u ix=%u\n",
+			  sl->nr_servers, sl->index);
+		for (i = 0; i < sl->nr_servers; i++) {
+			const struct afs_vlserver *s = sl->servers[i].server;
+			pr_notice("VC: server fl=%lx %s+%hu\n",
+				  s->flags, s->name, s->port);
+			if (s->addresses) {
+				const struct afs_addr_list *a =
+					rcu_dereference(s->addresses);
+				pr_notice("VC:  - av=%u nr=%u/%u/%u ax=%u\n",
+					  a->version,
+					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
+					  a->index);
+				pr_notice("VC:  - pr=%lx yf=%lx\n",
+					  a->probed, a->yfs);
+				if (a == vc->ac.alist)
+					pr_notice("VC:  - current\n");
+			}
+		}
+	}
+
+	pr_notice("AC: as=%u ax=%u ac=%d er=%d b=%u r=%u ni=%hu\n",
+		  vc->ac.start, vc->ac.index, vc->ac.abort_code, vc->ac.error,
+		  vc->ac.begun, vc->ac.responded, vc->ac.nr_iterations);
+	rcu_read_unlock();
+}
+
+/*
  * Tidy up a volume location server cursor and unlock the vnode.
  */
 int afs_end_vlserver_operation(struct afs_vl_cursor *vc)
 {
 	struct afs_net *net = vc->cell->net;
+
+	if (vc->error == -EDESTADDRREQ ||
+	    vc->error == -ENETUNREACH ||
+	    vc->error == -EHOSTUNREACH)
+		afs_vl_dump_edestaddrreq(vc);
 
 	afs_end_cursor(&vc->ac);
 	afs_put_vlserverlist(net, vc->server_list);

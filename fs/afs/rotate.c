@@ -156,6 +156,8 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 		return false;
 	}
 
+	fc->nr_iterations++;
+
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (error) {
 	case SHRT_MAX:
@@ -520,11 +522,66 @@ iterate_address:
 }
 
 /*
+ * Dump cursor state in the case of the error being EDESTADDRREQ.
+ */
+static void afs_dump_edestaddrreq(const struct afs_fs_cursor *fc)
+{
+	static int count;
+	int i;
+
+	if (!IS_ENABLED(CONFIG_AFS_DEBUG_CURSOR) || count > 3)
+		return;
+	count++;
+
+	rcu_read_lock();
+
+	pr_notice("EDESTADDR occurred\n");
+	pr_notice("FC: cbb=%x cbb2=%x fl=%hx err=%hd\n",
+		  fc->cb_break, fc->cb_break_2, fc->flags, fc->error);
+	pr_notice("FC: st=%u ix=%u ni=%u\n",
+		  fc->start, fc->index, fc->nr_iterations);
+
+	if (fc->server_list) {
+		const struct afs_server_list *sl = fc->server_list;
+		pr_notice("FC: SL nr=%u ix=%u vnov=%hx\n",
+			  sl->nr_servers, sl->index, sl->vnovol_mask);
+		for (i = 0; i < sl->nr_servers; i++) {
+			const struct afs_server *s = sl->servers[i].server;
+			pr_notice("FC: server fl=%lx av=%u %pU\n",
+				  s->flags, s->addr_version, &s->uuid);
+			if (s->addresses) {
+				const struct afs_addr_list *a =
+					rcu_dereference(s->addresses);
+				pr_notice("FC:  - av=%u nr=%u/%u/%u ax=%u\n",
+					  a->version,
+					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
+					  a->index);
+				pr_notice("FC:  - pr=%lx yf=%lx\n",
+					  a->probed, a->yfs);
+				if (a == fc->ac.alist)
+					pr_notice("FC:  - current\n");
+			}
+		}
+	}
+
+	pr_notice("AC: as=%u ax=%u ac=%d er=%d b=%u r=%u ni=%u\n",
+		  fc->ac.start, fc->ac.index, fc->ac.abort_code, fc->ac.error,
+		  fc->ac.begun, fc->ac.responded, fc->ac.nr_iterations);
+
+	rcu_read_unlock();
+}
+
+/*
  * Tidy up a filesystem cursor and unlock the vnode.
  */
 int afs_end_vnode_operation(struct afs_fs_cursor *fc)
 {
 	struct afs_net *net = afs_v2net(fc->vnode);
+
+	if (fc->error == -EDESTADDRREQ ||
+	    fc->error == -ENETUNREACH ||
+	    fc->error == -EHOSTUNREACH)
+		afs_dump_edestaddrreq(fc);
 
 	mutex_unlock(&fc->vnode->io_lock);
 

@@ -660,6 +660,7 @@ struct afs_addr_cursor {
 	short			error;
 	bool			begun;		/* T if we've begun iteration */
 	bool			responded;	/* T if the current address responded */
+	unsigned short		nr_iterations;	/* Number of address iterations */
 };
 
 /*
@@ -677,6 +678,7 @@ struct afs_vl_cursor {
 #define AFS_VL_CURSOR_STOP	0x0001		/* Set to cease iteration */
 #define AFS_VL_CURSOR_RETRY	0x0002		/* Set to do a retry */
 #define AFS_VL_CURSOR_RETRIED	0x0004		/* Set if started a retry */
+	unsigned short		nr_iterations;	/* Number of server iterations */
 };
 
 /*
@@ -700,6 +702,7 @@ struct afs_fs_cursor {
 #define AFS_FS_CURSOR_VNOVOL	0x0008		/* Set if seen VNOVOL */
 #define AFS_FS_CURSOR_CUR_ONLY	0x0010		/* Set if current server only (file lock held) */
 #define AFS_FS_CURSOR_NO_VSLEEP	0x0020		/* Set to prevent sleep on VBUSY, VOFFLINE, ... */
+	unsigned short		nr_iterations;	/* Number of server iterations */
 };
 
 /*

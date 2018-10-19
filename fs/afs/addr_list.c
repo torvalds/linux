@@ -358,6 +358,8 @@ bool afs_iterate_addresses(struct afs_addr_cursor *ac)
 	if (!ac->alist)
 		return false;
 
+	ac->nr_iterations++;
+
 	if (ac->begun) {
 		ac->index++;
 		if (ac->index == ac->alist->nr_addrs)
