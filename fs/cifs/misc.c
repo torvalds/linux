@@ -857,7 +857,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	ctx->bv = bv;
 	ctx->len = saved_len - count;
 	ctx->npages = npages;
-	iov_iter_bvec(&ctx->iter, ITER_BVEC | rw, ctx->bv, npages, ctx->len);
+	iov_iter_bvec(&ctx->iter, rw, ctx->bv, npages, ctx->len);
 	return 0;
 }
 

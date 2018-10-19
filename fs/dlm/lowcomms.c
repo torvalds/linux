@@ -674,7 +674,7 @@ static int receive_from_sock(struct connection *con)
 		nvec = 2;
 	}
 	len = iov[0].iov_len + iov[1].iov_len;
-	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, iov, nvec, len);
+	iov_iter_kvec(&msg.msg_iter, READ, iov, nvec, len);
 
 	r = ret = sock_recvmsg(con->sock, &msg, MSG_DONTWAIT | MSG_NOSIGNAL);
 	if (ret <= 0)

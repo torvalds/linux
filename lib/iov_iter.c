@@ -428,17 +428,19 @@ int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
 }
 EXPORT_SYMBOL(iov_iter_fault_in_readable);
 
-void iov_iter_init(struct iov_iter *i, int direction,
+void iov_iter_init(struct iov_iter *i, unsigned int direction,
 			const struct iovec *iov, unsigned long nr_segs,
 			size_t count)
 {
+	WARN_ON(direction & ~(READ | WRITE));
+	direction &= READ | WRITE;
+
 	/* It will get better.  Eventually... */
 	if (uaccess_kernel()) {
-		direction |= ITER_KVEC;
-		i->type = direction;
+		i->type = ITER_KVEC | direction;
 		i->kvec = (struct kvec *)iov;
 	} else {
-		i->type = direction;
+		i->type = ITER_IOVEC | direction;
 		i->iov = iov;
 	}
 	i->nr_segs = nr_segs;
@@ -1060,12 +1062,12 @@ size_t iov_iter_single_seg_count(const struct iov_iter *i)
 }
 EXPORT_SYMBOL(iov_iter_single_seg_count);
 
-void iov_iter_kvec(struct iov_iter *i, int direction,
+void iov_iter_kvec(struct iov_iter *i, unsigned int direction,
 			const struct kvec *kvec, unsigned long nr_segs,
 			size_t count)
 {
-	BUG_ON(!(direction & ITER_KVEC));
-	i->type = direction;
+	WARN_ON(direction & ~(READ | WRITE));
+	i->type = ITER_KVEC | (direction & (READ | WRITE));
 	i->kvec = kvec;
 	i->nr_segs = nr_segs;
 	i->iov_offset = 0;
@@ -1073,12 +1075,12 @@ void iov_iter_kvec(struct iov_iter *i, int direction,
 }
 EXPORT_SYMBOL(iov_iter_kvec);
 
-void iov_iter_bvec(struct iov_iter *i, int direction,
+void iov_iter_bvec(struct iov_iter *i, unsigned int direction,
 			const struct bio_vec *bvec, unsigned long nr_segs,
 			size_t count)
 {
-	BUG_ON(!(direction & ITER_BVEC));
-	i->type = direction;
+	WARN_ON(direction & ~(READ | WRITE));
+	i->type = ITER_BVEC | (direction & (READ | WRITE));
 	i->bvec = bvec;
 	i->nr_segs = nr_segs;
 	i->iov_offset = 0;
@@ -1086,13 +1088,13 @@ void iov_iter_bvec(struct iov_iter *i, int direction,
 }
 EXPORT_SYMBOL(iov_iter_bvec);
 
-void iov_iter_pipe(struct iov_iter *i, int direction,
+void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
 			struct pipe_inode_info *pipe,
 			size_t count)
 {
-	BUG_ON(direction != ITER_PIPE);
+	BUG_ON(direction != READ);
 	WARN_ON(pipe->nrbufs == pipe->buffers);
-	i->type = direction;
+	i->type = ITER_PIPE | READ;
 	i->pipe = pipe;
 	i->idx = (pipe->curbuf + pipe->nrbufs) & (pipe->buffers - 1);
 	i->iov_offset = 0;
