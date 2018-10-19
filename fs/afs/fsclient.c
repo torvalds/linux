@@ -269,7 +269,7 @@ static void xdr_decode_AFSCallBack(struct afs_call *call,
 
 	write_seqlock(&vnode->cb_lock);
 
-	if (call->cb_break == afs_cb_break_sum(vnode, cbi)) {
+	if (!afs_cb_is_broken(call->cb_break, vnode, cbi)) {
 		vnode->cb_version	= ntohl(*bp++);
 		cb_expiry		= ntohl(*bp++);
 		vnode->cb_type		= ntohl(*bp++);

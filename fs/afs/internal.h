@@ -776,10 +776,13 @@ static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
 	return vnode->cb_break + vnode->cb_s_break + vnode->cb_v_break;
 }
 
-static inline unsigned int afs_cb_break_sum(struct afs_vnode *vnode,
-					    struct afs_cb_interest *cbi)
+static inline bool afs_cb_is_broken(unsigned int cb_break,
+				    const struct afs_vnode *vnode,
+				    const struct afs_cb_interest *cbi)
 {
-	return vnode->cb_break + cbi->server->cb_s_break + vnode->volume->cb_v_break;
+	return !cbi || cb_break != (vnode->cb_break +
+				    cbi->server->cb_s_break +
+				    vnode->volume->cb_v_break);
 }
 
 /*

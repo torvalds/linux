@@ -324,7 +324,7 @@ static void xdr_decode_YFSCallBack(struct afs_call *call,
 
 	write_seqlock(&vnode->cb_lock);
 
-	if (call->cb_break == afs_cb_break_sum(vnode, cbi)) {
+	if (!afs_cb_is_broken(call->cb_break, vnode, cbi)) {
 		cb_expiry = xdr_to_u64(xdr->expiration_time);
 		do_div(cb_expiry, 10 * 1000 * 1000);
 		vnode->cb_version	= ntohl(xdr->version);
