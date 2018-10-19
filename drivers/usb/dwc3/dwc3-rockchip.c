@@ -836,6 +836,15 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 		    (extcon_get_cable_state_(rockchip->edev,
 					     EXTCON_USB_HOST) > 0))
 			schedule_work(&rockchip->otg_work);
+	} else {
+		/*
+		 * DWC3 work as Host only mode or Peripheral
+		 * only mode, set connected flag to true, it
+		 * can avoid to reset the DWC3 controller when
+		 * resume from PM suspend which may cause the
+		 * usb device to be reenumerated.
+		 */
+		 rockchip->connected = true;
 	}
 
 	dwc3_rockchip_debugfs_init(rockchip);
