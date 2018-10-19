@@ -31,6 +31,7 @@
 			SNDRV_PCM_FMTBIT_S24_LE | \
 			SNDRV_PCM_FMTBIT_S32_LE)
 #define ACODEC_REG_NUM	28
+#define CHUNK_SIZE	64 /* bytes */
 
 static struct snd_pcm_substream *vad_substream;
 static unsigned int voice_inactive_frames;
@@ -48,7 +49,9 @@ struct vad_buf {
 	void __iomem *cur;
 	void __iomem *pos;
 	int size;
+	int loop_cnt;
 	bool loop;
+	bool sorted;
 };
 
 struct rockchip_vad {
@@ -69,6 +72,7 @@ struct rockchip_vad {
 	u32 audio_src_addr;
 	u32 audio_chnl;
 	u32 channels;
+	u32 sample_bytes;
 	u32 buffer_time; /* msec */
 	struct dentry *debugfs_dir;
 	void *buf;
@@ -83,9 +87,70 @@ struct audio_src_addr_map {
 	u32 addr;
 };
 
+static inline int vframe_size(struct rockchip_vad *vad, int bytes)
+{
+	return bytes / vad->channels / vad->sample_bytes;
+}
+
+static int chunk_sort(void __iomem *pos, void __iomem *end, int loop_cnt)
+{
+	char tbuf[CHUNK_SIZE];
+	int size1, size2;
+
+	size1 = loop_cnt * 4;
+	size2 = CHUNK_SIZE - size1;
+
+	while (pos < end) {
+		memcpy_fromio(&tbuf[0], pos + size1, size2);
+		memcpy_fromio(&tbuf[size2], pos, size1);
+		memcpy_toio(pos, &tbuf[0], CHUNK_SIZE);
+		pos += CHUNK_SIZE;
+	}
+
+	return 0;
+}
+
+static int vad_buffer_sort(struct rockchip_vad *vad)
+{
+	struct vad_buf *vbuf = &vad->vbuf;
+	int loop_cnt = vbuf->loop_cnt;
+
+	if (vad->version != VAD_RK1808)
+		return 0;
+
+	if (vbuf->sorted || !vbuf->loop)
+		return 0;
+
+	/* 16 words align */
+	if ((vbuf->pos - vbuf->begin) % CHUNK_SIZE ||
+	    (vbuf->end - vbuf->pos) % CHUNK_SIZE)
+		return -EINVAL;
+
+	switch (loop_cnt) {
+	case 0:
+		loop_cnt = 16;
+		chunk_sort(vbuf->pos, vbuf->end, loop_cnt - 1);
+		vbuf->sorted = true;
+		break;
+	case 1:
+		chunk_sort(vbuf->begin, vbuf->pos, loop_cnt);
+		vbuf->sorted = true;
+		break;
+	case 2 ... 15:
+		chunk_sort(vbuf->pos, vbuf->end, loop_cnt - 1);
+		chunk_sort(vbuf->begin, vbuf->pos, loop_cnt);
+		vbuf->sorted = true;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rockchip_vad_stop(struct rockchip_vad *vad)
 {
-	unsigned int val;
+	unsigned int val, frames;
 	struct vad_buf *vbuf = &vad->vbuf;
 	struct vad_params *params = &vad->params;
 
@@ -93,6 +158,9 @@ static int rockchip_vad_stop(struct rockchip_vad *vad)
 	if ((val & VAD_EN_MASK) == VAD_DISABLE)
 		return 0;
 
+	/* sample cnt will be clear after vad disabled */
+	if (vad->version == VAD_RK1808)
+		regmap_read(vad->regmap, VAD_SAMPLE_CNT, &frames);
 	regmap_update_bits(vad->regmap, VAD_CTRL, VAD_EN_MASK, VAD_DISABLE);
 	regmap_read(vad->regmap, VAD_CTRL, &val);
 	vad->h_16bit = (val & AUDIO_24BIT_SAT_MASK) == AUDIO_H16B;
@@ -118,6 +186,20 @@ static int rockchip_vad_stop(struct rockchip_vad *vad)
 		vbuf->pos = vbuf->begin;
 	}
 
+	if (vad->version == VAD_RK1808) {
+		vbuf->loop_cnt = (frames / vframe_size(vad, vbuf->size)) % 16;
+		/* due to get loop_cnt before vad disable, we should take
+		 * the boundary issue into account, and judge whether the
+		 * loop_cnt change to loop_cnt + 1 or not when vad disable.
+		 */
+		if (vbuf->loop) {
+			frames = frames % vframe_size(vad, vbuf->size);
+			val = vframe_size(vad, vbuf->pos - vbuf->begin);
+			if (frames > val)
+				vbuf->loop_cnt = (vbuf->loop_cnt + 1) % 16;
+		}
+		vbuf->sorted = false;
+	}
 	regmap_read(vad->regmap, VAD_DET_CON0, &val);
 	params->noise_level = (val & NOISE_LEVEL_MASK) >> NOISE_LEVEL_SHIFT;
 	params->vad_con_thd = (val & VAD_CON_THD_MASK) >> VAD_CON_THD_SHIFT;
@@ -202,6 +284,11 @@ snd_pcm_sframes_t snd_pcm_vad_read(struct snd_pcm_substream *substream,
 	if (bytes <= 0)
 		return -EFAULT;
 
+	if (vad_buffer_sort(vad) < 0) {
+		dev_err(vad->dev, "buffer sort failed\n");
+		return -EFAULT;
+	}
+
 	if (!vad->buf) {
 		vad->buf = kzalloc(bytes, GFP_KERNEL);
 		if (!vad->buf)
@@ -282,6 +369,7 @@ snd_pcm_uframes_t snd_pcm_vad_avail(struct snd_pcm_substream *substream)
 		vframes = vbuf->size / vframes;
 	if (!vframes)
 		dev_err(vad->dev, "residue bytes: %d\n", vbuf->size);
+
 	return vframes;
 }
 EXPORT_SYMBOL(snd_pcm_vad_avail);
@@ -395,6 +483,11 @@ snd_pcm_sframes_t snd_pcm_vad_memcpy(struct snd_pcm_substream *substream,
 	if (bytes <= 0)
 		return -EFAULT;
 
+	if (vad_buffer_sort(vad) < 0) {
+		dev_err(vad->dev, "buffer sort failed\n");
+		return -EFAULT;
+	}
+
 	frame_sz = frames_to_bytes(runtime, 1);
 	vframe_sz = samples_to_bytes(runtime, vad->channels);
 	padding_sz = frame_sz - vframe_sz;
@@ -506,9 +599,9 @@ static const struct audio_src_addr_map addr_maps[] = {
 	{2, 0xff320800},
 	{3, 0xff330800},
 	{4, 0xff380400},
-	{0, 0xff7e0800},
-	{1, 0xff7f0800},
-	{2, 0xff800400},
+	{1, 0xff7e0800},
+	{3, 0xff7f0800},
+	{4, 0xff800400},
 };
 
 static int rockchip_vad_get_audio_src_address(struct rockchip_vad *vad,
@@ -644,10 +737,12 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		val = AUDIO_CHNL_16B;
+		vad->sample_bytes = 2;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		val = AUDIO_CHNL_24B;
+		vad->sample_bytes = 4;
 		break;
 	default:
 		return -EINVAL;
@@ -673,6 +768,12 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	if (vad->version == VAD_RK1808) {
+		val = SRC_ADDR_MODE_INC | SRC_BURST_INCR16;
+		mask = SRC_ADDR_MODE_MASK | SRC_BURST_MASK | SRC_BURST_NUM_MASK;
+		if (params_channels(params) == 6)
+			val |= SRC_BURST_NUM(3);
+	}
 	regmap_update_bits(vad->regmap, VAD_CTRL, mask, val);
 
 	/* calculate buffer space according buffer time */
@@ -688,6 +789,8 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 		buf_time = min(buf_time, vad->buffer_time);
 
 		val = params_rate(params) * buf_time / 1000;
+		if (vad->version == VAD_RK1808)
+			val &= ~0xf; /* 16 align */
 		val *= frame_bytes;
 		val += vad->memphy;
 		val -= 0x8;
@@ -904,8 +1007,13 @@ static int rockchip_vad_debugfs_reg_show(struct seq_file *s, void *v)
 	struct rockchip_vad *vad = s->private;
 	unsigned int i;
 	unsigned int val;
+	unsigned int max_register;
 
-	for (i = VAD_CTRL; i <= VAD_INT; i += 4) {
+	if (vad->version == VAD_RK1808)
+		max_register = VAD_NOISE_DATA;
+	else
+		max_register = VAD_INT;
+	for (i = VAD_CTRL; i <= max_register; i += 4) {
 		regmap_read(vad->regmap, i, &val);
 		if (!(i % 16))
 			seq_printf(s, "\n%08x:  ", i);
@@ -968,6 +1076,13 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 	       VAD_MODE_MASK;
 
 	regmap_update_bits(vad->regmap, VAD_CTRL, mask, val);
+	if (vad->version == VAD_RK1808) {
+		regmap_update_bits(vad->regmap, VAD_AUX_CONTROL,
+				   RAM_ITF_EN_MASK | BUS_WRITE_EN_MASK,
+				   RAM_ITF_DIS | BUS_WRITE_EN);
+		regmap_update_bits(vad->regmap, VAD_AUX_CONTROL,
+				   SAMPLE_CNT_EN_MASK, SAMPLE_CNT_EN);
+	}
 }
 
 static const struct of_device_id rockchip_vad_match[] = {
