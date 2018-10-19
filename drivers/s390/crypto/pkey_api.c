@@ -35,6 +35,9 @@ MODULE_DESCRIPTION("s390 protected key interface");
 /* Size of vardata block used for some of the cca requests/replies */
 #define VARDATASIZE 4096
 
+/* mask of available pckmo subfunctions, fetched once at module init */
+static cpacf_mask_t pckmo_functions;
+
 /*
  * debug feature data and functions
  */
@@ -677,6 +680,16 @@ int pkey_clr2protkey(u32 keytype,
 		DEBUG_ERR("%s unknown/unsupported keytype %d\n",
 			  __func__, keytype);
 		return -EINVAL;
+	}
+
+	/*
+	 * Check if the needed pckmo subfunction is available.
+	 * These subfunctions can be enabled/disabled by customers
+	 * in the LPAR profile or may even change on the fly.
+	 */
+	if (!cpacf_test_func(&pckmo_functions, fc)) {
+		DEBUG_ERR("%s pckmo functions not available\n", __func__);
+		return -EOPNOTSUPP;
 	}
 
 	/* prepare param block */
@@ -1672,14 +1685,15 @@ static struct miscdevice pkey_dev = {
  */
 static int __init pkey_init(void)
 {
-	cpacf_mask_t pckmo_functions, kmc_functions;
+	cpacf_mask_t kmc_functions;
 
-	/* check for pckmo instructions available */
+	/*
+	 * The pckmo instruction should be available - even if we don't
+	 * actually invoke it. This instruction comes with MSA 3 which
+	 * is also the minimum level for the kmc instructions which
+	 * are able to work with protected keys.
+	 */
 	if (!cpacf_query(CPACF_PCKMO, &pckmo_functions))
-		return -EOPNOTSUPP;
-	if (!cpacf_test_func(&pckmo_functions, CPACF_PCKMO_ENC_AES_128_KEY) ||
-	    !cpacf_test_func(&pckmo_functions, CPACF_PCKMO_ENC_AES_192_KEY) ||
-	    !cpacf_test_func(&pckmo_functions, CPACF_PCKMO_ENC_AES_256_KEY))
 		return -EOPNOTSUPP;
 
 	/* check for kmc instructions available */
