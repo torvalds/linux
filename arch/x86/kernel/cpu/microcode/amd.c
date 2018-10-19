@@ -249,6 +249,12 @@ verify_patch(u8 family, const u8 *buf, unsigned int buf_size, bool early)
 	mc_hdr	= (struct microcode_header_amd *)(buf + SECTION_HDR_SIZE);
 	proc_id	= mc_hdr->processor_rev_id;
 
+	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
+		if (!early)
+			pr_err("Patch-ID 0x%08x: chipset-specific code unsupported.\n", mc_hdr->patch_id);
+		return 0;
+	}
+
 	patch_fam = 0xf + (proc_id >> 12);
 	if (patch_fam != family)
 		return 0;
@@ -740,12 +746,6 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	crnt_size   = patch_size + SECTION_HDR_SIZE;
 	mc_hdr	    = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
 	proc_id	    = mc_hdr->processor_rev_id;
-
-	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
-		pr_err("Patch-ID 0x%08x: chipset-specific code unsupported.\n",
-			mc_hdr->patch_id);
-		return crnt_size;
-	}
 
 	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
 	if (!patch) {
