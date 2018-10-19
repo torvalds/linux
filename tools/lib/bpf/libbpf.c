@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <linux/perf_event.h>
+#include <linux/ring_buffer.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -2418,13 +2419,12 @@ bpf_perf_event_read_simple(void *mem, unsigned long size,
 			   unsigned long page_size, void **buf, size_t *buf_len,
 			   bpf_perf_event_print_t fn, void *priv)
 {
-	volatile struct perf_event_mmap_page *header = mem;
+	struct perf_event_mmap_page *header = mem;
+	__u64 data_head = ring_buffer_read_head(header);
 	__u64 data_tail = header->data_tail;
-	__u64 data_head = header->data_head;
 	int ret = LIBBPF_PERF_EVENT_ERROR;
 	void *base, *begin, *end;
 
-	asm volatile("" ::: "memory"); /* in real code it should be smp_rmb() */
 	if (data_head == data_tail)
 		return LIBBPF_PERF_EVENT_CONT;
 
@@ -2467,8 +2467,6 @@ bpf_perf_event_read_simple(void *mem, unsigned long size,
 		data_tail += ehdr->size;
 	}
 
-	__sync_synchronize(); /* smp_mb() */
-	header->data_tail = data_tail;
-
+	ring_buffer_write_tail(header, data_tail);
 	return ret;
 }
