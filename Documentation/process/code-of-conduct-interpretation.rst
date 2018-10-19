@@ -123,8 +123,9 @@ Enforcement
 
 The address listed in the Code of Conduct goes to the Code of Conduct
 Committee.  The exact members receiving these emails at any given time
-are listed at <URL>.  Members can not access reports made before they
-joined or after they have left the committee.
+are listed at https://kernel.org/code-of-conduct.html.  Members can not
+access reports made before they joined or after they have left the
+committee.
 
 The initial Code of Conduct Committee consists of volunteer members of
 the TAB, as well as a professional mediator acting as a neutral third
