@@ -52,25 +52,35 @@ struct drm_mode_fb_cmd2;
 
 /**
  * struct drm_format_info - information about a DRM format
- * @format: 4CC format identifier (DRM_FORMAT_*)
- * @depth: Color depth (number of bits per pixel excluding padding bits),
- *	valid for a subset of RGB formats only. This is a legacy field, do not
- *	use in new code and set to 0 for new formats.
- * @num_planes: Number of color planes (1 to 3)
- * @cpp: Number of bytes per pixel (per plane)
- * @hsub: Horizontal chroma subsampling factor
- * @vsub: Vertical chroma subsampling factor
- * @has_alpha: Does the format embeds an alpha component?
- * @is_yuv: Is it a YUV format?
  */
 struct drm_format_info {
+	/** @format: 4CC format identifier (DRM_FORMAT_*) */
 	u32 format;
+
+	/**
+	 * @depth:
+	 *
+	 * Color depth (number of bits per pixel excluding padding bits),
+	 * valid for a subset of RGB formats only. This is a legacy field, do
+	 * not use in new code and set to 0 for new formats.
+	 */
 	u8 depth;
+
+	/** @num_planes: Number of color planes (1 to 3) */
 	u8 num_planes;
+
+	/** @cpp: Number of bytes per pixel (per plane) */
 	u8 cpp[3];
+
+	/** @hsub: Horizontal chroma subsampling factor */
 	u8 hsub;
+	/** @vsub: Vertical chroma subsampling factor */
 	u8 vsub;
+
+	/** @has_alpha: Does the format embeds an alpha component? */
 	bool has_alpha;
+
+	/** @is_yuv: Is it a YUV format? */
 	bool is_yuv;
 };
 
