@@ -129,9 +129,8 @@ static int physmap_flash_probe(struct platform_device *dev)
 		if (!res)
 			break;
 
-		printk(KERN_NOTICE "physmap platform flash device: %.8llx at %.8llx\n",
-		       (unsigned long long)resource_size(res),
-		       (unsigned long long)res->start);
+		dev_notice(&dev->dev, "physmap platform flash device: %pR\n",
+			   res);
 
 		if (!devm_request_mem_region(&dev->dev, res->start,
 					     resource_size(res),
