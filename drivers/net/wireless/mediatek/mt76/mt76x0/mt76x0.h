@@ -82,6 +82,5 @@ void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
 				int ht_mode);
 void mt76x0_mac_set_short_preamble(struct mt76x02_dev *dev, bool short_preamb);
 void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval);
-void mt76x0_mac_set_ampdu_factor(struct mt76x02_dev *dev);
 
 #endif

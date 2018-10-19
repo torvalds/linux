@@ -103,28 +103,3 @@ void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval)
 		MT_BEACON_TIME_CFG_SYNC_MODE |
 		MT_BEACON_TIME_CFG_TBTT_EN;
 }
-
-void mt76x0_mac_set_ampdu_factor(struct mt76x02_dev *dev)
-{
-	struct ieee80211_sta *sta;
-	struct mt76_wcid *wcid;
-	void *msta;
-	u8 min_factor = 3;
-	int i;
-
-	rcu_read_lock();
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid); i++) {
-		wcid = rcu_dereference(dev->mt76.wcid[i]);
-		if (!wcid)
-			continue;
-
-		msta = container_of(wcid, struct mt76x02_sta, wcid);
-		sta = container_of(msta, struct ieee80211_sta, drv_priv);
-
-		min_factor = min(min_factor, sta->ht_cap.ampdu_factor);
-	}
-	rcu_read_unlock();
-
-	mt76_wr(dev, MT_MAX_LEN_CFG, 0xa0fff |
-		   FIELD_PREP(MT_MAX_LEN_CFG_AMPDU, min_factor));
-}
