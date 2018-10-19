@@ -915,7 +915,7 @@ int afs_extract_data(struct afs_call *call, bool want_more)
 			break;
 		case AFS_CALL_COMPLETE:
 			kdebug("prem complete %d", call->error);
-			return -EIO;
+			return afs_io_error(call, afs_io_error_extract);
 		default:
 			break;
 		}

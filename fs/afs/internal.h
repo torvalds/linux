@@ -1257,6 +1257,17 @@ static inline void afs_check_for_remote_deletion(struct afs_fs_cursor *fc,
 	}
 }
 
+static inline int afs_io_error(struct afs_call *call, enum afs_io_error where)
+{
+	trace_afs_io_error(call->debug_id, -EIO, where);
+	return -EIO;
+}
+
+static inline int afs_bad(struct afs_vnode *vnode, enum afs_file_error where)
+{
+	trace_afs_file_error(vnode, -EIO, where);
+	return -EIO;
+}
 
 /*****************************************************************************/
 /*

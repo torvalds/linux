@@ -103,6 +103,24 @@ enum afs_eproto_cause {
 	afs_eproto_yvl_vlendpt_type,
 };
 
+enum afs_io_error {
+	afs_io_error_cm_reply,
+	afs_io_error_extract,
+	afs_io_error_fs_probe_fail,
+	afs_io_error_vl_lookup_fail,
+};
+
+enum afs_file_error {
+	afs_file_error_dir_bad_magic,
+	afs_file_error_dir_big,
+	afs_file_error_dir_missing_page,
+	afs_file_error_dir_over_end,
+	afs_file_error_dir_small,
+	afs_file_error_dir_unmarked_ext,
+	afs_file_error_mntpt,
+	afs_file_error_writeback_fail,
+};
+
 #endif /* end __AFS_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
 /*
@@ -183,6 +201,21 @@ enum afs_eproto_cause {
 	EM(afs_eproto_yvl_vlendpt6_len,	"YVL.VlEnd6Len") \
 	E_(afs_eproto_yvl_vlendpt_type,	"YVL.VlEndType")
 
+#define afs_io_errors							\
+	EM(afs_io_error_cm_reply,		"CM_REPLY")		\
+	EM(afs_io_error_extract,		"EXTRACT")		\
+	EM(afs_io_error_fs_probe_fail,		"FS_PROBE_FAIL")	\
+	E_(afs_io_error_vl_lookup_fail,		"VL_LOOKUP_FAIL")
+
+#define afs_file_errors							\
+	EM(afs_file_error_dir_bad_magic,	"DIR_BAD_MAGIC")	\
+	EM(afs_file_error_dir_big,		"DIR_BIG")		\
+	EM(afs_file_error_dir_missing_page,	"DIR_MISSING_PAGE")	\
+	EM(afs_file_error_dir_over_end,		"DIR_ENT_OVER_END")	\
+	EM(afs_file_error_dir_small,		"DIR_SMALL")		\
+	EM(afs_file_error_dir_unmarked_ext,	"DIR_UNMARKED_EXT")	\
+	EM(afs_file_error_mntpt,		"MNTPT_READ_FAILED")	\
+	E_(afs_file_error_writeback_fail,	"WRITEBACK_FAILED")
 
 /*
  * Export enum symbols via userspace.
@@ -197,6 +230,9 @@ afs_fs_operations;
 afs_vl_operations;
 afs_edit_dir_ops;
 afs_edit_dir_reasons;
+afs_eproto_causes;
+afs_io_errors;
+afs_file_errors;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -611,6 +647,51 @@ TRACE_EVENT(afs_protocol_error,
 	    TP_printk("c=%08x r=%d %s",
 		      __entry->call, __entry->error,
 		      __print_symbolic(__entry->cause, afs_eproto_causes))
+	    );
+
+TRACE_EVENT(afs_io_error,
+	    TP_PROTO(unsigned int call, int error, enum afs_io_error where),
+
+	    TP_ARGS(call, error, where),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call		)
+		    __field(int,		error		)
+		    __field(enum afs_io_error,	where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->error = error;
+		    __entry->where = where;
+			   ),
+
+	    TP_printk("c=%08x r=%d %s",
+		      __entry->call, __entry->error,
+		      __print_symbolic(__entry->where, afs_io_errors))
+	    );
+
+TRACE_EVENT(afs_file_error,
+	    TP_PROTO(struct afs_vnode *vnode, int error, enum afs_file_error where),
+
+	    TP_ARGS(vnode, error, where),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid		)
+		    __field(int,			error		)
+		    __field(enum afs_file_error,	where		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->fid = vnode->fid;
+		    __entry->error = error;
+		    __entry->where = where;
+			   ),
+
+	    TP_printk("%x:%x:%x r=%d %s",
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->error,
+		      __print_symbolic(__entry->where, afs_file_errors))
 	    );
 
 TRACE_EVENT(afs_cm_no_server,

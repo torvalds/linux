@@ -542,7 +542,7 @@ static bool afs_do_probe_fileserver(struct afs_fs_cursor *fc)
 		case -ETIME:
 			break;
 		default:
-			fc->ac.error = -EIO;
+			fc->ac.error = afs_io_error(NULL, afs_io_error_fs_probe_fail);
 			goto error;
 		}
 	}

@@ -260,7 +260,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 	}
 
 	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
-		return -EIO;
+		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
@@ -368,7 +368,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 	}
 
 	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
-		return -EIO;
+		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* we'll need the file server record as that tells us which set of
 	 * vnodes to operate upon */
@@ -409,7 +409,7 @@ static int afs_deliver_cb_probe(struct afs_call *call)
 		return ret;
 
 	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
-		return -EIO;
+		return afs_io_error(call, afs_io_error_cm_reply);
 
 	return afs_queue_call_work(call);
 }
@@ -490,7 +490,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 	}
 
 	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
-		return -EIO;
+		return afs_io_error(call, afs_io_error_cm_reply);
 
 	return afs_queue_call_work(call);
 }
@@ -573,7 +573,7 @@ static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *call)
 		return ret;
 
 	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
-		return -EIO;
+		return afs_io_error(call, afs_io_error_cm_reply);
 
 	return afs_queue_call_work(call);
 }

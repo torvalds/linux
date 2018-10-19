@@ -533,6 +533,7 @@ no_more:
 	case -ENOENT:
 	case -ENOMEDIUM:
 	case -ENXIO:
+		trace_afs_file_error(vnode, ret, afs_file_error_writeback_fail);
 		afs_kill_pages(mapping, first, last);
 		mapping_set_error(mapping, ret);
 		break;
