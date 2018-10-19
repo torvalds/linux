@@ -307,4 +307,3 @@ unsigned long tpm1_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 	else
 		return duration;
 }
-EXPORT_SYMBOL_GPL(tpm1_calc_ordinal_duration);

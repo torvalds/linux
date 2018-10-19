@@ -132,7 +132,6 @@ unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 	else
 		return msecs_to_jiffies(TPM2_DURATION_DEFAULT);
 }
-EXPORT_SYMBOL_GPL(tpm2_calc_ordinal_duration);
 
 
 struct tpm2_pcr_read_out {

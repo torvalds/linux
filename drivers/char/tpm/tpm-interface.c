@@ -47,6 +47,25 @@ module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
 MODULE_PARM_DESC(suspend_pcr,
 		 "PCR to use for dummy writes to facilitate flush on suspend.");
 
+/**
+ * tpm_calc_ordinal_duration() - calculate the maximum command duration
+ * @chip:    TPM chip to use.
+ * @ordinal: TPM command ordinal.
+ *
+ * The function returns the maximum amount of time the chip could take
+ * to return the result for a particular ordinal in jiffies.
+ *
+ * Return: A maximal duration time for an ordinal in jiffies.
+ */
+unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
+{
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return tpm2_calc_ordinal_duration(chip, ordinal);
+	else
+		return tpm1_calc_ordinal_duration(chip, ordinal);
+}
+EXPORT_SYMBOL_GPL(tpm_calc_ordinal_duration);
+
 static int tpm_validate_command(struct tpm_chip *chip,
 				 struct tpm_space *space,
 				 const u8 *cmd,
@@ -220,10 +239,7 @@ static ssize_t tpm_try_transmit(struct tpm_chip *chip,
 	if (chip->flags & TPM_CHIP_FLAG_IRQ)
 		goto out_recv;
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2)
-		stop = jiffies + tpm2_calc_ordinal_duration(chip, ordinal);
-	else
-		stop = jiffies + tpm1_calc_ordinal_duration(chip, ordinal);
+	stop = jiffies + tpm_calc_ordinal_duration(chip, ordinal);
 	do {
 		u8 status = chip->ops->status(chip);
 		if ((status & chip->ops->req_complete_mask) ==
