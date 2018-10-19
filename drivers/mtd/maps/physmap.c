@@ -35,7 +35,7 @@ static int physmap_flash_remove(struct platform_device *dev)
 {
 	struct physmap_flash_info *info;
 	struct physmap_flash_data *physmap_data;
-	int i;
+	int i, err;
 
 	info = platform_get_drvdata(dev);
 	if (info == NULL)
@@ -44,7 +44,10 @@ static int physmap_flash_remove(struct platform_device *dev)
 	physmap_data = dev_get_platdata(&dev->dev);
 
 	if (info->cmtd) {
-		mtd_device_unregister(info->cmtd);
+		err = mtd_device_unregister(info->cmtd);
+		if (err)
+			return err;
+
 		if (info->cmtd != info->mtds[0])
 			mtd_concat_destroy(info->cmtd);
 	}
@@ -194,8 +197,12 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	part_types = physmap_data->part_probe_types ? : part_probe_types;
 
-	mtd_device_parse_register(info->cmtd, part_types, NULL,
-				  physmap_data->parts, physmap_data->nr_parts);
+	err = mtd_device_parse_register(info->cmtd, part_types, NULL,
+					physmap_data->parts,
+					physmap_data->nr_parts);
+	if (err)
+		goto err_out;
+
 	return 0;
 
 err_out:
