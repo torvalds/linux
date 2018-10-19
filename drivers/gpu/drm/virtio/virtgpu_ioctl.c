@@ -253,7 +253,6 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(qobj))
 		return PTR_ERR(qobj);
 	obj = &qobj->gem_base;
-	virtio_gpu_resource_id_get(vgdev, &qobj->hw_res_handle);
 
 	if (!vgdev->has_virgl_3d) {
 		virtio_gpu_cmd_create_resource(vgdev, qobj, rc->format,

@@ -100,7 +100,6 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 
 	format = virtio_gpu_translate_format(DRM_FORMAT_HOST_XRGB8888);
 	obj = gem_to_virtio_gpu_obj(gobj);
-	virtio_gpu_resource_id_get(vgdev, &obj->hw_res_handle);
 	virtio_gpu_cmd_create_resource(vgdev, obj, format,
 				       args->width, args->height);
 
