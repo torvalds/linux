@@ -159,6 +159,10 @@ struct fib6_info {
 	struct rt6_info * __percpu	*rt6i_pcpu;
 	struct rt6_exception_bucket __rcu *rt6i_exception_bucket;
 
+#ifdef CONFIG_IPV6_ROUTER_PREF
+	unsigned long			last_probe;
+#endif
+
 	u32				fib6_metric;
 	u8				fib6_protocol;
 	u8				fib6_type;

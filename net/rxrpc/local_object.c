@@ -139,7 +139,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 	udp_sk(usk)->gro_complete = NULL;
 
 	udp_encap_enable();
-#if IS_ENABLED(CONFIG_IPV6)
+#if IS_ENABLED(CONFIG_AF_RXRPC_IPV6)
 	if (local->srx.transport.family == AF_INET6)
 		udpv6_encap_enable();
 #endif

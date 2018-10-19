@@ -1015,6 +1015,9 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 			return -EINVAL;
 	}
 
+	if (info.cmd != cmd)
+		return -EINVAL;
+
 	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
 		if (info.rule_cnt > 0) {
 			if (info.rule_cnt <= KMALLOC_MAX_SIZE / sizeof(u32))
@@ -2469,12 +2472,16 @@ roll_back:
 	return ret;
 }
 
-static int ethtool_set_per_queue(struct net_device *dev, void __user *useraddr)
+static int ethtool_set_per_queue(struct net_device *dev,
+				 void __user *useraddr, u32 sub_cmd)
 {
 	struct ethtool_per_queue_op per_queue_opt;
 
 	if (copy_from_user(&per_queue_opt, useraddr, sizeof(per_queue_opt)))
 		return -EFAULT;
+
+	if (per_queue_opt.sub_command != sub_cmd)
+		return -EINVAL;
 
 	switch (per_queue_opt.sub_command) {
 	case ETHTOOL_GCOALESCE:
@@ -2846,7 +2853,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		rc = ethtool_get_phy_stats(dev, useraddr);
 		break;
 	case ETHTOOL_PERQUEUE:
-		rc = ethtool_set_per_queue(dev, useraddr);
+		rc = ethtool_set_per_queue(dev, useraddr, sub_cmd);
 		break;
 	case ETHTOOL_GLINKSETTINGS:
 		rc = ethtool_get_link_ksettings(dev, useraddr);

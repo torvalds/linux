@@ -195,6 +195,7 @@ void rxrpc_error_report(struct sock *sk)
 	rxrpc_store_error(peer, serr);
 	rcu_read_unlock();
 	rxrpc_free_skb(skb, rxrpc_skb_rx_freed);
+	rxrpc_put_peer(peer);
 
 	_leave("");
 }
