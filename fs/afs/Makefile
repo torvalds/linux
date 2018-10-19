@@ -33,7 +33,8 @@ kafs-y := \
 	vl_list.o \
 	volume.o \
 	write.o \
-	xattr.o
+	xattr.o \
+	yfsclient.o
 
 kafs-$(CONFIG_PROC_FS) += proc.o
 obj-$(CONFIG_AFS_FS)  := kafs.o

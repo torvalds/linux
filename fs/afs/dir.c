@@ -1200,7 +1200,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-			afs_fs_remove(&fc, dentry->d_name.name, true,
+			afs_fs_remove(&fc, vnode, dentry->d_name.name, true,
 				      data_version);
 		}
 
@@ -1245,7 +1245,9 @@ static int afs_dir_remove_link(struct dentry *dentry, struct key *key,
 	if (d_really_is_positive(dentry)) {
 		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 
-		if (dir_valid) {
+		if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
+			/* Already done */
+		} else if (dir_valid) {
 			drop_nlink(&vnode->vfs_inode);
 			if (vnode->vfs_inode.i_nlink == 0) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
@@ -1274,7 +1276,7 @@ static int afs_dir_remove_link(struct dentry *dentry, struct key *key,
 static int afs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct afs_fs_cursor fc;
-	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
+	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode = NULL;
 	struct key *key;
 	unsigned long d_version = (unsigned long)dentry->d_fsdata;
 	u64 data_version = dvnode->status.data_version;
@@ -1304,7 +1306,18 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	if (afs_begin_vnode_operation(&fc, dvnode, key)) {
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(dvnode);
-			afs_fs_remove(&fc, dentry->d_name.name, false,
+
+			if (test_bit(AFS_SERVER_FL_IS_YFS, &fc.cbi->server->flags) &&
+			    !test_bit(AFS_SERVER_FL_NO_RM2, &fc.cbi->server->flags)) {
+				yfs_fs_remove_file2(&fc, vnode, dentry->d_name.name,
+						    data_version);
+				if (fc.ac.error != -ECONNABORTED ||
+				    fc.ac.abort_code != RXGEN_OPCODE)
+					continue;
+				set_bit(AFS_SERVER_FL_NO_RM2, &fc.cbi->server->flags);
+			}
+
+			afs_fs_remove(&fc, vnode, dentry->d_name.name, false,
 				      data_version);
 		}
 

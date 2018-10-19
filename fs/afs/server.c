@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include "afs_fs.h"
 #include "internal.h"
+#include "protocol_yfs.h"
 
 static unsigned afs_server_gc_delay = 10;	/* Server record timeout in seconds */
 static unsigned afs_server_update_delay = 30;	/* Time till VLDB recheck in secs */
@@ -513,6 +514,8 @@ void afs_purge_servers(struct afs_net *net)
  */
 static bool afs_do_probe_fileserver(struct afs_fs_cursor *fc)
 {
+	int i;
+
 	_enter("");
 
 	fc->ac.addr = NULL;
@@ -526,6 +529,11 @@ static bool afs_do_probe_fileserver(struct afs_fs_cursor *fc)
 					&fc->ac, fc->key);
 		switch (fc->ac.error) {
 		case 0:
+			if (test_bit(AFS_SERVER_FL_IS_YFS, &fc->cbi->server->flags)) {
+				for (i = 0; i < fc->ac.alist->nr_addrs; i++)
+					fc->ac.alist->addrs[i].srx_service =
+						YFS_FS_SERVICE;
+			}
 			afs_end_cursor(&fc->ac);
 			set_bit(AFS_SERVER_FL_PROBED, &fc->cbi->server->flags);
 			return true;

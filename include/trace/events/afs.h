@@ -54,6 +54,35 @@ enum afs_fs_operation {
 	afs_FS_StoreData64		= 65538, /* AFS Store file data */
 	afs_FS_GiveUpAllCallBacks	= 65539, /* AFS Give up all our callbacks on a server */
 	afs_FS_GetCapabilities		= 65540, /* AFS Get FS server capabilities */
+
+	yfs_FS_FetchData		= 130,	 /* YFS Fetch file data */
+	yfs_FS_FetchACL			= 64131, /* YFS Fetch file ACL */
+	yfs_FS_FetchStatus		= 64132, /* YFS Fetch file status */
+	yfs_FS_StoreACL			= 64134, /* YFS Store file ACL */
+	yfs_FS_StoreStatus		= 64135, /* YFS Store file status */
+	yfs_FS_RemoveFile		= 64136, /* YFS Remove a file */
+	yfs_FS_CreateFile		= 64137, /* YFS Create a file */
+	yfs_FS_Rename			= 64138, /* YFS Rename or move a file or directory */
+	yfs_FS_Symlink			= 64139, /* YFS Create a symbolic link */
+	yfs_FS_Link			= 64140, /* YFS Create a hard link */
+	yfs_FS_MakeDir			= 64141, /* YFS Create a directory */
+	yfs_FS_RemoveDir		= 64142, /* YFS Remove a directory */
+	yfs_FS_GetVolumeStatus		= 64149, /* YFS Get volume status information */
+	yfs_FS_SetVolumeStatus		= 64150, /* YFS Set volume status information */
+	yfs_FS_SetLock			= 64156, /* YFS Request a file lock */
+	yfs_FS_ExtendLock		= 64157, /* YFS Extend a file lock */
+	yfs_FS_ReleaseLock		= 64158, /* YFS Release a file lock */
+	yfs_FS_Lookup			= 64161, /* YFS lookup file in directory */
+	yfs_FS_FlushCPS			= 64165,
+	yfs_FS_FetchOpaqueACL		= 64168,
+	yfs_FS_WhoAmI			= 64170,
+	yfs_FS_RemoveACL		= 64171,
+	yfs_FS_RemoveFile2		= 64173,
+	yfs_FS_StoreOpaqueACL2		= 64174,
+	yfs_FS_InlineBulkStatus		= 64536, /* YFS Fetch multiple file statuses with errors */
+	yfs_FS_FetchData64		= 64537, /* YFS Fetch file data */
+	yfs_FS_StoreData64		= 64538, /* YFS Store file data */
+	yfs_FS_UpdateSymlink		= 64540,
 };
 
 enum afs_vl_operation {
@@ -156,7 +185,34 @@ enum afs_file_error {
 	EM(afs_FS_FetchData64,			"FS.FetchData64") \
 	EM(afs_FS_StoreData64,			"FS.StoreData64") \
 	EM(afs_FS_GiveUpAllCallBacks,		"FS.GiveUpAllCallBacks") \
-	E_(afs_FS_GetCapabilities,		"FS.GetCapabilities")
+	EM(afs_FS_GetCapabilities,		"FS.GetCapabilities") \
+	EM(yfs_FS_FetchACL,			"YFS.FetchACL") \
+	EM(yfs_FS_FetchStatus,			"YFS.FetchStatus") \
+	EM(yfs_FS_StoreACL,			"YFS.StoreACL") \
+	EM(yfs_FS_StoreStatus,			"YFS.StoreStatus") \
+	EM(yfs_FS_RemoveFile,			"YFS.RemoveFile") \
+	EM(yfs_FS_CreateFile,			"YFS.CreateFile") \
+	EM(yfs_FS_Rename,			"YFS.Rename") \
+	EM(yfs_FS_Symlink,			"YFS.Symlink") \
+	EM(yfs_FS_Link,				"YFS.Link") \
+	EM(yfs_FS_MakeDir,			"YFS.MakeDir") \
+	EM(yfs_FS_RemoveDir,			"YFS.RemoveDir") \
+	EM(yfs_FS_GetVolumeStatus,		"YFS.GetVolumeStatus") \
+	EM(yfs_FS_SetVolumeStatus,		"YFS.SetVolumeStatus") \
+	EM(yfs_FS_SetLock,			"YFS.SetLock") \
+	EM(yfs_FS_ExtendLock,			"YFS.ExtendLock") \
+	EM(yfs_FS_ReleaseLock,			"YFS.ReleaseLock") \
+	EM(yfs_FS_Lookup,			"YFS.Lookup") \
+	EM(yfs_FS_FlushCPS,			"YFS.FlushCPS") \
+	EM(yfs_FS_FetchOpaqueACL,		"YFS.FetchOpaqueACL") \
+	EM(yfs_FS_WhoAmI,			"YFS.WhoAmI") \
+	EM(yfs_FS_RemoveACL,			"YFS.RemoveACL") \
+	EM(yfs_FS_RemoveFile2,			"YFS.RemoveFile2") \
+	EM(yfs_FS_StoreOpaqueACL2,		"YFS.StoreOpaqueACL2") \
+	EM(yfs_FS_InlineBulkStatus,		"YFS.InlineBulkStatus") \
+	EM(yfs_FS_FetchData64,			"YFS.FetchData64") \
+	EM(yfs_FS_StoreData64,			"YFS.StoreData64") \
+	E_(yfs_FS_UpdateSymlink,		"YFS.UpdateSymlink")
 
 #define afs_vl_operations \
 	EM(afs_VL_GetEntryByNameU,		"VL.GetEntryByNameU") \

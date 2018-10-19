@@ -459,6 +459,8 @@ struct afs_server {
 #define AFS_SERVER_FL_PROBING	6		/* Fileserver is being probed */
 #define AFS_SERVER_FL_NO_IBULK	7		/* Fileserver doesn't support FS.InlineBulkStatus */
 #define AFS_SERVER_FL_MAY_HAVE_CB 8		/* May have callbacks on this fileserver */
+#define AFS_SERVER_FL_IS_YFS	9		/* Server is YFS not AFS */
+#define AFS_SERVER_FL_NO_RM2	10		/* Fileserver doesn't support YFS.RemoveFile2 */
 	atomic_t		usage;
 	u32			addr_version;	/* Address list version */
 
@@ -751,6 +753,7 @@ extern struct fscache_cookie_def afs_vnode_cache_index_def;
  * callback.c
  */
 extern void afs_init_callback_state(struct afs_server *);
+extern void __afs_break_callback(struct afs_vnode *);
 extern void afs_break_callback(struct afs_vnode *);
 extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break*);
 
@@ -864,7 +867,7 @@ extern int afs_fs_give_up_callbacks(struct afs_net *, struct afs_server *);
 extern int afs_fs_fetch_data(struct afs_fs_cursor *, struct afs_read *);
 extern int afs_fs_create(struct afs_fs_cursor *, const char *, umode_t, u64,
 			 struct afs_fid *, struct afs_file_status *, struct afs_callback *);
-extern int afs_fs_remove(struct afs_fs_cursor *, const char *, bool, u64);
+extern int afs_fs_remove(struct afs_fs_cursor *, struct afs_vnode *, const char *, bool, u64);
 extern int afs_fs_link(struct afs_fs_cursor *, struct afs_vnode *, const char *, u64);
 extern int afs_fs_symlink(struct afs_fs_cursor *, const char *, const char *, u64,
 			  struct afs_fid *, struct afs_file_status *);
@@ -1228,6 +1231,36 @@ extern int afs_launder_page(struct page *);
 extern const struct xattr_handler *afs_xattr_handlers[];
 extern ssize_t afs_listxattr(struct dentry *, char *, size_t);
 
+/*
+ * yfsclient.c
+ */
+extern int yfs_fs_fetch_file_status(struct afs_fs_cursor *, struct afs_volsync *, bool);
+extern int yfs_fs_fetch_data(struct afs_fs_cursor *, struct afs_read *);
+extern int yfs_fs_create_file(struct afs_fs_cursor *, const char *, umode_t, u64,
+			      struct afs_fid *, struct afs_file_status *, struct afs_callback *);
+extern int yfs_fs_make_dir(struct afs_fs_cursor *, const char *, umode_t, u64,
+			 struct afs_fid *, struct afs_file_status *, struct afs_callback *);
+extern int yfs_fs_remove_file2(struct afs_fs_cursor *, struct afs_vnode *, const char *, u64);
+extern int yfs_fs_remove(struct afs_fs_cursor *, struct afs_vnode *, const char *, bool, u64);
+extern int yfs_fs_link(struct afs_fs_cursor *, struct afs_vnode *, const char *, u64);
+extern int yfs_fs_symlink(struct afs_fs_cursor *, const char *, const char *, u64,
+			  struct afs_fid *, struct afs_file_status *);
+extern int yfs_fs_rename(struct afs_fs_cursor *, const char *,
+			 struct afs_vnode *, const char *, u64, u64);
+extern int yfs_fs_store_data(struct afs_fs_cursor *, struct address_space *,
+			     pgoff_t, pgoff_t, unsigned, unsigned);
+extern int yfs_fs_setattr(struct afs_fs_cursor *, struct iattr *);
+extern int yfs_fs_get_volume_status(struct afs_fs_cursor *, struct afs_volume_status *);
+extern int yfs_fs_set_lock(struct afs_fs_cursor *, afs_lock_type_t);
+extern int yfs_fs_extend_lock(struct afs_fs_cursor *);
+extern int yfs_fs_release_lock(struct afs_fs_cursor *);
+extern int yfs_fs_fetch_status(struct afs_fs_cursor *, struct afs_net *,
+			       struct afs_fid *, struct afs_file_status *,
+			       struct afs_callback *, struct afs_volsync *);
+extern int yfs_fs_inline_bulk_status(struct afs_fs_cursor *, struct afs_net *,
+				     struct afs_fid *, struct afs_file_status *,
+				     struct afs_callback *, unsigned int,
+				     struct afs_volsync *);
 
 /*
  * Miscellaneous inline functions.
