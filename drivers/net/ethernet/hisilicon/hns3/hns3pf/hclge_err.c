@@ -109,6 +109,110 @@ static const struct hclge_hw_error hclge_ncsi_err_int[] = {
 	{ /* sentinel */ }
 };
 
+static const struct hclge_hw_error hclge_ppp_mpf_int0[] = {
+	{ .int_msk = BIT(0), .msg = "vf_vlan_ad_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(1), .msg = "umv_mcast_group_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(2), .msg = "umv_key_mem0_ecc_1bit_err" },
+	{ .int_msk = BIT(3), .msg = "umv_key_mem1_ecc_1bit_err" },
+	{ .int_msk = BIT(4), .msg = "umv_key_mem2_ecc_1bit_err" },
+	{ .int_msk = BIT(5), .msg = "umv_key_mem3_ecc_1bit_err" },
+	{ .int_msk = BIT(6), .msg = "umv_ad_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(7), .msg = "rss_tc_mode_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(8), .msg = "rss_idt_mem0_ecc_1bit_err" },
+	{ .int_msk = BIT(9), .msg = "rss_idt_mem1_ecc_1bit_err" },
+	{ .int_msk = BIT(10), .msg = "rss_idt_mem2_ecc_1bit_err" },
+	{ .int_msk = BIT(11), .msg = "rss_idt_mem3_ecc_1bit_err" },
+	{ .int_msk = BIT(12), .msg = "rss_idt_mem4_ecc_1bit_err" },
+	{ .int_msk = BIT(13), .msg = "rss_idt_mem5_ecc_1bit_err" },
+	{ .int_msk = BIT(14), .msg = "rss_idt_mem6_ecc_1bit_err" },
+	{ .int_msk = BIT(15), .msg = "rss_idt_mem7_ecc_1bit_err" },
+	{ .int_msk = BIT(16), .msg = "rss_idt_mem8_ecc_1bit_err" },
+	{ .int_msk = BIT(17), .msg = "rss_idt_mem9_ecc_1bit_err" },
+	{ .int_msk = BIT(18), .msg = "rss_idt_mem10_ecc_1bit_err" },
+	{ .int_msk = BIT(19), .msg = "rss_idt_mem11_ecc_1bit_err" },
+	{ .int_msk = BIT(20), .msg = "rss_idt_mem12_ecc_1bit_err" },
+	{ .int_msk = BIT(21), .msg = "rss_idt_mem13_ecc_1bit_err" },
+	{ .int_msk = BIT(22), .msg = "rss_idt_mem14_ecc_1bit_err" },
+	{ .int_msk = BIT(23), .msg = "rss_idt_mem15_ecc_1bit_err" },
+	{ .int_msk = BIT(24), .msg = "port_vlan_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(25), .msg = "mcast_linear_table_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(26), .msg = "mcast_result_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(27),
+		.msg = "flow_director_ad_mem0_ecc_1bit_err" },
+	{ .int_msk = BIT(28),
+		.msg = "flow_director_ad_mem1_ecc_1bit_err" },
+	{ .int_msk = BIT(29),
+		.msg = "rx_vlan_tag_memory_ecc_1bit_err" },
+	{ .int_msk = BIT(30),
+		.msg = "Tx_UP_mapping_config_mem_ecc_1bit_err" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ppp_mpf_int1[] = {
+	{ .int_msk = BIT(0), .msg = "vf_vlan_ad_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "umv_mcast_group_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(2), .msg = "umv_key_mem0_ecc_mbit_err" },
+	{ .int_msk = BIT(3), .msg = "umv_key_mem1_ecc_mbit_err" },
+	{ .int_msk = BIT(4), .msg = "umv_key_mem2_ecc_mbit_err" },
+	{ .int_msk = BIT(5), .msg = "umv_key_mem3_ecc_mbit_err" },
+	{ .int_msk = BIT(6), .msg = "umv_ad_mem_ecc_mbit_erre" },
+	{ .int_msk = BIT(7), .msg = "rss_tc_mode_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(8), .msg = "rss_idt_mem0_ecc_mbit_err" },
+	{ .int_msk = BIT(9), .msg = "rss_idt_mem1_ecc_mbit_err" },
+	{ .int_msk = BIT(10), .msg = "rss_idt_mem2_ecc_mbit_err" },
+	{ .int_msk = BIT(11), .msg = "rss_idt_mem3_ecc_mbit_err" },
+	{ .int_msk = BIT(12), .msg = "rss_idt_mem4_ecc_mbit_err" },
+	{ .int_msk = BIT(13), .msg = "rss_idt_mem5_ecc_mbit_err" },
+	{ .int_msk = BIT(14), .msg = "rss_idt_mem6_ecc_mbit_err" },
+	{ .int_msk = BIT(15), .msg = "rss_idt_mem7_ecc_mbit_err" },
+	{ .int_msk = BIT(16), .msg = "rss_idt_mem8_ecc_mbit_err" },
+	{ .int_msk = BIT(17), .msg = "rss_idt_mem9_ecc_mbit_err" },
+	{ .int_msk = BIT(18), .msg = "rss_idt_mem10_ecc_m1bit_err" },
+	{ .int_msk = BIT(19), .msg = "rss_idt_mem11_ecc_mbit_err" },
+	{ .int_msk = BIT(20), .msg = "rss_idt_mem12_ecc_mbit_err" },
+	{ .int_msk = BIT(21), .msg = "rss_idt_mem13_ecc_mbit_err" },
+	{ .int_msk = BIT(22), .msg = "rss_idt_mem14_ecc_mbit_err" },
+	{ .int_msk = BIT(23), .msg = "rss_idt_mem15_ecc_mbit_err" },
+	{ .int_msk = BIT(24), .msg = "port_vlan_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(25), .msg = "mcast_linear_table_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(26), .msg = "mcast_result_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(27),
+		.msg = "flow_director_ad_mem0_ecc_mbit_err" },
+	{ .int_msk = BIT(28),
+		.msg = "flow_director_ad_mem1_ecc_mbit_err" },
+	{ .int_msk = BIT(29),
+		.msg = "rx_vlan_tag_memory_ecc_mbit_err" },
+	{ .int_msk = BIT(30),
+		.msg = "Tx_UP_mapping_config_mem_ecc_mbit_err" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ppp_pf_int[] = {
+	{ .int_msk = BIT(0), .msg = "Tx_vlan_tag_err" },
+	{ .int_msk = BIT(1), .msg = "rss_list_tc_unassigned_queue_err" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ppp_mpf_int2[] = {
+	{ .int_msk = BIT(0), .msg = "hfs_fifo_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(1), .msg = "rslt_descr_fifo_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(2), .msg = "tx_vlan_tag_mem_ecc_1bit_err" },
+	{ .int_msk = BIT(3), .msg = "FD_CN0_memory_ecc_1bit_err" },
+	{ .int_msk = BIT(4), .msg = "FD_CN1_memory_ecc_1bit_err" },
+	{ .int_msk = BIT(5), .msg = "GRO_AD_memory_ecc_1bit_err" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ppp_mpf_int3[] = {
+	{ .int_msk = BIT(0), .msg = "hfs_fifo_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "rslt_descr_fifo_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(2), .msg = "tx_vlan_tag_mem_ecc_mbit_err" },
+	{ .int_msk = BIT(3), .msg = "FD_CN0_memory_ecc_mbit_err" },
+	{ .int_msk = BIT(4), .msg = "FD_CN1_memory_ecc_mbit_err" },
+	{ .int_msk = BIT(5), .msg = "GRO_AD_memory_ecc_mbit_err" },
+	{ /* sentinel */ }
+};
+
 static void hclge_log_error(struct device *dev,
 			    const struct hclge_hw_error *err_list,
 			    u32 err_sts)
@@ -322,6 +426,81 @@ static int hclge_enable_igu_egu_error(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+static int hclge_enable_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
+					    bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[2];
+	int ret;
+
+	/* enable/disable PPP error interrupts */
+	hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
+
+	if (cmd == HCLGE_PPP_CMD0_INT_CMD) {
+		if (en) {
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT0_EN);
+			desc[0].data[1] =
+				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT1_EN);
+		} else {
+			desc[0].data[0] = 0;
+			desc[0].data[1] = 0;
+		}
+		desc[1].data[0] =
+			cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT0_EN_MASK);
+		desc[1].data[1] =
+			cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT1_EN_MASK);
+	} else if (cmd == HCLGE_PPP_CMD1_INT_CMD) {
+		if (en) {
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT2_EN);
+			desc[0].data[1] =
+				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT3_EN);
+		} else {
+			desc[0].data[0] = 0;
+			desc[0].data[1] = 0;
+		}
+		desc[1].data[0] =
+				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT2_EN_MASK);
+		desc[1].data[1] =
+				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT3_EN_MASK);
+	}
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 2);
+	if (ret)
+		dev_err(dev,
+			"failed(%d) to enable/disable PPP error interrupts\n",
+			ret);
+
+	return ret;
+}
+
+static int hclge_enable_ppp_error(struct hclge_dev *hdev, bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	int ret;
+
+	ret = hclge_enable_ppp_error_interrupt(hdev, HCLGE_PPP_CMD0_INT_CMD,
+					       en);
+	if (ret) {
+		dev_err(dev,
+			"failed(%d) to enable/disable PPP error intr 0,1\n",
+			ret);
+		return ret;
+	}
+
+	ret = hclge_enable_ppp_error_interrupt(hdev, HCLGE_PPP_CMD1_INT_CMD,
+					       en);
+	if (ret)
+		dev_err(dev,
+			"failed(%d) to enable/disable PPP error intr 2,3\n",
+			ret);
+
+	return ret;
+}
+
 static void hclge_process_common_error(struct hclge_dev *hdev,
 				       enum hclge_err_int_type type)
 {
@@ -472,6 +651,91 @@ static void hclge_process_igu_egu_error(struct hclge_dev *hdev,
 	hclge_process_ncsi_error(hdev, HCLGE_ERR_INT_RAS_NFE);
 }
 
+static int hclge_log_and_clear_ppp_error(struct hclge_dev *hdev, u32 cmd,
+					 enum hclge_err_int_type int_type)
+{
+	enum hnae3_reset_type reset_level = HNAE3_NONE_RESET;
+	struct device *dev = &hdev->pdev->dev;
+	const struct hclge_hw_error *hw_err_lst1, *hw_err_lst2, *hw_err_lst3;
+	struct hclge_desc desc[2];
+	u32 err_sts;
+	int ret;
+
+	/* read PPP INT sts */
+	ret = hclge_cmd_query_error(hdev, &desc[0], cmd,
+				    HCLGE_CMD_FLAG_NEXT, 5, int_type);
+	if (ret) {
+		dev_err(dev, "failed(=%d) to query PPP interrupt status\n",
+			ret);
+		return -EIO;
+	}
+
+	/* log error */
+	if (cmd == HCLGE_PPP_CMD0_INT_CMD) {
+		hw_err_lst1 = &hclge_ppp_mpf_int0[0];
+		hw_err_lst2 = &hclge_ppp_mpf_int1[0];
+		hw_err_lst3 = &hclge_ppp_pf_int[0];
+	} else if (cmd == HCLGE_PPP_CMD1_INT_CMD) {
+		hw_err_lst1 = &hclge_ppp_mpf_int2[0];
+		hw_err_lst2 = &hclge_ppp_mpf_int3[0];
+	} else {
+		dev_err(dev, "invalid command(=%d)\n", cmd);
+		return -EINVAL;
+	}
+
+	err_sts = le32_to_cpu(desc[0].data[2]);
+	if (err_sts) {
+		hclge_log_error(dev, hw_err_lst1, err_sts);
+		reset_level = HNAE3_FUNC_RESET;
+	}
+
+	err_sts = le32_to_cpu(desc[0].data[3]);
+	if (err_sts) {
+		hclge_log_error(dev, hw_err_lst2, err_sts);
+		reset_level = HNAE3_FUNC_RESET;
+	}
+
+	err_sts = (le32_to_cpu(desc[0].data[4]) >> 8) & 0x3;
+	if (err_sts) {
+		hclge_log_error(dev, hw_err_lst3, err_sts);
+		reset_level = HNAE3_FUNC_RESET;
+	}
+
+	/* clear PPP INT */
+	ret = hclge_cmd_clear_error(hdev, &desc[0], NULL, 0,
+				    HCLGE_CMD_FLAG_NEXT);
+	if (ret) {
+		dev_err(dev, "failed(=%d) to clear PPP interrupt status\n",
+			ret);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void hclge_process_ppp_error(struct hclge_dev *hdev,
+				    enum hclge_err_int_type int_type)
+{
+	struct device *dev = &hdev->pdev->dev;
+	int ret;
+
+	/* read PPP INT0,1 sts */
+	ret = hclge_log_and_clear_ppp_error(hdev, HCLGE_PPP_CMD0_INT_CMD,
+					    int_type);
+	if (ret < 0) {
+		dev_err(dev, "failed(=%d) to clear PPP interrupt 0,1 status\n",
+			ret);
+		return;
+	}
+
+	/* read err PPP INT2,3 sts */
+	ret = hclge_log_and_clear_ppp_error(hdev, HCLGE_PPP_CMD1_INT_CMD,
+					    int_type);
+	if (ret < 0)
+		dev_err(dev, "failed(=%d) to clear PPP interrupt 2,3 status\n",
+			ret);
+}
+
 static const struct hclge_hw_blk hw_blk[] = {
 	{ .msk = BIT(0), .name = "IGU_EGU",
 	  .enable_error = hclge_enable_igu_egu_error,
@@ -479,6 +743,9 @@ static const struct hclge_hw_blk hw_blk[] = {
 	{ .msk = BIT(5), .name = "COMMON",
 	  .enable_error = hclge_enable_common_error,
 	  .process_error = hclge_process_common_error, },
+	{ .msk = BIT(1), .name = "PPP",
+	  .enable_error = hclge_enable_ppp_error,
+	  .process_error = hclge_process_ppp_error, },
 	{ /* sentinel */ }
 };
 
