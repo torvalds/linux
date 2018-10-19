@@ -110,10 +110,8 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	info = devm_kzalloc(&dev->dev, sizeof(struct physmap_flash_info),
 			    GFP_KERNEL);
-	if (info == NULL) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!info)
+		return -ENOMEM;
 
 	while (platform_get_resource(dev, IORESOURCE_MEM, info->nmaps))
 		info->nmaps++;
