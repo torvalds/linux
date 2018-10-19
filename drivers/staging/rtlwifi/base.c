@@ -1432,8 +1432,8 @@ static void setup_special_tx(struct rtl_priv *rtlpriv, struct rtl_ps_ctl *ppsc,
 
 	rtlpriv->ra.is_special_data = true;
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_special_packet_notify(
-					rtlpriv, type);
+		rtlpriv->btcoexist.btc_ops->btc_special_packet_notify(rtlpriv,
+								      type);
 	rtl_lps_leave(hw);
 	ppsc->last_delaylps_stamp_jiffies = jiffies;
 }
@@ -2120,8 +2120,7 @@ label_lps_done:
 			if (rtlpriv->link_info.roam_times >= 5) {
 				pr_err("AP off, try to reconnect now\n");
 				rtlpriv->link_info.roam_times = 0;
-				ieee80211_connection_loss(
-					rtlpriv->mac80211.vif);
+				ieee80211_connection_loss(rtlpriv->mac80211.vif);
 			}
 		} else {
 			rtlpriv->link_info.roam_times = 0;
