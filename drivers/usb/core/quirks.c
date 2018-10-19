@@ -128,6 +128,9 @@ static int quirks_param_set(const char *val, const struct kernel_param *kp)
 			case 'n':
 				flags |= USB_QUIRK_DELAY_CTRL_MSG;
 				break;
+			case 'o':
+				flags |= USB_QUIRK_HUB_SLOW_RESET;
+				break;
 			/* Ignore unrecognized flag characters */
 			}
 		}
@@ -379,6 +382,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Protocol and OTG Electrical Test Device */
 	{ USB_DEVICE(0x1a0a, 0x0200), .driver_info =
 			USB_QUIRK_LINEAR_UFRAME_INTR_BINTERVAL },
+
+	/* Terminus Technology Inc. Hub */
+	{ USB_DEVICE(0x1a40, 0x0101), .driver_info = USB_QUIRK_HUB_SLOW_RESET },
 
 	/* Corsair K70 RGB */
 	{ USB_DEVICE(0x1b1c, 0x1b13), .driver_info = USB_QUIRK_DELAY_INIT },
