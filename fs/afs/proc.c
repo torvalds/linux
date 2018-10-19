@@ -37,16 +37,24 @@ static inline struct afs_net *afs_seq2net_single(struct seq_file *m)
  */
 static int afs_proc_cells_show(struct seq_file *m, void *v)
 {
-	struct afs_cell *cell = list_entry(v, struct afs_cell, proc_link);
+	struct afs_vlserver_list *vllist;
+	struct afs_cell *cell;
 
 	if (v == SEQ_START_TOKEN) {
 		/* display header on line 1 */
-		seq_puts(m, "USE NAME\n");
+		seq_puts(m, "USE    TTL SV NAME\n");
 		return 0;
 	}
 
+	cell = list_entry(v, struct afs_cell, proc_link);
+	vllist = rcu_dereference(cell->vl_servers);
+
 	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%3u %s\n", atomic_read(&cell->usage), cell->name);
+	seq_printf(m, "%3u %6lld %2u %s\n",
+		   atomic_read(&cell->usage),
+		   cell->dns_expiry - ktime_get_real_seconds(),
+		   vllist ? vllist->nr_servers : 0,
+		   cell->name);
 	return 0;
 }
 

@@ -20,6 +20,8 @@
 #include "internal.h"
 
 static unsigned __read_mostly afs_cell_gc_delay = 10;
+static unsigned __read_mostly afs_cell_min_ttl = 10 * 60;
+static unsigned __read_mostly afs_cell_max_ttl = 24 * 60 * 60;
 
 static void afs_manage_cell(struct work_struct *);
 
@@ -171,6 +173,8 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 
 		rcu_assign_pointer(cell->vl_servers, vllist);
 		cell->dns_expiry = TIME64_MAX;
+	} else {
+		cell->dns_expiry = ktime_get_real_seconds();
 	}
 
 	_leave(" = %p", cell);
@@ -358,25 +362,39 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 static void afs_update_cell(struct afs_cell *cell)
 {
 	struct afs_vlserver_list *vllist, *old;
-	time64_t now, expiry;
+	unsigned int min_ttl = READ_ONCE(afs_cell_min_ttl);
+	unsigned int max_ttl = READ_ONCE(afs_cell_max_ttl);
+	time64_t now, expiry = 0;
 
 	_enter("%s", cell->name);
 
 	vllist = afs_dns_query(cell, &expiry);
+
+	now = ktime_get_real_seconds();
+	if (min_ttl > max_ttl)
+		max_ttl = min_ttl;
+	if (expiry < now + min_ttl)
+		expiry = now + min_ttl;
+	else if (expiry > now + max_ttl)
+		expiry = now + max_ttl;
+
 	if (IS_ERR(vllist)) {
 		switch (PTR_ERR(vllist)) {
 		case -ENODATA:
-			/* The DNS said that the cell does not exist */
+		case -EDESTADDRREQ:
+			/* The DNS said that the cell does not exist or there
+			 * weren't any addresses to be had.
+			 */
 			set_bit(AFS_CELL_FL_NOT_FOUND, &cell->flags);
 			clear_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
-			cell->dns_expiry = ktime_get_real_seconds() + 61;
+			cell->dns_expiry = expiry;
 			break;
 
 		case -EAGAIN:
 		case -ECONNREFUSED:
 		default:
 			set_bit(AFS_CELL_FL_DNS_FAIL, &cell->flags);
-			cell->dns_expiry = ktime_get_real_seconds() + 10;
+			cell->dns_expiry = now + 10;
 			break;
 		}
 
