@@ -478,10 +478,29 @@ static enum pixel_format convert_pixel_format_to_dalsurface(
 	return dal_pixel_format;
 }
 
-static void rect_swap_helper(struct rect *rect)
+static inline void get_vp_scan_direction(
+	enum dc_rotation_angle rotation,
+	bool horizontal_mirror,
+	bool *orthogonal_rotation,
+	bool *flip_vert_scan_dir,
+	bool *flip_horz_scan_dir)
 {
-	swap(rect->height, rect->width);
-	swap(rect->x, rect->y);
+	*orthogonal_rotation = false;
+	*flip_vert_scan_dir = false;
+	*flip_horz_scan_dir = false;
+	if (rotation == ROTATION_ANGLE_180) {
+		*flip_vert_scan_dir = true;
+		*flip_horz_scan_dir = true;
+	} else if (rotation == ROTATION_ANGLE_90) {
+		*orthogonal_rotation = true;
+		*flip_horz_scan_dir = true;
+	} else if (rotation == ROTATION_ANGLE_270) {
+		*orthogonal_rotation = true;
+		*flip_vert_scan_dir = true;
+	}
+
+	if (horizontal_mirror)
+		*flip_horz_scan_dir = !*flip_horz_scan_dir;
 }
 
 static void calculate_viewport(struct pipe_ctx *pipe_ctx)
@@ -490,33 +509,14 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect surf_src = plane_state->src_rect;
-	struct rect clip = { 0 };
+	struct rect clip, dest;
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
 	bool pri_split = pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
-	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
-
-
-	/*
-	 * We need take horizontal mirror into account. On an unrotated surface this means
-	 * that the viewport offset is actually the offset from the other side of source
-	 * image so we have to subtract the right edge of the viewport from the right edge of
-	 * the source window. Similar to mirror we need to take into account how offset is
-	 * affected for 270/180 rotations
-	 */
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
-		flip_vert_scan_dir = true;
-		flip_horz_scan_dir = true;
-	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
-		flip_vert_scan_dir = true;
-	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		flip_horz_scan_dir = true;
-
-	if (pipe_ctx->plane_state->horizontal_mirror)
-		flip_horz_scan_dir = !flip_horz_scan_dir;
+	bool orthogonal_rotation, flip_y_start, flip_x_start;
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
 		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
@@ -524,13 +524,10 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 		sec_split = false;
 	}
 
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		rect_swap_helper(&surf_src);
-
 	/* The actual clip is an intersection between stream
 	 * source and surface clip
 	 */
+	dest = plane_state->dst_rect;
 	clip.x = stream->src.x > plane_state->clip_rect.x ?
 			stream->src.x : plane_state->clip_rect.x;
 
@@ -547,76 +544,83 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 			stream->src.y + stream->src.height - clip.y :
 			plane_state->clip_rect.y + plane_state->clip_rect.height - clip.y ;
 
+	/*
+	 * Need to calculate how scan origin is shifted in vp space
+	 * to correctly rotate clip and dst
+	 */
+	get_vp_scan_direction(
+			plane_state->rotation,
+			plane_state->horizontal_mirror,
+			&orthogonal_rotation,
+			&flip_y_start,
+			&flip_x_start);
+
+	if (orthogonal_rotation) {
+		swap(clip.x, clip.y);
+		swap(clip.width, clip.height);
+		swap(dest.x, dest.y);
+		swap(dest.width, dest.height);
+	}
+	if (flip_x_start) {
+		clip.x = dest.x + dest.width - clip.x - clip.width;
+		dest.x = 0;
+	}
+	if (flip_y_start) {
+		clip.y = dest.y + dest.height - clip.y - clip.height;
+		dest.y = 0;
+	}
+
 	/* offset = surf_src.ofs + (clip.ofs - surface->dst_rect.ofs) * scl_ratio
-	 * note: surf_src.ofs should be added after rotation/mirror offset direction
-	 *       adjustment since it is already in viewport space
 	 * num_pixels = clip.num_pix * scl_ratio
 	 */
-	data->viewport.x = (clip.x - plane_state->dst_rect.x) *
-			surf_src.width / plane_state->dst_rect.width;
-	data->viewport.width = clip.width *
-			surf_src.width / plane_state->dst_rect.width;
+	data->viewport.x = surf_src.x + (clip.x - dest.x) * surf_src.width / dest.width;
+	data->viewport.width = clip.width * surf_src.width / dest.width;
 
-	data->viewport.y = (clip.y - plane_state->dst_rect.y) *
-			surf_src.height / plane_state->dst_rect.height;
-	data->viewport.height = clip.height *
-			surf_src.height / plane_state->dst_rect.height;
+	data->viewport.y = surf_src.y + (clip.y - dest.y) * surf_src.height / dest.height;
+	data->viewport.height = clip.height * surf_src.height / dest.height;
 
-	if (flip_vert_scan_dir)
-		data->viewport.y = surf_src.height - data->viewport.y - data->viewport.height;
-	if (flip_horz_scan_dir)
-		data->viewport.x = surf_src.width - data->viewport.x - data->viewport.width;
-
-	data->viewport.x += surf_src.x;
-	data->viewport.y += surf_src.y;
+	/* Handle split */
+	if (pri_split || sec_split) {
+		if (orthogonal_rotation) {
+			if (flip_y_start != pri_split)
+				data->viewport.height /= 2;
+			else {
+				data->viewport.y +=  data->viewport.height / 2;
+				/* Ceil offset pipe */
+				data->viewport.height = (data->viewport.height + 1) / 2;
+			}
+		} else {
+			if (flip_x_start != pri_split)
+				data->viewport.width /= 2;
+			else {
+				data->viewport.x +=  data->viewport.width / 2;
+				/* Ceil offset pipe */
+				data->viewport.width = (data->viewport.width + 1) / 2;
+			}
+		}
+	}
 
 	/* Round down, compensate in init */
 	data->viewport_c.x = data->viewport.x / vpc_div;
 	data->viewport_c.y = data->viewport.y / vpc_div;
-	data->inits.h_c = (data->viewport.x % vpc_div) != 0 ?
-			dc_fixpt_half : dc_fixpt_zero;
-	data->inits.v_c = (data->viewport.y % vpc_div) != 0 ?
-			dc_fixpt_half : dc_fixpt_zero;
+	data->inits.h_c = (data->viewport.x % vpc_div) != 0 ? dc_fixpt_half : dc_fixpt_zero;
+	data->inits.v_c = (data->viewport.y % vpc_div) != 0 ? dc_fixpt_half : dc_fixpt_zero;
+
 	/* Round up, assume original video size always even dimensions */
 	data->viewport_c.width = (data->viewport.width + vpc_div - 1) / vpc_div;
 	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
-
-	/* Handle hsplit */
-	if (sec_split) {
-		data->viewport.x +=  data->viewport.width / 2;
-		data->viewport_c.x +=  data->viewport_c.width / 2;
-		/* Ceil offset pipe */
-		data->viewport.width = (data->viewport.width + 1) / 2;
-		data->viewport_c.width = (data->viewport_c.width + 1) / 2;
-	} else if (pri_split) {
-		if (data->viewport.width > 1)
-			data->viewport.width /= 2;
-		if (data->viewport_c.width > 1)
-			data->viewport_c.width /= 2;
-	}
-
-	if (plane_state->rotation == ROTATION_ANGLE_90 ||
-			plane_state->rotation == ROTATION_ANGLE_270) {
-		rect_swap_helper(&data->viewport_c);
-		rect_swap_helper(&data->viewport);
-	}
 }
 
-static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
+static void calculate_recout(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	struct rect surf_src = plane_state->src_rect;
 	struct rect surf_clip = plane_state->clip_rect;
 	bool pri_split = pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
 	bool top_bottom_split = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
-
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		rect_swap_helper(&surf_src);
 
 	pipe_ctx->plane_res.scl_data.recout.x = stream->dst.x;
 	if (stream->src.x < surf_clip.x)
@@ -646,7 +650,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full
 			stream->dst.y + stream->dst.height
 						- pipe_ctx->plane_res.scl_data.recout.y;
 
-	/* Handle h & vsplit */
+	/* Handle h & v split, handle rotation using viewport */
 	if (sec_split && top_bottom_split) {
 		pipe_ctx->plane_res.scl_data.recout.y +=
 				pipe_ctx->plane_res.scl_data.recout.height / 2;
@@ -655,44 +659,14 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct rect *recout_full
 				(pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
 	} else if (pri_split && top_bottom_split)
 		pipe_ctx->plane_res.scl_data.recout.height /= 2;
-	else if (pri_split || sec_split) {
-		/* HMirror XOR Secondary_pipe XOR Rotation_180 */
-		bool right_view = (sec_split != plane_state->horizontal_mirror) !=
-					(plane_state->rotation == ROTATION_ANGLE_180);
-
-		if (plane_state->rotation == ROTATION_ANGLE_90
-				|| plane_state->rotation == ROTATION_ANGLE_270)
-			/* Secondary_pipe XOR Rotation_270 */
-			right_view = (plane_state->rotation == ROTATION_ANGLE_270) != sec_split;
-
-		if (right_view) {
-			pipe_ctx->plane_res.scl_data.recout.x +=
-					pipe_ctx->plane_res.scl_data.recout.width / 2;
-			/* Ceil offset pipe */
-			pipe_ctx->plane_res.scl_data.recout.width =
-					(pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
-		} else {
-			if (pipe_ctx->plane_res.scl_data.recout.width > 1)
-				pipe_ctx->plane_res.scl_data.recout.width /= 2;
-		}
-	}
-	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
-	 *			* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
-	 *			ratio)
-	 */
-	recout_full->x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
-					* stream->dst.width / stream->src.width -
-			surf_src.x * plane_state->dst_rect.width / surf_src.width
-					* stream->dst.width / stream->src.width;
-	recout_full->y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
-					* stream->dst.height / stream->src.height -
-			surf_src.y * plane_state->dst_rect.height / surf_src.height
-					* stream->dst.height / stream->src.height;
-
-	recout_full->width = plane_state->dst_rect.width
-					* stream->dst.width / stream->src.width;
-	recout_full->height = plane_state->dst_rect.height
-					* stream->dst.height / stream->src.height;
+	else if (sec_split) {
+		pipe_ctx->plane_res.scl_data.recout.x +=
+				pipe_ctx->plane_res.scl_data.recout.width / 2;
+		/* Ceil offset pipe */
+		pipe_ctx->plane_res.scl_data.recout.width =
+				(pipe_ctx->plane_res.scl_data.recout.width + 1) / 2;
+	} else if (pri_split)
+		pipe_ctx->plane_res.scl_data.recout.width /= 2;
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -705,9 +679,10 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 	const int out_w = stream->dst.width;
 	const int out_h = stream->dst.height;
 
+	/*Swap surf_src height and width since scaling ratios are in recout rotation*/
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		rect_swap_helper(&surf_src);
+		swap(surf_src.height, surf_src.width);
 
 	pipe_ctx->plane_res.scl_data.ratios.horz = dc_fixpt_from_fraction(
 					surf_src.width,
@@ -744,35 +719,133 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.ratios.vert_c, 19);
 }
 
-static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *recout_full)
+static inline void adjust_vp_and_init_for_seamless_clip(
+		bool flip_scan_dir,
+		int recout_skip,
+		int src_size,
+		int taps,
+		struct fixed31_32 ratio,
+		struct fixed31_32 *init,
+		int *vp_offset,
+		int *vp_size)
 {
+	if (!flip_scan_dir) {
+		/* Adjust for viewport end clip-off */
+		if ((*vp_offset + *vp_size) < src_size) {
+			int vp_clip = src_size - *vp_size - *vp_offset;
+			int int_part = dc_fixpt_floor(dc_fixpt_sub(*init, ratio));
+
+			int_part = int_part > 0 ? int_part : 0;
+			*vp_size += int_part < vp_clip ? int_part : vp_clip;
+		}
+
+		/* Adjust for non-0 viewport offset */
+		if (*vp_offset) {
+			int int_part;
+
+			*init = dc_fixpt_add(*init, dc_fixpt_mul_int(ratio, recout_skip));
+			int_part = dc_fixpt_floor(*init) - *vp_offset;
+			if (int_part < taps) {
+				int int_adj = *vp_offset >= (taps - int_part) ?
+							(taps - int_part) : *vp_offset;
+				*vp_offset -= int_adj;
+				*vp_size += int_adj;
+				int_part += int_adj;
+			} else if (int_part > taps) {
+				*vp_offset += int_part - taps;
+				*vp_size -= int_part - taps;
+				int_part = taps;
+			}
+			init->value &= 0xffffffff;
+			*init = dc_fixpt_add_int(*init, int_part);
+		}
+	} else {
+		/* Adjust for non-0 viewport offset */
+		if (*vp_offset) {
+			int int_part = dc_fixpt_floor(dc_fixpt_sub(*init, ratio));
+
+			int_part = int_part > 0 ? int_part : 0;
+			*vp_size += int_part < *vp_offset ? int_part : *vp_offset;
+			*vp_offset -= int_part < *vp_offset ? int_part : *vp_offset;
+		}
+
+		/* Adjust for viewport end clip-off */
+		if ((*vp_offset + *vp_size) < src_size) {
+			int int_part;
+			int end_offset = src_size - *vp_offset - *vp_size;
+
+			/*
+			 * this is init if vp had no offset, keep in mind this is from the
+			 * right side of vp due to scan direction
+			 */
+			*init = dc_fixpt_add(*init, dc_fixpt_mul_int(ratio, recout_skip));
+			/*
+			 * this is the difference between first pixel of viewport available to read
+			 * and init position, takning into account scan direction
+			 */
+			int_part = dc_fixpt_floor(*init) - end_offset;
+			if (int_part < taps) {
+				int int_adj = end_offset >= (taps - int_part) ?
+							(taps - int_part) : end_offset;
+				*vp_size += int_adj;
+				int_part += int_adj;
+			} else if (int_part > taps) {
+				*vp_size += int_part - taps;
+				int_part = taps;
+			}
+			init->value &= 0xffffffff;
+			*init = dc_fixpt_add_int(*init, int_part);
+		}
+	}
+}
+
+static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
+{
+	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = pipe_ctx->plane_state->src_rect;
+	int recout_skip_h, recout_skip_v, surf_size_h, surf_size_v;
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
-	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
+	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 
 	/*
 	 * Need to calculate the scan direction for viewport to make adjustments
 	 */
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
-		flip_vert_scan_dir = true;
-		flip_horz_scan_dir = true;
-	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
-		flip_vert_scan_dir = true;
-	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
-		flip_horz_scan_dir = true;
+	get_vp_scan_direction(
+			plane_state->rotation,
+			plane_state->horizontal_mirror,
+			&orthogonal_rotation,
+			&flip_vert_scan_dir,
+			&flip_horz_scan_dir);
 
-	if (pipe_ctx->plane_state->horizontal_mirror)
-			flip_horz_scan_dir = !flip_horz_scan_dir;
-
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
-		rect_swap_helper(&src);
-		rect_swap_helper(&data->viewport_c);
-		rect_swap_helper(&data->viewport);
+	/* Calculate src rect rotation adjusted to recout space */
+	surf_size_h = src.x + src.width;
+	surf_size_v = src.y + src.height;
+	if (flip_horz_scan_dir)
+		src.x = 0;
+	if (flip_vert_scan_dir)
+		src.y = 0;
+	if (orthogonal_rotation) {
+		swap(src.x, src.y);
+		swap(src.width, src.height);
 	}
 
+	/* Recout matching initial vp offset = recout_offset - (stream dst offset +
+	 *			((surf dst offset - stream src offset) * 1/ stream scaling ratio)
+	 *			- (surf surf_src offset * 1/ full scl ratio))
+	 */
+	recout_skip_h = data->recout.x - (stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
+					* stream->dst.width / stream->src.width -
+					src.x * plane_state->dst_rect.width / src.width
+					* stream->dst.width / stream->src.width);
+	recout_skip_v = data->recout.y - (stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
+					* stream->dst.height / stream->src.height -
+					src.y * plane_state->dst_rect.height / src.height
+					* stream->dst.height / stream->src.height);
+	if (orthogonal_rotation)
+		swap(recout_skip_h, recout_skip_v);
 	/*
 	 * Init calculated according to formula:
 	 * 	init = (scaling_ratio + number_of_taps + 1) / 2
@@ -791,304 +864,57 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct rect *r
 	data->inits.v_c = dc_fixpt_truncate(dc_fixpt_add(data->inits.v_c, dc_fixpt_div_int(
 			dc_fixpt_add_int(data->ratios.vert_c, data->taps.v_taps_c + 1), 2)), 19);
 
-	if (!flip_horz_scan_dir) {
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
-			int vp_clip = src.x + src.width - data->viewport.width - data->viewport.x;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h, data->ratios.horz));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.width += int_part < vp_clip ? int_part : vp_clip;
-		}
-		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
-			int vp_clip = (src.x + src.width) / vpc_div -
-					data->viewport_c.width - data->viewport_c.x;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.width += int_part < vp_clip ? int_part : vp_clip;
-		}
-
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.x) {
-			int int_part;
-
-			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
-					data->ratios.horz, data->recout.x - recout_full->x));
-			int_part = dc_fixpt_floor(data->inits.h) - data->viewport.x;
-			if (int_part < data->taps.h_taps) {
-				int int_adj = data->viewport.x >= (data->taps.h_taps - int_part) ?
-							(data->taps.h_taps - int_part) : data->viewport.x;
-				data->viewport.x -= int_adj;
-				data->viewport.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps) {
-				data->viewport.x += int_part - data->taps.h_taps;
-				data->viewport.width -= int_part - data->taps.h_taps;
-				int_part = data->taps.h_taps;
-			}
-			data->inits.h.value &= 0xffffffff;
-			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
-		}
-
-		if (data->viewport_c.x) {
-			int int_part;
-
-			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
-					data->ratios.horz_c, data->recout.x - recout_full->x));
-			int_part = dc_fixpt_floor(data->inits.h_c) - data->viewport_c.x;
-			if (int_part < data->taps.h_taps_c) {
-				int int_adj = data->viewport_c.x >= (data->taps.h_taps_c - int_part) ?
-						(data->taps.h_taps_c - int_part) : data->viewport_c.x;
-				data->viewport_c.x -= int_adj;
-				data->viewport_c.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps_c) {
-				data->viewport_c.x += int_part - data->taps.h_taps_c;
-				data->viewport_c.width -= int_part - data->taps.h_taps_c;
-				int_part = data->taps.h_taps_c;
-			}
-			data->inits.h_c.value &= 0xffffffff;
-			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
-		}
-	} else {
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.x) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h, data->ratios.horz));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.width += int_part < data->viewport.x ? int_part : data->viewport.x;
-			data->viewport.x -= int_part < data->viewport.x ? int_part : data->viewport.x;
-		}
-		if (data->viewport_c.x) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.h_c, data->ratios.horz_c));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.width += int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
-			data->viewport_c.x -= int_part < data->viewport_c.x ? int_part : data->viewport_c.x;
-		}
-
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.x + data->viewport.width) < (src.x + src.width)) {
-			int int_part;
-			int end_offset = src.x + src.width
-					- data->viewport.x - data->viewport.width;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.h = dc_fixpt_add(data->inits.h, dc_fixpt_mul_int(
-					data->ratios.horz, data->recout.x - recout_full->x));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, takning into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.h) - end_offset;
-			if (int_part < data->taps.h_taps) {
-				int int_adj = end_offset >= (data->taps.h_taps - int_part) ?
-							(data->taps.h_taps - int_part) : end_offset;
-				data->viewport.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps) {
-				data->viewport.width += int_part - data->taps.h_taps;
-				int_part = data->taps.h_taps;
-			}
-			data->inits.h.value &= 0xffffffff;
-			data->inits.h = dc_fixpt_add_int(data->inits.h, int_part);
-		}
-
-		if ((data->viewport_c.x + data->viewport_c.width) < (src.x + src.width) / vpc_div) {
-			int int_part;
-			int end_offset = (src.x + src.width) / vpc_div
-					- data->viewport_c.x - data->viewport_c.width;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.h_c = dc_fixpt_add(data->inits.h_c, dc_fixpt_mul_int(
-					data->ratios.horz_c, data->recout.x - recout_full->x));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, takning into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.h_c) - end_offset;
-			if (int_part < data->taps.h_taps_c) {
-				int int_adj = end_offset >= (data->taps.h_taps_c - int_part) ?
-							(data->taps.h_taps_c - int_part) : end_offset;
-				data->viewport_c.width += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.h_taps_c) {
-				data->viewport_c.width += int_part - data->taps.h_taps_c;
-				int_part = data->taps.h_taps_c;
-			}
-			data->inits.h_c.value &= 0xffffffff;
-			data->inits.h_c = dc_fixpt_add_int(data->inits.h_c, int_part);
-		}
-
-	}
-	if (!flip_vert_scan_dir) {
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
-			int vp_clip = src.y + src.height - data->viewport.height - data->viewport.y;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v, data->ratios.vert));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.height += int_part < vp_clip ? int_part : vp_clip;
-		}
-		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
-			int vp_clip = (src.y + src.height) / vpc_div -
-					data->viewport_c.height - data->viewport_c.y;
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.height += int_part < vp_clip ? int_part : vp_clip;
-		}
-
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.y) {
-			int int_part;
-
-			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
-					data->ratios.vert, data->recout.y - recout_full->y));
-			int_part = dc_fixpt_floor(data->inits.v) - data->viewport.y;
-			if (int_part < data->taps.v_taps) {
-				int int_adj = data->viewport.y >= (data->taps.v_taps - int_part) ?
-							(data->taps.v_taps - int_part) : data->viewport.y;
-				data->viewport.y -= int_adj;
-				data->viewport.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps) {
-				data->viewport.y += int_part - data->taps.v_taps;
-				data->viewport.height -= int_part - data->taps.v_taps;
-				int_part = data->taps.v_taps;
-			}
-			data->inits.v.value &= 0xffffffff;
-			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
-		}
-
-		if (data->viewport_c.y) {
-			int int_part;
-
-			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
-					data->ratios.vert_c, data->recout.y - recout_full->y));
-			int_part = dc_fixpt_floor(data->inits.v_c) - data->viewport_c.y;
-			if (int_part < data->taps.v_taps_c) {
-				int int_adj = data->viewport_c.y >= (data->taps.v_taps_c - int_part) ?
-						(data->taps.v_taps_c - int_part) : data->viewport_c.y;
-				data->viewport_c.y -= int_adj;
-				data->viewport_c.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps_c) {
-				data->viewport_c.y += int_part - data->taps.v_taps_c;
-				data->viewport_c.height -= int_part - data->taps.v_taps_c;
-				int_part = data->taps.v_taps_c;
-			}
-			data->inits.v_c.value &= 0xffffffff;
-			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
-		}
-	} else {
-		/* Adjust for non-0 viewport offset */
-		if (data->viewport.y) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v, data->ratios.vert));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport.height += int_part < data->viewport.y ? int_part : data->viewport.y;
-			data->viewport.y -= int_part < data->viewport.y ? int_part : data->viewport.y;
-		}
-		if (data->viewport_c.y) {
-			int int_part = dc_fixpt_floor(
-					dc_fixpt_sub(data->inits.v_c, data->ratios.vert_c));
-
-			int_part = int_part > 0 ? int_part : 0;
-			data->viewport_c.height += int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
-			data->viewport_c.y -= int_part < data->viewport_c.y ? int_part : data->viewport_c.y;
-		}
-
-		/* Adjust for viewport end clip-off */
-		if ((data->viewport.y + data->viewport.height) < (src.y + src.height)) {
-			int int_part;
-			int end_offset = src.y + src.height
-					- data->viewport.y - data->viewport.height;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.v = dc_fixpt_add(data->inits.v, dc_fixpt_mul_int(
-					data->ratios.vert, data->recout.y - recout_full->y));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, taking into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.v) - end_offset;
-			if (int_part < data->taps.v_taps) {
-				int int_adj = end_offset >= (data->taps.v_taps - int_part) ?
-							(data->taps.v_taps - int_part) : end_offset;
-				data->viewport.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps) {
-				data->viewport.height += int_part - data->taps.v_taps;
-				int_part = data->taps.v_taps;
-			}
-			data->inits.v.value &= 0xffffffff;
-			data->inits.v = dc_fixpt_add_int(data->inits.v, int_part);
-		}
-
-		if ((data->viewport_c.y + data->viewport_c.height) < (src.y + src.height) / vpc_div) {
-			int int_part;
-			int end_offset = (src.y + src.height) / vpc_div
-					- data->viewport_c.y - data->viewport_c.height;
-
-			/*
-			 * this is init if vp had no offset, keep in mind this is from the
-			 * right side of vp due to scan direction
-			 */
-			data->inits.v_c = dc_fixpt_add(data->inits.v_c, dc_fixpt_mul_int(
-					data->ratios.vert_c, data->recout.y - recout_full->y));
-			/*
-			 * this is the difference between first pixel of viewport available to read
-			 * and init position, taking into account scan direction
-			 */
-			int_part = dc_fixpt_floor(data->inits.v_c) - end_offset;
-			if (int_part < data->taps.v_taps_c) {
-				int int_adj = end_offset >= (data->taps.v_taps_c - int_part) ?
-							(data->taps.v_taps_c - int_part) : end_offset;
-				data->viewport_c.height += int_adj;
-				int_part += int_adj;
-			} else if (int_part > data->taps.v_taps_c) {
-				data->viewport_c.height += int_part - data->taps.v_taps_c;
-				int_part = data->taps.v_taps_c;
-			}
-			data->inits.v_c.value &= 0xffffffff;
-			data->inits.v_c = dc_fixpt_add_int(data->inits.v_c, int_part);
-		}
-	}
+	/*
+	 * Taps, inits and scaling ratios are in recout space need to rotate
+	 * to viewport rotation before adjustment
+	 */
+	adjust_vp_and_init_for_seamless_clip(
+			flip_horz_scan_dir,
+			recout_skip_h,
+			surf_size_h,
+			orthogonal_rotation ? data->taps.v_taps : data->taps.h_taps,
+			orthogonal_rotation ? data->ratios.vert : data->ratios.horz,
+			orthogonal_rotation ? &data->inits.v : &data->inits.h,
+			&data->viewport.x,
+			&data->viewport.width);
+	adjust_vp_and_init_for_seamless_clip(
+			flip_horz_scan_dir,
+			recout_skip_h,
+			surf_size_h / vpc_div,
+			orthogonal_rotation ? data->taps.v_taps_c : data->taps.h_taps_c,
+			orthogonal_rotation ? data->ratios.vert_c : data->ratios.horz_c,
+			orthogonal_rotation ? &data->inits.v_c : &data->inits.h_c,
+			&data->viewport_c.x,
+			&data->viewport_c.width);
+	adjust_vp_and_init_for_seamless_clip(
+			flip_vert_scan_dir,
+			recout_skip_v,
+			surf_size_v,
+			orthogonal_rotation ? data->taps.h_taps : data->taps.v_taps,
+			orthogonal_rotation ? data->ratios.horz : data->ratios.vert,
+			orthogonal_rotation ? &data->inits.h : &data->inits.v,
+			&data->viewport.y,
+			&data->viewport.height);
+	adjust_vp_and_init_for_seamless_clip(
+			flip_vert_scan_dir,
+			recout_skip_v,
+			surf_size_v / vpc_div,
+			orthogonal_rotation ? data->taps.h_taps_c : data->taps.v_taps_c,
+			orthogonal_rotation ? data->ratios.horz_c : data->ratios.vert_c,
+			orthogonal_rotation ? &data->inits.h_c : &data->inits.v_c,
+			&data->viewport_c.y,
+			&data->viewport_c.height);
 
 	/* Interlaced inits based on final vert inits */
 	data->inits.v_bot = dc_fixpt_add(data->inits.v, data->ratios.vert);
 	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
 
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
-		rect_swap_helper(&data->viewport_c);
-		rect_swap_helper(&data->viewport);
-	}
 }
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	struct rect recout_full = { 0 };
 	bool res = false;
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 	/* Important: scaling ratio calculation requires pixel format,
@@ -1105,7 +931,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
 		return false;
 
-	calculate_recout(pipe_ctx, &recout_full);
+	calculate_recout(pipe_ctx);
 
 	/**
 	 * Setting line buffer pixel depth to 24bpp yields banding
@@ -1146,7 +972,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	if (res)
 		/* May need to re-check lb size after this in some obscure scenario */
-		calculate_inits_and_adj_vp(pipe_ctx, &recout_full);
+		calculate_inits_and_adj_vp(pipe_ctx);
 
 	DC_LOG_SCALER(
 				"%s: Viewport:\nheight:%d width:%d x:%d "
