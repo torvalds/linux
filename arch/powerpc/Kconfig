@@ -932,10 +932,6 @@ config FSL_GTM
 	help
 	  Freescale General-purpose Timers support
 
-# Yes MCA RS/6000s exist but Linux-PPC does not currently support any
-config MCA
-	bool
-
 # Platforms that what PCI turned unconditionally just do select PCI
 # in their config node.  Platforms that want to choose at config
 # time should select PPC_PCI_CHOICE
