@@ -210,24 +210,32 @@ __verify_patch_size(u8 family, u32 sh_psize, unsigned int buf_size)
 		break;
 	}
 
-	if (sh_psize > min_t(u32, buf_size, max_size)) {
-		pr_err("patch size mismatch\n");
+	if (sh_psize > min_t(u32, buf_size, max_size))
 		return 0;
-	}
 
 	return sh_psize;
 }
 
-static unsigned int
-verify_patch(u8 family, const u8 *buf, unsigned int buf_size, bool early)
+/*
+ * Verify the patch in @buf.
+ *
+ * Returns:
+ * negative: on error
+ * positive: patch is not for this family, skip it
+ * 0: success
+ */
+static int
+verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool early)
 {
 	struct microcode_header_amd *mc_hdr;
+	unsigned int ret;
 	u32 sh_psize;
 	u16 proc_id;
 	u8 patch_fam;
 
 	if (!__verify_patch_section(buf, buf_size, &sh_psize, early))
-		return 0;
+		return -1;
+
 	/*
 	 * The section header length is not included in this indicated size
 	 * but is present in the leftover file length so we need to subtract
@@ -243,23 +251,31 @@ verify_patch(u8 family, const u8 *buf, unsigned int buf_size, bool early)
 		if (!early)
 			pr_debug("Patch of size %u truncated.\n", sh_psize);
 
-		return 0;
+		return -1;
 	}
 
-	mc_hdr	= (struct microcode_header_amd *)(buf + SECTION_HDR_SIZE);
-	proc_id	= mc_hdr->processor_rev_id;
+	ret = __verify_patch_size(family, sh_psize, buf_size);
+	if (!ret) {
+		if (!early)
+			pr_debug("Per-family patch size mismatch.\n");
+		return -1;
+	}
 
+	*patch_size = sh_psize;
+
+	mc_hdr	= (struct microcode_header_amd *)(buf + SECTION_HDR_SIZE);
 	if (mc_hdr->nb_dev_id || mc_hdr->sb_dev_id) {
 		if (!early)
 			pr_err("Patch-ID 0x%08x: chipset-specific code unsupported.\n", mc_hdr->patch_id);
-		return 0;
+		return -1;
 	}
 
+	proc_id	= mc_hdr->processor_rev_id;
 	patch_fam = 0xf + (proc_id >> 12);
 	if (patch_fam != family)
-		return 0;
+		return 1;
 
-	return __verify_patch_size(family, sh_psize, buf_size);
+	return 0;
 }
 
 /*
@@ -729,23 +745,17 @@ static void cleanup(void)
  * driver cannot continue functioning normally. In such cases, we tear
  * down everything we've used up so far and exit.
  */
-static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
+static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
+				unsigned int *patch_size)
 {
 	struct microcode_header_amd *mc_hdr;
-	unsigned int patch_size, crnt_size;
 	struct ucode_patch *patch;
 	u16 proc_id;
+	int ret;
 
-	patch_size = verify_patch(family, fw, leftover, false);
-	if (!patch_size) {
-		pr_debug("Patch size mismatch.\n");
-		return 1;
-	}
-
-	/* If initial rough pokes pass, we can start looking at the header. */
-	crnt_size   = patch_size + SECTION_HDR_SIZE;
-	mc_hdr	    = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
-	proc_id	    = mc_hdr->processor_rev_id;
+	ret = verify_patch(family, fw, leftover, patch_size, false);
+	if (ret)
+		return ret;
 
 	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
 	if (!patch) {
@@ -753,12 +763,15 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 		return -EINVAL;
 	}
 
-	patch->data = kmemdup(fw + SECTION_HDR_SIZE, patch_size, GFP_KERNEL);
+	patch->data = kmemdup(fw + SECTION_HDR_SIZE, *patch_size, GFP_KERNEL);
 	if (!patch->data) {
 		pr_err("Patch data allocation failure.\n");
 		kfree(patch);
 		return -EINVAL;
 	}
+
+	mc_hdr      = (struct microcode_header_amd *)(fw + SECTION_HDR_SIZE);
+	proc_id     = mc_hdr->processor_rev_id;
 
 	INIT_LIST_HEAD(&patch->plist);
 	patch->patch_id  = mc_hdr->patch_id;
@@ -770,39 +783,39 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 	/* ... and add to cache. */
 	update_cache(patch);
 
-	return crnt_size;
+	return 0;
 }
 
 static enum ucode_state __load_microcode_amd(u8 family, const u8 *data,
 					     size_t size)
 {
-	enum ucode_state ret = UCODE_ERROR;
-	unsigned int leftover;
 	u8 *fw = (u8 *)data;
-	int crnt_size = 0;
 	int offset;
 
 	offset = install_equiv_cpu_table(data);
 	if (offset < 0) {
 		pr_err("failed to create equivalent cpu table\n");
-		return ret;
+		return UCODE_ERROR;
 	}
-	fw += offset;
-	leftover = size - offset;
+	fw   += offset;
+	size -= offset;
 
 	if (*(u32 *)fw != UCODE_UCODE_TYPE) {
 		pr_err("invalid type field in container file section header\n");
 		free_equiv_cpu_table();
-		return ret;
+		return UCODE_ERROR;
 	}
 
-	while (leftover) {
-		crnt_size = verify_and_add_patch(family, fw, leftover);
-		if (crnt_size < 0)
-			return ret;
+	while (size > 0) {
+		unsigned int crnt_size = 0;
+		int ret;
 
-		fw	 += crnt_size;
-		leftover -= crnt_size;
+		ret = verify_and_add_patch(family, fw, size, &crnt_size);
+		if (ret < 0)
+			return UCODE_ERROR;
+
+		fw   +=  crnt_size + SECTION_HDR_SIZE;
+		size -= (crnt_size + SECTION_HDR_SIZE);
 	}
 
 	return UCODE_OK;
