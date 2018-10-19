@@ -4955,14 +4955,13 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 
 /* called with rcu_read_lock() */
 static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
-			  struct netlink_callback *cb,
-			  int s_ip_idx, int *p_ip_idx,
+			  struct netlink_callback *cb, int s_ip_idx,
 			  struct inet6_fill_args *fillargs)
 {
 	struct ifmcaddr6 *ifmca;
 	struct ifacaddr6 *ifaca;
+	int ip_idx = 0;
 	int err = 1;
-	int ip_idx = *p_ip_idx;
 
 	read_lock_bh(&idev->lock);
 	switch (fillargs->type) {
@@ -5012,7 +5011,7 @@ next:
 		break;
 	}
 	read_unlock_bh(&idev->lock);
-	*p_ip_idx = ip_idx;
+	cb->args[2] = ip_idx;
 	return err;
 }
 
@@ -5081,16 +5080,15 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	};
 	struct net *net = sock_net(skb->sk);
 	struct net *tgt_net = net;
+	int idx, s_idx, s_ip_idx;
 	int h, s_h;
-	int idx, ip_idx;
-	int s_idx, s_ip_idx;
 	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct hlist_head *head;
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
-	s_ip_idx = ip_idx = cb->args[2];
+	s_ip_idx = cb->args[2];
 
 	if (cb->strict_check) {
 		int err;
@@ -5111,12 +5109,11 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 				goto cont;
 			if (h > s_h || idx > s_idx)
 				s_ip_idx = 0;
-			ip_idx = 0;
 			idev = __in6_dev_get(dev);
 			if (!idev)
 				goto cont;
 
-			if (in6_dump_addrs(idev, skb, cb, s_ip_idx, &ip_idx,
+			if (in6_dump_addrs(idev, skb, cb, s_ip_idx,
 					   &fillargs) < 0)
 				goto done;
 cont:
@@ -5127,7 +5124,6 @@ done:
 	rcu_read_unlock();
 	cb->args[0] = h;
 	cb->args[1] = idx;
-	cb->args[2] = ip_idx;
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
