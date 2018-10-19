@@ -232,7 +232,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 		return PTR_ERR(obj);
 
 	virtio_gpu_resource_id_get(vgdev, &obj->hw_res_handle);
-	virtio_gpu_cmd_create_resource(vgdev, obj, obj->hw_res_handle, format,
+	virtio_gpu_cmd_create_resource(vgdev, obj, format,
 				       mode_cmd.width, mode_cmd.height);
 
 	ret = virtio_gpu_object_kmap(obj);
@@ -242,7 +242,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 	}
 
 	/* attach the object to the resource */
-	ret = virtio_gpu_object_attach(vgdev, obj, obj->hw_res_handle, NULL);
+	ret = virtio_gpu_object_attach(vgdev, obj, NULL);
 	if (ret)
 		goto err_obj_attach;
 

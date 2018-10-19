@@ -389,7 +389,6 @@ retry:
 /* create a basic resource */
 void virtio_gpu_cmd_create_resource(struct virtio_gpu_device *vgdev,
 				    struct virtio_gpu_object *bo,
-				    uint32_t resource_id,
 				    uint32_t format,
 				    uint32_t width,
 				    uint32_t height)
@@ -401,7 +400,7 @@ void virtio_gpu_cmd_create_resource(struct virtio_gpu_device *vgdev,
 	memset(cmd_p, 0, sizeof(*cmd_p));
 
 	cmd_p->hdr.type = cpu_to_le32(VIRTIO_GPU_CMD_RESOURCE_CREATE_2D);
-	cmd_p->resource_id = cpu_to_le32(resource_id);
+	cmd_p->resource_id = cpu_to_le32(bo->hw_res_handle);
 	cmd_p->format = cpu_to_le32(format);
 	cmd_p->width = cpu_to_le32(width);
 	cmd_p->height = cpu_to_le32(height);
@@ -867,7 +866,6 @@ void virtio_gpu_cmd_submit(struct virtio_gpu_device *vgdev,
 
 int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 			     struct virtio_gpu_object *obj,
-			     uint32_t resource_id,
 			     struct virtio_gpu_fence **fence)
 {
 	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
@@ -911,10 +909,9 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 		ents[si].padding = 0;
 	}
 
-	virtio_gpu_cmd_resource_attach_backing(vgdev, resource_id,
+	virtio_gpu_cmd_resource_attach_backing(vgdev, obj->hw_res_handle,
 					       ents, nents,
 					       fence);
-	obj->hw_res_handle = resource_id;
 	return 0;
 }
 

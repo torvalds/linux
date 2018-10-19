@@ -347,8 +347,7 @@ static void virtio_gpu_bo_move_notify(struct ttm_buffer_object *tbo,
 
 	} else if (new_mem->placement & TTM_PL_FLAG_TT) {
 		if (bo->hw_res_handle) {
-			virtio_gpu_object_attach(vgdev, bo, bo->hw_res_handle,
-						 NULL);
+			virtio_gpu_object_attach(vgdev, bo, NULL);
 		}
 	}
 }
