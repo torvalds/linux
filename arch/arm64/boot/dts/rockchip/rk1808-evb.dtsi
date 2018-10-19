@@ -257,7 +257,8 @@
 	clock_in_out = "input";
 	snps,reset-gpio = <&gpio0 10 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 50000>;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
 	assigned-clocks = <&cru SCLK_GMAC>;
 	assigned-clock-parents = <&gmac_clkin>;
 	tx_delay = <0x50>;
