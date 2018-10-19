@@ -16,6 +16,13 @@ static int (*bpf_map_update_elem)(void *map, void *key, void *value,
 	(void *) BPF_FUNC_map_update_elem;
 static int (*bpf_map_delete_elem)(void *map, void *key) =
 	(void *) BPF_FUNC_map_delete_elem;
+static int (*bpf_map_push_elem)(void *map, void *value,
+				unsigned long long flags) =
+	(void *) BPF_FUNC_map_push_elem;
+static int (*bpf_map_pop_elem)(void *map, void *value) =
+	(void *) BPF_FUNC_map_pop_elem;
+static int (*bpf_map_peek_elem)(void *map, void *value) =
+	(void *) BPF_FUNC_map_peek_elem;
 static int (*bpf_probe_read)(void *dst, int size, void *unsafe_ptr) =
 	(void *) BPF_FUNC_probe_read;
 static unsigned long long (*bpf_ktime_get_ns)(void) =

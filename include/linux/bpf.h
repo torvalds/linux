@@ -39,6 +39,9 @@ struct bpf_map_ops {
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
 	int (*map_update_elem)(struct bpf_map *map, void *key, void *value, u64 flags);
 	int (*map_delete_elem)(struct bpf_map *map, void *key);
+	int (*map_push_elem)(struct bpf_map *map, void *value, u64 flags);
+	int (*map_pop_elem)(struct bpf_map *map, void *value);
+	int (*map_peek_elem)(struct bpf_map *map, void *value);
 
 	/* funcs called by prog_array and perf_event_array map */
 	void *(*map_fd_get_ptr)(struct bpf_map *map, struct file *map_file,
@@ -138,6 +141,7 @@ enum bpf_arg_type {
 	ARG_CONST_MAP_PTR,	/* const argument used as pointer to bpf_map */
 	ARG_PTR_TO_MAP_KEY,	/* pointer to stack used as map key */
 	ARG_PTR_TO_MAP_VALUE,	/* pointer to stack used as map value */
+	ARG_PTR_TO_UNINIT_MAP_VALUE,	/* pointer to valid memory used to store a map value */
 
 	/* the following constraints used to prototype bpf_memcmp() and other
 	 * functions that access data on eBPF program stack
@@ -810,6 +814,9 @@ static inline int bpf_fd_reuseport_array_update_elem(struct bpf_map *map,
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
 extern const struct bpf_func_proto bpf_map_update_elem_proto;
 extern const struct bpf_func_proto bpf_map_delete_elem_proto;
+extern const struct bpf_func_proto bpf_map_push_elem_proto;
+extern const struct bpf_func_proto bpf_map_pop_elem_proto;
+extern const struct bpf_func_proto bpf_map_peek_elem_proto;
 
 extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
 extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;
