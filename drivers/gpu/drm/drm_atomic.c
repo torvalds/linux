@@ -174,6 +174,11 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		state->crtcs[i].state = NULL;
 		state->crtcs[i].old_state = NULL;
 		state->crtcs[i].new_state = NULL;
+
+		if (state->crtcs[i].commit) {
+			drm_crtc_commit_put(state->crtcs[i].commit);
+			state->crtcs[i].commit = NULL;
+		}
 	}
 
 	for (i = 0; i < config->num_total_plane; i++) {
