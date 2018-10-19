@@ -50,35 +50,6 @@ virtio_gpu_device *virtio_gpu_get_vgdev(struct ttm_bo_device *bdev)
 	return vgdev;
 }
 
-static int virtio_gpu_ttm_global_init(struct virtio_gpu_device *vgdev)
-{
-	struct drm_global_reference *global_ref;
-	int r;
-
-	vgdev->mman.mem_global_referenced = false;
-	global_ref = &vgdev->mman.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_ref_init;
-	global_ref->release = &ttm_bo_global_ref_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		return r;
-	}
-
-	vgdev->mman.mem_global_referenced = true;
-	return 0;
-}
-
-static void virtio_gpu_ttm_global_fini(struct virtio_gpu_device *vgdev)
-{
-	if (vgdev->mman.mem_global_referenced) {
-		drm_global_item_unref(&vgdev->mman.bo_global_ref.ref);
-		vgdev->mman.mem_global_referenced = false;
-	}
-}
-
 int virtio_gpu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv;
@@ -356,12 +327,8 @@ int virtio_gpu_ttm_init(struct virtio_gpu_device *vgdev)
 {
 	int r;
 
-	r = virtio_gpu_ttm_global_init(vgdev);
-	if (r)
-		return r;
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&vgdev->mman.bdev,
-			       vgdev->mman.bo_global_ref.ref.object,
 			       &virtio_gpu_bo_driver,
 			       vgdev->ddev->anon_inode->i_mapping,
 			       DRM_FILE_PAGE_OFFSET, 0);
@@ -380,13 +347,11 @@ int virtio_gpu_ttm_init(struct virtio_gpu_device *vgdev)
 err_mm_init:
 	ttm_bo_device_release(&vgdev->mman.bdev);
 err_dev_init:
-	virtio_gpu_ttm_global_fini(vgdev);
 	return r;
 }
 
 void virtio_gpu_ttm_fini(struct virtio_gpu_device *vgdev)
 {
 	ttm_bo_device_release(&vgdev->mman.bdev);
-	virtio_gpu_ttm_global_fini(vgdev);
 	DRM_INFO("virtio_gpu: ttm finalized\n");
 }

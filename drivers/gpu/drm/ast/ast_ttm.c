@@ -36,35 +36,6 @@ ast_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct ast_private, ttm.bdev);
 }
 
-static int ast_ttm_global_init(struct ast_private *ast)
-{
-	struct drm_global_reference *global_ref;
-	int r;
-
-	global_ref = &ast->ttm.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_ref_init;
-	global_ref->release = &ttm_bo_global_ref_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		return r;
-	}
-	return 0;
-}
-
-static void
-ast_ttm_global_release(struct ast_private *ast)
-{
-	if (ast->ttm.bo_global_ref.ref.release == NULL)
-		return;
-
-	drm_global_item_unref(&ast->ttm.bo_global_ref.ref);
-	ast->ttm.bo_global_ref.ref.release = NULL;
-}
-
-
 static void ast_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 {
 	struct ast_bo *bo;
@@ -204,12 +175,7 @@ int ast_mm_init(struct ast_private *ast)
 	struct drm_device *dev = ast->dev;
 	struct ttm_bo_device *bdev = &ast->ttm.bdev;
 
-	ret = ast_ttm_global_init(ast);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&ast->ttm.bdev,
-				 ast->ttm.bo_global_ref.ref.object,
 				 &ast_bo_driver,
 				 dev->anon_inode->i_mapping,
 				 DRM_FILE_PAGE_OFFSET,
@@ -239,8 +205,6 @@ void ast_mm_fini(struct ast_private *ast)
 	struct drm_device *dev = ast->dev;
 
 	ttm_bo_device_release(&ast->ttm.bdev);
-
-	ast_ttm_global_release(ast);
 
 	arch_phys_wc_del(ast->fb_mtrr);
 	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),

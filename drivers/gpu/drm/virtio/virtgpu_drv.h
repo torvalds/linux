@@ -142,8 +142,6 @@ struct virtio_gpu_fbdev {
 };
 
 struct virtio_gpu_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	bool				mem_global_referenced;
 	struct ttm_bo_device		bdev;
 };
 

@@ -99,7 +99,6 @@ struct vbox_private {
 	int fb_mtrr;
 
 	struct {
-		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 	} ttm;
 

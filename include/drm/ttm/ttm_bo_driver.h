@@ -569,9 +569,6 @@ void ttm_bo_mem_put(struct ttm_buffer_object *bo, struct ttm_mem_reg *mem);
 void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 			   struct ttm_mem_reg *mem);
 
-void ttm_bo_global_release(void);
-int ttm_bo_global_init(void);
-
 int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
 /**
@@ -589,7 +586,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev);
  * Returns:
  * !0: Failure.
  */
-int ttm_bo_device_init(struct ttm_bo_device *bdev, struct ttm_bo_global *glob,
+int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		       struct ttm_bo_driver *driver,
 		       struct address_space *mapping,
 		       uint64_t file_page_offset, bool need_dma32);
@@ -887,41 +884,5 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
-
-/**
- * struct ttm_bo_global_ref - Argument to initialize a struct ttm_bo_global.
- */
-
-struct ttm_bo_global_ref {
-	struct drm_global_reference ref;
-};
-
-/**
- * ttm_bo_global_ref_init
- *
- * @ref: DRM global reference
- *
- * Helper function that initializes a struct ttm_bo_global. This function
- * is used as init call-back function for DRM global references of type
- * DRM_GLOBAL_TTM_BO_REF.
- */
-static inline int ttm_bo_global_ref_init(struct drm_global_reference *ref)
-{
-	return ttm_bo_global_init();
-}
-
-/**
- * ttm_bo_global_ref_release
- *
- * @ref: DRM global reference
- *
- * Helper function that releases a struct ttm_bo_global. This function
- * is used as release call-back function for DRM global references of type
- * DRM_GLOBAL_TTM_BO_REF.
- */
-static inline void ttm_bo_global_ref_release(struct drm_global_reference *ref)
-{
-	ttm_bo_global_release();
-}
 
 #endif
