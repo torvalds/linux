@@ -459,11 +459,12 @@ static int i2c_nuvoton_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		duration = tpm2_calc_ordinal_duration(chip, ordinal);
 	else
-		duration = tpm_calc_ordinal_duration(chip, ordinal);
+		duration = tpm1_calc_ordinal_duration(chip, ordinal);
 
 	rc = i2c_nuvoton_wait_for_data_avail(chip, duration, &priv->read_queue);
 	if (rc) {
-		dev_err(dev, "%s() timeout command duration\n", __func__);
+		dev_err(dev, "%s() timeout command duration %ld\n",
+			__func__, duration);
 		i2c_nuvoton_ready(chip);
 		return rc;
 	}

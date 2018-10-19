@@ -476,7 +476,7 @@ static int tpm_tis_send_main(struct tpm_chip *chip, const u8 *buf, size_t len)
 		if (chip->flags & TPM_CHIP_FLAG_TPM2)
 			dur = tpm2_calc_ordinal_duration(chip, ordinal);
 		else
-			dur = tpm_calc_ordinal_duration(chip, ordinal);
+			dur = tpm1_calc_ordinal_duration(chip, ordinal);
 
 		if (wait_for_tpm_stat
 		    (chip, TPM_STS_DATA_AVAIL | TPM_STS_VALID, dur,
