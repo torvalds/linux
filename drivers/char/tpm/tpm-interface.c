@@ -811,14 +811,6 @@ int tpm_pm_resume(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tpm_pm_resume);
 
-#define TPM_ORD_GET_RANDOM 70
-#define TPM_GETRANDOM_RESULT_SIZE	18
-static const struct tpm_input_header tpm_getrandom_header = {
-	.tag = cpu_to_be16(TPM_TAG_RQU_COMMAND),
-	.length = cpu_to_be32(14),
-	.ordinal = cpu_to_be32(TPM_ORD_GET_RANDOM)
-};
-
 /**
  * tpm_get_random() - get random bytes from the TPM's RNG
  * @chip:	a &struct tpm_chip instance, %NULL for the default chip
@@ -829,58 +821,22 @@ static const struct tpm_input_header tpm_getrandom_header = {
  */
 int tpm_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 {
-	struct tpm_cmd_t tpm_cmd;
-	u32 recd, num_bytes = min_t(u32, max, TPM_MAX_RNG_DATA), rlength;
-	int err, total = 0, retries = 5;
-	u8 *dest = out;
+	int rc;
 
-	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
+	if (!out || max > TPM_MAX_RNG_DATA)
 		return -EINVAL;
 
 	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		err = tpm2_get_random(chip, out, max);
-		tpm_put_ops(chip);
-		return err;
-	}
-
-	do {
-		tpm_cmd.header.in = tpm_getrandom_header;
-		tpm_cmd.params.getrandom_in.num_bytes = cpu_to_be32(num_bytes);
-
-		err = tpm_transmit_cmd(chip, NULL, &tpm_cmd,
-				       TPM_GETRANDOM_RESULT_SIZE + num_bytes,
-				       offsetof(struct tpm_getrandom_out,
-						rng_data),
-				       0, "attempting get random");
-		if (err)
-			break;
-
-		recd = be32_to_cpu(tpm_cmd.params.getrandom_out.rng_data_len);
-		if (recd > num_bytes) {
-			total = -EFAULT;
-			break;
-		}
-
-		rlength = be32_to_cpu(tpm_cmd.header.out.length);
-		if (rlength < TPM_HEADER_SIZE +
-			      offsetof(struct tpm_getrandom_out, rng_data) +
-			      recd) {
-			total = -EFAULT;
-			break;
-		}
-		memcpy(dest, tpm_cmd.params.getrandom_out.rng_data, recd);
-
-		dest += recd;
-		total += recd;
-		num_bytes -= recd;
-	} while (retries-- && total < max);
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		rc = tpm2_get_random(chip, out, max);
+	else
+		rc = tpm1_get_random(chip, out, max);
 
 	tpm_put_ops(chip);
-	return total ? total : -EIO;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_get_random);
 
