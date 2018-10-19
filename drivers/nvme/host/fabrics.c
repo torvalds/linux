@@ -868,6 +868,36 @@ static int nvmf_check_required_opts(struct nvmf_ctrl_options *opts,
 	return 0;
 }
 
+bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
+		struct nvmf_ctrl_options *opts)
+{
+	if (!nvmf_ctlr_matches_baseopts(ctrl, opts) ||
+	    strcmp(opts->traddr, ctrl->opts->traddr) ||
+	    strcmp(opts->trsvcid, ctrl->opts->trsvcid))
+		return false;
+
+	/*
+	 * Checking the local address is rough. In most cases, none is specified
+	 * and the host port is selected by the stack.
+	 *
+	 * Assume no match if:
+	 * -  local address is specified and address is not the same
+	 * -  local address is not specified but remote is, or vice versa
+	 *    (admin using specific host_traddr when it matters).
+	 */
+	if ((opts->mask & NVMF_OPT_HOST_TRADDR) &&
+	    (ctrl->opts->mask & NVMF_OPT_HOST_TRADDR)) {
+		if (strcmp(opts->host_traddr, ctrl->opts->host_traddr))
+			return false;
+	} else if ((opts->mask & NVMF_OPT_HOST_TRADDR) ||
+		   (ctrl->opts->mask & NVMF_OPT_HOST_TRADDR)) {
+		return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(nvmf_ip_options_match);
+
 static int nvmf_check_allowed_opts(struct nvmf_ctrl_options *opts,
 		unsigned int allowed_opts)
 {

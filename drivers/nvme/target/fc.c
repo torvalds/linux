@@ -1245,8 +1245,8 @@ nvmet_fc_delete_ctrl(struct nvmet_ctrl *ctrl)
  * nvme_fc_unregister_targetport - transport entry point called by an
  *                              LLDD to deregister/remove a previously
  *                              registered a local NVME subsystem FC port.
- * @tgtport: pointer to the (registered) target port that is to be
- *           deregistered.
+ * @target_port: pointer to the (registered) target port that is to be
+ *               deregistered.
  *
  * Returns:
  * a completion status. Must be 0 upon success; a negative errno
@@ -1749,7 +1749,7 @@ nvmet_fc_handle_ls_rqst_work(struct work_struct *work)
  *
  * If this routine returns error, the LLDD should abort the exchange.
  *
- * @tgtport:    pointer to the (registered) target port the LS was
+ * @target_port: pointer to the (registered) target port the LS was
  *              received on.
  * @lsreq:      pointer to a lsreq request structure to be used to reference
  *              the exchange corresponding to the LS.
