@@ -246,6 +246,18 @@
 		gpios = <1 GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
+
+	lte_reset {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
+
+	lte_disable {
+		gpio-hog;
+		gpios = <21 GPIO_ACTIVE_LOW>;
+		output-low;
+	};
 };
 
 &cp0_ethernet {
