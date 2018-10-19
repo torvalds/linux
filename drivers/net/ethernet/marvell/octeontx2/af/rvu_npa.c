@@ -443,14 +443,11 @@ static int npa_aq_init(struct rvu *rvu, struct rvu_block *block)
 int rvu_npa_init(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
-	struct rvu_block *block;
 	int blkaddr, err;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPA, 0);
 	if (blkaddr < 0)
 		return 0;
-
-	block = &hw->block[blkaddr];
 
 	/* Initialize admin queue */
 	err = npa_aq_init(rvu, &hw->block[blkaddr]);
