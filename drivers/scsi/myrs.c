@@ -2086,7 +2086,7 @@ static void myrs_handle_scsi(struct myrs_hba *cs, struct myrs_cmdblk *cmd_blk,
 	    status == MYRS_STATUS_DEVICE_NON_RESPONSIVE2)
 		scmd->result = (DID_BAD_TARGET << 16);
 	else
-		scmd->result = (DID_OK << 16) || status;
+		scmd->result = (DID_OK << 16) | status;
 	scmd->scsi_done(scmd);
 }
 
