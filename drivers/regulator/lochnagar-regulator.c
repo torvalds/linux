@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Lochnagar regulator driver
- *
- * Copyright (c) 2017-2018 Cirrus Logic, Inc. and
- *                         Cirrus Logic International Semiconductor Ltd.
- *
- * Author: Charles Keepax <ckeepax@opensource.cirrus.com>
- */
+//
+// Lochnagar regulator driver
+//
+// Copyright (c) 2017-2018 Cirrus Logic, Inc. and
+//                         Cirrus Logic International Semiconductor Ltd.
+//
+// Author: Charles Keepax <ckeepax@opensource.cirrus.com>
 
 #include <linux/bitops.h>
 #include <linux/device.h>
