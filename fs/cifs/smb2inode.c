@@ -293,6 +293,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	int rc;
 	struct smb2_file_all_info *smb2_data;
+	__u32 create_options = 0;
 
 	*adjust_tz = false;
 	*symlink = false;
@@ -301,16 +302,20 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 			    GFP_KERNEL);
 	if (smb2_data == NULL)
 		return -ENOMEM;
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
 
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
-			      FILE_READ_ATTRIBUTES, FILE_OPEN, 0,
+			      FILE_READ_ATTRIBUTES, FILE_OPEN, create_options,
 			      smb2_data, SMB2_OP_QUERY_INFO);
 	if (rc == -EOPNOTSUPP) {
 		*symlink = true;
+		create_options |= OPEN_REPARSE_POINT;
+
 		/* Failed on a symbolic link - query a reparse point info */
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
 				      FILE_READ_ATTRIBUTES, FILE_OPEN,
-				      OPEN_REPARSE_POINT, smb2_data,
+				      create_options, smb2_data,
 				      SMB2_OP_QUERY_INFO);
 	}
 	if (rc)
