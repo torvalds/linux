@@ -601,7 +601,9 @@ struct guc_shared_ctx_data {
  * registers, where first register holds data treated as message header,
  * and other registers are used to hold message payload.
  *
- * For Gen9+, GuC uses software scratch registers 0xC180-0xC1B8
+ * For Gen9+, GuC uses software scratch registers 0xC180-0xC1B8,
+ * but no H2G command takes more than 8 parameters and the GuC FW
+ * itself uses an 8-element array to store the H2G message.
  *
  *      +-----------+---------+---------+---------+
  *      |  MMIO[0]  | MMIO[1] |   ...   | MMIO[n] |
@@ -632,6 +634,8 @@ struct guc_shared_ctx_data {
  *   response data can be returned in remaining payload registers or **data**
  *   field.
  */
+
+#define GUC_MAX_MMIO_MSG_LEN		8
 
 #define INTEL_GUC_MSG_TYPE_SHIFT	28
 #define INTEL_GUC_MSG_TYPE_MASK		(0xF << INTEL_GUC_MSG_TYPE_SHIFT)
