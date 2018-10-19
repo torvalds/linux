@@ -718,12 +718,6 @@ out:
 }
 
 #define TPM_ORD_SAVESTATE 152
-#define SAVESTATE_RESULT_SIZE 10
-static const struct tpm_input_header savestate_header = {
-	.tag = cpu_to_be16(TPM_TAG_RQU_COMMAND),
-	.length = cpu_to_be32(10),
-	.ordinal = cpu_to_be32(TPM_ORD_SAVESTATE)
-};
 
 /**
  * tpm1_pm_suspend() - pm suspend handler
@@ -739,18 +733,22 @@ static const struct tpm_input_header savestate_header = {
 int tpm1_pm_suspend(struct tpm_chip *chip, int tpm_suspend_pcr)
 {
 	u8 dummy_hash[TPM_DIGEST_SIZE] = { 0 };
-	struct tpm_cmd_t cmd;
-	int rc, try;
+	struct tpm_buf buf;
+	unsigned int try;
+	int rc;
+
 
 	/* for buggy tpm, flush pcrs with extend to selected dummy */
 	if (tpm_suspend_pcr)
 		rc = tpm1_pcr_extend(chip, tpm_suspend_pcr, dummy_hash,
 				     "extending dummy pcr before suspend");
 
+	rc = tpm_buf_init(&buf, TPM_TAG_RQU_COMMAND, TPM_ORD_SAVESTATE);
+	if (rc)
+		return rc;
 	/* now do the actual savestate */
 	for (try = 0; try < TPM_RETRY; try++) {
-		cmd.header.in = savestate_header;
-		rc = tpm_transmit_cmd(chip, NULL, &cmd, SAVESTATE_RESULT_SIZE,
+		rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
 				      0, 0, NULL);
 
 		/*
@@ -766,6 +764,8 @@ int tpm1_pm_suspend(struct tpm_chip *chip, int tpm_suspend_pcr)
 		if (rc != TPM_WARN_RETRY)
 			break;
 		tpm_msleep(TPM_TIMEOUT_RETRY);
+
+		tpm_buf_reset(&buf, TPM_TAG_RQU_COMMAND, TPM_ORD_SAVESTATE);
 	}
 
 	if (rc)
@@ -774,6 +774,8 @@ int tpm1_pm_suspend(struct tpm_chip *chip, int tpm_suspend_pcr)
 	else if (try > 0)
 		dev_warn(&chip->dev, "TPM savestate took %dms\n",
 			 try * TPM_TIMEOUT_RETRY);
+
+	tpm_buf_destroy(&buf);
 
 	return rc;
 }
