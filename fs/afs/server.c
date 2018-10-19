@@ -367,7 +367,6 @@ static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
 		.alist	= alist,
 		.start	= alist->index,
 		.index	= 0,
-		.addr	= &alist->addrs[alist->index],
 		.error	= 0,
 	};
 	_enter("%p", server);
@@ -518,7 +517,6 @@ static bool afs_do_probe_fileserver(struct afs_fs_cursor *fc)
 
 	_enter("");
 
-	fc->ac.addr = NULL;
 	fc->ac.start = READ_ONCE(fc->ac.alist->index);
 	fc->ac.index = fc->ac.start;
 	fc->ac.error = 0;

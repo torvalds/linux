@@ -371,7 +371,6 @@ bool afs_iterate_addresses(struct afs_addr_cursor *ac)
 
 	ac->begun = true;
 	ac->responded = false;
-	ac->addr = &ac->alist->addrs[ac->index];
 	return true;
 }
 
@@ -389,7 +388,6 @@ int afs_end_cursor(struct afs_addr_cursor *ac)
 		afs_put_addrlist(alist);
 	}
 
-	ac->addr = NULL;
 	ac->alist = NULL;
 	ac->begun = false;
 	return ac->error;

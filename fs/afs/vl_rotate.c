@@ -209,7 +209,7 @@ iterate_address:
 	if (!afs_iterate_addresses(&vc->ac))
 		goto next_server;
 
-	_leave(" = t %pISpc", &vc->ac.addr->transport);
+	_leave(" = t %pISpc", &vc->ac.alist->addrs[vc->ac.index].transport);
 	return true;
 
 next_server:

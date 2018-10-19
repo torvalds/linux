@@ -653,7 +653,6 @@ struct afs_interface {
  */
 struct afs_addr_cursor {
 	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
-	struct sockaddr_rxrpc	*addr;
 	u32			abort_code;
 	unsigned short		start;		/* Starting point in alist->addrs[] */
 	unsigned short		index;		/* Wrapping offset from start to current addr */
