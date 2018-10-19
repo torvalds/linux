@@ -124,12 +124,9 @@ static inline enum resp_states get_req(struct rxe_qp *qp,
 	struct sk_buff *skb;
 
 	if (qp->resp.state == QP_STATE_ERROR) {
-		skb = skb_dequeue(&qp->req_pkts);
-		if (skb) {
-			/* drain request packet queue */
+		while ((skb = skb_dequeue(&qp->req_pkts))) {
 			rxe_drop_ref(qp);
 			kfree_skb(skb);
-			return RESPST_GET_REQ;
 		}
 
 		/* go drain recv wr queue */
