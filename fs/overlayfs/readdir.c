@@ -373,6 +373,12 @@ static int ovl_dir_read_merged(struct dentry *dentry, struct list_head *list,
 		next = ovl_path_next(idx, dentry, &realpath);
 		rdd.is_upper = ovl_dentry_upper(dentry) == realpath.dentry;
 
+		err = ovl_creator_permission(dentry->d_sb,
+					     d_inode(realpath.dentry),
+					     MAY_READ);
+		if (err)
+			break;
+
 		if (next != -1) {
 			err = ovl_dir_read(&realpath, &rdd);
 			if (err)
@@ -735,6 +741,12 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		ovl_dir_reset(file);
 
 	if (od->is_real) {
+		err = ovl_creator_permission(dentry->d_sb,
+					     file_inode(od->realfile),
+					     MAY_READ);
+		if (err)
+			return err;
+
 		/*
 		 * If parent is merge, then need to adjust d_ino for '..', if
 		 * dir is impure then need to adjust d_ino for copied up

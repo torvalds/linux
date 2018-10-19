@@ -269,7 +269,6 @@ int ovl_permission(struct inode *inode, int mask)
 {
 	struct inode *upperinode = ovl_inode_upper(inode);
 	struct inode *realinode = upperinode ?: ovl_inode_lower(inode);
-	const struct cred *old_cred;
 	int err;
 
 	/* Careful in RCU walk mode */
@@ -286,15 +285,13 @@ int ovl_permission(struct inode *inode, int mask)
 	if (err)
 		return err;
 
-	old_cred = ovl_override_creds(inode->i_sb);
 	if (!upperinode &&
 	    !special_file(realinode->i_mode) && mask & MAY_WRITE) {
 		mask &= ~(MAY_WRITE | MAY_APPEND);
 		/* Make sure mounter can read file for copy up later */
 		mask |= MAY_READ;
 	}
-	err = inode_permission(realinode, mask);
-	revert_creds(old_cred);
+	err = ovl_creator_permission(inode->i_sb, realinode, mask);
 
 	return err;
 }
