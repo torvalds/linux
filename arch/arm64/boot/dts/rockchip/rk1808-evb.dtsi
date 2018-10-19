@@ -578,6 +578,10 @@
 	status = "okay";
 };
 
+&power {
+	pd_npu-supply = <&vdd_npu>;
+};
+
 &pwm1 {
 	status = "okay";
 };
