@@ -449,7 +449,7 @@ int tpm1_get_timeouts(struct tpm_chip *chip)
 }
 
 #define TPM_ORD_PCR_EXTEND 20
-int tpm1_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash,
+int tpm1_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, const u8 *hash,
 		    const char *log_msg)
 {
 	struct tpm_buf buf;
@@ -572,7 +572,7 @@ out:
 }
 
 #define TPM_ORD_PCRREAD 21
-int tpm1_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
+int tpm1_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf)
 {
 	struct tpm_buf buf;
 	int rc;
@@ -729,7 +729,7 @@ out:
  * * 0 on success,
  * * < 0 on error.
  */
-int tpm1_pm_suspend(struct tpm_chip *chip, int tpm_suspend_pcr)
+int tpm1_pm_suspend(struct tpm_chip *chip, u32 tpm_suspend_pcr)
 {
 	u8 dummy_hash[TPM_DIGEST_SIZE] = { 0 };
 	struct tpm_buf buf;

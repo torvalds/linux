@@ -38,7 +38,7 @@
  * recently changed pcr on suspend, so force the flush
  * with an extend to the selected _unused_ non-volatile pcr.
  */
-static int tpm_suspend_pcr;
+static u32 tpm_suspend_pcr;
 module_param_named(suspend_pcr, tpm_suspend_pcr, uint, 0644);
 MODULE_PARM_DESC(suspend_pcr,
 		 "PCR to use for dummy writes to facilitate flush on suspend.");
@@ -454,7 +454,7 @@ EXPORT_SYMBOL_GPL(tpm_is_tpm2);
  *
  * Return: same as with tpm_transmit_cmd()
  */
-int tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
+int tpm_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf)
 {
 	int rc;
 
@@ -484,7 +484,7 @@ EXPORT_SYMBOL_GPL(tpm_pcr_read);
  *
  * Return: same as with tpm_transmit_cmd()
  */
-int tpm_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash)
+int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, const u8 *hash)
 {
 	int rc;
 	struct tpm2_digest digest_list[ARRAY_SIZE(chip->active_banks)];

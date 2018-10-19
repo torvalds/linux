@@ -102,7 +102,7 @@ static ssize_t pcrs_show(struct device *dev, struct device_attribute *attr,
 	cap_t cap;
 	u8 digest[TPM_DIGEST_SIZE];
 	ssize_t rc;
-	int i, j, num_pcrs;
+	u32 i, j, num_pcrs;
 	char *str = buf;
 	struct tpm_chip *chip = to_tpm_chip(dev);
 
