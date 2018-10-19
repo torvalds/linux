@@ -233,7 +233,7 @@ static int xdr_decode_AFSFetchStatus(struct afs_call *call,
 
 bad:
 	xdr_dump_bad(*_bp);
-	return afs_protocol_error(call, -EBADMSG);
+	return afs_protocol_error(call, -EBADMSG, afs_eproto_bad_status);
 }
 
 /*
@@ -399,9 +399,10 @@ static int afs_deliver_fs_fetch_status_vnode(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	if (afs_decode_status(call, &bp, &vnode->status, vnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	xdr_decode_AFSCallBack(call, vnode, &bp);
 	if (call->reply[1])
 		xdr_decode_AFSVolSync(&bp, call->reply[1]);
@@ -580,9 +581,10 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 			return ret;
 
 		bp = call->buffer;
-		if (afs_decode_status(call, &bp, &vnode->status, vnode,
-				      &vnode->status.data_version, req) < 0)
-			return afs_protocol_error(call, -EBADMSG);
+		ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+					&vnode->status.data_version, req);
+		if (ret < 0)
+			return ret;
 		xdr_decode_AFSCallBack(call, vnode, &bp);
 		if (call->reply[1])
 			xdr_decode_AFSVolSync(&bp, call->reply[1]);
@@ -733,10 +735,13 @@ static int afs_deliver_fs_create_vnode(struct afs_call *call)
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
 	xdr_decode_AFSFid(&bp, call->reply[1]);
-	if (afs_decode_status(call, &bp, call->reply[2], NULL, NULL, NULL) < 0 ||
-	    afs_decode_status(call, &bp, &vnode->status, vnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, call->reply[2], NULL, NULL, NULL);
+	if (ret < 0)
+		return ret;
+	ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	xdr_decode_AFSCallBack_raw(&bp, call->reply[3]);
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
@@ -839,9 +844,10 @@ static int afs_deliver_fs_remove(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	if (afs_decode_status(call, &bp, &vnode->status, vnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -929,10 +935,13 @@ static int afs_deliver_fs_link(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	if (afs_decode_status(call, &bp, &vnode->status, vnode, NULL, NULL) < 0 ||
-	    afs_decode_status(call, &bp, &dvnode->status, dvnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, &vnode->status, vnode, NULL, NULL);
+	if (ret < 0)
+		return ret;
+	ret = afs_decode_status(call, &bp, &dvnode->status, dvnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1016,10 +1025,13 @@ static int afs_deliver_fs_symlink(struct afs_call *call)
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
 	xdr_decode_AFSFid(&bp, call->reply[1]);
-	if (afs_decode_status(call, &bp, call->reply[2], NULL, NULL, NULL) ||
-	    afs_decode_status(call, &bp, &vnode->status, vnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, call->reply[2], NULL, NULL, NULL);
+	if (ret < 0)
+		return ret;
+	ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1122,13 +1134,16 @@ static int afs_deliver_fs_rename(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	if (afs_decode_status(call, &bp, &orig_dvnode->status, orig_dvnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
-	if (new_dvnode != orig_dvnode &&
-	    afs_decode_status(call, &bp, &new_dvnode->status, new_dvnode,
-			      &call->expected_version_2, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, &orig_dvnode->status, orig_dvnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
+	if (new_dvnode != orig_dvnode) {
+		ret = afs_decode_status(call, &bp, &new_dvnode->status, new_dvnode,
+					&call->expected_version_2, NULL);
+		if (ret < 0)
+			return ret;
+	}
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1231,9 +1246,10 @@ static int afs_deliver_fs_store_data(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	if (afs_decode_status(call, &bp, &vnode->status, vnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	afs_pages_written_back(vnode, call);
@@ -1407,9 +1423,10 @@ static int afs_deliver_fs_store_status(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	if (afs_decode_status(call, &bp, &vnode->status, vnode,
-			      &call->expected_version, NULL) < 0)
-		return afs_protocol_error(call, -EBADMSG);
+	ret = afs_decode_status(call, &bp, &vnode->status, vnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	/* xdr_decode_AFSVolSync(&bp, call->reply[X]); */
 
 	_leave(" = 0 [done]");
@@ -1612,7 +1629,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		call->count = ntohl(call->tmp);
 		_debug("volname length: %u", call->count);
 		if (call->count >= AFSNAMEMAX)
-			return afs_protocol_error(call, -EBADMSG);
+			return afs_protocol_error(call, -EBADMSG,
+						  afs_eproto_volname_len);
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -1659,7 +1677,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		call->count = ntohl(call->tmp);
 		_debug("offline msg length: %u", call->count);
 		if (call->count >= AFSNAMEMAX)
-			return afs_protocol_error(call, -EBADMSG);
+			return afs_protocol_error(call, -EBADMSG,
+						  afs_eproto_offline_msg_len);
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -1706,7 +1725,8 @@ static int afs_deliver_fs_get_volume_status(struct afs_call *call)
 		call->count = ntohl(call->tmp);
 		_debug("motd length: %u", call->count);
 		if (call->count >= AFSNAMEMAX)
-			return afs_protocol_error(call, -EBADMSG);
+			return afs_protocol_error(call, -EBADMSG,
+						  afs_eproto_motd_len);
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -2109,8 +2129,10 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	afs_decode_status(call, &bp, status, vnode,
-			  &call->expected_version, NULL);
+	ret = afs_decode_status(call, &bp, status, vnode,
+				&call->expected_version, NULL);
+	if (ret < 0)
+		return ret;
 	callback[call->count].version	= ntohl(bp[0]);
 	callback[call->count].expiry	= ntohl(bp[1]);
 	callback[call->count].type	= ntohl(bp[2]);
@@ -2206,7 +2228,8 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		tmp = ntohl(call->tmp);
 		_debug("status count: %u/%u", tmp, call->count2);
 		if (tmp != call->count2)
-			return afs_protocol_error(call, -EBADMSG);
+			return afs_protocol_error(call, -EBADMSG,
+						  afs_eproto_ibulkst_count);
 
 		call->count = 0;
 		call->unmarshall++;
@@ -2221,10 +2244,11 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 
 		bp = call->buffer;
 		statuses = call->reply[1];
-		if (afs_decode_status(call, &bp, &statuses[call->count],
-				      call->count == 0 ? vnode : NULL,
-				      NULL, NULL) < 0)
-			return afs_protocol_error(call, -EBADMSG);
+		ret = afs_decode_status(call, &bp, &statuses[call->count],
+					call->count == 0 ? vnode : NULL,
+					NULL, NULL);
+		if (ret < 0)
+			return ret;
 
 		call->count++;
 		if (call->count < call->count2)
@@ -2244,7 +2268,8 @@ static int afs_deliver_fs_inline_bulk_status(struct afs_call *call)
 		tmp = ntohl(call->tmp);
 		_debug("CB count: %u", tmp);
 		if (tmp != call->count2)
-			return afs_protocol_error(call, -EBADMSG);
+			return afs_protocol_error(call, -EBADMSG,
+						  afs_eproto_ibulkst_cb_count);
 		call->count = 0;
 		call->unmarshall++;
 	more_cbs:

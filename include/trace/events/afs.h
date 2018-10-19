@@ -84,6 +84,25 @@ enum afs_edit_dir_reason {
 	afs_edit_dir_for_unlink,
 };
 
+enum afs_eproto_cause {
+	afs_eproto_bad_status,
+	afs_eproto_cb_count,
+	afs_eproto_cb_fid_count,
+	afs_eproto_file_type,
+	afs_eproto_ibulkst_cb_count,
+	afs_eproto_ibulkst_count,
+	afs_eproto_motd_len,
+	afs_eproto_offline_msg_len,
+	afs_eproto_volname_len,
+	afs_eproto_yvl_fsendpt4_len,
+	afs_eproto_yvl_fsendpt6_len,
+	afs_eproto_yvl_fsendpt_num,
+	afs_eproto_yvl_fsendpt_type,
+	afs_eproto_yvl_vlendpt4_len,
+	afs_eproto_yvl_vlendpt6_len,
+	afs_eproto_yvl_vlendpt_type,
+};
+
 #endif /* end __AFS_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
 /*
@@ -145,6 +164,24 @@ enum afs_edit_dir_reason {
 	EM(afs_edit_dir_for_rmdir,		"RmDir ") \
 	EM(afs_edit_dir_for_symlink,		"Symlnk") \
 	E_(afs_edit_dir_for_unlink,		"Unlink")
+
+#define afs_eproto_causes			\
+	EM(afs_eproto_bad_status,	"BadStatus") \
+	EM(afs_eproto_cb_count,		"CbCount") \
+	EM(afs_eproto_cb_fid_count,	"CbFidCount") \
+	EM(afs_eproto_file_type,	"FileTYpe") \
+	EM(afs_eproto_ibulkst_cb_count,	"IBS.CbCount") \
+	EM(afs_eproto_ibulkst_count,	"IBS.FidCount") \
+	EM(afs_eproto_motd_len,		"MotdLen") \
+	EM(afs_eproto_offline_msg_len,	"OfflineMsgLen") \
+	EM(afs_eproto_volname_len,	"VolNameLen") \
+	EM(afs_eproto_yvl_fsendpt4_len,	"YVL.FsEnd4Len") \
+	EM(afs_eproto_yvl_fsendpt6_len,	"YVL.FsEnd6Len") \
+	EM(afs_eproto_yvl_fsendpt_num,	"YVL.FsEndCount") \
+	EM(afs_eproto_yvl_fsendpt_type,	"YVL.FsEndType") \
+	EM(afs_eproto_yvl_vlendpt4_len,	"YVL.VlEnd4Len") \
+	EM(afs_eproto_yvl_vlendpt6_len,	"YVL.VlEnd6Len") \
+	E_(afs_eproto_yvl_vlendpt_type,	"YVL.VlEndType")
 
 
 /*
@@ -555,24 +592,25 @@ TRACE_EVENT(afs_edit_dir,
 	    );
 
 TRACE_EVENT(afs_protocol_error,
-	    TP_PROTO(struct afs_call *call, int error, const void *where),
+	    TP_PROTO(struct afs_call *call, int error, enum afs_eproto_cause cause),
 
-	    TP_ARGS(call, error, where),
+	    TP_ARGS(call, error, cause),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,	call		)
-		    __field(int,		error		)
-		    __field(const void *,	where		)
+		    __field(unsigned int,		call		)
+		    __field(int,			error		)
+		    __field(enum afs_eproto_cause,	cause		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call ? call->debug_id : 0;
 		    __entry->error = error;
-		    __entry->where = where;
+		    __entry->cause = cause;
 			   ),
 
-	    TP_printk("c=%08x r=%d sp=%pSR",
-		      __entry->call, __entry->error, __entry->where)
+	    TP_printk("c=%08x r=%d %s",
+		      __entry->call, __entry->error,
+		      __print_symbolic(__entry->cause, afs_eproto_causes))
 	    );
 
 TRACE_EVENT(afs_cm_no_server,

@@ -939,8 +939,9 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 /*
  * Log protocol error production.
  */
-noinline int afs_protocol_error(struct afs_call *call, int error)
+noinline int afs_protocol_error(struct afs_call *call, int error,
+				enum afs_eproto_cause cause)
 {
-	trace_afs_protocol_error(call, error, __builtin_return_address(0));
+	trace_afs_protocol_error(call, error, cause);
 	return error;
 }

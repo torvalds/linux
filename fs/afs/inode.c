@@ -82,7 +82,7 @@ static int afs_inode_init_from_status(struct afs_vnode *vnode, struct key *key)
 	default:
 		printk("kAFS: AFS vnode with undefined type\n");
 		read_sequnlock_excl(&vnode->cb_lock);
-		return afs_protocol_error(NULL, -EBADMSG);
+		return afs_protocol_error(NULL, -EBADMSG, afs_eproto_file_type);
 	}
 
 	inode->i_blocks		= 0;
