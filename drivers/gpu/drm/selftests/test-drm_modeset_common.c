@@ -7,9 +7,18 @@
 
 #include "test-drm_modeset_common.h"
 
+#define TESTS "drm_modeset_selftests.h"
+#include "drm_selftest.h"
+
+#include "drm_selftest.c"
+
 static int __init test_drm_modeset_init(void)
 {
-	return test_drm_plane_helper();
+	int err;
+
+	err = run_selftests(selftests, ARRAY_SIZE(selftests), NULL);
+
+	return err > 0 ? 0 : err;
 }
 
 static void __exit test_drm_modeset_exit(void)

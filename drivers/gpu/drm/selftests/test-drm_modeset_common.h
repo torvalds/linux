@@ -13,6 +13,6 @@
 
 #define FAIL_ON(x) FAIL((x), "%s", "FAIL_ON(" __stringify(x) ")\n")
 
-int test_drm_plane_helper(void);
+int igt_check_plane_state(void *ignored);
 
 #endif

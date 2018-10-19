@@ -11,9 +11,6 @@
 
 #include "test-drm_modeset_common.h"
 
-#define TESTS "drm_plane_helper_selftests.h"
-#include "drm_selftest.h"
-
 static void set_src(struct drm_plane_state *plane_state,
 		    unsigned src_x, unsigned src_y,
 		    unsigned src_w, unsigned src_h)
@@ -76,7 +73,7 @@ static bool check_crtc_eq(struct drm_plane_state *plane_state,
 	return true;
 }
 
-static int igt_check_plane_state(void *ignored)
+int igt_check_plane_state(void *ignored)
 {
 	int ret;
 
@@ -219,18 +216,4 @@ static int igt_check_plane_state(void *ignored)
 	FAIL_ON(!check_crtc_eq(&plane_state, 0, 0, 1024, 768));
 
 	return 0;
-}
-
-#include "drm_selftest.c"
-
-/**
- * test_drm_plane_helper - Run drm plane helper selftests.
- */
-int test_drm_plane_helper(void)
-{
-	int err;
-
-	err = run_selftests(selftests, ARRAY_SIZE(selftests), NULL);
-
-	return err > 0 ? 0 : err;
 }
