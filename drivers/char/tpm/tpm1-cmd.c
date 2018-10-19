@@ -571,29 +571,33 @@ out:
 	return rc;
 }
 
-#define TPM_ORDINAL_PCRREAD 21
-#define READ_PCR_RESULT_SIZE 30
-#define READ_PCR_RESULT_BODY_SIZE 20
-static const struct tpm_input_header pcrread_header = {
-	.tag = cpu_to_be16(TPM_TAG_RQU_COMMAND),
-	.length = cpu_to_be32(14),
-	.ordinal = cpu_to_be32(TPM_ORDINAL_PCRREAD)
-};
-
+#define TPM_ORD_PCRREAD 21
 int tpm1_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 {
+	struct tpm_buf buf;
 	int rc;
-	struct tpm_cmd_t cmd;
 
-	cmd.header.in = pcrread_header;
-	cmd.params.pcrread_in.pcr_idx = cpu_to_be32(pcr_idx);
-	rc = tpm_transmit_cmd(chip, NULL, &cmd, READ_PCR_RESULT_SIZE,
-			      READ_PCR_RESULT_BODY_SIZE, 0,
+	rc = tpm_buf_init(&buf, TPM_TAG_RQU_COMMAND, TPM_ORD_PCRREAD);
+	if (rc)
+		return rc;
+
+	tpm_buf_append_u32(&buf, pcr_idx);
+
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
+			      TPM_DIGEST_SIZE, 0,
 			      "attempting to read a pcr value");
+	if (rc)
+		goto out;
 
-	if (rc == 0)
-		memcpy(res_buf, cmd.params.pcrread_out.pcr_result,
-		       TPM_DIGEST_SIZE);
+	if (tpm_buf_length(&buf) < TPM_DIGEST_SIZE) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	memcpy(res_buf, &buf.data[TPM_HEADER_SIZE], TPM_DIGEST_SIZE);
+
+out:
+	tpm_buf_destroy(&buf);
 	return rc;
 }
 

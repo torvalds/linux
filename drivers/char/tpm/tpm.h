@@ -382,30 +382,16 @@ typedef union {
 	struct	tpm_output_header out;
 } tpm_cmd_header;
 
-struct tpm_pcrread_out {
-	u8	pcr_result[TPM_DIGEST_SIZE];
+struct tpm_cmd_t {
+	tpm_cmd_header	header;
 } __packed;
 
-struct tpm_pcrread_in {
-	__be32	pcr_idx;
-} __packed;
 
 /* 128 bytes is an arbitrary cap. This could be as large as TPM_BUFSIZE - 18
  * bytes, but 128 is still a relatively large number of random bytes and
  * anything much bigger causes users of struct tpm_cmd_t to start getting
  * compiler warnings about stack frame size. */
 #define TPM_MAX_RNG_DATA	128
-
-typedef union {
-	struct	tpm_pcrread_in	pcrread_in;
-	struct	tpm_pcrread_out	pcrread_out;
-} tpm_cmd_params;
-
-struct tpm_cmd_t {
-	tpm_cmd_header	header;
-	tpm_cmd_params	params;
-} __packed;
-
 
 /* A string buffer type for constructing TPM commands. This is based on the
  * ideas of string buffer code in security/keys/trusted.h but is heap based
