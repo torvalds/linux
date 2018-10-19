@@ -388,6 +388,7 @@ retry:
 
 /* create a basic resource */
 void virtio_gpu_cmd_create_resource(struct virtio_gpu_device *vgdev,
+				    struct virtio_gpu_object *bo,
 				    uint32_t resource_id,
 				    uint32_t format,
 				    uint32_t width,
@@ -406,6 +407,7 @@ void virtio_gpu_cmd_create_resource(struct virtio_gpu_device *vgdev,
 	cmd_p->height = cpu_to_le32(height);
 
 	virtio_gpu_queue_ctrl_buffer(vgdev, vbuf);
+	bo->created = true;
 }
 
 void virtio_gpu_cmd_unref_resource(struct virtio_gpu_device *vgdev,
@@ -774,6 +776,7 @@ void virtio_gpu_cmd_context_detach_resource(struct virtio_gpu_device *vgdev,
 
 void
 virtio_gpu_cmd_resource_create_3d(struct virtio_gpu_device *vgdev,
+				  struct virtio_gpu_object *bo,
 				  struct virtio_gpu_resource_create_3d *rc_3d,
 				  struct virtio_gpu_fence **fence)
 {
@@ -788,6 +791,7 @@ virtio_gpu_cmd_resource_create_3d(struct virtio_gpu_device *vgdev,
 	cmd_p->hdr.flags = 0;
 
 	virtio_gpu_queue_fenced_ctrl_buffer(vgdev, vbuf, &cmd_p->hdr, fence);
+	bo->created = true;
 }
 
 void virtio_gpu_cmd_transfer_to_host_3d(struct virtio_gpu_device *vgdev,
@@ -870,6 +874,9 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 	struct virtio_gpu_mem_entry *ents;
 	struct scatterlist *sg;
 	int si, nents;
+
+	if (!obj->created)
+		return 0;
 
 	if (!obj->pages) {
 		int ret;
