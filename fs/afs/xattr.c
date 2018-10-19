@@ -72,7 +72,7 @@ static int afs_xattr_get_fid(const struct xattr_handler *handler,
 	char text[8 + 1 + 8 + 1 + 8 + 1];
 	size_t len;
 
-	len = sprintf(text, "%x:%x:%x",
+	len = sprintf(text, "%llx:%llx:%x",
 		      vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 	if (size == 0)
 		return len;

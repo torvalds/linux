@@ -62,7 +62,7 @@ struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
 	struct inode *inode;
 	int ret = -ENOENT;
 
-	_enter("%p{%pd}, {%x:%u}",
+	_enter("%p{%pd}, {%llx:%llu}",
 	       dentry, dentry, vnode->fid.vid, vnode->fid.vnode);
 
 	if (!test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))

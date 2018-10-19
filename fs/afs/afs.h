@@ -23,9 +23,9 @@
 #define AFSPATHMAX		1024	/* Maximum length of a pathname plus NUL */
 #define AFSOPAQUEMAX		1024	/* Maximum length of an opaque field */
 
-typedef unsigned			afs_volid_t;
-typedef unsigned			afs_vnodeid_t;
-typedef unsigned long long		afs_dataversion_t;
+typedef u64			afs_volid_t;
+typedef u64			afs_vnodeid_t;
+typedef u64			afs_dataversion_t;
 
 typedef enum {
 	AFSVL_RWVOL,			/* read/write volume */
@@ -52,8 +52,9 @@ typedef enum {
  */
 struct afs_fid {
 	afs_volid_t	vid;		/* volume ID */
-	afs_vnodeid_t	vnode;		/* file index within volume */
-	unsigned	unique;		/* unique ID number (file index version) */
+	afs_vnodeid_t	vnode;		/* Lower 64-bits of file index within volume */
+	u32		vnode_hi;	/* Upper 32-bits of file index */
+	u32		unique;		/* unique ID number (file index version) */
 };
 
 /*

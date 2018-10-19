@@ -90,7 +90,7 @@ void afs_update_inode_from_status(struct afs_vnode *vnode,
 	if (!(flags & AFS_VNODE_NOT_YET_SET)) {
 		if (expected_version &&
 		    *expected_version != status->data_version) {
-			_debug("vnode modified %llx on {%x:%u} [exp %llx]",
+			_debug("vnode modified %llx on {%llx:%llu} [exp %llx]",
 			       (unsigned long long) status->data_version,
 			       vnode->fid.vid, vnode->fid.vnode,
 			       (unsigned long long) *expected_version);
@@ -164,7 +164,7 @@ static int xdr_decode_AFSFetchStatus(struct afs_call *call,
 		if (type != status->type &&
 		    vnode &&
 		    !test_bit(AFS_VNODE_UNSET, &vnode->flags)) {
-			pr_warning("Vnode %x:%x:%x changed type %u to %u\n",
+			pr_warning("Vnode %llx:%llx:%x changed type %u to %u\n",
 				   vnode->fid.vid,
 				   vnode->fid.vnode,
 				   vnode->fid.unique,
@@ -389,7 +389,7 @@ static int afs_deliver_fs_fetch_status_vnode(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu}", vnode->fid.vid, vnode->fid.vnode);
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -426,7 +426,7 @@ int afs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_volsync *volsy
 	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
-	_enter(",%x,{%x:%u},,",
+	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	call = afs_alloc_flat_call(net, &afs_RXFSFetchStatus_vnode,
@@ -1261,7 +1261,7 @@ static int afs_fs_store_data64(struct afs_fs_cursor *fc,
 	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
-	_enter(",%x,{%x:%u},,",
+	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	call = afs_alloc_flat_call(net, &afs_RXFSStoreData64,
@@ -1318,7 +1318,7 @@ int afs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 	loff_t size, pos, i_size;
 	__be32 *bp;
 
-	_enter(",%x,{%x:%u},,",
+	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	size = (loff_t)to - (loff_t)offset;
@@ -1440,7 +1440,7 @@ static int afs_fs_setattr_size64(struct afs_fs_cursor *fc, struct iattr *attr)
 	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
-	_enter(",%x,{%x:%u},,",
+	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	ASSERT(attr->ia_valid & ATTR_SIZE);
@@ -1487,7 +1487,7 @@ static int afs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr)
 	struct afs_net *net = afs_v2net(vnode);
 	__be32 *bp;
 
-	_enter(",%x,{%x:%u},,",
+	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	ASSERT(attr->ia_valid & ATTR_SIZE);
@@ -1536,7 +1536,7 @@ int afs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr)
 	if (attr->ia_valid & ATTR_SIZE)
 		return afs_fs_setattr_size(fc, attr);
 
-	_enter(",%x,{%x:%u},,",
+	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
 
 	call = afs_alloc_flat_call(net, &afs_RXFSStoreStatus,
@@ -2034,7 +2034,7 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	_enter("{%x:%u}", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu}", vnode->fid.vid, vnode->fid.vnode);
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
@@ -2079,7 +2079,7 @@ int afs_fs_fetch_status(struct afs_fs_cursor *fc,
 	struct afs_call *call;
 	__be32 *bp;
 
-	_enter(",%x,{%x:%u},,",
+	_enter(",%x,{%llx:%llu},,",
 	       key_serial(fc->key), fid->vid, fid->vnode);
 
 	call = afs_alloc_flat_call(net, &afs_RXFSFetchStatus, 16, (21 + 3 + 6) * 4);
@@ -2250,7 +2250,7 @@ int afs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	__be32 *bp;
 	int i;
 
-	_enter(",%x,{%x:%u},%u",
+	_enter(",%x,{%llx:%llu},%u",
 	       key_serial(fc->key), fids[0].vid, fids[1].vnode, nr_fids);
 
 	call = afs_alloc_flat_call(net, &afs_RXFSInlineBulkStatus,

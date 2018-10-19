@@ -221,7 +221,7 @@ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 		return 0;
 	}
 
-	seq_printf(m, "%3d %08x %s\n",
+	seq_printf(m, "%3d %08llx %s\n",
 		   atomic_read(&vol->usage), vol->vid,
 		   afs_vol_types[vol->type]);
 

@@ -374,7 +374,7 @@ TRACE_EVENT(afs_make_fs_call,
 		    }
 			   ),
 
-	    TP_printk("c=%08x %06x:%06x:%06x %s",
+	    TP_printk("c=%08x %06llx:%06llx:%06x %s",
 		      __entry->call,
 		      __entry->fid.vid,
 		      __entry->fid.vnode,
@@ -688,7 +688,7 @@ TRACE_EVENT(afs_file_error,
 		    __entry->where = where;
 			   ),
 
-	    TP_printk("%x:%x:%x r=%d %s",
+	    TP_printk("%llx:%llx:%x r=%d %s",
 		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
 		      __entry->error,
 		      __print_symbolic(__entry->where, afs_file_errors))
