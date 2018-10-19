@@ -377,15 +377,6 @@ enum tpm_sub_capabilities {
 	TPM_CAP_PROP_TIS_DURATION = 0x120,
 };
 
-typedef union {
-	struct	tpm_input_header in;
-	struct	tpm_output_header out;
-} tpm_cmd_header;
-
-struct tpm_cmd_t {
-	tpm_cmd_header	header;
-} __packed;
-
 
 /* 128 bytes is an arbitrary cap. This could be as large as TPM_BUFSIZE - 18
  * bytes, but 128 is still a relatively large number of random bytes and

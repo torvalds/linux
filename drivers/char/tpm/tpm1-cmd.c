@@ -602,15 +602,8 @@ out:
 }
 
 #define TPM_ORD_CONTINUE_SELFTEST 83
-#define CONTINUE_SELFTEST_RESULT_SIZE 10
-static const struct tpm_input_header continue_selftest_header = {
-	.tag = cpu_to_be16(TPM_TAG_RQU_COMMAND),
-	.length = cpu_to_be32(10),
-	.ordinal = cpu_to_be32(TPM_ORD_CONTINUE_SELFTEST),
-};
-
 /**
- * tpm_continue_selftest -- run TPM's selftest
+ * tpm_continue_selftest() - run TPM's selftest
  * @chip: TPM chip to use
  *
  * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
@@ -618,12 +611,18 @@ static const struct tpm_input_header continue_selftest_header = {
  */
 static int tpm1_continue_selftest(struct tpm_chip *chip)
 {
+	struct tpm_buf buf;
 	int rc;
-	struct tpm_cmd_t cmd;
 
-	cmd.header.in = continue_selftest_header;
-	rc = tpm_transmit_cmd(chip, NULL, &cmd, CONTINUE_SELFTEST_RESULT_SIZE,
+	rc = tpm_buf_init(&buf, TPM_TAG_RQU_COMMAND, TPM_ORD_CONTINUE_SELFTEST);
+	if (rc)
+		return rc;
+
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
 			      0, 0, "continue selftest");
+
+	tpm_buf_destroy(&buf);
+
 	return rc;
 }
 
