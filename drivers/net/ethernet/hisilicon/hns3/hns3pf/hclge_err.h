@@ -21,9 +21,11 @@ enum hclge_err_int_type {
 struct hclge_hw_blk {
 	u32 msk;
 	const char *name;
+	int (*enable_error)(struct hclge_dev *hdev, bool en);
 	void (*process_error)(struct hclge_dev *hdev,
 			      enum hclge_err_int_type type);
 };
 
+int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state);
 pci_ers_result_t hclge_process_ras_hw_error(struct hnae3_ae_dev *ae_dev);
 #endif

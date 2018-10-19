@@ -7,6 +7,28 @@ static const struct hclge_hw_blk hw_blk[] = {
 	{ /* sentinel */ }
 };
 
+int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
+{
+	struct device *dev = &hdev->pdev->dev;
+	int ret = 0;
+	int i = 0;
+
+	while (hw_blk[i].name) {
+		if (!hw_blk[i].enable_error) {
+			i++;
+			continue;
+		}
+		ret = hw_blk[i].enable_error(hdev, state);
+		if (ret) {
+			dev_err(dev, "fail(%d) to en/disable err int\n", ret);
+			return ret;
+		}
+		i++;
+	}
+
+	return ret;
+}
+
 pci_ers_result_t hclge_process_ras_hw_error(struct hnae3_ae_dev *ae_dev)
 {
 	struct hclge_dev *hdev = ae_dev->priv;
