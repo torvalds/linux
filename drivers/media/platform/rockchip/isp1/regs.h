@@ -357,6 +357,7 @@
 
 /* MIPI_CTRL */
 #define CIF_MIPI_CTRL_OUTPUT_ENA		BIT(0)
+#define CIF_MIPI_CTRL_FLUSH_FIFO		BIT(1)
 #define CIF_MIPI_CTRL_SHUTDOWNLANES(a)		(((a) & 0xF) << 8)
 #define CIF_MIPI_CTRL_NUM_LANES(a)		(((a) & 0x3) << 12)
 #define CIF_MIPI_CTRL_ERR_SOT_HS_SKIP		BIT(16)

@@ -32,6 +32,7 @@
  * SOFTWARE.
  */
 
+#include <linux/kfifo.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
@@ -290,7 +291,7 @@ static void rkisp1_stats_get_afc_meas(struct rkisp1_isp_stats_vdev *stats_vdev,
 	void __iomem *base_addr;
 	struct cifisp_af_stat *af;
 
-	pbuf->meas_type = CIFISP_STAT_AFM_FIN;
+	pbuf->meas_type |= CIFISP_STAT_AFM_FIN;
 
 	af = &pbuf->params.af;
 	base_addr = stats_vdev->dev->base_addr;
@@ -361,12 +362,70 @@ static void rkisp1_stats_get_bls_meas(struct rkisp1_isp_stats_vdev *stats_vdev,
 	}
 }
 
+static void rkisp1_stats_get_emb_data(struct rkisp1_isp_stats_vdev *stats_vdev,
+				      struct rkisp1_stat_buffer *pbuf)
+{
+	unsigned int i;
+	struct rkisp1_device *dev = stats_vdev->dev;
+	unsigned int ph = 0, out = 0, packet_len = 0, playload_len = 0;
+	unsigned int mipi_kfifo_len;
+	unsigned int idx;
+	unsigned char *fifo_data;
+
+	idx = RKISP1_EMDDATA_FIFO_MAX;
+	for (i = 0; i < RKISP1_EMDDATA_FIFO_MAX; i++) {
+		if (dev->emd_data_fifo[i].frame_id == pbuf->frame_id) {
+			idx = i;
+			break;
+		}
+	}
+
+	if (idx == RKISP1_EMDDATA_FIFO_MAX)
+		return;
+
+	if (kfifo_is_empty(&dev->emd_data_fifo[idx].mipi_kfifo))
+		return;
+
+	mipi_kfifo_len = dev->emd_data_fifo[idx].data_len;
+	fifo_data = &pbuf->params.emd.data[0];
+	for (i = 0; i < mipi_kfifo_len;) {
+		/* handle the package header */
+		out = kfifo_out(&dev->emd_data_fifo[idx].mipi_kfifo,
+				&ph, sizeof(ph));
+		if (!out)
+			break;
+		packet_len = (ph >> 8) & 0xfff;
+		i += sizeof(ph);
+
+		/* handle the package data */
+		out = kfifo_out(&dev->emd_data_fifo[idx].mipi_kfifo,
+				fifo_data, packet_len);
+		if (!out)
+			break;
+
+		i += packet_len;
+		playload_len += packet_len;
+		fifo_data += packet_len;
+
+		v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
+			 "packet_len: 0x%x, ph: 0x%x\n",
+			 packet_len, ph);
+	}
+
+	pbuf->meas_type |= CIFISP_STAT_EMB_DATA;
+
+	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
+		 "playload_len: %d, pbuf->frame_id %d\n",
+		 playload_len, pbuf->frame_id);
+}
+
 static struct rkisp1_stats_ops rkisp1_v10_stats_ops = {
 	.get_awb_meas = rkisp1_stats_get_awb_meas_v10,
 	.get_aec_meas = rkisp1_stats_get_aec_meas_v10,
 	.get_afc_meas = rkisp1_stats_get_afc_meas,
 	.get_hst_meas = rkisp1_stats_get_hst_meas_v10,
 	.get_bls_meas = rkisp1_stats_get_bls_meas,
+	.get_emb_data = rkisp1_stats_get_emb_data,
 };
 
 static struct rkisp1_stats_ops rkisp1_v12_stats_ops = {
@@ -419,6 +478,7 @@ rkisp1_stats_send_measurement(struct rkisp1_isp_stats_vdev *stats_vdev,
 	cur_stat_buf =
 		(struct rkisp1_stat_buffer *)(cur_buf->vaddr[0]);
 
+	cur_stat_buf->frame_id = cur_frame_id;
 	if (meas_work->isp_ris & CIF_ISP_AWB_DONE) {
 		ops->get_awb_meas(stats_vdev, cur_stat_buf);
 		cur_stat_buf->meas_type |= CIFISP_STAT_AWB;
@@ -439,6 +499,9 @@ rkisp1_stats_send_measurement(struct rkisp1_isp_stats_vdev *stats_vdev,
 		ops->get_hst_meas(stats_vdev, cur_stat_buf);
 		cur_stat_buf->meas_type |= CIFISP_STAT_HIST;
 	}
+
+	if (ops->get_emb_data)
+		ops->get_emb_data(stats_vdev, cur_stat_buf);
 
 	vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0,
 			      sizeof(struct rkisp1_stat_buffer));

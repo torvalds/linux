@@ -66,6 +66,8 @@ struct rkisp1_stats_ops {
 			     struct rkisp1_stat_buffer *pbuf);
 	void (*get_bls_meas)(struct rkisp1_isp_stats_vdev *stats_vdev,
 			     struct rkisp1_stat_buffer *pbuf);
+	void (*get_emb_data)(struct rkisp1_isp_stats_vdev *stats_vdev,
+			     struct rkisp1_stat_buffer *pbuf);
 };
 
 struct rkisp1_stats_config {

@@ -53,6 +53,8 @@
 #define RKISP1_PLANE_CB			1
 #define RKISP1_PLANE_CR			2
 
+#define RKISP1_EMDDATA_FIFO_MAX		4
+
 enum rkisp1_sd_type {
 	RKISP1_SD_SENSOR,
 	RKISP1_SD_PHY_CSI,

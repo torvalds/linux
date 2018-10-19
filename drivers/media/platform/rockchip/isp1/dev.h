@@ -128,6 +128,10 @@ struct rkisp1_device {
 	const unsigned int *clk_rate_tbl;
 	int num_clk_rate_tbl;
 	atomic_t open_cnt;
+	struct rkisp1_emd_data emd_data_fifo[RKISP1_EMDDATA_FIFO_MAX];
+	unsigned int emd_data_idx;
+	unsigned int emd_vc;
+	unsigned int emd_dt;
 };
 
 #endif

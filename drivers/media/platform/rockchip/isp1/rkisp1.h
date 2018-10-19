@@ -35,6 +35,7 @@
 #ifndef _RKISP1_H
 #define _RKISP1_H
 
+#include <linux/kfifo.h>
 #include <linux/platform_device.h>
 #include <media/v4l2-fwnode.h>
 #include "common.h"
@@ -100,6 +101,12 @@ struct rkisp1_isp_subdev {
 	bool dphy_errctrl_disabled;
 	atomic_t frm_sync_seq;
 	enum v4l2_quantization quantization;
+};
+
+struct rkisp1_emd_data {
+	struct kfifo mipi_kfifo;
+	unsigned int data_len;
+	unsigned int frame_id;
 };
 
 int rkisp1_register_isp_subdev(struct rkisp1_device *isp_dev,

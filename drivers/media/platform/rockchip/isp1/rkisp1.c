@@ -37,7 +37,9 @@
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
+#include <linux/kfifo.h>
 #include <media/v4l2-event.h>
+#include <media/media-entity.h>
 
 #include "common.h"
 #include "regs.h"
@@ -54,6 +56,7 @@
 #define CIF_ISP_OUTPUT_H_MAX		CIF_ISP_INPUT_H_MAX
 #define CIF_ISP_OUTPUT_W_MIN		CIF_ISP_INPUT_W_MIN
 #define CIF_ISP_OUTPUT_H_MIN		CIF_ISP_INPUT_H_MIN
+#define CIF_ISP_ADD_DATA_VC_MAX		3
 
 /*
  * NOTE: MIPI controller and input MUX are also configured in this file,
@@ -99,6 +102,28 @@ static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
 	sensor_me = media_entity_remote_pad(local)->entity;
 
 	return media_entity_to_v4l2_subdev(sensor_me);
+}
+
+static void get_remote_mipi_sensor(struct rkisp1_device *dev,
+				  struct v4l2_subdev **sensor_sd)
+{
+	struct media_entity_graph graph;
+	struct media_entity *entity = &dev->isp_sdev.sd.entity;
+	struct media_device *mdev = entity->parent;
+
+	/* Walk the graph to locate sensor nodes. */
+	mutex_lock(&mdev->graph_mutex);
+	media_entity_graph_walk_start(&graph, entity);
+	while ((entity = media_entity_graph_walk_next(&graph))) {
+		if (entity->type == MEDIA_ENT_T_V4L2_SUBDEV_SENSOR)
+			break;
+	}
+	mutex_unlock(&mdev->graph_mutex);
+
+	if (entity)
+		*sensor_sd = media_entity_to_v4l2_subdev(entity);
+	else
+		*sensor_sd = NULL;
 }
 
 static struct rkisp1_sensor_info *sd_to_sensor(struct rkisp1_device *dev,
@@ -295,7 +320,10 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 	void __iomem *base = dev->base_addr;
 	struct ispsd_in_fmt *in_fmt = &dev->isp_sdev.in_fmt;
 	struct rkisp1_sensor_info *sensor = dev->active_sensor;
-	int lanes;
+	struct v4l2_subdev *mipi_sensor;
+	struct v4l2_ctrl *ctrl;
+	u32 emd_vc, emd_dt;
+	int lanes, ret, i;
 
 	/*
 	 * sensor->mbus is set in isp or d-phy notifier_bound function
@@ -315,6 +343,38 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	emd_vc = 0xFF;
+	emd_dt = 0;
+	get_remote_mipi_sensor(dev, &mipi_sensor);
+	if (mipi_sensor) {
+		ctrl = v4l2_ctrl_find(mipi_sensor->ctrl_handler,
+				      CIFISP_CID_EMB_VC);
+		if (ctrl)
+			emd_vc = v4l2_ctrl_g_ctrl(ctrl);
+
+		ctrl = v4l2_ctrl_find(mipi_sensor->ctrl_handler,
+				      CIFISP_CID_EMB_DT);
+		if (ctrl)
+			emd_dt = v4l2_ctrl_g_ctrl(ctrl);
+	}
+
+	dev->emd_dt = emd_dt;
+	dev->emd_vc = emd_vc;
+	dev->emd_data_idx = 0;
+	if (emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {
+		for (i = 0; i < RKISP1_EMDDATA_FIFO_MAX; i++) {
+			ret = kfifo_alloc(&dev->emd_data_fifo[i].mipi_kfifo,
+					  CIFISP_ADD_DATA_FIFO_SIZE,
+					  GFP_ATOMIC);
+			if (ret) {
+				v4l2_err(&dev->v4l2_dev,
+					 "kfifo_alloc failed with error %d\n",
+					 ret);
+				return ret;
+			}
+		}
 	}
 
 	if (dev->isp_ver == ISP_V13) {
@@ -349,6 +409,15 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 		/* Configure Data Type and Virtual Channel */
 		writel(CIF_MIPI_DATA_SEL_DT(in_fmt->mipi_dt) | CIF_MIPI_DATA_SEL_VC(0),
 		       base + CIF_MIPI_IMG_DATA_SEL);
+
+		writel(CIF_MIPI_DATA_SEL_DT(emd_dt) | CIF_MIPI_DATA_SEL_VC(emd_vc),
+		       base + CIF_MIPI_ADD_DATA_SEL_1);
+		writel(CIF_MIPI_DATA_SEL_DT(emd_dt) | CIF_MIPI_DATA_SEL_VC(emd_vc),
+		       base + CIF_MIPI_ADD_DATA_SEL_2);
+		writel(CIF_MIPI_DATA_SEL_DT(emd_dt) | CIF_MIPI_DATA_SEL_VC(emd_vc),
+		       base + CIF_MIPI_ADD_DATA_SEL_3);
+		writel(CIF_MIPI_DATA_SEL_DT(emd_dt) | CIF_MIPI_DATA_SEL_VC(emd_vc),
+		       base + CIF_MIPI_ADD_DATA_SEL_4);
 
 		/* Clear MIPI interrupts */
 		writel(~0, base + CIF_MIPI_ICR);
@@ -424,6 +493,7 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 {
 	void __iomem *base = dev->base_addr;
 	u32 val;
+	u32 i;
 
 	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
 		 "SP streaming = %d, MP streaming = %d\n",
@@ -464,6 +534,12 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 		 readl(base + CIF_MIPI_CTRL));
 
 	writel(CIF_IRCL_CIF_SW_RST, base + CIF_IRCL);
+
+	if (dev->emd_vc <= CIF_ISP_ADD_DATA_VC_MAX) {
+		for (i = 0; i < RKISP1_EMDDATA_FIFO_MAX; i++)
+			kfifo_free(&dev->emd_data_fifo[i].mipi_kfifo);
+		dev->emd_vc = 0xFF;
+	}
 
 	return 0;
 }
@@ -1030,6 +1106,46 @@ static int rkisp1_isp_sd_set_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static void rkisp1_isp_read_add_fifo_data(struct rkisp1_device *dev)
+{
+	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	void __iomem *base = dev->base_addr;
+	u32 mipi_status = 0;
+	u32 data_len = 0;
+	u32 fifo_data = 0;
+	u32 i, idx, cur_frame_id;
+
+	cur_frame_id = atomic_read(&dev->isp_sdev.frm_sync_seq) - 1;
+	idx = dev->emd_data_idx;
+	dev->emd_data_fifo[idx].frame_id = 0;
+	kfifo_reset_out(&dev->emd_data_fifo[idx].mipi_kfifo);
+	for (i = 0; i < CIFISP_ADD_DATA_FIFO_SIZE / 4; i++) {
+		mipi_status = readl(base + CIF_MIPI_STATUS);
+		if (!(mipi_status & 0x01))
+			break;
+
+		fifo_data = readl(base + CIF_MIPI_ADD_DATA_FIFO);
+		kfifo_in(&dev->emd_data_fifo[idx].mipi_kfifo,
+			 &fifo_data, sizeof(fifo_data));
+		data_len += 4;
+
+		if (kfifo_is_full(&dev->emd_data_fifo[idx].mipi_kfifo))
+			v4l2_warn(v4l2_dev, "%s: mipi_kfifo is full!\n",
+				  __func__);
+	}
+
+	if (data_len) {
+		dev->emd_data_fifo[idx].frame_id = cur_frame_id;
+		dev->emd_data_fifo[idx].data_len = data_len;
+		dev->emd_data_idx = (idx + 1) % RKISP1_EMDDATA_FIFO_MAX;
+	}
+
+	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
+		 "emd kfifo size: %d, frame_id %d\n",
+		 kfifo_len(&dev->emd_data_fifo[idx].mipi_kfifo),
+		 dev->emd_data_fifo[idx].frame_id);
+}
+
 static int rkisp1_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp1_device *isp_dev = sd_to_isp_dev(sd);
@@ -1272,6 +1388,8 @@ void rkisp1_mipi_isr(unsigned int mis, struct rkisp1_device *dev)
 		}
 	} else {
 		v4l2_warn(v4l2_dev, "MIPI mis error: 0x%08x\n", mis);
+		val = readl(base + CIF_MIPI_CTRL);
+		writel(val | CIF_MIPI_CTRL_FLUSH_FIFO, base + CIF_MIPI_CTRL);
 	}
 }
 
@@ -1336,6 +1454,8 @@ void rkisp1_isp_isr(unsigned int isp_mis, struct rkisp1_device *dev)
 		if (isp_mis_tmp & CIF_ISP_FRAME)
 			v4l2_err(&dev->v4l2_dev,
 				 "isp icr frame end err: 0x%x\n", isp_mis_tmp);
+
+		rkisp1_isp_read_add_fifo_data(dev);
 
 		isp_ris = readl(base + CIF_ISP_RIS);
 		if (isp_ris & (CIF_ISP_AWB_DONE | CIF_ISP_AFM_FIN |
