@@ -209,6 +209,9 @@ enum hclge_opcode_type {
 
 	/* Led command */
 	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
+
+	/* Error INT commands */
+	HCLGE_COMMON_ECC_INT_CFG	= 0x1505,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000

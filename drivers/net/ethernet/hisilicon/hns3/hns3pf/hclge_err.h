@@ -11,6 +11,31 @@
 #define HCLGE_RAS_REG_NFE_MASK   0xFF00
 #define HCLGE_RAS_REG_NFE_SHIFT	8
 
+#define HCLGE_IMP_TCM_ECC_ERR_INT_EN	0xFFFF0000
+#define HCLGE_IMP_TCM_ECC_ERR_INT_EN_MASK	0xFFFF0000
+#define HCLGE_IMP_ITCM4_ECC_ERR_INT_EN	0x300
+#define HCLGE_IMP_ITCM4_ECC_ERR_INT_EN_MASK	0x300
+#define HCLGE_CMDQ_NIC_ECC_ERR_INT_EN	0xFFFF
+#define HCLGE_CMDQ_NIC_ECC_ERR_INT_EN_MASK	0xFFFF
+#define HCLGE_CMDQ_ROCEE_ECC_ERR_INT_EN	0xFFFF0000
+#define HCLGE_CMDQ_ROCEE_ECC_ERR_INT_EN_MASK	0xFFFF0000
+#define HCLGE_IMP_RD_POISON_ERR_INT_EN	0x0100
+#define HCLGE_IMP_RD_POISON_ERR_INT_EN_MASK	0x0100
+#define HCLGE_TQP_ECC_ERR_INT_EN	0x0FFF
+#define HCLGE_TQP_ECC_ERR_INT_EN_MASK	0x0FFF
+
+#define HCLGE_IMP_TCM_ECC_INT_MASK	0xFFFF
+#define HCLGE_IMP_ITCM4_ECC_INT_MASK	0x3
+#define HCLGE_CMDQ_ECC_INT_MASK		0xFFFF
+#define HCLGE_CMDQ_ROC_ECC_INT_SHIFT	16
+#define HCLGE_TQP_ECC_INT_MASK		0xFFF
+#define HCLGE_TQP_ECC_INT_SHIFT		16
+#define HCLGE_IMP_TCM_ECC_CLR_MASK	0xFFFF
+#define HCLGE_IMP_ITCM4_ECC_CLR_MASK	0x3
+#define HCLGE_CMDQ_NIC_ECC_CLR_MASK	0xFFFF
+#define HCLGE_CMDQ_ROCEE_ECC_CLR_MASK	0xFFFF0000
+#define HCLGE_TQP_IMP_ERR_CLR_MASK	0x0FFF0001
+
 enum hclge_err_int_type {
 	HCLGE_ERR_INT_MSIX = 0,
 	HCLGE_ERR_INT_RAS_CE = 1,
@@ -24,6 +49,11 @@ struct hclge_hw_blk {
 	int (*enable_error)(struct hclge_dev *hdev, bool en);
 	void (*process_error)(struct hclge_dev *hdev,
 			      enum hclge_err_int_type type);
+};
+
+struct hclge_hw_error {
+	u32 int_msk;
+	const char *msg;
 };
 
 int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state);
