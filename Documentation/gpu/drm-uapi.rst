@@ -197,6 +197,9 @@ EPERM/EACCESS:
         difference between EACCESS and EPERM.
 
 ENODEV:
+        The device is not (yet) present or fully initialized.
+
+EOPNOTSUPP:
         Feature (like PRIME, modesetting, GEM) is not supported by the driver.
 
 ENXIO:
