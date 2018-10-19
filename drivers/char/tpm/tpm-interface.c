@@ -600,7 +600,7 @@ EXPORT_SYMBOL_GPL(tpm_pm_resume);
  * @out:	destination buffer for the random bytes
  * @max:	the max number of bytes to write to @out
  *
- * Return: same as with tpm_transmit_cmd()
+ * Return: number of random bytes read or a negative error value.
  */
 int tpm_get_random(struct tpm_chip *chip, u8 *out, size_t max)
 {

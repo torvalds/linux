@@ -396,20 +396,9 @@ struct tpm_pcrread_in {
  * compiler warnings about stack frame size. */
 #define TPM_MAX_RNG_DATA	128
 
-struct tpm_getrandom_out {
-	__be32 rng_data_len;
-	u8     rng_data[TPM_MAX_RNG_DATA];
-} __packed;
-
-struct tpm_getrandom_in {
-	__be32 num_bytes;
-} __packed;
-
 typedef union {
 	struct	tpm_pcrread_in	pcrread_in;
 	struct	tpm_pcrread_out	pcrread_out;
-	struct	tpm_getrandom_in getrandom_in;
-	struct	tpm_getrandom_out getrandom_out;
 } tpm_cmd_params;
 
 struct tpm_cmd_t {
