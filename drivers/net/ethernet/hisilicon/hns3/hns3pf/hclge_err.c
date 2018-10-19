@@ -85,6 +85,30 @@ static const struct hclge_hw_error hclge_tqp_int_ecc_int[] = {
 	{ /* sentinel */ }
 };
 
+static const struct hclge_hw_error hclge_igu_com_err_int[] = {
+	{ .int_msk = BIT(0), .msg = "igu_rx_buf0_ecc_mbit_err" },
+	{ .int_msk = BIT(1), .msg = "igu_rx_buf0_ecc_1bit_err" },
+	{ .int_msk = BIT(2), .msg = "igu_rx_buf1_ecc_mbit_err" },
+	{ .int_msk = BIT(3), .msg = "igu_rx_buf1_ecc_1bit_err" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_igu_egu_tnl_err_int[] = {
+	{ .int_msk = BIT(0), .msg = "rx_buf_overflow" },
+	{ .int_msk = BIT(1), .msg = "rx_stp_fifo_overflow" },
+	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_undeflow" },
+	{ .int_msk = BIT(3), .msg = "tx_buf_overflow" },
+	{ .int_msk = BIT(4), .msg = "tx_buf_underrun" },
+	{ .int_msk = BIT(5), .msg = "rx_stp_buf_overflow" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ncsi_err_int[] = {
+	{ .int_msk = BIT(0), .msg = "ncsi_tx_ecc_1bit_err" },
+	{ .int_msk = BIT(1), .msg = "ncsi_tx_ecc_mbit_err" },
+	{ /* sentinel */ }
+};
+
 static void hclge_log_error(struct device *dev,
 			    const struct hclge_hw_error *err_list,
 			    u32 err_sts)
@@ -229,6 +253,75 @@ static int hclge_enable_common_error(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+static int hclge_enable_ncsi_error(struct hclge_dev *hdev, bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc;
+	int ret;
+
+	if (hdev->pdev->revision < 0x21)
+		return 0;
+
+	/* enable/disable NCSI  error interrupts */
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_NCSI_INT_EN, false);
+	if (en)
+		desc.data[0] = cpu_to_le32(HCLGE_NCSI_ERR_INT_EN);
+	else
+		desc.data[0] = 0;
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(dev,
+			"failed(%d) to enable/disable NCSI error interrupts\n",
+			ret);
+
+	return ret;
+}
+
+static int hclge_enable_igu_egu_error(struct hclge_dev *hdev, bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc;
+	int ret;
+
+	/* enable/disable error interrupts */
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_IGU_COMMON_INT_EN, false);
+	if (en)
+		desc.data[0] = cpu_to_le32(HCLGE_IGU_ERR_INT_EN);
+	else
+		desc.data[0] = 0;
+	desc.data[1] = cpu_to_le32(HCLGE_IGU_ERR_INT_EN_MASK);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(dev,
+			"failed(%d) to enable/disable IGU common interrupts\n",
+			ret);
+		return ret;
+	}
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_IGU_EGU_TNL_INT_EN, false);
+	if (en)
+		desc.data[0] = cpu_to_le32(HCLGE_IGU_TNL_ERR_INT_EN);
+	else
+		desc.data[0] = 0;
+	desc.data[1] = cpu_to_le32(HCLGE_IGU_TNL_ERR_INT_EN_MASK);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(dev,
+			"failed(%d) to enable/disable IGU-EGU TNL interrupts\n",
+			ret);
+		return ret;
+	}
+
+	ret = hclge_enable_ncsi_error(hdev, en);
+	if (ret)
+		dev_err(dev, "fail(%d) to en/disable err int\n", ret);
+
+	return ret;
+}
+
 static void hclge_process_common_error(struct hclge_dev *hdev,
 				       enum hclge_err_int_type type)
 {
@@ -285,7 +378,104 @@ static void hclge_process_common_error(struct hclge_dev *hdev,
 			ret);
 }
 
+static void hclge_process_ncsi_error(struct hclge_dev *hdev,
+				     enum hclge_err_int_type type)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc_rd;
+	struct hclge_desc desc_wr;
+	u32 err_sts;
+	int ret;
+
+	if (hdev->pdev->revision < 0x21)
+		return;
+
+	/* read NCSI error status */
+	ret = hclge_cmd_query_error(hdev, &desc_rd, HCLGE_NCSI_INT_QUERY,
+				    0, 1, HCLGE_NCSI_ERR_INT_TYPE);
+	if (ret) {
+		dev_err(dev,
+			"failed(=%d) to query NCSI error interrupt status\n",
+			ret);
+		return;
+	}
+
+	/* log err */
+	err_sts = le32_to_cpu(desc_rd.data[0]);
+	hclge_log_error(dev, &hclge_ncsi_err_int[0], err_sts);
+
+	/* clear err int */
+	ret = hclge_cmd_clear_error(hdev, &desc_wr, &desc_rd,
+				    HCLGE_NCSI_INT_CLR, 0);
+	if (ret)
+		dev_err(dev, "failed(=%d) to clear NCSI intrerrupt status\n",
+			ret);
+}
+
+static void hclge_process_igu_egu_error(struct hclge_dev *hdev,
+					enum hclge_err_int_type int_type)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc_rd;
+	struct hclge_desc desc_wr;
+	u32 err_sts;
+	int ret;
+
+	/* read IGU common err sts */
+	ret = hclge_cmd_query_error(hdev, &desc_rd,
+				    HCLGE_IGU_COMMON_INT_QUERY,
+				    0, 1, int_type);
+	if (ret) {
+		dev_err(dev, "failed(=%d) to query IGU common int status\n",
+			ret);
+		return;
+	}
+
+	/* log err */
+	err_sts = le32_to_cpu(desc_rd.data[0]) &
+				   HCLGE_IGU_COM_INT_MASK;
+	hclge_log_error(dev, &hclge_igu_com_err_int[0], err_sts);
+
+	/* clear err int */
+	ret = hclge_cmd_clear_error(hdev, &desc_wr, &desc_rd,
+				    HCLGE_IGU_COMMON_INT_CLR, 0);
+	if (ret) {
+		dev_err(dev, "failed(=%d) to clear IGU common int status\n",
+			ret);
+		return;
+	}
+
+	/* read IGU-EGU TNL err sts */
+	ret = hclge_cmd_query_error(hdev, &desc_rd,
+				    HCLGE_IGU_EGU_TNL_INT_QUERY,
+				    0, 1, int_type);
+	if (ret) {
+		dev_err(dev, "failed(=%d) to query IGU-EGU TNL int status\n",
+			ret);
+		return;
+	}
+
+	/* log err */
+	err_sts = le32_to_cpu(desc_rd.data[0]) &
+				   HCLGE_IGU_EGU_TNL_INT_MASK;
+	hclge_log_error(dev, &hclge_igu_egu_tnl_err_int[0], err_sts);
+
+	/* clear err int */
+	ret = hclge_cmd_clear_error(hdev, &desc_wr, &desc_rd,
+				    HCLGE_IGU_EGU_TNL_INT_CLR, 0);
+	if (ret) {
+		dev_err(dev, "failed(=%d) to clear IGU-EGU TNL int status\n",
+			ret);
+		return;
+	}
+
+	hclge_process_ncsi_error(hdev, HCLGE_ERR_INT_RAS_NFE);
+}
+
 static const struct hclge_hw_blk hw_blk[] = {
+	{ .msk = BIT(0), .name = "IGU_EGU",
+	  .enable_error = hclge_enable_igu_egu_error,
+	  .process_error = hclge_process_igu_egu_error, },
 	{ .msk = BIT(5), .name = "COMMON",
 	  .enable_error = hclge_enable_common_error,
 	  .process_error = hclge_process_common_error, },
