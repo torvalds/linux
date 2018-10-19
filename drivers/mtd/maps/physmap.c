@@ -129,16 +129,14 @@ static int physmap_flash_probe(struct platform_device *dev)
 		if (!res)
 			break;
 
-		dev_notice(&dev->dev, "physmap platform flash device: %pR\n",
-			   res);
-
-		if (!devm_request_mem_region(&dev->dev, res->start,
-					     resource_size(res),
-					     dev_name(&dev->dev))) {
-			dev_err(&dev->dev, "Could not reserve memory region\n");
-			err = -ENOMEM;
+		info->maps[i].virt = devm_ioremap_resource(&dev->dev, res);
+		if (IS_ERR(info->maps[i].virt)) {
+			err = PTR_ERR(info->maps[i].virt);
 			goto err_out;
 		}
+
+		dev_notice(&dev->dev, "physmap platform flash device: %pR\n",
+			   res);
 
 		info->maps[i].name = dev_name(&dev->dev);
 		info->maps[i].phys = res->start;
@@ -147,15 +145,6 @@ static int physmap_flash_probe(struct platform_device *dev)
 		info->maps[i].set_vpp = physmap_set_vpp;
 		info->maps[i].pfow_base = physmap_data->pfow_base;
 		info->maps[i].map_priv_1 = (unsigned long)dev;
-
-		info->maps[i].virt = devm_ioremap(&dev->dev,
-						  info->maps[i].phys,
-						  info->maps[i].size);
-		if (info->maps[i].virt == NULL) {
-			dev_err(&dev->dev, "Failed to ioremap flash region\n");
-			err = -EIO;
-			goto err_out;
-		}
 
 		simple_map_init(&info->maps[i]);
 
