@@ -3345,7 +3345,7 @@ static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 		region->cumulative_size = offset;
 
 		adsp_dbg(buf->dsp,
-			 "region=%d type=%d base=%04x off=%04x size=%04x\n",
+			 "region=%d type=%d base=%08x off=%08x size=%08x\n",
 			 i, region->mem_type, region->base_addr,
 			 region->offset, region->cumulative_size);
 	}
