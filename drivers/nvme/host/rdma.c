@@ -1856,39 +1856,6 @@ static const struct nvme_ctrl_ops nvme_rdma_ctrl_ops = {
 	.stop_ctrl		= nvme_rdma_stop_ctrl,
 };
 
-static inline bool
-__nvme_rdma_options_match(struct nvme_rdma_ctrl *ctrl,
-	struct nvmf_ctrl_options *opts)
-{
-	if (!nvmf_ctlr_matches_baseopts(&ctrl->ctrl, opts) ||
-	    strcmp(opts->traddr, ctrl->ctrl.opts->traddr) ||
-	    strcmp(opts->trsvcid, ctrl->ctrl.opts->trsvcid))
-		return false;
-
-	/*
-	 * checking the local address is rough. In most cases, one
-	 * is not specified and the host port is selected by the stack.
-	 *
-	 * Assume no match if:
-	 *  local address is specified and address is not the same
-	 *  local address is not specified but remote is, or vice versa
-	 *    (admin using specific host_traddr when it matters).
-	 */
-	if (opts->mask & NVMF_OPT_HOST_TRADDR &&
-	    ctrl->ctrl.opts->mask & NVMF_OPT_HOST_TRADDR) {
-		if (strcmp(opts->host_traddr, ctrl->ctrl.opts->host_traddr))
-			return false;
-	} else if (opts->mask & NVMF_OPT_HOST_TRADDR ||
-		   ctrl->ctrl.opts->mask & NVMF_OPT_HOST_TRADDR)
-		return false;
-	/*
-	 * if neither controller had an host port specified, assume it's
-	 * a match as everything else matched.
-	 */
-
-	return true;
-}
-
 /*
  * Fails a connection request if it matches an existing controller
  * (association) with the same tuple:
@@ -1909,7 +1876,7 @@ nvme_rdma_existing_controller(struct nvmf_ctrl_options *opts)
 
 	mutex_lock(&nvme_rdma_ctrl_mutex);
 	list_for_each_entry(ctrl, &nvme_rdma_ctrl_list, list) {
-		found = __nvme_rdma_options_match(ctrl, opts);
+		found = nvmf_ip_options_match(&ctrl->ctrl, opts);
 		if (found)
 			break;
 	}
