@@ -9,6 +9,7 @@
 #include <linux/ipv6.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/aer.h>
 #include <linux/skbuff.h>
 #include <linux/sctp.h>
 #include <linux/vermagic.h>
@@ -1613,7 +1614,7 @@ static void hns3_nic_net_timeout(struct net_device *ndev)
 
 	/* request the reset */
 	if (h->ae_algo->ops->reset_event)
-		h->ae_algo->ops->reset_event(h);
+		h->ae_algo->ops->reset_event(h->pdev, h);
 }
 
 static const struct net_device_ops hns3_nic_netdev_ops = {
@@ -1796,8 +1797,25 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 	return ret;
 }
 
+static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+
+	dev_info(dev, "requesting reset due to PCI error\n");
+
+	/* request the reset */
+	if (ae_dev->ops->reset_event) {
+		ae_dev->ops->reset_event(pdev, NULL);
+		return PCI_ERS_RESULT_RECOVERED;
+	}
+
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
 static const struct pci_error_handlers hns3_err_handler = {
 	.error_detected = hns3_error_detected,
+	.slot_reset     = hns3_slot_reset,
 };
 
 static struct pci_driver hns3_driver = {

@@ -1214,7 +1214,8 @@ static int hclgevf_do_reset(struct hclgevf_dev *hdev)
 	return status;
 }
 
-static void hclgevf_reset_event(struct hnae3_handle *handle)
+static void hclgevf_reset_event(struct pci_dev *pdev,
+				struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
