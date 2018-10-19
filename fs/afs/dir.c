@@ -1089,6 +1089,7 @@ static void afs_vnode_new_inode(struct afs_fs_cursor *fc,
 
 	vnode = AFS_FS_I(inode);
 	set_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
+	afs_vnode_commit_status(fc, vnode, 0);
 	d_add(new_dentry, inode);
 }
 
