@@ -1171,6 +1171,8 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 
 	cfg80211_oper_and_ht_capa(&connect->ht_capa_mask,
 				  rdev->wiphy.ht_capa_mod_mask);
+	cfg80211_oper_and_vht_capa(&connect->vht_capa_mask,
+				   rdev->wiphy.vht_capa_mod_mask);
 
 	if (connkeys && connkeys->def >= 0) {
 		int idx;
