@@ -407,7 +407,6 @@ struct ttm_bo_global {
 	struct kobject kobj;
 	struct ttm_mem_global *mem_glob;
 	struct page *dummy_read_page;
-	struct mutex device_list_mutex;
 	spinlock_t lru_lock;
 
 	/**

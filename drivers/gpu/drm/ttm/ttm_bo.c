@@ -45,6 +45,11 @@
 
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
 
+/**
+ * ttm_global_mutex - protecting the global BO state
+ */
+DEFINE_MUTEX(ttm_global_mutex);
+
 static struct attribute ttm_bo_count = {
 	.name = "bo_count",
 	.mode = S_IRUGO
@@ -1539,7 +1544,6 @@ int ttm_bo_global_init(struct ttm_bo_global *glob)
 	if (ret)
 		return ret;
 
-	mutex_init(&glob->device_list_mutex);
 	spin_lock_init(&glob->lru_lock);
 	glob->mem_glob = &ttm_mem_glob;
 	glob->mem_glob->bo_glob = glob;
@@ -1587,9 +1591,9 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 		}
 	}
 
-	mutex_lock(&glob->device_list_mutex);
+	mutex_lock(&ttm_global_mutex);
 	list_del(&bdev->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	mutex_unlock(&ttm_global_mutex);
 
 	cancel_delayed_work_sync(&bdev->wq);
 
@@ -1636,9 +1640,9 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	bdev->dev_mapping = mapping;
 	bdev->glob = glob;
 	bdev->need_dma32 = need_dma32;
-	mutex_lock(&glob->device_list_mutex);
+	mutex_lock(&ttm_global_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
-	mutex_unlock(&glob->device_list_mutex);
+	mutex_unlock(&ttm_global_mutex);
 
 	return 0;
 out_no_sys:
