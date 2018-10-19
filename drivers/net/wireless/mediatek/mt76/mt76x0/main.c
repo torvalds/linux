@@ -112,7 +112,7 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 					   info->ht_operation_mode);
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE)
-		mt76x0_mac_set_short_preamble(dev, info->use_short_preamble);
+		mt76x02_mac_set_short_preamble(dev, info->use_short_preamble);
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		int slottime = info->use_short_slot ? 9 : 20;

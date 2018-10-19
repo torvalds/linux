@@ -76,14 +76,6 @@ void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
 		mt76_wr(dev, MT_CCK_PROT_CFG + i * 4, prot[i]);
 }
 
-void mt76x0_mac_set_short_preamble(struct mt76x02_dev *dev, bool short_preamb)
-{
-	if (short_preamb)
-		mt76_set(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
-	else
-		mt76_clear(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
-}
-
 void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval)
 {
 	u32 val = mt76_rr(dev, MT_BEACON_TIME_CFG);

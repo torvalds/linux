@@ -200,6 +200,7 @@ mt76x02_skb_tx_info(struct sk_buff *skb)
 
 void mt76x02_txq_init(struct mt76x02_dev *dev, struct ieee80211_txq *txq);
 
+void mt76x02_mac_set_short_preamble(struct mt76x02_dev *dev, bool enable);
 int mt76x02_mac_shared_key_setup(struct mt76x02_dev *dev, u8 vif_idx,
 				 u8 key_idx, struct ieee80211_key_conf *key);
 int mt76x02_mac_wcid_set_key(struct mt76x02_dev *dev, u8 idx,

@@ -213,6 +213,15 @@ void mt76x02_mac_wcid_set_rate(struct mt76x02_dev *dev, struct mt76_wcid *wcid,
 	spin_unlock_bh(&dev->mt76.lock);
 }
 
+void mt76x02_mac_set_short_preamble(struct mt76x02_dev *dev, bool enable)
+{
+	if (enable)
+		mt76_set(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
+	else
+		mt76_clear(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
+}
+EXPORT_SYMBOL_GPL(mt76x02_mac_set_short_preamble);
+
 bool mt76x02_mac_load_tx_status(struct mt76x02_dev *dev,
 				struct mt76x02_tx_status *stat)
 {
