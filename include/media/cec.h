@@ -155,6 +155,7 @@ struct cec_adapter {
 	unsigned int transmit_queue_sz;
 	struct list_head wait_queue;
 	struct cec_data *transmitting;
+	bool transmit_in_progress;
 
 	struct task_struct *kthread_config;
 	struct completion config_completion;
