@@ -932,6 +932,8 @@ struct cifs_tcon {
 	struct list_head tcon_list;
 	int tc_count;
 	struct list_head rlist; /* reconnect list */
+	atomic_t num_local_opens;  /* num of all opens including disconnected */
+	atomic_t num_remote_opens; /* num of all network opens on server */
 	struct list_head openFileList;
 	spinlock_t open_file_lock; /* protects list above */
 	struct cifs_ses *ses;	/* pointer to session associated with */

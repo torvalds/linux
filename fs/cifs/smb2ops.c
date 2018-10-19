@@ -1023,6 +1023,9 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 	seq_printf(m, "\nBytes read: %llu  Bytes written: %llu",
 		   (long long)(tcon->bytes_read),
 		   (long long)(tcon->bytes_written));
+	seq_printf(m, "\nOpen files: %d total (local), %d open on server",
+		   atomic_read(&tcon->num_local_opens),
+		   atomic_read(&tcon->num_remote_opens));
 	seq_printf(m, "\nTreeConnects: %d total %d failed",
 		   atomic_read(&sent[SMB2_TREE_CONNECT_HE]),
 		   atomic_read(&failed[SMB2_TREE_CONNECT_HE]));

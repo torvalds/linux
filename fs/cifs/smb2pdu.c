@@ -1478,7 +1478,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 
 	/* SMB2 TREE_CONNECT request must be called with TreeId == 0 */
 	tcon->tid = 0;
-
+	atomic_set(&tcon->num_remote_opens, 0);
 	rc = smb2_plain_req_init(SMB2_TREE_CONNECT, tcon, (void **) &req,
 			     &total_len);
 	if (rc) {
@@ -2303,6 +2303,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 				     ses->Suid, oparms->create_options,
 				     oparms->desired_access);
 
+	atomic_inc(&tcon->num_remote_opens);
 	oparms->fid->persistent_fid = rsp->PersistentFileId;
 	oparms->fid->volatile_fid = rsp->VolatileFileId;
 
@@ -2576,6 +2577,8 @@ SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
 				     rc);
 		goto close_exit;
 	}
+
+	atomic_dec(&tcon->num_remote_opens);
 
 	/* BB FIXME - decode close response, update inode for caching */
 

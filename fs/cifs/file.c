@@ -334,6 +334,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	server->ops->set_fid(cfile, fid, oplock);
 
 	list_add(&cfile->tlist, &tcon->openFileList);
+	atomic_inc(&tcon->num_local_opens);
 
 	/* if readable file instance put first in list*/
 	if (file->f_mode & FMODE_READ)
@@ -395,6 +396,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	/* remove it from the lists */
 	list_del(&cifs_file->flist);
 	list_del(&cifs_file->tlist);
+	atomic_dec(&tcon->num_local_opens);
 
 	if (list_empty(&cifsi->openFileList)) {
 		cifs_dbg(FYI, "closing last open instance for inode %p\n",
