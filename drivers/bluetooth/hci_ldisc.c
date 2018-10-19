@@ -539,6 +539,8 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 	}
 	clear_bit(HCI_UART_PROTO_SET, &hu->flags);
 
+	percpu_free_rwsem(&hu->proto_lock);
+
 	kfree(hu);
 }
 
