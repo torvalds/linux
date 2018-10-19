@@ -175,13 +175,14 @@ static void cl_skl_cldma_stream_run(struct snd_sof_dev *sdev, bool enable)
 	} while (--timeout);
 
 	if (timeout == 0)
-		dev_err(sdev->dev, "Failed to set Run bit=%d enable=%d\n",
+		dev_err(sdev->dev, "error: failed to set Run bit=%d enable=%d\n",
 			val, enable);
 }
 
 static void cl_skl_cldma_stream_clear(struct snd_sof_dev *sdev)
 {
 	int sd_offset = SOF_HDA_ADSP_LOADER_BASE;
+
 	/* make sure Run bit is cleared before setting stream register */
 	cl_skl_cldma_stream_run(sdev, 0);
 
@@ -293,18 +294,20 @@ static int cl_stream_prepare_skl(struct snd_sof_dev *sdev)
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, bufsize,
 				  &sdev->dmab);
 	if (ret < 0) {
-		dev_err(sdev->dev, "Alloc base fw buffer failed: %x\n", ret);
+		dev_err(sdev->dev, "error: failed to alloc fw buffer: %x\n",
+			ret);
 		return ret;
 	}
+
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, bufsize,
 				  &sdev->dmab_bdl);
 	if (ret < 0) {
-		dev_err(sdev->dev, "Alloc buffer for blde failed: %x\n", ret);
+		dev_err(sdev->dev, "error: failed to alloc blde: %x\n", ret);
 		snd_dma_free_pages(&sdev->dmab);
 		return ret;
 	}
-	bdl = (u32 *)sdev->dmab_bdl.area;
 
+	bdl = (u32 *)sdev->dmab_bdl.area;
 	frags = cl_skl_cldma_setup_bdle(sdev, &sdev->dmab, &bdl, bufsize, 1);
 	cl_skl_cldma_setup_controller(sdev, &sdev->dmab_bdl, bufsize, frags);
 
@@ -329,6 +332,7 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 	 * if not, powerdown and enable it again.
 	 */
 	if (hda_dsp_core_is_enabled(sdev, HDA_DSP_CORE_MASK(0))) {
+
 		/* if enabled, reset it, and run the core. */
 		ret = hda_dsp_core_stall_reset(sdev, HDA_DSP_CORE_MASK(0));
 		if (ret < 0)
@@ -395,7 +399,152 @@ err:
 	return ret;
 }
 
-static int cl_copy_fw_skl(struct snd_sof_dev *sdev);
+static void cl_skl_cldma_fill_buffer(struct snd_sof_dev *sdev,
+				     unsigned int bufsize,
+				     unsigned int copysize,
+				     const void *curr_pos,
+				     bool intr_enable)
+{
+	/* 1. copy the image into the buffer with the maximum buffer size. */
+	unsigned int size = (bufsize == copysize) ? bufsize : copysize;
+
+	memcpy(sdev->dmab.area, curr_pos, size);
+
+	/* 2. Setting the wait condition for every load. */
+	sdev->code_loading = 1;
+
+	/* 3. Set the interrupt. */
+	if (intr_enable)
+		cl_skl_cldma_set_intr(sdev, true);
+
+	/* 4. Set the SPB. */
+	cl_skl_cldma_setup_spb(sdev, size, true);
+
+	/* 5. Trigger the code loading stream. */
+	cl_skl_cldma_stream_run(sdev, true);
+}
+
+static int cl_skl_cldma_wait_interruptible(struct snd_sof_dev *sdev)
+{
+	int ret = 0;
+
+	if (!wait_event_timeout(sdev->waitq,
+				!sdev->code_loading,
+				msecs_to_jiffies(HDA_SKL_WAIT_TIMEOUT))) {
+		dev_err(sdev->dev, "cldma copy timeout\n");
+		dev_err(sdev->dev, "ROM code=0x%x: FW status=0x%x\n",
+				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+						 HDA_DSP_SRAM_REG_ROM_ERROR),
+				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+						 HDA_DSP_SRAM_REG_ROM_STATUS));
+
+		/* TODO: temp debug to be removed */
+		dev_err(sdev->dev, "ADSPCS=0x%x: ADSPIC=0x%x: ADSPIS=0x%x INTCTL=0x%x INTSTS=0x%x PPCTL=0x%x PPSTS=0x%x\n",
+				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+						 HDA_DSP_REG_ADSPCS),
+				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+						 HDA_DSP_REG_ADSPIC),
+				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+						 HDA_DSP_REG_ADSPIS),
+				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+						 SOF_HDA_INTCTL),
+				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+						 SOF_HDA_INTSTS),
+				snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
+						 SOF_HDA_REG_PP_PPCTL),
+				snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
+						 SOF_HDA_REG_PP_PPSTS));
+		ret = -EIO;
+		goto cleanup;
+	}
+
+	dev_dbg(sdev->dev, "cldma buffer copy complete\n");
+	if (!sdev->code_loading) {
+		dev_err(sdev->dev, "error: cldma DMA copy failed\n");
+		ret = -EIO;
+	}
+
+cleanup:
+	sdev->code_loading = 0;
+	return ret;
+}
+
+static int
+cl_skl_cldma_copy_to_buf(struct snd_sof_dev *sdev, const void *bin,
+			 u32 total_size, u32 bufsize)
+{
+	int ret = 0;
+	unsigned int bytes_left = total_size;
+	const void *curr_pos = bin;
+
+	if (total_size <= 0)
+		return -EINVAL;
+
+	while (bytes_left > 0) {
+
+		if (bytes_left > bufsize) {
+
+			dev_dbg(sdev->dev, "cldma copy 0x%x bytes\n",
+				bufsize);
+
+			cl_skl_cldma_fill_buffer(sdev, bufsize, bufsize,
+						 curr_pos, true);
+
+			ret = cl_skl_cldma_wait_interruptible(sdev);
+			if (ret < 0) {
+				dev_err(sdev->dev, "error: fw failed to load. 0x%x bytes remaining\n",
+					bytes_left);
+				cl_skl_cldma_stream_run(sdev, false);
+				return ret;
+			}
+
+			bytes_left -= bufsize;
+			curr_pos += bufsize;
+		} else {
+
+			dev_dbg(sdev->dev, "cldma copy 0x%x bytes\n",
+				bytes_left);
+
+			cl_skl_cldma_set_intr(sdev, false);
+			cl_skl_cldma_fill_buffer(sdev, bufsize, bytes_left,
+						 curr_pos, false);
+			return 0;
+		}
+	}
+
+	return bytes_left;
+}
+
+static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
+	const struct firmware *fw =  plat_data->fw;
+	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
+	int ret = 0;
+
+	dev_dbg(sdev->dev, "firmware size: 0x%zx buffer size 0x%x\n", fw->size,
+		bufsize);
+
+	ret = cl_skl_cldma_copy_to_buf(sdev, fw->data, fw->size, bufsize);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: fw copy failed %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
+					HDA_SKL_ADSP_FW_STATUS,
+					HDA_DSP_ROM_STS_MASK,
+					HDA_DSP_ROM_FW_FW_LOADED,
+					HDA_DSP_BASEFW_TIMEOUT);
+	if (ret < 0)
+		dev_err(sdev->dev, "firmware transfer timeout!");
+
+	cl_skl_cldma_stream_run(sdev, false);
+	cl_cleanup_skl(sdev);
+
+	return ret;
+}
+
 int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev)
 {
 	int ret;
@@ -443,120 +592,5 @@ irq_err:
 	cl_cleanup_skl(sdev);
 
 	dev_err(sdev->dev, "error: load fw failed err: %d\n", ret);
-	return ret;
-}
-
-int cl_skl_cldma_wait_interruptible(struct snd_sof_dev *sdev)
-{
-	int ret = 0;
-
-	if (!wait_event_timeout(sdev->waitq,
-				sdev->code_loading,
-				msecs_to_jiffies(HDA_SKL_WAIT_TIMEOUT))) {
-		dev_err(sdev->dev, "%s: Wait timeout\n", __func__);
-		ret = -EIO;
-		goto cleanup;
-	}
-
-	dev_dbg(sdev->dev, "%s: Event wake\n", __func__);
-	if (sdev->code_loading != 1) {
-		dev_err(sdev->dev, "%s: DMA Error\n", __func__);
-		ret = -EIO;
-	}
-
-cleanup:
-	sdev->code_loading = 0;
-	return ret;
-}
-
-static void cl_skl_cldma_fill_buffer(struct snd_sof_dev *sdev,
-				     unsigned int bufsize,
-				     unsigned int copysize,
-				     const void *curr_pos,
-				     bool intr_enable, bool trigger)
-{
-	/* 1. copy the image into the buffer with the maximum buffer size. */
-	unsigned int size = (bufsize == copysize) ? bufsize : copysize;
-
-	memcpy(sdev->dmab.area, curr_pos, size);
-
-	/* 2. Setting the wait condition for every load. */
-	sdev->code_loading = 0;
-
-	/* 3. Set the interrupt. */
-	if (intr_enable)
-		cl_skl_cldma_set_intr(sdev, true);
-
-	/* 4. Set the SPB. */
-	cl_skl_cldma_setup_spb(sdev, size, trigger);
-
-	/* 5. Trigger the code loading stream. */
-	if (trigger)
-		cl_skl_cldma_stream_run(sdev, true);
-}
-
-static int
-cl_skl_cldma_copy_to_buf(struct snd_sof_dev *sdev, const void *bin,
-			 u32 total_size, u32 bufsize)
-{
-	int ret = 0;
-	unsigned int bytes_left = total_size;
-	const void *curr_pos = bin;
-
-	if (total_size <= 0)
-		return -EINVAL;
-
-	dev_dbg(sdev->dev, "Total binary size: %u\n", total_size);
-
-	while (bytes_left > 0) {
-		if (bytes_left > bufsize) {
-			cl_skl_cldma_fill_buffer(sdev, bufsize, bufsize,
-						 curr_pos, true, true);
-			ret = cl_skl_cldma_wait_interruptible(sdev);
-			if (ret < 0) {
-				cl_skl_cldma_stream_run(sdev, false);
-				return ret;
-			}
-			bytes_left -= bufsize;
-			curr_pos += bufsize;
-		} else {
-			cl_skl_cldma_set_intr(sdev, false);
-			cl_skl_cldma_fill_buffer(sdev, bufsize, bytes_left,
-						 curr_pos, false, true);
-			return 0;
-		}
-	}
-
-	return bytes_left;
-}
-
-static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
-{
-	struct skl_ext_manifest_hdr *hdr;
-	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
-	struct firmware stripped_fw;
-	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
-	int ret = 0;
-
-	stripped_fw.data = plat_data->fw->data;
-	stripped_fw.size = plat_data->fw->size;
-	dev_dbg(sdev->dev, "firmware size: %zu\n", stripped_fw.size);
-
-	ret = cl_skl_cldma_copy_to_buf(sdev, stripped_fw.data,
-				       stripped_fw.size, bufsize);
-	if (ret < 0)
-		return ret;
-	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_SKL_ADSP_FW_STATUS,
-					HDA_DSP_ROM_STS_MASK,
-					HDA_DSP_ROM_FW_FW_LOADED,
-					HDA_DSP_BASEFW_TIMEOUT);
-
-	if (ret < 0)
-		dev_err(sdev->dev, "firmware transfer timeout!");
-
-	cl_skl_cldma_stream_run(sdev, false);
-	cl_cleanup_skl(sdev);
-
 	return ret;
 }
