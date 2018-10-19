@@ -828,8 +828,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_err4;
 	}
 
-	dev_priv->tdev = ttm_object_device_init
-		(dev_priv->mem_global_ref.object, 12, &vmw_prime_dmabuf_ops);
+	dev_priv->tdev = ttm_object_device_init(&ttm_mem_glob, 12,
+						&vmw_prime_dmabuf_ops);
 
 	if (unlikely(dev_priv->tdev == NULL)) {
 		DRM_ERROR("Unable to initialize TTM object management.\n");

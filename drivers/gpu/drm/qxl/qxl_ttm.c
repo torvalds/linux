@@ -46,37 +46,11 @@ static struct qxl_device *qxl_get_qdev(struct ttm_bo_device *bdev)
 	return qdev;
 }
 
-static int qxl_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void qxl_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
 static int qxl_ttm_global_init(struct qxl_device *qdev)
 {
 	struct drm_global_reference *global_ref;
 	int r;
 
-	qdev->mman.mem_global_referenced = false;
-	global_ref = &qdev->mman.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &qxl_ttm_mem_global_init;
-	global_ref->release = &qxl_ttm_mem_global_release;
-
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM memory accounting "
-			  "subsystem.\n");
-		return r;
-	}
-
-	qdev->mman.bo_global_ref.mem_glob =
-		qdev->mman.mem_global_ref.object;
 	global_ref = &qdev->mman.bo_global_ref.ref;
 	global_ref->global_type = DRM_GLOBAL_TTM_BO;
 	global_ref->size = sizeof(struct ttm_bo_global);
@@ -85,7 +59,6 @@ static int qxl_ttm_global_init(struct qxl_device *qdev)
 	r = drm_global_item_ref(global_ref);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&qdev->mman.mem_global_ref);
 		return r;
 	}
 
@@ -97,7 +70,6 @@ static void qxl_ttm_global_fini(struct qxl_device *qdev)
 {
 	if (qdev->mman.mem_global_referenced) {
 		drm_global_item_unref(&qdev->mman.bo_global_ref.ref);
-		drm_global_item_unref(&qdev->mman.mem_global_ref);
 		qdev->mman.mem_global_referenced = false;
 	}
 }

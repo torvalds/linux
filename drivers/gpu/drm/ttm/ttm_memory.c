@@ -41,6 +41,9 @@
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
+struct ttm_mem_global ttm_mem_glob;
+EXPORT_SYMBOL(ttm_mem_glob);
+
 struct ttm_mem_zone {
 	struct kobject kobj;
 	struct ttm_mem_global *glob;
@@ -464,7 +467,6 @@ out_no_zone:
 	ttm_mem_global_release(glob);
 	return ret;
 }
-EXPORT_SYMBOL(ttm_mem_global_init);
 
 void ttm_mem_global_release(struct ttm_mem_global *glob)
 {
@@ -486,7 +488,6 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
 }
-EXPORT_SYMBOL(ttm_mem_global_release);
 
 static void ttm_check_swapping(struct ttm_mem_global *glob)
 {

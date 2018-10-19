@@ -418,7 +418,6 @@ enum {
 struct vmw_private {
 	struct ttm_bo_device bdev;
 	struct ttm_bo_global_ref bo_global_ref;
-	struct drm_global_reference mem_global_ref;
 
 	struct vmw_fifo_state fifo;
 
@@ -1363,7 +1362,7 @@ vmw_bo_reference(struct vmw_buffer_object *buf)
 
 static inline struct ttm_mem_global *vmw_mem_glob(struct vmw_private *dev_priv)
 {
-	return (struct ttm_mem_global *) dev_priv->mem_global_ref.object;
+	return &ttm_mem_glob;
 }
 
 static inline void vmw_fifo_resource_inc(struct vmw_private *dev_priv)

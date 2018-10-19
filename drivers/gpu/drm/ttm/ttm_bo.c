@@ -1526,18 +1526,22 @@ void ttm_bo_global_release(struct ttm_bo_global *glob)
 {
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
+	ttm_mem_global_release(&ttm_mem_glob);
 }
 EXPORT_SYMBOL(ttm_bo_global_release);
 
-int ttm_bo_global_init(struct ttm_bo_global *glob,
-		       struct ttm_mem_global *mem_glob)
+int ttm_bo_global_init(struct ttm_bo_global *glob)
 {
 	int ret;
 	unsigned i;
 
+	ret = ttm_mem_global_init(&ttm_mem_glob);
+	if (ret)
+		return ret;
+
 	mutex_init(&glob->device_list_mutex);
 	spin_lock_init(&glob->lru_lock);
-	glob->mem_glob = mem_glob;
+	glob->mem_glob = &ttm_mem_glob;
 	glob->mem_glob->bo_glob = glob;
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);
 

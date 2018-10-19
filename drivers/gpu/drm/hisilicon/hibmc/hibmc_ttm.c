@@ -29,34 +29,10 @@ hibmc_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct hibmc_drm_private, bdev);
 }
 
-static int
-hibmc_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void
-hibmc_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
 static int hibmc_ttm_global_init(struct hibmc_drm_private *hibmc)
 {
 	int ret;
 
-	hibmc->mem_global_ref.global_type = DRM_GLOBAL_TTM_MEM;
-	hibmc->mem_global_ref.size = sizeof(struct ttm_mem_global);
-	hibmc->mem_global_ref.init = &hibmc_ttm_mem_global_init;
-	hibmc->mem_global_ref.release = &hibmc_ttm_mem_global_release;
-	ret = drm_global_item_ref(&hibmc->mem_global_ref);
-	if (ret) {
-		DRM_ERROR("could not get ref on ttm global: %d\n", ret);
-		return ret;
-	}
-
-	hibmc->bo_global_ref.mem_glob =
-		hibmc->mem_global_ref.object;
 	hibmc->bo_global_ref.ref.global_type = DRM_GLOBAL_TTM_BO;
 	hibmc->bo_global_ref.ref.size = sizeof(struct ttm_bo_global);
 	hibmc->bo_global_ref.ref.init = &ttm_bo_global_ref_init;
@@ -64,7 +40,6 @@ static int hibmc_ttm_global_init(struct hibmc_drm_private *hibmc)
 	ret = drm_global_item_ref(&hibmc->bo_global_ref.ref);
 	if (ret) {
 		DRM_ERROR("failed setting up TTM BO subsystem: %d\n", ret);
-		drm_global_item_unref(&hibmc->mem_global_ref);
 		return ret;
 	}
 	return 0;
@@ -73,9 +48,11 @@ static int hibmc_ttm_global_init(struct hibmc_drm_private *hibmc)
 static void
 hibmc_ttm_global_release(struct hibmc_drm_private *hibmc)
 {
+	if (hibmc->bo_global_ref.ref.release == NULL)
+		return;
+
 	drm_global_item_unref(&hibmc->bo_global_ref.ref);
-	drm_global_item_unref(&hibmc->mem_global_ref);
-	hibmc->mem_global_ref.release = NULL;
+	hibmc->bo_global_ref.ref.release = NULL;
 }
 
 static void hibmc_bo_ttm_destroy(struct ttm_buffer_object *tbo)

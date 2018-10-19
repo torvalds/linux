@@ -66,33 +66,6 @@ static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev);
  */
 
 /**
- * amdgpu_ttm_mem_global_init - Initialize and acquire reference to
- * memory object
- *
- * @ref: Object for initialization.
- *
- * This is called by drm_global_item_ref() when an object is being
- * initialized.
- */
-static int amdgpu_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-/**
- * amdgpu_ttm_mem_global_release - Drop reference to a memory object
- *
- * @ref: Object being removed
- *
- * This is called by drm_global_item_unref() when an object is being
- * released.
- */
-static void amdgpu_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-/**
  * amdgpu_ttm_global_init - Initialize global TTM memory reference structures.
  *
  * @adev: AMDGPU device for which the global structures need to be registered.
@@ -108,20 +81,6 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 	/* ensure reference is false in case init fails */
 	adev->mman.mem_global_referenced = false;
 
-	global_ref = &adev->mman.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &amdgpu_ttm_mem_global_init;
-	global_ref->release = &amdgpu_ttm_mem_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r) {
-		DRM_ERROR("Failed setting up TTM memory accounting "
-			  "subsystem.\n");
-		goto error_mem;
-	}
-
-	adev->mman.bo_global_ref.mem_glob =
-		adev->mman.mem_global_ref.object;
 	global_ref = &adev->mman.bo_global_ref.ref;
 	global_ref->global_type = DRM_GLOBAL_TTM_BO;
 	global_ref->size = sizeof(struct ttm_bo_global);
@@ -140,8 +99,6 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 	return 0;
 
 error_bo:
-	drm_global_item_unref(&adev->mman.mem_global_ref);
-error_mem:
 	return r;
 }
 
@@ -150,7 +107,6 @@ static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
 	if (adev->mman.mem_global_referenced) {
 		mutex_destroy(&adev->mman.gtt_window_lock);
 		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
-		drm_global_item_unref(&adev->mman.mem_global_ref);
 		adev->mman.mem_global_referenced = false;
 	}
 }
