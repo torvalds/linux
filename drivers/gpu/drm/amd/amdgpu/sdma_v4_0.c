@@ -1151,10 +1151,11 @@ static int sdma_v4_0_start(struct amdgpu_device *adev)
 		}
 
 		if (adev->sdma.has_page_queue) {
-			ring = &adev->sdma.instance[i].page;
-			r = amdgpu_ring_test_ring(ring);
+			struct amdgpu_ring *page = &adev->sdma.instance[i].page;
+
+			r = amdgpu_ring_test_ring(page);
 			if (r) {
-				ring->ready = false;
+				page->ready = false;
 				return r;
 			}
 		}
