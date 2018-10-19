@@ -2026,7 +2026,7 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 	struct afs_file_status *status = call->reply[1];
 	struct afs_callback *callback = call->reply[2];
 	struct afs_volsync *volsync = call->reply[3];
-	struct afs_vnode *vnode = call->reply[0];
+	struct afs_fid *fid = call->reply[0];
 	const __be32 *bp;
 	int ret;
 
@@ -2034,21 +2034,15 @@ static int afs_deliver_fs_fetch_status(struct afs_call *call)
 	if (ret < 0)
 		return ret;
 
-	_enter("{%llx:%llu}", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu}", fid->vid, fid->vnode);
 
 	/* unmarshall the reply once we've received all of it */
 	bp = call->buffer;
-	ret = afs_decode_status(call, &bp, status, vnode,
+	ret = afs_decode_status(call, &bp, status, NULL,
 				&call->expected_version, NULL);
 	if (ret < 0)
 		return ret;
-	callback[call->count].version	= ntohl(bp[0]);
-	callback[call->count].expiry	= ntohl(bp[1]);
-	callback[call->count].type	= ntohl(bp[2]);
-	if (vnode)
-		xdr_decode_AFSCallBack(call, vnode, &bp);
-	else
-		bp += 3;
+	xdr_decode_AFSCallBack_raw(&bp, callback);
 	if (volsync)
 		xdr_decode_AFSVolSync(&bp, volsync);
 
@@ -2089,7 +2083,7 @@ int afs_fs_fetch_status(struct afs_fs_cursor *fc,
 	}
 
 	call->key = fc->key;
-	call->reply[0] = NULL; /* vnode for fid[0] */
+	call->reply[0] = fid;
 	call->reply[1] = status;
 	call->reply[2] = callback;
 	call->reply[3] = volsync;
