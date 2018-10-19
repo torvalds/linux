@@ -629,6 +629,7 @@ struct afs_fs_cursor {
 	unsigned int		cb_break_2;	/* cb_break + cb_s_break (2nd vnode) */
 	unsigned char		start;		/* Initial index in server list */
 	unsigned char		index;		/* Number of servers tried beyond start */
+	short			error;
 	unsigned short		flags;
 #define AFS_FS_CURSOR_STOP	0x0001		/* Set to cease iteration */
 #define AFS_FS_CURSOR_VBUSY	0x0002		/* Set if seen VBUSY */

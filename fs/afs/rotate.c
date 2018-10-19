@@ -39,9 +39,10 @@ bool afs_begin_vnode_operation(struct afs_fs_cursor *fc, struct afs_vnode *vnode
 	fc->vnode = vnode;
 	fc->key = key;
 	fc->ac.error = SHRT_MAX;
+	fc->error = -EDESTADDRREQ;
 
 	if (mutex_lock_interruptible(&vnode->io_lock) < 0) {
-		fc->ac.error = -EINTR;
+		fc->error = -EINTR;
 		fc->flags |= AFS_FS_CURSOR_STOP;
 		return false;
 	}
@@ -80,7 +81,7 @@ static bool afs_start_fs_iteration(struct afs_fs_cursor *fc,
 		 * and have to return an error.
 		 */
 		if (fc->flags & AFS_FS_CURSOR_CUR_ONLY) {
-			fc->ac.error = -ESTALE;
+			fc->error = -ESTALE;
 			return false;
 		}
 
@@ -127,7 +128,7 @@ static bool afs_sleep_and_retry(struct afs_fs_cursor *fc)
 {
 	msleep_interruptible(1000);
 	if (signal_pending(current)) {
-		fc->ac.error = -ERESTARTSYS;
+		fc->error = -ERESTARTSYS;
 		return false;
 	}
 
@@ -143,11 +144,12 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 	struct afs_addr_list *alist;
 	struct afs_server *server;
 	struct afs_vnode *vnode = fc->vnode;
+	int error = fc->ac.error;
 
 	_enter("%u/%u,%u/%u,%d,%d",
 	       fc->index, fc->start,
 	       fc->ac.index, fc->ac.start,
-	       fc->ac.error, fc->ac.abort_code);
+	       error, fc->ac.abort_code);
 
 	if (fc->flags & AFS_FS_CURSOR_STOP) {
 		_leave(" = f [stopped]");
@@ -155,15 +157,16 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 	}
 
 	/* Evaluate the result of the previous operation, if there was one. */
-	switch (fc->ac.error) {
+	switch (error) {
 	case SHRT_MAX:
 		goto start;
 
 	case 0:
 	default:
 		/* Success or local failure.  Stop. */
+		fc->error = error;
 		fc->flags |= AFS_FS_CURSOR_STOP;
-		_leave(" = f [okay/local %d]", fc->ac.error);
+		_leave(" = f [okay/local %d]", error);
 		return false;
 
 	case -ECONNABORTED:
@@ -178,7 +181,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 * - May indicate that the fileserver couldn't attach to the vol.
 			 */
 			if (fc->flags & AFS_FS_CURSOR_VNOVOL) {
-				fc->ac.error = -EREMOTEIO;
+				fc->error = -EREMOTEIO;
 				goto next_server;
 			}
 
@@ -187,12 +190,12 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			write_unlock(&vnode->volume->servers_lock);
 
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &vnode->volume->flags);
-			fc->ac.error = afs_check_volume_status(vnode->volume, fc->key);
-			if (fc->ac.error < 0)
-				goto failed;
+			error = afs_check_volume_status(vnode->volume, fc->key);
+			if (error < 0)
+				goto failed_set_error;
 
 			if (test_bit(AFS_VOLUME_DELETED, &vnode->volume->flags)) {
-				fc->ac.error = -ENOMEDIUM;
+				fc->error = -ENOMEDIUM;
 				goto failed;
 			}
 
@@ -200,7 +203,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 * it's the fileserver having trouble.
 			 */
 			if (vnode->volume->servers == fc->server_list) {
-				fc->ac.error = -EREMOTEIO;
+				fc->error = -EREMOTEIO;
 				goto next_server;
 			}
 
@@ -215,7 +218,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 		case VONLINE:
 		case VDISKFULL:
 		case VOVERQUOTA:
-			fc->ac.error = afs_abort_to_error(fc->ac.abort_code);
+			fc->error = afs_abort_to_error(fc->ac.abort_code);
 			goto next_server;
 
 		case VOFFLINE:
@@ -224,11 +227,11 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 				clear_bit(AFS_VOLUME_BUSY, &vnode->volume->flags);
 			}
 			if (fc->flags & AFS_FS_CURSOR_NO_VSLEEP) {
-				fc->ac.error = -EADV;
+				fc->error = -EADV;
 				goto failed;
 			}
 			if (fc->flags & AFS_FS_CURSOR_CUR_ONLY) {
-				fc->ac.error = -ESTALE;
+				fc->error = -ESTALE;
 				goto failed;
 			}
 			goto busy;
@@ -240,7 +243,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 * have a file lock we need to maintain.
 			 */
 			if (fc->flags & AFS_FS_CURSOR_NO_VSLEEP) {
-				fc->ac.error = -EBUSY;
+				fc->error = -EBUSY;
 				goto failed;
 			}
 			if (!test_and_set_bit(AFS_VOLUME_BUSY, &vnode->volume->flags)) {
@@ -269,16 +272,16 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 * honour, just in case someone sets up a loop.
 			 */
 			if (fc->flags & AFS_FS_CURSOR_VMOVED) {
-				fc->ac.error = -EREMOTEIO;
+				fc->error = -EREMOTEIO;
 				goto failed;
 			}
 			fc->flags |= AFS_FS_CURSOR_VMOVED;
 
 			set_bit(AFS_VOLUME_WAIT, &vnode->volume->flags);
 			set_bit(AFS_VOLUME_NEEDS_UPDATE, &vnode->volume->flags);
-			fc->ac.error = afs_check_volume_status(vnode->volume, fc->key);
-			if (fc->ac.error < 0)
-				goto failed;
+			error = afs_check_volume_status(vnode->volume, fc->key);
+			if (error < 0)
+				goto failed_set_error;
 
 			/* If the server list didn't change, then the VLDB is
 			 * out of sync with the fileservers.  This is hopefully
@@ -290,7 +293,7 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 			 * TODO: Retry a few times with sleeps.
 			 */
 			if (vnode->volume->servers == fc->server_list) {
-				fc->ac.error = -ENOMEDIUM;
+				fc->error = -ENOMEDIUM;
 				goto failed;
 			}
 
@@ -299,20 +302,25 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 		default:
 			clear_bit(AFS_VOLUME_OFFLINE, &vnode->volume->flags);
 			clear_bit(AFS_VOLUME_BUSY, &vnode->volume->flags);
-			fc->ac.error = afs_abort_to_error(fc->ac.abort_code);
+			fc->error = afs_abort_to_error(fc->ac.abort_code);
 			goto failed;
 		}
 
+	case -ETIMEDOUT:
+	case -ETIME:
+		if (fc->error != -EDESTADDRREQ)
+			goto iterate_address;
+		/* Fall through */
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
 	case -ECONNREFUSED:
-	case -ETIMEDOUT:
-	case -ETIME:
 		_debug("no conn");
+		fc->error = error;
 		goto iterate_address;
 
 	case -ECONNRESET:
 		_debug("call reset");
+		fc->error = error;
 		goto failed;
 	}
 
@@ -328,9 +336,9 @@ start:
 	/* See if we need to do an update of the volume record.  Note that the
 	 * volume may have moved or even have been deleted.
 	 */
-	fc->ac.error = afs_check_volume_status(vnode->volume, fc->key);
-	if (fc->ac.error < 0)
-		goto failed;
+	error = afs_check_volume_status(vnode->volume, fc->key);
+	if (error < 0)
+		goto failed_set_error;
 
 	if (!afs_start_fs_iteration(fc, vnode))
 		goto failed;
@@ -354,10 +362,10 @@ use_server:
 	 * break request before we've finished decoding the reply and
 	 * installing the vnode.
 	 */
-	fc->ac.error = afs_register_server_cb_interest(vnode, fc->server_list,
-						       fc->index);
-	if (fc->ac.error < 0)
-		goto failed;
+	error = afs_register_server_cb_interest(vnode, fc->server_list,
+						fc->index);
+	if (error < 0)
+		goto failed_set_error;
 
 	fc->cbi = afs_get_cb_interest(vnode->cb_interest);
 
@@ -422,13 +430,14 @@ next_server:
 	if (fc->flags & AFS_FS_CURSOR_VBUSY)
 		goto restart_from_beginning;
 
-	fc->ac.error = -EDESTADDRREQ;
 	goto failed;
 
+failed_set_error:
+	fc->error = error;
 failed:
 	fc->flags |= AFS_FS_CURSOR_STOP;
 	afs_end_cursor(&fc->ac);
-	_leave(" = f [failed %d]", fc->ac.error);
+	_leave(" = f [failed %d]", fc->error);
 	return false;
 }
 
@@ -442,13 +451,14 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 	struct afs_vnode *vnode = fc->vnode;
 	struct afs_cb_interest *cbi = vnode->cb_interest;
 	struct afs_addr_list *alist;
+	int error = fc->ac.error;
 
 	_enter("");
 
-	switch (fc->ac.error) {
+	switch (error) {
 	case SHRT_MAX:
 		if (!cbi) {
-			fc->ac.error = -ESTALE;
+			fc->error = -ESTALE;
 			fc->flags |= AFS_FS_CURSOR_STOP;
 			return false;
 		}
@@ -461,7 +471,7 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 		afs_get_addrlist(alist);
 		read_unlock(&cbi->server->fs_lock);
 		if (!alist) {
-			fc->ac.error = -ESTALE;
+			fc->error = -ESTALE;
 			fc->flags |= AFS_FS_CURSOR_STOP;
 			return false;
 		}
@@ -475,11 +485,13 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 	case 0:
 	default:
 		/* Success or local failure.  Stop. */
+		fc->error = error;
 		fc->flags |= AFS_FS_CURSOR_STOP;
-		_leave(" = f [okay/local %d]", fc->ac.error);
+		_leave(" = f [okay/local %d]", error);
 		return false;
 
 	case -ECONNABORTED:
+		fc->error = afs_abort_to_error(fc->ac.abort_code);
 		fc->flags |= AFS_FS_CURSOR_STOP;
 		_leave(" = f [abort]");
 		return false;
@@ -490,6 +502,7 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 	case -ETIMEDOUT:
 	case -ETIME:
 		_debug("no conn");
+		fc->error = error;
 		goto iterate_address;
 	}
 
@@ -512,7 +525,6 @@ iterate_address:
 int afs_end_vnode_operation(struct afs_fs_cursor *fc)
 {
 	struct afs_net *net = afs_v2net(fc->vnode);
-	int ret;
 
 	mutex_unlock(&fc->vnode->io_lock);
 
@@ -520,9 +532,8 @@ int afs_end_vnode_operation(struct afs_fs_cursor *fc)
 	afs_put_cb_interest(net, fc->cbi);
 	afs_put_serverlist(net, fc->server_list);
 
-	ret = fc->ac.error;
-	if (ret == -ECONNABORTED)
-		afs_abort_to_error(fc->ac.abort_code);
+	if (fc->error == -ECONNABORTED)
+		fc->error = afs_abort_to_error(fc->ac.abort_code);
 
-	return fc->ac.error;
+	return fc->error;
 }

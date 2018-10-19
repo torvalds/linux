@@ -318,10 +318,8 @@ bool afs_iterate_addresses(struct afs_addr_cursor *ac)
 		if (ac->index == ac->alist->nr_addrs)
 			ac->index = 0;
 
-		if (ac->index == ac->start) {
-			ac->error = -EDESTADDRREQ;
+		if (ac->index == ac->start)
 			return false;
-		}
 	}
 
 	ac->begun = true;
