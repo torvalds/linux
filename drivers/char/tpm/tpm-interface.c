@@ -585,15 +585,6 @@ int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen)
 }
 EXPORT_SYMBOL_GPL(tpm_send);
 
-#define TPM_ORD_SAVESTATE 152
-#define SAVESTATE_RESULT_SIZE 10
-
-static const struct tpm_input_header savestate_header = {
-	.tag = cpu_to_be16(TPM_TAG_RQU_COMMAND),
-	.length = cpu_to_be32(10),
-	.ordinal = cpu_to_be32(TPM_ORD_SAVESTATE)
-};
-
 /*
  * We are about to suspend. Save the TPM state
  * so that it can be restored.
@@ -601,54 +592,18 @@ static const struct tpm_input_header savestate_header = {
 int tpm_pm_suspend(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	struct tpm_cmd_t cmd;
-	int rc, try;
+	int rc = 0;
 
-	u8 dummy_hash[TPM_DIGEST_SIZE] = { 0 };
-
-	if (chip == NULL)
+	if (!chip)
 		return -ENODEV;
 
 	if (chip->flags & TPM_CHIP_FLAG_ALWAYS_POWERED)
 		return 0;
 
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		tpm2_shutdown(chip, TPM2_SU_STATE);
-		return 0;
-	}
-
-	/* for buggy tpm, flush pcrs with extend to selected dummy */
-	if (tpm_suspend_pcr)
-		rc = tpm1_pcr_extend(chip, tpm_suspend_pcr, dummy_hash,
-				     "extending dummy pcr before suspend");
-
-	/* now do the actual savestate */
-	for (try = 0; try < TPM_RETRY; try++) {
-		cmd.header.in = savestate_header;
-		rc = tpm_transmit_cmd(chip, NULL, &cmd, SAVESTATE_RESULT_SIZE,
-				      0, 0, NULL);
-
-		/*
-		 * If the TPM indicates that it is too busy to respond to
-		 * this command then retry before giving up.  It can take
-		 * several seconds for this TPM to be ready.
-		 *
-		 * This can happen if the TPM has already been sent the
-		 * SaveState command before the driver has loaded.  TCG 1.2
-		 * specification states that any communication after SaveState
-		 * may cause the TPM to invalidate previously saved state.
-		 */
-		if (rc != TPM_WARN_RETRY)
-			break;
-		tpm_msleep(TPM_TIMEOUT_RETRY);
-	}
-
-	if (rc)
-		dev_err(&chip->dev,
-			"Error (%d) sending savestate before suspend\n", rc);
-	else if (try > 0)
-		dev_warn(&chip->dev, "TPM savestate took %dms\n",
-			 try * TPM_TIMEOUT_RETRY);
+	else
+		rc = tpm1_pm_suspend(chip, tpm_suspend_pcr);
 
 	return rc;
 }
