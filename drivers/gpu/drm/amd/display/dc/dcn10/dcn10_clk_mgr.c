@@ -57,8 +57,7 @@ void dcn1_pplib_apply_display_requirements(
 	pp_display_cfg->disp_clk_khz = dc->res_pool->clk_mgr->clks.dispclk_khz;
 	dce110_fill_display_configs(context, pp_display_cfg);
 
-	if (memcmp(&dc->current_state->pp_display_cfg, pp_display_cfg, sizeof(*pp_display_cfg)) !=  0)
-		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
+	dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
 }
 
 static int dcn1_determine_dppclk_threshold(struct clk_mgr *clk_mgr, struct dc_clocks *new_clocks)
