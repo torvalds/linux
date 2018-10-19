@@ -3358,7 +3358,7 @@ static int __igc_open(struct net_device *netdev, bool resuming)
 		goto err_req_irq;
 
 	/* Notify the stack of the actual queue counts. */
-	netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
+	err = netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
 	if (err)
 		goto err_set_queues;
 
