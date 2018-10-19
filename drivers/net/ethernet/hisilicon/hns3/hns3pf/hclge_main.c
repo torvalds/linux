@@ -19,6 +19,7 @@
 #include "hclge_mbx.h"
 #include "hclge_mdio.h"
 #include "hclge_tm.h"
+#include "hclge_err.h"
 #include "hnae3.h"
 
 #define HCLGE_NAME			"hclge"
@@ -7312,6 +7313,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fd_all_rules = hclge_get_all_rules,
 	.restore_fd_rules = hclge_restore_fd_entries,
 	.enable_fd = hclge_enable_fd,
+	.process_hw_error = hclge_process_ras_hw_error,
 };
 
 static struct hnae3_ae_algo ae_algo = {
