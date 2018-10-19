@@ -13,6 +13,14 @@
  *
  *    Revised to handle newer style flash binding by:
  *    Copyright (C) 2007 David Gibson, IBM Corporation.
+ *
+ * GPIO address extension:
+ *    Handle the case where a flash device is mostly addressed using physical
+ *    line and supplemented by GPIOs.  This way you can hook up say a 8MiB flash
+ *    to a 2MiB memory range and use the GPIOs to select a particular range.
+ *
+ *    Copyright © 2000 Nicolas Pitre <nico@cam.org>
+ *    Copyright © 2005-2009 Analog Devices Inc.
  */
 
 #include <linux/module.h>
@@ -30,6 +38,7 @@
 #include <linux/mtd/cfi_endian.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
+#include <linux/gpio/consumer.h>
 
 #include "physmap-gemini.h"
 #include "physmap-versatile.h"
@@ -45,6 +54,9 @@ struct physmap_flash_info {
 	const char * const	*part_types;
 	unsigned int		nparts;
 	const struct mtd_partition *parts;
+	struct gpio_descs	*gpios;
+	unsigned int		gpio_values;
+	unsigned int		win_order;
 };
 
 static int physmap_flash_remove(struct platform_device *dev)
@@ -103,6 +115,119 @@ static void physmap_set_vpp(struct map_info *map, int state)
 	}
 	spin_unlock_irqrestore(&info->vpp_lock, flags);
 }
+
+#if IS_ENABLED(CONFIG_MTD_PHYSMAP_GPIO_ADDR)
+static void physmap_set_addr_gpios(struct physmap_flash_info *info,
+				   unsigned long ofs)
+{
+	unsigned int i;
+
+	ofs >>= info->win_order;
+	if (info->gpio_values == ofs)
+		return;
+
+	for (i = 0; i < info->gpios->ndescs; i++) {
+		if ((BIT(i) & ofs) == (BIT(i) & info->gpio_values))
+			continue;
+
+		gpiod_set_value(info->gpios->desc[i], !!(BIT(i) & ofs));
+	}
+}
+
+#define win_mask(order)		(BIT(order) - 1)
+
+static map_word physmap_addr_gpios_read(struct map_info *map,
+					unsigned long ofs)
+{
+	struct platform_device *pdev;
+	struct physmap_flash_info *info;
+	map_word mw;
+	u16 word;
+
+	pdev = (struct platform_device *)map->map_priv_1;
+	info = platform_get_drvdata(pdev);
+	physmap_set_addr_gpios(info, ofs);
+
+	word = readw(map->virt + (ofs & win_mask(info->win_order)));
+	mw.x[0] = word;
+	return mw;
+}
+
+static void physmap_addr_gpios_copy_from(struct map_info *map, void *buf,
+					 unsigned long ofs, ssize_t len)
+{
+	struct platform_device *pdev;
+	struct physmap_flash_info *info;
+
+	pdev = (struct platform_device *)map->map_priv_1;
+	info = platform_get_drvdata(pdev);
+
+	while (len) {
+		unsigned int winofs = ofs & win_mask(info->win_order);
+		unsigned int chunklen = min_t(unsigned int, len,
+					      BIT(info->win_order) - winofs);
+
+		physmap_set_addr_gpios(info, ofs);
+		memcpy_fromio(buf, map->virt + winofs, chunklen);
+		len -= chunklen;
+		buf += chunklen;
+		ofs += chunklen;
+	}
+}
+
+static void physmap_addr_gpios_write(struct map_info *map, map_word mw,
+				     unsigned long ofs)
+{
+	struct platform_device *pdev;
+	struct physmap_flash_info *info;
+	u16 word;
+
+	pdev = (struct platform_device *)map->map_priv_1;
+	info = platform_get_drvdata(pdev);
+	physmap_set_addr_gpios(info, ofs);
+
+	word = mw.x[0];
+	writew(word, map->virt + (ofs & win_mask(info->win_order)));
+}
+
+static void physmap_addr_gpios_copy_to(struct map_info *map, unsigned long ofs,
+				       const void *buf, ssize_t len)
+{
+	struct platform_device *pdev;
+	struct physmap_flash_info *info;
+
+	pdev = (struct platform_device *)map->map_priv_1;
+	info = platform_get_drvdata(pdev);
+
+	while (len) {
+		unsigned int winofs = ofs & win_mask(info->win_order);
+		unsigned int chunklen = min_t(unsigned int, len,
+					      BIT(info->win_order) - winofs);
+
+		physmap_set_addr_gpios(info, ofs);
+		memcpy_toio(map->virt + winofs, buf, chunklen);
+		len -= chunklen;
+		buf += chunklen;
+		ofs += chunklen;
+	}
+}
+
+static int physmap_addr_gpios_map_init(struct map_info *map)
+{
+	map->phys = NO_XIP;
+	map->read = physmap_addr_gpios_read;
+	map->copy_from = physmap_addr_gpios_copy_from;
+	map->write = physmap_addr_gpios_write;
+	map->copy_to = physmap_addr_gpios_copy_to;
+
+	return 0;
+}
+#else
+static int physmap_addr_gpios_map_init(struct map_info *map)
+{
+	return -ENOTSUPP;
+}
+#endif
 
 #if IS_ENABLED(CONFIG_MTD_PHYSMAP_OF)
 static const struct of_device_id of_flash_match[] = {
@@ -343,6 +468,16 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, info);
 
+	info->gpios = devm_gpiod_get_array_optional(&dev->dev, "addr",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(info->gpios))
+		return PTR_ERR(info->gpios);
+
+	if (info->gpios && info->nmaps > 1) {
+		dev_err(&dev->dev, "addr-gpios only supported for nmaps == 1\n");
+		return -EINVAL;
+	}
+
 	if (dev->dev.of_node)
 		err = physmap_flash_of_init(dev);
 	else
@@ -369,10 +504,20 @@ static int physmap_flash_probe(struct platform_device *dev)
 		if (!info->maps[i].phys)
 			info->maps[i].phys = res->start;
 
-		info->maps[i].size = resource_size(res);
+		info->win_order = get_bitmask_order(resource_size(res)) - 1;
+		info->maps[i].size = BIT(info->win_order +
+					 (info->gpios ?
+					  info->gpios->ndescs : 0));
+
 		info->maps[i].map_priv_1 = (unsigned long)dev;
 
-		simple_map_init(&info->maps[i]);
+		if (info->gpios) {
+			err = physmap_addr_gpios_map_init(&info->maps[i]);
+			if (err)
+				goto err_out;
+		} else {
+			simple_map_init(&info->maps[i]);
+		}
 
 		probe_type = rom_probe_types;
 		if (!info->probe_type) {
@@ -497,6 +642,7 @@ module_exit(physmap_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
 MODULE_AUTHOR("Vitaly Wool <vwool@ru.mvista.com>");
+MODULE_AUTHOR("Mike Frysinger <vapier@gentoo.org>");
 MODULE_DESCRIPTION("Generic configurable MTD map driver");
 
 /* legacy platform drivers can't hotplug or coldplg */
