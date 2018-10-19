@@ -499,6 +499,12 @@ static void afs_deliver_to_call(struct afs_call *call)
 			return;
 		}
 
+		if (call->want_reply_time &&
+		    rxrpc_kernel_get_reply_time(call->net->socket,
+						call->rxcall,
+						&call->reply_time))
+			call->want_reply_time = false;
+
 		ret = call->type->deliver(call);
 		state = READ_ONCE(call->state);
 		switch (ret) {

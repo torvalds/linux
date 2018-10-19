@@ -131,6 +131,7 @@ struct afs_call {
 	bool			async;		/* T if asynchronous */
 	bool			ret_reply0;	/* T if should return reply[0] on success */
 	bool			upgrade;	/* T to request service upgrade */
+	bool			want_reply_time;	/* T if want reply_time */
 	u16			service_id;	/* Actual service ID (after upgrade) */
 	unsigned int		debug_id;	/* Trace ID */
 	u32			operation_ID;	/* operation ID for an incoming call */
@@ -144,6 +145,7 @@ struct afs_call {
 	};
 	afs_dataversion_t	expected_version; /* Updated version expected from store */
 	afs_dataversion_t	expected_version_2; /* 2nd updated version expected from store */
+	ktime_t			reply_time;	/* Time of first reply packet */
 };
 
 struct afs_call_type {

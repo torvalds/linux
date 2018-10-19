@@ -317,11 +317,11 @@ struct inode *afs_iget(struct super_block *sb, struct key *key,
 			 * didn't give us a callback) */
 			vnode->cb_version = 0;
 			vnode->cb_type = 0;
-			vnode->cb_expires_at = 0;
+			vnode->cb_expires_at = ktime_get();
 		} else {
 			vnode->cb_version = cb->version;
 			vnode->cb_type = cb->type;
-			vnode->cb_expires_at = cb->expiry;
+			vnode->cb_expires_at = cb->expires_at;
 			vnode->cb_interest = afs_get_cb_interest(cbi);
 			set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 		}

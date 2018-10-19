@@ -68,8 +68,8 @@ typedef enum {
 } afs_callback_type_t;
 
 struct afs_callback {
+	time64_t		expires_at;	/* Time at which expires */
 	unsigned		version;	/* Callback version */
-	unsigned		expiry;		/* Time at which expires */
 	afs_callback_type_t	type;		/* Type of callback */
 };
 
