@@ -374,16 +374,17 @@ InstructionTLBMiss:
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
 	/* Restore registers */
-_ENTRY(itlb_miss_exit_1)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
+0:	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 #if defined(ITLB_MISS_KERNEL) || defined(CONFIG_HUGETLB_PAGE)
 	mfspr	r12, SPRN_SPRG_SCRATCH2
 #endif
 	rfi
+	patch_site	0b, patch__itlbmiss_exit_1
+
 #ifdef CONFIG_PERF_EVENTS
-_ENTRY(itlb_miss_perf)
-	lis	r10, (itlb_miss_counter - PAGE_OFFSET)@ha
+	patch_site	0f, patch__itlbmiss_perf
+0:	lis	r10, (itlb_miss_counter - PAGE_OFFSET)@ha
 	lwz	r11, (itlb_miss_counter - PAGE_OFFSET)@l(r10)
 	addi	r11, r11, 1
 	stw	r11, (itlb_miss_counter - PAGE_OFFSET)@l(r10)
@@ -499,14 +500,16 @@ DataStoreTLBMiss:
 
 	/* Restore registers */
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
-_ENTRY(dtlb_miss_exit_1)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
+
+0:	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
 	rfi
+	patch_site	0b, patch__dtlbmiss_exit_1
+
 #ifdef CONFIG_PERF_EVENTS
-_ENTRY(dtlb_miss_perf)
-	lis	r10, (dtlb_miss_counter - PAGE_OFFSET)@ha
+	patch_site	0f, patch__dtlbmiss_perf
+0:	lis	r10, (dtlb_miss_counter - PAGE_OFFSET)@ha
 	lwz	r11, (dtlb_miss_counter - PAGE_OFFSET)@l(r10)
 	addi	r11, r11, 1
 	stw	r11, (dtlb_miss_counter - PAGE_OFFSET)@l(r10)
@@ -658,11 +661,12 @@ DTLBMissIMMR:
 
 	li	r11, RPN_PATTERN
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
-_ENTRY(dtlb_miss_exit_2)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
+
+0:	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
 	rfi
+	patch_site	0b, patch__dtlbmiss_exit_2
 
 DTLBMissLinear:
 	mtcr	r12
@@ -676,11 +680,12 @@ DTLBMissLinear:
 
 	li	r11, RPN_PATTERN
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
-_ENTRY(dtlb_miss_exit_3)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
+
+0:	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
 	rfi
+	patch_site	0b, patch__dtlbmiss_exit_3
 
 #ifndef CONFIG_PIN_TLB_TEXT
 ITLBMissLinear:
@@ -693,11 +698,11 @@ ITLBMissLinear:
 			  _PAGE_PRESENT
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
-_ENTRY(itlb_miss_exit_2)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
+0:	mfspr	r10, SPRN_SPRG_SCRATCH0
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r12, SPRN_SPRG_SCRATCH2
 	rfi
+	patch_site	0b, patch__itlbmiss_exit_2
 #endif
 
 /* This is the procedure to calculate the data EA for buggy dcbx,dcbi instructions
