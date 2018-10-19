@@ -83,6 +83,7 @@
 			const struct kvec *kvec;		\
 			struct kvec v;				\
 			iterate_kvec(i, n, v, kvec, skip, (K))	\
+		} else if (unlikely(i->type & ITER_DISCARD)) {	\
 		} else {					\
 			const struct iovec *iov;		\
 			struct iovec v;				\
@@ -114,6 +115,8 @@
 			}					\
 			i->nr_segs -= kvec - i->kvec;		\
 			i->kvec = kvec;				\
+		} else if (unlikely(i->type & ITER_DISCARD)) {	\
+			skip += n;				\
 		} else {					\
 			const struct iovec *iov;		\
 			struct iovec v;				\
@@ -838,7 +841,9 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 		size_t wanted = copy_to_iter(kaddr + offset, bytes, i);
 		kunmap_atomic(kaddr);
 		return wanted;
-	} else if (likely(!iov_iter_is_pipe(i)))
+	} else if (unlikely(iov_iter_is_discard(i)))
+		return bytes;
+	else if (likely(!iov_iter_is_pipe(i)))
 		return copy_page_to_iter_iovec(page, offset, bytes, i);
 	else
 		return copy_page_to_iter_pipe(page, offset, bytes, i);
@@ -850,7 +855,7 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 {
 	if (unlikely(!page_copy_sane(page, offset, bytes)))
 		return 0;
-	if (unlikely(iov_iter_is_pipe(i))) {
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
 		WARN_ON(1);
 		return 0;
 	}
@@ -910,7 +915,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 		kunmap_atomic(kaddr);
 		return 0;
 	}
-	if (unlikely(iov_iter_is_pipe(i))) {
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
 		kunmap_atomic(kaddr);
 		WARN_ON(1);
 		return 0;
@@ -978,6 +983,10 @@ void iov_iter_advance(struct iov_iter *i, size_t size)
 		pipe_advance(i, size);
 		return;
 	}
+	if (unlikely(iov_iter_is_discard(i))) {
+		i->count -= size;
+		return;
+	}
 	iterate_and_advance(i, size, v, 0, 0, 0)
 }
 EXPORT_SYMBOL(iov_iter_advance);
@@ -1013,6 +1022,8 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 		pipe_truncate(i);
 		return;
 	}
+	if (unlikely(iov_iter_is_discard(i)))
+		return;
 	if (unroll <= i->iov_offset) {
 		i->iov_offset -= unroll;
 		return;
@@ -1054,6 +1065,8 @@ size_t iov_iter_single_seg_count(const struct iov_iter *i)
 	if (unlikely(iov_iter_is_pipe(i)))
 		return i->count;	// it is a silly place, anyway
 	if (i->nr_segs == 1)
+		return i->count;
+	if (unlikely(iov_iter_is_discard(i)))
 		return i->count;
 	else if (iov_iter_is_bvec(i))
 		return min(i->count, i->bvec->bv_len - i->iov_offset);
@@ -1103,6 +1116,24 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
 }
 EXPORT_SYMBOL(iov_iter_pipe);
 
+/**
+ * iov_iter_discard - Initialise an I/O iterator that discards data
+ * @i: The iterator to initialise.
+ * @direction: The direction of the transfer.
+ * @count: The size of the I/O buffer in bytes.
+ *
+ * Set up an I/O iterator that just discards everything that's written to it.
+ * It's only available as a READ iterator.
+ */
+void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count)
+{
+	BUG_ON(direction != READ);
+	i->type = ITER_DISCARD | READ;
+	i->count = count;
+	i->iov_offset = 0;
+}
+EXPORT_SYMBOL(iov_iter_discard);
+
 unsigned long iov_iter_alignment(const struct iov_iter *i)
 {
 	unsigned long res = 0;
@@ -1127,7 +1158,7 @@ unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 	unsigned long res = 0;
 	size_t size = i->count;
 
-	if (unlikely(iov_iter_is_pipe(i))) {
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
 		WARN_ON(1);
 		return ~0U;
 	}
@@ -1197,6 +1228,9 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 
 	if (unlikely(iov_iter_is_pipe(i)))
 		return pipe_get_pages(i, pages, maxsize, maxpages, start);
+	if (unlikely(iov_iter_is_discard(i)))
+		return -EFAULT;
+
 	iterate_all_kinds(i, maxsize, v, ({
 		unsigned long addr = (unsigned long)v.iov_base;
 		size_t len = v.iov_len + (*start = addr & (PAGE_SIZE - 1));
@@ -1274,6 +1308,9 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 
 	if (unlikely(iov_iter_is_pipe(i)))
 		return pipe_get_pages_alloc(i, pages, maxsize, start);
+	if (unlikely(iov_iter_is_discard(i)))
+		return -EFAULT;
+
 	iterate_all_kinds(i, maxsize, v, ({
 		unsigned long addr = (unsigned long)v.iov_base;
 		size_t len = v.iov_len + (*start = addr & (PAGE_SIZE - 1));
@@ -1315,7 +1352,7 @@ size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 	__wsum sum, next;
 	size_t off = 0;
 	sum = *csum;
-	if (unlikely(iov_iter_is_pipe(i))) {
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
 		WARN_ON(1);
 		return 0;
 	}
@@ -1357,7 +1394,7 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum,
 	__wsum sum, next;
 	size_t off = 0;
 	sum = *csum;
-	if (unlikely(iov_iter_is_pipe(i))) {
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
 		WARN_ON(1);
 		return false;
 	}
@@ -1402,7 +1439,7 @@ size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum,
 	__wsum sum, next;
 	size_t off = 0;
 	sum = *csum;
-	if (unlikely(iov_iter_is_pipe(i))) {
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
 		WARN_ON(1);	/* for now */
 		return 0;
 	}
@@ -1443,6 +1480,8 @@ int iov_iter_npages(const struct iov_iter *i, int maxpages)
 	int npages = 0;
 
 	if (!size)
+		return 0;
+	if (unlikely(iov_iter_is_discard(i)))
 		return 0;
 
 	if (unlikely(iov_iter_is_pipe(i))) {
@@ -1487,6 +1526,8 @@ const void *dup_iter(struct iov_iter *new, struct iov_iter *old, gfp_t flags)
 		WARN_ON(1);
 		return NULL;
 	}
+	if (unlikely(iov_iter_is_discard(new)))
+		return NULL;
 	if (iov_iter_is_bvec(new))
 		return new->bvec = kmemdup(new->bvec,
 				    new->nr_segs * sizeof(struct bio_vec),
