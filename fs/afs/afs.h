@@ -75,7 +75,7 @@ struct afs_callback {
 
 struct afs_callback_break {
 	struct afs_fid		fid;		/* File identifier */
-	struct afs_callback	cb;		/* Callback details */
+	//struct afs_callback	cb;		/* Callback details */
 };
 
 #define AFSCBMAX 50	/* maximum callbacks transferred per bulk op */

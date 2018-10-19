@@ -310,14 +310,10 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 	/* TODO: Sort the callback break list by volume ID */
 
 	for (; count > 0; callbacks++, count--) {
-		_debug("- Fid { vl=%08llx n=%llu u=%u }  CB { v=%u x=%u t=%u }",
+		_debug("- Fid { vl=%08llx n=%llu u=%u }",
 		       callbacks->fid.vid,
 		       callbacks->fid.vnode,
-		       callbacks->fid.unique,
-		       callbacks->cb.version,
-		       callbacks->cb.expiry,
-		       callbacks->cb.type
-		       );
+		       callbacks->fid.unique);
 		afs_break_one_callback(server, &callbacks->fid);
 	}
 

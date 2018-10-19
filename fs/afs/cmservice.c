@@ -218,7 +218,6 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 			cb->fid.vid	= ntohl(*bp++);
 			cb->fid.vnode	= ntohl(*bp++);
 			cb->fid.unique	= ntohl(*bp++);
-			cb->cb.type	= AFSCM_CB_UNTYPED;
 		}
 
 		afs_extract_to_tmp(call);
@@ -236,23 +235,17 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		if (call->count2 != call->count && call->count2 != 0)
 			return afs_protocol_error(call, -EBADMSG,
 						  afs_eproto_cb_count);
-		afs_extract_to_buf(call, call->count2 * 3 * 4);
+		call->_iter = &call->iter;
+		iov_iter_discard(&call->iter, READ, call->count2 * 3 * 4);
 		call->unmarshall++;
 
 	case 4:
-		_debug("extract CB array");
+		_debug("extract discard %zu/%u",
+		       iov_iter_count(&call->iter), call->count2 * 3 * 4);
+
 		ret = afs_extract_data(call, false);
 		if (ret < 0)
 			return ret;
-
-		_debug("unmarshall CB array");
-		cb = call->request;
-		bp = call->buffer;
-		for (loop = call->count2; loop > 0; loop--, cb++) {
-			cb->cb.version	= ntohl(*bp++);
-			cb->cb.expiry	= ntohl(*bp++);
-			cb->cb.type	= ntohl(*bp++);
-		}
 
 		call->unmarshall++;
 	case 5:
