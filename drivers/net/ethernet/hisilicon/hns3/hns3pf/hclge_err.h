@@ -37,6 +37,8 @@
 #define HCLGE_PPP_MPF_ECC_ERR_INT2_EN_MASK	0x003F
 #define HCLGE_PPP_MPF_ECC_ERR_INT3_EN	0x003F
 #define HCLGE_PPP_MPF_ECC_ERR_INT3_EN_MASK	0x003F
+#define HCLGE_TM_SCH_ECC_ERR_INT_EN	0x3
+#define HCLGE_TM_QCN_MEM_ERR_INT_EN	0xFFFFFF
 #define HCLGE_NCSI_ERR_INT_EN	0x3
 #define HCLGE_NCSI_ERR_INT_TYPE	0x9
 
@@ -76,5 +78,6 @@ struct hclge_hw_error {
 };
 
 int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state);
+int hclge_enable_tm_hw_error(struct hclge_dev *hdev, bool en);
 pci_ers_result_t hclge_process_ras_hw_error(struct hnae3_ae_dev *ae_dev);
 #endif

@@ -6881,6 +6881,12 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
+	/* Re-enable the TM hw error interrupts because
+	 * they get disabled on core/global reset.
+	 */
+	if (hclge_enable_tm_hw_error(hdev, true))
+		dev_err(&pdev->dev, "failed to enable TM hw error interrupts\n");
+
 	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
 
