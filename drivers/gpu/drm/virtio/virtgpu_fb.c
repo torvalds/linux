@@ -232,7 +232,7 @@ static int virtio_gpufb_create(struct drm_fb_helper *helper,
 		return PTR_ERR(obj);
 
 	virtio_gpu_resource_id_get(vgdev, &resid);
-	virtio_gpu_cmd_create_resource(vgdev, resid, format,
+	virtio_gpu_cmd_create_resource(vgdev, obj, resid, format,
 				       mode_cmd.width, mode_cmd.height);
 
 	ret = virtio_gpu_object_kmap(obj);

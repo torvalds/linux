@@ -260,7 +260,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	obj = &qobj->gem_base;
 
 	if (!vgdev->has_virgl_3d) {
-		virtio_gpu_cmd_create_resource(vgdev, res_id, rc->format,
+		virtio_gpu_cmd_create_resource(vgdev, qobj, res_id, rc->format,
 					       rc->width, rc->height);
 
 		ret = virtio_gpu_object_attach(vgdev, qobj, res_id, NULL);
@@ -288,7 +288,7 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 		rc_3d.nr_samples = cpu_to_le32(rc->nr_samples);
 		rc_3d.flags = cpu_to_le32(rc->flags);
 
-		virtio_gpu_cmd_resource_create_3d(vgdev, &rc_3d, NULL);
+		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &rc_3d, NULL);
 		ret = virtio_gpu_object_attach(vgdev, qobj, res_id, &fence);
 		if (ret) {
 			ttm_eu_backoff_reservation(&ticket, &validate_list);
