@@ -158,7 +158,7 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		int slottime = info->use_short_slot ? 9 : 20;
 
 		dev->slottime = slottime;
-		mt76x2_set_tx_ackto(dev);
+		mt76x02_set_tx_ackto(dev);
 	}
 
 	mutex_unlock(&dev->mt76.mutex);
@@ -168,17 +168,6 @@ static void
 mt76x2_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	     u32 queues, bool drop)
 {
-}
-
-static void mt76x2_set_coverage_class(struct ieee80211_hw *hw,
-				      s16 coverage_class)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mutex_lock(&dev->mt76.mutex);
-	dev->coverage_class = coverage_class;
-	mt76x2_set_tx_ackto(dev);
-	mutex_unlock(&dev->mt76.mutex);
 }
 
 static int
@@ -257,7 +246,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.release_buffered_frames = mt76_release_buffered_frames,
-	.set_coverage_class = mt76x2_set_coverage_class,
+	.set_coverage_class = mt76x02_set_coverage_class,
 	.get_survey = mt76_get_survey,
 	.set_tim = mt76x2_set_tim,
 	.set_antenna = mt76x2_set_antenna,

@@ -438,6 +438,36 @@ int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt76x02_conf_tx);
 
+void mt76x02_set_tx_ackto(struct mt76x02_dev *dev)
+{
+	u8 ackto, sifs, slottime = dev->slottime;
+
+	/* As defined by IEEE 802.11-2007 17.3.8.6 */
+	slottime += 3 * dev->coverage_class;
+	mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
+		       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
+
+	sifs = mt76_get_field(dev, MT_XIFS_TIME_CFG,
+			      MT_XIFS_TIME_CFG_OFDM_SIFS);
+
+	ackto = slottime + sifs;
+	mt76_rmw_field(dev, MT_TX_TIMEOUT_CFG,
+		       MT_TX_TIMEOUT_CFG_ACKTO, ackto);
+}
+EXPORT_SYMBOL_GPL(mt76x02_set_tx_ackto);
+
+void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
+				s16 coverage_class)
+{
+	struct mt76x02_dev *dev = hw->priv;
+
+	mutex_lock(&dev->mt76.mutex);
+	dev->coverage_class = coverage_class;
+	mt76x02_set_tx_ackto(dev);
+	mutex_unlock(&dev->mt76.mutex);
+}
+EXPORT_SYMBOL_GPL(mt76x02_set_coverage_class);
+
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta)

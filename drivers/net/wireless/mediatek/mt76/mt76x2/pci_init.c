@@ -153,7 +153,7 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
-	mt76x2_set_tx_ackto(dev);
+	mt76x02_set_tx_ackto(dev);
 
 	return 0;
 }
@@ -258,23 +258,6 @@ mt76x2_power_on(struct mt76x02_dev *dev)
 
 	mt76x2_power_on_rf(dev, 0);
 	mt76x2_power_on_rf(dev, 1);
-}
-
-void mt76x2_set_tx_ackto(struct mt76x02_dev *dev)
-{
-	u8 ackto, sifs, slottime = dev->slottime;
-
-	/* As defined by IEEE 802.11-2007 17.3.8.6 */
-	slottime += 3 * dev->coverage_class;
-	mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
-		       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
-
-	sifs = mt76_get_field(dev, MT_XIFS_TIME_CFG,
-			      MT_XIFS_TIME_CFG_OFDM_SIFS);
-
-	ackto = slottime + sifs;
-	mt76_rmw_field(dev, MT_TX_TIMEOUT_CFG,
-		       MT_TX_TIMEOUT_CFG_ACKTO, ackto);
 }
 
 int mt76x2_init_hardware(struct mt76x02_dev *dev)

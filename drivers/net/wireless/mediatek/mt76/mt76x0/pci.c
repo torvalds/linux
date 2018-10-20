@@ -104,6 +104,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.flush = mt76x0e_flush,
 	.set_tim = mt76x0e_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
+	.set_coverage_class = mt76x02_set_coverage_class,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)

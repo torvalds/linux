@@ -117,8 +117,8 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		int slottime = info->use_short_slot ? 9 : 20;
 
-		mt76_rmw_field(dev, MT_BKOFF_SLOT_CFG,
-			       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
+		dev->slottime = slottime;
+		mt76x02_set_tx_ackto(dev);
 	}
 
 	mutex_unlock(&dev->mt76.mutex);
