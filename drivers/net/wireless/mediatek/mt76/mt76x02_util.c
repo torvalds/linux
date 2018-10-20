@@ -486,6 +486,28 @@ void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len)
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_hdr_pad);
 
+void mt76x02_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		     const u8 *mac)
+{
+	struct mt76x02_dev *dev = hw->priv;
+
+	if (mt76_is_mmio(dev))
+		tasklet_disable(&dev->pre_tbtt_tasklet);
+	set_bit(MT76_SCANNING, &dev->mt76.state);
+}
+EXPORT_SYMBOL_GPL(mt76x02_sw_scan);
+
+void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
+{
+	struct mt76x02_dev *dev = hw->priv;
+
+	clear_bit(MT76_SCANNING, &dev->mt76.state);
+	if (mt76_is_mmio(dev))
+		tasklet_enable(&dev->pre_tbtt_tasklet);
+}
+EXPORT_SYMBOL_GPL(mt76x02_sw_scan_complete);
+
 const u16 mt76x02_beacon_offsets[16] = {
 	/* 1024 byte per beacon */
 	0xc000,

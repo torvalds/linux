@@ -65,10 +65,6 @@ int mt76x0_config(struct ieee80211_hw *hw, u32 changed);
 void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *info, u32 changed);
-void mt76x0_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    const u8 *mac_addr);
-void mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif);
 int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 
 /* PHY */

@@ -176,25 +176,6 @@ mt76x2_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
 }
 
 static void
-mt76x2_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-	       const u8 *mac)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	tasklet_disable(&dev->pre_tbtt_tasklet);
-	set_bit(MT76_SCANNING, &dev->mt76.state);
-}
-
-static void
-mt76x2_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	clear_bit(MT76_SCANNING, &dev->mt76.state);
-	tasklet_enable(&dev->pre_tbtt_tasklet);
-}
-
-static void
 mt76x2_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	     u32 queues, bool drop)
 {
@@ -292,8 +273,8 @@ const struct ieee80211_ops mt76x2_ops = {
 	.sta_remove = mt76x02_sta_remove,
 	.set_key = mt76x02_set_key,
 	.conf_tx = mt76x02_conf_tx,
-	.sw_scan_start = mt76x2_sw_scan,
-	.sw_scan_complete = mt76x2_sw_scan_complete,
+	.sw_scan_start = mt76x02_sw_scan,
+	.sw_scan_complete = mt76x02_sw_scan_complete,
 	.flush = mt76x2_flush,
 	.ampdu_action = mt76x02_ampdu_action,
 	.get_txpower = mt76x2_get_txpower,

@@ -127,24 +127,6 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(mt76x0_bss_info_changed);
 
-void mt76x0_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    const u8 *mac_addr)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	set_bit(MT76_SCANNING, &dev->mt76.state);
-}
-EXPORT_SYMBOL_GPL(mt76x0_sw_scan);
-
-void mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	clear_bit(MT76_SCANNING, &dev->mt76.state);
-}
-EXPORT_SYMBOL_GPL(mt76x0_sw_scan_complete);
-
 int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
 	struct mt76x02_dev *dev = hw->priv;
