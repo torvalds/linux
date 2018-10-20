@@ -122,6 +122,7 @@ struct perf_evsel {
 	bool			snapshot;
 	bool 			supported;
 	bool 			needs_swap;
+	bool 			disabled;
 	bool			no_aux_samples;
 	bool			immediate;
 	bool			system_wide;
