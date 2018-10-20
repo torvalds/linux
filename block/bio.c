@@ -2084,6 +2084,26 @@ int bio_associate_create_blkg(struct request_queue *q, struct bio *bio)
 }
 
 /**
+ * bio_reassociate_blkg - reassociate a bio with a blkg from q
+ * @q: request_queue where bio is going
+ * @bio: target bio
+ *
+ * When submitting a bio, multiple recursive calls to make_request() may occur.
+ * This causes the initial associate done in blkcg_bio_issue_check() to be
+ * incorrect and reference the prior request_queue.  This performs reassociation
+ * when this situation happens.
+ */
+int bio_reassociate_blkg(struct request_queue *q, struct bio *bio)
+{
+	if (bio->bi_blkg) {
+		blkg_put(bio->bi_blkg);
+		bio->bi_blkg = NULL;
+	}
+
+	return bio_associate_create_blkg(q, bio);
+}
+
+/**
  * bio_disassociate_task - undo bio_associate_current()
  * @bio: target bio
  */
