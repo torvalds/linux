@@ -11733,7 +11733,7 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 	    !nested_exit_intr_ack_set(vcpu) ||
 	    (vmcs12->posted_intr_nv & 0xff00) ||
 	    (vmcs12->posted_intr_desc_addr & 0x3f) ||
-	    (!page_address_valid(vcpu, vmcs12->posted_intr_desc_addr))))
+	    (vmcs12->posted_intr_desc_addr >> cpuid_maxphyaddr(vcpu))))
 		return -EINVAL;
 
 	/* tpr shadow is needed by all apicv features. */
