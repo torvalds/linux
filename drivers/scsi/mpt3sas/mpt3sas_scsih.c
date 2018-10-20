@@ -10828,7 +10828,6 @@ scsih_pci_resume(struct pci_dev *pdev)
 
 	pr_info(MPT3SAS_FMT "PCI error: resume callback!!\n", ioc->name);
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	mpt3sas_base_start_watchdog(ioc);
 	scsi_unblock_requests(ioc->shost);
 }

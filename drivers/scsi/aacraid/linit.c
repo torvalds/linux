@@ -2055,8 +2055,6 @@ static void aac_pci_resume(struct pci_dev *pdev)
 	struct scsi_device *sdev = NULL;
 	struct aac_dev *aac = (struct aac_dev *)shost_priv(shost);
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
-
 	if (aac_adapter_ioremap(aac, aac->base_size)) {
 
 		dev_err(&pdev->dev, "aacraid: ioremap failed\n");

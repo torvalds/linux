@@ -1569,8 +1569,6 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 		if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(32)) != 0)
 			goto out_disable_device;
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
-
 	if (restart_bfa(bfad) == -1)
 		goto out_disable_device;
 

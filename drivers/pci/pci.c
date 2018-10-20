@@ -35,6 +35,8 @@
 #include <linux/aer.h>
 #include "pci.h"
 
+DEFINE_MUTEX(pci_slot_mutex);
+
 const char *pci_power_names[] = {
 	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
 };
@@ -791,6 +793,11 @@ static inline bool platform_pci_need_resume(struct pci_dev *dev)
 	return pci_platform_pm ? pci_platform_pm->need_resume(dev) : false;
 }
 
+static inline bool platform_pci_bridge_d3(struct pci_dev *dev)
+{
+	return pci_platform_pm ? pci_platform_pm->bridge_d3(dev) : false;
+}
+
 /**
  * pci_raw_set_power_state - Use PCI PM registers to set the power state of
  *                           given PCI device
@@ -1284,6 +1291,7 @@ int pci_save_state(struct pci_dev *dev)
 	if (i != 0)
 		return i;
 
+	pci_save_dpc_state(dev);
 	return pci_save_vc_state(dev);
 }
 EXPORT_SYMBOL(pci_save_state);
@@ -1378,6 +1386,7 @@ void pci_restore_state(struct pci_dev *dev)
 	pci_restore_ats_state(dev);
 	pci_restore_vc_state(dev);
 	pci_restore_rebar_state(dev);
+	pci_restore_dpc_state(dev);
 
 	pci_cleanup_aer_error_status_regs(dev);
 
@@ -2133,10 +2142,13 @@ static int __pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable
 	int ret = 0;
 
 	/*
-	 * Bridges can only signal wakeup on behalf of subordinate devices,
-	 * but that is set up elsewhere, so skip them.
+	 * Bridges that are not power-manageable directly only signal
+	 * wakeup on behalf of subordinate devices which is set up
+	 * elsewhere, so skip them. However, bridges that are
+	 * power-manageable may signal wakeup for themselves (for example,
+	 * on a hotplug event) and they need to be covered here.
 	 */
-	if (pci_has_subordinate(dev))
+	if (!pci_power_manageable(dev))
 		return 0;
 
 	/* Don't do the same thing twice in a row for one device. */
@@ -2509,6 +2521,10 @@ bool pci_bridge_d3_possible(struct pci_dev *bridge)
 
 		/* Even the oldest 2010 Thunderbolt controller supports D3. */
 		if (bridge->is_thunderbolt)
+			return true;
+
+		/* Platform might know better if the bridge supports D3 */
+		if (platform_pci_bridge_d3(bridge))
 			return true;
 
 		/*
@@ -4496,21 +4512,42 @@ bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
 	bool ret;
 	u16 lnk_status;
 
+	/*
+	 * Some controllers might not implement link active reporting. In this
+	 * case, we wait for 1000 + 100 ms.
+	 */
+	if (!pdev->link_active_reporting) {
+		msleep(1100);
+		return true;
+	}
+
+	/*
+	 * PCIe r4.0 sec 6.6.1, a component must enter LTSSM Detect within 20ms,
+	 * after which we should expect an link active if the reset was
+	 * successful. If so, software must wait a minimum 100ms before sending
+	 * configuration requests to devices downstream this port.
+	 *
+	 * If the link fails to activate, either the device was physically
+	 * removed or the link is permanently failed.
+	 */
+	if (active)
+		msleep(20);
 	for (;;) {
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lnk_status);
 		ret = !!(lnk_status & PCI_EXP_LNKSTA_DLLLA);
 		if (ret == active)
-			return true;
+			break;
 		if (timeout <= 0)
 			break;
 		msleep(10);
 		timeout -= 10;
 	}
-
-	pci_info(pdev, "Data Link Layer Link Active not %s in 1000 msec\n",
-		 active ? "set" : "cleared");
-
-	return false;
+	if (active && ret)
+		msleep(100);
+	else if (ret != active)
+		pci_info(pdev, "Data Link Layer Link Active not %s in 1000 msec\n",
+			active ? "set" : "cleared");
+	return ret == active;
 }
 
 void pci_reset_secondary_bus(struct pci_dev *dev)
@@ -4582,13 +4619,13 @@ static int pci_reset_hotplug_slot(struct hotplug_slot *hotplug, int probe)
 {
 	int rc = -ENOTTY;
 
-	if (!hotplug || !try_module_get(hotplug->ops->owner))
+	if (!hotplug || !try_module_get(hotplug->owner))
 		return rc;
 
 	if (hotplug->ops->reset_slot)
 		rc = hotplug->ops->reset_slot(hotplug, probe);
 
-	module_put(hotplug->ops->owner);
+	module_put(hotplug->owner);
 
 	return rc;
 }
@@ -5162,6 +5199,41 @@ static int pci_bus_reset(struct pci_bus *bus, int probe)
 	pci_bus_unlock(bus);
 
 	return ret;
+}
+
+/**
+ * pci_bus_error_reset - reset the bridge's subordinate bus
+ * @bridge: The parent device that connects to the bus to reset
+ *
+ * This function will first try to reset the slots on this bus if the method is
+ * available. If slot reset fails or is not available, this will fall back to a
+ * secondary bus reset.
+ */
+int pci_bus_error_reset(struct pci_dev *bridge)
+{
+	struct pci_bus *bus = bridge->subordinate;
+	struct pci_slot *slot;
+
+	if (!bus)
+		return -ENOTTY;
+
+	mutex_lock(&pci_slot_mutex);
+	if (list_empty(&bus->slots))
+		goto bus_reset;
+
+	list_for_each_entry(slot, &bus->slots, list)
+		if (pci_probe_reset_slot(slot))
+			goto bus_reset;
+
+	list_for_each_entry(slot, &bus->slots, list)
+		if (pci_slot_reset(slot, 0))
+			goto bus_reset;
+
+	mutex_unlock(&pci_slot_mutex);
+	return 0;
+bus_reset:
+	mutex_unlock(&pci_slot_mutex);
+	return pci_bus_reset(bridge->subordinate, 0);
 }
 
 /**

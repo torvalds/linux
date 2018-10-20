@@ -14385,14 +14385,6 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 
 	rtnl_unlock();
 
-	/* If AER, perform cleanup of the PCIe registers */
-	if (bp->flags & AER_ENABLED) {
-		if (pci_cleanup_aer_uncorrect_error_status(pdev))
-			BNX2X_ERR("pci_cleanup_aer_uncorrect_error_status failed\n");
-		else
-			DP(NETIF_MSG_HW, "pci_cleanup_aer_uncorrect_error_status succeeded\n");
-	}
-
 	return PCI_ERS_RESULT_RECOVERED;
 }
 

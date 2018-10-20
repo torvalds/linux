@@ -1790,11 +1790,6 @@ static pci_ers_result_t netxen_io_slot_reset(struct pci_dev *pdev)
 	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
 
-static void netxen_io_resume(struct pci_dev *pdev)
-{
-	pci_cleanup_aer_uncorrect_error_status(pdev);
-}
-
 static void netxen_nic_shutdown(struct pci_dev *pdev)
 {
 	struct netxen_adapter *adapter = pci_get_drvdata(pdev);
@@ -3488,7 +3483,6 @@ netxen_free_ip_list(struct netxen_adapter *adapter, bool master)
 static const struct pci_error_handlers netxen_err_handler = {
 	.error_detected = netxen_io_error_detected,
 	.slot_reset = netxen_io_slot_reset,
-	.resume = netxen_io_resume,
 };
 
 static struct pci_driver netxen_driver = {

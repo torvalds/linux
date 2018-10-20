@@ -9231,13 +9231,6 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 
 	rtnl_unlock();
 
-	err = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (err) {
-		dev_err(&pdev->dev,
-			"pci_cleanup_aer_uncorrect_error_status failed 0x%0x\n",
-			 err); /* non-fatal, continue */
-	}
-
 	return PCI_ERS_RESULT_RECOVERED;
 }
 

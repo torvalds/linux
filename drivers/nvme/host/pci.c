@@ -2649,7 +2649,6 @@ static void nvme_error_resume(struct pci_dev *pdev)
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
 
 	flush_work(&dev->ctrl.reset_work);
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 static const struct pci_error_handlers nvme_err_handler = {
