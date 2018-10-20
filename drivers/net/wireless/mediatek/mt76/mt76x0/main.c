@@ -107,10 +107,6 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 		dev->tbtt_count = 0;
 	}
 
-	if (changed & BSS_CHANGED_HT || changed & BSS_CHANGED_ERP_CTS_PROT)
-		mt76x0_mac_set_protection(dev, info->use_cts_prot,
-					   info->ht_operation_mode);
-
 	if (changed & BSS_CHANGED_ERP_PREAMBLE)
 		mt76x02_mac_set_short_preamble(dev, info->use_short_preamble);
 
@@ -124,13 +120,3 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 }
 EXPORT_SYMBOL_GPL(mt76x0_bss_info_changed);
-
-int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
-{
-	struct mt76x02_dev *dev = hw->priv;
-
-	mt76_rmw_field(dev, MT_TX_RTS_CFG, MT_TX_RTS_CFG_THRESH, value);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mt76x0_set_rts_threshold);

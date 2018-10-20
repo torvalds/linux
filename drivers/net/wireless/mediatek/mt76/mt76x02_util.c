@@ -468,6 +468,21 @@ void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(mt76x02_set_coverage_class);
 
+int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
+{
+	struct mt76x02_dev *dev = hw->priv;
+
+	if (val != ~0 && val > 0xffff)
+		return -EINVAL;
+
+	mutex_lock(&dev->mutex);
+	mt76x02_mac_set_tx_protection(dev, val);
+	mutex_unlock(&dev->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02_set_rts_threshold);
+
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta)
