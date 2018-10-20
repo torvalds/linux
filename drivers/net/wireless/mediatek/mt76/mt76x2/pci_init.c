@@ -298,7 +298,7 @@ int mt76x2_init_hardware(struct mt76x02_dev *dev)
 {
 	int ret;
 
-	tasklet_init(&dev->pre_tbtt_tasklet, mt76x2_pre_tbtt_tasklet,
+	tasklet_init(&dev->pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
 		     (unsigned long) dev);
 
 	mt76x02_dma_disable(dev);
