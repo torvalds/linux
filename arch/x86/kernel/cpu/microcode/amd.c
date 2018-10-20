@@ -5,7 +5,7 @@
  *  CPUs and later.
  *
  *  Copyright (C) 2008-2011 Advanced Micro Devices Inc.
- *	          2013-2016 Borislav Petkov <bp@alien8.de>
+ *	          2013-2018 Borislav Petkov <bp@alien8.de>
  *
  *  Author: Peter Oruba <peter.oruba@amd.com>
  *
