@@ -132,7 +132,7 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
 	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
 
-	seq_printf(m, "\t\tSpeed: %zu bps\n", iface->speed);
+	seq_printf(m, "\tSpeed: %zu bps\n", iface->speed);
 	seq_puts(m, "\t\tCapabilities: ");
 	if (iface->rdma_capable)
 		seq_puts(m, "rdma ");
@@ -354,7 +354,7 @@ skip_rdma:
 				seq_printf(m, "\n\tServer interfaces: %zu\n",
 					   ses->iface_count);
 			for (j = 0; j < ses->iface_count; j++) {
-				seq_printf(m, "\t%d)\n", j);
+				seq_printf(m, "\t%d)", j);
 				cifs_dump_iface(m, &ses->iface_list[j]);
 			}
 			spin_unlock(&ses->iface_lock);
