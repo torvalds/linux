@@ -86,7 +86,9 @@ DESCRIPTION
 	**bpftool map pin**     *MAP*  *FILE*
 		  Pin map *MAP* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount.
+		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  contain a dot character ('.'), which is reserved for future
+		  extensions of *bpffs*.
 
 	**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
 		  Read events from a BPF_MAP_TYPE_PERF_EVENT_ARRAY map.
