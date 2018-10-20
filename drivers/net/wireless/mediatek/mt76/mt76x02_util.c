@@ -526,6 +526,18 @@ int mt76x02_get_txpower(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(mt76x02_get_txpower);
 
+void mt76x02_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta,
+		    bool ps)
+{
+	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+	struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
+	int idx = msta->wcid.idx;
+
+	mt76_stop_tx_queues(&dev->mt76, sta, true);
+	mt76x02_mac_wcid_set_drop(dev, idx, ps);
+}
+EXPORT_SYMBOL_GPL(mt76x02_sta_ps);
+
 const u16 mt76x02_beacon_offsets[16] = {
 	/* 1024 byte per beacon */
 	0xc000,

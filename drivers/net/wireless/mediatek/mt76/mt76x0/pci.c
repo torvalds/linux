@@ -142,6 +142,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		.tx_complete_skb = mt76x02_tx_complete_skb,
 		.rx_skb = mt76x02_queue_rx_skb,
 		.rx_poll_complete = mt76x02_rx_poll_complete,
+		.sta_ps = mt76x02_sta_ps,
 	};
 	struct mt76x02_dev *dev;
 	int ret;
