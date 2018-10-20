@@ -1814,12 +1814,14 @@ static int trace__resolve_callchain(struct trace *trace, struct perf_evsel *evse
 	int max_stack = evsel->attr.sample_max_stack ?
 			evsel->attr.sample_max_stack :
 			trace->max_stack;
+	int err;
 
-	if (machine__resolve(trace->host, &al, sample) < 0 ||
-	    thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, max_stack))
+	if (machine__resolve(trace->host, &al, sample) < 0)
 		return -1;
 
-	return 0;
+	err = thread__resolve_callchain(al.thread, cursor, evsel, sample, NULL, NULL, max_stack);
+	addr_location__put(&al);
+	return err;
 }
 
 static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sample)
