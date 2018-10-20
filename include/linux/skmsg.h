@@ -207,6 +207,11 @@ static inline struct scatterlist *sk_msg_elem(struct sk_msg *msg, int which)
 	return &msg->sg.data[which];
 }
 
+static inline struct scatterlist sk_msg_elem_cpy(struct sk_msg *msg, int which)
+{
+	return msg->sg.data[which];
+}
+
 static inline struct page *sk_msg_page(struct sk_msg *msg, int which)
 {
 	return sg_page(sk_msg_elem(msg, which));
