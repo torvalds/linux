@@ -128,43 +128,6 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static void
-mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_bss_conf *info, u32 changed)
-{
-	struct mt76x02_dev *dev = hw->priv;
-	struct mt76x02_vif *mvif = (struct mt76x02_vif *) vif->drv_priv;
-
-	mutex_lock(&dev->mt76.mutex);
-
-	if (changed & BSS_CHANGED_BSSID)
-		mt76x02_mac_set_bssid(dev, mvif->idx, info->bssid);
-
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
-			       MT_BEACON_TIME_CFG_INTVAL,
-			       info->beacon_int << 4);
-		dev->beacon_int = info->beacon_int;
-		dev->tbtt_count = 0;
-	}
-
-	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		tasklet_disable(&dev->pre_tbtt_tasklet);
-		mt76x02_mac_set_beacon_enable(dev, mvif->idx,
-					      info->enable_beacon);
-		tasklet_enable(&dev->pre_tbtt_tasklet);
-	}
-
-	if (changed & BSS_CHANGED_ERP_SLOT) {
-		int slottime = info->use_short_slot ? 9 : 20;
-
-		dev->slottime = slottime;
-		mt76x02_set_tx_ackto(dev);
-	}
-
-	mutex_unlock(&dev->mt76.mutex);
-}
-
-static void
 mt76x2_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	     u32 queues, bool drop)
 {
@@ -218,7 +181,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x2_config,
 	.configure_filter = mt76x02_configure_filter,
-	.bss_info_changed = mt76x2_bss_info_changed,
+	.bss_info_changed = mt76x02_bss_info_changed,
 	.sta_add = mt76x02_sta_add,
 	.sta_remove = mt76x02_sta_remove,
 	.set_key = mt76x02_set_key,

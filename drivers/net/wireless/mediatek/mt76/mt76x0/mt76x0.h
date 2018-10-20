@@ -62,9 +62,6 @@ int mt76x0_mac_start(struct mt76x02_dev *dev);
 void mt76x0_mac_stop(struct mt76x02_dev *dev);
 
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed);
-void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *info, u32 changed);
 
 /* PHY */
 void mt76x0_phy_init(struct mt76x02_dev *dev);

@@ -647,4 +647,46 @@ void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_beacon_config);
 
+void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *info,
+			      u32 changed)
+{
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
+	struct mt76x02_dev *dev = hw->priv;
+
+	mutex_lock(&dev->mt76.mutex);
+
+	if (changed & BSS_CHANGED_BSSID)
+		mt76x02_mac_set_bssid(dev, mvif->idx, info->bssid);
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		tasklet_disable(&dev->pre_tbtt_tasklet);
+		mt76x02_mac_set_beacon_enable(dev, mvif->idx,
+					      info->enable_beacon);
+		tasklet_enable(&dev->pre_tbtt_tasklet);
+	}
+
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
+			       MT_BEACON_TIME_CFG_INTVAL,
+			       info->beacon_int << 4);
+		dev->beacon_int = info->beacon_int;
+		dev->tbtt_count = 0;
+	}
+
+	if (changed & BSS_CHANGED_ERP_PREAMBLE)
+		mt76x02_mac_set_short_preamble(dev, info->use_short_preamble);
+
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		int slottime = info->use_short_slot ? 9 : 20;
+
+		dev->slottime = slottime;
+		mt76x02_set_tx_ackto(dev);
+	}
+
+	mutex_unlock(&dev->mt76.mutex);
+}
+EXPORT_SYMBOL_GPL(mt76x02_bss_info_changed);
+
 MODULE_LICENSE("Dual BSD/GPL");

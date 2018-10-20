@@ -158,6 +158,9 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 int mt76x02_get_txpower(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif, int *dbm);
 void mt76x02_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
+void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *info, u32 changed);
 
 extern const u16 mt76x02_beacon_offsets[16];
 void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
