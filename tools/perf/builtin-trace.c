@@ -2152,8 +2152,8 @@ newline:
 		trace__fprintf_callchain(trace, sample);
 	else if (callchain_ret < 0)
 		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
-	thread__put(thread);
 out:
+	thread__put(thread);
 	return 0;
 }
 
