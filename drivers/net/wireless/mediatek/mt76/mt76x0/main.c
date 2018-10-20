@@ -72,30 +72,23 @@ int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
 }
 EXPORT_SYMBOL_GPL(mt76x0_config);
 
-static void
-mt76x0_addr_wr(struct mt76x02_dev *dev, const u32 offset, const u8 *addr)
-{
-	mt76_wr(dev, offset, get_unaligned_le32(addr));
-	mt76_wr(dev, offset + 4, addr[4] | addr[5] << 8);
-}
-
 void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *info, u32 changed)
 {
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct mt76x02_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
 
-	if (changed & BSS_CHANGED_BSSID) {
-		mt76x0_addr_wr(dev, MT_MAC_BSSID_DW0, info->bssid);
+	if (changed & BSS_CHANGED_BSSID)
+		mt76x02_mac_set_bssid(dev, mvif->idx, info->bssid);
 
-		/* Note: this is a hack because beacon_int is not changed
-		 *	 on leave nor is any more appropriate event generated.
-		 *	 rt2x00 doesn't seem to be bothered though.
-		 */
-		if (is_zero_ether_addr(info->bssid))
-			mt76x0_mac_config_tsf(dev, false, 0);
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		tasklet_disable(&dev->pre_tbtt_tasklet);
+		mt76x02_mac_set_beacon_enable(dev, mvif->idx,
+					      info->enable_beacon);
+		tasklet_enable(&dev->pre_tbtt_tasklet);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
@@ -106,8 +99,13 @@ void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
 		mt76_wr(dev, MT_LG_FBK_CFG1, 0x00002100);
 	}
 
-	if (changed & BSS_CHANGED_BEACON_INT)
-		mt76x0_mac_config_tsf(dev, true, info->beacon_int);
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
+			       MT_BEACON_TIME_CFG_INTVAL,
+			       info->beacon_int << 4);
+		dev->beacon_int = info->beacon_int;
+		dev->tbtt_count = 0;
+	}
 
 	if (changed & BSS_CHANGED_HT || changed & BSS_CHANGED_ERP_CTS_PROT)
 		mt76x0_mac_set_protection(dev, info->use_cts_prot,

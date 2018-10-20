@@ -78,6 +78,4 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on);
 /* MAC */
 void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
 				int ht_mode);
-void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval);
-
 #endif

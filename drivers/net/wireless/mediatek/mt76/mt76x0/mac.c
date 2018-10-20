@@ -75,23 +75,3 @@ void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
 	for (i = 0; i < 6; i++)
 		mt76_wr(dev, MT_CCK_PROT_CFG + i * 4, prot[i]);
 }
-
-void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval)
-{
-	u32 val = mt76_rr(dev, MT_BEACON_TIME_CFG);
-
-	val &= ~(MT_BEACON_TIME_CFG_TIMER_EN |
-		 MT_BEACON_TIME_CFG_SYNC_MODE |
-		 MT_BEACON_TIME_CFG_TBTT_EN);
-
-	if (!enable) {
-		mt76_wr(dev, MT_BEACON_TIME_CFG, val);
-		return;
-	}
-
-	val &= ~MT_BEACON_TIME_CFG_INTVAL;
-	val |= FIELD_PREP(MT_BEACON_TIME_CFG_INTVAL, interval << 4) |
-		MT_BEACON_TIME_CFG_TIMER_EN |
-		MT_BEACON_TIME_CFG_SYNC_MODE |
-		MT_BEACON_TIME_CFG_TBTT_EN;
-}

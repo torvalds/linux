@@ -68,6 +68,19 @@ static void mt76x0e_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&dev->mt76.mutex);
 }
 
+static void
+mt76x0e_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	      u32 queues, bool drop)
+{
+}
+
+static int
+mt76x0e_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		bool set)
+{
+	return 0;
+}
+
 static const struct ieee80211_ops mt76x0e_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x0e_start,
@@ -76,6 +89,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.remove_interface = mt76x02_remove_interface,
 	.config = mt76x0_config,
 	.configure_filter = mt76x02_configure_filter,
+	.bss_info_changed = mt76x0_bss_info_changed,
 	.sta_add = mt76x02_sta_add,
 	.sta_remove = mt76x02_sta_remove,
 	.set_key = mt76x02_set_key,
@@ -87,6 +101,9 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.get_survey = mt76_get_survey,
 	.get_txpower = mt76x02_get_txpower,
+	.flush = mt76x0e_flush,
+	.set_tim = mt76x0e_set_tim,
+	.release_buffered_frames = mt76_release_buffered_frames,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)
