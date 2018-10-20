@@ -99,7 +99,7 @@ mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
 		       MT_BEACON_TIME_CFG_INTVAL, timer_val);
 }
 
-void mt76x02_pre_tbtt_tasklet(unsigned long arg)
+static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 {
 	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
 	struct mt76_queue *q = &dev->mt76.q_tx[MT_TXQ_PSD];
@@ -144,7 +144,6 @@ void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 	}
 	spin_unlock_bh(&q->lock);
 }
-EXPORT_SYMBOL_GPL(mt76x02_pre_tbtt_tasklet);
 
 static int
 mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
@@ -223,6 +222,9 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 		return -ENOMEM;
 
 	tasklet_init(&dev->tx_tasklet, mt76x02_tx_tasklet, (unsigned long) dev);
+	tasklet_init(&dev->pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
+		     (unsigned long)dev);
+
 	kfifo_init(&dev->txstatus_fifo, status_fifo, fifo_size);
 
 	mt76_dma_attach(&dev->mt76);
