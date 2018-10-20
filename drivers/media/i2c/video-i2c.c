@@ -52,6 +52,8 @@ struct video_i2c_data {
 
 	struct task_struct *kthread_vid_cap;
 	struct list_head vid_cap_active;
+
+	struct v4l2_fract frame_interval;
 };
 
 static const struct v4l2_fmtdesc amg88xx_format = {
@@ -74,8 +76,9 @@ struct video_i2c_chip {
 	const struct v4l2_fmtdesc *format;
 	const struct v4l2_frmsize_discrete *size;
 
-	/* max frames per second */
-	unsigned int max_fps;
+	/* available frame intervals */
+	const struct v4l2_fract *frame_intervals;
+	unsigned int num_frame_intervals;
 
 	/* pixel buffer size */
 	unsigned int buffer_size;
@@ -85,12 +88,19 @@ struct video_i2c_chip {
 
 	const struct regmap_config *regmap_config;
 
+	/* setup function */
+	int (*setup)(struct video_i2c_data *data);
+
 	/* xfer function */
 	int (*xfer)(struct video_i2c_data *data, char *buf);
 
 	/* hwmon init function */
 	int (*hwmon_init)(struct video_i2c_data *data);
 };
+
+/* Frame rate register */
+#define AMG88XX_REG_FPSC	0x02
+#define AMG88XX_FPSC_1FPS		BIT(0)
 
 /* Thermistor register */
 #define AMG88XX_REG_TTHL	0x0e
@@ -102,6 +112,19 @@ static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 {
 	return regmap_bulk_read(data->regmap, AMG88XX_REG_T01L, buf,
 				data->chip->buffer_size);
+}
+
+static int amg88xx_setup(struct video_i2c_data *data)
+{
+	unsigned int mask = AMG88XX_FPSC_1FPS;
+	unsigned int val;
+
+	if (data->frame_interval.numerator == data->frame_interval.denominator)
+		val = mask;
+	else
+		val = 0;
+
+	return regmap_update_bits(data->regmap, AMG88XX_REG_FPSC, mask, val);
 }
 
 #if IS_ENABLED(CONFIG_HWMON)
@@ -178,14 +201,21 @@ static int amg88xx_hwmon_init(struct video_i2c_data *data)
 
 #define AMG88XX		0
 
+static const struct v4l2_fract amg88xx_frame_intervals[] = {
+	{ 1, 10 },
+	{ 1, 1 },
+};
+
 static const struct video_i2c_chip video_i2c_chip[] = {
 	[AMG88XX] = {
 		.size		= &amg88xx_size,
 		.format		= &amg88xx_format,
-		.max_fps	= 10,
+		.frame_intervals	= amg88xx_frame_intervals,
+		.num_frame_intervals	= ARRAY_SIZE(amg88xx_frame_intervals),
 		.buffer_size	= 128,
 		.bpp		= 16,
 		.regmap_config	= &amg88xx_regmap_config,
+		.setup		= &amg88xx_setup,
 		.xfer		= &amg88xx_xfer,
 		.hwmon_init	= amg88xx_hwmon_init,
 	},
@@ -250,7 +280,8 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int video_i2c_thread_vid_cap(void *priv)
 {
 	struct video_i2c_data *data = priv;
-	unsigned int delay = msecs_to_jiffies(1000 / data->chip->max_fps);
+	unsigned int delay = mult_frac(HZ, data->frame_interval.numerator,
+				       data->frame_interval.denominator);
 
 	set_freezable();
 
@@ -312,19 +343,26 @@ static void video_i2c_del_list(struct vb2_queue *vq, enum vb2_buffer_state state
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct video_i2c_data *data = vb2_get_drv_priv(vq);
+	int ret;
 
 	if (data->kthread_vid_cap)
 		return 0;
 
+	ret = data->chip->setup(data);
+	if (ret)
+		goto error_del_list;
+
 	data->sequence = 0;
 	data->kthread_vid_cap = kthread_run(video_i2c_thread_vid_cap, data,
 					    "%s-vid-cap", data->v4l2_dev.name);
-	if (!IS_ERR(data->kthread_vid_cap))
+	ret = PTR_ERR_OR_ZERO(data->kthread_vid_cap);
+	if (!ret)
 		return 0;
 
+error_del_list:
 	video_i2c_del_list(vq, VB2_BUF_STATE_QUEUED);
 
-	return PTR_ERR(data->kthread_vid_cap);
+	return ret;
 }
 
 static void stop_streaming(struct vb2_queue *vq)
@@ -431,15 +469,14 @@ static int video_i2c_enum_frameintervals(struct file *file, void *priv,
 	const struct video_i2c_data *data = video_drvdata(file);
 	const struct v4l2_frmsize_discrete *size = data->chip->size;
 
-	if (fe->index > 0)
+	if (fe->index >= data->chip->num_frame_intervals)
 		return -EINVAL;
 
 	if (fe->width != size->width || fe->height != size->height)
 		return -EINVAL;
 
 	fe->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	fe->discrete.numerator = 1;
-	fe->discrete.denominator = data->chip->max_fps;
+	fe->discrete = data->chip->frame_intervals[fe->index];
 
 	return 0;
 }
@@ -484,10 +521,25 @@ static int video_i2c_g_parm(struct file *filp, void *priv,
 
 	parm->parm.capture.readbuffers = 1;
 	parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	parm->parm.capture.timeperframe.numerator = 1;
-	parm->parm.capture.timeperframe.denominator = data->chip->max_fps;
+	parm->parm.capture.timeperframe = data->frame_interval;
 
 	return 0;
+}
+
+static int video_i2c_s_parm(struct file *filp, void *priv,
+			      struct v4l2_streamparm *parm)
+{
+	struct video_i2c_data *data = video_drvdata(filp);
+	int i;
+
+	for (i = 0; i < data->chip->num_frame_intervals - 1; i++) {
+		if (V4L2_FRACT_COMPARE(parm->parm.capture.timeperframe, <=,
+				       data->chip->frame_intervals[i]))
+			break;
+	}
+	data->frame_interval = data->chip->frame_intervals[i];
+
+	return video_i2c_g_parm(filp, priv, parm);
 }
 
 static const struct v4l2_ioctl_ops video_i2c_ioctl_ops = {
@@ -501,7 +553,7 @@ static const struct v4l2_ioctl_ops video_i2c_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap		= video_i2c_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		= video_i2c_s_fmt_vid_cap,
 	.vidioc_g_parm			= video_i2c_g_parm,
-	.vidioc_s_parm			= video_i2c_g_parm,
+	.vidioc_s_parm			= video_i2c_s_parm,
 	.vidioc_try_fmt_vid_cap		= video_i2c_try_fmt_vid_cap,
 	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
 	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
@@ -590,6 +642,8 @@ static int video_i2c_probe(struct i2c_client *client,
 
 	spin_lock_init(&data->slock);
 	INIT_LIST_HEAD(&data->vid_cap_active);
+
+	data->frame_interval = data->chip->frame_intervals[0];
 
 	video_set_drvdata(&data->vdev, data);
 	i2c_set_clientdata(client, data);
