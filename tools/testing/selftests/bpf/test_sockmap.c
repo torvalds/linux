@@ -77,6 +77,8 @@ int txmsg_apply;
 int txmsg_cork;
 int txmsg_start;
 int txmsg_end;
+int txmsg_start_push;
+int txmsg_end_push;
 int txmsg_ingress;
 int txmsg_skb;
 int ktls;
@@ -100,6 +102,8 @@ static const struct option long_options[] = {
 	{"txmsg_cork",	required_argument,	NULL, 'k'},
 	{"txmsg_start", required_argument,	NULL, 's'},
 	{"txmsg_end",	required_argument,	NULL, 'e'},
+	{"txmsg_start_push", required_argument,	NULL, 'p'},
+	{"txmsg_end_push",   required_argument,	NULL, 'q'},
 	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
 	{"txmsg_skb", no_argument,		&txmsg_skb, 1 },
 	{"ktls", no_argument,			&ktls, 1 },
@@ -903,6 +907,30 @@ run:
 			}
 		}
 
+		if (txmsg_start_push) {
+			i = 2;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start_push, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_start_push):  %d (%s)\n",
+					err, strerror(errno));
+				goto out;
+			}
+		}
+
+		if (txmsg_end_push) {
+			i = 3;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_end_push, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem %i@%i (txmsg_end_push):  %d (%s)\n",
+					txmsg_end_push, i, err, strerror(errno));
+				goto out;
+			}
+		}
+
 		if (txmsg_ingress) {
 			int in = BPF_F_INGRESS;
 
@@ -1235,6 +1263,8 @@ static int test_mixed(int cgrp)
 	txmsg_pass = txmsg_noisy = txmsg_redir_noisy = txmsg_drop = 0;
 	txmsg_apply = txmsg_cork = 0;
 	txmsg_start = txmsg_end = 0;
+	txmsg_start_push = txmsg_end_push = 0;
+
 	/* Test small and large iov_count values with pass/redir/apply/cork */
 	txmsg_pass = 1;
 	txmsg_redir = 0;
@@ -1351,6 +1381,8 @@ static int test_start_end(int cgrp)
 	/* Test basic start/end with lots of iov_count and iov_lengths */
 	txmsg_start = 1;
 	txmsg_end = 2;
+	txmsg_start_push = 1;
+	txmsg_end_push = 2;
 	err = test_txmsg(cgrp);
 	if (err)
 		goto out;
@@ -1364,6 +1396,8 @@ static int test_start_end(int cgrp)
 	for (i = 99; i <= 1600; i += 500) {
 		txmsg_start = 0;
 		txmsg_end = i;
+		txmsg_start_push = 0;
+		txmsg_end_push = i;
 		err = test_exec(cgrp, &opt);
 		if (err)
 			goto out;
@@ -1373,6 +1407,8 @@ static int test_start_end(int cgrp)
 	for (i = 199; i <= 1600; i += 500) {
 		txmsg_start = 100;
 		txmsg_end = i;
+		txmsg_start_push = 100;
+		txmsg_end_push = i;
 		err = test_exec(cgrp, &opt);
 		if (err)
 			goto out;
@@ -1381,6 +1417,8 @@ static int test_start_end(int cgrp)
 	/* Test start/end with cork pulling last sg entry */
 	txmsg_start = 1500;
 	txmsg_end = 1600;
+	txmsg_start_push = 1500;
+	txmsg_end_push = 1600;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
@@ -1388,6 +1426,8 @@ static int test_start_end(int cgrp)
 	/* Test start/end pull of single byte in last page */
 	txmsg_start = 1111;
 	txmsg_end = 1112;
+	txmsg_start_push = 1111;
+	txmsg_end_push = 1112;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
@@ -1395,6 +1435,8 @@ static int test_start_end(int cgrp)
 	/* Test start/end with end < start */
 	txmsg_start = 1111;
 	txmsg_end = 0;
+	txmsg_start_push = 1111;
+	txmsg_end_push = 0;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
@@ -1402,6 +1444,8 @@ static int test_start_end(int cgrp)
 	/* Test start/end with end > data */
 	txmsg_start = 0;
 	txmsg_end = 1601;
+	txmsg_start_push = 0;
+	txmsg_end_push = 1601;
 	err = test_exec(cgrp, &opt);
 	if (err)
 		goto out;
@@ -1409,6 +1453,8 @@ static int test_start_end(int cgrp)
 	/* Test start/end with start > data */
 	txmsg_start = 1601;
 	txmsg_end = 1600;
+	txmsg_start_push = 1601;
+	txmsg_end_push = 1600;
 	err = test_exec(cgrp, &opt);
 
 out:
@@ -1424,7 +1470,7 @@ char *map_names[] = {
 	"sock_map_redir",
 	"sock_apply_bytes",
 	"sock_cork_bytes",
-	"sock_pull_bytes",
+	"sock_bytes",
 	"sock_redir_flags",
 	"sock_skb_opts",
 };
@@ -1531,7 +1577,7 @@ static int __test_suite(int cg_fd, char *bpf_file)
 	}
 
 	/* Tests basic commands and APIs with range of iov values */
-	txmsg_start = txmsg_end = 0;
+	txmsg_start = txmsg_end = txmsg_start_push = txmsg_end_push = 0;
 	err = test_txmsg(cg_fd);
 	if (err)
 		goto out;
@@ -1580,7 +1626,7 @@ int main(int argc, char **argv)
 	if (argc < 2)
 		return test_suite(-1);
 
-	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
+	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:p:q:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 's':
@@ -1588,6 +1634,12 @@ int main(int argc, char **argv)
 			break;
 		case 'e':
 			txmsg_end = atoi(optarg);
+			break;
+		case 'p':
+			txmsg_start_push = atoi(optarg);
+			break;
+		case 'q':
+			txmsg_end_push = atoi(optarg);
 			break;
 		case 'a':
 			txmsg_apply = atoi(optarg);
