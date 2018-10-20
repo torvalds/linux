@@ -43,7 +43,7 @@ static int mdp4_hw_init(struct msm_kms *kms)
 	DBG("found MDP4 version v%d.%d", major, minor);
 
 	if (major != 4) {
-		dev_err(dev->dev, "unexpected MDP version: v%d.%d\n",
+		DRM_DEV_ERROR(dev->dev, "unexpected MDP version: v%d.%d\n",
 				major, minor);
 		ret = -ENXIO;
 		goto out;
@@ -251,7 +251,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
 		if (IS_ERR(encoder)) {
-			dev_err(dev->dev, "failed to construct LCDC encoder\n");
+			DRM_DEV_ERROR(dev->dev, "failed to construct LCDC encoder\n");
 			return PTR_ERR(encoder);
 		}
 
@@ -260,7 +260,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		connector = mdp4_lvds_connector_init(dev, panel_node, encoder);
 		if (IS_ERR(connector)) {
-			dev_err(dev->dev, "failed to initialize LVDS connector\n");
+			DRM_DEV_ERROR(dev->dev, "failed to initialize LVDS connector\n");
 			return PTR_ERR(connector);
 		}
 
@@ -271,7 +271,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	case DRM_MODE_ENCODER_TMDS:
 		encoder = mdp4_dtv_encoder_init(dev);
 		if (IS_ERR(encoder)) {
-			dev_err(dev->dev, "failed to construct DTV encoder\n");
+			DRM_DEV_ERROR(dev->dev, "failed to construct DTV encoder\n");
 			return PTR_ERR(encoder);
 		}
 
@@ -282,7 +282,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 			/* Construct bridge/connector for HDMI: */
 			ret = msm_hdmi_modeset_init(priv->hdmi, dev, encoder);
 			if (ret) {
-				dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+				DRM_DEV_ERROR(dev->dev, "failed to initialize HDMI: %d\n", ret);
 				return ret;
 			}
 		}
@@ -300,7 +300,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		encoder = mdp4_dsi_encoder_init(dev);
 		if (IS_ERR(encoder)) {
 			ret = PTR_ERR(encoder);
-			dev_err(dev->dev,
+			DRM_DEV_ERROR(dev->dev,
 				"failed to construct DSI encoder: %d\n", ret);
 			return ret;
 		}
@@ -311,14 +311,14 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, encoder);
 		if (ret) {
-			dev_err(dev->dev, "failed to initialize DSI: %d\n",
+			DRM_DEV_ERROR(dev->dev, "failed to initialize DSI: %d\n",
 				ret);
 			return ret;
 		}
 
 		break;
 	default:
-		dev_err(dev->dev, "Invalid or unsupported interface\n");
+		DRM_DEV_ERROR(dev->dev, "Invalid or unsupported interface\n");
 		return -EINVAL;
 	}
 
@@ -354,7 +354,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	for (i = 0; i < ARRAY_SIZE(vg_planes); i++) {
 		plane = mdp4_plane_init(dev, vg_planes[i], false);
 		if (IS_ERR(plane)) {
-			dev_err(dev->dev,
+			DRM_DEV_ERROR(dev->dev,
 				"failed to construct plane for VG%d\n", i + 1);
 			ret = PTR_ERR(plane);
 			goto fail;
@@ -365,7 +365,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	for (i = 0; i < ARRAY_SIZE(mdp4_crtcs); i++) {
 		plane = mdp4_plane_init(dev, rgb_planes[i], true);
 		if (IS_ERR(plane)) {
-			dev_err(dev->dev,
+			DRM_DEV_ERROR(dev->dev,
 				"failed to construct plane for RGB%d\n", i + 1);
 			ret = PTR_ERR(plane);
 			goto fail;
@@ -374,7 +374,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, i,
 				mdp4_crtcs[i]);
 		if (IS_ERR(crtc)) {
-			dev_err(dev->dev, "failed to construct crtc for %s\n",
+			DRM_DEV_ERROR(dev->dev, "failed to construct crtc for %s\n",
 				mdp4_crtc_names[i]);
 			ret = PTR_ERR(crtc);
 			goto fail;
@@ -396,7 +396,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	for (i = 0; i < ARRAY_SIZE(mdp4_intfs); i++) {
 		ret = mdp4_modeset_init_intf(mdp4_kms, mdp4_intfs[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to initialize intf: %d, %d\n",
+			DRM_DEV_ERROR(dev->dev, "failed to initialize intf: %d, %d\n",
 				i, ret);
 			goto fail;
 		}
@@ -419,7 +419,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
-		dev_err(dev->dev, "failed to allocate kms\n");
+		DRM_DEV_ERROR(dev->dev, "failed to allocate kms\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -439,7 +439,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
-		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get irq: %d\n", ret);
 		goto fail;
 	}
 
@@ -456,14 +456,14 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	if (mdp4_kms->vdd) {
 		ret = regulator_enable(mdp4_kms->vdd);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable regulator vdd: %d\n", ret);
+			DRM_DEV_ERROR(dev->dev, "failed to enable regulator vdd: %d\n", ret);
 			goto fail;
 		}
 	}
 
 	mdp4_kms->clk = devm_clk_get(&pdev->dev, "core_clk");
 	if (IS_ERR(mdp4_kms->clk)) {
-		dev_err(dev->dev, "failed to get core_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get core_clk\n");
 		ret = PTR_ERR(mdp4_kms->clk);
 		goto fail;
 	}
@@ -475,14 +475,14 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	// XXX if (rev >= MDP_REV_42) { ???
 	mdp4_kms->lut_clk = devm_clk_get(&pdev->dev, "lut_clk");
 	if (IS_ERR(mdp4_kms->lut_clk)) {
-		dev_err(dev->dev, "failed to get lut_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get lut_clk\n");
 		ret = PTR_ERR(mdp4_kms->lut_clk);
 		goto fail;
 	}
 
 	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(mdp4_kms->axi_clk)) {
-		dev_err(dev->dev, "failed to get axi_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get axi_clk\n");
 		ret = PTR_ERR(mdp4_kms->axi_clk);
 		goto fail;
 	}
@@ -519,21 +519,21 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		if (ret)
 			goto fail;
 	} else {
-		dev_info(dev->dev, "no iommu, fallback to phys "
+		DRM_DEV_INFO(dev->dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
 		aspace = NULL;
 	}
 
 	ret = modeset_init(mdp4_kms);
 	if (ret) {
-		dev_err(dev->dev, "modeset_init failed: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "modeset_init failed: %d\n", ret);
 		goto fail;
 	}
 
 	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC);
 	if (IS_ERR(mdp4_kms->blank_cursor_bo)) {
 		ret = PTR_ERR(mdp4_kms->blank_cursor_bo);
-		dev_err(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
 		mdp4_kms->blank_cursor_bo = NULL;
 		goto fail;
 	}
@@ -541,7 +541,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, kms->aspace,
 			&mdp4_kms->blank_cursor_iova);
 	if (ret) {
-		dev_err(dev->dev, "could not pin blank-cursor bo: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could not pin blank-cursor bo: %d\n", ret);
 		goto fail;
 	}
 

@@ -88,7 +88,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 			p = get_pages_vram(obj, npages);
 
 		if (IS_ERR(p)) {
-			dev_err(dev->dev, "could not get pages: %ld\n",
+			DRM_DEV_ERROR(dev->dev, "could not get pages: %ld\n",
 					PTR_ERR(p));
 			return p;
 		}
@@ -99,7 +99,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		if (IS_ERR(msm_obj->sgt)) {
 			void *ptr = ERR_CAST(msm_obj->sgt);
 
-			dev_err(dev->dev, "failed to allocate sgt\n");
+			DRM_DEV_ERROR(dev->dev, "failed to allocate sgt\n");
 			msm_obj->sgt = NULL;
 			return ptr;
 		}
@@ -280,7 +280,7 @@ static uint64_t mmap_offset(struct drm_gem_object *obj)
 	ret = drm_gem_create_mmap_offset(obj);
 
 	if (ret) {
-		dev_err(dev->dev, "could not allocate mmap offset\n");
+		DRM_DEV_ERROR(dev->dev, "could not allocate mmap offset\n");
 		return 0;
 	}
 
@@ -473,7 +473,7 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 	mutex_lock(&msm_obj->lock);
 
 	if (WARN_ON(msm_obj->madv > madv)) {
-		dev_err(obj->dev->dev, "Invalid madv state: %u vs %u\n",
+		DRM_DEV_ERROR(obj->dev->dev, "Invalid madv state: %u vs %u\n",
 			msm_obj->madv, madv);
 		mutex_unlock(&msm_obj->lock);
 		return ERR_PTR(-EBUSY);
@@ -864,7 +864,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	case MSM_BO_WC:
 		break;
 	default:
-		dev_err(dev->dev, "invalid cache flag: %x\n",
+		DRM_DEV_ERROR(dev->dev, "invalid cache flag: %x\n",
 				(flags & MSM_BO_CACHE_MASK));
 		return -EINVAL;
 	}
@@ -990,7 +990,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	/* if we don't have IOMMU, don't bother pretending we can import: */
 	if (!iommu_present(&platform_bus_type)) {
-		dev_err(dev->dev, "cannot import without IOMMU\n");
+		DRM_DEV_ERROR(dev->dev, "cannot import without IOMMU\n");
 		return ERR_PTR(-EINVAL);
 	}
 

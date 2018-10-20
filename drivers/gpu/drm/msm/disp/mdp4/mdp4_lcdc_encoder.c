@@ -47,7 +47,7 @@ static void bs_init(struct mdp4_lcdc_encoder *mdp4_lcdc_encoder)
 	struct lcdc_platform_data *lcdc_pdata = mdp4_find_pdata("lvds.0");
 
 	if (!lcdc_pdata) {
-		dev_err(dev->dev, "could not find lvds pdata\n");
+		DRM_DEV_ERROR(dev->dev, "could not find lvds pdata\n");
 		return;
 	}
 
@@ -224,7 +224,7 @@ static void setup_phy(struct drm_encoder *encoder)
 		break;
 
 	default:
-		dev_err(dev->dev, "unknown bpp: %d\n", bpp);
+		DRM_DEV_ERROR(dev->dev, "unknown bpp: %d\n", bpp);
 		return;
 	}
 
@@ -241,7 +241,7 @@ static void setup_phy(struct drm_encoder *encoder)
 				MDP4_LCDC_LVDS_INTF_CTL_CH1_CLK_LANE_EN;
 		break;
 	default:
-		dev_err(dev->dev, "unknown # of channels: %d\n", nchan);
+		DRM_DEV_ERROR(dev->dev, "unknown # of channels: %d\n", nchan);
 		return;
 	}
 
@@ -361,7 +361,7 @@ static void mdp4_lcdc_encoder_disable(struct drm_encoder *encoder)
 	for (i = 0; i < ARRAY_SIZE(mdp4_lcdc_encoder->regs); i++) {
 		ret = regulator_disable(mdp4_lcdc_encoder->regs[i]);
 		if (ret)
-			dev_err(dev->dev, "failed to disable regulator: %d\n", ret);
+			DRM_DEV_ERROR(dev->dev, "failed to disable regulator: %d\n", ret);
 	}
 
 	bs_set(mdp4_lcdc_encoder, 0);
@@ -398,16 +398,16 @@ static void mdp4_lcdc_encoder_enable(struct drm_encoder *encoder)
 	for (i = 0; i < ARRAY_SIZE(mdp4_lcdc_encoder->regs); i++) {
 		ret = regulator_enable(mdp4_lcdc_encoder->regs[i]);
 		if (ret)
-			dev_err(dev->dev, "failed to enable regulator: %d\n", ret);
+			DRM_DEV_ERROR(dev->dev, "failed to enable regulator: %d\n", ret);
 	}
 
 	DBG("setting lcdc_clk=%lu", pc);
 	ret = clk_set_rate(mdp4_lcdc_encoder->lcdc_clk, pc);
 	if (ret)
-		dev_err(dev->dev, "failed to configure lcdc_clk: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to configure lcdc_clk: %d\n", ret);
 	ret = clk_prepare_enable(mdp4_lcdc_encoder->lcdc_clk);
 	if (ret)
-		dev_err(dev->dev, "failed to enable lcdc_clk: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to enable lcdc_clk: %d\n", ret);
 
 	panel = of_drm_find_panel(mdp4_lcdc_encoder->panel_node);
 	if (!IS_ERR(panel)) {
@@ -461,7 +461,7 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 	/* TODO: do we need different pll in other cases? */
 	mdp4_lcdc_encoder->lcdc_clk = mpd4_lvds_pll_init(dev);
 	if (IS_ERR(mdp4_lcdc_encoder->lcdc_clk)) {
-		dev_err(dev->dev, "failed to get lvds_clk\n");
+		DRM_DEV_ERROR(dev->dev, "failed to get lvds_clk\n");
 		ret = PTR_ERR(mdp4_lcdc_encoder->lcdc_clk);
 		goto fail;
 	}
@@ -470,7 +470,7 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 	reg = devm_regulator_get(dev->dev, "lvds-vccs-3p3v");
 	if (IS_ERR(reg)) {
 		ret = PTR_ERR(reg);
-		dev_err(dev->dev, "failed to get lvds-vccs-3p3v: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get lvds-vccs-3p3v: %d\n", ret);
 		goto fail;
 	}
 	mdp4_lcdc_encoder->regs[0] = reg;
@@ -478,7 +478,7 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 	reg = devm_regulator_get(dev->dev, "lvds-pll-vdda");
 	if (IS_ERR(reg)) {
 		ret = PTR_ERR(reg);
-		dev_err(dev->dev, "failed to get lvds-pll-vdda: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get lvds-pll-vdda: %d\n", ret);
 		goto fail;
 	}
 	mdp4_lcdc_encoder->regs[1] = reg;
@@ -486,7 +486,7 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 	reg = devm_regulator_get(dev->dev, "lvds-vdda");
 	if (IS_ERR(reg)) {
 		ret = PTR_ERR(reg);
-		dev_err(dev->dev, "failed to get lvds-vdda: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to get lvds-vdda: %d\n", ret);
 		goto fail;
 	}
 	mdp4_lcdc_encoder->regs[2] = reg;

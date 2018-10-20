@@ -107,7 +107,7 @@ static void msm_devfreq_init(struct msm_gpu *gpu)
 			&msm_devfreq_profile, "simple_ondemand", NULL);
 
 	if (IS_ERR(gpu->devfreq.devfreq)) {
-		dev_err(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
+		DRM_DEV_ERROR(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		gpu->devfreq.devfreq = NULL;
 	}
 
@@ -122,7 +122,7 @@ static int enable_pwrrail(struct msm_gpu *gpu)
 	if (gpu->gpu_reg) {
 		ret = regulator_enable(gpu->gpu_reg);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable 'gpu_reg': %d\n", ret);
+			DRM_DEV_ERROR(dev->dev, "failed to enable 'gpu_reg': %d\n", ret);
 			return ret;
 		}
 	}
@@ -130,7 +130,7 @@ static int enable_pwrrail(struct msm_gpu *gpu)
 	if (gpu->gpu_cx) {
 		ret = regulator_enable(gpu->gpu_cx);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable 'gpu_cx': %d\n", ret);
+			DRM_DEV_ERROR(dev->dev, "failed to enable 'gpu_cx': %d\n", ret);
 			return ret;
 		}
 	}
@@ -428,7 +428,7 @@ static void recover_worker(struct work_struct *work)
 
 	mutex_lock(&dev->struct_mutex);
 
-	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
+	DRM_DEV_ERROR(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
 	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
 	if (submit) {
@@ -456,7 +456,7 @@ static void recover_worker(struct work_struct *work)
 		rcu_read_unlock();
 
 		if (comm && cmd) {
-			dev_err(dev->dev, "%s: offending task: %s (%s)\n",
+			DRM_DEV_ERROR(dev->dev, "%s: offending task: %s (%s)\n",
 				gpu->name, comm, cmd);
 
 			msm_rd_dump_submit(priv->hangrd, submit,
@@ -539,11 +539,11 @@ static void hangcheck_handler(struct timer_list *t)
 	} else if (fence < ring->seqno) {
 		/* no progress and not done.. hung! */
 		ring->hangcheck_fence = fence;
-		dev_err(dev->dev, "%s: hangcheck detected gpu lockup rb %d!\n",
+		DRM_DEV_ERROR(dev->dev, "%s: hangcheck detected gpu lockup rb %d!\n",
 				gpu->name, ring->id);
-		dev_err(dev->dev, "%s:     completed fence: %u\n",
+		DRM_DEV_ERROR(dev->dev, "%s:     completed fence: %u\n",
 				gpu->name, fence);
-		dev_err(dev->dev, "%s:     submitted fence: %u\n",
+		DRM_DEV_ERROR(dev->dev, "%s:     submitted fence: %u\n",
 				gpu->name, ring->seqno);
 
 		queue_work(priv->wq, &gpu->recover_work);
@@ -816,11 +816,11 @@ msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 	iommu->geometry.aperture_start = va_start;
 	iommu->geometry.aperture_end = va_end;
 
-	dev_info(gpu->dev->dev, "%s: using IOMMU\n", gpu->name);
+	DRM_DEV_INFO(gpu->dev->dev, "%s: using IOMMU\n", gpu->name);
 
 	aspace = msm_gem_address_space_create(&pdev->dev, iommu, "gpu");
 	if (IS_ERR(aspace)) {
-		dev_err(gpu->dev->dev, "failed to init iommu: %ld\n",
+		DRM_DEV_ERROR(gpu->dev->dev, "failed to init iommu: %ld\n",
 			PTR_ERR(aspace));
 		iommu_domain_free(iommu);
 		return ERR_CAST(aspace);
@@ -871,14 +871,14 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->irq = platform_get_irq_byname(pdev, config->irqname);
 	if (gpu->irq < 0) {
 		ret = gpu->irq;
-		dev_err(drm->dev, "failed to get irq: %d\n", ret);
+		DRM_DEV_ERROR(drm->dev, "failed to get irq: %d\n", ret);
 		goto fail;
 	}
 
 	ret = devm_request_irq(&pdev->dev, gpu->irq, irq_handler,
 			IRQF_TRIGGER_HIGH, gpu->name, gpu);
 	if (ret) {
-		dev_err(drm->dev, "failed to request IRQ%u: %d\n", gpu->irq, ret);
+		DRM_DEV_ERROR(drm->dev, "failed to request IRQ%u: %d\n", gpu->irq, ret);
 		goto fail;
 	}
 
@@ -911,7 +911,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		config->va_start, config->va_end);
 
 	if (gpu->aspace == NULL)
-		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
+		DRM_DEV_INFO(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
 	else if (IS_ERR(gpu->aspace)) {
 		ret = PTR_ERR(gpu->aspace);
 		goto fail;
@@ -923,7 +923,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	if (IS_ERR(memptrs)) {
 		ret = PTR_ERR(memptrs);
-		dev_err(drm->dev, "could not allocate memptrs: %d\n", ret);
+		DRM_DEV_ERROR(drm->dev, "could not allocate memptrs: %d\n", ret);
 		goto fail;
 	}
 
@@ -939,7 +939,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 		if (IS_ERR(gpu->rb[i])) {
 			ret = PTR_ERR(gpu->rb[i]);
-			dev_err(drm->dev,
+			DRM_DEV_ERROR(drm->dev,
 				"could not create ringbuffer %d: %d\n", i, ret);
 			goto fail;
 		}

@@ -481,7 +481,7 @@ out:
 
 static void a6xx_dump(struct msm_gpu *gpu)
 {
-	dev_info(&gpu->pdev->dev, "status:   %08x\n",
+	DRM_DEV_INFO(&gpu->pdev->dev, "status:   %08x\n",
 			gpu_read(gpu, REG_A6XX_RBBM_STATUS));
 	adreno_dump(gpu);
 }
@@ -498,7 +498,7 @@ static void a6xx_recover(struct msm_gpu *gpu)
 	adreno_dump_info(gpu);
 
 	for (i = 0; i < 8; i++)
-		dev_info(&gpu->pdev->dev, "CP_SCRATCH_REG%d: %u\n", i,
+		DRM_DEV_INFO(&gpu->pdev->dev, "CP_SCRATCH_REG%d: %u\n", i,
 			gpu_read(gpu, REG_A6XX_CP_SCRATCH_REG(i)));
 
 	if (hang_debug)

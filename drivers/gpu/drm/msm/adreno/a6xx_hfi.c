@@ -91,7 +91,7 @@ static int a6xx_hfi_wait_for_ack(struct a6xx_gmu *gmu, u32 id, u32 seqnum,
 		val & A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ, 100, 5000);
 
 	if (ret) {
-		dev_err(gmu->dev,
+		DRM_DEV_ERROR(gmu->dev,
 			"Message %s id %d timed out waiting for response\n",
 			a6xx_hfi_msg_id[id], seqnum);
 		return -ETIMEDOUT;
@@ -110,7 +110,7 @@ static int a6xx_hfi_wait_for_ack(struct a6xx_gmu *gmu, u32 id, u32 seqnum,
 
 		/* If the queue is empty our response never made it */
 		if (!ret) {
-			dev_err(gmu->dev,
+			DRM_DEV_ERROR(gmu->dev,
 				"The HFI response queue is unexpectedly empty\n");
 
 			return -ENOENT;
@@ -120,20 +120,20 @@ static int a6xx_hfi_wait_for_ack(struct a6xx_gmu *gmu, u32 id, u32 seqnum,
 			struct a6xx_hfi_msg_error *error =
 				(struct a6xx_hfi_msg_error *) &resp;
 
-			dev_err(gmu->dev, "GMU firmware error %d\n",
+			DRM_DEV_ERROR(gmu->dev, "GMU firmware error %d\n",
 				error->code);
 			continue;
 		}
 
 		if (seqnum != HFI_HEADER_SEQNUM(resp.ret_header)) {
-			dev_err(gmu->dev,
+			DRM_DEV_ERROR(gmu->dev,
 				"Unexpected message id %d on the response queue\n",
 				HFI_HEADER_SEQNUM(resp.ret_header));
 			continue;
 		}
 
 		if (resp.error) {
-			dev_err(gmu->dev,
+			DRM_DEV_ERROR(gmu->dev,
 				"Message %s id %d returned error %d\n",
 				a6xx_hfi_msg_id[id], seqnum, resp.error);
 			return -EINVAL;
@@ -163,7 +163,7 @@ static int a6xx_hfi_send_msg(struct a6xx_gmu *gmu, int id,
 
 	ret = a6xx_hfi_queue_write(gmu, queue, data, dwords);
 	if (ret) {
-		dev_err(gmu->dev, "Unable to send message %s id %d\n",
+		DRM_DEV_ERROR(gmu->dev, "Unable to send message %s id %d\n",
 			a6xx_hfi_msg_id[id], seqnum);
 		return ret;
 	}
@@ -317,7 +317,7 @@ void a6xx_hfi_stop(struct a6xx_gmu *gmu)
 			continue;
 
 		if (queue->header->read_index != queue->header->write_index)
-			dev_err(gmu->dev, "HFI queue %d is not empty\n", i);
+			DRM_DEV_ERROR(gmu->dev, "HFI queue %d is not empty\n", i);
 
 		queue->header->read_index = 0;
 		queue->header->write_index = 0;

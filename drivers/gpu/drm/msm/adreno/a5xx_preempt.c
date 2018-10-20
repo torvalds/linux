@@ -92,7 +92,7 @@ static void a5xx_preempt_timer(struct timer_list *t)
 	if (!try_preempt_state(a5xx_gpu, PREEMPT_TRIGGERED, PREEMPT_FAULTED))
 		return;
 
-	dev_err(dev->dev, "%s: preemption timed out\n", gpu->name);
+	DRM_DEV_ERROR(dev->dev, "%s: preemption timed out\n", gpu->name);
 	queue_work(priv->wq, &gpu->recover_work);
 }
 
@@ -188,7 +188,7 @@ void a5xx_preempt_irq(struct msm_gpu *gpu)
 	status = gpu_read(gpu, REG_A5XX_CP_CONTEXT_SWITCH_CNTL);
 	if (unlikely(status)) {
 		set_preempt_state(a5xx_gpu, PREEMPT_FAULTED);
-		dev_err(dev->dev, "%s: Preemption failed to complete\n",
+		DRM_DEV_ERROR(dev->dev, "%s: Preemption failed to complete\n",
 			gpu->name);
 		queue_work(priv->wq, &gpu->recover_work);
 		return;

@@ -662,7 +662,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 
 	ret = mdp5_crtc_setup_pipeline(crtc, state, need_right_mixer);
 	if (ret) {
-		dev_err(dev->dev, "couldn't assign mixers %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "couldn't assign mixers %d\n", ret);
 		return ret;
 	}
 
@@ -679,7 +679,7 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 	 * and that we don't have conflicting mixer stages:
 	 */
 	if ((cnt + start - 1) >= hw_cfg->lm.nb_stages) {
-		dev_err(dev->dev, "too many planes! cnt=%d, start stage=%d\n",
+		DRM_DEV_ERROR(dev->dev, "too many planes! cnt=%d, start stage=%d\n",
 			cnt, start);
 		return -EINVAL;
 	}
@@ -879,7 +879,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
-		dev_err(dev->dev, "bad cursor size: %dx%d\n", width, height);
+		DRM_DEV_ERROR(dev->dev, "bad cursor size: %dx%d\n", width, height);
 		return -EINVAL;
 	}
 
@@ -924,7 +924,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 set_cursor:
 	ret = mdp5_ctl_set_cursor(ctl, pipeline, 0, cursor_enable);
 	if (ret) {
-		dev_err(dev->dev, "failed to %sable cursor: %d\n",
+		DRM_DEV_ERROR(dev->dev, "failed to %sable cursor: %d\n",
 				cursor_enable ? "en" : "dis", ret);
 		goto end;
 	}

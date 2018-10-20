@@ -173,7 +173,7 @@ int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor)
 			minor->debugfs_root, minor);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install a5xx_debugfs_list\n");
+		DRM_DEV_ERROR(dev->dev, "could not install a5xx_debugfs_list\n");
 		return ret;
 	}
 

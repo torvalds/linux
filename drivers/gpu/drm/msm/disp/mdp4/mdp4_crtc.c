@@ -429,7 +429,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	int ret;
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
-		dev_err(dev->dev, "bad cursor size: %dx%d\n", width, height);
+		DRM_DEV_ERROR(dev->dev, "bad cursor size: %dx%d\n", width, height);
 		return -EINVAL;
 	}
 

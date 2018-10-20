@@ -514,7 +514,7 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 		if (IS_ERR(a5xx_gpu->pm4_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pm4_bo);
 			a5xx_gpu->pm4_bo = NULL;
-			dev_err(gpu->dev->dev, "could not allocate PM4: %d\n",
+			DRM_DEV_ERROR(gpu->dev->dev, "could not allocate PM4: %d\n",
 				ret);
 			return ret;
 		}
@@ -527,7 +527,7 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 		if (IS_ERR(a5xx_gpu->pfp_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pfp_bo);
 			a5xx_gpu->pfp_bo = NULL;
-			dev_err(gpu->dev->dev, "could not allocate PFP: %d\n",
+			DRM_DEV_ERROR(gpu->dev->dev, "could not allocate PFP: %d\n",
 				ret);
 			return ret;
 		}
@@ -1028,7 +1028,7 @@ static void a5xx_fault_detect_irq(struct msm_gpu *gpu)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
 
-	dev_err(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
+	DRM_DEV_ERROR(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
 		ring ? ring->id : -1, ring ? ring->seqno : 0,
 		gpu_read(gpu, REG_A5XX_RBBM_STATUS),
 		gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
@@ -1134,7 +1134,7 @@ static const u32 a5xx_registers[] = {
 
 static void a5xx_dump(struct msm_gpu *gpu)
 {
-	dev_info(gpu->dev->dev, "status:   %08x\n",
+	DRM_DEV_INFO(gpu->dev->dev, "status:   %08x\n",
 		gpu_read(gpu, REG_A5XX_RBBM_STATUS));
 	adreno_dump(gpu);
 }
@@ -1505,7 +1505,7 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	int ret;
 
 	if (!pdev) {
-		dev_err(dev->dev, "No A5XX device is defined\n");
+		DRM_DEV_ERROR(dev->dev, "No A5XX device is defined\n");
 		return ERR_PTR(-ENXIO);
 	}
 

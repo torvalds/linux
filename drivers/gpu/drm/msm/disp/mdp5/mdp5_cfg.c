@@ -600,7 +600,7 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 	}
 
 	if (major != 1) {
-		dev_err(dev->dev, "unexpected MDP major version: v%d.%d\n",
+		DRM_DEV_ERROR(dev->dev, "unexpected MDP major version: v%d.%d\n",
 				major, minor);
 		ret = -ENXIO;
 		goto fail;
@@ -615,7 +615,7 @@ struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 		break;
 	}
 	if (unlikely(!mdp5_cfg)) {
-		dev_err(dev->dev, "unexpected MDP minor revision: v%d.%d\n",
+		DRM_DEV_ERROR(dev->dev, "unexpected MDP minor revision: v%d.%d\n",
 				major, minor);
 		ret = -ENXIO;
 		goto fail;

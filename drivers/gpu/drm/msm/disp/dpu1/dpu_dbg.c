@@ -144,7 +144,7 @@ static struct dpu_dbg_base {
 static void _dpu_debug_bus_xbar_dump(void __iomem *mem_base,
 		struct dpu_debug_bus_entry *entry, u32 val)
 {
-	dev_err(dpu_dbg_base.dev, "xbar 0x%x %d %d 0x%x\n",
+	DRM_DEV_ERROR(dpu_dbg_base.dev, "xbar 0x%x %d %d 0x%x\n",
 			entry->wr_addr, entry->block_id, entry->test_id, val);
 }
 
@@ -154,7 +154,7 @@ static void _dpu_debug_bus_lm_dump(void __iomem *mem_base,
 	if (!(val & 0xFFF000))
 		return;
 
-	dev_err(dpu_dbg_base.dev, "lm 0x%x %d %d 0x%x\n",
+	DRM_DEV_ERROR(dpu_dbg_base.dev, "lm 0x%x %d %d 0x%x\n",
 			entry->wr_addr, entry->block_id, entry->test_id, val);
 }
 
@@ -164,7 +164,7 @@ static void _dpu_debug_bus_ppb0_dump(void __iomem *mem_base,
 	if (!(val & BIT(15)))
 		return;
 
-	dev_err(dpu_dbg_base.dev, "ppb0 0x%x %d %d 0x%x\n",
+	DRM_DEV_ERROR(dpu_dbg_base.dev, "ppb0 0x%x %d %d 0x%x\n",
 			entry->wr_addr, entry->block_id, entry->test_id, val);
 }
 
@@ -174,7 +174,7 @@ static void _dpu_debug_bus_ppb1_dump(void __iomem *mem_base,
 	if (!(val & BIT(15)))
 		return;
 
-	dev_err(dpu_dbg_base.dev, "ppb1 0x%x %d %d 0x%x\n",
+	DRM_DEV_ERROR(dpu_dbg_base.dev, "ppb1 0x%x %d %d 0x%x\n",
 			entry->wr_addr, entry->block_id, entry->test_id, val);
 }
 
@@ -1994,7 +1994,7 @@ static void _dpu_dbg_dump_dpu_dbg_bus(struct dpu_dbg_dpu_debug_bus *bus)
 	if (!in_log && !in_mem)
 		return;
 
-	dev_info(dpu_dbg_base.dev, "======== start %s dump =========\n",
+	DRM_DEV_INFO(dpu_dbg_base.dev, "======== start %s dump =========\n",
 			bus->cmn.name);
 
 	if (in_mem) {
@@ -2004,7 +2004,7 @@ static void _dpu_dbg_dump_dpu_dbg_bus(struct dpu_dbg_dpu_debug_bus *bus)
 
 		if (*dump_mem) {
 			dump_addr = *dump_mem;
-			dev_info(dpu_dbg_base.dev,
+			DRM_DEV_INFO(dpu_dbg_base.dev,
 				"%s: start_addr:0x%pK len:0x%x\n",
 				__func__, dump_addr, list_size);
 		} else {
@@ -2032,7 +2032,7 @@ static void _dpu_dbg_dump_dpu_dbg_bus(struct dpu_dbg_dpu_debug_bus *bus)
 		status = readl_relaxed(mem_base + offset);
 
 		if (in_log)
-			dev_info(dpu_dbg_base.dev,
+			DRM_DEV_INFO(dpu_dbg_base.dev,
 					"waddr=0x%x blk=%d tst=%d val=0x%x\n",
 					head->wr_addr, head->block_id,
 					head->test_id, status);
@@ -2055,7 +2055,7 @@ static void _dpu_dbg_dump_dpu_dbg_bus(struct dpu_dbg_dpu_debug_bus *bus)
 	}
 	_dpu_dbg_enable_power(false);
 
-	dev_info(dpu_dbg_base.dev, "======== end %s dump =========\n",
+	DRM_DEV_INFO(dpu_dbg_base.dev, "======== end %s dump =========\n",
 			bus->cmn.name);
 }
 
@@ -2086,7 +2086,7 @@ static void _dpu_dbg_dump_vbif_debug_bus_entry(
 				*dump_addr++ = val;
 			}
 			if (in_log)
-				dev_info(dpu_dbg_base.dev,
+				DRM_DEV_INFO(dpu_dbg_base.dev,
 					"testpoint:%x arb/xin id=%d index=%d val=0x%x\n",
 					head->block_bus_addr, i, j, val);
 		}
@@ -2127,7 +2127,7 @@ static void _dpu_dbg_dump_vbif_dbg_bus(struct dpu_dbg_vbif_debug_bus *bus)
 	list_size = bus->cmn.entries_size;
 	dump_mem = &bus->cmn.dumped_content;
 
-	dev_info(dpu_dbg_base.dev, "======== start %s dump =========\n",
+	DRM_DEV_INFO(dpu_dbg_base.dev, "======== start %s dump =========\n",
 			bus->cmn.name);
 
 	if (!dump_mem || !dbg_bus || !bus_size || !list_size)
@@ -2155,7 +2155,7 @@ static void _dpu_dbg_dump_vbif_dbg_bus(struct dpu_dbg_vbif_debug_bus *bus)
 
 		if (*dump_mem) {
 			dump_addr = *dump_mem;
-			dev_info(dpu_dbg_base.dev,
+			DRM_DEV_INFO(dpu_dbg_base.dev,
 				"%s: start_addr:0x%pK len:0x%x\n",
 				__func__, dump_addr, list_size);
 		} else {
@@ -2180,7 +2180,7 @@ static void _dpu_dbg_dump_vbif_dbg_bus(struct dpu_dbg_vbif_debug_bus *bus)
 	reg = readl_relaxed(mem_base + MMSS_VBIF_XIN_HALT_CTRL1);
 	reg1 = readl_relaxed(mem_base + MMSS_VBIF_PND_ERR);
 	reg2 = readl_relaxed(mem_base + MMSS_VBIF_SRC_ERR);
-	dev_err(dpu_dbg_base.dev,
+	DRM_DEV_ERROR(dpu_dbg_base.dev,
 			"XIN HALT:0x%lX, PND ERR:0x%lX, SRC ERR:0x%lX\n",
 			reg, reg1, reg2);
 	reg >>= 16;
@@ -2194,7 +2194,7 @@ static void _dpu_dbg_dump_vbif_dbg_bus(struct dpu_dbg_vbif_debug_bus *bus)
 			d0 = readl_relaxed(mem_base + MMSS_VBIF_ERR_INFO);
 			d1 = readl_relaxed(mem_base + MMSS_VBIF_ERR_INFO_1);
 
-			dev_err(dpu_dbg_base.dev,
+			DRM_DEV_ERROR(dpu_dbg_base.dev,
 					"Client:%d, errinfo=0x%X, errinfo1=0x%X\n",
 					i, d0, d1);
 		}
@@ -2217,7 +2217,7 @@ static void _dpu_dbg_dump_vbif_dbg_bus(struct dpu_dbg_vbif_debug_bus *bus)
 
 	_dpu_dbg_enable_power(false);
 
-	dev_info(dpu_dbg_base.dev, "======== end %s dump =========\n",
+	DRM_DEV_INFO(dpu_dbg_base.dev, "======== end %s dump =========\n",
 			bus->cmn.name);
 }
 
