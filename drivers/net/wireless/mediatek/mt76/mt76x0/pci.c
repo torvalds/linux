@@ -86,6 +86,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.get_survey = mt76_get_survey,
+	.get_txpower = mt76x02_get_txpower,
 };
 
 static int mt76x0e_register_device(struct mt76x02_dev *dev)

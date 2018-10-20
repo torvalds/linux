@@ -508,6 +508,24 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(mt76x02_sw_scan_complete);
 
+int mt76x02_get_txpower(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif, int *dbm)
+{
+	struct mt76x02_dev *dev = hw->priv;
+	u8 nstreams = dev->mt76.chainmask & 0xf;
+
+	*dbm = dev->mt76.txpower_cur / 2;
+
+	/* convert from per-chain power to combined
+	 * output on 2x2 devices
+	 */
+	if (nstreams > 1)
+		*dbm += 3;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02_get_txpower);
+
 const u16 mt76x02_beacon_offsets[16] = {
 	/* 1024 byte per beacon */
 	0xc000,
