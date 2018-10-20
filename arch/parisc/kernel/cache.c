@@ -36,6 +36,7 @@ EXPORT_SYMBOL(dcache_stride);
 
 void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 EXPORT_SYMBOL(flush_dcache_page_asm);
+void purge_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 void flush_icache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 
 
@@ -303,6 +304,17 @@ __flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 	preempt_enable();
 }
 
+static inline void
+__purge_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
+		   unsigned long physaddr)
+{
+	preempt_disable();
+	purge_dcache_page_asm(physaddr, vmaddr);
+	if (vma->vm_flags & VM_EXEC)
+		flush_icache_page_asm(physaddr, vmaddr);
+	preempt_enable();
+}
+
 void flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping_file(page);
@@ -563,9 +575,12 @@ void flush_cache_mm(struct mm_struct *mm)
 			pfn = pte_pfn(*ptep);
 			if (!pfn_valid(pfn))
 				continue;
-			if (unlikely(mm->context))
+			if (unlikely(mm->context)) {
 				flush_tlb_page(vma, addr);
-			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+				__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+			} else {
+				__purge_cache_page(vma, addr, PFN_PHYS(pfn));
+			}
 		}
 	}
 }
@@ -600,9 +615,12 @@ void flush_cache_range(struct vm_area_struct *vma,
 			continue;
 		pfn = pte_pfn(*ptep);
 		if (pfn_valid(pfn)) {
-			if (unlikely(vma->vm_mm->context))
+			if (unlikely(vma->vm_mm->context)) {
 				flush_tlb_page(vma, addr);
-			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+				__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+			} else {
+				__purge_cache_page(vma, addr, PFN_PHYS(pfn));
+			}
 		}
 	}
 }
@@ -611,9 +629,12 @@ void
 flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long pfn)
 {
 	if (pfn_valid(pfn)) {
-		if (likely(vma->vm_mm->context))
+		if (likely(vma->vm_mm->context)) {
 			flush_tlb_page(vma, vmaddr);
-		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
+			__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
+		} else {
+			__purge_cache_page(vma, vmaddr, PFN_PHYS(pfn));
+		}
 	}
 }
 
