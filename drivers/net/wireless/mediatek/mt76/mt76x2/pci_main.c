@@ -137,7 +137,7 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & BSS_CHANGED_BSSID)
-		mt76x2_mac_set_bssid(dev, mvif->idx, info->bssid);
+		mt76x02_mac_set_bssid(dev, mvif->idx, info->bssid);
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
@@ -149,8 +149,8 @@ mt76x2_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		tasklet_disable(&dev->pre_tbtt_tasklet);
-		mt76x2_mac_set_beacon_enable(dev, mvif->idx,
-					     info->enable_beacon);
+		mt76x02_mac_set_beacon_enable(dev, mvif->idx,
+					      info->enable_beacon);
 		tasklet_enable(&dev->pre_tbtt_tasklet);
 	}
 

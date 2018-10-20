@@ -153,8 +153,8 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 
 	for (i = 0; i < 8; i++) {
-		mt76x2_mac_set_bssid(dev, i, null_addr);
-		mt76x2_mac_set_beacon(dev, i, NULL);
+		mt76x02_mac_set_bssid(dev, i, null_addr);
+		mt76x02_mac_set_beacon(dev, i, NULL);
 	}
 
 	for (i = 0; i < 16; i++)

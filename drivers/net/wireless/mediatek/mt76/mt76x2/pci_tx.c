@@ -36,7 +36,7 @@ mt76x2_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!skb)
 		return;
 
-	mt76x2_mac_set_beacon(dev, mvif->idx, skb);
+	mt76x02_mac_set_beacon(dev, mvif->idx, skb);
 }
 
 static void
