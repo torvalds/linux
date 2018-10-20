@@ -55,10 +55,6 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
                 *(pteptr) = (pteval);                           \
         } while(0)
 
-#define pte_inserted(x)						\
-	((pte_val(x) & (_PAGE_PRESENT|_PAGE_ACCESSED))		\
-	 == (_PAGE_PRESENT|_PAGE_ACCESSED))
-
 #define set_pte_at(mm, addr, ptep, pteval)			\
 	do {							\
 		pte_t old_pte;					\
@@ -66,8 +62,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 		spin_lock_irqsave(&pa_tlb_lock, flags);		\
 		old_pte = *ptep;				\
 		set_pte(ptep, pteval);				\
-		if (pte_inserted(old_pte))			\
-			purge_tlb_entries(mm, addr);		\
+		purge_tlb_entries(mm, addr);			\
 		spin_unlock_irqrestore(&pa_tlb_lock, flags);	\
 	} while (0)
 
@@ -493,8 +488,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	spin_lock_irqsave(&pa_tlb_lock, flags);
 	old_pte = *ptep;
 	set_pte(ptep, __pte(0));
-	if (pte_inserted(old_pte))
-		purge_tlb_entries(mm, addr);
+	purge_tlb_entries(mm, addr);
 	spin_unlock_irqrestore(&pa_tlb_lock, flags);
 
 	return old_pte;
