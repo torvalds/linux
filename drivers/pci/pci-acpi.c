@@ -588,6 +588,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 			error = -EBUSY;
 			break;
 		}
+		/* Fall through */
 	case PCI_D0:
 	case PCI_D1:
 	case PCI_D2:

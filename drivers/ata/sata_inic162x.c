@@ -873,7 +873,7 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * like others but it will lock up the whole machine HARD if
 	 * 65536 byte PRD entry is fed. Reduce maximum segment size.
 	 */
-	rc = pci_set_dma_max_seg_size(pdev, 65536 - 512);
+	rc = dma_set_max_seg_size(&pdev->dev, 65536 - 512);
 	if (rc) {
 		dev_err(&pdev->dev, "failed to set the maximum segment size\n");
 		return rc;
