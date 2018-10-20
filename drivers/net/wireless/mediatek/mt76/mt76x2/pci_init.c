@@ -79,7 +79,6 @@ mt76x2_fixup_xtal(struct mt76x02_dev *dev)
 
 static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 {
-	static const u8 null_addr[ETH_ALEN] = {};
 	const u8 *macaddr = dev->mt76.macaddr;
 	u32 val;
 	int i, k;
@@ -123,19 +122,10 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(macaddr));
 	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(macaddr + 4));
 
-	mt76_wr(dev, MT_MAC_BSSID_DW0, get_unaligned_le32(macaddr));
-	mt76_wr(dev, MT_MAC_BSSID_DW1, get_unaligned_le16(macaddr + 4) |
-		FIELD_PREP(MT_MAC_BSSID_DW1_MBSS_MODE, 3) | /* 8 beacons */
-		MT_MAC_BSSID_DW1_MBSS_LOCAL_BIT);
-
-	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
-	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT,
-		       8 << 4);
 	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
 		       MT_DFS_GP_INTERVAL);
-	mt76_wr(dev, MT_INT_TIMER_EN, 0);
 
-	mt76_wr(dev, MT_BCN_BYPASS_MASK, 0xffff);
+	mt76x02_init_beacon_config(dev);
 	if (!hard)
 		return 0;
 
@@ -152,11 +142,6 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 		for (k = 0; k < 4; k++)
 			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 
-	for (i = 0; i < 8; i++) {
-		mt76x02_mac_set_bssid(dev, i, null_addr);
-		mt76x02_mac_set_beacon(dev, i, NULL);
-	}
-
 	for (i = 0; i < 16; i++)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
 
@@ -167,8 +152,6 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 		MT_CH_TIME_CFG_NAV_AS_BUSY |
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
-
-	mt76x02_set_beacon_offsets(dev);
 
 	mt76x2_set_tx_ackto(dev);
 

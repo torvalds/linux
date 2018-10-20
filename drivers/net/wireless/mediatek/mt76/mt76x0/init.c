@@ -135,8 +135,6 @@ static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 {
 	RANDOM_WRITE(dev, common_mac_reg_table);
 
-	mt76x02_set_beacon_offsets(dev);
-
 	/* Enable PBF and MAC clock SYS_CTRL[11:10] = 0x3 */
 	RANDOM_WRITE(dev, mt76x0_mac_reg_table);
 
@@ -297,11 +295,6 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76_clear(dev, MT_BEACON_TIME_CFG, (MT_BEACON_TIME_CFG_TIMER_EN |
-					     MT_BEACON_TIME_CFG_SYNC_MODE |
-					     MT_BEACON_TIME_CFG_TBTT_EN |
-					     MT_BEACON_TIME_CFG_BEACON_TX));
-
 	mt76x0_reset_counters(dev);
 
 	ret = mt76x0_eeprom_init(dev);
@@ -309,6 +302,7 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return ret;
 
 	mt76x0_phy_init(dev);
+	mt76x02_init_beacon_config(dev);
 
 	return 0;
 }

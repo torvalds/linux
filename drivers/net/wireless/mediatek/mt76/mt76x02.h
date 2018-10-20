@@ -156,7 +156,7 @@ int mt76x02_get_txpower(struct ieee80211_hw *hw,
 void mt76x02_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 
 extern const u16 mt76x02_beacon_offsets[16];
-void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev);
+void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
 void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 

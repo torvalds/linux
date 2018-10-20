@@ -560,7 +560,7 @@ const u16 mt76x02_beacon_offsets[16] = {
 };
 EXPORT_SYMBOL_GPL(mt76x02_beacon_offsets);
 
-void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
+static void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
 {
 	u16 val, base = MT_BEACON_BASE;
 	u32 regs[4] = {};
@@ -574,6 +574,32 @@ void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
 	for (i = 0; i < 4; i++)
 		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
 }
-EXPORT_SYMBOL_GPL(mt76x02_set_beacon_offsets);
+
+void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
+{
+	static const u8 null_addr[ETH_ALEN] = {};
+	int i;
+
+	mt76_wr(dev, MT_MAC_BSSID_DW0,
+		get_unaligned_le32(dev->mt76.macaddr));
+	mt76_wr(dev, MT_MAC_BSSID_DW1,
+		get_unaligned_le16(dev->mt76.macaddr + 4) |
+		FIELD_PREP(MT_MAC_BSSID_DW1_MBSS_MODE, 3) | /* 8 beacons */
+		MT_MAC_BSSID_DW1_MBSS_LOCAL_BIT);
+
+	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT,
+		       8 << 4);
+	mt76_wr(dev, MT_INT_TIMER_EN, 0);
+
+	mt76_wr(dev, MT_BCN_BYPASS_MASK, 0xffff);
+
+	for (i = 0; i < 8; i++) {
+		mt76x02_mac_set_bssid(dev, i, null_addr);
+		mt76x02_mac_set_beacon(dev, i, NULL);
+	}
+	mt76x02_set_beacon_offsets(dev);
+}
+EXPORT_SYMBOL_GPL(mt76x02_init_beacon_config);
 
 MODULE_LICENSE("Dual BSD/GPL");
