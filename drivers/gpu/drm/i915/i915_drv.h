@@ -1183,6 +1183,7 @@ enum intel_sbi_destination {
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
 #define QUIRK_PIN_SWIZZLED_PAGES (1<<5)
 #define QUIRK_INCREASE_T12_DELAY (1<<6)
+#define QUIRK_INCREASE_DDI_DISABLED_TIME (1<<7)
 
 struct intel_fbdev;
 struct intel_fbc_work;
@@ -1612,12 +1613,6 @@ struct i915_gpu_error {
 
 	/* For missed irq/seqno simulation. */
 	unsigned long test_irq_rings;
-};
-
-enum modeset_restore {
-	MODESET_ON_LID_OPEN,
-	MODESET_DONE,
-	MODESET_SUSPENDED,
 };
 
 #define DP_AUX_A 0x40
@@ -2296,8 +2291,6 @@ struct drm_i915_private {
 
 	unsigned long quirks;
 
-	enum modeset_restore modeset_restore;
-	struct mutex modeset_restore_lock;
 	struct drm_atomic_state *modeset_restore_state;
 	struct drm_modeset_acquire_ctx reset_ctx;
 

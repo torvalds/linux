@@ -878,7 +878,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	mutex_init(&dev_priv->sb_lock);
-	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->av_mutex);
 	mutex_init(&dev_priv->wm.wm_mutex);
 	mutex_init(&dev_priv->pps_mutex);
@@ -1505,11 +1504,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 	pci_power_t opregion_target_state;
 	int error;
 
-	/* ignore lid events during suspend */
-	mutex_lock(&dev_priv->modeset_restore_lock);
-	dev_priv->modeset_restore = MODESET_SUSPENDED;
-	mutex_unlock(&dev_priv->modeset_restore_lock);
-
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	/* We do a lot of poking in a lot of registers, make sure they work
@@ -1717,10 +1711,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_opregion_register(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
-
-	mutex_lock(&dev_priv->modeset_restore_lock);
-	dev_priv->modeset_restore = MODESET_DONE;
-	mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 

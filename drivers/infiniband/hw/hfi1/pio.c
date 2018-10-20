@@ -942,20 +942,18 @@ void sc_free(struct send_context *sc)
 void sc_disable(struct send_context *sc)
 {
 	u64 reg;
-	unsigned long flags;
 	struct pio_buf *pbuf;
 
 	if (!sc)
 		return;
 
 	/* do all steps, even if already disabled */
-	spin_lock_irqsave(&sc->alloc_lock, flags);
+	spin_lock_irq(&sc->alloc_lock);
 	reg = read_kctxt_csr(sc->dd, sc->hw_context, SC(CTRL));
 	reg &= ~SC(CTRL_CTXT_ENABLE_SMASK);
 	sc->flags &= ~SCF_ENABLED;
 	sc_wait_for_packet_egress(sc, 1);
 	write_kctxt_csr(sc->dd, sc->hw_context, SC(CTRL), reg);
-	spin_unlock_irqrestore(&sc->alloc_lock, flags);
 
 	/*
 	 * Flush any waiters.  Once the context is disabled,
@@ -965,7 +963,7 @@ void sc_disable(struct send_context *sc)
 	 * proceed with the flush.
 	 */
 	udelay(1);
-	spin_lock_irqsave(&sc->release_lock, flags);
+	spin_lock(&sc->release_lock);
 	if (sc->sr) {	/* this context has a shadow ring */
 		while (sc->sr_tail != sc->sr_head) {
 			pbuf = &sc->sr[sc->sr_tail].pbuf;
@@ -976,7 +974,8 @@ void sc_disable(struct send_context *sc)
 				sc->sr_tail = 0;
 		}
 	}
-	spin_unlock_irqrestore(&sc->release_lock, flags);
+	spin_unlock(&sc->release_lock);
+	spin_unlock_irq(&sc->alloc_lock);
 }
 
 /* return SendEgressCtxtStatus.PacketOccupancy */
@@ -1199,8 +1198,36 @@ void pio_kernel_unfreeze(struct hfi1_devdata *dd)
 		sc = dd->send_contexts[i].sc;
 		if (!sc || !(sc->flags & SCF_FROZEN) || sc->type == SC_USER)
 			continue;
+		if (sc->flags & SCF_LINK_DOWN)
+			continue;
 
 		sc_enable(sc);	/* will clear the sc frozen flag */
+	}
+}
+
+/**
+ * pio_kernel_linkup() - Re-enable send contexts after linkup event
+ * @dd: valid devive data
+ *
+ * When the link goes down, the freeze path is taken.  However, a link down
+ * event is different from a freeze because if the send context is re-enabled
+ * whowever is sending data will start sending data again, which will hang
+ * any QP that is sending data.
+ *
+ * The freeze path now looks at the type of event that occurs and takes this
+ * path for link down event.
+ */
+void pio_kernel_linkup(struct hfi1_devdata *dd)
+{
+	struct send_context *sc;
+	int i;
+
+	for (i = 0; i < dd->num_send_contexts; i++) {
+		sc = dd->send_contexts[i].sc;
+		if (!sc || !(sc->flags & SCF_LINK_DOWN) || sc->type == SC_USER)
+			continue;
+
+		sc_enable(sc);	/* will clear the sc link down flag */
 	}
 }
 
@@ -1403,11 +1430,10 @@ void sc_stop(struct send_context *sc, int flag)
 {
 	unsigned long flags;
 
-	/* mark the context */
-	sc->flags |= flag;
-
 	/* stop buffer allocations */
 	spin_lock_irqsave(&sc->alloc_lock, flags);
+	/* mark the context */
+	sc->flags |= flag;
 	sc->flags &= ~SCF_ENABLED;
 	spin_unlock_irqrestore(&sc->alloc_lock, flags);
 	wake_up(&sc->halt_wait);

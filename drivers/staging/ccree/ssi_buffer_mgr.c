@@ -492,7 +492,8 @@ void ssi_buffer_mgr_unmap_blkcipher_request(
 				 DMA_TO_DEVICE);
 	}
 	/* Release pool */
-	if (req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI) {
+	if (req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI &&
+	    req_ctx->mlli_params.mlli_virt_addr) {
 		dma_pool_free(req_ctx->mlli_params.curr_pool,
 			      req_ctx->mlli_params.mlli_virt_addr,
 			      req_ctx->mlli_params.mlli_dma_addr);
