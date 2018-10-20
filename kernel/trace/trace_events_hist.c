@@ -738,15 +738,29 @@ static void free_synth_field(struct synth_field *field)
 	kfree(field);
 }
 
-static struct synth_field *parse_synth_field(char *field_type,
-					     char *field_name)
+static struct synth_field *parse_synth_field(int argc, char **argv,
+					     int *consumed)
 {
 	struct synth_field *field;
+	const char *prefix = NULL;
+	char *field_type = argv[0], *field_name;
 	int len, ret = 0;
 	char *array;
 
 	if (field_type[0] == ';')
 		field_type++;
+
+	if (!strcmp(field_type, "unsigned")) {
+		if (argc < 3)
+			return ERR_PTR(-EINVAL);
+		prefix = "unsigned ";
+		field_type = argv[1];
+		field_name = argv[2];
+		*consumed = 3;
+	} else {
+		field_name = argv[1];
+		*consumed = 2;
+	}
 
 	len = strlen(field_name);
 	if (field_name[len - 1] == ';')
@@ -760,11 +774,15 @@ static struct synth_field *parse_synth_field(char *field_type,
 	array = strchr(field_name, '[');
 	if (array)
 		len += strlen(array);
+	if (prefix)
+		len += strlen(prefix);
 	field->type = kzalloc(len, GFP_KERNEL);
 	if (!field->type) {
 		ret = -ENOMEM;
 		goto free;
 	}
+	if (prefix)
+		strcat(field->type, prefix);
 	strcat(field->type, field_type);
 	if (array) {
 		strcat(field->type, array);
@@ -1009,7 +1027,7 @@ static int create_synth_event(int argc, char **argv)
 	struct synth_field *field, *fields[SYNTH_FIELDS_MAX];
 	struct synth_event *event = NULL;
 	bool delete_event = false;
-	int i, n_fields = 0, ret = 0;
+	int i, consumed = 0, n_fields = 0, ret = 0;
 	char *name;
 
 	mutex_lock(&synth_event_mutex);
@@ -1061,16 +1079,16 @@ static int create_synth_event(int argc, char **argv)
 			goto err;
 		}
 
-		field = parse_synth_field(argv[i], argv[i + 1]);
+		field = parse_synth_field(argc - i, &argv[i], &consumed);
 		if (IS_ERR(field)) {
 			ret = PTR_ERR(field);
 			goto err;
 		}
-		fields[n_fields] = field;
-		i++; n_fields++;
+		fields[n_fields++] = field;
+		i += consumed - 1;
 	}
 
-	if (i < argc) {
+	if (i < argc && strcmp(argv[i], ";") != 0) {
 		ret = -EINVAL;
 		goto err;
 	}
