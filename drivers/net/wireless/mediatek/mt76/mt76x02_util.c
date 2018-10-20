@@ -47,6 +47,87 @@ struct ieee80211_rate mt76x02_rates[] = {
 };
 EXPORT_SYMBOL_GPL(mt76x02_rates);
 
+static const struct ieee80211_iface_limit mt76x02_if_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_ADHOC)
+	}, {
+		.max = 8,
+		.types = BIT(NL80211_IFTYPE_STATION) |
+#ifdef CONFIG_MAC80211_MESH
+			 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+			 BIT(NL80211_IFTYPE_AP)
+	 },
+};
+
+static const struct ieee80211_iface_combination mt76x02_if_comb[] = {
+	{
+		.limits = mt76x02_if_limits,
+		.n_limits = ARRAY_SIZE(mt76x02_if_limits),
+		.max_interfaces = 8,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
+		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+				       BIT(NL80211_CHAN_WIDTH_20) |
+				       BIT(NL80211_CHAN_WIDTH_40) |
+				       BIT(NL80211_CHAN_WIDTH_80),
+	}
+};
+
+void mt76x02_init_device(struct mt76x02_dev *dev)
+{
+	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct wiphy *wiphy = hw->wiphy;
+
+	INIT_DELAYED_WORK(&dev->mac_work, mt76x02_mac_work);
+
+	hw->queues = 4;
+	hw->max_rates = 1;
+	hw->max_report_rates = 7;
+	hw->max_rate_tries = 1;
+	hw->extra_tx_headroom = 2;
+
+	if (mt76_is_usb(dev)) {
+		hw->extra_tx_headroom += sizeof(struct mt76x02_txwi) +
+					 MT_DMA_HDR_LEN;
+		wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	} else {
+		wiphy->iface_combinations = mt76x02_if_comb;
+		wiphy->n_iface_combinations = ARRAY_SIZE(mt76x02_if_comb);
+		wiphy->interface_modes =
+			BIT(NL80211_IFTYPE_STATION) |
+			BIT(NL80211_IFTYPE_AP) |
+#ifdef CONFIG_MAC80211_MESH
+			BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+			BIT(NL80211_IFTYPE_ADHOC);
+	}
+
+	hw->sta_data_size = sizeof(struct mt76x02_sta);
+	hw->vif_data_size = sizeof(struct mt76x02_vif);
+
+	ieee80211_hw_set(hw, SUPPORTS_HT_CCK_RATES);
+	ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
+
+	dev->mt76.global_wcid.idx = 255;
+	dev->mt76.global_wcid.hw_key_idx = -1;
+	dev->slottime = 9;
+
+	if (is_mt76x2(dev)) {
+		dev->mt76.sband_2g.sband.ht_cap.cap |=
+				IEEE80211_HT_CAP_LDPC_CODING;
+		dev->mt76.sband_5g.sband.ht_cap.cap |=
+				IEEE80211_HT_CAP_LDPC_CODING;
+		dev->mt76.chainmask = 0x202;
+		dev->mt76.antenna_mask = 3;
+	} else {
+		dev->mt76.chainmask = 0x101;
+		dev->mt76.antenna_mask = 1;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_init_device);
+
 void mt76x02_configure_filter(struct ieee80211_hw *hw,
 			      unsigned int changed_flags,
 			      unsigned int *total_flags, u64 multicast)

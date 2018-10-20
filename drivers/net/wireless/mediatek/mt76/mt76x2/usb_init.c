@@ -245,11 +245,10 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 int mt76x2u_register_device(struct mt76x02_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	struct wiphy *wiphy = hw->wiphy;
 	int err;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2u_phy_calibrate);
-	mt76x2_init_device(dev);
+	mt76x02_init_device(dev);
 
 	err = mt76x2u_init_eeprom(dev);
 	if (err < 0)
@@ -266,8 +265,6 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	err = mt76x2u_init_hardware(dev);
 	if (err < 0)
 		goto fail;
-
-	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	err = mt76_register_device(&dev->mt76, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));

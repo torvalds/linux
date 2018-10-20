@@ -338,46 +338,16 @@ EXPORT_SYMBOL_GPL(mt76x0_alloc_device);
 
 int mt76x0_register_device(struct mt76x02_dev *dev)
 {
-	struct mt76_dev *mdev = &dev->mt76;
-	struct ieee80211_hw *hw = mdev->hw;
-	struct wiphy *wiphy = hw->wiphy;
 	int ret;
 
-	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
-	 * entry no. 1 like it does in the vendor driver.
-	 */
-	mdev->wcid_mask[0] |= 1;
-
-	/* init fake wcid for monitor interfaces */
-	mdev->global_wcid.idx = 0xff;
-	mdev->global_wcid.hw_key_idx = -1;
-
-	/* init antenna configuration */
-	mdev->antenna_mask = 1;
-
-	hw->queues = 4;
-	hw->max_rates = 1;
-	hw->max_report_rates = 7;
-	hw->max_rate_tries = 1;
-	hw->extra_tx_headroom = 2;
-	if (mt76_is_usb(dev))
-		hw->extra_tx_headroom += sizeof(struct mt76x02_txwi) +
-					 MT_DMA_HDR_LEN;
-
-	hw->sta_data_size = sizeof(struct mt76x02_sta);
-	hw->vif_data_size = sizeof(struct mt76x02_vif);
-
-	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
-
-	INIT_DELAYED_WORK(&dev->mac_work, mt76x02_mac_work);
-
-	ret = mt76_register_device(mdev, true, mt76x02_rates,
+	mt76x02_init_device(dev);
+	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));
 	if (ret)
 		return ret;
 
 	/* overwrite unsupported features */
-	if (mdev->cap.has_5ghz)
+	if (dev->mt76.cap.has_5ghz)
 		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
 
 	mt76x02_init_debugfs(dev);

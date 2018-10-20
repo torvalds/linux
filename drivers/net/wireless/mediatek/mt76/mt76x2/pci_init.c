@@ -384,34 +384,6 @@ static void mt76x2_regd_notifier(struct wiphy *wiphy,
 	mt76x2_dfs_set_domain(dev, request->dfs_region);
 }
 
-static const struct ieee80211_iface_limit if_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_ADHOC)
-	}, {
-		.max = 8,
-		.types = BIT(NL80211_IFTYPE_STATION) |
-#ifdef CONFIG_MAC80211_MESH
-			 BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-			 BIT(NL80211_IFTYPE_AP)
-	 },
-};
-
-static const struct ieee80211_iface_combination if_comb[] = {
-	{
-		.limits = if_limits,
-		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 8,
-		.num_different_channels = 1,
-		.beacon_int_infra_match = true,
-		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
-				       BIT(NL80211_CHAN_WIDTH_20) |
-				       BIT(NL80211_CHAN_WIDTH_40) |
-				       BIT(NL80211_CHAN_WIDTH_80),
-	}
-};
-
 static void mt76x2_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 				  u8 delay_off)
 {
@@ -468,7 +440,7 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2_phy_calibrate);
 
-	mt76x2_init_device(dev);
+	mt76x02_init_device(dev);
 
 	ret = mt76x2_init_hardware(dev);
 	if (ret)
@@ -488,18 +460,7 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 	wiphy->addresses = dev->macaddr_list;
 	wiphy->n_addresses = ARRAY_SIZE(dev->macaddr_list);
 
-	wiphy->iface_combinations = if_comb;
-	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
-
 	wiphy->reg_notifier = mt76x2_regd_notifier;
-
-	wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_AP) |
-#ifdef CONFIG_MAC80211_MESH
-		BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-		BIT(NL80211_IFTYPE_ADHOC);
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 
