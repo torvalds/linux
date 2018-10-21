@@ -6983,37 +6983,44 @@ static void sbz_chipio_startup_data(struct hda_codec *codec)
 static void ca0132_alt_dsp_scp_startup(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	unsigned int tmp;
+	unsigned int tmp, i;
 
-	switch (spec->quirk) {
-	case QUIRK_SBZ:
-	case QUIRK_AE5:
-		tmp = 0x00000003;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-		tmp = 0x00000000;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
-		tmp = 0x00000001;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
-		tmp = 0x00000004;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-		tmp = 0x00000005;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-		tmp = 0x00000000;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-		break;
-	case QUIRK_R3D:
-	case QUIRK_R3DI:
-		tmp = 0x00000000;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
-		tmp = 0x00000001;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
-		tmp = 0x00000004;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-		tmp = 0x00000005;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-		tmp = 0x00000000;
-		dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-		break;
+	/*
+	 * Gotta run these twice, or else mic works inconsistently. Not clear
+	 * why this is, but multiple tests have confirmed it.
+	 */
+	for (i = 0; i < 2; i++) {
+		switch (spec->quirk) {
+		case QUIRK_SBZ:
+		case QUIRK_AE5:
+			tmp = 0x00000003;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			tmp = 0x00000000;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
+			tmp = 0x00000001;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
+			tmp = 0x00000004;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			tmp = 0x00000005;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			tmp = 0x00000000;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			break;
+		case QUIRK_R3D:
+		case QUIRK_R3DI:
+			tmp = 0x00000000;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
+			tmp = 0x00000001;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
+			tmp = 0x00000004;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			tmp = 0x00000005;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			tmp = 0x00000000;
+			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			break;
+		}
+		msleep(100);
 	}
 }
 
@@ -7246,8 +7253,6 @@ static void r3d_setup_defaults(struct hda_codec *codec)
 	int num_fx;
 	int idx, i;
 
-	msleep(100);
-
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
@@ -7291,8 +7296,6 @@ static void sbz_setup_defaults(struct hda_codec *codec)
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
-
-	msleep(100);
 
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
@@ -7350,8 +7353,6 @@ static void ae5_setup_defaults(struct hda_codec *codec)
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
-
-	msleep(100);
 
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
