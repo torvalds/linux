@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
+#include <linux/prefetch.h>
 #include <linux/sched.h>
 #include <linux/sizes.h>
 #include <linux/spinlock.h>
