@@ -1744,8 +1744,7 @@ static int chv_pinctrl_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int chv_pinctrl_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct chv_pinctrl *pctrl = platform_get_drvdata(pdev);
+	struct chv_pinctrl *pctrl = dev_get_drvdata(dev);
 	unsigned long flags;
 	int i;
 
@@ -1778,8 +1777,7 @@ static int chv_pinctrl_suspend_noirq(struct device *dev)
 
 static int chv_pinctrl_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct chv_pinctrl *pctrl = platform_get_drvdata(pdev);
+	struct chv_pinctrl *pctrl = dev_get_drvdata(dev);
 	unsigned long flags;
 	int i;
 
