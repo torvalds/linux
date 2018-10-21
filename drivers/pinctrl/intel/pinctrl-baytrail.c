@@ -1838,8 +1838,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int byt_gpio_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct byt_gpio *vg = platform_get_drvdata(pdev);
+	struct byt_gpio *vg = dev_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < vg->soc_data->npins; i++) {
@@ -1867,8 +1866,7 @@ static int byt_gpio_suspend(struct device *dev)
 
 static int byt_gpio_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct byt_gpio *vg = platform_get_drvdata(pdev);
+	struct byt_gpio *vg = dev_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < vg->soc_data->npins; i++) {
