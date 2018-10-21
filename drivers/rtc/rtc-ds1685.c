@@ -778,8 +778,7 @@ static const char *ds1685_rtc_sqw_freq[16] = {
 static int
 ds1685_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
+	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 ctrla, ctrlb, ctrlc, ctrld, ctrl4a, ctrl4b, ssn[8];
 	char *model;
 
