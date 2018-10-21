@@ -11,9 +11,20 @@
 #include "codec_mpeg12.h"
 #include "codec_h264.h"
 #include "codec_mpeg4.h"
+#include "codec_mjpeg.h"
 
 static const struct amvdec_format vdec_formats_gxbb[] = {
 	{
+		.pixfmt = V4L2_PIX_FMT_MJPEG,
+		.min_buffers = 4,
+		.max_buffers = 4,
+		.max_width = 1920,
+		.max_height = 1080,
+		.vdec_ops = &vdec_1_ops,
+		.codec_ops = &codec_mjpeg_ops,
+		.firmware_path = "meson/gx/vmjpeg_mc",
+		.pixfmts_cap = { V4L2_PIX_FMT_YUV420M, 0 },
+	}, {
 		.pixfmt = V4L2_PIX_FMT_MPEG4,
 		.min_buffers = 8,
 		.max_buffers = 8,
@@ -80,6 +91,16 @@ static const struct amvdec_format vdec_formats_gxbb[] = {
 
 static const struct amvdec_format vdec_formats_gxl[] = {
 	{
+		.pixfmt = V4L2_PIX_FMT_MJPEG,
+		.min_buffers = 4,
+		.max_buffers = 4,
+		.max_width = 1920,
+		.max_height = 1080,
+		.vdec_ops = &vdec_1_ops,
+		.codec_ops = &codec_mjpeg_ops,
+		.firmware_path = "meson/gx/vmjpeg_mc",
+		.pixfmts_cap = { V4L2_PIX_FMT_YUV420M, 0 },
+	}, {
 		.pixfmt = V4L2_PIX_FMT_MPEG4,
 		.min_buffers = 8,
 		.max_buffers = 8,
@@ -146,6 +167,16 @@ static const struct amvdec_format vdec_formats_gxl[] = {
 
 static const struct amvdec_format vdec_formats_gxm[] = {
 	{
+		.pixfmt = V4L2_PIX_FMT_MJPEG,
+		.min_buffers = 4,
+		.max_buffers = 4,
+		.max_width = 1920,
+		.max_height = 1080,
+		.vdec_ops = &vdec_1_ops,
+		.codec_ops = &codec_mjpeg_ops,
+		.firmware_path = "meson/gx/vmjpeg_mc",
+		.pixfmts_cap = { V4L2_PIX_FMT_YUV420M, 0 },
+	}, {
 		.pixfmt = V4L2_PIX_FMT_MPEG4,
 		.min_buffers = 8,
 		.max_buffers = 8,
