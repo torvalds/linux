@@ -27,6 +27,8 @@
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
 
+#include "../thermal_hwmon.h"
+
 #define BCM2835_TS_TSENSCTL			0x00
 #define BCM2835_TS_TSENSSTAT			0x04
 
@@ -274,6 +276,15 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	data->tz = tz;
 
 	platform_set_drvdata(pdev, tz);
+
+	/*
+	 * Thermal_zone doesn't enable hwmon as default,
+	 * enable it here
+	 */
+	tz->tzp->no_hwmon = false;
+	err = thermal_add_hwmon_sysfs(tz);
+	if (err)
+		goto err_tz;
 
 	bcm2835_thermal_debugfs(pdev);
 
