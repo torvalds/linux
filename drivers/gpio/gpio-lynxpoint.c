@@ -408,8 +408,7 @@ static int lp_gpio_runtime_resume(struct device *dev)
 
 static int lp_gpio_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct lp_gpio *lg = platform_get_drvdata(pdev);
+	struct lp_gpio *lg = dev_get_drvdata(dev);
 	unsigned long reg;
 	int i;
 
