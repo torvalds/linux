@@ -10,7 +10,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/jiffies.h>
-#include <linux/wait.h>
 #include <linux/soc/qcom/apr.h>
 #include "q6core.h"
 #include "q6dsp-errno.h"
@@ -105,11 +104,9 @@ static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 		bytes = sizeof(*fwk) + fwk->num_services *
 				sizeof(fwk->svc_api_info[0]);
 
-		core->fwk_version = kzalloc(bytes, GFP_ATOMIC);
+		core->fwk_version = kmemdup(data->payload, bytes, GFP_ATOMIC);
 		if (!core->fwk_version)
 			return -ENOMEM;
-
-		memcpy(core->fwk_version, data->payload, bytes);
 
 		core->fwk_version_supported = true;
 		core->resp_received = true;
@@ -124,11 +121,9 @@ static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
 
 		len = sizeof(*v) + v->num_services * sizeof(v->svc_api_info[0]);
 
-		core->svc_version = kzalloc(len, GFP_ATOMIC);
+		core->svc_version = kmemdup(data->payload, len, GFP_ATOMIC);
 		if (!core->svc_version)
 			return -ENOMEM;
-
-		memcpy(core->svc_version, data->payload, len);
 
 		core->get_version_supported = true;
 		core->resp_received = true;

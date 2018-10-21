@@ -867,8 +867,12 @@ static int acp_dma_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	if (pinfo) {
-		rtd->i2s_instance = pinfo->i2s_instance;
-		rtd->capture_channel = pinfo->capture_channel;
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			rtd->i2s_instance = pinfo->play_i2s_instance;
+		} else {
+			rtd->i2s_instance = pinfo->cap_i2s_instance;
+			rtd->capture_channel = pinfo->capture_channel;
+		}
 	}
 	if (adata->asic_type == CHIP_STONEY) {
 		val = acp_reg_read(adata->acp_mmio,

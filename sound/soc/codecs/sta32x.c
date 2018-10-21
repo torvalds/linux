@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
@@ -142,6 +143,7 @@ static const char *sta32x_supply_names[] = {
 /* codec private data */
 struct sta32x_priv {
 	struct regmap *regmap;
+	struct clk *xti_clk;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(sta32x_supply_names)];
 	struct snd_soc_component *component;
 	struct sta32x_platform_data *pdata;
@@ -882,6 +884,15 @@ static int sta32x_probe(struct snd_soc_component *component)
 
 	sta32x->component = component;
 
+	if (sta32x->xti_clk) {
+		ret = clk_prepare_enable(sta32x->xti_clk);
+		if (ret != 0) {
+			dev_err(component->dev,
+				"Failed to enable clock: %d\n", ret);
+			return ret;
+		}
+	}
+
 	ret = regulator_bulk_enable(ARRAY_SIZE(sta32x->supplies),
 				    sta32x->supplies);
 	if (ret != 0) {
@@ -984,6 +995,9 @@ static void sta32x_remove(struct snd_soc_component *component)
 
 	sta32x_watchdog_stop(sta32x);
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
+
+	if (sta32x->xti_clk)
+		clk_disable_unprepare(sta32x->xti_clk);
 }
 
 static const struct snd_soc_component_driver sta32x_component = {
@@ -1041,6 +1055,8 @@ static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 	of_property_read_u8(np, "st,ch3-output-mapping",
 			    &pdata->ch3_output_mapping);
 
+	if (of_get_property(np, "st,fault-detect-recovery", NULL))
+		pdata->fault_detect_recovery = 1;
 	if (of_get_property(np, "st,thermal-warning-recovery", NULL))
 		pdata->thermal_warning_recovery = 1;
 	if (of_get_property(np, "st,thermal-warning-adjustment", NULL))
@@ -1097,6 +1113,17 @@ static int sta32x_i2c_probe(struct i2c_client *i2c,
 			return ret;
 	}
 #endif
+
+	/* Clock */
+	sta32x->xti_clk = devm_clk_get(dev, "xti");
+	if (IS_ERR(sta32x->xti_clk)) {
+		ret = PTR_ERR(sta32x->xti_clk);
+
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
+		sta32x->xti_clk = NULL;
+	}
 
 	/* GPIOs */
 	sta32x->gpiod_nreset = devm_gpiod_get_optional(dev, "reset",

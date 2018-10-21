@@ -97,4 +97,16 @@ config SND_ATMEL_SOC_I2S
 	help
 	  Say Y or M if you want to add support for Atmel ASoc driver for boards
 	  using I2S.
+
+config SND_SOC_MIKROE_PROTO
+	tristate "Support for Mikroe-PROTO board"
+	depends on OF
+	depends on SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8731
+	help
+	  Say Y or M if you want to add support for MikroElektronika PROTO Audio
+	  Board. This board contains the WM8731 codec, which can be configured
+	  using I2C over SDA (MPU Data Input) and SCL (MPU Clock Input) pins.
+	  Both playback and capture are supported.
+
 endif

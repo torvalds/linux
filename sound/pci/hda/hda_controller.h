@@ -20,7 +20,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include <sound/hda_register.h>
 
 #define AZX_MAX_CODECS		HDA_MAX_CODECS
