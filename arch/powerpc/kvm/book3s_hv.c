@@ -4174,7 +4174,16 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 
 	do {
-		if (kvm->arch.threads_indep && kvm_is_radix(kvm))
+		/*
+		 * The early POWER9 chips that can't mix radix and HPT threads
+		 * on the same core also need the workaround for the problem
+		 * where the TLB would prefetch entries in the guest exit path
+		 * for radix guests using the guest PIDR value and LPID 0.
+		 * The workaround is in the old path (kvmppc_run_vcpu())
+		 * but not the new path (kvmhv_run_single_vcpu()).
+		 */
+		if (kvm->arch.threads_indep && kvm_is_radix(kvm) &&
+		    !no_mixing_hpt_and_radix)
 			r = kvmhv_run_single_vcpu(run, vcpu, ~(u64)0,
 						  vcpu->arch.vcore->lpcr);
 		else
@@ -5196,7 +5205,7 @@ static int kvmhv_enable_nested(struct kvm *kvm)
 {
 	if (!nested)
 		return -EPERM;
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+	if (!cpu_has_feature(CPU_FTR_ARCH_300) || no_mixing_hpt_and_radix)
 		return -ENODEV;
 
 	/* kvm == NULL means the caller is testing if the capability exists */
