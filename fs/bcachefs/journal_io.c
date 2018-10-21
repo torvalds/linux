@@ -852,28 +852,6 @@ fsck_err:
 
 /* journal replay: */
 
-int bch2_journal_mark(struct bch_fs *c, struct list_head *list)
-{
-	struct bkey_i *k, *n;
-	struct jset_entry *j;
-	struct journal_replay *r;
-	int ret;
-
-	list_for_each_entry(r, list, list)
-		for_each_jset_key(k, n, j, &r->j) {
-			enum bkey_type type = bkey_type(j->level, j->btree_id);
-			struct bkey_s_c k_s_c = bkey_i_to_s_c(k);
-
-			if (btree_type_has_ptrs(type)) {
-				ret = bch2_btree_mark_key_initial(c, type, k_s_c);
-				if (ret)
-					return ret;
-			}
-		}
-
-	return 0;
-}
-
 int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 {
 	struct journal *j = &c->journal;

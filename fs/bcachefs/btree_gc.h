@@ -12,8 +12,6 @@ void bch2_gc_thread_stop(struct bch_fs *);
 int bch2_gc_thread_start(struct bch_fs *);
 int bch2_initial_gc(struct bch_fs *, struct list_head *);
 u8 bch2_btree_key_recalc_oldest_gen(struct bch_fs *, struct bkey_s_c);
-int bch2_btree_mark_key_initial(struct bch_fs *, enum bkey_type,
-				struct bkey_s_c);
 void bch2_mark_dev_superblock(struct bch_fs *, struct bch_dev *, unsigned);
 
 /*

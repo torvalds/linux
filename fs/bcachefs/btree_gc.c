@@ -18,6 +18,7 @@
 #include "error.h"
 #include "extents.h"
 #include "journal.h"
+#include "journal_io.h"
 #include "keylist.h"
 #include "move.h"
 #include "replicas.h"
@@ -31,6 +32,23 @@
 #include <linux/preempt.h>
 #include <linux/rcupdate.h>
 #include <linux/sched/task.h>
+
+static inline void __gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
+{
+	preempt_disable();
+	write_seqcount_begin(&c->gc_pos_lock);
+	c->gc_pos = new_pos;
+	write_seqcount_end(&c->gc_pos_lock);
+	preempt_enable();
+}
+
+static inline void gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
+{
+	BUG_ON(gc_pos_cmp(new_pos, c->gc_pos) <= 0);
+	__gc_pos_set(c, new_pos);
+}
+
+/* range_checks - for validating min/max pos of each btree node: */
 
 struct range_checks {
 	struct range_level {
@@ -91,6 +109,19 @@ static void btree_node_range_checks(struct bch_fs *c, struct btree *b,
 	}
 }
 
+/* marking of btree keys/nodes: */
+
+static bool bkey_type_needs_gc(enum bkey_type type)
+{
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+	case BKEY_TYPE_EXTENTS:
+		return true;
+	default:
+		return false;
+	}
+}
+
 u8 bch2_btree_key_recalc_oldest_gen(struct bch_fs *c, struct bkey_s_c k)
 {
 	const struct bch_extent_ptr *ptr;
@@ -113,39 +144,8 @@ u8 bch2_btree_key_recalc_oldest_gen(struct bch_fs *c, struct bkey_s_c k)
 	return max_stale;
 }
 
-/*
- * For runtime mark and sweep:
- */
-static u8 bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
-			   struct bkey_s_c k, unsigned flags)
-{
-	struct gc_pos pos = { 0 };
-	u8 ret = 0;
-
-	switch (type) {
-	case BKEY_TYPE_BTREE:
-		bch2_mark_key(c, k, c->opts.btree_node_size,
-			      BCH_DATA_BTREE, pos, NULL,
-			      0, flags|
-			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-			      BCH_BUCKET_MARK_GC_LOCK_HELD);
-		break;
-	case BKEY_TYPE_EXTENTS:
-		bch2_mark_key(c, k, k.k->size, BCH_DATA_USER, pos, NULL,
-			      0, flags|
-			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
-			      BCH_BUCKET_MARK_GC_LOCK_HELD);
-		ret = bch2_btree_key_recalc_oldest_gen(c, k);
-		break;
-	default:
-		BUG();
-	}
-
-	return ret;
-}
-
-int bch2_btree_mark_key_initial(struct bch_fs *c, enum bkey_type type,
-				struct bkey_s_c k)
+static int bch2_btree_mark_ptrs_initial(struct bch_fs *c, enum bkey_type type,
+					struct bkey_s_c k)
 {
 	enum bch_data_type data_type = type == BKEY_TYPE_BTREE
 		? BCH_DATA_BTREE : BCH_DATA_USER;
@@ -199,54 +199,90 @@ int bch2_btree_mark_key_initial(struct bch_fs *c, enum bkey_type type,
 	}
 	}
 
-	atomic64_set(&c->key_version,
-		     max_t(u64, k.k->version.lo,
-			   atomic64_read(&c->key_version)));
-
-	bch2_gc_mark_key(c, type, k, BCH_BUCKET_MARK_NOATOMIC);
+	if (k.k->version.lo > atomic64_read(&c->key_version))
+		atomic64_set(&c->key_version, k.k->version.lo);
 fsck_err:
 	return ret;
 }
 
-static unsigned btree_gc_mark_node(struct bch_fs *c, struct btree *b)
+/*
+ * For runtime mark and sweep:
+ */
+static int bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
+			    struct bkey_s_c k, bool initial)
+{
+	struct gc_pos pos = { 0 };
+	unsigned flags = initial ? BCH_BUCKET_MARK_NOATOMIC : 0;
+	int ret = 0;
+
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+		if (initial) {
+			ret = bch2_btree_mark_ptrs_initial(c, type, k);
+			if (ret < 0)
+				return ret;
+		}
+
+		bch2_mark_key(c, k, c->opts.btree_node_size,
+			      BCH_DATA_BTREE, pos, NULL,
+			      0, flags|
+			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
+			      BCH_BUCKET_MARK_GC_LOCK_HELD);
+		break;
+	case BKEY_TYPE_EXTENTS:
+		if (initial) {
+			ret = bch2_btree_mark_ptrs_initial(c, type, k);
+			if (ret < 0)
+				return ret;
+		}
+
+		bch2_mark_key(c, k, k.k->size, BCH_DATA_USER, pos, NULL,
+			      0, flags|
+			      BCH_BUCKET_MARK_MAY_MAKE_UNAVAILABLE|
+			      BCH_BUCKET_MARK_GC_LOCK_HELD);
+		ret = bch2_btree_key_recalc_oldest_gen(c, k);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int btree_gc_mark_node(struct bch_fs *c, struct btree *b,
+			      bool initial)
 {
 	enum bkey_type type = btree_node_type(b);
 	struct btree_node_iter iter;
 	struct bkey unpacked;
 	struct bkey_s_c k;
 	u8 stale = 0;
+	int ret;
 
-	if (btree_node_has_ptrs(b))
-		for_each_btree_node_key_unpack(b, k, &iter,
-					       &unpacked) {
-			bch2_bkey_debugcheck(c, b, k);
-			stale = max(stale, bch2_gc_mark_key(c, type, k, 0));
-		}
+	if (!bkey_type_needs_gc(type))
+		return 0;
+
+	for_each_btree_node_key_unpack(b, k, &iter,
+				       &unpacked) {
+		bch2_bkey_debugcheck(c, b, k);
+
+		ret = bch2_gc_mark_key(c, type, k, initial);
+		if (ret < 0)
+			return ret;
+
+		stale = max_t(u8, stale, ret);
+	}
 
 	return stale;
 }
 
-static inline void __gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
-{
-	preempt_disable();
-	write_seqcount_begin(&c->gc_pos_lock);
-	c->gc_pos = new_pos;
-	write_seqcount_end(&c->gc_pos_lock);
-	preempt_enable();
-}
-
-static inline void gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
-{
-	BUG_ON(gc_pos_cmp(new_pos, c->gc_pos) <= 0);
-	__gc_pos_set(c, new_pos);
-}
-
-static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id)
+static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
+			 bool initial)
 {
 	struct btree_iter iter;
 	struct btree *b;
 	struct range_checks r;
-	unsigned depth = btree_id == BTREE_ID_EXTENTS ? 0 : 1;
+	unsigned depth = bkey_type_needs_gc(btree_id) ? 0 : 1;
 	unsigned max_stale;
 	int ret = 0;
 
@@ -257,8 +293,11 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id)
 
 	/*
 	 * if expensive_debug_checks is on, run range_checks on all leaf nodes:
+	 *
+	 * and on startup, we have to read every btree node (XXX: only if it was
+	 * an unclean shutdown)
 	 */
-	if (expensive_debug_checks(c))
+	if (initial || expensive_debug_checks(c))
 		depth = 0;
 
 	btree_node_range_checks_init(&r, depth);
@@ -269,22 +308,24 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id)
 
 		bch2_verify_btree_nr_keys(b);
 
-		max_stale = btree_gc_mark_node(c, b);
+		max_stale = btree_gc_mark_node(c, b, initial);
 
 		gc_pos_set(c, gc_pos_btree_node(b));
 
-		if (max_stale > 64)
-			bch2_btree_node_rewrite(c, &iter,
-					b->data->keys.seq,
-					BTREE_INSERT_USE_RESERVE|
-					BTREE_INSERT_NOWAIT|
-					BTREE_INSERT_GC_LOCK_HELD);
-		else if (!btree_gc_rewrite_disabled(c) &&
-			 (btree_gc_always_rewrite(c) || max_stale > 16))
-			bch2_btree_node_rewrite(c, &iter,
-					b->data->keys.seq,
-					BTREE_INSERT_NOWAIT|
-					BTREE_INSERT_GC_LOCK_HELD);
+		if (!initial) {
+			if (max_stale > 64)
+				bch2_btree_node_rewrite(c, &iter,
+						b->data->keys.seq,
+						BTREE_INSERT_USE_RESERVE|
+						BTREE_INSERT_NOWAIT|
+						BTREE_INSERT_GC_LOCK_HELD);
+			else if (!btree_gc_rewrite_disabled(c) &&
+				 (btree_gc_always_rewrite(c) || max_stale > 16))
+				bch2_btree_node_rewrite(c, &iter,
+						b->data->keys.seq,
+						BTREE_INSERT_NOWAIT|
+						BTREE_INSERT_GC_LOCK_HELD);
+		}
 
 		bch2_btree_iter_cond_resched(&iter);
 	}
@@ -296,10 +337,44 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id)
 
 	b = c->btree_roots[btree_id].b;
 	if (!btree_node_fake(b))
-		bch2_gc_mark_key(c, BKEY_TYPE_BTREE, bkey_i_to_s_c(&b->key), 0);
+		bch2_gc_mark_key(c, BKEY_TYPE_BTREE,
+				 bkey_i_to_s_c(&b->key), initial);
 	gc_pos_set(c, gc_pos_btree_root(b->btree_id));
 
 	mutex_unlock(&c->btree_root_lock);
+	return 0;
+}
+
+static int bch2_gc_btrees(struct bch_fs *c, struct list_head *journal,
+			  bool initial)
+{
+	unsigned i;
+
+	for (i = 0; i < BTREE_ID_NR; i++) {
+		enum bkey_type type = bkey_type(0, i);
+
+		int ret = bch2_gc_btree(c, i, initial);
+		if (ret)
+			return ret;
+
+		if (journal && bkey_type_needs_gc(type)) {
+			struct bkey_i *k, *n;
+			struct jset_entry *j;
+			struct journal_replay *r;
+			int ret;
+
+			list_for_each_entry(r, journal, list)
+				for_each_jset_key(k, n, j, &r->j) {
+					if (type == bkey_type(j->level, j->btree_id)) {
+						ret = bch2_gc_mark_key(c, type,
+							bkey_i_to_s_c(k), initial);
+						if (ret < 0)
+							return ret;
+					}
+				}
+		}
+	}
+
 	return 0;
 }
 
@@ -525,6 +600,7 @@ void bch2_gc(struct bch_fs *c)
 	struct bch_dev *ca;
 	u64 start_time = local_clock();
 	unsigned i;
+	int ret;
 
 	/*
 	 * Walk _all_ references to buckets, and recompute them:
@@ -560,14 +636,11 @@ void bch2_gc(struct bch_fs *c)
 
 	bch2_mark_superblocks(c);
 
-	/* Walk btree: */
-	for (i = 0; i < BTREE_ID_NR; i++) {
-		int ret = bch2_gc_btree(c, i);
-		if (ret) {
-			bch_err(c, "btree gc failed: %d", ret);
-			set_bit(BCH_FS_GC_FAILURE, &c->flags);
-			goto out;
-		}
+	ret = bch2_gc_btrees(c, NULL, false);
+	if (ret) {
+		bch_err(c, "btree gc failed: %d", ret);
+		set_bit(BCH_FS_GC_FAILURE, &c->flags);
+		goto out;
 	}
 
 	bch2_mark_pending_btree_node_frees(c);
@@ -1009,58 +1082,9 @@ int bch2_gc_thread_start(struct bch_fs *c)
 
 /* Initial GC computes bucket marks during startup */
 
-static int bch2_initial_gc_btree(struct bch_fs *c, enum btree_id id)
-{
-	struct btree_iter iter;
-	struct btree *b;
-	struct range_checks r;
-	int ret = 0;
-
-	btree_node_range_checks_init(&r, 0);
-
-	gc_pos_set(c, gc_pos_btree(id, POS_MIN, 0));
-
-	if (!c->btree_roots[id].b)
-		return 0;
-
-	b = c->btree_roots[id].b;
-	if (!btree_node_fake(b))
-		ret = bch2_btree_mark_key_initial(c, BKEY_TYPE_BTREE,
-						  bkey_i_to_s_c(&b->key));
-	if (ret)
-		return ret;
-
-	/*
-	 * We have to hit every btree node before starting journal replay, in
-	 * order for the journal seq blacklist machinery to work:
-	 */
-	for_each_btree_node(&iter, c, id, POS_MIN, BTREE_ITER_PREFETCH, b) {
-		btree_node_range_checks(c, b, &r);
-
-		if (btree_node_has_ptrs(b)) {
-			struct btree_node_iter node_iter;
-			struct bkey unpacked;
-			struct bkey_s_c k;
-
-			for_each_btree_node_key_unpack(b, k, &node_iter,
-						       &unpacked) {
-				ret = bch2_btree_mark_key_initial(c,
-							btree_node_type(b), k);
-				if (ret)
-					goto err;
-			}
-		}
-
-		bch2_btree_iter_cond_resched(&iter);
-	}
-err:
-	return bch2_btree_iter_unlock(&iter) ?: ret;
-}
-
 int bch2_initial_gc(struct bch_fs *c, struct list_head *journal)
 {
 	unsigned iter = 0;
-	enum btree_id id;
 	int ret = 0;
 
 	down_write(&c->gc_lock);
@@ -1069,13 +1093,7 @@ again:
 
 	bch2_mark_superblocks(c);
 
-	for (id = 0; id < BTREE_ID_NR; id++) {
-		ret = bch2_initial_gc_btree(c, id);
-		if (ret)
-			goto err;
-	}
-
-	ret = bch2_journal_mark(c, journal);
+	ret = bch2_gc_btrees(c, journal, true);
 	if (ret)
 		goto err;
 

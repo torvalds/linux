@@ -19,17 +19,6 @@ static inline enum bkey_type bkey_type(unsigned level, enum btree_id id)
 	return level ? BKEY_TYPE_BTREE : (enum bkey_type) id;
 }
 
-static inline bool btree_type_has_ptrs(enum bkey_type type)
-{
-	switch (type) {
-	case BKEY_TYPE_BTREE:
-	case BKEY_TYPE_EXTENTS:
-		return true;
-	default:
-		return false;
-	}
-}
-
 struct bch_fs;
 struct btree;
 struct bkey;

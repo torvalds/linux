@@ -355,10 +355,6 @@ static inline bool journal_flushes_device(struct bch_dev *ca)
 	return true;
 }
 
-int bch2_journal_mark(struct bch_fs *, struct list_head *);
-void bch2_journal_entries_free(struct list_head *);
-int bch2_journal_replay(struct bch_fs *, struct list_head *);
-
 static inline void bch2_journal_set_replay_done(struct journal *j)
 {
 	BUG_ON(!test_bit(JOURNAL_STARTED, &j->flags));
