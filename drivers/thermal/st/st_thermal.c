@@ -277,8 +277,7 @@ EXPORT_SYMBOL_GPL(st_thermal_unregister);
 #ifdef CONFIG_PM_SLEEP
 static int st_thermal_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct st_thermal_sensor *sensor = platform_get_drvdata(pdev);
+	struct st_thermal_sensor *sensor = dev_get_drvdata(dev);
 
 	return st_thermal_sensor_off(sensor);
 }
@@ -286,8 +285,7 @@ static int st_thermal_suspend(struct device *dev)
 static int st_thermal_resume(struct device *dev)
 {
 	int ret;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct st_thermal_sensor *sensor = platform_get_drvdata(pdev);
+	struct st_thermal_sensor *sensor = dev_get_drvdata(dev);
 
 	ret = st_thermal_sensor_on(sensor);
 	if (ret)
