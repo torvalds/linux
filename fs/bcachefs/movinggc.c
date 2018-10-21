@@ -161,7 +161,7 @@ static void bch2_copygc(struct bch_fs *c, struct bch_dev *ca)
 			.sectors	= bucket_sectors_used(m),
 			.offset		= bucket_to_sector(ca, b),
 		};
-		heap_add_or_replace(h, e, -sectors_used_cmp);
+		heap_add_or_replace(h, e, -sectors_used_cmp, NULL);
 	}
 	up_read(&ca->bucket_lock);
 	up_read(&c->gc_lock);
@@ -170,7 +170,7 @@ static void bch2_copygc(struct bch_fs *c, struct bch_dev *ca)
 		sectors_to_move += i->sectors;
 
 	while (sectors_to_move > COPYGC_SECTORS_PER_ITER(ca)) {
-		BUG_ON(!heap_pop(h, e, -sectors_used_cmp));
+		BUG_ON(!heap_pop(h, e, -sectors_used_cmp, NULL));
 		sectors_to_move -= e.sectors;
 	}
 

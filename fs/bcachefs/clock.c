@@ -22,7 +22,7 @@ void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 		if (clock->timers.data[i] == timer)
 			goto out;
 
-	BUG_ON(!heap_add(&clock->timers, timer, io_timer_cmp));
+	BUG_ON(!heap_add(&clock->timers, timer, io_timer_cmp, NULL));
 out:
 	spin_unlock(&clock->timer_lock);
 }
@@ -35,7 +35,7 @@ void bch2_io_timer_del(struct io_clock *clock, struct io_timer *timer)
 
 	for (i = 0; i < clock->timers.used; i++)
 		if (clock->timers.data[i] == timer) {
-			heap_del(&clock->timers, i, io_timer_cmp);
+			heap_del(&clock->timers, i, io_timer_cmp, NULL);
 			break;
 		}
 
@@ -128,7 +128,7 @@ static struct io_timer *get_expired_timer(struct io_clock *clock,
 
 	if (clock->timers.used &&
 	    time_after_eq(now, clock->timers.data[0]->expire))
-		heap_pop(&clock->timers, ret, io_timer_cmp);
+		heap_pop(&clock->timers, ret, io_timer_cmp, NULL);
 
 	spin_unlock(&clock->timer_lock);
 

@@ -583,7 +583,8 @@ static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)
 			e.nr++;
 		} else {
 			if (e.nr)
-				heap_add_or_replace(&ca->alloc_heap, e, -bucket_alloc_cmp);
+				heap_add_or_replace(&ca->alloc_heap, e,
+					-bucket_alloc_cmp, NULL);
 
 			e = (struct alloc_heap_entry) {
 				.bucket = b,
@@ -596,14 +597,15 @@ static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)
 	}
 
 	if (e.nr)
-		heap_add_or_replace(&ca->alloc_heap, e, -bucket_alloc_cmp);
+		heap_add_or_replace(&ca->alloc_heap, e,
+				-bucket_alloc_cmp, NULL);
 
 	for (i = 0; i < ca->alloc_heap.used; i++)
 		nr += ca->alloc_heap.data[i].nr;
 
 	while (nr - ca->alloc_heap.data[0].nr >= ALLOC_SCAN_BATCH(ca)) {
 		nr -= ca->alloc_heap.data[0].nr;
-		heap_pop(&ca->alloc_heap, e, -bucket_alloc_cmp);
+		heap_pop(&ca->alloc_heap, e, -bucket_alloc_cmp, NULL);
 	}
 
 	up_read(&ca->bucket_lock);
@@ -633,7 +635,7 @@ static void find_reclaimable_buckets_fifo(struct bch_fs *c, struct bch_dev *ca)
 		if (bch2_can_invalidate_bucket(ca, b, m)) {
 			struct alloc_heap_entry e = { .bucket = b, .nr = 1, };
 
-			heap_add(&ca->alloc_heap, e, bucket_alloc_cmp);
+			heap_add(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
 			if (heap_full(&ca->alloc_heap))
 				break;
 		}
@@ -660,7 +662,7 @@ static void find_reclaimable_buckets_random(struct bch_fs *c, struct bch_dev *ca
 		if (bch2_can_invalidate_bucket(ca, b, m)) {
 			struct alloc_heap_entry e = { .bucket = b, .nr = 1, };
 
-			heap_add(&ca->alloc_heap, e, bucket_alloc_cmp);
+			heap_add(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
 			if (heap_full(&ca->alloc_heap))
 				break;
 		}
@@ -698,7 +700,7 @@ static size_t find_reclaimable_buckets(struct bch_fs *c, struct bch_dev *ca)
 		break;
 	}
 
-	heap_resort(&ca->alloc_heap, bucket_alloc_cmp);
+	heap_resort(&ca->alloc_heap, bucket_alloc_cmp, NULL);
 
 	for (i = 0; i < ca->alloc_heap.used; i++)
 		nr += ca->alloc_heap.data[i].nr;
@@ -719,7 +721,7 @@ static inline long next_alloc_bucket(struct bch_dev *ca)
 			return b;
 		}
 
-		heap_pop(&ca->alloc_heap, e, bucket_alloc_cmp);
+		heap_pop(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
 	}
 
 	return -1;

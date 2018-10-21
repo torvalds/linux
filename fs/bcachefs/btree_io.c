@@ -35,7 +35,7 @@ void bch2_btree_node_iter_large_push(struct btree_node_iter_large *iter,
 				 __btree_node_key_to_offset(b, end)
 			 });
 
-		__heap_add(iter, n, btree_node_iter_cmp_heap);
+		__heap_add(iter, n, btree_node_iter_cmp_heap, NULL);
 	}
 }
 
@@ -48,9 +48,9 @@ void bch2_btree_node_iter_large_advance(struct btree_node_iter_large *iter,
 	EBUG_ON(iter->data->k > iter->data->end);
 
 	if (iter->data->k == iter->data->end)
-		heap_del(iter, 0, btree_node_iter_cmp_heap);
+		heap_del(iter, 0, btree_node_iter_cmp_heap, NULL);
 	else
-		heap_sift_down(iter, 0, btree_node_iter_cmp_heap);
+		heap_sift_down(iter, 0, btree_node_iter_cmp_heap, NULL);
 }
 
 static void verify_no_dups(struct btree *b,
