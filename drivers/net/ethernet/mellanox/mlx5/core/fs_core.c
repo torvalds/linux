@@ -2470,7 +2470,7 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 		return -ENOMEM;
 
 	steering->fdb_sub_ns = kzalloc(sizeof(steering->fdb_sub_ns) *
-				       FDB_MAX_CHAIN + 1, GFP_KERNEL);
+				       (FDB_MAX_CHAIN + 1), GFP_KERNEL);
 	if (!steering->fdb_sub_ns)
 		return -ENOMEM;
 
