@@ -473,17 +473,18 @@ static bool max44000_precious_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config max44000_regmap_config = {
-	.reg_bits	= 8,
-	.val_bits	= 8,
+	.reg_bits		= 8,
+	.val_bits		= 8,
 
-	.max_register	= MAX44000_REG_PRX_DATA,
-	.readable_reg	= max44000_readable_reg,
-	.writeable_reg	= max44000_writeable_reg,
-	.volatile_reg	= max44000_volatile_reg,
-	.precious_reg	= max44000_precious_reg,
+	.max_register		= MAX44000_REG_PRX_DATA,
+	.readable_reg		= max44000_readable_reg,
+	.writeable_reg		= max44000_writeable_reg,
+	.volatile_reg		= max44000_volatile_reg,
+	.precious_reg		= max44000_precious_reg,
 
-	.use_single_rw	= 1,
-	.cache_type	= REGCACHE_RBTREE,
+	.use_single_read	= true,
+	.use_single_write	= true,
+	.cache_type		= REGCACHE_RBTREE,
 };
 
 static irqreturn_t max44000_trigger_handler(int irq, void *p)
