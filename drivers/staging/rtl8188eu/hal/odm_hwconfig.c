@@ -67,7 +67,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 			struct odm_per_pkt_info *pPktinfo)
 {
 	struct sw_ant_switch *pDM_SWAT_Table = &dm_odm->DM_SWAT_Table;
-	u8 i, Max_spatial_stream;
+	u8 i, max_spatial_stream;
 	s8 rx_pwr[4], rx_pwr_all = 0;
 	u8 EVM, PWDB_ALL = 0, PWDB_ALL_BT;
 	u8 RSSI, total_rssi = 0;
@@ -215,11 +215,11 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 
 		/*  (3)EVM of HT rate */
 		if (pPktinfo->Rate >= DESC92C_RATEMCS8 && pPktinfo->Rate <= DESC92C_RATEMCS15)
-			Max_spatial_stream = 2; /* both spatial stream make sense */
+			max_spatial_stream = 2; /* both spatial stream make sense */
 		else
-			Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
+			max_spatial_stream = 1; /* only spatial stream 1 makes sense */
 
-		for (i = 0; i < Max_spatial_stream; i++) {
+		for (i = 0; i < max_spatial_stream; i++) {
 			/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
 			/*  fill most significant bit to "zero" when doing shifting operation which may change a negative */
 			/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
