@@ -13257,6 +13257,12 @@ L:	sdricohcs-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
+SECO BOARDS CEC DRIVER
+M:	Ettore Chimenti <ek5.chimenti@gmail.com>
+S:	Maintained
+F:	drivers/media/platform/seco-cec/seco-cec.c
+F:	drivers/media/platform/seco-cec/seco-cec.h
+
 SECURE COMPUTING
 M:	Kees Cook <keescook@chromium.org>
 R:	Andy Lutomirski <luto@amacapital.net>
