@@ -3006,6 +3006,14 @@ S:	Supported
 F:	drivers/gpio/gpio-brcmstb.c
 F:	Documentation/devicetree/bindings/gpio/brcm,brcmstb-gpio.txt
 
+BROADCOM BRCMSTB I2C DRIVER
+M:	Kamal Dasu <kdasu.kdev@gmail.com>
+L:	linux-i2c@vger.kernel.org
+L:	bcm-kernel-feedback-list@broadcom.com
+S:	Supported
+F:	drivers/i2c/busses/i2c-brcmstb.c
+F:	Documentation/devicetree/bindings/i2c/i2c-brcmstb.txt
+
 BROADCOM BRCMSTB USB2 and USB3 PHY DRIVER
 M:	Al Cooper <alcooperx@gmail.com>
 L:	linux-kernel@vger.kernel.org
