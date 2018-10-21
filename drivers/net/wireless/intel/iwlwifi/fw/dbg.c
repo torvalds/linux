@@ -748,6 +748,9 @@ static int iwl_fw_rxf_len(struct iwl_fw_runtime *fwrt,
 	ADD_LEN(fifo_len, mem_cfg->rxfifo2_size, hdr_len);
 
 	/* Count RXF1 sizes */
+	if (WARN_ON(mem_cfg->num_lmacs > MAX_NUM_LMAC))
+		mem_cfg->num_lmacs = MAX_NUM_LMAC;
+
 	for (i = 0; i < mem_cfg->num_lmacs; i++)
 		ADD_LEN(fifo_len, mem_cfg->lmac[i].rxfifo1_size, hdr_len);
 
@@ -766,6 +769,9 @@ static int iwl_fw_txf_len(struct iwl_fw_runtime *fwrt,
 		goto dump_internal_txf;
 
 	/* Count TXF sizes */
+	if (WARN_ON(mem_cfg->num_lmacs > MAX_NUM_LMAC))
+		mem_cfg->num_lmacs = MAX_NUM_LMAC;
+
 	for (i = 0; i < mem_cfg->num_lmacs; i++) {
 		int j;
 
