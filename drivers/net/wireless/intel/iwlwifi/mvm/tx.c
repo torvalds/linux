@@ -1024,7 +1024,12 @@ static void iwl_mvm_tx_airtime(struct iwl_mvm *mvm,
 			       int airtime)
 {
 	int mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
-	struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+	struct iwl_mvm_tcm_mac *mdata;
+
+	if (mac >= NUM_MAC_INDEX_DRIVER)
+		return;
+
+	mdata = &mvm->tcm.data[mac];
 
 	if (mvm->tcm.paused)
 		return;
@@ -1035,14 +1040,21 @@ static void iwl_mvm_tx_airtime(struct iwl_mvm *mvm,
 	mdata->tx.airtime += airtime;
 }
 
-static void iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
-				  struct iwl_mvm_sta *mvmsta, int tid)
+static int iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
+				 struct iwl_mvm_sta *mvmsta, int tid)
 {
 	u32 ac = tid_to_mac80211_ac[tid];
 	int mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
-	struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+	struct iwl_mvm_tcm_mac *mdata;
+
+	if (mac >= NUM_MAC_INDEX_DRIVER)
+		return -EINVAL;
+
+	mdata = &mvm->tcm.data[mac];
 
 	mdata->tx.pkts[ac]++;
+
+	return 0;
 }
 
 /*
@@ -1162,7 +1174,9 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_unlock(&mvmsta->lock);
 
-	iwl_mvm_tx_pkt_queued(mvm, mvmsta, tid == IWL_MAX_TID_COUNT ? 0 : tid);
+	if (iwl_mvm_tx_pkt_queued(mvm, mvmsta,
+				  tid == IWL_MAX_TID_COUNT ? 0 : tid))
+		goto drop;
 
 	return 0;
 

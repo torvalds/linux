@@ -835,6 +835,8 @@ _iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 	if (!fwrt->trans->cfg->dccm_offset || !fwrt->trans->cfg->dccm_len) {
 		const struct fw_img *img;
 
+		if (fwrt->cur_fw_img >= IWL_UCODE_TYPE_MAX)
+			return NULL;
 		img = &fwrt->fw->img[fwrt->cur_fw_img];
 		sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
 		sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;

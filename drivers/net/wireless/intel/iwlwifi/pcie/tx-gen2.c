@@ -214,7 +214,11 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int idx = iwl_pcie_gen2_get_num_tbs(trans, tfd);
-	struct iwl_tfh_tb *tb = &tfd->tbs[idx];
+	struct iwl_tfh_tb *tb;
+
+	if (WARN_ON(idx >= IWL_NUM_OF_TBS))
+		return -EINVAL;
+	tb = &tfd->tbs[idx];
 
 	/* Each TFD can point to a maximum max_tbs Tx buffers */
 	if (le16_to_cpu(tfd->num_tbs) >= trans_pcie->max_tbs) {
