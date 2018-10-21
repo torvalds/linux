@@ -6178,7 +6178,10 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 		if (prog->jit_requested && BITS_PER_LONG == 64 &&
 		    (insn->imm == BPF_FUNC_map_lookup_elem ||
 		     insn->imm == BPF_FUNC_map_update_elem ||
-		     insn->imm == BPF_FUNC_map_delete_elem)) {
+		     insn->imm == BPF_FUNC_map_delete_elem ||
+		     insn->imm == BPF_FUNC_map_push_elem   ||
+		     insn->imm == BPF_FUNC_map_pop_elem    ||
+		     insn->imm == BPF_FUNC_map_peek_elem)) {
 			aux = &env->insn_aux_data[i + delta];
 			if (bpf_map_ptr_poisoned(aux))
 				goto patch_call_imm;
@@ -6211,6 +6214,14 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			BUILD_BUG_ON(!__same_type(ops->map_update_elem,
 				     (int (*)(struct bpf_map *map, void *key, void *value,
 					      u64 flags))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_push_elem,
+				     (int (*)(struct bpf_map *map, void *value,
+					      u64 flags))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_pop_elem,
+				     (int (*)(struct bpf_map *map, void *value))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_peek_elem,
+				     (int (*)(struct bpf_map *map, void *value))NULL));
+
 			switch (insn->imm) {
 			case BPF_FUNC_map_lookup_elem:
 				insn->imm = BPF_CAST_CALL(ops->map_lookup_elem) -
@@ -6222,6 +6233,18 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 				continue;
 			case BPF_FUNC_map_delete_elem:
 				insn->imm = BPF_CAST_CALL(ops->map_delete_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_push_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_push_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_pop_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_pop_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_peek_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_peek_elem) -
 					    __bpf_call_base;
 				continue;
 			}
