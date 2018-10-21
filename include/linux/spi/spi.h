@@ -1272,7 +1272,6 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
 	{ return 0; }
 #endif
 
-
 /* If you're hotplugging an adapter with devices (parport, usb, etc)
  * use spi_new_device() to describe each device.  You can also call
  * spi_unregister_device() to start making that device vanish, but
@@ -1304,6 +1303,22 @@ spi_transfer_is_last(struct spi_controller *ctlr, struct spi_transfer *xfer)
 	return list_is_last(&xfer->transfer_list, &ctlr->cur_msg->transfers);
 }
 
+/* OF support code */
+#if IS_ENABLED(CONFIG_OF)
+
+/* must call put_device() when done with returned spi_device device */
+extern struct spi_device *
+of_find_spi_device_by_node(struct device_node *node);
+
+#else
+
+static inline struct spi_device *
+of_find_spi_device_by_node(struct device_node *node)
+{
+	return NULL;
+}
+
+#endif /* IS_ENABLED(CONFIG_OF) */
 
 /* Compatibility layer */
 #define spi_master			spi_controller
