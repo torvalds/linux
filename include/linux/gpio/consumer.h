@@ -30,6 +30,7 @@ struct gpio_descs {
 #define GPIOD_FLAGS_BIT_DIR_OUT		BIT(1)
 #define GPIOD_FLAGS_BIT_DIR_VAL		BIT(2)
 #define GPIOD_FLAGS_BIT_OPEN_DRAIN	BIT(3)
+#define GPIOD_FLAGS_BIT_NONEXCLUSIVE	BIT(4)
 
 /**
  * Optional flags that can be passed to one of gpiod_* to configure direction

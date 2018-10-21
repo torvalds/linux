@@ -18,6 +18,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -175,6 +176,7 @@ static struct resource mx21ads_mmgpio_resource =
 	DEFINE_RES_MEM_NAMED(MX21ADS_IO_REG, SZ_2, "dat");
 
 static struct bgpio_pdata mx21ads_mmgpio_pdata = {
+	.label	= "mx21ads-mmgpio",
 	.base	= MX21ADS_MMGPIO_BASE,
 	.ngpio	= 16,
 };
@@ -203,7 +205,6 @@ static struct regulator_init_data mx21ads_lcd_regulator_init_data = {
 static struct fixed_voltage_config mx21ads_lcd_regulator_pdata = {
 	.supply_name	= "LCD",
 	.microvolts	= 3300000,
-	.gpio		= MX21ADS_IO_LCDON,
 	.enable_high	= 1,
 	.init_data	= &mx21ads_lcd_regulator_init_data,
 };
@@ -213,6 +214,14 @@ static struct platform_device mx21ads_lcd_regulator = {
 	.id = PLATFORM_DEVID_AUTO,
 	.dev = {
 		.platform_data = &mx21ads_lcd_regulator_pdata,
+	},
+};
+
+static struct gpiod_lookup_table mx21ads_lcd_regulator_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.0", /* Let's hope ID 0 is what we get */
+	.table = {
+		GPIO_LOOKUP("mx21ads-mmgpio", 9, NULL, GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -311,6 +320,7 @@ static void __init mx21ads_late_init(void)
 {
 	imx21_add_mxc_mmc(0, &mx21ads_sdhc_pdata);
 
+	gpiod_add_lookup_table(&mx21ads_lcd_regulator_gpiod_table);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 	mx21ads_cs8900_resources[1].start =
