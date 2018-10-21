@@ -35,7 +35,7 @@ static unsigned long sun4i_tmds_calc_divider(unsigned long rate,
 {
 	unsigned long best_rate = 0;
 	u8 best_m = 0, m;
-	bool is_double;
+	bool is_double = false;
 
 	for (m = div_offset ?: 1; m < (16 + div_offset); m++) {
 		u8 d;
