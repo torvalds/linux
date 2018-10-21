@@ -104,8 +104,9 @@ config BATMAN_ADV_DEBUG
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for
-	  outputting debugging information to the kernel log. The
-	  output is controlled via the module parameter debug.
+	  outputting debugging information to the debugfs log or tracing
+	  buffer. The output is controlled via the batadv netdev specific
+	  log_level setting.
 
 config BATMAN_ADV_TRACING
 	bool "B.A.T.M.A.N. tracing support"
