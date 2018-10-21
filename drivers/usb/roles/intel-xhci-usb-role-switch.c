@@ -161,6 +161,8 @@ static int intel_xhci_usb_remove(struct platform_device *pdev)
 {
 	struct intel_xhci_usb_data *data = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(&pdev->dev);
+
 	usb_role_switch_unregister(data->role_sw);
 	return 0;
 }

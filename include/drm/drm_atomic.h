@@ -153,6 +153,17 @@ struct __drm_planes_state {
 struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 	struct drm_crtc_state *state, *old_state, *new_state;
+
+	/**
+	 * @commit:
+	 *
+	 * A reference to the CRTC commit object that is kept for use by
+	 * drm_atomic_helper_wait_for_flip_done() after
+	 * drm_atomic_helper_commit_hw_done() is called. This ensures that a
+	 * concurrent commit won't free a commit object that is still in use.
+	 */
+	struct drm_crtc_commit *commit;
+
 	s32 __user *out_fence_ptr;
 	u64 last_vblank_count;
 };
