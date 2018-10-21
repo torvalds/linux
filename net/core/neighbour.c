@@ -1148,8 +1148,7 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		neigh->nud_state = new;
 		err = 0;
 		notify = old & NUD_VALID;
-		if (((old & (NUD_INCOMPLETE | NUD_PROBE)) ||
-		     (flags & NEIGH_UPDATE_F_ADMIN)) &&
+		if ((old & (NUD_INCOMPLETE | NUD_PROBE)) &&
 		    (new & NUD_FAILED)) {
 			neigh_invalidate(neigh);
 			notify = 1;

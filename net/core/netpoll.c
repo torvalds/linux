@@ -312,7 +312,6 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 	/* It is up to the caller to keep npinfo alive. */
 	struct netpoll_info *npinfo;
 
-	rcu_read_lock_bh();
 	lockdep_assert_irqs_disabled();
 
 	npinfo = rcu_dereference_bh(np->dev->npinfo);
@@ -357,7 +356,6 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 		skb_queue_tail(&npinfo->txq, skb);
 		schedule_delayed_work(&npinfo->tx_work,0);
 	}
-	rcu_read_unlock_bh();
 }
 EXPORT_SYMBOL(netpoll_send_skb_on_dev);
 
