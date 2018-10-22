@@ -1566,25 +1566,55 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
-static int intel_dsi_get_panel_orientation(struct intel_connector *connector)
+static enum drm_panel_orientation
+vlv_dsi_get_hw_panel_orientation(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	int orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
-	enum i9xx_plane_id i9xx_plane;
+	struct intel_encoder *encoder = connector->encoder;
+	enum intel_display_power_domain power_domain;
+	enum drm_panel_orientation orientation;
+	struct intel_plane *plane;
+	struct intel_crtc *crtc;
+	enum pipe pipe;
 	u32 val;
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		if (connector->encoder->crtc_mask == BIT(PIPE_B))
-			i9xx_plane = PLANE_B;
-		else
-			i9xx_plane = PLANE_A;
+	if (!encoder->get_hw_state(encoder, &pipe))
+		return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
-		val = I915_READ(DSPCNTR(i9xx_plane));
-		if (val & DISPPLANE_ROTATE_180)
-			orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
-	}
+	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+	plane = to_intel_plane(crtc->base.primary);
+
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+
+	val = I915_READ(DSPCNTR(plane->i9xx_plane));
+
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+	else if (val & DISPPLANE_ROTATE_180)
+		orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
+	else
+		orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
+
+	intel_display_power_put(dev_priv, power_domain);
 
 	return orientation;
+}
+
+static enum drm_panel_orientation
+vlv_dsi_get_panel_orientation(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	enum drm_panel_orientation orientation;
+
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		orientation = vlv_dsi_get_hw_panel_orientation(connector);
+		if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
+			return orientation;
+	}
+
+	return DRM_MODE_PANEL_ORIENTATION_NORMAL;
 }
 
 static void intel_dsi_add_properties(struct intel_connector *connector)
@@ -1604,7 +1634,7 @@ static void intel_dsi_add_properties(struct intel_connector *connector)
 		connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
 
 		connector->base.display_info.panel_orientation =
-			intel_dsi_get_panel_orientation(connector);
+			vlv_dsi_get_panel_orientation(connector);
 		drm_connector_init_panel_orientation_property(
 				&connector->base,
 				connector->panel.fixed_mode->hdisplay,
