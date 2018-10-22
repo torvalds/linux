@@ -2793,7 +2793,7 @@ print_address(unsigned long addr)
 	xmon_print_symbol(addr, "\t# ", "");
 }
 
-void
+static void
 dump_log_buf(void)
 {
 	struct kmsg_dumper dumper = { .active = 1 };
@@ -2994,13 +2994,13 @@ static void show_task(struct task_struct *tsk)
 
 	printf("%px %016lx %6d %6d %c %2d %s\n", tsk,
 		tsk->thread.ksp,
-		tsk->pid, tsk->parent->pid,
+		tsk->pid, rcu_dereference(tsk->parent)->pid,
 		state, task_thread_info(tsk)->cpu,
 		tsk->comm);
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-void format_pte(void *ptep, unsigned long pte)
+static void format_pte(void *ptep, unsigned long pte)
 {
 	pte_t entry = __pte(pte);
 
