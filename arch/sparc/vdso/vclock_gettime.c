@@ -12,11 +12,6 @@
  * Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
  */
 
-/* Disable profiling for userspace code: */
-#ifndef	DISABLE_BRANCH_PROFILING
-#define	DISABLE_BRANCH_PROFILING
-#endif
-
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/string.h>

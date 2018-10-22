@@ -58,7 +58,8 @@ CFL := $(PROFILING) -mcmodel=medlow -fPIC -O2 -fasynchronous-unwind-tables \
        -m64 -ffixed-g2 -ffixed-g3 -fcall-used-g4 -fcall-used-g5 -ffixed-g6 \
        -ffixed-g7 $(filter -g%,$(KBUILD_CFLAGS)) \
        $(call cc-option, -fno-stack-protector) -fno-omit-frame-pointer \
-       -foptimize-sibling-calls -DBUILD_VDSO
+       -foptimize-sibling-calls \
+       -DDISABLE_BRANCH_PROFILING -DBUILD_VDSO
 
 $(vobjs): KBUILD_CFLAGS += $(CFL)
 
