@@ -21,7 +21,7 @@ struct kvec {
 	size_t iov_len;
 };
 
-enum {
+enum iter_type {
 	ITER_IOVEC = 0,
 	ITER_KVEC = 2,
 	ITER_BVEC = 4,
@@ -46,6 +46,36 @@ struct iov_iter {
 		};
 	};
 };
+
+static inline enum iter_type iov_iter_type(const struct iov_iter *i)
+{
+	return i->type & ~(READ | WRITE);
+}
+
+static inline bool iter_is_iovec(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_IOVEC;
+}
+
+static inline bool iov_iter_is_kvec(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_KVEC;
+}
+
+static inline bool iov_iter_is_bvec(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_BVEC;
+}
+
+static inline bool iov_iter_is_pipe(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_PIPE;
+}
+
+static inline unsigned char iov_iter_rw(const struct iov_iter *i)
+{
+	return i->type & (READ | WRITE);
+}
 
 /*
  * Total number of bytes covered by an iovec.
@@ -74,7 +104,8 @@ static inline struct iovec iov_iter_iovec(const struct iov_iter *iter)
 }
 
 #define iov_for_each(iov, iter, start)				\
-	if (!((start).type & (ITER_BVEC | ITER_PIPE)))		\
+	if (iov_iter_type(start) == ITER_IOVEC ||		\
+	    iov_iter_type(start) == ITER_KVEC)			\
 	for (iter = (start);					\
 	     (iter).count &&					\
 	     ((iov = iov_iter_iovec(&(iter))), 1);		\
@@ -201,19 +232,6 @@ static inline size_t iov_iter_count(const struct iov_iter *i)
 {
 	return i->count;
 }
-
-static inline bool iter_is_iovec(const struct iov_iter *i)
-{
-	return !(i->type & (ITER_BVEC | ITER_KVEC | ITER_PIPE));
-}
-
-/*
- * Get one of READ or WRITE out of iter->type without any other flags OR'd in
- * with it.
- *
- * The ?: is just for type safety.
- */
-#define iov_iter_rw(i) ((0 ? (struct iov_iter *)0 : (i))->type & (READ | WRITE))
 
 /*
  * Cap the iov_iter by given limit; note that the second argument is

@@ -658,7 +658,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 	if (ret < 0)
 		return ret;
 
-	if (unlikely(to->type & ITER_PIPE)) {
+	if (unlikely(iov_iter_is_pipe(to))) {
 		size_t page_off;
 		ret = iov_iter_get_pages_alloc(to, &pages, len,
 					       &page_off);
