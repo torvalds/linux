@@ -398,6 +398,14 @@
 	};
 };
 
+&dsi0_in_vopl {
+	status = "okay";
+};
+
+&dsi0_in_vopb {
+	status = "disabled";
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
@@ -703,6 +711,10 @@
 };
 
 &rga {
+	status = "okay";
+};
+
+&route_dsi0 {
 	status = "okay";
 };
 
