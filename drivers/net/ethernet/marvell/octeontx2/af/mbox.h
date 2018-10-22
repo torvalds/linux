@@ -156,7 +156,8 @@ M(NIX_HWCTX_DISABLE,	0x8003, hwctx_disable_req, msg_rsp)		\
 M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc_req, nix_txsch_alloc_rsp) \
 M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free_req, msg_rsp)		\
 M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_config, msg_rsp)		\
-M(NIX_STATS_RST,	0x8007, msg_req, msg_rsp)
+M(NIX_STATS_RST,	0x8007, msg_req, msg_rsp)			\
+M(NIX_VTAG_CFG,	0x8008, nix_vtag_config, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -460,6 +461,38 @@ struct nix_txschq_config {
 #define MAX_REGS_PER_MBOX_MSG	20
 	u64 reg[MAX_REGS_PER_MBOX_MSG];
 	u64 regval[MAX_REGS_PER_MBOX_MSG];
+};
+
+struct nix_vtag_config {
+	struct mbox_msghdr hdr;
+	u8 vtag_size;
+	/* cfg_type is '0' for tx vlan cfg
+	 * cfg_type is '1' for rx vlan cfg
+	 */
+	u8 cfg_type;
+	union {
+		/* valid when cfg_type is '0' */
+		struct {
+			/* tx vlan0 tag(C-VLAN) */
+			u64 vlan0;
+			/* tx vlan1 tag(S-VLAN) */
+			u64 vlan1;
+			/* insert tx vlan tag */
+			u8 insert_vlan :1;
+			/* insert tx double vlan tag */
+			u8 double_vlan :1;
+		} tx;
+
+		/* valid when cfg_type is '1' */
+		struct {
+			/* rx vtag type index */
+			u8 vtag_type;
+			/* rx vtag strip */
+			u8 strip_vtag :1;
+			/* rx vtag capture */
+			u8 capture_vtag :1;
+		} rx;
+	};
 };
 
 #endif /* MBOX_H */

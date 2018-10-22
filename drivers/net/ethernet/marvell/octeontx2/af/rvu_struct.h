@@ -879,4 +879,9 @@ struct nix_lso_format {
 #endif
 };
 
+/* NIX VTAG size */
+enum nix_vtag_size {
+	VTAGSIZE_T4   = 0x0,
+	VTAGSIZE_T8   = 0x1,
+};
 #endif /* RVU_STRUCT_H */

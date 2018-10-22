@@ -1143,6 +1143,65 @@ int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
 	return 0;
 }
 
+static int nix_rx_vtag_cfg(struct rvu *rvu, int nixlf, int blkaddr,
+			   struct nix_vtag_config *req)
+{
+	u64 regval = 0;
+
+#define NIX_VTAGTYPE_MAX 0x8ull
+#define NIX_VTAGSIZE_MASK 0x7ull
+#define NIX_VTAGSTRIP_CAP_MASK 0x30ull
+
+	if (req->rx.vtag_type >= NIX_VTAGTYPE_MAX ||
+	    req->vtag_size > VTAGSIZE_T8)
+		return -EINVAL;
+
+	regval = rvu_read64(rvu, blkaddr,
+			    NIX_AF_LFX_RX_VTAG_TYPEX(nixlf, req->rx.vtag_type));
+
+	if (req->rx.strip_vtag && req->rx.capture_vtag)
+		regval |= BIT_ULL(4) | BIT_ULL(5);
+	else if (req->rx.strip_vtag)
+		regval |= BIT_ULL(4);
+	else
+		regval &= ~(BIT_ULL(4) | BIT_ULL(5));
+
+	regval &= ~NIX_VTAGSIZE_MASK;
+	regval |= req->vtag_size & NIX_VTAGSIZE_MASK;
+
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_LFX_RX_VTAG_TYPEX(nixlf, req->rx.vtag_type), regval);
+	return 0;
+}
+
+int rvu_mbox_handler_NIX_VTAG_CFG(struct rvu *rvu,
+				  struct nix_vtag_config *req,
+				  struct msg_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr, nixlf, err;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	if (req->cfg_type) {
+		err = nix_rx_vtag_cfg(rvu, nixlf, blkaddr, req);
+		if (err)
+			return NIX_AF_ERR_PARAM;
+	} else {
+		/* TODO: handle tx vtag configuration */
+		return 0;
+	}
+
+	return 0;
+}
+
 static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
 			 u16 pcifunc, int next, bool eol)
 {
