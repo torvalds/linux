@@ -3221,7 +3221,7 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	/* max. time slots - one slot for MTP header */
 	mst_state->avail_slots = 63;
 
-	drm_atomic_private_obj_init(&mgr->base,
+	drm_atomic_private_obj_init(dev, &mgr->base,
 				    &mst_state->base,
 				    &mst_state_funcs);
 

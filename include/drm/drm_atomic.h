@@ -228,8 +228,30 @@ struct drm_private_state_funcs {
  * Currently only tracks the state update functions and the opaque driver
  * private state itself, but in the future might also track which
  * &drm_modeset_lock is required to duplicate and update this object's state.
+ *
+ * All private objects must be initialized before the DRM device they are
+ * attached to is registered to the DRM subsystem (call to drm_dev_register())
+ * and should stay around until this DRM device is unregistered (call to
+ * drm_dev_unregister()). In other words, private objects lifetime is tied
+ * to the DRM device lifetime. This implies that:
+ *
+ * 1/ all calls to drm_atomic_private_obj_init() must be done before calling
+ *    drm_dev_register()
+ * 2/ all calls to drm_atomic_private_obj_fini() must be done after calling
+ *    drm_dev_unregister()
  */
 struct drm_private_obj {
+	/**
+	 * @head: List entry used to attach a private object to a &drm_device
+	 * (queued to &drm_mode_config.privobj_list).
+	 */
+	struct list_head head;
+
+	/**
+	 * @lock: Modeset lock to protect the state object.
+	 */
+	struct drm_modeset_lock lock;
+
 	/**
 	 * @state: Current atomic state for this driver private object.
 	 */
@@ -243,6 +265,18 @@ struct drm_private_obj {
 	 */
 	const struct drm_private_state_funcs *funcs;
 };
+
+/**
+ * drm_for_each_privobj() - private object iterator
+ *
+ * @privobj: pointer to the current private object. Updated after each
+ *	     iteration
+ * @dev: the DRM device we want get private objects from
+ *
+ * Allows one to iterate over all private objects attached to @dev
+ */
+#define drm_for_each_privobj(privobj, dev) \
+	list_for_each_entry(privobj, &(dev)->mode_config.privobj_list, head)
 
 /**
  * struct drm_private_state - base struct for driver private object state
@@ -400,7 +434,8 @@ struct drm_connector_state * __must_check
 drm_atomic_get_connector_state(struct drm_atomic_state *state,
 			       struct drm_connector *connector);
 
-void drm_atomic_private_obj_init(struct drm_private_obj *obj,
+void drm_atomic_private_obj_init(struct drm_device *dev,
+				 struct drm_private_obj *obj,
 				 struct drm_private_state *state,
 				 const struct drm_private_state_funcs *funcs);
 void drm_atomic_private_obj_fini(struct drm_private_obj *obj);
