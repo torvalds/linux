@@ -787,11 +787,8 @@ out:
 }
 
 /*
- * GDB places a breakpoint at this function to know dynamically
- * loaded objects. It's not defined static so that only one instance with this
- * name exists in the kernel.
+ * GDB places a breakpoint at this function to know dynamically loaded objects.
  */
-
 static int module_event(struct notifier_block *self, unsigned long val,
 	void *data)
 {
