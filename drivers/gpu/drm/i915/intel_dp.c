@@ -5035,20 +5035,23 @@ bool intel_digital_port_connected(struct intel_encoder *encoder)
 			return g4x_digital_port_connected(encoder);
 	}
 
-	if (IS_GEN5(dev_priv))
-		return ilk_digital_port_connected(encoder);
-	else if (IS_GEN6(dev_priv))
-		return snb_digital_port_connected(encoder);
-	else if (IS_GEN7(dev_priv))
-		return ivb_digital_port_connected(encoder);
-	else if (IS_GEN8(dev_priv))
-		return bdw_digital_port_connected(encoder);
+	if (INTEL_GEN(dev_priv) >= 11)
+		return icl_digital_port_connected(encoder);
+	else if (IS_GEN10(dev_priv) || IS_GEN9_BC(dev_priv))
+		return spt_digital_port_connected(encoder);
 	else if (IS_GEN9_LP(dev_priv))
 		return bxt_digital_port_connected(encoder);
-	else if (IS_GEN9_BC(dev_priv) || IS_GEN10(dev_priv))
-		return spt_digital_port_connected(encoder);
-	else
-		return icl_digital_port_connected(encoder);
+	else if (IS_GEN8(dev_priv))
+		return bdw_digital_port_connected(encoder);
+	else if (IS_GEN7(dev_priv))
+		return ivb_digital_port_connected(encoder);
+	else if (IS_GEN6(dev_priv))
+		return snb_digital_port_connected(encoder);
+	else if (IS_GEN5(dev_priv))
+		return ilk_digital_port_connected(encoder);
+
+	MISSING_CASE(INTEL_GEN(dev_priv));
+	return false;
 }
 
 static struct edid *
