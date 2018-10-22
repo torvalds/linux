@@ -492,6 +492,13 @@ int tb_domain_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd);
 int tb_domain_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd);
 int tb_domain_disconnect_all_paths(struct tb *tb);
 
+static inline struct tb *tb_domain_get(struct tb *tb)
+{
+	if (tb)
+		get_device(&tb->dev);
+	return tb;
+}
+
 static inline void tb_domain_put(struct tb *tb)
 {
 	put_device(&tb->dev);

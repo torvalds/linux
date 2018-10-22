@@ -524,6 +524,8 @@ static void tb_xdp_handle_request(struct work_struct *work)
 out:
 	kfree(xw->pkg);
 	kfree(xw);
+
+	tb_domain_put(tb);
 }
 
 static bool
@@ -542,9 +544,9 @@ tb_xdp_schedule_request(struct tb *tb, const struct tb_xdp_header *hdr,
 		kfree(xw);
 		return false;
 	}
-	xw->tb = tb;
+	xw->tb = tb_domain_get(tb);
 
-	queue_work(tb->wq, &xw->work);
+	schedule_work(&xw->work);
 	return true;
 }
 
