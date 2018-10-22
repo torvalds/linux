@@ -1863,12 +1863,8 @@ static bool skl_plane_has_fbc(struct drm_i915_private *dev_priv,
 static bool skl_plane_has_planar(struct drm_i915_private *dev_priv,
 				 enum pipe pipe, enum plane_id plane_id)
 {
-	/*
-	 * FIXME: ICL requires two hardware planes for scanning out NV12
-	 * framebuffers. Do not advertize support until this is implemented.
-	 */
 	if (INTEL_GEN(dev_priv) >= 11)
-		return false;
+		return plane_id <= PLANE_SPRITE3;
 
 	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))
 		return false;
