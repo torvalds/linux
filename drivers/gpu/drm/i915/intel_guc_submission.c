@@ -955,6 +955,10 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	}
 	client->vaddr = vaddr;
 
+	ret = reserve_doorbell(client);
+	if (ret)
+		goto err_vaddr;
+
 	client->doorbell_offset = __select_cacheline(guc);
 
 	/*
@@ -966,10 +970,6 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 		client->proc_desc_offset = 0;
 	else
 		client->proc_desc_offset = (GUC_DB_SIZE / 2);
-
-	ret = reserve_doorbell(client);
-	if (ret)
-		goto err_vaddr;
 
 	DRM_DEBUG_DRIVER("new priority %u client %p for engine(s) 0x%x: stage_id %u\n",
 			 priority, client, client->engines, client->stage_id);
