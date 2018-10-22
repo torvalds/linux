@@ -140,4 +140,104 @@ struct npc_kpu_profile {
 	struct npc_kpu_profile_action *action;
 };
 
+/* NPC KPU register formats */
+struct npc_kpu_cam {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 rsvd_63_56     : 8;
+	u64 state          : 8;
+	u64 dp2_data       : 16;
+	u64 dp1_data       : 16;
+	u64 dp0_data       : 16;
+#else
+	u64 dp0_data       : 16;
+	u64 dp1_data       : 16;
+	u64 dp2_data       : 16;
+	u64 state          : 8;
+	u64 rsvd_63_56     : 8;
+#endif
+};
+
+struct npc_kpu_action0 {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 rsvd_63_57     : 7;
+	u64 byp_count      : 3;
+	u64 capture_ena    : 1;
+	u64 parse_done     : 1;
+	u64 next_state     : 8;
+	u64 rsvd_43        : 1;
+	u64 capture_lid    : 3;
+	u64 capture_ltype  : 4;
+	u64 capture_flags  : 8;
+	u64 ptr_advance    : 8;
+	u64 var_len_offset : 8;
+	u64 var_len_mask   : 8;
+	u64 var_len_right  : 1;
+	u64 var_len_shift  : 3;
+#else
+	u64 var_len_shift  : 3;
+	u64 var_len_right  : 1;
+	u64 var_len_mask   : 8;
+	u64 var_len_offset : 8;
+	u64 ptr_advance    : 8;
+	u64 capture_flags  : 8;
+	u64 capture_ltype  : 4;
+	u64 capture_lid    : 3;
+	u64 rsvd_43        : 1;
+	u64 next_state     : 8;
+	u64 parse_done     : 1;
+	u64 capture_ena    : 1;
+	u64 byp_count      : 3;
+	u64 rsvd_63_57     : 7;
+#endif
+};
+
+struct npc_kpu_action1 {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 rsvd_63_36     : 28;
+	u64 errlev         : 4;
+	u64 errcode        : 8;
+	u64 dp2_offset     : 8;
+	u64 dp1_offset     : 8;
+	u64 dp0_offset     : 8;
+#else
+	u64 dp0_offset     : 8;
+	u64 dp1_offset     : 8;
+	u64 dp2_offset     : 8;
+	u64 errcode        : 8;
+	u64 errlev         : 4;
+	u64 rsvd_63_36     : 28;
+#endif
+};
+
+struct npc_kpu_pkind_cpi_def {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 ena            : 1;
+	u64 rsvd_62_59     : 4;
+	u64 lid            : 3;
+	u64 ltype_match    : 4;
+	u64 ltype_mask     : 4;
+	u64 flags_match    : 8;
+	u64 flags_mask     : 8;
+	u64 add_offset     : 8;
+	u64 add_mask       : 8;
+	u64 rsvd_15        : 1;
+	u64 add_shift      : 3;
+	u64 rsvd_11_10     : 2;
+	u64 cpi_base       : 10;
+#else
+	u64 cpi_base       : 10;
+	u64 rsvd_11_10     : 2;
+	u64 add_shift      : 3;
+	u64 rsvd_15        : 1;
+	u64 add_mask       : 8;
+	u64 add_offset     : 8;
+	u64 flags_mask     : 8;
+	u64 flags_match    : 8;
+	u64 ltype_mask     : 4;
+	u64 ltype_match    : 4;
+	u64 lid            : 3;
+	u64 rsvd_62_59     : 4;
+	u64 ena            : 1;
+#endif
+};
 #endif /* NPC_H */

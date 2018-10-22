@@ -438,4 +438,65 @@
 #define NDC_AF_BLK_RST                  (0x002F0)
 #define NPC_AF_BLK_RST                  (0x00040)
 
+/* NPC */
+#define NPC_AF_CFG			(0x00000)
+#define NPC_AF_ACTIVE_PC		(0x00010)
+#define NPC_AF_CONST			(0x00020)
+#define NPC_AF_CONST1			(0x00030)
+#define NPC_AF_BLK_RST			(0x00040)
+#define NPC_AF_MCAM_SCRUB_CTL		(0x000a0)
+#define NPC_AF_KCAM_SCRUB_CTL		(0x000b0)
+#define NPC_AF_KPUX_CFG(a)		(0x00500 | (a) << 3)
+#define NPC_AF_PCK_CFG			(0x00600)
+#define NPC_AF_PCK_DEF_OL2		(0x00610)
+#define NPC_AF_PCK_DEF_OIP4		(0x00620)
+#define NPC_AF_PCK_DEF_OIP6		(0x00630)
+#define NPC_AF_PCK_DEF_IIP4		(0x00640)
+#define NPC_AF_KEX_LDATAX_FLAGS_CFG(a)	(0x00800 | (a) << 3)
+#define NPC_AF_INTFX_KEX_CFG(a)		(0x01010 | (a) << 8)
+#define NPC_AF_PKINDX_ACTION0(a)	(0x80000ull | (a) << 6)
+#define NPC_AF_PKINDX_ACTION1(a)	(0x80008ull | (a) << 6)
+#define NPC_AF_PKINDX_CPI_DEFX(a, b)	(0x80020ull | (a) << 6 | (b) << 3)
+#define NPC_AF_KPUX_ENTRYX_CAMX(a, b, c) \
+		(0x100000 | (a) << 14 | (b) << 6 | (c) << 3)
+#define NPC_AF_KPUX_ENTRYX_ACTION0(a, b) \
+		(0x100020 | (a) << 14 | (b) << 6)
+#define NPC_AF_KPUX_ENTRYX_ACTION1(a, b) \
+		(0x100028 | (a) << 14 | (b) << 6)
+#define NPC_AF_KPUX_ENTRY_DISX(a, b)	(0x180000 | (a) << 6 | (b) << 3)
+#define NPC_AF_CPIX_CFG(a)		(0x200000 | (a) << 3)
+#define NPC_AF_INTFX_LIDX_LTX_LDX_CFG(a, b, c, d) \
+		(0x900000 | (a) << 16 | (b) << 12 | (c) << 5 | (d) << 3)
+#define NPC_AF_INTFX_LDATAX_FLAGSX_CFG(a, b, c) \
+		(0x980000 | (a) << 16 | (b) << 12 | (c) << 3)
+#define NPC_AF_MCAMEX_BANKX_CAMX_INTF(a, b, c)       \
+		(0x1000000ull | (a) << 10 | (b) << 6 | (c) << 3)
+#define NPC_AF_MCAMEX_BANKX_CAMX_W0(a, b, c)         \
+		(0x1000010ull | (a) << 10 | (b) << 6 | (c) << 3)
+#define NPC_AF_MCAMEX_BANKX_CAMX_W1(a, b, c)         \
+		(0x1000020ull | (a) << 10 | (b) << 6 | (c) << 3)
+#define NPC_AF_MCAMEX_BANKX_CFG(a, b)	 (0x1800000ull | (a) << 8 | (b) << 4)
+#define NPC_AF_MCAMEX_BANKX_STAT_ACT(a, b) \
+		(0x1880000 | (a) << 8 | (b) << 4)
+#define NPC_AF_MATCH_STATX(a)		(0x1880008 | (a) << 8)
+#define NPC_AF_INTFX_MISS_STAT_ACT(a)	(0x1880040 + (a) * 0x8)
+#define NPC_AF_MCAMEX_BANKX_ACTION(a, b) (0x1900000ull | (a) << 8 | (b) << 4)
+#define NPC_AF_MCAMEX_BANKX_TAG_ACT(a, b) \
+		(0x1900008 | (a) << 8 | (b) << 4)
+#define NPC_AF_INTFX_MISS_ACT(a)	(0x1a00000 | (a) << 4)
+#define NPC_AF_INTFX_MISS_TAG_ACT(a)	(0x1b00008 | (a) << 4)
+#define NPC_AF_MCAM_BANKX_HITX(a, b)	(0x1c80000 | (a) << 8 | (b) << 4)
+#define NPC_AF_LKUP_CTL			(0x2000000)
+#define NPC_AF_LKUP_DATAX(a)		(0x2000200 | (a) << 4)
+#define NPC_AF_LKUP_RESULTX(a)		(0x2000400 | (a) << 4)
+#define NPC_AF_INTFX_STAT(a)		(0x2000800 | (a) << 4)
+#define NPC_AF_DBG_CTL			(0x3000000)
+#define NPC_AF_DBG_STATUS		(0x3000010)
+#define NPC_AF_KPUX_DBG(a)		(0x3000020 | (a) << 8)
+#define NPC_AF_IKPU_ERR_CTL		(0x3000080)
+#define NPC_AF_KPUX_ERR_CTL(a)		(0x30000a0 | (a) << 8)
+#define NPC_AF_MCAM_DBG			(0x3001000)
+#define NPC_AF_DBG_DATAX(a)		(0x3001400 | (a) << 4)
+#define NPC_AF_DBG_RESULTX(a)		(0x3001800 | (a) << 4)
+
 #endif /* RVU_REG_H */

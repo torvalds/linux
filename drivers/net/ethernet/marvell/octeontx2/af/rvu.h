@@ -100,6 +100,11 @@ struct nix_txsch {
 	u16  *pfvf_map;
 };
 
+struct npc_pkind {
+	struct rsrc_bmap rsrc;
+	u32	*pfchan_map;
+};
+
 struct nix_hw {
 	struct nix_txsch txsch[NIX_TXSCH_LVL_CNT]; /* Tx schedulers */
 };
@@ -113,9 +118,12 @@ struct rvu_hwinfo {
 	u8	cgx_links;
 	u8	lbk_links;
 	u8	sdp_links;
+	u8	npc_kpus;          /* No of parser units */
+
 
 	struct rvu_block block[BLK_COUNT]; /* Block info */
 	struct nix_hw    *nix0;
+	struct npc_pkind pkind;
 };
 
 struct rvu {
@@ -290,4 +298,8 @@ int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
 				    struct msg_rsp *rsp);
 int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
 				   struct msg_rsp *rsp);
+
+/* NPC APIs */
+int rvu_npc_init(struct rvu *rvu);
+void rvu_npc_freemem(struct rvu *rvu);
 #endif /* RVU_H */
