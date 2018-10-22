@@ -155,7 +155,8 @@ M(NIX_AQ_ENQ,		0x8002, nix_aq_enq_req, nix_aq_enq_rsp)		\
 M(NIX_HWCTX_DISABLE,	0x8003, hwctx_disable_req, msg_rsp)		\
 M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc_req, nix_txsch_alloc_rsp) \
 M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free_req, msg_rsp)		\
-M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_config, msg_rsp)
+M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_config, msg_rsp)		\
+M(NIX_STATS_RST,	0x8007, msg_req, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\

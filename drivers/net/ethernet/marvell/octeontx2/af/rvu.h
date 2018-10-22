@@ -288,4 +288,6 @@ int rvu_mbox_handler_NIX_TXSCH_FREE(struct rvu *rvu,
 int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
 				    struct nix_txschq_config *req,
 				    struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp);
 #endif /* RVU_H */

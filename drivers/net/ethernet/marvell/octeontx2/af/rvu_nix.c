@@ -1053,6 +1053,36 @@ static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	return 0;
 }
 
+int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	int i, nixlf, blkaddr;
+	u64 stats;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	/* Get stats count supported by HW */
+	stats = rvu_read64(rvu, blkaddr, NIX_AF_CONST1);
+
+	/* Reset tx stats */
+	for (i = 0; i < ((stats >> 24) & 0xFF); i++)
+		rvu_write64(rvu, blkaddr, NIX_AF_LFX_TX_STATX(nixlf, i), 0);
+
+	/* Reset rx stats */
+	for (i = 0; i < ((stats >> 32) & 0xFF); i++)
+		rvu_write64(rvu, blkaddr, NIX_AF_LFX_RX_STATX(nixlf, i), 0);
+
+	return 0;
+}
+
 static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 {
 	int idx, err;
