@@ -1796,11 +1796,11 @@ enum dc_status dc_add_stream_to_ctx(
 		struct dc_state *new_ctx,
 		struct dc_stream_state *stream)
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	enum dc_status res;
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	if (new_ctx->stream_count >= dc->res_pool->timing_generator_count) {
-		DC_ERROR("Max streams reached, can't add stream %p !\n", stream);
+		DC_LOG_WARNING("Max streams reached, can't add stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -1810,7 +1810,7 @@ enum dc_status dc_add_stream_to_ctx(
 
 	res = dc->res_pool->funcs->add_stream_to_ctx(dc, new_ctx, stream);
 	if (res != DC_OK)
-		DC_ERROR("Adding stream %p to context failed with err %d!\n", stream, res);
+		DC_LOG_WARNING("Adding stream %p to context failed with err %d!\n", stream, res);
 
 	return res;
 }
