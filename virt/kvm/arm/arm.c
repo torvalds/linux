@@ -496,7 +496,7 @@ static bool need_new_vmid_gen(struct kvm *kvm)
 static void update_vttbr(struct kvm *kvm)
 {
 	phys_addr_t pgd_phys;
-	u64 vmid;
+	u64 vmid, cnp = kvm_cpu_has_cnp() ? VTTBR_CNP_BIT : 0;
 	bool new_gen;
 
 	read_lock(&kvm_vmid_lock);
@@ -546,7 +546,7 @@ static void update_vttbr(struct kvm *kvm)
 	pgd_phys = virt_to_phys(kvm->arch.pgd);
 	BUG_ON(pgd_phys & ~VTTBR_BADDR_MASK);
 	vmid = ((u64)(kvm->arch.vmid) << VTTBR_VMID_SHIFT) & VTTBR_VMID_MASK(kvm_vmid_bits);
-	kvm->arch.vttbr = kvm_phys_to_vttbr(pgd_phys) | vmid;
+	kvm->arch.vttbr = kvm_phys_to_vttbr(pgd_phys) | vmid | cnp;
 
 	write_unlock(&kvm_vmid_lock);
 }

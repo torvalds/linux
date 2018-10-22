@@ -70,43 +70,73 @@
 	})
 
 /*
- *	TLB Management
- *	==============
+ *	TLB Invalidation
+ *	================
  *
- *	The TLB specific code is expected to perform whatever tests it needs
- *	to determine if it should invalidate the TLB for each call.  Start
- *	addresses are inclusive and end addresses are exclusive; it is safe to
- *	round these addresses down.
+ * 	This header file implements the low-level TLB invalidation routines
+ *	(sometimes referred to as "flushing" in the kernel) for arm64.
+ *
+ *	Every invalidation operation uses the following template:
+ *
+ *	DSB ISHST	// Ensure prior page-table updates have completed
+ *	TLBI ...	// Invalidate the TLB
+ *	DSB ISH		// Ensure the TLB invalidation has completed
+ *      if (invalidated kernel mappings)
+ *		ISB	// Discard any instructions fetched from the old mapping
+ *
+ *
+ *	The following functions form part of the "core" TLB invalidation API,
+ *	as documented in Documentation/core-api/cachetlb.rst:
  *
  *	flush_tlb_all()
- *
- *		Invalidate the entire TLB.
+ *		Invalidate the entire TLB (kernel + user) on all CPUs
  *
  *	flush_tlb_mm(mm)
+ *		Invalidate an entire user address space on all CPUs.
+ *		The 'mm' argument identifies the ASID to invalidate.
  *
- *		Invalidate all TLB entries in a particular address space.
- *		- mm	- mm_struct describing address space
+ *	flush_tlb_range(vma, start, end)
+ *		Invalidate the virtual-address range '[start, end)' on all
+ *		CPUs for the user address space corresponding to 'vma->mm'.
+ *		Note that this operation also invalidates any walk-cache
+ *		entries associated with translations for the specified address
+ *		range.
  *
- *	flush_tlb_range(mm,start,end)
+ *	flush_tlb_kernel_range(start, end)
+ *		Same as flush_tlb_range(..., start, end), but applies to
+ * 		kernel mappings rather than a particular user address space.
+ *		Whilst not explicitly documented, this function is used when
+ *		unmapping pages from vmalloc/io space.
  *
- *		Invalidate a range of TLB entries in the specified address
- *		space.
- *		- mm	- mm_struct describing address space
- *		- start - start address (may not be aligned)
- *		- end	- end address (exclusive, may not be aligned)
+ *	flush_tlb_page(vma, addr)
+ *		Invalidate a single user mapping for address 'addr' in the
+ *		address space corresponding to 'vma->mm'.  Note that this
+ *		operation only invalidates a single, last-level page-table
+ *		entry and therefore does not affect any walk-caches.
  *
- *	flush_tlb_page(vaddr,vma)
  *
- *		Invalidate the specified page in the specified address range.
- *		- vaddr - virtual address (may not be aligned)
- *		- vma	- vma_struct describing address range
+ *	Next, we have some undocumented invalidation routines that you probably
+ *	don't want to call unless you know what you're doing:
  *
- *	flush_kern_tlb_page(kaddr)
+ *	local_flush_tlb_all()
+ *		Same as flush_tlb_all(), but only applies to the calling CPU.
  *
- *		Invalidate the TLB entry for the specified page.  The address
- *		will be in the kernels virtual memory space.  Current uses
- *		only require the D-TLB to be invalidated.
- *		- kaddr - Kernel virtual memory address
+ *	__flush_tlb_kernel_pgtable(addr)
+ *		Invalidate a single kernel mapping for address 'addr' on all
+ *		CPUs, ensuring that any walk-cache entries associated with the
+ *		translation are also invalidated.
+ *
+ *	__flush_tlb_range(vma, start, end, stride, last_level)
+ *		Invalidate the virtual-address range '[start, end)' on all
+ *		CPUs for the user address space corresponding to 'vma->mm'.
+ *		The invalidation operations are issued at a granularity
+ *		determined by 'stride' and only affect any walk-cache entries
+ *		if 'last_level' is equal to false.
+ *
+ *
+ *	Finally, take a look at asm/tlb.h to see how tlb_flush() is implemented
+ *	on top of these routines, since that is our interface to the mmu_gather
+ *	API as used by munmap() and friends.
  */
 static inline void local_flush_tlb_all(void)
 {
@@ -149,25 +179,28 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
  * This is meant to avoid soft lock-ups on large TLB flushing ranges and not
  * necessarily a performance improvement.
  */
-#define MAX_TLB_RANGE	(1024UL << PAGE_SHIFT)
+#define MAX_TLBI_OPS	1024UL
 
 static inline void __flush_tlb_range(struct vm_area_struct *vma,
 				     unsigned long start, unsigned long end,
-				     bool last_level)
+				     unsigned long stride, bool last_level)
 {
 	unsigned long asid = ASID(vma->vm_mm);
 	unsigned long addr;
 
-	if ((end - start) > MAX_TLB_RANGE) {
+	if ((end - start) > (MAX_TLBI_OPS * stride)) {
 		flush_tlb_mm(vma->vm_mm);
 		return;
 	}
+
+	/* Convert the stride into units of 4k */
+	stride >>= 12;
 
 	start = __TLBI_VADDR(start, asid);
 	end = __TLBI_VADDR(end, asid);
 
 	dsb(ishst);
-	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12)) {
+	for (addr = start; addr < end; addr += stride) {
 		if (last_level) {
 			__tlbi(vale1is, addr);
 			__tlbi_user(vale1is, addr);
@@ -182,14 +215,18 @@ static inline void __flush_tlb_range(struct vm_area_struct *vma,
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
-	__flush_tlb_range(vma, start, end, false);
+	/*
+	 * We cannot use leaf-only invalidation here, since we may be invalidating
+	 * table entries as part of collapsing hugepages or moving page tables.
+	 */
+	__flush_tlb_range(vma, start, end, PAGE_SIZE, false);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned long addr;
 
-	if ((end - start) > MAX_TLB_RANGE) {
+	if ((end - start) > (MAX_TLBI_OPS * PAGE_SIZE)) {
 		flush_tlb_all();
 		return;
 	}
@@ -199,7 +236,7 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 
 	dsb(ishst);
 	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12))
-		__tlbi(vaae1is, addr);
+		__tlbi(vaale1is, addr);
 	dsb(ish);
 	isb();
 }
@@ -208,20 +245,11 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
  * Used to invalidate the TLB (walk caches) corresponding to intermediate page
  * table levels (pgd/pud/pmd).
  */
-static inline void __flush_tlb_pgtable(struct mm_struct *mm,
-				       unsigned long uaddr)
-{
-	unsigned long addr = __TLBI_VADDR(uaddr, ASID(mm));
-
-	__tlbi(vae1is, addr);
-	__tlbi_user(vae1is, addr);
-	dsb(ish);
-}
-
 static inline void __flush_tlb_kernel_pgtable(unsigned long kaddr)
 {
 	unsigned long addr = __TLBI_VADDR(kaddr, 0);
 
+	dsb(ishst);
 	__tlbi(vaae1is, addr);
 	dsb(ish);
 }

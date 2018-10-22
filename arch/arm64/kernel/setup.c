@@ -349,11 +349,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_VT
-#if defined(CONFIG_VGA_CONSOLE)
-	conswitchp = &vga_con;
-#elif defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
-#endif
 #endif
 	if (boot_args[1] || boot_args[2] || boot_args[3]) {
 		pr_err("WARNING: x1-x3 nonzero in violation of boot protocol:\n"

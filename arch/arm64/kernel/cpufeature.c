@@ -20,6 +20,7 @@
 
 #include <linux/bsearch.h>
 #include <linux/cpumask.h>
+#include <linux/crash_dump.h>
 #include <linux/sort.h>
 #include <linux/stop_machine.h>
 #include <linux/types.h>
@@ -117,6 +118,7 @@ EXPORT_SYMBOL(cpu_hwcap_keys);
 static bool __maybe_unused
 cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused);
 
+static void cpu_enable_cnp(struct arm64_cpu_capabilities const *cap);
 
 /*
  * NOTE: Any changes to the visibility of features should be kept in
@@ -161,6 +163,11 @@ static const struct arm64_ftr_bits ftr_id_aa64pfr0[] = {
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL2_SHIFT, 4, 0),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL1_SHIFT, 4, ID_AA64PFR0_EL1_64BIT_ONLY),
 	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR0_EL0_SHIFT, 4, ID_AA64PFR0_EL0_64BIT_ONLY),
+	ARM64_FTR_END,
+};
+
+static const struct arm64_ftr_bits ftr_id_aa64pfr1[] = {
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, ID_AA64PFR1_SSBS_SHIFT, 4, ID_AA64PFR1_SSBS_PSTATE_NI),
 	ARM64_FTR_END,
 };
 
@@ -371,7 +378,7 @@ static const struct __ftr_reg_entry {
 
 	/* Op1 = 0, CRn = 0, CRm = 4 */
 	ARM64_FTR_REG(SYS_ID_AA64PFR0_EL1, ftr_id_aa64pfr0),
-	ARM64_FTR_REG(SYS_ID_AA64PFR1_EL1, ftr_raz),
+	ARM64_FTR_REG(SYS_ID_AA64PFR1_EL1, ftr_id_aa64pfr1),
 	ARM64_FTR_REG(SYS_ID_AA64ZFR0_EL1, ftr_raz),
 
 	/* Op1 = 0, CRn = 0, CRm = 5 */
@@ -657,7 +664,6 @@ void update_cpu_features(int cpu,
 
 	/*
 	 * EL3 is not our concern.
-	 * ID_AA64PFR1 is currently RES0.
 	 */
 	taint |= check_update_ftr_reg(SYS_ID_AA64PFR0_EL1, cpu,
 				      info->reg_id_aa64pfr0, boot->reg_id_aa64pfr0);
@@ -848,15 +854,55 @@ static bool has_no_fpsimd(const struct arm64_cpu_capabilities *entry, int __unus
 }
 
 static bool has_cache_idc(const struct arm64_cpu_capabilities *entry,
-			  int __unused)
+			  int scope)
 {
-	return read_sanitised_ftr_reg(SYS_CTR_EL0) & BIT(CTR_IDC_SHIFT);
+	u64 ctr;
+
+	if (scope == SCOPE_SYSTEM)
+		ctr = arm64_ftr_reg_ctrel0.sys_val;
+	else
+		ctr = read_cpuid_effective_cachetype();
+
+	return ctr & BIT(CTR_IDC_SHIFT);
+}
+
+static void cpu_emulate_effective_ctr(const struct arm64_cpu_capabilities *__unused)
+{
+	/*
+	 * If the CPU exposes raw CTR_EL0.IDC = 0, while effectively
+	 * CTR_EL0.IDC = 1 (from CLIDR values), we need to trap accesses
+	 * to the CTR_EL0 on this CPU and emulate it with the real/safe
+	 * value.
+	 */
+	if (!(read_cpuid_cachetype() & BIT(CTR_IDC_SHIFT)))
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
 static bool has_cache_dic(const struct arm64_cpu_capabilities *entry,
-			  int __unused)
+			  int scope)
 {
-	return read_sanitised_ftr_reg(SYS_CTR_EL0) & BIT(CTR_DIC_SHIFT);
+	u64 ctr;
+
+	if (scope == SCOPE_SYSTEM)
+		ctr = arm64_ftr_reg_ctrel0.sys_val;
+	else
+		ctr = read_cpuid_cachetype();
+
+	return ctr & BIT(CTR_DIC_SHIFT);
+}
+
+static bool __maybe_unused
+has_useable_cnp(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	/*
+	 * Kdump isn't guaranteed to power-off all secondary CPUs, CNP
+	 * may share TLB entries with a CPU stuck in the crashed
+	 * kernel.
+	 */
+	 if (is_kdump_kernel())
+		return false;
+
+	return has_cpuid_feature(entry, scope);
 }
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
@@ -1035,6 +1081,70 @@ static void cpu_has_fwb(const struct arm64_cpu_capabilities *__unused)
 	WARN_ON(val & (7 << 27 | 7 << 21));
 }
 
+#ifdef CONFIG_ARM64_SSBD
+static int ssbs_emulation_handler(struct pt_regs *regs, u32 instr)
+{
+	if (user_mode(regs))
+		return 1;
+
+	if (instr & BIT(PSTATE_Imm_shift))
+		regs->pstate |= PSR_SSBS_BIT;
+	else
+		regs->pstate &= ~PSR_SSBS_BIT;
+
+	arm64_skip_faulting_instruction(regs, 4);
+	return 0;
+}
+
+static struct undef_hook ssbs_emulation_hook = {
+	.instr_mask	= ~(1U << PSTATE_Imm_shift),
+	.instr_val	= 0xd500401f | PSTATE_SSBS,
+	.fn		= ssbs_emulation_handler,
+};
+
+static void cpu_enable_ssbs(const struct arm64_cpu_capabilities *__unused)
+{
+	static bool undef_hook_registered = false;
+	static DEFINE_SPINLOCK(hook_lock);
+
+	spin_lock(&hook_lock);
+	if (!undef_hook_registered) {
+		register_undef_hook(&ssbs_emulation_hook);
+		undef_hook_registered = true;
+	}
+	spin_unlock(&hook_lock);
+
+	if (arm64_get_ssbd_state() == ARM64_SSBD_FORCE_DISABLE) {
+		sysreg_clear_set(sctlr_el1, 0, SCTLR_ELx_DSSBS);
+		arm64_set_ssbd_mitigation(false);
+	} else {
+		arm64_set_ssbd_mitigation(true);
+	}
+}
+#endif /* CONFIG_ARM64_SSBD */
+
+#ifdef CONFIG_ARM64_PAN
+static void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
+{
+	/*
+	 * We modify PSTATE. This won't work from irq context as the PSTATE
+	 * is discarded once we return from the exception.
+	 */
+	WARN_ON_ONCE(in_interrupt());
+
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_SPAN, 0);
+	asm(SET_PSTATE_PAN(1));
+}
+#endif /* CONFIG_ARM64_PAN */
+
+#ifdef CONFIG_ARM64_RAS_EXTN
+static void cpu_clear_disr(const struct arm64_cpu_capabilities *__unused)
+{
+	/* Firmware may have left a deferred SError in this register. */
+	write_sysreg_s(0, SYS_DISR_EL1);
+}
+#endif /* CONFIG_ARM64_RAS_EXTN */
+
 static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.desc = "GIC system register CPU interface",
@@ -1184,6 +1294,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_CACHE_IDC,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cache_idc,
+		.cpu_enable = cpu_emulate_effective_ctr,
 	},
 	{
 		.desc = "Instruction cache invalidation not required for I/D coherence",
@@ -1220,6 +1331,41 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.min_field_value = 2,
 		.matches = has_hw_dbm,
 		.cpu_enable = cpu_enable_hw_dbm,
+	},
+#endif
+#ifdef CONFIG_ARM64_SSBD
+	{
+		.desc = "CRC32 instructions",
+		.capability = ARM64_HAS_CRC32,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_cpuid_feature,
+		.sys_reg = SYS_ID_AA64ISAR0_EL1,
+		.field_pos = ID_AA64ISAR0_CRC32_SHIFT,
+		.min_field_value = 1,
+	},
+	{
+		.desc = "Speculative Store Bypassing Safe (SSBS)",
+		.capability = ARM64_SSBS,
+		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
+		.matches = has_cpuid_feature,
+		.sys_reg = SYS_ID_AA64PFR1_EL1,
+		.field_pos = ID_AA64PFR1_SSBS_SHIFT,
+		.sign = FTR_UNSIGNED,
+		.min_field_value = ID_AA64PFR1_SSBS_PSTATE_ONLY,
+		.cpu_enable = cpu_enable_ssbs,
+	},
+#endif
+#ifdef CONFIG_ARM64_CNP
+	{
+		.desc = "Common not Private translations",
+		.capability = ARM64_HAS_CNP,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_useable_cnp,
+		.sys_reg = SYS_ID_AA64MMFR2_EL1,
+		.sign = FTR_UNSIGNED,
+		.field_pos = ID_AA64MMFR2_CNP_SHIFT,
+		.min_field_value = 1,
+		.cpu_enable = cpu_enable_cnp,
 	},
 #endif
 	{},
@@ -1267,6 +1413,7 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 #ifdef CONFIG_ARM64_SVE
 	HWCAP_CAP(SYS_ID_AA64PFR0_EL1, ID_AA64PFR0_SVE_SHIFT, FTR_UNSIGNED, ID_AA64PFR0_SVE, CAP_HWCAP, HWCAP_SVE),
 #endif
+	HWCAP_CAP(SYS_ID_AA64PFR1_EL1, ID_AA64PFR1_SSBS_SHIFT, FTR_UNSIGNED, ID_AA64PFR1_SSBS_PSTATE_INSNS, CAP_HWCAP, HWCAP_SSBS),
 	{},
 };
 
@@ -1658,6 +1805,11 @@ cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused)
 	return (cpus_have_const_cap(ARM64_HAS_PAN) && !cpus_have_const_cap(ARM64_HAS_UAO));
 }
 
+static void __maybe_unused cpu_enable_cnp(struct arm64_cpu_capabilities const *cap)
+{
+	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+}
+
 /*
  * We emulate only the following system register space.
  * Op0 = 0x3, CRn = 0x0, Op1 = 0x0, CRm = [0, 4 - 7]
@@ -1719,25 +1871,30 @@ static int emulate_sys_reg(u32 id, u64 *valp)
 	return 0;
 }
 
-static int emulate_mrs(struct pt_regs *regs, u32 insn)
+int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt)
 {
 	int rc;
-	u32 sys_reg, dst;
 	u64 val;
+
+	rc = emulate_sys_reg(sys_reg, &val);
+	if (!rc) {
+		pt_regs_write_reg(regs, rt, val);
+		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
+	}
+	return rc;
+}
+
+static int emulate_mrs(struct pt_regs *regs, u32 insn)
+{
+	u32 sys_reg, rt;
 
 	/*
 	 * sys_reg values are defined as used in mrs/msr instruction.
 	 * shift the imm value to get the encoding.
 	 */
 	sys_reg = (u32)aarch64_insn_decode_immediate(AARCH64_INSN_IMM_16, insn) << 5;
-	rc = emulate_sys_reg(sys_reg, &val);
-	if (!rc) {
-		dst = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RT, insn);
-		pt_regs_write_reg(regs, dst, val);
-		arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
-	}
-
-	return rc;
+	rt = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RT, insn);
+	return do_emulate_mrs(regs, sys_reg, rt);
 }
 
 static struct undef_hook mrs_hook = {
@@ -1755,9 +1912,3 @@ static int __init enable_mrs_emulation(void)
 }
 
 core_initcall(enable_mrs_emulation);
-
-void cpu_clear_disr(const struct arm64_cpu_capabilities *__unused)
-{
-	/* Firmware may have left a deferred SError in this register. */
-	write_sysreg_s(0, SYS_DISR_EL1);
-}

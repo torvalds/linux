@@ -75,6 +75,7 @@ config ARM64
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select CPU_PM if (SUSPEND || CPU_IDLE)
+	select CRC32
 	select DCACHE_WORD_ACCESS
 	select DMA_DIRECT_OPS
 	select EDAC_SUPPORT
@@ -142,6 +143,7 @@ config ARM64
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RCU_TABLE_FREE
+	select HAVE_RCU_TABLE_INVALIDATE
 	select HAVE_RSEQ
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
@@ -479,6 +481,19 @@ config ARM64_ERRATUM_1024718
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_1188873
+	bool "Cortex-A76: MRC read following MRRC read of specific Generic Timer in AArch32 might give incorrect result"
+	default y
+	select ARM_ARCH_TIMER_OOL_WORKAROUND
+	help
+	  This option adds work arounds for ARM Cortex-A76 erratum 1188873
+
+	  Affected Cortex-A76 cores (r0p0, r1p0, r2p0) could cause
+	  register corruption when accessing the timer registers from
+	  AArch32 userspace.
+
+	  If unsure, say Y.
+
 config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y
@@ -769,9 +784,6 @@ source kernel/Kconfig.hz
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-config ARCH_HAS_HOLES_MEMORYMODEL
-	def_bool y if SPARSEMEM
-
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	select SPARSEMEM_VMEMMAP_ENABLE
@@ -786,7 +798,7 @@ config ARCH_FLATMEM_ENABLE
 	def_bool !NUMA
 
 config HAVE_ARCH_PFN_VALID
-	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+	def_bool y
 
 config HW_PERF_EVENTS
 	def_bool y
@@ -1131,6 +1143,20 @@ config ARM64_RAS_EXTN
 	  Selecting this feature will allow the kernel to use these barriers
 	  and access the new registers if the system supports the extension.
 	  Platform RAS features may additionally depend on firmware support.
+
+config ARM64_CNP
+	bool "Enable support for Common Not Private (CNP) translations"
+	default y
+	depends on ARM64_PAN || !ARM64_SW_TTBR0_PAN
+	help
+	  Common Not Private (CNP) allows translation table entries to
+	  be shared between different PEs in the same inner shareable
+	  domain, so the hardware can use this fact to optimise the
+	  caching of such entries in the TLB.
+
+	  Selecting this option allows the CNP feature to be detected
+	  at runtime, and does not affect PEs that do not implement
+	  this feature.
 
 endmenu
 

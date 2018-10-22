@@ -192,7 +192,7 @@ void __init kasan_init(void)
 
 	/*
 	 * We are going to perform proper setup of shadow memory.
-	 * At first we should unmap early shadow (clear_pgds() call bellow).
+	 * At first we should unmap early shadow (clear_pgds() call below).
 	 * However, instrumented code couldn't execute without shadow memory.
 	 * tmp_pg_dir used to keep early shadow mapped until full shadow
 	 * setup will be finished.

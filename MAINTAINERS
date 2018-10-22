@@ -9712,6 +9712,19 @@ S:	Maintained
 F:	arch/arm/boot/dts/mmp*
 F:	arch/arm/mach-mmp/
 
+MMU GATHER AND TLB INVALIDATION
+M:	Will Deacon <will.deacon@arm.com>
+M:	"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+M:	Andrew Morton <akpm@linux-foundation.org>
+M:	Nick Piggin <npiggin@gmail.com>
+M:	Peter Zijlstra <peterz@infradead.org>
+L:	linux-arch@vger.kernel.org
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	arch/*/include/asm/tlb.h
+F:	include/asm-generic/tlb.h
+F:	mm/mmu_gather.c
+
 MN88472 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
@@ -13502,8 +13515,8 @@ L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/firmware/sdei.txt
 F:	drivers/firmware/arm_sdei.c
-F:	include/linux/sdei.h
-F:	include/uapi/linux/sdei.h
+F:	include/linux/arm_sdei.h
+F:	include/uapi/linux/arm_sdei.h
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Shaohua Li <shli@kernel.org>

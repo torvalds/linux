@@ -37,6 +37,7 @@
 #include <asm/cmpxchg.h>
 #include <asm/cpufeature.h>
 #include <asm/exception.h>
+#include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
 #include <asm/sysreg.h>
@@ -56,10 +57,16 @@ struct fault_info {
 };
 
 static const struct fault_info fault_info[];
+static struct fault_info debug_fault_info[];
 
 static inline const struct fault_info *esr_to_fault_info(unsigned int esr)
 {
-	return fault_info + (esr & 63);
+	return fault_info + (esr & ESR_ELx_FSC);
+}
+
+static inline const struct fault_info *esr_to_debug_fault_info(unsigned int esr)
+{
+	return debug_fault_info + DBG_ESR_EVT(esr);
 }
 
 #ifdef CONFIG_KPROBES
@@ -235,9 +242,8 @@ static bool is_el1_instruction_abort(unsigned int esr)
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
 }
 
-static inline bool is_el1_permission_fault(unsigned int esr,
-					   struct pt_regs *regs,
-					   unsigned long addr)
+static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
+					   struct pt_regs *regs)
 {
 	unsigned int ec       = ESR_ELx_EC(esr);
 	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
@@ -283,7 +289,7 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
 		return;
 
-	if (is_el1_permission_fault(esr, regs, addr)) {
+	if (is_el1_permission_fault(addr, esr, regs)) {
 		if (esr & ESR_ELx_WNR)
 			msg = "write to read-only memory";
 		else
@@ -454,7 +460,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
 
-	if (addr < TASK_SIZE && is_el1_permission_fault(esr, regs, addr)) {
+	if (addr < TASK_SIZE && is_el1_permission_fault(addr, esr, regs)) {
 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
 		if (regs->orig_addr_limit == KERNEL_DS)
 			die_kernel_fault("access to user memory with fs=KERNEL_DS",
@@ -771,7 +777,7 @@ asmlinkage void __exception do_el0_ia_bp_hardening(unsigned long addr,
 	if (addr > TASK_SIZE)
 		arm64_apply_bp_hardening();
 
-	local_irq_enable();
+	local_daif_restore(DAIF_PROCCTX);
 	do_mem_abort(addr, esr, regs);
 }
 
@@ -785,7 +791,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 	if (user_mode(regs)) {
 		if (instruction_pointer(regs) > TASK_SIZE)
 			arm64_apply_bp_hardening();
-		local_irq_enable();
+		local_daif_restore(DAIF_PROCCTX);
 	}
 
 	clear_siginfo(&info);
@@ -831,7 +837,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 					      unsigned int esr,
 					      struct pt_regs *regs)
 {
-	const struct fault_info *inf = debug_fault_info + DBG_ESR_EVT(esr);
+	const struct fault_info *inf = esr_to_debug_fault_info(esr);
 	int rv;
 
 	/*
@@ -864,17 +870,3 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	return rv;
 }
 NOKPROBE_SYMBOL(do_debug_exception);
-
-#ifdef CONFIG_ARM64_PAN
-void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
-{
-	/*
-	 * We modify PSTATE. This won't work from irq context as the PSTATE
-	 * is discarded once we return from the exception.
-	 */
-	WARN_ON_ONCE(in_interrupt());
-
-	sysreg_clear_set(sctlr_el1, SCTLR_EL1_SPAN, 0);
-	asm(SET_PSTATE_PAN(1));
-}
-#endif /* CONFIG_ARM64_PAN */

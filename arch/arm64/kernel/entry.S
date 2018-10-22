@@ -589,7 +589,7 @@ el1_undef:
 	inherit_daif	pstate=x23, tmp=x2
 	mov	x0, sp
 	bl	do_undefinstr
-	ASM_BUG()
+	kernel_exit 1
 el1_dbg:
 	/*
 	 * Debug exception handling
@@ -665,6 +665,7 @@ el0_sync:
 	cmp	x24, #ESR_ELx_EC_FP_EXC64	// FP/ASIMD exception
 	b.eq	el0_fpsimd_exc
 	cmp	x24, #ESR_ELx_EC_SYS64		// configurable trap
+	ccmp	x24, #ESR_ELx_EC_WFx, #4, ne
 	b.eq	el0_sys
 	cmp	x24, #ESR_ELx_EC_SP_ALIGN	// stack alignment exception
 	b.eq	el0_sp_pc
@@ -697,9 +698,9 @@ el0_sync_compat:
 	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL0
 	b.eq	el0_undef
 	cmp	x24, #ESR_ELx_EC_CP15_32	// CP15 MRC/MCR trap
-	b.eq	el0_undef
+	b.eq	el0_cp15
 	cmp	x24, #ESR_ELx_EC_CP15_64	// CP15 MRRC/MCRR trap
-	b.eq	el0_undef
+	b.eq	el0_cp15
 	cmp	x24, #ESR_ELx_EC_CP14_MR	// CP14 MRC/MCR trap
 	b.eq	el0_undef
 	cmp	x24, #ESR_ELx_EC_CP14_LS	// CP14 LDC/STC trap
@@ -722,6 +723,17 @@ el0_irq_compat:
 el0_error_compat:
 	kernel_entry 0, 32
 	b	el0_error_naked
+
+el0_cp15:
+	/*
+	 * Trapped CP15 (MRC, MCR, MRRC, MCRR) instructions
+	 */
+	enable_daif
+	ct_user_exit
+	mov	x0, x25
+	mov	x1, sp
+	bl	do_cp15instr
+	b	ret_to_user
 #endif
 
 el0_da:

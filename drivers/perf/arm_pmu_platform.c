@@ -77,14 +77,14 @@ static int pmu_parse_irq_affinity(struct device_node *node, int i)
 
 	dn = of_parse_phandle(node, "interrupt-affinity", i);
 	if (!dn) {
-		pr_warn("failed to parse interrupt-affinity[%d] for %s\n",
-			i, node->name);
+		pr_warn("failed to parse interrupt-affinity[%d] for %pOFn\n",
+			i, node);
 		return -EINVAL;
 	}
 
 	cpu = of_cpu_node_to_id(dn);
 	if (cpu < 0) {
-		pr_warn("failed to find logical CPU for %s\n", dn->name);
+		pr_warn("failed to find logical CPU for %pOFn\n", dn);
 		cpu = nr_cpu_ids;
 	}
 
