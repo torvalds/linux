@@ -1464,7 +1464,8 @@ static void __init rcu_spawn_boost_kthreads(void)
 
 	for_each_possible_cpu(cpu)
 		per_cpu(rcu_cpu_has_work, cpu) = 0;
-	BUG_ON(smpboot_register_percpu_thread(&rcu_cpu_thread_spec));
+	if (WARN_ONCE(smpboot_register_percpu_thread(&rcu_cpu_thread_spec), "%s: Could not start rcub kthread, OOM is now expected behavior\n", __func__))
+		return;
 	rcu_for_each_leaf_node(rnp)
 		(void)rcu_spawn_one_boost_kthread(rnp);
 }
@@ -2322,7 +2323,8 @@ static int rcu_nocb_kthread(void *arg)
 		tail = rdp->nocb_follower_tail;
 		rdp->nocb_follower_tail = &rdp->nocb_follower_head;
 		raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
-		BUG_ON(!list);
+		if (WARN_ON_ONCE(!list))
+			continue;
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WokeNonEmpty"));
 
 		/* Each pass through the following loop invokes a callback. */
@@ -2495,7 +2497,8 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
 	/* Spawn the kthread for this CPU. */
 	t = kthread_run(rcu_nocb_kthread, rdp_spawn,
 			"rcuo%c/%d", rcu_state.abbr, cpu);
-	BUG_ON(IS_ERR(t));
+	if (WARN_ONCE(IS_ERR(t), "%s: Could not start rcuo kthread, OOM is now expected behavior\n", __func__))
+		return;
 	WRITE_ONCE(rdp_spawn->nocb_kthread, t);
 }
 
