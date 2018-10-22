@@ -39,6 +39,11 @@
 #define GUC_VIDEO_ENGINE2		4
 #define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
+#define GUC_DOORBELL_INVALID		256
+
+#define GUC_DB_SIZE			(PAGE_SIZE)
+#define GUC_WQ_SIZE			(PAGE_SIZE * 2)
+
 /* Work queue item header definitions */
 #define WQ_STATUS_ACTIVE		1
 #define WQ_STATUS_SUSPENDED		2
@@ -58,9 +63,6 @@
 #define WQ_RING_TAIL_SHIFT		20
 #define WQ_RING_TAIL_MAX		0x7FF	/* 2^11 QWords */
 #define WQ_RING_TAIL_MASK		(WQ_RING_TAIL_MAX << WQ_RING_TAIL_SHIFT)
-
-#define GUC_DOORBELL_ENABLED		1
-#define GUC_DOORBELL_DISABLED		0
 
 #define GUC_STAGE_DESC_ATTR_ACTIVE	BIT(0)
 #define GUC_STAGE_DESC_ATTR_PENDING_DB	BIT(1)
@@ -218,26 +220,6 @@ struct uc_css_header {
 	u32 reserved[12];
 	u32 header_info;
 } __packed;
-
-struct guc_doorbell_info {
-	u32 db_status;
-	u32 cookie;
-	u32 reserved[14];
-} __packed;
-
-union guc_doorbell_qw {
-	struct {
-		u32 db_status;
-		u32 cookie;
-	};
-	u64 value_qw;
-} __packed;
-
-#define GUC_NUM_DOORBELLS	256
-#define GUC_DOORBELL_INVALID	(GUC_NUM_DOORBELLS)
-
-#define GUC_DB_SIZE			(PAGE_SIZE)
-#define GUC_WQ_SIZE			(PAGE_SIZE * 2)
 
 /* Work item for submitting workloads into work queue of GuC. */
 struct guc_wq_item {

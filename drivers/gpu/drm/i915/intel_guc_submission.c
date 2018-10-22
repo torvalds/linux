@@ -192,6 +192,14 @@ static struct guc_doorbell_info *__get_doorbell(struct intel_guc_client *client)
 	return client->vaddr + client->doorbell_offset;
 }
 
+static bool __doorbell_valid(struct intel_guc *guc, u16 db_id)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	GEM_BUG_ON(db_id >= GUC_NUM_DOORBELLS);
+	return I915_READ(GEN8_DRBREGL(db_id)) & GEN8_DRB_VALID;
+}
+
 static void __init_doorbell(struct intel_guc_client *client)
 {
 	struct guc_doorbell_info *doorbell;
@@ -203,7 +211,6 @@ static void __init_doorbell(struct intel_guc_client *client)
 
 static void __fini_doorbell(struct intel_guc_client *client)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
 	struct guc_doorbell_info *doorbell;
 	u16 db_id = client->doorbell_id;
 
@@ -214,7 +221,7 @@ static void __fini_doorbell(struct intel_guc_client *client)
 	 * to go to zero after updating db_status before we call the GuC to
 	 * release the doorbell
 	 */
-	if (wait_for_us(!(I915_READ(GEN8_DRBREGL(db_id)) & GEN8_DRB_VALID), 10))
+	if (wait_for_us(!__doorbell_valid(client->guc, db_id), 10))
 		WARN_ONCE(true, "Doorbell never became invalid after disable\n");
 }
 
@@ -866,33 +873,31 @@ guc_reset_prepare(struct intel_engine_cs *engine)
 /* Check that a doorbell register is in the expected state */
 static bool doorbell_ok(struct intel_guc *guc, u16 db_id)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 drbregl;
 	bool valid;
 
-	GEM_BUG_ON(db_id >= GUC_DOORBELL_INVALID);
+	GEM_BUG_ON(db_id >= GUC_NUM_DOORBELLS);
 
-	drbregl = I915_READ(GEN8_DRBREGL(db_id));
-	valid = drbregl & GEN8_DRB_VALID;
+	valid = __doorbell_valid(guc, db_id);
 
 	if (test_bit(db_id, guc->doorbell_bitmap) == valid)
 		return true;
 
-	DRM_DEBUG_DRIVER("Doorbell %d has unexpected state (0x%x): valid=%s\n",
-			 db_id, drbregl, yesno(valid));
+	DRM_DEBUG_DRIVER("Doorbell %u has unexpected state: valid=%s\n",
+			 db_id, yesno(valid));
 
 	return false;
 }
 
 static bool guc_verify_doorbells(struct intel_guc *guc)
 {
+	bool doorbells_ok = true;
 	u16 db_id;
 
 	for (db_id = 0; db_id < GUC_NUM_DOORBELLS; ++db_id)
 		if (!doorbell_ok(guc, db_id))
-			return false;
+			doorbells_ok = false;
 
-	return true;
+	return doorbells_ok;
 }
 
 /**
