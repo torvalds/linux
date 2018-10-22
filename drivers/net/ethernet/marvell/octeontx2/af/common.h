@@ -143,6 +143,27 @@ enum nix_scheduler {
 	NIX_TXSCH_LVL_CNT = 0x5,
 };
 
+/* NIX RX action operation*/
+#define NIX_RX_ACTIONOP_DROP		(0x0ull)
+#define NIX_RX_ACTIONOP_UCAST		(0x1ull)
+#define NIX_RX_ACTIONOP_UCAST_IPSEC	(0x2ull)
+#define NIX_RX_ACTIONOP_MCAST		(0x3ull)
+#define NIX_RX_ACTIONOP_RSS		(0x4ull)
+
+/* NIX TX action operation*/
+#define NIX_TX_ACTIONOP_DROP		(0x0ull)
+#define NIX_TX_ACTIONOP_UCAST_DEFAULT	(0x1ull)
+#define NIX_TX_ACTIONOP_UCAST_CHAN	(0x2ull)
+#define NIX_TX_ACTIONOP_MCAST		(0x3ull)
+#define NIX_TX_ACTIONOP_DROP_VIOL	(0x5ull)
+
+#define NPC_MCAM_KEY_X1			0
+#define NPC_MCAM_KEY_X2			1
+#define NPC_MCAM_KEY_X4			2
+
+#define NIX_INTF_RX			0
+#define NIX_INTF_TX			1
+
 #define NIX_INTF_TYPE_CGX		0
 #define NIX_INTF_TYPE_LBK		1
 

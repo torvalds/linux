@@ -17,6 +17,15 @@
 #include "npc.h"
 #include "npc_profile.h"
 
+#define RSVD_MCAM_ENTRIES_PER_PF	2 /* Bcast & Promisc */
+#define RSVD_MCAM_ENTRIES_PER_NIXLF	1 /* Ucast for LFs */
+
+#define NIXLF_UCAST_ENTRY	0
+#define NIXLF_BCAST_ENTRY	1
+#define NIXLF_PROMISC_ENTRY	2
+
+#define NPC_PARSE_RESULT_DMAC_OFFSET	8
+
 void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf)
 {
 	int blkaddr;
@@ -43,6 +52,53 @@ int rvu_npc_get_pkind(struct rvu *rvu, u16 pf)
 			return i;
 	}
 	return -1;
+}
+
+#define LDATA_EXTRACT_CONFIG(intf, lid, ltype, ld, cfg) \
+	rvu_write64(rvu, blkaddr,			\
+		NPC_AF_INTFX_LIDX_LTX_LDX_CFG(intf, lid, ltype, ld), cfg)
+
+#define LDATA_FLAGS_CONFIG(intf, ld, flags, cfg)	\
+	rvu_write64(rvu, blkaddr,			\
+		NPC_AF_INTFX_LDATAX_FLAGSX_CFG(intf, ld, flags), cfg)
+
+static void npc_config_ldata_extract(struct rvu *rvu, int blkaddr)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int lid, ltype;
+	int lid_count;
+	u64 cfg;
+
+	cfg = rvu_read64(rvu, blkaddr, NPC_AF_CONST);
+	lid_count = (cfg >> 4) & 0xF;
+
+	/* First clear any existing config i.e
+	 * disable LDATA and FLAGS extraction.
+	 */
+	for (lid = 0; lid < lid_count; lid++) {
+		for (ltype = 0; ltype < 16; ltype++) {
+			LDATA_EXTRACT_CONFIG(NIX_INTF_RX, lid, ltype, 0, 0ULL);
+			LDATA_EXTRACT_CONFIG(NIX_INTF_RX, lid, ltype, 1, 0ULL);
+			LDATA_EXTRACT_CONFIG(NIX_INTF_TX, lid, ltype, 0, 0ULL);
+			LDATA_EXTRACT_CONFIG(NIX_INTF_TX, lid, ltype, 1, 0ULL);
+
+			LDATA_FLAGS_CONFIG(NIX_INTF_RX, 0, ltype, 0ULL);
+			LDATA_FLAGS_CONFIG(NIX_INTF_RX, 1, ltype, 0ULL);
+			LDATA_FLAGS_CONFIG(NIX_INTF_TX, 0, ltype, 0ULL);
+			LDATA_FLAGS_CONFIG(NIX_INTF_TX, 1, ltype, 0ULL);
+		}
+	}
+
+	/* If we plan to extract Outer IPv4 tuple for TCP/UDP pkts
+	 * then 112bit key is not sufficient
+	 */
+	if (mcam->keysize != NPC_MCAM_KEY_X2)
+		return;
+
+	/* Start placing extracted data/flags from 64bit onwards, for now */
+	/* Extract DMAC from the packet */
+	cfg = (0x05 << 16) | BIT_ULL(7) | NPC_PARSE_RESULT_DMAC_OFFSET;
+	LDATA_EXTRACT_CONFIG(NIX_INTF_RX, NPC_LID_LA, NPC_LT_LA_ETHER, 0, cfg);
 }
 
 static void npc_config_kpuaction(struct rvu *rvu, int blkaddr,
@@ -193,9 +249,61 @@ static void npc_parser_profile_init(struct rvu *rvu, int blkaddr)
 					idx, &npc_kpu_profiles[idx]);
 }
 
+static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
+{
+	int nixlf_count = rvu_get_nixlf_count(rvu);
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int rsvd;
+	u64 cfg;
+
+	/* Get HW limits */
+	cfg = rvu_read64(rvu, blkaddr, NPC_AF_CONST);
+	mcam->banks = (cfg >> 44) & 0xF;
+	mcam->banksize = (cfg >> 28) & 0xFFFF;
+
+	/* Actual number of MCAM entries vary by entry size */
+	cfg = (rvu_read64(rvu, blkaddr,
+			  NPC_AF_INTFX_KEX_CFG(0)) >> 32) & 0x07;
+	mcam->total_entries = (mcam->banks / BIT_ULL(cfg)) * mcam->banksize;
+	mcam->keysize = cfg;
+
+	/* Number of banks combined per MCAM entry */
+	if (cfg == NPC_MCAM_KEY_X4)
+		mcam->banks_per_entry = 4;
+	else if (cfg == NPC_MCAM_KEY_X2)
+		mcam->banks_per_entry = 2;
+	else
+		mcam->banks_per_entry = 1;
+
+	/* Reserve one MCAM entry for each of the NIX LF to
+	 * guarantee space to install default matching DMAC rule.
+	 * Also reserve 2 MCAM entries for each PF for default
+	 * channel based matching or 'bcast & promisc' matching to
+	 * support BCAST and PROMISC modes of operation for PFs.
+	 * PF0 is excluded.
+	 */
+	rsvd = (nixlf_count * RSVD_MCAM_ENTRIES_PER_NIXLF) +
+		((rvu->hw->total_pfs - 1) * RSVD_MCAM_ENTRIES_PER_PF);
+	if (mcam->total_entries <= rsvd) {
+		dev_warn(rvu->dev,
+			 "Insufficient NPC MCAM size %d for pkt I/O, exiting\n",
+			 mcam->total_entries);
+		return -ENOMEM;
+	}
+
+	mcam->entries = mcam->total_entries - rsvd;
+	mcam->nixlf_offset = mcam->entries;
+	mcam->pf_offset = mcam->nixlf_offset + nixlf_count;
+
+	spin_lock_init(&mcam->lock);
+
+	return 0;
+}
+
 int rvu_npc_init(struct rvu *rvu)
 {
 	struct npc_pkind *pkind = &rvu->hw->pkind;
+	u64 keyz = NPC_MCAM_KEY_X2;
 	int blkaddr, err;
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
@@ -233,6 +341,32 @@ int rvu_npc_init(struct rvu *rvu)
 	rvu_write64(rvu, blkaddr, NPC_AF_PCK_CFG,
 		    rvu_read64(rvu, blkaddr, NPC_AF_PCK_CFG) |
 		    BIT_ULL(6) | BIT_ULL(2));
+
+	/* Set RX and TX side MCAM search key size.
+	 * Also enable parse key extract nibbles suchthat except
+	 * layer E to H, rest of the key is included for MCAM search.
+	 */
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_RX),
+		    ((keyz & 0x3) << 32) | ((1ULL << 20) - 1));
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_TX),
+		    ((keyz & 0x3) << 32) | ((1ULL << 20) - 1));
+
+	err = npc_mcam_rsrcs_init(rvu, blkaddr);
+	if (err)
+		return err;
+
+	/* Config packet data and flags extraction into PARSE result */
+	npc_config_ldata_extract(rvu, blkaddr);
+
+	/* Set TX miss action to UCAST_DEFAULT i.e
+	 * transmit the packet on NIX LF SQ's default channel.
+	 */
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_MISS_ACT(NIX_INTF_TX),
+		    NIX_TX_ACTIONOP_UCAST_DEFAULT);
+
+	/* If MCAM lookup doesn't result in a match, drop the received packet */
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_MISS_ACT(NIX_INTF_RX),
+		    NIX_RX_ACTIONOP_DROP);
 
 	return 0;
 }

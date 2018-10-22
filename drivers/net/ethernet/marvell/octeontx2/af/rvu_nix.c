@@ -55,6 +55,18 @@ struct mce {
 	u16			pcifunc;
 };
 
+int rvu_get_nixlf_count(struct rvu *rvu)
+{
+	struct rvu_block *block;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, 0);
+	if (blkaddr < 0)
+		return 0;
+	block = &rvu->hw->block[blkaddr];
+	return block->lf.max;
+}
+
 static void nix_mce_list_init(struct nix_mce_list *list, int max)
 {
 	INIT_HLIST_HEAD(&list->head);
