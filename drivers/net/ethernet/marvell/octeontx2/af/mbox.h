@@ -382,6 +382,10 @@ struct nix_lf_alloc_req {
 struct nix_lf_alloc_rsp {
 	struct mbox_msghdr hdr;
 	u16	sqb_size;
+	u16	rx_chan_base;
+	u16	tx_chan_base;
+	u8      rx_chan_cnt; /* total number of RX channels */
+	u8      tx_chan_cnt; /* total number of TX channels */
 	u8	lso_tsov4_idx;
 	u8	lso_tsov6_idx;
 	u8      mac_addr[ETH_ALEN];

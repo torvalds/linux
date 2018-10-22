@@ -118,6 +118,11 @@ struct rvu_pfvf {
 	unsigned long	*rq_bmap;
 	unsigned long	*cq_bmap;
 
+	u16		rx_chan_base;
+	u16		tx_chan_base;
+	u8              rx_chan_cnt; /* total number of RX channels */
+	u8              tx_chan_cnt; /* total number of TX channels */
+
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
 
 	/* Broadcast pkt replication info */

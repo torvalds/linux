@@ -140,6 +140,10 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 				"PF_Func 0x%x: Invalid pkind\n", pcifunc);
 			return -EINVAL;
 		}
+		pfvf->rx_chan_base = NIX_CHAN_CGX_LMAC_CHX(cgx_id, lmac_id, 0);
+		pfvf->tx_chan_base = pfvf->rx_chan_base;
+		pfvf->rx_chan_cnt = 1;
+		pfvf->tx_chan_cnt = 1;
 		cgx_set_pkind(rvu_cgx_pdata(cgx_id, rvu), lmac_id, pkind);
 		rvu_npc_set_pkind(rvu, pkind, pfvf);
 		break;
@@ -799,6 +803,10 @@ exit:
 	/* set SQB size info */
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SQ_CONST);
 	rsp->sqb_size = (cfg >> 34) & 0xFFFF;
+	rsp->rx_chan_base = pfvf->rx_chan_base;
+	rsp->tx_chan_base = pfvf->tx_chan_base;
+	rsp->rx_chan_cnt = pfvf->rx_chan_cnt;
+	rsp->tx_chan_cnt = pfvf->tx_chan_cnt;
 	rsp->lso_tsov4_idx = NIX_LSO_FORMAT_IDX_TSOV4;
 	rsp->lso_tsov6_idx = NIX_LSO_FORMAT_IDX_TSOV6;
 	return rc;
