@@ -2,8 +2,8 @@
 VERSION = 4
 PATCHLEVEL = 19
 SUBLEVEL = 0
-EXTRAVERSION = -rc8
-NAME = Merciless Moray
+EXTRAVERSION =
+NAME = "People's Front"
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
