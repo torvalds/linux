@@ -56,6 +56,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	char fw_name[30];
 	int err = 0;
 	const struct psp_firmware_header_v1_0 *sos_hdr;
+	const struct psp_firmware_header_v1_1 *sos_hdr_v1_1;
 	const struct psp_firmware_header_v1_0 *asd_hdr;
 	const struct ta_firmware_header_v1_0 *ta_hdr;
 
@@ -82,15 +83,31 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		goto out;
 
 	sos_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
-	adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
-	adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
-	adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
-	adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->header.ucode_size_bytes) -
-					le32_to_cpu(sos_hdr->sos_size_bytes);
-	adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
+
+	switch (sos_hdr->header.header_version_major) {
+	case 1:
+		adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
+		adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
+		adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
+		adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->header.ucode_size_bytes) -
+				le32_to_cpu(sos_hdr->sos_size_bytes);
+		adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
 				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
-	adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
+		adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
 				le32_to_cpu(sos_hdr->sos_offset_bytes);
+		if (sos_hdr->header.header_version_minor == 1) {
+			sos_hdr_v1_1 = (const struct psp_firmware_header_v1_1 *)adev->psp.sos_fw->data;
+			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc_size_bytes);
+			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
+					le32_to_cpu(sos_hdr_v1_1->toc_offset_bytes);
+		}
+		break;
+	default:
+		dev_err(adev->dev,
+			"Unsupported psp sos firmware\n");
+		err = -EINVAL;
+		goto out;
+	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_asd.bin", chip_name);
 	err = request_firmware(&adev->psp.asd_fw, fw_name, adev->dev);
