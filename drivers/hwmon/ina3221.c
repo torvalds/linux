@@ -38,9 +38,12 @@
 #define INA3221_WARN3			0x0c
 #define INA3221_MASK_ENABLE		0x0f
 
-#define INA3221_CONFIG_MODE_SHUNT	BIT(1)
-#define INA3221_CONFIG_MODE_BUS		BIT(2)
-#define INA3221_CONFIG_MODE_CONTINUOUS	BIT(3)
+#define INA3221_CONFIG_MODE_MASK	GENMASK(2, 0)
+#define INA3221_CONFIG_MODE_POWERDOWN	0
+#define INA3221_CONFIG_MODE_SHUNT	BIT(0)
+#define INA3221_CONFIG_MODE_BUS		BIT(1)
+#define INA3221_CONFIG_MODE_CONTINUOUS	BIT(2)
+#define INA3221_CONFIG_CHx_EN(x)	BIT(14 - (x))
 
 #define INA3221_RSHUNT_DEFAULT		10000
 
@@ -74,29 +77,36 @@ enum ina3221_channels {
 	INA3221_NUM_CHANNELS
 };
 
-static const unsigned int register_channel[] = {
-	[INA3221_SHUNT1] = INA3221_CHANNEL1,
-	[INA3221_SHUNT2] = INA3221_CHANNEL2,
-	[INA3221_SHUNT3] = INA3221_CHANNEL3,
-	[INA3221_CRIT1] = INA3221_CHANNEL1,
-	[INA3221_CRIT2] = INA3221_CHANNEL2,
-	[INA3221_CRIT3] = INA3221_CHANNEL3,
-	[INA3221_WARN1] = INA3221_CHANNEL1,
-	[INA3221_WARN2] = INA3221_CHANNEL2,
-	[INA3221_WARN3] = INA3221_CHANNEL3,
+/**
+ * struct ina3221_input - channel input source specific information
+ * @label: label of channel input source
+ * @shunt_resistor: shunt resistor value of channel input source
+ * @disconnected: connection status of channel input source
+ */
+struct ina3221_input {
+	const char *label;
+	int shunt_resistor;
+	bool disconnected;
 };
 
 /**
  * struct ina3221_data - device specific information
  * @regmap: Register map of the device
  * @fields: Register fields of the device
- * @shunt_resistors: Array of resistor values per channel
+ * @inputs: Array of channel input source specific structures
+ * @reg_config: Register value of INA3221_CONFIG
  */
 struct ina3221_data {
 	struct regmap *regmap;
 	struct regmap_field *fields[F_MAX_FIELDS];
-	int shunt_resistors[INA3221_NUM_CHANNELS];
+	struct ina3221_input inputs[INA3221_NUM_CHANNELS];
+	u32 reg_config;
 };
+
+static inline bool ina3221_is_enabled(struct ina3221_data *ina, int channel)
+{
+	return ina->reg_config & INA3221_CONFIG_CHx_EN(channel);
+}
 
 static int ina3221_read_value(struct ina3221_data *ina, unsigned int reg,
 			      int *val)
@@ -113,78 +123,104 @@ static int ina3221_read_value(struct ina3221_data *ina, unsigned int reg,
 	return 0;
 }
 
-static ssize_t ina3221_show_bus_voltage(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static const u8 ina3221_in_reg[] = {
+	INA3221_BUS1,
+	INA3221_BUS2,
+	INA3221_BUS3,
+	INA3221_SHUNT1,
+	INA3221_SHUNT2,
+	INA3221_SHUNT3,
+};
+
+static int ina3221_read_in(struct device *dev, u32 attr, int channel, long *val)
 {
-	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
+	const bool is_shunt = channel > INA3221_CHANNEL3;
 	struct ina3221_data *ina = dev_get_drvdata(dev);
-	unsigned int reg = sd_attr->index;
-	int val, voltage_mv, ret;
+	u8 reg = ina3221_in_reg[channel];
+	int regval, ret;
 
-	ret = ina3221_read_value(ina, reg, &val);
-	if (ret)
-		return ret;
+	/* Translate shunt channel index to sensor channel index */
+	channel %= INA3221_NUM_CHANNELS;
 
-	voltage_mv = val * 8;
+	switch (attr) {
+	case hwmon_in_input:
+		if (!ina3221_is_enabled(ina, channel))
+			return -ENODATA;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", voltage_mv);
+		ret = ina3221_read_value(ina, reg, &regval);
+		if (ret)
+			return ret;
+
+		/*
+		 * Scale of shunt voltage (uV): LSB is 40uV
+		 * Scale of bus voltage (mV): LSB is 8mV
+		 */
+		*val = regval * (is_shunt ? 40 : 8);
+		return 0;
+	case hwmon_in_enable:
+		*val = ina3221_is_enabled(ina, channel);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
-static ssize_t ina3221_show_shunt_voltage(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
+static const u8 ina3221_curr_reg[][INA3221_NUM_CHANNELS] = {
+	[hwmon_curr_input] = { INA3221_SHUNT1, INA3221_SHUNT2, INA3221_SHUNT3 },
+	[hwmon_curr_max] = { INA3221_WARN1, INA3221_WARN2, INA3221_WARN3 },
+	[hwmon_curr_crit] = { INA3221_CRIT1, INA3221_CRIT2, INA3221_CRIT3 },
+	[hwmon_curr_max_alarm] = { F_WF1, F_WF2, F_WF3 },
+	[hwmon_curr_crit_alarm] = { F_CF1, F_CF2, F_CF3 },
+};
+
+static int ina3221_read_curr(struct device *dev, u32 attr,
+			     int channel, long *val)
 {
-	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
 	struct ina3221_data *ina = dev_get_drvdata(dev);
-	unsigned int reg = sd_attr->index;
-	int val, voltage_uv, ret;
+	struct ina3221_input *input = &ina->inputs[channel];
+	int resistance_uo = input->shunt_resistor;
+	u8 reg = ina3221_curr_reg[attr][channel];
+	int regval, voltage_nv, ret;
 
-	ret = ina3221_read_value(ina, reg, &val);
-	if (ret)
-		return ret;
-	voltage_uv = val * 40;
+	switch (attr) {
+	case hwmon_curr_input:
+		if (!ina3221_is_enabled(ina, channel))
+			return -ENODATA;
+		/* fall through */
+	case hwmon_curr_crit:
+	case hwmon_curr_max:
+		ret = ina3221_read_value(ina, reg, &regval);
+		if (ret)
+			return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", voltage_uv);
+		/* Scale of shunt voltage: LSB is 40uV (40000nV) */
+		voltage_nv = regval * 40000;
+		/* Return current in mA */
+		*val = DIV_ROUND_CLOSEST(voltage_nv, resistance_uo);
+		return 0;
+	case hwmon_curr_crit_alarm:
+	case hwmon_curr_max_alarm:
+		ret = regmap_field_read(ina->fields[reg], &regval);
+		if (ret)
+			return ret;
+		*val = regval;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
-static ssize_t ina3221_show_current(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static int ina3221_write_curr(struct device *dev, u32 attr,
+			      int channel, long val)
 {
-	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
 	struct ina3221_data *ina = dev_get_drvdata(dev);
-	unsigned int reg = sd_attr->index;
-	unsigned int channel = register_channel[reg];
-	int resistance_uo = ina->shunt_resistors[channel];
-	int val, current_ma, voltage_nv, ret;
-
-	ret = ina3221_read_value(ina, reg, &val);
-	if (ret)
-		return ret;
-	voltage_nv = val * 40000;
-
-	current_ma = DIV_ROUND_CLOSEST(voltage_nv, resistance_uo);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", current_ma);
-}
-
-static ssize_t ina3221_set_current(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
-	struct ina3221_data *ina = dev_get_drvdata(dev);
-	unsigned int reg = sd_attr->index;
-	unsigned int channel = register_channel[reg];
-	int resistance_uo = ina->shunt_resistors[channel];
-	int val, current_ma, voltage_uv, ret;
-
-	ret = kstrtoint(buf, 0, &current_ma);
-	if (ret)
-		return ret;
+	struct ina3221_input *input = &ina->inputs[channel];
+	int resistance_uo = input->shunt_resistor;
+	u8 reg = ina3221_curr_reg[attr][channel];
+	int regval, current_ma, voltage_uv;
 
 	/* clamp current */
-	current_ma = clamp_val(current_ma,
+	current_ma = clamp_val(val,
 			       INT_MIN / resistance_uo,
 			       INT_MAX / resistance_uo);
 
@@ -194,26 +230,177 @@ static ssize_t ina3221_set_current(struct device *dev,
 	voltage_uv = clamp_val(voltage_uv, -163800, 163800);
 
 	/* 1 / 40uV(scale) << 3(register shift) = 5 */
-	val = DIV_ROUND_CLOSEST(voltage_uv, 5) & 0xfff8;
+	regval = DIV_ROUND_CLOSEST(voltage_uv, 5) & 0xfff8;
 
-	ret = regmap_write(ina->regmap, reg, val);
+	return regmap_write(ina->regmap, reg, regval);
+}
+
+static int ina3221_write_enable(struct device *dev, int channel, bool enable)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	u16 config, mask = INA3221_CONFIG_CHx_EN(channel);
+	int ret;
+
+	config = enable ? mask : 0;
+
+	/* Enable or disable the channel */
+	ret = regmap_update_bits(ina->regmap, INA3221_CONFIG, mask, config);
 	if (ret)
 		return ret;
 
-	return count;
+	/* Cache the latest config register value */
+	ret = regmap_read(ina->regmap, INA3221_CONFIG, &ina->reg_config);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
+static int ina3221_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
+{
+	switch (type) {
+	case hwmon_in:
+		/* 0-align channel ID */
+		return ina3221_read_in(dev, attr, channel - 1, val);
+	case hwmon_curr:
+		return ina3221_read_curr(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ina3221_write(struct device *dev, enum hwmon_sensor_types type,
+			 u32 attr, int channel, long val)
+{
+	switch (type) {
+	case hwmon_in:
+		/* 0-align channel ID */
+		return ina3221_write_enable(dev, channel - 1, val);
+	case hwmon_curr:
+		return ina3221_write_curr(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ina3221_read_string(struct device *dev, enum hwmon_sensor_types type,
+			       u32 attr, int channel, const char **str)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	int index = channel - 1;
+
+	*str = ina->inputs[index].label;
+
+	return 0;
+}
+
+static umode_t ina3221_is_visible(const void *drvdata,
+				  enum hwmon_sensor_types type,
+				  u32 attr, int channel)
+{
+	const struct ina3221_data *ina = drvdata;
+	const struct ina3221_input *input = NULL;
+
+	switch (type) {
+	case hwmon_in:
+		/* Ignore in0_ */
+		if (channel == 0)
+			return 0;
+
+		switch (attr) {
+		case hwmon_in_label:
+			if (channel - 1 <= INA3221_CHANNEL3)
+				input = &ina->inputs[channel - 1];
+			/* Hide label node if label is not provided */
+			return (input && input->label) ? 0444 : 0;
+		case hwmon_in_input:
+			return 0444;
+		case hwmon_in_enable:
+			return 0644;
+		default:
+			return 0;
+		}
+	case hwmon_curr:
+		switch (attr) {
+		case hwmon_curr_input:
+		case hwmon_curr_crit_alarm:
+		case hwmon_curr_max_alarm:
+			return 0444;
+		case hwmon_curr_crit:
+		case hwmon_curr_max:
+			return 0644;
+		default:
+			return 0;
+		}
+	default:
+		return 0;
+	}
+}
+
+static const u32 ina3221_in_config[] = {
+	/* 0: dummy, skipped in is_visible */
+	HWMON_I_INPUT,
+	/* 1-3: input voltage Channels */
+	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+	HWMON_I_INPUT | HWMON_I_ENABLE | HWMON_I_LABEL,
+	/* 4-6: shunt voltage Channels */
+	HWMON_I_INPUT,
+	HWMON_I_INPUT,
+	HWMON_I_INPUT,
+	0
+};
+
+static const struct hwmon_channel_info ina3221_in = {
+	.type = hwmon_in,
+	.config = ina3221_in_config,
+};
+
+#define INA3221_HWMON_CURR_CONFIG (HWMON_C_INPUT | \
+				   HWMON_C_CRIT | HWMON_C_CRIT_ALARM | \
+				   HWMON_C_MAX | HWMON_C_MAX_ALARM)
+
+static const u32 ina3221_curr_config[] = {
+	INA3221_HWMON_CURR_CONFIG,
+	INA3221_HWMON_CURR_CONFIG,
+	INA3221_HWMON_CURR_CONFIG,
+	0
+};
+
+static const struct hwmon_channel_info ina3221_curr = {
+	.type = hwmon_curr,
+	.config = ina3221_curr_config,
+};
+
+static const struct hwmon_channel_info *ina3221_info[] = {
+	&ina3221_in,
+	&ina3221_curr,
+	NULL
+};
+
+static const struct hwmon_ops ina3221_hwmon_ops = {
+	.is_visible = ina3221_is_visible,
+	.read_string = ina3221_read_string,
+	.read = ina3221_read,
+	.write = ina3221_write,
+};
+
+static const struct hwmon_chip_info ina3221_chip_info = {
+	.ops = &ina3221_hwmon_ops,
+	.info = ina3221_info,
+};
+
+/* Extra attribute groups */
 static ssize_t ina3221_show_shunt(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	unsigned int channel = sd_attr->index;
-	unsigned int resistance_uo;
+	struct ina3221_input *input = &ina->inputs[channel];
 
-	resistance_uo = ina->shunt_resistors[channel];
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", resistance_uo);
+	return snprintf(buf, PAGE_SIZE, "%d\n", input->shunt_resistor);
 }
 
 static ssize_t ina3221_set_shunt(struct device *dev,
@@ -223,6 +410,7 @@ static ssize_t ina3221_set_shunt(struct device *dev,
 	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
 	struct ina3221_data *ina = dev_get_drvdata(dev);
 	unsigned int channel = sd_attr->index;
+	struct ina3221_input *input = &ina->inputs[channel];
 	int val;
 	int ret;
 
@@ -232,42 +420,10 @@ static ssize_t ina3221_set_shunt(struct device *dev,
 
 	val = clamp_val(val, 1, INT_MAX);
 
-	ina->shunt_resistors[channel] = val;
+	input->shunt_resistor = val;
 
 	return count;
 }
-
-static ssize_t ina3221_show_alert(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct sensor_device_attribute *sd_attr = to_sensor_dev_attr(attr);
-	struct ina3221_data *ina = dev_get_drvdata(dev);
-	unsigned int field = sd_attr->index;
-	unsigned int regval;
-	int ret;
-
-	ret = regmap_field_read(ina->fields[field], &regval);
-	if (ret)
-		return ret;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", regval);
-}
-
-/* bus voltage */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO,
-		ina3221_show_bus_voltage, NULL, INA3221_BUS1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO,
-		ina3221_show_bus_voltage, NULL, INA3221_BUS2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO,
-		ina3221_show_bus_voltage, NULL, INA3221_BUS3);
-
-/* calculated current */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO,
-		ina3221_show_current, NULL, INA3221_SHUNT1);
-static SENSOR_DEVICE_ATTR(curr2_input, S_IRUGO,
-		ina3221_show_current, NULL, INA3221_SHUNT2);
-static SENSOR_DEVICE_ATTR(curr3_input, S_IRUGO,
-		ina3221_show_current, NULL, INA3221_SHUNT3);
 
 /* shunt resistance */
 static SENSOR_DEVICE_ATTR(shunt1_resistor, S_IRUGO | S_IWUSR,
@@ -277,83 +433,16 @@ static SENSOR_DEVICE_ATTR(shunt2_resistor, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(shunt3_resistor, S_IRUGO | S_IWUSR,
 		ina3221_show_shunt, ina3221_set_shunt, INA3221_CHANNEL3);
 
-/* critical current */
-static SENSOR_DEVICE_ATTR(curr1_crit, S_IRUGO | S_IWUSR,
-		ina3221_show_current, ina3221_set_current, INA3221_CRIT1);
-static SENSOR_DEVICE_ATTR(curr2_crit, S_IRUGO | S_IWUSR,
-		ina3221_show_current, ina3221_set_current, INA3221_CRIT2);
-static SENSOR_DEVICE_ATTR(curr3_crit, S_IRUGO | S_IWUSR,
-		ina3221_show_current, ina3221_set_current, INA3221_CRIT3);
-
-/* critical current alert */
-static SENSOR_DEVICE_ATTR(curr1_crit_alarm, S_IRUGO,
-		ina3221_show_alert, NULL, F_CF1);
-static SENSOR_DEVICE_ATTR(curr2_crit_alarm, S_IRUGO,
-		ina3221_show_alert, NULL, F_CF2);
-static SENSOR_DEVICE_ATTR(curr3_crit_alarm, S_IRUGO,
-		ina3221_show_alert, NULL, F_CF3);
-
-/* warning current */
-static SENSOR_DEVICE_ATTR(curr1_max, S_IRUGO | S_IWUSR,
-		ina3221_show_current, ina3221_set_current, INA3221_WARN1);
-static SENSOR_DEVICE_ATTR(curr2_max, S_IRUGO | S_IWUSR,
-		ina3221_show_current, ina3221_set_current, INA3221_WARN2);
-static SENSOR_DEVICE_ATTR(curr3_max, S_IRUGO | S_IWUSR,
-		ina3221_show_current, ina3221_set_current, INA3221_WARN3);
-
-/* warning current alert */
-static SENSOR_DEVICE_ATTR(curr1_max_alarm, S_IRUGO,
-		ina3221_show_alert, NULL, F_WF1);
-static SENSOR_DEVICE_ATTR(curr2_max_alarm, S_IRUGO,
-		ina3221_show_alert, NULL, F_WF2);
-static SENSOR_DEVICE_ATTR(curr3_max_alarm, S_IRUGO,
-		ina3221_show_alert, NULL, F_WF3);
-
-/* shunt voltage */
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO,
-		ina3221_show_shunt_voltage, NULL, INA3221_SHUNT1);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO,
-		ina3221_show_shunt_voltage, NULL, INA3221_SHUNT2);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO,
-		ina3221_show_shunt_voltage, NULL, INA3221_SHUNT3);
-
 static struct attribute *ina3221_attrs[] = {
-	/* channel 1 */
-	&sensor_dev_attr_in1_input.dev_attr.attr,
-	&sensor_dev_attr_curr1_input.dev_attr.attr,
 	&sensor_dev_attr_shunt1_resistor.dev_attr.attr,
-	&sensor_dev_attr_curr1_crit.dev_attr.attr,
-	&sensor_dev_attr_curr1_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_curr1_max.dev_attr.attr,
-	&sensor_dev_attr_curr1_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_in4_input.dev_attr.attr,
-
-	/* channel 2 */
-	&sensor_dev_attr_in2_input.dev_attr.attr,
-	&sensor_dev_attr_curr2_input.dev_attr.attr,
 	&sensor_dev_attr_shunt2_resistor.dev_attr.attr,
-	&sensor_dev_attr_curr2_crit.dev_attr.attr,
-	&sensor_dev_attr_curr2_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_curr2_max.dev_attr.attr,
-	&sensor_dev_attr_curr2_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_in5_input.dev_attr.attr,
-
-	/* channel 3 */
-	&sensor_dev_attr_in3_input.dev_attr.attr,
-	&sensor_dev_attr_curr3_input.dev_attr.attr,
 	&sensor_dev_attr_shunt3_resistor.dev_attr.attr,
-	&sensor_dev_attr_curr3_crit.dev_attr.attr,
-	&sensor_dev_attr_curr3_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_curr3_max.dev_attr.attr,
-	&sensor_dev_attr_curr3_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_in6_input.dev_attr.attr,
-
 	NULL,
 };
 ATTRIBUTE_GROUPS(ina3221);
 
 static const struct regmap_range ina3221_yes_ranges[] = {
-	regmap_reg_range(INA3221_SHUNT1, INA3221_BUS3),
+	regmap_reg_range(INA3221_CONFIG, INA3221_BUS3),
 	regmap_reg_range(INA3221_MASK_ENABLE, INA3221_MASK_ENABLE),
 };
 
@@ -369,6 +458,66 @@ static const struct regmap_config ina3221_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 	.volatile_table = &ina3221_volatile_table,
 };
+
+static int ina3221_probe_child_from_dt(struct device *dev,
+				       struct device_node *child,
+				       struct ina3221_data *ina)
+{
+	struct ina3221_input *input;
+	u32 val;
+	int ret;
+
+	ret = of_property_read_u32(child, "reg", &val);
+	if (ret) {
+		dev_err(dev, "missing reg property of %s\n", child->name);
+		return ret;
+	} else if (val > INA3221_CHANNEL3) {
+		dev_err(dev, "invalid reg %d of %s\n", val, child->name);
+		return ret;
+	}
+
+	input = &ina->inputs[val];
+
+	/* Log the disconnected channel input */
+	if (!of_device_is_available(child)) {
+		input->disconnected = true;
+		return 0;
+	}
+
+	/* Save the connected input label if available */
+	of_property_read_string(child, "label", &input->label);
+
+	/* Overwrite default shunt resistor value optionally */
+	if (!of_property_read_u32(child, "shunt-resistor-micro-ohms", &val)) {
+		if (val < 1 || val > INT_MAX) {
+			dev_err(dev, "invalid shunt resistor value %u of %s\n",
+				val, child->name);
+			return -EINVAL;
+		}
+		input->shunt_resistor = val;
+	}
+
+	return 0;
+}
+
+static int ina3221_probe_from_dt(struct device *dev, struct ina3221_data *ina)
+{
+	const struct device_node *np = dev->of_node;
+	struct device_node *child;
+	int ret;
+
+	/* Compatible with non-DT platforms */
+	if (!np)
+		return 0;
+
+	for_each_child_of_node(np, child) {
+		ret = ina3221_probe_child_from_dt(dev, child, ina);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 static int ina3221_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -399,7 +548,13 @@ static int ina3221_probe(struct i2c_client *client,
 	}
 
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++)
-		ina->shunt_resistors[i] = INA3221_RSHUNT_DEFAULT;
+		ina->inputs[i].shunt_resistor = INA3221_RSHUNT_DEFAULT;
+
+	ret = ina3221_probe_from_dt(dev, ina);
+	if (ret) {
+		dev_err(dev, "Unable to probe from device tree\n");
+		return ret;
+	}
 
 	ret = regmap_field_write(ina->fields[F_RST], true);
 	if (ret) {
@@ -407,9 +562,25 @@ static int ina3221_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev,
-							   client->name,
-							   ina, ina3221_groups);
+	/* Sync config register after reset */
+	ret = regmap_read(ina->regmap, INA3221_CONFIG, &ina->reg_config);
+	if (ret)
+		return ret;
+
+	/* Disable channels if their inputs are disconnected */
+	for (i = 0; i < INA3221_NUM_CHANNELS; i++) {
+		if (ina->inputs[i].disconnected)
+			ina->reg_config &= ~INA3221_CONFIG_CHx_EN(i);
+	}
+	ret = regmap_write(ina->regmap, INA3221_CONFIG, ina->reg_config);
+	if (ret)
+		return ret;
+
+	dev_set_drvdata(dev, ina);
+
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, ina,
+							 &ina3221_chip_info,
+							 ina3221_groups);
 	if (IS_ERR(hwmon_dev)) {
 		dev_err(dev, "Unable to register hwmon device\n");
 		return PTR_ERR(hwmon_dev);
@@ -417,6 +588,60 @@ static int ina3221_probe(struct i2c_client *client,
 
 	return 0;
 }
+
+static int __maybe_unused ina3221_suspend(struct device *dev)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	int ret;
+
+	/* Save config register value and enable cache-only */
+	ret = regmap_read(ina->regmap, INA3221_CONFIG, &ina->reg_config);
+	if (ret)
+		return ret;
+
+	/* Set to power-down mode for power saving */
+	ret = regmap_update_bits(ina->regmap, INA3221_CONFIG,
+				 INA3221_CONFIG_MODE_MASK,
+				 INA3221_CONFIG_MODE_POWERDOWN);
+	if (ret)
+		return ret;
+
+	regcache_cache_only(ina->regmap, true);
+	regcache_mark_dirty(ina->regmap);
+
+	return 0;
+}
+
+static int __maybe_unused ina3221_resume(struct device *dev)
+{
+	struct ina3221_data *ina = dev_get_drvdata(dev);
+	int ret;
+
+	regcache_cache_only(ina->regmap, false);
+
+	/* Software reset the chip */
+	ret = regmap_field_write(ina->fields[F_RST], true);
+	if (ret) {
+		dev_err(dev, "Unable to reset device\n");
+		return ret;
+	}
+
+	/* Restore cached register values to hardware */
+	ret = regcache_sync(ina->regmap);
+	if (ret)
+		return ret;
+
+	/* Restore config register value to hardware */
+	ret = regmap_write(ina->regmap, INA3221_CONFIG, ina->reg_config);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static const struct dev_pm_ops ina3221_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(ina3221_suspend, ina3221_resume)
+};
 
 static const struct of_device_id ina3221_of_match_table[] = {
 	{ .compatible = "ti,ina3221", },
@@ -435,6 +660,7 @@ static struct i2c_driver ina3221_i2c_driver = {
 	.driver = {
 		.name = INA3221_DRIVER_NAME,
 		.of_match_table = ina3221_of_match_table,
+		.pm = &ina3221_pm,
 	},
 	.id_table = ina3221_ids,
 };

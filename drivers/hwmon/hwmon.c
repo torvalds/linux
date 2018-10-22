@@ -24,6 +24,9 @@
 #include <linux/string.h>
 #include <linux/thermal.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/hwmon.h>
+
 #define HWMON_ID_PREFIX "hwmon"
 #define HWMON_ID_FORMAT HWMON_ID_PREFIX "%d"
 
@@ -171,6 +174,13 @@ static int hwmon_thermal_add_sensor(struct device *dev,
 }
 #endif /* IS_REACHABLE(CONFIG_THERMAL) && ... */
 
+static int hwmon_attr_base(enum hwmon_sensor_types type)
+{
+	if (type == hwmon_in)
+		return 0;
+	return 1;
+}
+
 /* sysfs attribute management */
 
 static ssize_t hwmon_attr_show(struct device *dev,
@@ -185,6 +195,9 @@ static ssize_t hwmon_attr_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
+	trace_hwmon_attr_show(hattr->index + hwmon_attr_base(hattr->type),
+			      hattr->name, val);
+
 	return sprintf(buf, "%ld\n", val);
 }
 
@@ -193,6 +206,7 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 				      char *buf)
 {
 	struct hwmon_device_attribute *hattr = to_hwmon_attr(devattr);
+	enum hwmon_sensor_types type = hattr->type;
 	const char *s;
 	int ret;
 
@@ -200,6 +214,9 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 				      hattr->index, &s);
 	if (ret < 0)
 		return ret;
+
+	trace_hwmon_attr_show_string(hattr->index + hwmon_attr_base(type),
+				     hattr->name, s);
 
 	return sprintf(buf, "%s\n", s);
 }
@@ -221,14 +238,10 @@ static ssize_t hwmon_attr_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return count;
-}
+	trace_hwmon_attr_store(hattr->index + hwmon_attr_base(hattr->type),
+			       hattr->name, val);
 
-static int hwmon_attr_base(enum hwmon_sensor_types type)
-{
-	if (type == hwmon_in)
-		return 0;
-	return 1;
+	return count;
 }
 
 static bool is_string_attr(enum hwmon_sensor_types type, u32 attr)
@@ -356,6 +369,7 @@ static const char * const hwmon_in_attr_templates[] = {
 	[hwmon_in_max_alarm] = "in%d_max_alarm",
 	[hwmon_in_lcrit_alarm] = "in%d_lcrit_alarm",
 	[hwmon_in_crit_alarm] = "in%d_crit_alarm",
+	[hwmon_in_enable] = "in%d_enable",
 };
 
 static const char * const hwmon_curr_attr_templates[] = {

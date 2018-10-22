@@ -6468,6 +6468,7 @@ F:	Documentation/devicetree/bindings/hwmon/
 F:	Documentation/hwmon/
 F:	drivers/hwmon/
 F:	include/linux/hwmon*.h
+F:	include/trace/events/hwmon*.h
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
 M:	Matt Mackall <mpm@selenic.com>
@@ -8859,13 +8860,6 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/max16065
 F:	drivers/hwmon/max16065.c
-
-MAX20751 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/max20751
-F:	drivers/hwmon/max20751.c
 
 MAX2175 SDR TUNER DRIVER
 M:	Ramesh Shanmugasundaram <ramesh.shanmugasundaram@bp.renesas.com>
@@ -11601,7 +11595,26 @@ W:	http://hwmon.wiki.kernel.org/
 W:	http://www.roeck-us.net/linux/drivers/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
+F:	Documentation/devicetree/bindings/hwmon/ibm,cffps1.txt
+F:	Documentation/devicetree/bindings/hwmon/max31785.txt
+F:	Documentation/devicetree/bindings/hwmon/ltc2978.txt
+F:	Documentation/hwmon/adm1275
+F:	Documentation/hwmon/ibm-cffps
+F:	Documentation/hwmon/ir35221
+F:	Documentation/hwmon/lm25066
+F:	Documentation/hwmon/ltc2978
+F:	Documentation/hwmon/ltc3815
+F:	Documentation/hwmon/max16064
+F:	Documentation/hwmon/max20751
+F:	Documentation/hwmon/max31785
+F:	Documentation/hwmon/max34440
+F:	Documentation/hwmon/max8688
 F:	Documentation/hwmon/pmbus
+F:	Documentation/hwmon/pmbus-core
+F:	Documentation/hwmon/tps40422
+F:	Documentation/hwmon/ucd9000
+F:	Documentation/hwmon/ucd9200
+F:	Documentation/hwmon/zl6100
 F:	drivers/hwmon/pmbus/
 F:	include/linux/pmbus.h
 
