@@ -1528,14 +1528,19 @@ static bool __is_pointer_value(bool allow_ptr_leaks,
 	return reg->type != SCALAR_VALUE;
 }
 
+static struct bpf_reg_state *reg_state(struct bpf_verifier_env *env, int regno)
+{
+	return cur_regs(env) + regno;
+}
+
 static bool is_pointer_value(struct bpf_verifier_env *env, int regno)
 {
-	return __is_pointer_value(env->allow_ptr_leaks, cur_regs(env) + regno);
+	return __is_pointer_value(env->allow_ptr_leaks, reg_state(env, regno));
 }
 
 static bool is_ctx_reg(struct bpf_verifier_env *env, int regno)
 {
-	const struct bpf_reg_state *reg = cur_regs(env) + regno;
+	const struct bpf_reg_state *reg = reg_state(env, regno);
 
 	return reg->type == PTR_TO_CTX ||
 	       reg->type == PTR_TO_SOCKET;
@@ -1543,9 +1548,17 @@ static bool is_ctx_reg(struct bpf_verifier_env *env, int regno)
 
 static bool is_pkt_reg(struct bpf_verifier_env *env, int regno)
 {
-	const struct bpf_reg_state *reg = cur_regs(env) + regno;
+	const struct bpf_reg_state *reg = reg_state(env, regno);
 
 	return type_is_pkt_pointer(reg->type);
+}
+
+static bool is_flow_key_reg(struct bpf_verifier_env *env, int regno)
+{
+	const struct bpf_reg_state *reg = reg_state(env, regno);
+
+	/* Separate to is_ctx_reg() since we still want to allow BPF_ST here. */
+	return reg->type == PTR_TO_FLOW_KEYS;
 }
 
 static int check_pkt_ptr_alignment(struct bpf_verifier_env *env,
@@ -1956,9 +1969,11 @@ static int check_xadd(struct bpf_verifier_env *env, int insn_idx, struct bpf_ins
 	}
 
 	if (is_ctx_reg(env, insn->dst_reg) ||
-	    is_pkt_reg(env, insn->dst_reg)) {
+	    is_pkt_reg(env, insn->dst_reg) ||
+	    is_flow_key_reg(env, insn->dst_reg)) {
 		verbose(env, "BPF_XADD stores into R%d %s is not allowed\n",
-			insn->dst_reg, reg_type_str[insn->dst_reg]);
+			insn->dst_reg,
+			reg_type_str[reg_state(env, insn->dst_reg)->type]);
 		return -EACCES;
 	}
 
@@ -1983,7 +1998,7 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 				int access_size, bool zero_size_allowed,
 				struct bpf_call_arg_meta *meta)
 {
-	struct bpf_reg_state *reg = cur_regs(env) + regno;
+	struct bpf_reg_state *reg = reg_state(env, regno);
 	struct bpf_func_state *state = func(env, reg);
 	int off, i, slot, spi;
 
@@ -2062,8 +2077,6 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
 	case PTR_TO_PACKET_META:
 		return check_packet_access(env, regno, reg->off, access_size,
 					   zero_size_allowed);
-	case PTR_TO_FLOW_KEYS:
-		return check_flow_keys_access(env, reg->off, access_size);
 	case PTR_TO_MAP_VALUE:
 		return check_map_access(env, regno, reg->off, access_size,
 					zero_size_allowed);
@@ -2117,7 +2130,8 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 	}
 
 	if (arg_type == ARG_PTR_TO_MAP_KEY ||
-	    arg_type == ARG_PTR_TO_MAP_VALUE) {
+	    arg_type == ARG_PTR_TO_MAP_VALUE ||
+	    arg_type == ARG_PTR_TO_UNINIT_MAP_VALUE) {
 		expected_type = PTR_TO_STACK;
 		if (!type_is_pkt_pointer(type) && type != PTR_TO_MAP_VALUE &&
 		    type != expected_type)
@@ -2187,7 +2201,8 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		err = check_helper_mem_access(env, regno,
 					      meta->map_ptr->key_size, false,
 					      NULL);
-	} else if (arg_type == ARG_PTR_TO_MAP_VALUE) {
+	} else if (arg_type == ARG_PTR_TO_MAP_VALUE ||
+		   arg_type == ARG_PTR_TO_UNINIT_MAP_VALUE) {
 		/* bpf_map_xxx(..., map_ptr, ..., value) call:
 		 * check [value, value + map->value_size) validity
 		 */
@@ -2196,9 +2211,10 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 			verbose(env, "invalid map_ptr to access map->value\n");
 			return -EACCES;
 		}
+		meta->raw_mode = (arg_type == ARG_PTR_TO_UNINIT_MAP_VALUE);
 		err = check_helper_mem_access(env, regno,
 					      meta->map_ptr->value_size, false,
-					      NULL);
+					      meta);
 	} else if (arg_type_is_mem_size(arg_type)) {
 		bool zero_size_allowed = (arg_type == ARG_CONST_SIZE_OR_ZERO);
 
@@ -2321,6 +2337,13 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		if (func_id != BPF_FUNC_sk_select_reuseport)
 			goto error;
 		break;
+	case BPF_MAP_TYPE_QUEUE:
+	case BPF_MAP_TYPE_STACK:
+		if (func_id != BPF_FUNC_map_peek_elem &&
+		    func_id != BPF_FUNC_map_pop_elem &&
+		    func_id != BPF_FUNC_map_push_elem)
+			goto error;
+		break;
 	default:
 		break;
 	}
@@ -2375,6 +2398,13 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		break;
 	case BPF_FUNC_sk_select_reuseport:
 		if (map->map_type != BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
+			goto error;
+		break;
+	case BPF_FUNC_map_peek_elem:
+	case BPF_FUNC_map_pop_elem:
+	case BPF_FUNC_map_push_elem:
+		if (map->map_type != BPF_MAP_TYPE_QUEUE &&
+		    map->map_type != BPF_MAP_TYPE_STACK)
 			goto error;
 		break;
 	default:
@@ -2672,7 +2702,10 @@ record_func_map(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 	if (func_id != BPF_FUNC_tail_call &&
 	    func_id != BPF_FUNC_map_lookup_elem &&
 	    func_id != BPF_FUNC_map_update_elem &&
-	    func_id != BPF_FUNC_map_delete_elem)
+	    func_id != BPF_FUNC_map_delete_elem &&
+	    func_id != BPF_FUNC_map_push_elem &&
+	    func_id != BPF_FUNC_map_pop_elem &&
+	    func_id != BPF_FUNC_map_peek_elem)
 		return 0;
 
 	if (meta->map_ptr == NULL) {
@@ -5244,7 +5277,8 @@ static int do_check(struct bpf_verifier_env *env)
 
 			if (is_ctx_reg(env, insn->dst_reg)) {
 				verbose(env, "BPF_ST stores into R%d %s is not allowed\n",
-					insn->dst_reg, reg_type_str[insn->dst_reg]);
+					insn->dst_reg,
+					reg_type_str[reg_state(env, insn->dst_reg)->type]);
 				return -EACCES;
 			}
 
@@ -6144,7 +6178,10 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 		if (prog->jit_requested && BITS_PER_LONG == 64 &&
 		    (insn->imm == BPF_FUNC_map_lookup_elem ||
 		     insn->imm == BPF_FUNC_map_update_elem ||
-		     insn->imm == BPF_FUNC_map_delete_elem)) {
+		     insn->imm == BPF_FUNC_map_delete_elem ||
+		     insn->imm == BPF_FUNC_map_push_elem   ||
+		     insn->imm == BPF_FUNC_map_pop_elem    ||
+		     insn->imm == BPF_FUNC_map_peek_elem)) {
 			aux = &env->insn_aux_data[i + delta];
 			if (bpf_map_ptr_poisoned(aux))
 				goto patch_call_imm;
@@ -6177,6 +6214,14 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			BUILD_BUG_ON(!__same_type(ops->map_update_elem,
 				     (int (*)(struct bpf_map *map, void *key, void *value,
 					      u64 flags))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_push_elem,
+				     (int (*)(struct bpf_map *map, void *value,
+					      u64 flags))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_pop_elem,
+				     (int (*)(struct bpf_map *map, void *value))NULL));
+			BUILD_BUG_ON(!__same_type(ops->map_peek_elem,
+				     (int (*)(struct bpf_map *map, void *value))NULL));
+
 			switch (insn->imm) {
 			case BPF_FUNC_map_lookup_elem:
 				insn->imm = BPF_CAST_CALL(ops->map_lookup_elem) -
@@ -6188,6 +6233,18 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 				continue;
 			case BPF_FUNC_map_delete_elem:
 				insn->imm = BPF_CAST_CALL(ops->map_delete_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_push_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_push_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_pop_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_pop_elem) -
+					    __bpf_call_base;
+				continue;
+			case BPF_FUNC_map_peek_elem:
+				insn->imm = BPF_CAST_CALL(ops->map_peek_elem) -
 					    __bpf_call_base;
 				continue;
 			}

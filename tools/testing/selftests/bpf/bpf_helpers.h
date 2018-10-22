@@ -16,6 +16,13 @@ static int (*bpf_map_update_elem)(void *map, void *key, void *value,
 	(void *) BPF_FUNC_map_update_elem;
 static int (*bpf_map_delete_elem)(void *map, void *key) =
 	(void *) BPF_FUNC_map_delete_elem;
+static int (*bpf_map_push_elem)(void *map, void *value,
+				unsigned long long flags) =
+	(void *) BPF_FUNC_map_push_elem;
+static int (*bpf_map_pop_elem)(void *map, void *value) =
+	(void *) BPF_FUNC_map_pop_elem;
+static int (*bpf_map_peek_elem)(void *map, void *value) =
+	(void *) BPF_FUNC_map_peek_elem;
 static int (*bpf_probe_read)(void *dst, int size, void *unsafe_ptr) =
 	(void *) BPF_FUNC_probe_read;
 static unsigned long long (*bpf_ktime_get_ns)(void) =
@@ -104,6 +111,8 @@ static int (*bpf_msg_cork_bytes)(void *ctx, int len) =
 	(void *) BPF_FUNC_msg_cork_bytes;
 static int (*bpf_msg_pull_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_pull_data;
+static int (*bpf_msg_push_data)(void *ctx, int start, int end, int flags) =
+	(void *) BPF_FUNC_msg_push_data;
 static int (*bpf_bind)(void *ctx, void *addr, int addr_len) =
 	(void *) BPF_FUNC_bind;
 static int (*bpf_xdp_adjust_tail)(void *ctx, int offset) =

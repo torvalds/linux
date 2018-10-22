@@ -125,6 +125,7 @@ override CFLAGS += $(EXTRA_WARNINGS)
 override CFLAGS += -Werror -Wall
 override CFLAGS += -fPIC
 override CFLAGS += $(INCLUDES)
+override CFLAGS += -fvisibility=hidden
 
 ifeq ($(VERBOSE),1)
   Q =

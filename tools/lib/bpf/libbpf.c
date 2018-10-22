@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/limits.h>
 #include <linux/perf_event.h>
+#include <linux/ring_buffer.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -2414,61 +2415,49 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 }
 
 enum bpf_perf_event_ret
-bpf_perf_event_read_simple(void *mem, unsigned long size,
-			   unsigned long page_size, void **buf, size_t *buf_len,
-			   bpf_perf_event_print_t fn, void *priv)
+bpf_perf_event_read_simple(void *mmap_mem, size_t mmap_size, size_t page_size,
+			   void **copy_mem, size_t *copy_size,
+			   bpf_perf_event_print_t fn, void *private_data)
 {
-	volatile struct perf_event_mmap_page *header = mem;
+	struct perf_event_mmap_page *header = mmap_mem;
+	__u64 data_head = ring_buffer_read_head(header);
 	__u64 data_tail = header->data_tail;
-	__u64 data_head = header->data_head;
-	int ret = LIBBPF_PERF_EVENT_ERROR;
-	void *base, *begin, *end;
+	void *base = ((__u8 *)header) + page_size;
+	int ret = LIBBPF_PERF_EVENT_CONT;
+	struct perf_event_header *ehdr;
+	size_t ehdr_size;
 
-	asm volatile("" ::: "memory"); /* in real code it should be smp_rmb() */
-	if (data_head == data_tail)
-		return LIBBPF_PERF_EVENT_CONT;
+	while (data_head != data_tail) {
+		ehdr = base + (data_tail & (mmap_size - 1));
+		ehdr_size = ehdr->size;
 
-	base = ((char *)header) + page_size;
+		if (((void *)ehdr) + ehdr_size > base + mmap_size) {
+			void *copy_start = ehdr;
+			size_t len_first = base + mmap_size - copy_start;
+			size_t len_secnd = ehdr_size - len_first;
 
-	begin = base + data_tail % size;
-	end = base + data_head % size;
-
-	while (begin != end) {
-		struct perf_event_header *ehdr;
-
-		ehdr = begin;
-		if (begin + ehdr->size > base + size) {
-			long len = base + size - begin;
-
-			if (*buf_len < ehdr->size) {
-				free(*buf);
-				*buf = malloc(ehdr->size);
-				if (!*buf) {
+			if (*copy_size < ehdr_size) {
+				free(*copy_mem);
+				*copy_mem = malloc(ehdr_size);
+				if (!*copy_mem) {
+					*copy_size = 0;
 					ret = LIBBPF_PERF_EVENT_ERROR;
 					break;
 				}
-				*buf_len = ehdr->size;
+				*copy_size = ehdr_size;
 			}
 
-			memcpy(*buf, begin, len);
-			memcpy(*buf + len, base, ehdr->size - len);
-			ehdr = (void *)*buf;
-			begin = base + ehdr->size - len;
-		} else if (begin + ehdr->size == base + size) {
-			begin = base;
-		} else {
-			begin += ehdr->size;
+			memcpy(*copy_mem, copy_start, len_first);
+			memcpy(*copy_mem + len_first, base, len_secnd);
+			ehdr = *copy_mem;
 		}
 
-		ret = fn(ehdr, priv);
+		ret = fn(ehdr, private_data);
+		data_tail += ehdr_size;
 		if (ret != LIBBPF_PERF_EVENT_CONT)
 			break;
-
-		data_tail += ehdr->size;
 	}
 
-	__sync_synchronize(); /* smp_mb() */
-	header->data_tail = data_tail;
-
+	ring_buffer_write_tail(header, data_tail);
 	return ret;
 }

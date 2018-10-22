@@ -321,7 +321,8 @@ static int do_batch(int argc, char **argv)
 		p_err("reading batch file failed: %s", strerror(errno));
 		err = -1;
 	} else {
-		p_info("processed %d commands", lines);
+		if (!json_output)
+			printf("processed %d commands\n", lines);
 		err = 0;
 	}
 err_close:

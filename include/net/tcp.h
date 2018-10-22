@@ -2051,11 +2051,6 @@ enum hrtimer_restart tcp_pace_kick(struct hrtimer *timer);
 #define TCP_ULP_MAX		128
 #define TCP_ULP_BUF_MAX		(TCP_ULP_NAME_MAX*TCP_ULP_MAX)
 
-enum {
-	TCP_ULP_TLS,
-	TCP_ULP_BPF,
-};
-
 struct tcp_ulp_ops {
 	struct list_head	list;
 
@@ -2064,9 +2059,7 @@ struct tcp_ulp_ops {
 	/* cleanup ulp */
 	void (*release)(struct sock *sk);
 
-	int		uid;
 	char		name[TCP_ULP_NAME_MAX];
-	bool		user_visible;
 	struct module	*owner;
 };
 int tcp_register_ulp(struct tcp_ulp_ops *type);
@@ -2089,7 +2082,7 @@ int tcp_bpf_sendmsg_redir(struct sock *sk, struct sk_msg *msg, u32 bytes,
 int tcp_bpf_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		    int nonblock, int flags, int *addr_len);
 int __tcp_bpf_recvmsg(struct sock *sk, struct sk_psock *psock,
-		      struct msghdr *msg, int len);
+		      struct msghdr *msg, int len, int flags);
 
 /* Call BPF_SOCK_OPS program that returns an int. If the return value
  * is < 0, then the BPF op failed (for example if the loaded BPF

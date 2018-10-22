@@ -189,6 +189,11 @@ enum nfp_bpf_map_use {
 	NFP_MAP_USE_ATOMIC_CNT,
 };
 
+struct nfp_bpf_map_word {
+	unsigned char type		:4;
+	unsigned char non_zero_update	:1;
+};
+
 /**
  * struct nfp_bpf_map - private per-map data attached to BPF maps for offload
  * @offmap:	pointer to the offloaded BPF map
@@ -202,7 +207,7 @@ struct nfp_bpf_map {
 	struct nfp_app_bpf *bpf;
 	u32 tid;
 	struct list_head l;
-	enum nfp_bpf_map_use use_map[];
+	struct nfp_bpf_map_word use_map[];
 };
 
 struct nfp_bpf_neutral_map {
@@ -436,6 +441,7 @@ struct nfp_bpf_subprog_info {
  * @prog: machine code
  * @prog_len: number of valid instructions in @prog array
  * @__prog_alloc_len: alloc size of @prog array
+ * @stack_size: total amount of stack used
  * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
  * @last_bpf_off: address of the last instruction translated from BPF
@@ -459,6 +465,8 @@ struct nfp_prog {
 	u64 *prog;
 	unsigned int prog_len;
 	unsigned int __prog_alloc_len;
+
+	unsigned int stack_size;
 
 	struct nfp_insn_meta *verifier_meta;
 

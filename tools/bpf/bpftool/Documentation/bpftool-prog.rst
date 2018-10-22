@@ -75,7 +75,9 @@ DESCRIPTION
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount.
+		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  contain a dot character ('.'), which is reserved for future
+		  extensions of *bpffs*.
 
 	**bpftool prog load** *OBJ* *FILE* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
 		  Load bpf program from binary *OBJ* and pin as *FILE*.
@@ -91,7 +93,9 @@ DESCRIPTION
 		  If **dev** *NAME* is specified program will be loaded onto
 		  given networking device (offload).
 
-		  Note: *FILE* must be located in *bpffs* mount.
+		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  contain a dot character ('.'), which is reserved for future
+		  extensions of *bpffs*.
 
         **bpftool prog attach** *PROG* *ATTACH_TYPE* *MAP*
                   Attach bpf program *PROG* (with type specified by *ATTACH_TYPE*)

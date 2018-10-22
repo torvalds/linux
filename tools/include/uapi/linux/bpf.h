@@ -103,6 +103,7 @@ enum bpf_cmd {
 	BPF_BTF_LOAD,
 	BPF_BTF_GET_FD_BY_ID,
 	BPF_TASK_FD_QUERY,
+	BPF_MAP_LOOKUP_AND_DELETE_ELEM,
 };
 
 enum bpf_map_type {
@@ -128,6 +129,8 @@ enum bpf_map_type {
 	BPF_MAP_TYPE_CGROUP_STORAGE,
 	BPF_MAP_TYPE_REUSEPORT_SOCKARRAY,
 	BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
+	BPF_MAP_TYPE_QUEUE,
+	BPF_MAP_TYPE_STACK,
 };
 
 enum bpf_prog_type {
@@ -460,6 +463,28 @@ union bpf_attr {
  * 	Description
  * 		Delete entry with *key* from *map*.
  * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_map_push_elem(struct bpf_map *map, const void *value, u64 flags)
+ * 	Description
+ * 		Push an element *value* in *map*. *flags* is one of:
+ *
+ * 		**BPF_EXIST**
+ * 		If the queue/stack is full, the oldest element is removed to
+ * 		make room for this.
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_map_pop_elem(struct bpf_map *map, void *value)
+ * 	Description
+ * 		Pop an element from *map*.
+ * Return
+ * 		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_map_peek_elem(struct bpf_map *map, void *value)
+ * 	Description
+ * 		Get an element from *map* without removing it.
+ * Return
  * 		0 on success, or a negative error in case of failure.
  *
  * int bpf_probe_read(void *dst, u32 size, const void *src)
@@ -1433,7 +1458,7 @@ union bpf_attr {
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
- * int bpf_skb_adjust_room(struct sk_buff *skb, u32 len_diff, u32 mode, u64 flags)
+ * int bpf_skb_adjust_room(struct sk_buff *skb, s32 len_diff, u32 mode, u64 flags)
  * 	Description
  * 		Grow or shrink the room for data in the packet associated to
  * 		*skb* by *len_diff*, and according to the selected *mode*.
@@ -2215,6 +2240,23 @@ union bpf_attr {
  *		pointer that was returned from bpf_sk_lookup_xxx\ ().
  *	Return
  *		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_msg_push_data(struct sk_buff *skb, u32 start, u32 len, u64 flags)
+ *	Description
+ *		For socket policies, insert *len* bytes into msg at offset
+ *		*start*.
+ *
+ *		If a program of type **BPF_PROG_TYPE_SK_MSG** is run on a
+ *		*msg* it may want to insert metadata or options into the msg.
+ *		This can later be read and used by any of the lower layer BPF
+ *		hooks.
+ *
+ *		This helper may fail if under memory pressure (a malloc
+ *		fails) in these cases BPF programs will get an appropriate
+ *		error and BPF programs will need to handle them.
+ *
+ *	Return
+ *		0 on success, or a negative error in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2303,7 +2345,11 @@ union bpf_attr {
 	FN(skb_ancestor_cgroup_id),	\
 	FN(sk_lookup_tcp),		\
 	FN(sk_lookup_udp),		\
-	FN(sk_release),
+	FN(sk_release),			\
+	FN(map_push_elem),		\
+	FN(map_pop_elem),		\
+	FN(map_peek_elem),		\
+	FN(msg_push_data),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call

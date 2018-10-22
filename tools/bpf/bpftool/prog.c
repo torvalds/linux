@@ -449,6 +449,7 @@ static int do_dump(int argc, char **argv)
 	unsigned long *func_ksyms = NULL;
 	struct bpf_prog_info info = {};
 	unsigned int *func_lens = NULL;
+	const char *disasm_opt = NULL;
 	unsigned int nr_func_ksyms;
 	unsigned int nr_func_lens;
 	struct dump_data dd = {};
@@ -607,9 +608,10 @@ static int do_dump(int argc, char **argv)
 		const char *name = NULL;
 
 		if (info.ifindex) {
-			name = ifindex_to_bfd_name_ns(info.ifindex,
-						      info.netns_dev,
-						      info.netns_ino);
+			name = ifindex_to_bfd_params(info.ifindex,
+						     info.netns_dev,
+						     info.netns_ino,
+						     &disasm_opt);
 			if (!name)
 				goto err_free;
 		}
@@ -651,7 +653,8 @@ static int do_dump(int argc, char **argv)
 					printf("%s:\n", sym_name);
 				}
 
-				disasm_print_insn(img, lens[i], opcodes, name);
+				disasm_print_insn(img, lens[i], opcodes, name,
+						  disasm_opt);
 				img += lens[i];
 
 				if (json_output)
@@ -663,7 +666,8 @@ static int do_dump(int argc, char **argv)
 			if (json_output)
 				jsonw_end_array(json_wtr);
 		} else {
-			disasm_print_insn(buf, *member_len, opcodes, name);
+			disasm_print_insn(buf, *member_len, opcodes, name,
+					  disasm_opt);
 		}
 	} else if (visual) {
 		if (json_output)
