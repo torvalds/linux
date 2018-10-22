@@ -412,7 +412,7 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx_amsdu(struct iwl_trans *trans,
 		goto out_err;
 
 	/* building the A-MSDU might have changed this data, memcpy it now */
-	memcpy(&txq->first_tb_bufs[idx], &dev_cmd->hdr, IWL_FIRST_TB_SIZE);
+	memcpy(&txq->first_tb_bufs[idx], dev_cmd, IWL_FIRST_TB_SIZE);
 	return tfd;
 
 out_err:
@@ -473,7 +473,7 @@ iwl_tfh_tfd *iwl_pcie_gen2_build_tx(struct iwl_trans *trans,
 	tb_phys = iwl_pcie_get_first_tb_dma(txq, idx);
 
 	/* The first TB points to bi-directional DMA data */
-	memcpy(&txq->first_tb_bufs[idx], &dev_cmd->hdr, IWL_FIRST_TB_SIZE);
+	memcpy(&txq->first_tb_bufs[idx], dev_cmd, IWL_FIRST_TB_SIZE);
 
 	iwl_pcie_gen2_set_tb(trans, tfd, tb_phys, IWL_FIRST_TB_SIZE);
 

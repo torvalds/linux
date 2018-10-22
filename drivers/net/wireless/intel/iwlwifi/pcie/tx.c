@@ -2438,8 +2438,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	/* building the A-MSDU might have changed this data, so memcpy it now */
-	memcpy(&txq->first_tb_bufs[txq->write_ptr], &dev_cmd->hdr,
-	       IWL_FIRST_TB_SIZE);
+	memcpy(&txq->first_tb_bufs[txq->write_ptr], dev_cmd, IWL_FIRST_TB_SIZE);
 
 	tfd = iwl_pcie_get_tfd(trans, txq, txq->write_ptr);
 	/* Set up entry for this TFD in Tx byte-count array */
