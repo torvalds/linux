@@ -310,6 +310,61 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 			      NIX_INTF_RX, &entry, true);
 }
 
+void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
+				   int nixlf, u64 chan, bool allmulti)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct mcam_entry entry = { {0} };
+	struct nix_rx_action action;
+	int blkaddr, index, kwi;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Only PF or AF VF can add a promiscuous entry */
+	if (pcifunc & RVU_PFVF_FUNC_MASK)
+		return;
+
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+					 nixlf, NIXLF_PROMISC_ENTRY);
+
+	entry.kw[0] = chan;
+	entry.kw_mask[0] = 0xFFFULL;
+
+	if (allmulti) {
+		kwi = NPC_PARSE_RESULT_DMAC_OFFSET / sizeof(u64);
+		entry.kw[kwi] = BIT_ULL(40); /* LSB bit of 1st byte in DMAC */
+		entry.kw_mask[kwi] = BIT_ULL(40);
+	}
+
+	*(u64 *)&action = 0x00;
+	action.op = NIX_RX_ACTIONOP_UCAST;
+	action.pf_func = pcifunc;
+
+	entry.action = *(u64 *)&action;
+	npc_config_mcam_entry(rvu, mcam, blkaddr, index,
+			      NIX_INTF_RX, &entry, true);
+}
+
+void rvu_npc_disable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int blkaddr, index;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Only PF's have a promiscuous entry */
+	if (pcifunc & RVU_PFVF_FUNC_MASK)
+		return;
+
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+					 nixlf, NIXLF_PROMISC_ENTRY);
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
+}
+
 void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 				       int nixlf, u64 chan)
 {
@@ -431,6 +486,8 @@ void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 				     NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
 		if (action.op != NIX_RX_ACTIONOP_MCAST)
 			npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
+
+		rvu_npc_disable_promisc_entry(rvu, pcifunc, nixlf);
 	}
 }
 

@@ -1745,6 +1745,39 @@ int rvu_mbox_handler_NIX_SET_MAC_ADDR(struct rvu *rvu,
 	return 0;
 }
 
+int rvu_mbox_handler_NIX_SET_RX_MODE(struct rvu *rvu, struct nix_rx_mode *req,
+				     struct msg_rsp *rsp)
+{
+	bool allmulti = false, disable_promisc = false;
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
+	int blkaddr, nixlf;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	if (req->mode & NIX_RX_MODE_PROMISC)
+		allmulti = false;
+	else if (req->mode & NIX_RX_MODE_ALLMULTI)
+		allmulti = true;
+	else
+		disable_promisc = true;
+
+	if (disable_promisc)
+		rvu_npc_disable_promisc_entry(rvu, pcifunc, nixlf);
+	else
+		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
+					      pfvf->rx_chan_base, allmulti);
+	return 0;
+}
+
 static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 {
 	int idx, err;
