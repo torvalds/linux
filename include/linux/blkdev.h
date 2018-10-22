@@ -1203,7 +1203,6 @@ extern bool __blk_end_request(struct request *rq, blk_status_t error,
 extern void __blk_end_request_all(struct request *rq, blk_status_t error);
 extern bool __blk_end_request_cur(struct request *rq, blk_status_t error);
 
-extern void blk_complete_request(struct request *);
 extern void __blk_complete_request(struct request *);
 extern void blk_abort_request(struct request *);
 extern void blk_unprep_request(struct request *);
