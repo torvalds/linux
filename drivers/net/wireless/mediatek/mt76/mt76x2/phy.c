@@ -251,27 +251,6 @@ void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev, bool wait)
 }
 EXPORT_SYMBOL_GPL(mt76x2_phy_tssi_compensate);
 
-static void mt76x2_phy_dfs_adjust_agc(struct mt76x02_dev *dev)
-{
-	u32 agc_r8, agc_r4, val_r8, val_r4, dfs_r31;
-
-	agc_r8 = mt76_rr(dev, MT_BBP(AGC, 8));
-	agc_r4 = mt76_rr(dev, MT_BBP(AGC, 4));
-
-	val_r8 = (agc_r8 & 0x00007e00) >> 9;
-	val_r4 = agc_r4 & ~0x1f000000;
-	val_r4 += (((val_r8 + 1) >> 1) << 24);
-	mt76_wr(dev, MT_BBP(AGC, 4), val_r4);
-
-	dfs_r31 = FIELD_GET(MT_BBP_AGC_LNA_HIGH_GAIN, val_r4);
-	dfs_r31 += val_r8;
-	dfs_r31 -= (agc_r8 & 0x00000038) >> 3;
-	dfs_r31 = (dfs_r31 << 16) | 0x00000307;
-	mt76_wr(dev, MT_BBP(DFS, 31), dfs_r31);
-
-	mt76_wr(dev, MT_BBP(DFS, 32), 0x00040071);
-}
-
 static void
 mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 {
@@ -294,7 +273,7 @@ mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 		val | FIELD_PREP(MT_BBP_AGC_GAIN, gain_val[1]));
 
 	if (dev->mt76.chandef.chan->flags & IEEE80211_CHAN_RADAR)
-		mt76x2_phy_dfs_adjust_agc(dev);
+		mt76x02_phy_dfs_adjust_agc(dev);
 }
 
 void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)

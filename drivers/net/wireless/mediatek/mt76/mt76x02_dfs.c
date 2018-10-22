@@ -802,6 +802,35 @@ static void mt76x02_dfs_set_bbp_params(struct mt76x02_dev *dev)
 	mt76_wr(dev, 0x212c, 0x0c350001);
 }
 
+void mt76x02_phy_dfs_adjust_agc(struct mt76x02_dev *dev)
+{
+	u32 agc_r8, agc_r4, val_r8, val_r4, dfs_r31;
+
+	agc_r8 = mt76_rr(dev, MT_BBP(AGC, 8));
+	agc_r4 = mt76_rr(dev, MT_BBP(AGC, 4));
+
+	val_r8 = (agc_r8 & 0x00007e00) >> 9;
+	val_r4 = agc_r4 & ~0x1f000000;
+	val_r4 += (((val_r8 + 1) >> 1) << 24);
+	mt76_wr(dev, MT_BBP(AGC, 4), val_r4);
+
+	dfs_r31 = FIELD_GET(MT_BBP_AGC_LNA_HIGH_GAIN, val_r4);
+	dfs_r31 += val_r8;
+	dfs_r31 -= (agc_r8 & 0x00000038) >> 3;
+	dfs_r31 = (dfs_r31 << 16) | 0x00000307;
+	mt76_wr(dev, MT_BBP(DFS, 31), dfs_r31);
+
+	if (is_mt76x2(dev)) {
+		mt76_wr(dev, MT_BBP(DFS, 32), 0x00040071);
+	} else {
+		/* disable hw detector */
+		mt76_wr(dev, MT_BBP(DFS, 0), 0);
+		/* enable hw detector */
+		mt76_wr(dev, MT_BBP(DFS, 0), MT_DFS_CH_EN << 16);
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_phy_dfs_adjust_agc);
+
 void mt76x02_dfs_init_params(struct mt76x02_dev *dev)
 {
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
@@ -841,7 +870,6 @@ void mt76x02_dfs_init_detector(struct mt76x02_dev *dev)
 	tasklet_init(&dfs_pd->dfs_tasklet, mt76x02_dfs_tasklet,
 		     (unsigned long)dev);
 }
-EXPORT_SYMBOL_GPL(mt76x02_dfs_init_detector);
 
 static void
 mt76x02_dfs_set_domain(struct mt76x02_dev *dev,
@@ -865,4 +893,3 @@ void mt76x02_regd_notifier(struct wiphy *wiphy,
 
 	mt76x02_dfs_set_domain(dev, request->dfs_region);
 }
-EXPORT_SYMBOL_GPL(mt76x02_regd_notifier);

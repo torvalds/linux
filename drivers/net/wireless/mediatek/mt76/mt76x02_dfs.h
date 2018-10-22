@@ -141,4 +141,5 @@ void mt76x02_dfs_init_params(struct mt76x02_dev *dev);
 void mt76x02_dfs_init_detector(struct mt76x02_dev *dev);
 void mt76x02_regd_notifier(struct wiphy *wiphy,
 			   struct regulatory_request *request);
+void mt76x02_phy_dfs_adjust_agc(struct mt76x02_dev *dev);
 #endif /* __MT76x02_DFS_H */

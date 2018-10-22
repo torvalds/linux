@@ -93,6 +93,9 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 					 MT_DMA_HDR_LEN;
 		wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	} else {
+		mt76x02_dfs_init_detector(dev);
+
+		wiphy->reg_notifier = mt76x02_regd_notifier;
 		wiphy->iface_combinations = mt76x02_if_comb;
 		wiphy->n_iface_combinations = ARRAY_SIZE(mt76x02_if_comb);
 		wiphy->interface_modes =
@@ -635,6 +638,8 @@ void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
 	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
 	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT,
 		       8 << 4);
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
+		       MT_DFS_GP_INTERVAL);
 	mt76_wr(dev, MT_INT_TIMER_EN, 0);
 
 	mt76_wr(dev, MT_BCN_BYPASS_MASK, 0xffff);
