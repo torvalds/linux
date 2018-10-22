@@ -46,7 +46,8 @@
 #include "v9_structs.h"
 #include "soc15.h"
 #include "soc15d.h"
-#include "gmc_v9_0.h"
+#include "mmhub_v1_0.h"
+#include "gfxhub_v1_0.h"
 
 
 #define V9_PIPE_PER_MEC		(4)
