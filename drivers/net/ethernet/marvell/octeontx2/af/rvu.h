@@ -347,4 +347,9 @@ int rvu_npc_init(struct rvu *rvu);
 void rvu_npc_freemem(struct rvu *rvu);
 int rvu_npc_get_pkind(struct rvu *rvu, u16 pf);
 void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf);
+void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
+				 int nixlf, u64 chan, u8 *mac_addr);
+void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
+				       int nixlf, u64 chan);
+void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 #endif /* RVU_H */

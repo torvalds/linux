@@ -26,6 +26,14 @@
 
 #define NPC_PARSE_RESULT_DMAC_OFFSET	8
 
+struct mcam_entry {
+#define NPC_MAX_KWS_IN_KEY	7 /* Number of keywords in max keywidth */
+	u64	kw[NPC_MAX_KWS_IN_KEY];
+	u64	kw_mask[NPC_MAX_KWS_IN_KEY];
+	u64	action;
+	u64	vtag_action;
+};
+
 void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf)
 {
 	int blkaddr;
@@ -52,6 +60,335 @@ int rvu_npc_get_pkind(struct rvu *rvu, u16 pf)
 			return i;
 	}
 	return -1;
+}
+
+static int npc_get_nixlf_mcam_index(struct npc_mcam *mcam,
+				    u16 pcifunc, int nixlf, int type)
+{
+	int pf = rvu_get_pf(pcifunc);
+	int index;
+
+	/* Check if this is for a PF */
+	if (pf && !(pcifunc & RVU_PFVF_FUNC_MASK)) {
+		/* Reserved entries exclude PF0 */
+		pf--;
+		index = mcam->pf_offset + (pf * RSVD_MCAM_ENTRIES_PER_PF);
+		/* Broadcast address matching entry should be first so
+		 * that the packet can be replicated to all VFs.
+		 */
+		if (type == NIXLF_BCAST_ENTRY)
+			return index;
+		else if (type == NIXLF_PROMISC_ENTRY)
+			return index + 1;
+	}
+
+	return (mcam->nixlf_offset + (nixlf * RSVD_MCAM_ENTRIES_PER_NIXLF));
+}
+
+static int npc_get_bank(struct npc_mcam *mcam, int index)
+{
+	int bank = index / mcam->banksize;
+
+	/* 0,1 & 2,3 banks are combined for this keysize */
+	if (mcam->keysize == NPC_MCAM_KEY_X2)
+		return bank ? 2 : 0;
+
+	return bank;
+}
+
+static bool is_mcam_entry_enabled(struct rvu *rvu, struct npc_mcam *mcam,
+				  int blkaddr, int index)
+{
+	int bank = npc_get_bank(mcam, index);
+	u64 cfg;
+
+	index &= (mcam->banksize - 1);
+	cfg = rvu_read64(rvu, blkaddr, NPC_AF_MCAMEX_BANKX_CFG(index, bank));
+	return (cfg & 1);
+}
+
+static void npc_enable_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+				  int blkaddr, int index, bool enable)
+{
+	int bank = npc_get_bank(mcam, index);
+	int actbank = bank;
+
+	index &= (mcam->banksize - 1);
+	for (; bank < (actbank + mcam->banks_per_entry); bank++) {
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CFG(index, bank),
+			    enable ? 1 : 0);
+	}
+}
+
+static void npc_get_keyword(struct mcam_entry *entry, int idx,
+			    u64 *cam0, u64 *cam1)
+{
+	u64 kw_mask = 0x00;
+
+#define CAM_MASK(n)	(BIT_ULL(n) - 1)
+
+	/* 0, 2, 4, 6 indices refer to BANKX_CAMX_W0 and
+	 * 1, 3, 5, 7 indices refer to BANKX_CAMX_W1.
+	 *
+	 * Also, only 48 bits of BANKX_CAMX_W1 are valid.
+	 */
+	switch (idx) {
+	case 0:
+		/* BANK(X)_CAM_W0<63:0> = MCAM_KEY[KW0]<63:0> */
+		*cam1 = entry->kw[0];
+		kw_mask = entry->kw_mask[0];
+		break;
+	case 1:
+		/* BANK(X)_CAM_W1<47:0> = MCAM_KEY[KW1]<47:0> */
+		*cam1 = entry->kw[1] & CAM_MASK(48);
+		kw_mask = entry->kw_mask[1] & CAM_MASK(48);
+		break;
+	case 2:
+		/* BANK(X + 1)_CAM_W0<15:0> = MCAM_KEY[KW1]<63:48>
+		 * BANK(X + 1)_CAM_W0<63:16> = MCAM_KEY[KW2]<47:0>
+		 */
+		*cam1 = (entry->kw[1] >> 48) & CAM_MASK(16);
+		*cam1 |= ((entry->kw[2] & CAM_MASK(48)) << 16);
+		kw_mask = (entry->kw_mask[1] >> 48) & CAM_MASK(16);
+		kw_mask |= ((entry->kw_mask[2] & CAM_MASK(48)) << 16);
+		break;
+	case 3:
+		/* BANK(X + 1)_CAM_W1<15:0> = MCAM_KEY[KW2]<63:48>
+		 * BANK(X + 1)_CAM_W1<47:16> = MCAM_KEY[KW3]<31:0>
+		 */
+		*cam1 = (entry->kw[2] >> 48) & CAM_MASK(16);
+		*cam1 |= ((entry->kw[3] & CAM_MASK(32)) << 16);
+		kw_mask = (entry->kw_mask[2] >> 48) & CAM_MASK(16);
+		kw_mask |= ((entry->kw_mask[3] & CAM_MASK(32)) << 16);
+		break;
+	case 4:
+		/* BANK(X + 2)_CAM_W0<31:0> = MCAM_KEY[KW3]<63:32>
+		 * BANK(X + 2)_CAM_W0<63:32> = MCAM_KEY[KW4]<31:0>
+		 */
+		*cam1 = (entry->kw[3] >> 32) & CAM_MASK(32);
+		*cam1 |= ((entry->kw[4] & CAM_MASK(32)) << 32);
+		kw_mask = (entry->kw_mask[3] >> 32) & CAM_MASK(32);
+		kw_mask |= ((entry->kw_mask[4] & CAM_MASK(32)) << 32);
+		break;
+	case 5:
+		/* BANK(X + 2)_CAM_W1<31:0> = MCAM_KEY[KW4]<63:32>
+		 * BANK(X + 2)_CAM_W1<47:32> = MCAM_KEY[KW5]<15:0>
+		 */
+		*cam1 = (entry->kw[4] >> 32) & CAM_MASK(32);
+		*cam1 |= ((entry->kw[5] & CAM_MASK(16)) << 32);
+		kw_mask = (entry->kw_mask[4] >> 32) & CAM_MASK(32);
+		kw_mask |= ((entry->kw_mask[5] & CAM_MASK(16)) << 32);
+		break;
+	case 6:
+		/* BANK(X + 3)_CAM_W0<47:0> = MCAM_KEY[KW5]<63:16>
+		 * BANK(X + 3)_CAM_W0<63:48> = MCAM_KEY[KW6]<15:0>
+		 */
+		*cam1 = (entry->kw[5] >> 16) & CAM_MASK(48);
+		*cam1 |= ((entry->kw[6] & CAM_MASK(16)) << 48);
+		kw_mask = (entry->kw_mask[5] >> 16) & CAM_MASK(48);
+		kw_mask |= ((entry->kw_mask[6] & CAM_MASK(16)) << 48);
+		break;
+	case 7:
+		/* BANK(X + 3)_CAM_W1<47:0> = MCAM_KEY[KW6]<63:16> */
+		*cam1 = (entry->kw[6] >> 16) & CAM_MASK(48);
+		kw_mask = (entry->kw_mask[6] >> 16) & CAM_MASK(48);
+		break;
+	}
+
+	*cam1 &= kw_mask;
+	*cam0 = ~*cam1 & kw_mask;
+}
+
+static void npc_config_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+				  int blkaddr, int index, u8 intf,
+				  struct mcam_entry *entry, bool enable)
+{
+	int bank = npc_get_bank(mcam, index);
+	int kw = 0, actbank, actindex;
+	u64 cam0, cam1;
+
+	actbank = bank; /* Save bank id, to set action later on */
+	actindex = index;
+	index &= (mcam->banksize - 1);
+
+	/* CAM1 takes the comparison value and
+	 * CAM0 specifies match for a bit in key being '0' or '1' or 'dontcare'.
+	 * CAM1<n> = 0 & CAM0<n> = 1 => match if key<n> = 0
+	 * CAM1<n> = 1 & CAM0<n> = 0 => match if key<n> = 1
+	 * CAM1<n> = 0 & CAM0<n> = 0 => always match i.e dontcare.
+	 */
+	for (; bank < (actbank + mcam->banks_per_entry); bank++, kw = kw + 2) {
+		/* Interface should be set in all banks */
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_INTF(index, bank, 1),
+			    intf);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_INTF(index, bank, 0),
+			    ~intf & 0x3);
+
+		/* Set the match key */
+		npc_get_keyword(entry, kw, &cam0, &cam1);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W0(index, bank, 1), cam1);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W0(index, bank, 0), cam0);
+
+		npc_get_keyword(entry, kw + 1, &cam0, &cam1);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W1(index, bank, 1), cam1);
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAMEX_BANKX_CAMX_W1(index, bank, 0), cam0);
+	}
+
+	/* Set 'action' */
+	rvu_write64(rvu, blkaddr,
+		    NPC_AF_MCAMEX_BANKX_ACTION(index, actbank), entry->action);
+
+	/* Set TAG 'action' */
+	rvu_write64(rvu, blkaddr, NPC_AF_MCAMEX_BANKX_TAG_ACT(index, actbank),
+		    entry->vtag_action);
+
+	/* Enable the entry */
+	if (enable)
+		npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, true);
+	else
+		npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, false);
+}
+
+static u64 npc_get_mcam_action(struct rvu *rvu, struct npc_mcam *mcam,
+			       int blkaddr, int index)
+{
+	int bank = npc_get_bank(mcam, index);
+
+	index &= (mcam->banksize - 1);
+	return rvu_read64(rvu, blkaddr,
+			  NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
+}
+
+void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
+				 int nixlf, u64 chan, u8 *mac_addr)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct mcam_entry entry = { {0} };
+	struct nix_rx_action action;
+	int blkaddr, index, kwi;
+	u64 mac = 0;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	for (index = ETH_ALEN - 1; index >= 0; index--)
+		mac |= ((u64)*mac_addr++) << (8 * index);
+
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+					 nixlf, NIXLF_UCAST_ENTRY);
+
+	/* Match ingress channel and DMAC */
+	entry.kw[0] = chan;
+	entry.kw_mask[0] = 0xFFFULL;
+
+	kwi = NPC_PARSE_RESULT_DMAC_OFFSET / sizeof(u64);
+	entry.kw[kwi] = mac;
+	entry.kw_mask[kwi] = BIT_ULL(48) - 1;
+
+	/* Don't change the action if entry is already enabled
+	 * Otherwise RSS action may get overwritten.
+	 */
+	if (is_mcam_entry_enabled(rvu, mcam, blkaddr, index)) {
+		*(u64 *)&action = npc_get_mcam_action(rvu, mcam,
+						      blkaddr, index);
+	} else {
+		*(u64 *)&action = 0x00;
+		action.op = NIX_RX_ACTIONOP_UCAST;
+		action.pf_func = pcifunc;
+	}
+
+	entry.action = *(u64 *)&action;
+	npc_config_mcam_entry(rvu, mcam, blkaddr, index,
+			      NIX_INTF_RX, &entry, true);
+}
+
+void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
+				       int nixlf, u64 chan)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct mcam_entry entry = { {0} };
+	struct nix_rx_action action;
+#ifdef MCAST_MCE
+	struct rvu_pfvf *pfvf;
+#endif
+	int blkaddr, index;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Only PF can add a bcast match entry */
+	if (pcifunc & RVU_PFVF_FUNC_MASK)
+		return;
+#ifdef MCAST_MCE
+	pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
+#endif
+
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+					 nixlf, NIXLF_BCAST_ENTRY);
+
+	/* Check for L2B bit and LMAC channel */
+	entry.kw[0] = BIT_ULL(25) | chan;
+	entry.kw_mask[0] = BIT_ULL(25) | 0xFFFULL;
+
+	*(u64 *)&action = 0x00;
+#ifdef MCAST_MCE
+	/* Early silicon doesn't support pkt replication,
+	 * so install entry with UCAST action, so that PF
+	 * receives all broadcast packets.
+	 */
+	action.op = NIX_RX_ACTIONOP_MCAST;
+	action.pf_func = pcifunc;
+	action.index = pfvf->bcast_mce_idx;
+#else
+	action.op = NIX_RX_ACTIONOP_UCAST;
+	action.pf_func = pcifunc;
+#endif
+
+	entry.action = *(u64 *)&action;
+	npc_config_mcam_entry(rvu, mcam, blkaddr, index,
+			      NIX_INTF_RX, &entry, true);
+}
+
+void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct nix_rx_action action;
+	int blkaddr, index, bank;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Disable ucast MCAM match entry of this PF/VF */
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+					 nixlf, NIXLF_UCAST_ENTRY);
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
+
+	/* For PF, disable promisc and bcast MCAM match entries */
+	if (!(pcifunc & RVU_PFVF_FUNC_MASK)) {
+		index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+						 nixlf, NIXLF_BCAST_ENTRY);
+		/* For bcast, disable only if it's action is not
+		 * packet replication, incase if action is replication
+		 * then this PF's nixlf is removed from bcast replication
+		 * list.
+		 */
+		bank = npc_get_bank(mcam, index);
+		index &= (mcam->banksize - 1);
+		*(u64 *)&action = rvu_read64(rvu, blkaddr,
+				     NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
+		if (action.op != NIX_RX_ACTIONOP_MCAST)
+			npc_enable_mcam_entry(rvu, mcam, blkaddr, index, false);
+	}
 }
 
 #define LDATA_EXTRACT_CONFIG(intf, lid, ltype, ld, cfg) \

@@ -240,4 +240,23 @@ struct npc_kpu_pkind_cpi_def {
 	u64 ena            : 1;
 #endif
 };
+
+struct nix_rx_action {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64	rsvd_63_61	:3;
+	u64	flow_key_alg	:5;
+	u64	match_id	:16;
+	u64	index		:20;
+	u64	pf_func		:16;
+	u64	op		:4;
+#else
+	u64	op		:4;
+	u64	pf_func		:16;
+	u64	index		:20;
+	u64	match_id	:16;
+	u64	flow_key_alg	:5;
+	u64	rsvd_63_61	:3;
+#endif
+};
+
 #endif /* NPC_H */

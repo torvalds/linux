@@ -151,13 +151,24 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 		break;
 	}
 
+	/* Add a UCAST forwarding rule in MCAM with this NIXLF attached
+	 * RVU PF/VF's MAC address.
+	 */
+	rvu_npc_install_ucast_entry(rvu, pcifunc, nixlf,
+				    pfvf->rx_chan_base, pfvf->mac_addr);
+
 	/* Add this PF_FUNC to bcast pkt replication list */
 	err = nix_update_bcast_mce_list(rvu, pcifunc, true);
 	if (err) {
 		dev_err(rvu->dev,
 			"Bcast list, failed to enable PF_FUNC 0x%x\n",
 			pcifunc);
+		return err;
 	}
+
+	rvu_npc_install_bcast_match_entry(rvu, pcifunc,
+					  nixlf, pfvf->rx_chan_base);
+
 	return 0;
 }
 
@@ -172,6 +183,9 @@ static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
 			"Bcast list, failed to disable PF_FUNC 0x%x\n",
 			pcifunc);
 	}
+
+	/* Free and disable any MCAM entries used by this NIX LF */
+	rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
 }
 
 static void nix_setup_lso_tso_l3(struct rvu *rvu, int blkaddr,
