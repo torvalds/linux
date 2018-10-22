@@ -152,7 +152,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	int ret;
 
 	if (sdev->dtrace_is_enabled)
-		return;
+		return -EINVAL;
 
 	/* set IPC parameters */
 	params.hdr.size = sizeof(params);
