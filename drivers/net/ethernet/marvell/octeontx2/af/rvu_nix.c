@@ -1720,6 +1720,31 @@ static void nix_rx_flowkey_alg_cfg(struct rvu *rvu, int blkaddr)
 	}
 }
 
+int rvu_mbox_handler_NIX_SET_MAC_ADDR(struct rvu *rvu,
+				      struct nix_set_mac_addr *req,
+				      struct msg_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
+	int blkaddr, nixlf;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	ether_addr_copy(pfvf->mac_addr, req->mac_addr);
+
+	rvu_npc_install_ucast_entry(rvu, pcifunc, nixlf,
+				    pfvf->rx_chan_base, req->mac_addr);
+	return 0;
+}
+
 static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 {
 	int idx, err;

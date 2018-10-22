@@ -158,7 +158,8 @@ M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free_req, msg_rsp)		\
 M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_config, msg_rsp)		\
 M(NIX_STATS_RST,	0x8007, msg_req, msg_rsp)			\
 M(NIX_VTAG_CFG,	0x8008, nix_vtag_config, msg_rsp)		\
-M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg, msg_rsp)
+M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg, msg_rsp)		\
+M(NIX_SET_MAC_ADDR,	0x800a, nix_set_mac_addr, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -505,6 +506,11 @@ struct nix_rss_flowkey_cfg {
 	int	mcam_index;  /* MCAM entry index to modify */
 	u32	flowkey_cfg; /* Flowkey types selected */
 	u8	group;       /* RSS context or group */
+};
+
+struct nix_set_mac_addr {
+	struct mbox_msghdr hdr;
+	u8 mac_addr[ETH_ALEN]; /* MAC address to be set for this pcifunc */
 };
 
 #endif /* MBOX_H */

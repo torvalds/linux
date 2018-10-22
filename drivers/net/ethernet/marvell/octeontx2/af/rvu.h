@@ -344,6 +344,9 @@ int rvu_mbox_handler_NIX_VTAG_CFG(struct rvu *rvu,
 int rvu_mbox_handler_NIX_RSS_FLOWKEY_CFG(struct rvu *rvu,
 					 struct nix_rss_flowkey_cfg *req,
 					 struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_SET_MAC_ADDR(struct rvu *rvu,
+				      struct nix_set_mac_addr *req,
+				      struct msg_rsp *rsp);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
