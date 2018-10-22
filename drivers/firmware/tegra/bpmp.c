@@ -28,6 +28,7 @@
 
 #define MSG_ACK		BIT(0)
 #define MSG_RING	BIT(1)
+#define TAG_SZ		32
 
 static inline struct tegra_bpmp *
 mbox_client_to_bpmp(struct mbox_client *client)
@@ -556,7 +557,10 @@ static int tegra_bpmp_get_firmware_tag(struct tegra_bpmp *bpmp, char *tag,
 	void *virt;
 	int err;
 
-	virt = dma_alloc_coherent(bpmp->dev, MSG_DATA_MIN_SZ, &phys,
+	if (size != TAG_SZ)
+		return -EINVAL;
+
+	virt = dma_alloc_coherent(bpmp->dev, TAG_SZ, &phys,
 				  GFP_KERNEL | GFP_DMA32);
 	if (!virt)
 		return -ENOMEM;
@@ -574,9 +578,9 @@ static int tegra_bpmp_get_firmware_tag(struct tegra_bpmp *bpmp, char *tag,
 	local_irq_restore(flags);
 
 	if (err == 0)
-		strlcpy(tag, virt, size);
+		memcpy(tag, virt, TAG_SZ);
 
-	dma_free_coherent(bpmp->dev, MSG_DATA_MIN_SZ, virt, phys);
+	dma_free_coherent(bpmp->dev, TAG_SZ, virt, phys);
 
 	return err;
 }
@@ -689,7 +693,7 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 {
 	struct tegra_bpmp *bpmp;
 	unsigned int i;
-	char tag[32];
+	char tag[TAG_SZ];
 	size_t size;
 	int err;
 
@@ -817,13 +821,13 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 		goto free_mrq;
 	}
 
-	err = tegra_bpmp_get_firmware_tag(bpmp, tag, sizeof(tag) - 1);
+	err = tegra_bpmp_get_firmware_tag(bpmp, tag, sizeof(tag));
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to get firmware tag: %d\n", err);
 		goto free_mrq;
 	}
 
-	dev_info(&pdev->dev, "firmware: %s\n", tag);
+	dev_info(&pdev->dev, "firmware: %.*s\n", (int)sizeof(tag), tag);
 
 	platform_set_drvdata(pdev, bpmp);
 
