@@ -118,7 +118,7 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
+static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 {
 	unsigned int instrs[3], *dest;
 	long *start, *end;
@@ -168,7 +168,7 @@ void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 		                                           : "unknown");
 }
 
-void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
+static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 {
 	unsigned int instrs[6], *dest;
 	long *start, *end;
