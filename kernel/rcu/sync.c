@@ -125,8 +125,7 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 		rsp->gp_state = GP_PENDING;
 	spin_unlock_irq(&rsp->rss_lock);
 
-	BUG_ON(need_wait && need_sync);
-
+	WARN_ON_ONCE(need_wait && need_sync);
 	if (need_sync) {
 		gp_ops[rsp->gp_type].sync();
 		rsp->gp_state = GP_PASSED;
@@ -139,7 +138,7 @@ void rcu_sync_enter(struct rcu_sync *rsp)
 		 * Nobody has yet been allowed the 'fast' path and thus we can
 		 * avoid doing any sync(). The callback will get 'dropped'.
 		 */
-		BUG_ON(rsp->gp_state != GP_PASSED);
+		WARN_ON_ONCE(rsp->gp_state != GP_PASSED);
 	}
 }
 
@@ -166,8 +165,8 @@ static void rcu_sync_func(struct rcu_head *rhp)
 	struct rcu_sync *rsp = container_of(rhp, struct rcu_sync, cb_head);
 	unsigned long flags;
 
-	BUG_ON(rsp->gp_state != GP_PASSED);
-	BUG_ON(rsp->cb_state == CB_IDLE);
+	WARN_ON_ONCE(rsp->gp_state != GP_PASSED);
+	WARN_ON_ONCE(rsp->cb_state == CB_IDLE);
 
 	spin_lock_irqsave(&rsp->rss_lock, flags);
 	if (rsp->gp_count) {
@@ -225,7 +224,7 @@ void rcu_sync_dtor(struct rcu_sync *rsp)
 {
 	int cb_state;
 
-	BUG_ON(rsp->gp_count);
+	WARN_ON_ONCE(rsp->gp_count);
 
 	spin_lock_irq(&rsp->rss_lock);
 	if (rsp->cb_state == CB_REPLAY)
@@ -235,6 +234,6 @@ void rcu_sync_dtor(struct rcu_sync *rsp)
 
 	if (cb_state != CB_IDLE) {
 		gp_ops[rsp->gp_type].wait();
-		BUG_ON(rsp->cb_state != CB_IDLE);
+		WARN_ON_ONCE(rsp->cb_state != CB_IDLE);
 	}
 }
