@@ -59,6 +59,20 @@ struct rvu_block {
 	unsigned char name[NAME_SIZE];
 };
 
+struct nix_mcast {
+	struct qmem	*mce_ctx;
+	struct qmem	*mcast_buf;
+	int		replay_pkind;
+	int		next_free_mce;
+	spinlock_t	mce_lock; /* Serialize MCE updates */
+};
+
+struct nix_mce_list {
+	struct hlist_head	head;
+	int			count;
+	int			max;
+};
+
 /* Structure for per RVU func info ie PF/VF */
 struct rvu_pfvf {
 	bool		npalf; /* Only one NPALF per RVU_FUNC */
@@ -93,6 +107,10 @@ struct rvu_pfvf {
 	unsigned long	*cq_bmap;
 
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
+
+	/* Broadcast pkt replication info */
+	u16			bcast_mce_idx;
+	struct nix_mce_list	bcast_mce_list;
 };
 
 struct nix_txsch {
@@ -108,6 +126,7 @@ struct npc_pkind {
 
 struct nix_hw {
 	struct nix_txsch txsch[NIX_TXSCH_LVL_CNT]; /* Tx schedulers */
+	struct nix_mcast mcast;
 };
 
 struct rvu_hwinfo {

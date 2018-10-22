@@ -16,6 +16,61 @@
 #include "rvu.h"
 #include "cgx.h"
 
+enum mc_tbl_sz {
+	MC_TBL_SZ_256,
+	MC_TBL_SZ_512,
+	MC_TBL_SZ_1K,
+	MC_TBL_SZ_2K,
+	MC_TBL_SZ_4K,
+	MC_TBL_SZ_8K,
+	MC_TBL_SZ_16K,
+	MC_TBL_SZ_32K,
+	MC_TBL_SZ_64K,
+};
+
+enum mc_buf_cnt {
+	MC_BUF_CNT_8,
+	MC_BUF_CNT_16,
+	MC_BUF_CNT_32,
+	MC_BUF_CNT_64,
+	MC_BUF_CNT_128,
+	MC_BUF_CNT_256,
+	MC_BUF_CNT_512,
+	MC_BUF_CNT_1024,
+	MC_BUF_CNT_2048,
+};
+
+/* For now considering MC resources needed for broadcast
+ * pkt replication only. i.e 256 HWVFs + 12 PFs.
+ */
+#define MC_TBL_SIZE	MC_TBL_SZ_512
+#define MC_BUF_CNT	MC_BUF_CNT_128
+
+struct mce {
+	struct hlist_node	node;
+	u16			idx;
+	u16			pcifunc;
+};
+
+static void nix_mce_list_init(struct nix_mce_list *list, int max)
+{
+	INIT_HLIST_HEAD(&list->head);
+	list->count = 0;
+	list->max = max;
+}
+
+static u16 nix_alloc_mce_list(struct nix_mcast *mcast, int count)
+{
+	int idx;
+
+	if (!mcast)
+		return 0;
+
+	idx = mcast->next_free_mce;
+	mcast->next_free_mce += count;
+	return idx;
+}
+
 static inline struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
 {
 	if (blkaddr == BLKADDR_NIX0 && hw->nix0)
@@ -315,6 +370,19 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		    (req->qidx >= (256UL << (cfg & 0xF))))
 			rc = NIX_AF_ERR_AQ_ENQUEUE;
 		break;
+	case NIX_AQ_CTYPE_MCE:
+		cfg = rvu_read64(rvu, blkaddr, NIX_AF_RX_MCAST_CFG);
+		/* Check if index exceeds MCE list length */
+		if (!hw->nix0->mcast.mce_ctx ||
+		    (req->qidx >= (256UL << (cfg & 0xF))))
+			rc = NIX_AF_ERR_AQ_ENQUEUE;
+
+		/* Adding multicast lists for requests from PF/VFs is not
+		 * yet supported, so ignore this.
+		 */
+		if (rsp)
+			rc = NIX_AF_ERR_AQ_ENQUEUE;
+		break;
 	default:
 		rc = NIX_AF_ERR_AQ_ENQUEUE;
 	}
@@ -361,6 +429,9 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		else if (req->ctype == NIX_AQ_CTYPE_RSS)
 			memcpy(mask, &req->rss_mask,
 			       sizeof(struct nix_rsse_s));
+		else if (req->ctype == NIX_AQ_CTYPE_MCE)
+			memcpy(mask, &req->mce_mask,
+			       sizeof(struct nix_rx_mce_s));
 		/* Fall through */
 	case NIX_AQ_INSTOP_INIT:
 		if (req->ctype == NIX_AQ_CTYPE_RQ)
@@ -371,6 +442,8 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 			memcpy(ctx, &req->cq, sizeof(struct nix_cq_ctx_s));
 		else if (req->ctype == NIX_AQ_CTYPE_RSS)
 			memcpy(ctx, &req->rss, sizeof(struct nix_rsse_s));
+		else if (req->ctype == NIX_AQ_CTYPE_MCE)
+			memcpy(ctx, &req->mce, sizeof(struct nix_rx_mce_s));
 		break;
 	case NIX_AQ_INSTOP_NOP:
 	case NIX_AQ_INSTOP_READ:
@@ -446,6 +519,9 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 			else if (req->ctype == NIX_AQ_CTYPE_RSS)
 				memcpy(&rsp->rss, ctx,
 				       sizeof(struct nix_cq_ctx_s));
+			else if (req->ctype == NIX_AQ_CTYPE_MCE)
+				memcpy(&rsp->mce, ctx,
+				       sizeof(struct nix_rx_mce_s));
 		}
 	}
 
@@ -1041,6 +1117,122 @@ int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
 	return 0;
 }
 
+static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
+			 u16 pcifunc, int next, bool eol)
+{
+	struct nix_aq_enq_req aq_req;
+	int err;
+
+	aq_req.hdr.pcifunc = pcifunc;
+	aq_req.ctype = NIX_AQ_CTYPE_MCE;
+	aq_req.op = op;
+	aq_req.qidx = mce;
+
+	/* Forward bcast pkts to RQ0, RSS not needed */
+	aq_req.mce.op = 0;
+	aq_req.mce.index = 0;
+	aq_req.mce.eol = eol;
+	aq_req.mce.pf_func = pcifunc;
+	aq_req.mce.next = next;
+
+	/* All fields valid */
+	*(u64 *)(&aq_req.mce_mask) = ~0ULL;
+
+	err = rvu_nix_aq_enq_inst(rvu, &aq_req, NULL);
+	if (err) {
+		dev_err(rvu->dev, "Failed to setup Bcast MCE for PF%d:VF%d\n",
+			rvu_get_pf(pcifunc), pcifunc & RVU_PFVF_FUNC_MASK);
+		return err;
+	}
+	return 0;
+}
+
+static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
+{
+	struct nix_mcast *mcast = &nix_hw->mcast;
+	int err, pf, numvfs, idx;
+	struct rvu_pfvf *pfvf;
+	u16 pcifunc;
+	u64 cfg;
+
+	/* Skip PF0 (i.e AF) */
+	for (pf = 1; pf < (rvu->cgx_mapped_pfs + 1); pf++) {
+		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
+		/* If PF is not enabled, nothing to do */
+		if (!((cfg >> 20) & 0x01))
+			continue;
+		/* Get numVFs attached to this PF */
+		numvfs = (cfg >> 12) & 0xFF;
+
+		pfvf = &rvu->pf[pf];
+		/* Save the start MCE */
+		pfvf->bcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
+
+		nix_mce_list_init(&pfvf->bcast_mce_list, numvfs + 1);
+
+		for (idx = 0; idx < (numvfs + 1); idx++) {
+			/* idx-0 is for PF, followed by VFs */
+			pcifunc = (pf << RVU_PFVF_PF_SHIFT);
+			pcifunc |= idx;
+			/* Add dummy entries now, so that we don't have to check
+			 * for whether AQ_OP should be INIT/WRITE later on.
+			 * Will be updated when a NIXLF is attached/detached to
+			 * these PF/VFs.
+			 */
+			err = nix_setup_mce(rvu, pfvf->bcast_mce_idx + idx,
+					    NIX_AQ_INSTOP_INIT,
+					    pcifunc, 0, true);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
+}
+
+static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
+{
+	struct nix_mcast *mcast = &nix_hw->mcast;
+	struct rvu_hwinfo *hw = rvu->hw;
+	int err, size;
+
+	size = (rvu_read64(rvu, blkaddr, NIX_AF_CONST3) >> 16) & 0x0F;
+	size = (1ULL << size);
+
+	/* Alloc memory for multicast/mirror replication entries */
+	err = qmem_alloc(rvu->dev, &mcast->mce_ctx,
+			 (256UL << MC_TBL_SIZE), size);
+	if (err)
+		return -ENOMEM;
+
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BASE,
+		    (u64)mcast->mce_ctx->iova);
+
+	/* Set max list length equal to max no of VFs per PF  + PF itself */
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_CFG,
+		    BIT_ULL(36) | (hw->max_vfs_per_pf << 4) | MC_TBL_SIZE);
+
+	/* Alloc memory for multicast replication buffers */
+	size = rvu_read64(rvu, blkaddr, NIX_AF_MC_MIRROR_CONST) & 0xFFFF;
+	err = qmem_alloc(rvu->dev, &mcast->mcast_buf,
+			 (8UL << MC_BUF_CNT), size);
+	if (err)
+		return -ENOMEM;
+
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BUF_BASE,
+		    (u64)mcast->mcast_buf->iova);
+
+	/* Alloc pkind for NIX internal RX multicast/mirror replay */
+	mcast->replay_pkind = rvu_alloc_rsrc(&hw->pkind.rsrc);
+
+	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BUF_CFG,
+		    BIT_ULL(63) | (mcast->replay_pkind << 24) |
+		    BIT_ULL(20) | MC_BUF_CNT);
+
+	spin_lock_init(&mcast->mce_lock);
+
+	return nix_setup_bcast_tables(rvu, nix_hw);
+}
+
 static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 {
 	struct nix_txsch *txsch;
@@ -1242,6 +1434,10 @@ int rvu_nix_init(struct rvu *rvu)
 		err = nix_setup_txschq(rvu, hw->nix0, blkaddr);
 		if (err)
 			return err;
+
+		err = nix_setup_mcast(rvu, hw->nix0, blkaddr);
+		if (err)
+			return err;
 	}
 	return 0;
 }
@@ -1251,6 +1447,7 @@ void rvu_nix_freemem(struct rvu *rvu)
 	struct rvu_hwinfo *hw = rvu->hw;
 	struct rvu_block *block;
 	struct nix_txsch *txsch;
+	struct nix_mcast *mcast;
 	struct nix_hw *nix_hw;
 	int blkaddr, lvl;
 
@@ -1270,5 +1467,9 @@ void rvu_nix_freemem(struct rvu *rvu)
 			txsch = &nix_hw->txsch[lvl];
 			kfree(txsch->schq.bmap);
 		}
+
+		mcast = &nix_hw->mcast;
+		qmem_free(rvu->dev, mcast->mce_ctx);
+		qmem_free(rvu->dev, mcast->mcast_buf);
 	}
 }
