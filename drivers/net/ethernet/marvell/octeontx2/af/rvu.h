@@ -67,6 +67,7 @@ struct rvu_pfvf {
 	u16		ssow;
 	u16		cptlfs;
 	u16		timlfs;
+	u8		cgx_lmac;
 
 	/* Block LF's MSIX vector info */
 	struct rsrc_bmap msix;      /* Bitmap for MSIX vector alloc */
@@ -230,6 +231,7 @@ static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
 
 int rvu_cgx_probe(struct rvu *rvu);
 void rvu_cgx_wq_destroy(struct rvu *rvu);
+void *rvu_cgx_pdata(u8 cgx_id, struct rvu *rvu);
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start);
 int rvu_mbox_handler_CGX_START_RXTX(struct rvu *rvu, struct msg_req *req,
 				    struct msg_rsp *rsp);
@@ -302,4 +304,6 @@ int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
 void rvu_npc_freemem(struct rvu *rvu);
+int rvu_npc_get_pkind(struct rvu *rvu, u16 pf);
+void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf);
 #endif /* RVU_H */

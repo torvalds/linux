@@ -48,6 +48,36 @@ static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
 	return true;
 }
 
+static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
+{
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
+	u8 cgx_id, lmac_id;
+	int pkind, pf;
+
+	pf = rvu_get_pf(pcifunc);
+	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK)
+		return 0;
+
+	switch (type) {
+	case NIX_INTF_TYPE_CGX:
+		pfvf->cgx_lmac = rvu->pf2cgxlmac_map[pf];
+		rvu_get_cgx_lmac_id(pfvf->cgx_lmac, &cgx_id, &lmac_id);
+
+		pkind = rvu_npc_get_pkind(rvu, pf);
+		if (pkind < 0) {
+			dev_err(rvu->dev,
+				"PF_Func 0x%x: Invalid pkind\n", pcifunc);
+			return -EINVAL;
+		}
+		cgx_set_pkind(rvu_cgx_pdata(cgx_id, rvu), lmac_id, pkind);
+		rvu_npc_set_pkind(rvu, pkind, pfvf);
+		break;
+	case NIX_INTF_TYPE_LBK:
+		break;
+	}
+	return 0;
+}
+
 static void nix_setup_lso_tso_l3(struct rvu *rvu, int blkaddr,
 				 u64 format, bool v4, u64 *fidx)
 {
@@ -638,6 +668,10 @@ int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
 
 	/* Config Rx pkt length, csum checks and apad  enable / disable */
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_RX_CFG(nixlf), req->rx_cfg);
+
+	err = nix_interface_init(rvu, pcifunc, NIX_INTF_TYPE_CGX, nixlf);
+	if (err)
+		goto free_mem;
 
 	goto exit;
 

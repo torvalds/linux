@@ -186,6 +186,18 @@ u64 cgx_lmac_addr_get(u8 cgx_id, u8 lmac_id)
 }
 EXPORT_SYMBOL(cgx_lmac_addr_get);
 
+int cgx_set_pkind(void *cgxd, u8 lmac_id, int pkind)
+{
+	struct cgx *cgx = cgxd;
+
+	if (!cgx || lmac_id >= cgx->lmac_count)
+		return -ENODEV;
+
+	cgx_write(cgx, lmac_id, CGXX_CMRX_RX_ID_MAP, (pkind & 0x3F));
+	return 0;
+}
+EXPORT_SYMBOL(cgx_set_pkind);
+
 static inline u8 cgx_get_lmac_type(struct cgx *cgx, int lmac_id)
 {
 	u64 cfg;

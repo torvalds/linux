@@ -17,6 +17,34 @@
 #include "npc.h"
 #include "npc_profile.h"
 
+void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf)
+{
+	int blkaddr;
+	u64 val = 0;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Config CPI base for the PKIND */
+	val = pkind | 1ULL << 62;
+	rvu_write64(rvu, blkaddr, NPC_AF_PKINDX_CPI_DEFX(pkind, 0), val);
+}
+
+int rvu_npc_get_pkind(struct rvu *rvu, u16 pf)
+{
+	struct npc_pkind *pkind = &rvu->hw->pkind;
+	u32 map;
+	int i;
+
+	for (i = 0; i < pkind->rsrc.max; i++) {
+		map = pkind->pfchan_map[i];
+		if (((map >> 16) & 0x3F) == pf)
+			return i;
+	}
+	return -1;
+}
+
 static void npc_config_kpuaction(struct rvu *rvu, int blkaddr,
 				 struct npc_kpu_profile_action *kpuaction,
 				 int kpu, int entry, bool pkind)
