@@ -70,9 +70,10 @@
 #define OUTVACT_LPCMD_TIME(p)		(((p) & 0xff) << 16)
 #define INVACT_LPCMD_TIME(p)		((p) & 0xff)
 
+#define DSI_DBI_VCID			0x1c
+#define DBI_VCID(x)			UPDATE(x, 1, 0)
 #define DSI_DBI_CFG			0x20
 #define DSI_DBI_CMDSIZE			0x28
-
 #define DSI_PCKHDL_CFG			0x2c
 #define CRC_RX_EN			BIT(4)
 #define ECC_RX_EN			BIT(3)
@@ -81,9 +82,9 @@
 #define EOTP_TX_EN			BIT(0)
 
 #define DSI_MODE_CFG			0x34
-#define ENABLE_VIDEO_MODE		0
-#define ENABLE_CMD_MODE			BIT(0)
-
+#define CMD_VIDEO_MODE			BIT(0)
+#define COMMAND_MODE			BIT(0)
+#define VIDEO_MODE			0
 #define DSI_VID_MODE_CFG		0x38
 #define VPG_EN				BIT(16)
 #define LP_CMD_EN			BIT(15)
@@ -111,6 +112,7 @@
 #define DSI_VID_VBP_LINES		0x58
 #define DSI_VID_VFP_LINES		0x5c
 #define DSI_VID_VACTIVE_LINES		0x60
+#define DSI_EDPI_CMD_SIZE		0x64
 #define DSI_CMD_MODE_CFG		0x68
 #define MAX_RD_PKT_SIZE			BIT(24)
 #define DCS_LW_TX			BIT(19)
@@ -294,11 +296,6 @@ struct dw_mipi_dsi {
 	struct drm_display_mode mode;
 
 	const struct dw_mipi_dsi_plat_data *pdata;
-};
-
-enum dw_mipi_dsi_mode {
-	DSI_COMMAND_MODE,
-	DSI_VIDEO_MODE,
 };
 
 static void grf_field_write(struct dw_mipi_dsi *dsi, enum grf_reg_fields index,
@@ -598,7 +595,6 @@ static void dw_mipi_dsi_host_power_on(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_host_power_off(struct dw_mipi_dsi *dsi)
 {
-	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 }
 
@@ -844,23 +840,13 @@ static ssize_t dw_mipi_dsi_transfer(struct dw_mipi_dsi *dsi,
 	if (msg->flags & MIPI_DSI_MSG_USE_LPM) {
 		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG,
 				   LP_CMD_EN, LP_CMD_EN);
-		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG,
-			     MAX_RD_PKT_SIZE | DCS_LW_TX | DCS_SR_0P_TX |
-			     DCS_SW_1P_TX | DCS_SW_0P_TX | GEN_LW_TX |
-			     GEN_SR_2P_TX | GEN_SR_1P_TX | GEN_SR_0P_TX |
-			     GEN_SW_2P_TX | GEN_SW_1P_TX | GEN_SW_0P_TX);
 		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
 				   PHY_TXREQUESTCLKHS, 0);
 	} else {
 		regmap_update_bits(dsi->regmap, DSI_VID_MODE_CFG, LP_CMD_EN, 0);
-		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, 0);
 		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
 				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
 	}
-
-	if (msg->flags & MIPI_DSI_MSG_REQ_ACK)
-		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG,
-				   ACK_RQST_EN, ACK_RQST_EN);
 
 	switch (msg->type) {
 	case MIPI_DSI_SHUTDOWN_PERIPHERAL:
@@ -868,21 +854,73 @@ static ssize_t dw_mipi_dsi_transfer(struct dw_mipi_dsi *dsi,
 	case MIPI_DSI_TURN_ON_PERIPHERAL:
 		return dw_mipi_dsi_turn_on_peripheral(dsi);
 	case MIPI_DSI_DCS_SHORT_WRITE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_SW_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_SW_0P_TX : 0);
+		break;
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_SW_1P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_SW_1P_TX : 0);
+		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_LW_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_LW_TX : 0);
+		break;
 	case MIPI_DSI_DCS_READ:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_SR_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   DCS_SR_0P_TX : 0);
+		break;
 	case MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG,
+				   MAX_RD_PKT_SIZE,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   MAX_RD_PKT_SIZE : 0);
+		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SW_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SW_0P_TX : 0);
+		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SW_1P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SW_1P_TX : 0);
+		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SW_2P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SW_2P_TX : 0);
+		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_LW_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_LW_TX : 0);
+		break;
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SR_0P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SR_0P_TX : 0);
+		break;
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SR_1P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SR_1P_TX : 0);
+		break;
 	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, GEN_SR_2P_TX,
+				   msg->flags & MIPI_DSI_MSG_USE_LPM ?
+				   GEN_SR_2P_TX : 0);
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	if (msg->flags & MIPI_DSI_MSG_REQ_ACK)
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG,
+				   ACK_RQST_EN, ACK_RQST_EN);
 
 	/* create a packet to the DSI protocol */
 	ret = mipi_dsi_create_packet(&packet, msg);
@@ -981,20 +1019,6 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
 		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
 				   AUTO_CLKLANE_CTRL, AUTO_CLKLANE_CTRL);
-}
-
-static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
-				 enum dw_mipi_dsi_mode mode)
-{
-	if (mode == DSI_COMMAND_MODE) {
-		regmap_write(dsi->regmap, DSI_MODE_CFG, ENABLE_CMD_MODE);
-	} else {
-		regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
-		regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
-				   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
-		regmap_write(dsi->regmap, DSI_MODE_CFG, ENABLE_VIDEO_MODE);
-		regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
-	}
 }
 
 static void mipi_dphy_init(struct dw_mipi_dsi *dsi)
@@ -1198,7 +1222,12 @@ static void dw_mipi_dsi_encoder_mode_set(struct drm_encoder *encoder,
 
 static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 {
-	dw_mipi_dsi_set_mode(dsi, DSI_COMMAND_MODE);
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
+	regmap_write(dsi->regmap, DSI_EDPI_CMD_SIZE, 0);
+	regmap_update_bits(dsi->regmap, DSI_MODE_CFG,
+			   CMD_VIDEO_MODE, COMMAND_MODE);
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
 
 	if (dsi->slave)
 		dw_mipi_dsi_disable(dsi->slave);
@@ -1250,7 +1279,8 @@ static void dw_mipi_dsi_host_init(struct dw_mipi_dsi *dsi)
 	dw_mipi_dsi_video_mode_config(dsi);
 	dw_mipi_dsi_video_packet_config(dsi, &dsi->mode);
 	dw_mipi_dsi_command_mode_config(dsi);
-	dw_mipi_dsi_set_mode(dsi, DSI_COMMAND_MODE);
+	regmap_update_bits(dsi->regmap, DSI_MODE_CFG,
+			   CMD_VIDEO_MODE, COMMAND_MODE);
 	dw_mipi_dsi_line_timer_config(dsi);
 	dw_mipi_dsi_vertical_timing_config(dsi);
 	dw_mipi_dsi_dphy_timing_config(dsi);
@@ -1281,7 +1311,31 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 {
-	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
+	const struct drm_display_mode *mode = &dsi->mode;
+
+	/*
+	 * The high-speed clock is started before that the high-speed data is
+	 * sent via the data lanes.
+	 */
+	regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+			   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
+
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		regmap_update_bits(dsi->regmap, DSI_MODE_CFG,
+				   CMD_VIDEO_MODE, VIDEO_MODE);
+	} else {
+		regmap_write(dsi->regmap, DSI_DBI_VCID,
+			     DBI_VCID(dsi->channel));
+		regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG,
+				   DCS_LW_TX, 0);
+		regmap_write(dsi->regmap, DSI_EDPI_CMD_SIZE, mode->hdisplay);
+		regmap_update_bits(dsi->regmap, DSI_MODE_CFG,
+				   CMD_VIDEO_MODE, COMMAND_MODE);
+	}
+
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
 
 	if (dsi->slave)
 		dw_mipi_dsi_enable(dsi->slave);
