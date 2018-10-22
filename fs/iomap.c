@@ -1051,6 +1051,7 @@ iomap_page_mkwrite_actor(struct inode *inode, loff_t pos, loff_t length,
 	} else {
 		WARN_ON_ONCE(!PageUptodate(page));
 		iomap_page_create(inode, page);
+		set_page_dirty(page);
 	}
 
 	return length;
@@ -1090,7 +1091,6 @@ int iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
 		length -= ret;
 	}
 
-	set_page_dirty(page);
 	wait_for_stable_page(page);
 	return VM_FAULT_LOCKED;
 out_unlock:

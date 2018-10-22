@@ -88,7 +88,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
 			&((*mqd_mem_obj)->gtt_mem),
 			&((*mqd_mem_obj)->gpu_addr),
-			(void *)&((*mqd_mem_obj)->cpu_ptr));
+			(void *)&((*mqd_mem_obj)->cpu_ptr), true);
 	} else
 		retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct v9_mqd),
 				mqd_mem_obj);

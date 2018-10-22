@@ -148,12 +148,14 @@ static void stmmac_verify_args(void)
 static void stmmac_disable_all_queues(struct stmmac_priv *priv)
 {
 	u32 rx_queues_cnt = priv->plat->rx_queues_to_use;
+	u32 tx_queues_cnt = priv->plat->tx_queues_to_use;
+	u32 maxq = max(rx_queues_cnt, tx_queues_cnt);
 	u32 queue;
 
-	for (queue = 0; queue < rx_queues_cnt; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+	for (queue = 0; queue < maxq; queue++) {
+		struct stmmac_channel *ch = &priv->channel[queue];
 
-		napi_disable(&rx_q->napi);
+		napi_disable(&ch->napi);
 	}
 }
 
@@ -164,12 +166,14 @@ static void stmmac_disable_all_queues(struct stmmac_priv *priv)
 static void stmmac_enable_all_queues(struct stmmac_priv *priv)
 {
 	u32 rx_queues_cnt = priv->plat->rx_queues_to_use;
+	u32 tx_queues_cnt = priv->plat->tx_queues_to_use;
+	u32 maxq = max(rx_queues_cnt, tx_queues_cnt);
 	u32 queue;
 
-	for (queue = 0; queue < rx_queues_cnt; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+	for (queue = 0; queue < maxq; queue++) {
+		struct stmmac_channel *ch = &priv->channel[queue];
 
-		napi_enable(&rx_q->napi);
+		napi_enable(&ch->napi);
 	}
 }
 
@@ -1843,18 +1847,18 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
  * @queue: TX queue index
  * Description: it reclaims the transmit resources after transmission completes.
  */
-static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
+static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 {
 	struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
 	unsigned int bytes_compl = 0, pkts_compl = 0;
-	unsigned int entry;
+	unsigned int entry, count = 0;
 
-	netif_tx_lock(priv->dev);
+	__netif_tx_lock_bh(netdev_get_tx_queue(priv->dev, queue));
 
 	priv->xstats.tx_clean++;
 
 	entry = tx_q->dirty_tx;
-	while (entry != tx_q->cur_tx) {
+	while ((entry != tx_q->cur_tx) && (count < budget)) {
 		struct sk_buff *skb = tx_q->tx_skbuff[entry];
 		struct dma_desc *p;
 		int status;
@@ -1869,6 +1873,8 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 		/* Check if the descriptor is owned by the DMA */
 		if (unlikely(status & tx_dma_own))
 			break;
+
+		count++;
 
 		/* Make sure descriptor fields are read after reading
 		 * the own bit.
@@ -1937,7 +1943,10 @@ static void stmmac_tx_clean(struct stmmac_priv *priv, u32 queue)
 		stmmac_enable_eee_mode(priv);
 		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
 	}
-	netif_tx_unlock(priv->dev);
+
+	__netif_tx_unlock_bh(netdev_get_tx_queue(priv->dev, queue));
+
+	return count;
 }
 
 /**
@@ -2020,6 +2029,33 @@ static bool stmmac_safety_feat_interrupt(struct stmmac_priv *priv)
 	return false;
 }
 
+static int stmmac_napi_check(struct stmmac_priv *priv, u32 chan)
+{
+	int status = stmmac_dma_interrupt_status(priv, priv->ioaddr,
+						 &priv->xstats, chan);
+	struct stmmac_channel *ch = &priv->channel[chan];
+	bool needs_work = false;
+
+	if ((status & handle_rx) && ch->has_rx) {
+		needs_work = true;
+	} else {
+		status &= ~handle_rx;
+	}
+
+	if ((status & handle_tx) && ch->has_tx) {
+		needs_work = true;
+	} else {
+		status &= ~handle_tx;
+	}
+
+	if (needs_work && napi_schedule_prep(&ch->napi)) {
+		stmmac_disable_dma_irq(priv, priv->ioaddr, chan);
+		__napi_schedule(&ch->napi);
+	}
+
+	return status;
+}
+
 /**
  * stmmac_dma_interrupt - DMA ISR
  * @priv: driver private structure
@@ -2034,57 +2070,14 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 	u32 channels_to_check = tx_channel_count > rx_channel_count ?
 				tx_channel_count : rx_channel_count;
 	u32 chan;
-	bool poll_scheduled = false;
 	int status[max_t(u32, MTL_MAX_TX_QUEUES, MTL_MAX_RX_QUEUES)];
 
 	/* Make sure we never check beyond our status buffer. */
 	if (WARN_ON_ONCE(channels_to_check > ARRAY_SIZE(status)))
 		channels_to_check = ARRAY_SIZE(status);
 
-	/* Each DMA channel can be used for rx and tx simultaneously, yet
-	 * napi_struct is embedded in struct stmmac_rx_queue rather than in a
-	 * stmmac_channel struct.
-	 * Because of this, stmmac_poll currently checks (and possibly wakes)
-	 * all tx queues rather than just a single tx queue.
-	 */
 	for (chan = 0; chan < channels_to_check; chan++)
-		status[chan] = stmmac_dma_interrupt_status(priv, priv->ioaddr,
-				&priv->xstats, chan);
-
-	for (chan = 0; chan < rx_channel_count; chan++) {
-		if (likely(status[chan] & handle_rx)) {
-			struct stmmac_rx_queue *rx_q = &priv->rx_queue[chan];
-
-			if (likely(napi_schedule_prep(&rx_q->napi))) {
-				stmmac_disable_dma_irq(priv, priv->ioaddr, chan);
-				__napi_schedule(&rx_q->napi);
-				poll_scheduled = true;
-			}
-		}
-	}
-
-	/* If we scheduled poll, we already know that tx queues will be checked.
-	 * If we didn't schedule poll, see if any DMA channel (used by tx) has a
-	 * completed transmission, if so, call stmmac_poll (once).
-	 */
-	if (!poll_scheduled) {
-		for (chan = 0; chan < tx_channel_count; chan++) {
-			if (status[chan] & handle_tx) {
-				/* It doesn't matter what rx queue we choose
-				 * here. We use 0 since it always exists.
-				 */
-				struct stmmac_rx_queue *rx_q =
-					&priv->rx_queue[0];
-
-				if (likely(napi_schedule_prep(&rx_q->napi))) {
-					stmmac_disable_dma_irq(priv,
-							priv->ioaddr, chan);
-					__napi_schedule(&rx_q->napi);
-				}
-				break;
-			}
-		}
-	}
+		status[chan] = stmmac_napi_check(priv, chan);
 
 	for (chan = 0; chan < tx_channel_count; chan++) {
 		if (unlikely(status[chan] & tx_hard_error_bump_tc)) {
@@ -2220,8 +2213,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		stmmac_init_tx_chan(priv, priv->ioaddr, priv->plat->dma_cfg,
 				    tx_q->dma_tx_phy, chan);
 
-		tx_q->tx_tail_addr = tx_q->dma_tx_phy +
-			    (DMA_TX_SIZE * sizeof(struct dma_desc));
+		tx_q->tx_tail_addr = tx_q->dma_tx_phy;
 		stmmac_set_tx_tail_ptr(priv, priv->ioaddr,
 				       tx_q->tx_tail_addr, chan);
 	}
@@ -2233,6 +2225,13 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	return ret;
 }
 
+static void stmmac_tx_timer_arm(struct stmmac_priv *priv, u32 queue)
+{
+	struct stmmac_tx_queue *tx_q = &priv->tx_queue[queue];
+
+	mod_timer(&tx_q->txtimer, STMMAC_COAL_TIMER(priv->tx_coal_timer));
+}
+
 /**
  * stmmac_tx_timer - mitigation sw timer for tx.
  * @data: data pointer
@@ -2241,13 +2240,14 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
  */
 static void stmmac_tx_timer(struct timer_list *t)
 {
-	struct stmmac_priv *priv = from_timer(priv, t, txtimer);
-	u32 tx_queues_count = priv->plat->tx_queues_to_use;
-	u32 queue;
+	struct stmmac_tx_queue *tx_q = from_timer(tx_q, t, txtimer);
+	struct stmmac_priv *priv = tx_q->priv_data;
+	struct stmmac_channel *ch;
 
-	/* let's scan all the tx queues */
-	for (queue = 0; queue < tx_queues_count; queue++)
-		stmmac_tx_clean(priv, queue);
+	ch = &priv->channel[tx_q->queue_index];
+
+	if (likely(napi_schedule_prep(&ch->napi)))
+		__napi_schedule(&ch->napi);
 }
 
 /**
@@ -2260,11 +2260,17 @@ static void stmmac_tx_timer(struct timer_list *t)
  */
 static void stmmac_init_tx_coalesce(struct stmmac_priv *priv)
 {
+	u32 tx_channel_count = priv->plat->tx_queues_to_use;
+	u32 chan;
+
 	priv->tx_coal_frames = STMMAC_TX_FRAMES;
 	priv->tx_coal_timer = STMMAC_COAL_TX_TIMER;
-	timer_setup(&priv->txtimer, stmmac_tx_timer, 0);
-	priv->txtimer.expires = STMMAC_COAL_TIMER(priv->tx_coal_timer);
-	add_timer(&priv->txtimer);
+
+	for (chan = 0; chan < tx_channel_count; chan++) {
+		struct stmmac_tx_queue *tx_q = &priv->tx_queue[chan];
+
+		timer_setup(&tx_q->txtimer, stmmac_tx_timer, 0);
+	}
 }
 
 static void stmmac_set_rings_length(struct stmmac_priv *priv)
@@ -2592,6 +2598,7 @@ static void stmmac_hw_teardown(struct net_device *dev)
 static int stmmac_open(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 chan;
 	int ret;
 
 	stmmac_check_ether_addr(priv);
@@ -2688,7 +2695,9 @@ irq_error:
 	if (dev->phydev)
 		phy_stop(dev->phydev);
 
-	del_timer_sync(&priv->txtimer);
+	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++)
+		del_timer_sync(&priv->tx_queue[chan].txtimer);
+
 	stmmac_hw_teardown(dev);
 init_error:
 	free_dma_desc_resources(priv);
@@ -2708,6 +2717,7 @@ dma_desc_error:
 static int stmmac_release(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+	u32 chan;
 
 	if (priv->eee_enabled)
 		del_timer_sync(&priv->eee_ctrl_timer);
@@ -2722,7 +2732,8 @@ static int stmmac_release(struct net_device *dev)
 
 	stmmac_disable_all_queues(priv);
 
-	del_timer_sync(&priv->txtimer);
+	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++)
+		del_timer_sync(&priv->tx_queue[chan].txtimer);
 
 	/* Free the IRQ lines */
 	free_irq(dev->irq, dev);
@@ -2936,14 +2947,13 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	priv->xstats.tx_tso_nfrags += nfrags;
 
 	/* Manage tx mitigation */
-	priv->tx_count_frames += nfrags + 1;
-	if (likely(priv->tx_coal_frames > priv->tx_count_frames)) {
-		mod_timer(&priv->txtimer,
-			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
-	} else {
-		priv->tx_count_frames = 0;
+	tx_q->tx_count_frames += nfrags + 1;
+	if (priv->tx_coal_frames <= tx_q->tx_count_frames) {
 		stmmac_set_tx_ic(priv, desc);
 		priv->xstats.tx_set_ic_bit++;
+		tx_q->tx_count_frames = 0;
+	} else {
+		stmmac_tx_timer_arm(priv, queue);
 	}
 
 	skb_tx_timestamp(skb);
@@ -2992,6 +3002,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
 
+	tx_q->tx_tail_addr = tx_q->dma_tx_phy + (tx_q->cur_tx * sizeof(*desc));
 	stmmac_set_tx_tail_ptr(priv, priv->ioaddr, tx_q->tx_tail_addr, queue);
 
 	return NETDEV_TX_OK;
@@ -3146,17 +3157,13 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * This approach takes care about the fragments: desc is the first
 	 * element in case of no SG.
 	 */
-	priv->tx_count_frames += nfrags + 1;
-	if (likely(priv->tx_coal_frames > priv->tx_count_frames) &&
-	    !priv->tx_timer_armed) {
-		mod_timer(&priv->txtimer,
-			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
-		priv->tx_timer_armed = true;
-	} else {
-		priv->tx_count_frames = 0;
+	tx_q->tx_count_frames += nfrags + 1;
+	if (priv->tx_coal_frames <= tx_q->tx_count_frames) {
 		stmmac_set_tx_ic(priv, desc);
 		priv->xstats.tx_set_ic_bit++;
-		priv->tx_timer_armed = false;
+		tx_q->tx_count_frames = 0;
+	} else {
+		stmmac_tx_timer_arm(priv, queue);
 	}
 
 	skb_tx_timestamp(skb);
@@ -3202,6 +3209,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
 
 	stmmac_enable_dma_transmission(priv, priv->ioaddr);
+
+	tx_q->tx_tail_addr = tx_q->dma_tx_phy + (tx_q->cur_tx * sizeof(*desc));
 	stmmac_set_tx_tail_ptr(priv, priv->ioaddr, tx_q->tx_tail_addr, queue);
 
 	return NETDEV_TX_OK;
@@ -3322,6 +3331,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 {
 	struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+	struct stmmac_channel *ch = &priv->channel[queue];
 	unsigned int entry = rx_q->cur_rx;
 	int coe = priv->hw->rx_csum;
 	unsigned int next_entry;
@@ -3494,7 +3504,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			else
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-			napi_gro_receive(&rx_q->napi, skb);
+			napi_gro_receive(&ch->napi, skb);
 
 			priv->dev->stats.rx_packets++;
 			priv->dev->stats.rx_bytes += frame_len;
@@ -3517,27 +3527,33 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
  *  Description :
  *  To look at the incoming frames and clear the tx resources.
  */
-static int stmmac_poll(struct napi_struct *napi, int budget)
+static int stmmac_napi_poll(struct napi_struct *napi, int budget)
 {
-	struct stmmac_rx_queue *rx_q =
-		container_of(napi, struct stmmac_rx_queue, napi);
-	struct stmmac_priv *priv = rx_q->priv_data;
-	u32 tx_count = priv->plat->tx_queues_to_use;
-	u32 chan = rx_q->queue_index;
-	int work_done = 0;
-	u32 queue;
+	struct stmmac_channel *ch =
+		container_of(napi, struct stmmac_channel, napi);
+	struct stmmac_priv *priv = ch->priv_data;
+	int work_done = 0, work_rem = budget;
+	u32 chan = ch->index;
 
 	priv->xstats.napi_poll++;
 
-	/* check all the queues */
-	for (queue = 0; queue < tx_count; queue++)
-		stmmac_tx_clean(priv, queue);
+	if (ch->has_tx) {
+		int done = stmmac_tx_clean(priv, work_rem, chan);
 
-	work_done = stmmac_rx(priv, budget, rx_q->queue_index);
-	if (work_done < budget) {
-		napi_complete_done(napi, work_done);
-		stmmac_enable_dma_irq(priv, priv->ioaddr, chan);
+		work_done += done;
+		work_rem -= done;
 	}
+
+	if (ch->has_rx) {
+		int done = stmmac_rx(priv, work_rem, chan);
+
+		work_done += done;
+		work_rem -= done;
+	}
+
+	if (work_done < budget && napi_complete_done(napi, work_done))
+		stmmac_enable_dma_irq(priv, priv->ioaddr, chan);
+
 	return work_done;
 }
 
@@ -4201,8 +4217,8 @@ int stmmac_dvr_probe(struct device *device,
 {
 	struct net_device *ndev = NULL;
 	struct stmmac_priv *priv;
+	u32 queue, maxq;
 	int ret = 0;
-	u32 queue;
 
 	ndev = alloc_etherdev_mqs(sizeof(struct stmmac_priv),
 				  MTL_MAX_TX_QUEUES,
@@ -4325,11 +4341,22 @@ int stmmac_dvr_probe(struct device *device,
 			 "Enable RX Mitigation via HW Watchdog Timer\n");
 	}
 
-	for (queue = 0; queue < priv->plat->rx_queues_to_use; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+	/* Setup channels NAPI */
+	maxq = max(priv->plat->rx_queues_to_use, priv->plat->tx_queues_to_use);
 
-		netif_napi_add(ndev, &rx_q->napi, stmmac_poll,
-			       (8 * priv->plat->rx_queues_to_use));
+	for (queue = 0; queue < maxq; queue++) {
+		struct stmmac_channel *ch = &priv->channel[queue];
+
+		ch->priv_data = priv;
+		ch->index = queue;
+
+		if (queue < priv->plat->rx_queues_to_use)
+			ch->has_rx = true;
+		if (queue < priv->plat->tx_queues_to_use)
+			ch->has_tx = true;
+
+		netif_napi_add(ndev, &ch->napi, stmmac_napi_poll,
+			       NAPI_POLL_WEIGHT);
 	}
 
 	mutex_init(&priv->lock);
@@ -4375,10 +4402,10 @@ error_netdev_register:
 	    priv->hw->pcs != STMMAC_PCS_RTBI)
 		stmmac_mdio_unregister(ndev);
 error_mdio_register:
-	for (queue = 0; queue < priv->plat->rx_queues_to_use; queue++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[queue];
+	for (queue = 0; queue < maxq; queue++) {
+		struct stmmac_channel *ch = &priv->channel[queue];
 
-		netif_napi_del(&rx_q->napi);
+		netif_napi_del(&ch->napi);
 	}
 error_hw_init:
 	destroy_workqueue(priv->wq);

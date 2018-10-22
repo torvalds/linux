@@ -276,7 +276,7 @@ long pnv_pci_ioda2_table_alloc_pages(int nid, __u64 bus_offset,
 	level_shift = entries_shift + 3;
 	level_shift = max_t(unsigned int, level_shift, PAGE_SHIFT);
 
-	if ((level_shift - 3) * levels + page_shift >= 60)
+	if ((level_shift - 3) * levels + page_shift >= 55)
 		return -EINVAL;
 
 	/* Allocate TCE table */

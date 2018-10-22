@@ -9,6 +9,7 @@
 config ARC
 	def_bool y
 	select ARC_TIMERS
+	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_SG_CHAIN
@@ -28,8 +29,12 @@ config ARC
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IOREMAP_PROT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZMA
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_MEMBLOCK
@@ -44,11 +49,6 @@ config ARC
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
-	select HAVE_DEBUG_STACKOVERFLOW
-	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_KERNEL_GZIP
-	select HAVE_KERNEL_LZMA
-	select ARCH_HAS_PTE_SPECIAL
 
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
@@ -149,7 +149,7 @@ config ARC_CPU_770
 	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
 	  This core has a bunch of cool new features:
 	  -MMU-v3: Variable Page Sz (4k, 8k, 16k), bigger J-TLB (128x4)
-                   Shared Address Spaces (for sharing TLB entires in MMU)
+                   Shared Address Spaces (for sharing TLB entries in MMU)
 	  -Caches: New Prog Model, Region Flush
 	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
 

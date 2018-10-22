@@ -2370,7 +2370,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 {
 	int c, o;
 	struct drm_connector *connector;
-	const struct drm_connector_helper_funcs *connector_funcs;
 	int my_score, best_score, score;
 	struct drm_fb_helper_crtc **crtcs, *crtc;
 	struct drm_fb_helper_connector *fb_helper_conn;
@@ -2398,8 +2397,6 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 		my_score++;
 	if (drm_has_preferred_mode(fb_helper_conn, width, height))
 		my_score++;
-
-	connector_funcs = connector->helper_private;
 
 	/*
 	 * select a crtc for this connector and then attempt to configure
@@ -3221,11 +3218,13 @@ int drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 	if (!fb_helper)
 		return -ENOMEM;
 
-	ret = drm_client_new(dev, &fb_helper->client, "fbdev", &drm_fbdev_client_funcs);
+	ret = drm_client_init(dev, &fb_helper->client, "fbdev", &drm_fbdev_client_funcs);
 	if (ret) {
 		kfree(fb_helper);
 		return ret;
 	}
+
+	drm_client_add(&fb_helper->client);
 
 	fb_helper->preferred_bpp = preferred_bpp;
 

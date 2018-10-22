@@ -3091,36 +3091,27 @@ gen11_gt_irq_handler(struct drm_i915_private * const i915,
 	spin_unlock(&i915->irq_lock);
 }
 
-static void
-gen11_gu_misc_irq_ack(struct drm_i915_private *dev_priv, const u32 master_ctl,
-		      u32 *iir)
+static u32
+gen11_gu_misc_irq_ack(struct drm_i915_private *dev_priv, const u32 master_ctl)
 {
 	void __iomem * const regs = dev_priv->regs;
+	u32 iir;
 
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
-		return;
+		return 0;
 
-	*iir = raw_reg_read(regs, GEN11_GU_MISC_IIR);
-	if (likely(*iir))
-		raw_reg_write(regs, GEN11_GU_MISC_IIR, *iir);
+	iir = raw_reg_read(regs, GEN11_GU_MISC_IIR);
+	if (likely(iir))
+		raw_reg_write(regs, GEN11_GU_MISC_IIR, iir);
+
+	return iir;
 }
 
 static void
-gen11_gu_misc_irq_handler(struct drm_i915_private *dev_priv,
-			  const u32 master_ctl, const u32 iir)
+gen11_gu_misc_irq_handler(struct drm_i915_private *dev_priv, const u32 iir)
 {
-	if (!(master_ctl & GEN11_GU_MISC_IRQ))
-		return;
-
-	if (unlikely(!iir)) {
-		DRM_ERROR("GU_MISC iir blank!\n");
-		return;
-	}
-
 	if (iir & GEN11_GU_MISC_GSE)
 		intel_opregion_asle_intr(dev_priv);
-	else
-		DRM_ERROR("Unexpected GU_MISC interrupt 0x%x\n", iir);
 }
 
 static irqreturn_t gen11_irq_handler(int irq, void *arg)
@@ -3157,12 +3148,12 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 		enable_rpm_wakeref_asserts(i915);
 	}
 
-	gen11_gu_misc_irq_ack(i915, master_ctl, &gu_misc_iir);
+	gu_misc_iir = gen11_gu_misc_irq_ack(i915, master_ctl);
 
 	/* Acknowledge and enable interrupts. */
 	raw_reg_write(regs, GEN11_GFX_MSTR_IRQ, GEN11_MASTER_IRQ | master_ctl);
 
-	gen11_gu_misc_irq_handler(i915, master_ctl, gu_misc_iir);
+	gen11_gu_misc_irq_handler(i915, gu_misc_iir);
 
 	return IRQ_HANDLED;
 }

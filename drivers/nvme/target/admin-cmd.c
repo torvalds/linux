@@ -245,6 +245,10 @@ static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 		offset += len;
 		ngrps++;
 	}
+	for ( ; grpid <= NVMET_MAX_ANAGRPS; grpid++) {
+		if (nvmet_ana_group_enabled[grpid])
+			ngrps++;
+	}
 
 	hdr.chgcnt = cpu_to_le64(nvmet_ana_chgcnt);
 	hdr.ngrps = cpu_to_le16(ngrps);

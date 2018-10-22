@@ -36,6 +36,7 @@ static int cmdq_common_init(struct nitrox_cmdq *cmdq)
 	cmdq->head = PTR_ALIGN(cmdq->head_unaligned, PKT_IN_ALIGN);
 	cmdq->dma = PTR_ALIGN(cmdq->dma_unaligned, PKT_IN_ALIGN);
 	cmdq->qsize = (qsize + PKT_IN_ALIGN);
+	cmdq->write_idx = 0;
 
 	spin_lock_init(&cmdq->response_lock);
 	spin_lock_init(&cmdq->cmdq_lock);

@@ -1823,11 +1823,17 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			adapter->map_id = 1;
 			release_rx_pools(adapter);
 			release_tx_pools(adapter);
-			init_rx_pools(netdev);
-			init_tx_pools(netdev);
+			rc = init_rx_pools(netdev);
+			if (rc)
+				return rc;
+			rc = init_tx_pools(netdev);
+			if (rc)
+				return rc;
 
 			release_napi(adapter);
-			init_napi(adapter);
+			rc = init_napi(adapter);
+			if (rc)
+				return rc;
 		} else {
 			rc = reset_tx_pools(adapter);
 			if (rc)
@@ -2201,19 +2207,6 @@ restart_poll:
 	return frames_processed;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void ibmvnic_netpoll_controller(struct net_device *dev)
-{
-	struct ibmvnic_adapter *adapter = netdev_priv(dev);
-	int i;
-
-	replenish_pools(netdev_priv(dev));
-	for (i = 0; i < adapter->req_rx_queues; i++)
-		ibmvnic_interrupt_rx(adapter->rx_scrq[i]->irq,
-				     adapter->rx_scrq[i]);
-}
-#endif
-
 static int wait_for_reset(struct ibmvnic_adapter *adapter)
 {
 	int rc, ret;
@@ -2286,9 +2279,6 @@ static const struct net_device_ops ibmvnic_netdev_ops = {
 	.ndo_set_mac_address	= ibmvnic_set_mac,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= ibmvnic_tx_timeout,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= ibmvnic_netpoll_controller,
-#endif
 	.ndo_change_mtu		= ibmvnic_change_mtu,
 	.ndo_features_check     = ibmvnic_features_check,
 };

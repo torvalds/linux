@@ -1057,7 +1057,7 @@ static int gfs2_iomap_begin_write(struct inode *inode, loff_t pos,
 		}
 	}
 	release_metapath(&mp);
-	if (gfs2_is_jdata(ip))
+	if (!gfs2_is_stuffed(ip) && gfs2_is_jdata(ip))
 		iomap->page_done = gfs2_iomap_journaled_page_done;
 	return 0;
 

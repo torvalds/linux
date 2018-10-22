@@ -2398,7 +2398,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 
 	ipv6_addr_set(&cfg.fc_dst, htonl(0xFF000000), 0, 0, 0);
 
-	ip6_route_add(&cfg, GFP_ATOMIC, NULL);
+	ip6_route_add(&cfg, GFP_KERNEL, NULL);
 }
 
 static struct inet6_dev *addrconf_add_dev(struct net_device *dev)
@@ -3062,7 +3062,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 	if (addr.s6_addr32[3]) {
 		add_addr(idev, &addr, plen, scope);
 		addrconf_prefix_route(&addr, plen, 0, idev->dev, 0, pflags,
-				      GFP_ATOMIC);
+				      GFP_KERNEL);
 		return;
 	}
 
@@ -3087,7 +3087,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 
 				add_addr(idev, &addr, plen, flag);
 				addrconf_prefix_route(&addr, plen, 0, idev->dev,
-						      0, pflags, GFP_ATOMIC);
+						      0, pflags, GFP_KERNEL);
 			}
 		}
 	}
@@ -4201,7 +4201,6 @@ static struct inet6_ifaddr *if6_get_first(struct seq_file *seq, loff_t pos)
 				p++;
 				continue;
 			}
-			state->offset++;
 			return ifa;
 		}
 
@@ -4225,13 +4224,12 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 		return ifa;
 	}
 
+	state->offset = 0;
 	while (++state->bucket < IN6_ADDR_HSIZE) {
-		state->offset = 0;
 		hlist_for_each_entry_rcu(ifa,
 				     &inet6_addr_lst[state->bucket], addr_lst) {
 			if (!net_eq(dev_net(ifa->idev->dev), net))
 				continue;
-			state->offset++;
 			return ifa;
 		}
 	}

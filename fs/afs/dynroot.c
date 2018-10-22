@@ -265,7 +265,7 @@ int afs_dynroot_populate(struct super_block *sb)
 		return -ERESTARTSYS;
 
 	net->dynroot_sb = sb;
-	list_for_each_entry(cell, &net->proc_cells, proc_link) {
+	hlist_for_each_entry(cell, &net->proc_cells, proc_link) {
 		ret = afs_dynroot_mkdir(net, cell);
 		if (ret < 0)
 			goto error;

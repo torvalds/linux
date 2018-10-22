@@ -1204,7 +1204,9 @@ int find_and_online_cpu_nid(int cpu)
 	int new_nid;
 
 	/* Use associativity from first thread for all siblings */
-	vphn_get_associativity(cpu, associativity);
+	if (vphn_get_associativity(cpu, associativity))
+		return cpu_to_node(cpu);
+
 	new_nid = associativity_to_nid(associativity);
 	if (new_nid < 0 || !node_possible(new_nid))
 		new_nid = first_online_node;
@@ -1215,9 +1217,10 @@ int find_and_online_cpu_nid(int cpu)
 		 * Need to ensure that NODE_DATA is initialized for a node from
 		 * available memory (see memblock_alloc_try_nid). If unable to
 		 * init the node, then default to nearest node that has memory
-		 * installed.
+		 * installed. Skip onlining a node if the subsystems are not
+		 * yet initialized.
 		 */
-		if (try_online_node(new_nid))
+		if (!topology_inited || try_online_node(new_nid))
 			new_nid = first_online_node;
 #else
 		/*
@@ -1452,7 +1455,8 @@ static struct timer_list topology_timer;
 
 static void reset_topology_timer(void)
 {
-	mod_timer(&topology_timer, jiffies + topology_timer_secs * HZ);
+	if (vphn_enabled)
+		mod_timer(&topology_timer, jiffies + topology_timer_secs * HZ);
 }
 
 #ifdef CONFIG_SMP

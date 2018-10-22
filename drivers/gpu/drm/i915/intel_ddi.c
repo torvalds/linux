@@ -2708,7 +2708,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
 		intel_dp_stop_link_train(intel_dp);
 
-	intel_ddi_enable_pipe_clock(crtc_state);
+	if (!is_mst)
+		intel_ddi_enable_pipe_clock(crtc_state);
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
@@ -2810,14 +2811,14 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 	bool is_mst = intel_crtc_has_type(old_crtc_state,
 					  INTEL_OUTPUT_DP_MST);
 
-	intel_ddi_disable_pipe_clock(old_crtc_state);
-
-	/*
-	 * Power down sink before disabling the port, otherwise we end
-	 * up getting interrupts from the sink on detecting link loss.
-	 */
-	if (!is_mst)
+	if (!is_mst) {
+		intel_ddi_disable_pipe_clock(old_crtc_state);
+		/*
+		 * Power down sink before disabling the port, otherwise we end
+		 * up getting interrupts from the sink on detecting link loss.
+		 */
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+	}
 
 	intel_disable_ddi_buf(encoder);
 

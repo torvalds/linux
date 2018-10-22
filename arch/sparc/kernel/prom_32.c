@@ -68,8 +68,8 @@ static void __init sparc32_path_component(struct device_node *dp, char *tmp_buf)
 		return;
 
 	regs = rprop->value;
-	sprintf(tmp_buf, "%s@%x,%x",
-		dp->name,
+	sprintf(tmp_buf, "%pOFn@%x,%x",
+		dp,
 		regs->which_io, regs->phys_addr);
 }
 
@@ -84,8 +84,8 @@ static void __init sbus_path_component(struct device_node *dp, char *tmp_buf)
 		return;
 
 	regs = prop->value;
-	sprintf(tmp_buf, "%s@%x,%x",
-		dp->name,
+	sprintf(tmp_buf, "%pOFn@%x,%x",
+		dp,
 		regs->which_io,
 		regs->phys_addr);
 }
@@ -104,13 +104,13 @@ static void __init pci_path_component(struct device_node *dp, char *tmp_buf)
 	regs = prop->value;
 	devfn = (regs->phys_hi >> 8) & 0xff;
 	if (devfn & 0x07) {
-		sprintf(tmp_buf, "%s@%x,%x",
-			dp->name,
+		sprintf(tmp_buf, "%pOFn@%x,%x",
+			dp,
 			devfn >> 3,
 			devfn & 0x07);
 	} else {
-		sprintf(tmp_buf, "%s@%x",
-			dp->name,
+		sprintf(tmp_buf, "%pOFn@%x",
+			dp,
 			devfn >> 3);
 	}
 }
@@ -127,8 +127,8 @@ static void __init ebus_path_component(struct device_node *dp, char *tmp_buf)
 
 	regs = prop->value;
 
-	sprintf(tmp_buf, "%s@%x,%x",
-		dp->name,
+	sprintf(tmp_buf, "%pOFn@%x,%x",
+		dp,
 		regs->which_io, regs->phys_addr);
 }
 
@@ -167,8 +167,8 @@ static void __init ambapp_path_component(struct device_node *dp, char *tmp_buf)
 		return;
 	device = prop->value;
 
-	sprintf(tmp_buf, "%s:%d:%d@%x,%x",
-		dp->name, *vendor, *device,
+	sprintf(tmp_buf, "%pOFn:%d:%d@%x,%x",
+		dp, *vendor, *device,
 		*intr, reg0);
 }
 
@@ -201,7 +201,7 @@ char * __init build_path_component(struct device_node *dp)
 	tmp_buf[0] = '\0';
 	__build_path_component(dp, tmp_buf);
 	if (tmp_buf[0] == '\0')
-		strcpy(tmp_buf, dp->name);
+		snprintf(tmp_buf, sizeof(tmp_buf), "%pOFn", dp);
 
 	n = prom_early_alloc(strlen(tmp_buf) + 1);
 	strcpy(n, tmp_buf);

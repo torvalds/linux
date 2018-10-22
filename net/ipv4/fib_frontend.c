@@ -1243,7 +1243,8 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_changeupper_info *info;
+	struct netdev_notifier_changeupper_info *upper_info = ptr;
+	struct netdev_notifier_info_ext *info_ext = ptr;
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 	unsigned int flags;
@@ -1278,16 +1279,19 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 			fib_sync_up(dev, RTNH_F_LINKDOWN);
 		else
 			fib_sync_down_dev(dev, event, false);
-		/* fall through */
+		rt_cache_flush(net);
+		break;
 	case NETDEV_CHANGEMTU:
+		fib_sync_mtu(dev, info_ext->ext.mtu);
 		rt_cache_flush(net);
 		break;
 	case NETDEV_CHANGEUPPER:
-		info = ptr;
+		upper_info = ptr;
 		/* flush all routes if dev is linked to or unlinked from
 		 * an L3 master device (e.g., VRF)
 		 */
-		if (info->upper_dev && netif_is_l3_master(info->upper_dev))
+		if (upper_info->upper_dev &&
+		    netif_is_l3_master(upper_info->upper_dev))
 			fib_disable_ip(dev, NETDEV_DOWN, true);
 		break;
 	}

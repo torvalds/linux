@@ -42,6 +42,7 @@ int axg_tdm_set_tdm_slots(struct snd_soc_dai *dai, u32 *tx_mask,
 	struct axg_tdm_stream *rx = (struct axg_tdm_stream *)
 		dai->capture_dma_data;
 	unsigned int tx_slots, rx_slots;
+	unsigned int fmt = 0;
 
 	tx_slots = axg_tdm_slots_total(tx_mask);
 	rx_slots = axg_tdm_slots_total(rx_mask);
@@ -52,36 +53,43 @@ int axg_tdm_set_tdm_slots(struct snd_soc_dai *dai, u32 *tx_mask,
 		return -EINVAL;
 	}
 
-	/*
-	 * Amend the dai driver channel number and let dpcm channel merge do
-	 * its job
-	 */
+	iface->slots = slots;
+
+	switch (slot_width) {
+	case 0:
+		slot_width = 32;
+		/* Fall-through */
+	case 32:
+		fmt |= SNDRV_PCM_FMTBIT_S32_LE;
+		/* Fall-through */
+	case 24:
+		fmt |= SNDRV_PCM_FMTBIT_S24_LE;
+		fmt |= SNDRV_PCM_FMTBIT_S20_LE;
+		/* Fall-through */
+	case 16:
+		fmt |= SNDRV_PCM_FMTBIT_S16_LE;
+		/* Fall-through */
+	case 8:
+		fmt |= SNDRV_PCM_FMTBIT_S8;
+		break;
+	default:
+		dev_err(dai->dev, "unsupported slot width: %d\n", slot_width);
+		return -EINVAL;
+	}
+
+	iface->slot_width = slot_width;
+
+	/* Amend the dai driver and let dpcm merge do its job */
 	if (tx) {
 		tx->mask = tx_mask;
 		dai->driver->playback.channels_max = tx_slots;
+		dai->driver->playback.formats = fmt;
 	}
 
 	if (rx) {
 		rx->mask = rx_mask;
 		dai->driver->capture.channels_max = rx_slots;
-	}
-
-	iface->slots = slots;
-
-	switch (slot_width) {
-	case 0:
-		/* defaults width to 32 if not provided */
-		iface->slot_width = 32;
-		break;
-	case 8:
-	case 16:
-	case 24:
-	case 32:
-		iface->slot_width = slot_width;
-		break;
-	default:
-		dev_err(dai->dev, "unsupported slot width: %d\n", slot_width);
-		return -EINVAL;
+		dai->driver->capture.formats = fmt;
 	}
 
 	return 0;

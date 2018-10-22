@@ -52,12 +52,12 @@ config SCSI_MQ_DEFAULT
 	default y
 	depends on SCSI
 	---help---
-	  This option enables the new blk-mq based I/O path for SCSI
-	  devices by default.  With the option the scsi_mod.use_blk_mq
-	  module/boot option defaults to Y, without it to N, but it can
-	  still be overridden either way.
+	  This option enables the blk-mq based I/O path for SCSI devices by
+	  default.  With this option the scsi_mod.use_blk_mq module/boot
+	  option defaults to Y, without it to N, but it can still be
+	  overridden either way.
 
-	  If unsure say N.
+	  If unsure say Y.
 
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"

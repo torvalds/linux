@@ -481,7 +481,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_S390_HPAGE_1M:
 		r = 0;
-		if (hpage)
+		if (hpage && !kvm_is_ucontrol(kvm))
 			r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:
@@ -691,11 +691,13 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		mutex_lock(&kvm->lock);
 		if (kvm->created_vcpus)
 			r = -EBUSY;
-		else if (!hpage || kvm->arch.use_cmma)
+		else if (!hpage || kvm->arch.use_cmma || kvm_is_ucontrol(kvm))
 			r = -EINVAL;
 		else {
 			r = 0;
+			down_write(&kvm->mm->mmap_sem);
 			kvm->mm->context.allow_gmap_hpage_1m = 1;
+			up_write(&kvm->mm->mmap_sem);
 			/*
 			 * We might have to create fake 4k page
 			 * tables. To avoid that the hardware works on

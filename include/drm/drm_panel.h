@@ -89,7 +89,6 @@ struct drm_panel {
 	struct drm_device *drm;
 	struct drm_connector *connector;
 	struct device *dev;
-	struct device_link *link;
 
 	const struct drm_panel_funcs *funcs;
 

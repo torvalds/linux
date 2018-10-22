@@ -19,6 +19,10 @@ Required properties:
 
 Optional properties:
 
+  - clocks, clock-names: Clock specifier for XTI input clock.
+	If specified, the clock will be enabled when the codec is probed,
+	and disabled when it is removed. The 'clock-names' must be set to 'xti'.
+
   -  st,output-conf: number, Selects the output configuration:
 	0: 2-channel (full-bridge) power, 2-channel data-out
 	1: 2 (half-bridge). 1 (full-bridge) on-board power
@@ -38,6 +42,9 @@ Optional properties:
 
   -  st,thermal-warning-recover:
 	If present, thermal warning recovery is enabled.
+
+  - st,fault-detect-recovery:
+	If present, fault detect recovery is enabled.
 
   -  st,thermal-warning-adjustment:
 	If present, thermal warning adjustment is enabled.
@@ -76,6 +83,8 @@ Example:
 codec: sta32x@38 {
 	compatible = "st,sta32x";
 	reg = <0x1c>;
+	clocks = <&clock>;
+	clock-names = "xti";
 	reset-gpios = <&gpio1 19 0>;
 	power-down-gpios = <&gpio1 16 0>;
 	st,output-conf = /bits/ 8  <0x3>;	// set output to 2-channel

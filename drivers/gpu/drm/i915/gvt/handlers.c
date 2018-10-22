@@ -1296,6 +1296,19 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
+static int gen9_dbuf_ctl_mmio_write(struct intel_vgpu *vgpu,
+		unsigned int offset, void *p_data, unsigned int bytes)
+{
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (vgpu_vreg(vgpu, offset) & DBUF_POWER_REQUEST)
+		vgpu_vreg(vgpu, offset) |= DBUF_POWER_STATE;
+	else
+		vgpu_vreg(vgpu, offset) &= ~DBUF_POWER_STATE;
+
+	return 0;
+}
+
 static int fpga_dbg_mmio_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
@@ -1525,9 +1538,15 @@ static int bxt_phy_ctl_family_write(struct intel_vgpu *vgpu,
 	u32 v = *(u32 *)p_data;
 	u32 data = v & COMMON_RESET_DIS ? BXT_PHY_LANE_ENABLED : 0;
 
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
-	vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+	switch (offset) {
+	case _PHY_CTL_FAMILY_EDP:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_A) = data;
+		break;
+	case _PHY_CTL_FAMILY_DDI:
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_B) = data;
+		vgpu_vreg(vgpu, _BXT_PHY_CTL_DDI_C) = data;
+		break;
+	}
 
 	vgpu_vreg(vgpu, offset) = v;
 
@@ -2812,6 +2831,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(SKL_DISP_PW_MISC_IO), D_SKL_PLUS, NULL,
 		skl_power_well_ctl_write);
 
+	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
+
 	MMIO_D(_MMIO(0xa210), D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
 	MMIO_D(GEN9_RENDER_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -2987,8 +3008,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 		NULL, gen9_trtte_write);
 	MMIO_DH(_MMIO(0x4dfc), D_SKL_PLUS, NULL, gen9_trtt_chicken_write);
 
-	MMIO_D(_MMIO(0x45008), D_SKL_PLUS);
-
 	MMIO_D(_MMIO(0x46430), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0x46520), D_SKL_PLUS);
@@ -3025,7 +3044,9 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(0x44500), D_SKL_PLUS);
 	MMIO_DFH(GEN9_CSFE_CHICKEN1_RCS, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(GEN8_HDC_CHICKEN1, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
-		NULL, NULL);
+		 NULL, NULL);
+	MMIO_DFH(GEN9_WM_CHICKEN3, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
+		 NULL, NULL);
 
 	MMIO_D(_MMIO(0x4ab8), D_KBL);
 	MMIO_D(_MMIO(0x2248), D_KBL | D_SKL);
@@ -3189,6 +3210,7 @@ static int init_bxt_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(BXT_DSI_PLL_ENABLE, D_BXT);
 
 	MMIO_D(GEN9_CLKGATE_DIS_0, D_BXT);
+	MMIO_D(GEN9_CLKGATE_DIS_4, D_BXT);
 
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_A), D_BXT);
 	MMIO_D(HSW_TVIDEO_DIP_GCP(TRANSCODER_B), D_BXT);

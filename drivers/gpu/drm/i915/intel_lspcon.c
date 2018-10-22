@@ -74,7 +74,7 @@ static enum drm_lspcon_mode lspcon_wait_mode(struct intel_lspcon *lspcon,
 	DRM_DEBUG_KMS("Waiting for LSPCON mode %s to settle\n",
 		      lspcon_mode_name(mode));
 
-	wait_for((current_mode = lspcon_get_current_mode(lspcon)) == mode, 100);
+	wait_for((current_mode = lspcon_get_current_mode(lspcon)) == mode, 400);
 	if (current_mode != mode)
 		DRM_ERROR("LSPCON mode hasn't settled\n");
 
