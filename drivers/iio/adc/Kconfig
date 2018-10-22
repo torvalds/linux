@@ -116,6 +116,16 @@ config AD7923
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7923.
 
+config AD7949
+	tristate "Analog Devices AD7949 and similar ADCs driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7949, AD7682, AD7689 8 Channel ADCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7949.
+
 config AD799X
 	tristate "Analog Devices AD799x ADC driver"
 	depends on I2C
