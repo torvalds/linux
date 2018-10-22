@@ -1322,7 +1322,7 @@ static int qca_init_regulators(struct qca_power *qca,
 {
 	int i;
 
-	qca->vreg_bulk = devm_kzalloc(qca->dev, num_vregs *
+	qca->vreg_bulk = devm_kcalloc(qca->dev, num_vregs,
 				      sizeof(struct regulator_bulk_data),
 				      GFP_KERNEL);
 	if (!qca->vreg_bulk)

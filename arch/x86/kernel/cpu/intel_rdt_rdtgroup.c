@@ -97,6 +97,12 @@ void rdt_last_cmd_printf(const char *fmt, ...)
  *   limited as the number of resources grows.
  */
 static int closid_free_map;
+static int closid_free_map_len;
+
+int closids_supported(void)
+{
+	return closid_free_map_len;
+}
 
 static void closid_init(void)
 {
@@ -111,6 +117,7 @@ static void closid_init(void)
 
 	/* CLOSID 0 is always reserved for the default group */
 	closid_free_map &= ~1;
+	closid_free_map_len = rdt_min_closid;
 }
 
 static int closid_alloc(void)
@@ -802,7 +809,7 @@ static int rdt_bit_usage_show(struct kernfs_open_file *of,
 		sw_shareable = 0;
 		exclusive = 0;
 		seq_printf(seq, "%d=", dom->id);
-		for (i = 0; i < r->num_closid; i++, ctrl++) {
+		for (i = 0; i < closids_supported(); i++, ctrl++) {
 			if (!closid_allocated(i))
 				continue;
 			mode = rdtgroup_mode_by_closid(i);
@@ -968,33 +975,34 @@ static int rdtgroup_mode_show(struct kernfs_open_file *of,
  * is false then overlaps with any resource group or hardware entities
  * will be considered.
  *
+ * @cbm is unsigned long, even if only 32 bits are used, to make the
+ * bitmap functions work correctly.
+ *
  * Return: false if CBM does not overlap, true if it does.
  */
 bool rdtgroup_cbm_overlaps(struct rdt_resource *r, struct rdt_domain *d,
-			   u32 _cbm, int closid, bool exclusive)
+			   unsigned long cbm, int closid, bool exclusive)
 {
-	unsigned long *cbm = (unsigned long *)&_cbm;
-	unsigned long *ctrl_b;
 	enum rdtgrp_mode mode;
+	unsigned long ctrl_b;
 	u32 *ctrl;
 	int i;
 
 	/* Check for any overlap with regions used by hardware directly */
 	if (!exclusive) {
-		if (bitmap_intersects(cbm,
-				      (unsigned long *)&r->cache.shareable_bits,
-				      r->cache.cbm_len))
+		ctrl_b = r->cache.shareable_bits;
+		if (bitmap_intersects(&cbm, &ctrl_b, r->cache.cbm_len))
 			return true;
 	}
 
 	/* Check for overlap with other resource groups */
 	ctrl = d->ctrl_val;
-	for (i = 0; i < r->num_closid; i++, ctrl++) {
-		ctrl_b = (unsigned long *)ctrl;
+	for (i = 0; i < closids_supported(); i++, ctrl++) {
+		ctrl_b = *ctrl;
 		mode = rdtgroup_mode_by_closid(i);
 		if (closid_allocated(i) && i != closid &&
 		    mode != RDT_MODE_PSEUDO_LOCKSETUP) {
-			if (bitmap_intersects(cbm, ctrl_b, r->cache.cbm_len)) {
+			if (bitmap_intersects(&cbm, &ctrl_b, r->cache.cbm_len)) {
 				if (exclusive) {
 					if (mode == RDT_MODE_EXCLUSIVE)
 						return true;
@@ -1024,14 +1032,25 @@ static bool rdtgroup_mode_test_exclusive(struct rdtgroup *rdtgrp)
 {
 	int closid = rdtgrp->closid;
 	struct rdt_resource *r;
+	bool has_cache = false;
 	struct rdt_domain *d;
 
 	for_each_alloc_enabled_rdt_resource(r) {
+		if (r->rid == RDT_RESOURCE_MBA)
+			continue;
+		has_cache = true;
 		list_for_each_entry(d, &r->domains, list) {
 			if (rdtgroup_cbm_overlaps(r, d, d->ctrl_val[closid],
-						  rdtgrp->closid, false))
+						  rdtgrp->closid, false)) {
+				rdt_last_cmd_puts("schemata overlaps\n");
 				return false;
+			}
 		}
+	}
+
+	if (!has_cache) {
+		rdt_last_cmd_puts("cannot be exclusive without CAT/CDP\n");
+		return false;
 	}
 
 	return true;
@@ -1085,7 +1104,6 @@ static ssize_t rdtgroup_mode_write(struct kernfs_open_file *of,
 		rdtgrp->mode = RDT_MODE_SHAREABLE;
 	} else if (!strcmp(buf, "exclusive")) {
 		if (!rdtgroup_mode_test_exclusive(rdtgrp)) {
-			rdt_last_cmd_printf("schemata overlaps\n");
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1121,15 +1139,18 @@ out:
  * computed by first dividing the total cache size by the CBM length to
  * determine how many bytes each bit in the bitmask represents. The result
  * is multiplied with the number of bits set in the bitmask.
+ *
+ * @cbm is unsigned long, even if only 32 bits are used to make the
+ * bitmap functions work correctly.
  */
 unsigned int rdtgroup_cbm_to_size(struct rdt_resource *r,
-				  struct rdt_domain *d, u32 cbm)
+				  struct rdt_domain *d, unsigned long cbm)
 {
 	struct cpu_cacheinfo *ci;
 	unsigned int size = 0;
 	int num_b, i;
 
-	num_b = bitmap_weight((unsigned long *)&cbm, r->cache.cbm_len);
+	num_b = bitmap_weight(&cbm, r->cache.cbm_len);
 	ci = get_cpu_cacheinfo(cpumask_any(&d->cpu_mask));
 	for (i = 0; i < ci->num_leaves; i++) {
 		if (ci->info_list[i].level == r->cache_level) {
@@ -1155,8 +1176,8 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 	struct rdt_resource *r;
 	struct rdt_domain *d;
 	unsigned int size;
-	bool sep = false;
-	u32 cbm;
+	bool sep;
+	u32 ctrl;
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (!rdtgrp) {
@@ -1174,6 +1195,7 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 	}
 
 	for_each_alloc_enabled_rdt_resource(r) {
+		sep = false;
 		seq_printf(s, "%*s:", max_name_width, r->name);
 		list_for_each_entry(d, &r->domains, list) {
 			if (sep)
@@ -1181,8 +1203,13 @@ static int rdtgroup_size_show(struct kernfs_open_file *of,
 			if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
 				size = 0;
 			} else {
-				cbm = d->ctrl_val[rdtgrp->closid];
-				size = rdtgroup_cbm_to_size(r, d, cbm);
+				ctrl = (!is_mba_sc(r) ?
+						d->ctrl_val[rdtgrp->closid] :
+						d->mbps_val[rdtgrp->closid]);
+				if (r->rid == RDT_RESOURCE_MBA)
+					size = ctrl;
+				else
+					size = rdtgroup_cbm_to_size(r, d, ctrl);
 			}
 			seq_printf(s, "%d=%u", d->id, size);
 			sep = true;
@@ -2330,18 +2357,25 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 	u32 used_b = 0, unused_b = 0;
 	u32 closid = rdtgrp->closid;
 	struct rdt_resource *r;
+	unsigned long tmp_cbm;
 	enum rdtgrp_mode mode;
 	struct rdt_domain *d;
 	int i, ret;
 	u32 *ctrl;
 
 	for_each_alloc_enabled_rdt_resource(r) {
+		/*
+		 * Only initialize default allocations for CBM cache
+		 * resources
+		 */
+		if (r->rid == RDT_RESOURCE_MBA)
+			continue;
 		list_for_each_entry(d, &r->domains, list) {
 			d->have_new_ctrl = false;
 			d->new_ctrl = r->cache.shareable_bits;
 			used_b = r->cache.shareable_bits;
 			ctrl = d->ctrl_val;
-			for (i = 0; i < r->num_closid; i++, ctrl++) {
+			for (i = 0; i < closids_supported(); i++, ctrl++) {
 				if (closid_allocated(i) && i != closid) {
 					mode = rdtgroup_mode_by_closid(i);
 					if (mode == RDT_MODE_PSEUDO_LOCKSETUP)
@@ -2361,9 +2395,14 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 			 * modify the CBM based on system availability.
 			 */
 			cbm_ensure_valid(&d->new_ctrl, r);
-			if (bitmap_weight((unsigned long *) &d->new_ctrl,
-					  r->cache.cbm_len) <
-					r->cache.min_cbm_bits) {
+			/*
+			 * Assign the u32 CBM to an unsigned long to ensure
+			 * that bitmap_weight() does not access out-of-bound
+			 * memory.
+			 */
+			tmp_cbm = d->new_ctrl;
+			if (bitmap_weight(&tmp_cbm, r->cache.cbm_len) <
+			    r->cache.min_cbm_bits) {
 				rdt_last_cmd_printf("no space on %s:%d\n",
 						    r->name, d->id);
 				return -ENOSPC;
@@ -2373,6 +2412,12 @@ static int rdtgroup_init_alloc(struct rdtgroup *rdtgrp)
 	}
 
 	for_each_alloc_enabled_rdt_resource(r) {
+		/*
+		 * Only initialize default allocations for CBM cache
+		 * resources
+		 */
+		if (r->rid == RDT_RESOURCE_MBA)
+			continue;
 		ret = update_domains(r, rdtgrp->closid);
 		if (ret < 0) {
 			rdt_last_cmd_puts("failed to initialize allocations\n");

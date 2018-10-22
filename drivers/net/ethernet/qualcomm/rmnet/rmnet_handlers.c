@@ -113,7 +113,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 	struct sk_buff *skbn;
 
 	if (skb->dev->type == ARPHRD_ETHER) {
-		if (pskb_expand_head(skb, ETH_HLEN, 0, GFP_KERNEL)) {
+		if (pskb_expand_head(skb, ETH_HLEN, 0, GFP_ATOMIC)) {
 			kfree_skb(skb);
 			return;
 		}
@@ -147,7 +147,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	}
 
 	if (skb_headroom(skb) < required_headroom) {
-		if (pskb_expand_head(skb, required_headroom, 0, GFP_KERNEL))
+		if (pskb_expand_head(skb, required_headroom, 0, GFP_ATOMIC))
 			return -ENOMEM;
 	}
 
@@ -188,6 +188,9 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 
 	if (!skb)
 		goto done;
+
+	if (skb->pkt_type == PACKET_LOOPBACK)
+		return RX_HANDLER_PASS;
 
 	dev = skb->dev;
 	port = rmnet_get_port(dev);

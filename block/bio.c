@@ -1684,7 +1684,7 @@ void generic_end_io_acct(struct request_queue *q, int req_op,
 	const int sgrp = op_stat_group(req_op);
 	int cpu = part_stat_lock();
 
-	part_stat_add(cpu, part, ticks[sgrp], duration);
+	part_stat_add(cpu, part, nsecs[sgrp], jiffies_to_nsecs(duration));
 	part_round_stats(q, cpu, part);
 	part_dec_in_flight(q, part, op_is_write(req_op));
 
@@ -2015,7 +2015,8 @@ int bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg)
 {
 	if (unlikely(bio->bi_blkg))
 		return -EBUSY;
-	blkg_get(blkg);
+	if (!blkg_try_get(blkg))
+		return -ENODEV;
 	bio->bi_blkg = blkg;
 	return 0;
 }

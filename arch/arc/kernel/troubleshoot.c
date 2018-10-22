@@ -83,9 +83,6 @@ done:
 static void show_faulting_vma(unsigned long address, char *buf)
 {
 	struct vm_area_struct *vma;
-	struct inode *inode;
-	unsigned long ino = 0;
-	dev_t dev = 0;
 	char *nm = buf;
 	struct mm_struct *active_mm = current->active_mm;
 
@@ -99,12 +96,10 @@ static void show_faulting_vma(unsigned long address, char *buf)
 	 * if the container VMA is not found
 	 */
 	if (vma && (vma->vm_start <= address)) {
-		struct file *file = vma->vm_file;
-		if (file) {
-			nm = file_path(file, buf, PAGE_SIZE - 1);
-			inode = file_inode(vma->vm_file);
-			dev = inode->i_sb->s_dev;
-			ino = inode->i_ino;
+		if (vma->vm_file) {
+			nm = file_path(vma->vm_file, buf, PAGE_SIZE - 1);
+			if (IS_ERR(nm))
+				nm = "?";
 		}
 		pr_info("    @off 0x%lx in [%s]\n"
 			"    VMA: 0x%08lx to 0x%08lx\n",

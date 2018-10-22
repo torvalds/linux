@@ -242,7 +242,7 @@ struct afs_net {
 	seqlock_t		cells_lock;
 
 	struct mutex		proc_cells_lock;
-	struct list_head	proc_cells;
+	struct hlist_head	proc_cells;
 
 	/* Known servers.  Theoretically each fileserver can only be in one
 	 * cell, but in practice, people create aliases and subsets and there's
@@ -320,7 +320,7 @@ struct afs_cell {
 	struct afs_net		*net;
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
 	struct work_struct	manager;	/* Manager for init/deinit/dns */
-	struct list_head	proc_link;	/* /proc cell list link */
+	struct hlist_node	proc_link;	/* /proc cell list link */
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_cookie	*cache;		/* caching cookie */
 #endif

@@ -249,6 +249,17 @@ static u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
  */
 static const u64 shadow_nonpresent_or_rsvd_mask_len = 5;
 
+/*
+ * In some cases, we need to preserve the GFN of a non-present or reserved
+ * SPTE when we usurp the upper five bits of the physical address space to
+ * defend against L1TF, e.g. for MMIO SPTEs.  To preserve the GFN, we'll
+ * shift bits of the GFN that overlap with shadow_nonpresent_or_rsvd_mask
+ * left into the reserved bits, i.e. the GFN in the SPTE will be split into
+ * high and low parts.  This mask covers the lower bits of the GFN.
+ */
+static u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
+
+
 static void mmu_spte_set(u64 *sptep, u64 spte);
 static union kvm_mmu_page_role
 kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu);
@@ -357,9 +368,7 @@ static bool is_mmio_spte(u64 spte)
 
 static gfn_t get_mmio_spte_gfn(u64 spte)
 {
-	u64 mask = generation_mmio_spte_mask(MMIO_GEN_MASK) | shadow_mmio_mask |
-		   shadow_nonpresent_or_rsvd_mask;
-	u64 gpa = spte & ~mask;
+	u64 gpa = spte & shadow_nonpresent_or_rsvd_lower_gfn_mask;
 
 	gpa |= (spte >> shadow_nonpresent_or_rsvd_mask_len)
 	       & shadow_nonpresent_or_rsvd_mask;
@@ -423,6 +432,8 @@ EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
 static void kvm_mmu_reset_all_pte_masks(void)
 {
+	u8 low_phys_bits;
+
 	shadow_user_mask = 0;
 	shadow_accessed_mask = 0;
 	shadow_dirty_mask = 0;
@@ -437,12 +448,17 @@ static void kvm_mmu_reset_all_pte_masks(void)
 	 * appropriate mask to guard against L1TF attacks. Otherwise, it is
 	 * assumed that the CPU is not vulnerable to L1TF.
 	 */
+	low_phys_bits = boot_cpu_data.x86_phys_bits;
 	if (boot_cpu_data.x86_phys_bits <
-	    52 - shadow_nonpresent_or_rsvd_mask_len)
+	    52 - shadow_nonpresent_or_rsvd_mask_len) {
 		shadow_nonpresent_or_rsvd_mask =
 			rsvd_bits(boot_cpu_data.x86_phys_bits -
 				  shadow_nonpresent_or_rsvd_mask_len,
 				  boot_cpu_data.x86_phys_bits - 1);
+		low_phys_bits -= shadow_nonpresent_or_rsvd_mask_len;
+	}
+	shadow_nonpresent_or_rsvd_lower_gfn_mask =
+		GENMASK_ULL(low_phys_bits - 1, PAGE_SHIFT);
 }
 
 static int is_cpuid_PSE36(void)
@@ -899,7 +915,7 @@ static void walk_shadow_page_lockless_end(struct kvm_vcpu *vcpu)
 {
 	/*
 	 * Make sure the write to vcpu->mode is not reordered in front of
-	 * reads to sptes.  If it does, kvm_commit_zap_page() can see us
+	 * reads to sptes.  If it does, kvm_mmu_commit_zap_page() can see us
 	 * OUTSIDE_GUEST_MODE and proceed to free the shadow page table.
 	 */
 	smp_store_release(&vcpu->mode, OUTSIDE_GUEST_MODE);
@@ -1851,11 +1867,6 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 					 unsigned long data))
 {
 	return kvm_handle_hva_range(kvm, hva, hva + 1, data, handler);
-}
-
-int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
-{
-	return kvm_handle_hva(kvm, hva, 0, kvm_unmap_rmapp);
 }
 
 int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
@@ -5217,7 +5228,7 @@ static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 		       void *insn, int insn_len)
 {
-	int r, emulation_type = EMULTYPE_RETRY;
+	int r, emulation_type = 0;
 	enum emulation_result er;
 	bool direct = vcpu->arch.mmu.direct_map;
 
@@ -5230,10 +5241,8 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 	r = RET_PF_INVALID;
 	if (unlikely(error_code & PFERR_RSVD_MASK)) {
 		r = handle_mmio_page_fault(vcpu, cr2, direct);
-		if (r == RET_PF_EMULATE) {
-			emulation_type = 0;
+		if (r == RET_PF_EMULATE)
 			goto emulate;
-		}
 	}
 
 	if (r == RET_PF_INVALID) {
@@ -5260,8 +5269,19 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 		return 1;
 	}
 
-	if (mmio_info_in_cache(vcpu, cr2, direct))
-		emulation_type = 0;
+	/*
+	 * vcpu->arch.mmu.page_fault returned RET_PF_EMULATE, but we can still
+	 * optimistically try to just unprotect the page and let the processor
+	 * re-execute the instruction that caused the page fault.  Do not allow
+	 * retrying MMIO emulation, as it's not only pointless but could also
+	 * cause us to enter an infinite loop because the processor will keep
+	 * faulting on the non-existent MMIO address.  Retrying an instruction
+	 * from a nested guest is also pointless and dangerous as we are only
+	 * explicitly shadowing L1's page tables, i.e. unprotecting something
+	 * for L1 isn't going to magically fix whatever issue cause L2 to fail.
+	 */
+	if (!mmio_info_in_cache(vcpu, cr2, direct) && !is_guest_mode(vcpu))
+		emulation_type = EMULTYPE_ALLOW_RETRY;
 emulate:
 	/*
 	 * On AMD platforms, under certain conditions insn_len may be zero on #NPF.
@@ -5413,7 +5433,12 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 {
 	MMU_WARN_ON(VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
-	kvm_init_mmu(vcpu, true);
+	/*
+	 * kvm_mmu_setup() is called only on vCPU initialization.  
+	 * Therefore, no need to reset mmu roots as they are not yet
+	 * initialized.
+	 */
+	kvm_init_mmu(vcpu, false);
 }
 
 static void kvm_mmu_invalidate_zap_pages_in_memslot(struct kvm *kvm,

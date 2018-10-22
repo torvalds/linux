@@ -199,9 +199,11 @@ static struct afs_server *afs_install_server(struct afs_net *net,
 
 	write_sequnlock(&net->fs_addr_lock);
 	ret = 0;
+	goto out;
 
 exists:
 	afs_get_server(server);
+out:
 	write_sequnlock(&net->fs_lock);
 	return server;
 }

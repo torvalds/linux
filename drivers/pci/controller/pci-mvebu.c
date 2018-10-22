@@ -1145,7 +1145,6 @@ static int mvebu_pcie_parse_request_resources(struct mvebu_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
 	struct device_node *np = dev->of_node;
-	unsigned int i;
 	int ret;
 
 	INIT_LIST_HEAD(&pcie->resources);
@@ -1179,13 +1178,58 @@ static int mvebu_pcie_parse_request_resources(struct mvebu_pcie *pcie)
 					 resource_size(&pcie->io) - 1);
 		pcie->realio.name = "PCI I/O";
 
-		for (i = 0; i < resource_size(&pcie->realio); i += SZ_64K)
-			pci_ioremap_io(i, pcie->io.start + i);
-
 		pci_add_resource(&pcie->resources, &pcie->realio);
 	}
 
 	return devm_request_pci_bus_resources(dev, &pcie->resources);
+}
+
+/*
+ * This is a copy of pci_host_probe(), except that it does the I/O
+ * remap as the last step, once we are sure we won't fail.
+ *
+ * It should be removed once the I/O remap error handling issue has
+ * been sorted out.
+ */
+static int mvebu_pci_host_probe(struct pci_host_bridge *bridge)
+{
+	struct mvebu_pcie *pcie;
+	struct pci_bus *bus, *child;
+	int ret;
+
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0) {
+		dev_err(bridge->dev.parent, "Scanning root bridge failed");
+		return ret;
+	}
+
+	pcie = pci_host_bridge_priv(bridge);
+	if (resource_size(&pcie->io) != 0) {
+		unsigned int i;
+
+		for (i = 0; i < resource_size(&pcie->realio); i += SZ_64K)
+			pci_ioremap_io(i, pcie->io.start + i);
+	}
+
+	bus = bridge->bus;
+
+	/*
+	 * We insert PCI resources into the iomem_resource and
+	 * ioport_resource trees in either pci_bus_claim_resources()
+	 * or pci_bus_assign_resources().
+	 */
+	if (pci_has_flag(PCI_PROBE_ONLY)) {
+		pci_bus_claim_resources(bus);
+	} else {
+		pci_bus_size_bridges(bus);
+		pci_bus_assign_resources(bus);
+
+		list_for_each_entry(child, &bus->children, node)
+			pcie_bus_configure_settings(child);
+	}
+
+	pci_bus_add_devices(bus);
+	return 0;
 }
 
 static int mvebu_pcie_probe(struct platform_device *pdev)
@@ -1268,7 +1312,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	bridge->align_resource = mvebu_pcie_align_resource;
 	bridge->msi = pcie->msi;
 
-	return pci_host_probe(bridge);
+	return mvebu_pci_host_probe(bridge);
 }
 
 static const struct of_device_id mvebu_pcie_of_match_table[] = {

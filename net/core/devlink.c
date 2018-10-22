@@ -2592,7 +2592,7 @@ send_done:
 	if (!nlh) {
 		err = devlink_dpipe_send_and_alloc_skb(&skb, info);
 		if (err)
-			goto err_skb_send_alloc;
+			return err;
 		goto send_done;
 	}
 	return genlmsg_reply(skb, info);
@@ -2600,7 +2600,6 @@ send_done:
 nla_put_failure:
 	err = -EMSGSIZE;
 err_resource_put:
-err_skb_send_alloc:
 	nlmsg_free(skb);
 	return err;
 }
@@ -2996,6 +2995,8 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 				  struct genl_info *info,
 				  union devlink_param_value *value)
 {
+	int len;
+
 	if (param->type != DEVLINK_PARAM_TYPE_BOOL &&
 	    !info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA])
 		return -EINVAL;
@@ -3011,10 +3012,13 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 		value->vu32 = nla_get_u32(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
-		if (nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]) >
-		    DEVLINK_PARAM_MAX_STRING_VALUE)
+		len = strnlen(nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]),
+			      nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]));
+		if (len == nla_len(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]) ||
+		    len >= __DEVLINK_PARAM_MAX_STRING_VALUE)
 			return -EINVAL;
-		value->vstr = nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]);
+		strcpy(value->vstr,
+		       nla_data(info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA]));
 		break;
 	case DEVLINK_PARAM_TYPE_BOOL:
 		value->vbool = info->attrs[DEVLINK_ATTR_PARAM_VALUE_DATA] ?
@@ -3101,7 +3105,10 @@ static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	if (cmode == DEVLINK_PARAM_CMODE_DRIVERINIT) {
-		param_item->driverinit_value = value;
+		if (param->type == DEVLINK_PARAM_TYPE_STRING)
+			strcpy(param_item->driverinit_value.vstr, value.vstr);
+		else
+			param_item->driverinit_value = value;
 		param_item->driverinit_value_valid = true;
 	} else {
 		if (!param->set)
@@ -4541,7 +4548,10 @@ int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 					      DEVLINK_PARAM_CMODE_DRIVERINIT))
 		return -EOPNOTSUPP;
 
-	*init_val = param_item->driverinit_value;
+	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
+		strcpy(init_val->vstr, param_item->driverinit_value.vstr);
+	else
+		*init_val = param_item->driverinit_value;
 
 	return 0;
 }
@@ -4572,7 +4582,10 @@ int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
 					      DEVLINK_PARAM_CMODE_DRIVERINIT))
 		return -EOPNOTSUPP;
 
-	param_item->driverinit_value = init_val;
+	if (param_item->param->type == DEVLINK_PARAM_TYPE_STRING)
+		strcpy(param_item->driverinit_value.vstr, init_val.vstr);
+	else
+		param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
 
 	devlink_param_notify(devlink, param_item, DEVLINK_CMD_PARAM_NEW);
@@ -4603,6 +4616,23 @@ void devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 	devlink_param_notify(devlink, param_item, DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_param_value_changed);
+
+/**
+ *	devlink_param_value_str_fill - Safely fill-up the string preventing
+ *				       from overflow of the preallocated buffer
+ *
+ *	@dst_val: destination devlink_param_value
+ *	@src: source buffer
+ */
+void devlink_param_value_str_fill(union devlink_param_value *dst_val,
+				  const char *src)
+{
+	size_t len;
+
+	len = strlcpy(dst_val->vstr, src, __DEVLINK_PARAM_MAX_STRING_VALUE);
+	WARN_ON(len >= __DEVLINK_PARAM_MAX_STRING_VALUE);
+}
+EXPORT_SYMBOL_GPL(devlink_param_value_str_fill);
 
 /**
  *	devlink_region_create - create a new address region

@@ -173,10 +173,22 @@ int asoc_simple_card_parse_clk(struct device *dev,
 			       struct device_node *node,
 			       struct device_node *dai_of_node,
 			       struct asoc_simple_dai *simple_dai,
-			       const char *name)
+			       const char *dai_name,
+			       struct snd_soc_dai_link_component *dlc)
 {
 	struct clk *clk;
 	u32 val;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_of_node	= dlc->of_node;
+		dai_name	= dlc->dai_name;
+	}
 
 	/*
 	 * Parse dai->sysclk come from "clocks = <&xxx>"
@@ -200,7 +212,7 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	if (of_property_read_bool(node, "system-clock-direction-out"))
 		simple_dai->clk_direction = SND_SOC_CLOCK_OUT;
 
-	dev_dbg(dev, "%s : sysclk = %d, direction %d\n", name,
+	dev_dbg(dev, "%s : sysclk = %d, direction %d\n", dai_name,
 		simple_dai->sysclk, simple_dai->clk_direction);
 
 	return 0;
@@ -208,6 +220,7 @@ int asoc_simple_card_parse_clk(struct device *dev,
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_clk);
 
 int asoc_simple_card_parse_dai(struct device_node *node,
+				    struct snd_soc_dai_link_component *dlc,
 				    struct device_node **dai_of_node,
 				    const char **dai_name,
 				    const char *list_name,
@@ -219,6 +232,17 @@ int asoc_simple_card_parse_dai(struct device_node *node,
 
 	if (!node)
 		return 0;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_name	= &dlc->dai_name;
+		dai_of_node	= &dlc->of_node;
+	}
 
 	/*
 	 * Get node via "sound-dai = <&phandle port>"
@@ -278,12 +302,24 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 }
 
 int asoc_simple_card_parse_graph_dai(struct device_node *ep,
+				     struct snd_soc_dai_link_component *dlc,
 				     struct device_node **dai_of_node,
 				     const char **dai_name)
 {
 	struct device_node *node;
 	struct of_phandle_args args;
 	int ret;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_name	= &dlc->dai_name;
+		dai_of_node	= &dlc->of_node;
+	}
 
 	if (!ep)
 		return 0;
@@ -340,10 +376,11 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
 int asoc_simple_card_canonicalize_dailink(struct snd_soc_dai_link *dai_link)
 {
 	/* Assumes platform == cpu */
-	if (!dai_link->platform_of_node)
-		dai_link->platform_of_node = dai_link->cpu_of_node;
+	if (!dai_link->platform->of_node)
+		dai_link->platform->of_node = dai_link->cpu_of_node;
 
 	return 0;
+
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_dailink);
 
@@ -367,13 +404,11 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_canonicalize_cpu);
 int asoc_simple_card_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
-	int num_links;
+	int i;
 
-	for (num_links = 0, dai_link = card->dai_link;
-	     num_links < card->num_links;
-	     num_links++, dai_link++) {
+	for_each_card_prelinks(card, i, dai_link) {
 		of_node_put(dai_link->cpu_of_node);
-		of_node_put(dai_link->codec_of_node);
+		of_node_put(dai_link->codecs->of_node);
 	}
 	return 0;
 }

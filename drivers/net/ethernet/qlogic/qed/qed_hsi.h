@@ -11987,6 +11987,7 @@ struct public_global {
 	u32 running_bundle_id;
 	s32 external_temperature;
 	u32 mdump_reason;
+	u64 reserved;
 	u32 data_ptr;
 	u32 data_size;
 };
@@ -12414,6 +12415,7 @@ struct public_drv_mb {
 #define DRV_MSG_SET_RESOURCE_VALUE_MSG		0x35000000
 #define DRV_MSG_CODE_OV_UPDATE_WOL              0x38000000
 #define DRV_MSG_CODE_OV_UPDATE_ESWITCH_MODE     0x39000000
+#define DRV_MSG_CODE_GET_OEM_UPDATES            0x41000000
 
 #define DRV_MSG_CODE_BW_UPDATE_ACK		0x32000000
 #define DRV_MSG_CODE_NIG_DRAIN			0x30000000
@@ -12540,6 +12542,9 @@ struct public_drv_mb {
 #define DRV_MB_PARAM_ESWITCH_MODE_NONE	0x0
 #define DRV_MB_PARAM_ESWITCH_MODE_VEB	0x1
 #define DRV_MB_PARAM_ESWITCH_MODE_VEPA	0x2
+
+#define DRV_MB_PARAM_DUMMY_OEM_UPDATES_MASK	0x1
+#define DRV_MB_PARAM_DUMMY_OEM_UPDATES_OFFSET	0
 
 #define DRV_MB_PARAM_SET_LED_MODE_OPER		0x0
 #define DRV_MB_PARAM_SET_LED_MODE_ON		0x1

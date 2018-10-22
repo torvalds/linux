@@ -172,7 +172,7 @@ void __init cf_bootmem_alloc(void)
 	high_memory = (void *)_ramend;
 
 	/* Reserve kernel text/data/bss */
-	memblock_reserve(memstart, memstart - _rambase);
+	memblock_reserve(_rambase, memstart - _rambase);
 
 	m68k_virt_to_node_shift = fls(_ramend - 1) - 6;
 	module_fixup(NULL, __start_fixup, __stop_fixup);

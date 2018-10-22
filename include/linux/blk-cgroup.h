@@ -56,6 +56,7 @@ struct blkcg {
 	struct list_head		all_blkcgs_node;
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct list_head		cgwb_list;
+	refcount_t			cgwb_refcnt;
 #endif
 };
 
@@ -89,7 +90,6 @@ struct blkg_policy_data {
 	/* the blkg and policy id this per-policy data belongs to */
 	struct blkcg_gq			*blkg;
 	int				plid;
-	bool				offline;
 };
 
 /*
@@ -386,6 +386,49 @@ static inline struct blkcg *cpd_to_blkcg(struct blkcg_policy_data *cpd)
 {
 	return cpd ? cpd->blkcg : NULL;
 }
+
+extern void blkcg_destroy_blkgs(struct blkcg *blkcg);
+
+#ifdef CONFIG_CGROUP_WRITEBACK
+
+/**
+ * blkcg_cgwb_get - get a reference for blkcg->cgwb_list
+ * @blkcg: blkcg of interest
+ *
+ * This is used to track the number of active wb's related to a blkcg.
+ */
+static inline void blkcg_cgwb_get(struct blkcg *blkcg)
+{
+	refcount_inc(&blkcg->cgwb_refcnt);
+}
+
+/**
+ * blkcg_cgwb_put - put a reference for @blkcg->cgwb_list
+ * @blkcg: blkcg of interest
+ *
+ * This is used to track the number of active wb's related to a blkcg.
+ * When this count goes to zero, all active wb has finished so the
+ * blkcg can continue destruction by calling blkcg_destroy_blkgs().
+ * This work may occur in cgwb_release_workfn() on the cgwb_release
+ * workqueue.
+ */
+static inline void blkcg_cgwb_put(struct blkcg *blkcg)
+{
+	if (refcount_dec_and_test(&blkcg->cgwb_refcnt))
+		blkcg_destroy_blkgs(blkcg);
+}
+
+#else
+
+static inline void blkcg_cgwb_get(struct blkcg *blkcg) { }
+
+static inline void blkcg_cgwb_put(struct blkcg *blkcg)
+{
+	/* wb isn't being accounted, so trigger destruction right away */
+	blkcg_destroy_blkgs(blkcg);
+}
+
+#endif
 
 /**
  * blkg_path - format cgroup path of blkg

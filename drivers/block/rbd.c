@@ -4207,11 +4207,13 @@ static ssize_t rbd_parent_show(struct device *dev,
 
 		count += sprintf(&buf[count], "%s"
 			    "pool_id %llu\npool_name %s\n"
+			    "pool_ns %s\n"
 			    "image_id %s\nimage_name %s\n"
 			    "snap_id %llu\nsnap_name %s\n"
 			    "overlap %llu\n",
 			    !count ? "" : "\n", /* first? */
 			    spec->pool_id, spec->pool_name,
+			    spec->pool_ns ?: "",
 			    spec->image_id, spec->image_name ?: "(unknown)",
 			    spec->snap_id, spec->snap_name,
 			    rbd_dev->parent_overlap);
@@ -4584,47 +4586,177 @@ static int rbd_dev_v2_features(struct rbd_device *rbd_dev)
 						&rbd_dev->header.features);
 }
 
+struct parent_image_info {
+	u64		pool_id;
+	const char	*pool_ns;
+	const char	*image_id;
+	u64		snap_id;
+
+	bool		has_overlap;
+	u64		overlap;
+};
+
+/*
+ * The caller is responsible for @pii.
+ */
+static int decode_parent_image_spec(void **p, void *end,
+				    struct parent_image_info *pii)
+{
+	u8 struct_v;
+	u32 struct_len;
+	int ret;
+
+	ret = ceph_start_decoding(p, end, 1, "ParentImageSpec",
+				  &struct_v, &struct_len);
+	if (ret)
+		return ret;
+
+	ceph_decode_64_safe(p, end, pii->pool_id, e_inval);
+	pii->pool_ns = ceph_extract_encoded_string(p, end, NULL, GFP_KERNEL);
+	if (IS_ERR(pii->pool_ns)) {
+		ret = PTR_ERR(pii->pool_ns);
+		pii->pool_ns = NULL;
+		return ret;
+	}
+	pii->image_id = ceph_extract_encoded_string(p, end, NULL, GFP_KERNEL);
+	if (IS_ERR(pii->image_id)) {
+		ret = PTR_ERR(pii->image_id);
+		pii->image_id = NULL;
+		return ret;
+	}
+	ceph_decode_64_safe(p, end, pii->snap_id, e_inval);
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
+static int __get_parent_info(struct rbd_device *rbd_dev,
+			     struct page *req_page,
+			     struct page *reply_page,
+			     struct parent_image_info *pii)
+{
+	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	size_t reply_len = PAGE_SIZE;
+	void *p, *end;
+	int ret;
+
+	ret = ceph_osdc_call(osdc, &rbd_dev->header_oid, &rbd_dev->header_oloc,
+			     "rbd", "parent_get", CEPH_OSD_FLAG_READ,
+			     req_page, sizeof(u64), reply_page, &reply_len);
+	if (ret)
+		return ret == -EOPNOTSUPP ? 1 : ret;
+
+	p = page_address(reply_page);
+	end = p + reply_len;
+	ret = decode_parent_image_spec(&p, end, pii);
+	if (ret)
+		return ret;
+
+	ret = ceph_osdc_call(osdc, &rbd_dev->header_oid, &rbd_dev->header_oloc,
+			     "rbd", "parent_overlap_get", CEPH_OSD_FLAG_READ,
+			     req_page, sizeof(u64), reply_page, &reply_len);
+	if (ret)
+		return ret;
+
+	p = page_address(reply_page);
+	end = p + reply_len;
+	ceph_decode_8_safe(&p, end, pii->has_overlap, e_inval);
+	if (pii->has_overlap)
+		ceph_decode_64_safe(&p, end, pii->overlap, e_inval);
+
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
+/*
+ * The caller is responsible for @pii.
+ */
+static int __get_parent_info_legacy(struct rbd_device *rbd_dev,
+				    struct page *req_page,
+				    struct page *reply_page,
+				    struct parent_image_info *pii)
+{
+	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	size_t reply_len = PAGE_SIZE;
+	void *p, *end;
+	int ret;
+
+	ret = ceph_osdc_call(osdc, &rbd_dev->header_oid, &rbd_dev->header_oloc,
+			     "rbd", "get_parent", CEPH_OSD_FLAG_READ,
+			     req_page, sizeof(u64), reply_page, &reply_len);
+	if (ret)
+		return ret;
+
+	p = page_address(reply_page);
+	end = p + reply_len;
+	ceph_decode_64_safe(&p, end, pii->pool_id, e_inval);
+	pii->image_id = ceph_extract_encoded_string(&p, end, NULL, GFP_KERNEL);
+	if (IS_ERR(pii->image_id)) {
+		ret = PTR_ERR(pii->image_id);
+		pii->image_id = NULL;
+		return ret;
+	}
+	ceph_decode_64_safe(&p, end, pii->snap_id, e_inval);
+	pii->has_overlap = true;
+	ceph_decode_64_safe(&p, end, pii->overlap, e_inval);
+
+	return 0;
+
+e_inval:
+	return -EINVAL;
+}
+
+static int get_parent_info(struct rbd_device *rbd_dev,
+			   struct parent_image_info *pii)
+{
+	struct page *req_page, *reply_page;
+	void *p;
+	int ret;
+
+	req_page = alloc_page(GFP_KERNEL);
+	if (!req_page)
+		return -ENOMEM;
+
+	reply_page = alloc_page(GFP_KERNEL);
+	if (!reply_page) {
+		__free_page(req_page);
+		return -ENOMEM;
+	}
+
+	p = page_address(req_page);
+	ceph_encode_64(&p, rbd_dev->spec->snap_id);
+	ret = __get_parent_info(rbd_dev, req_page, reply_page, pii);
+	if (ret > 0)
+		ret = __get_parent_info_legacy(rbd_dev, req_page, reply_page,
+					       pii);
+
+	__free_page(req_page);
+	__free_page(reply_page);
+	return ret;
+}
+
 static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 {
 	struct rbd_spec *parent_spec;
-	size_t size;
-	void *reply_buf = NULL;
-	__le64 snapid;
-	void *p;
-	void *end;
-	u64 pool_id;
-	char *image_id;
-	u64 snap_id;
-	u64 overlap;
+	struct parent_image_info pii = { 0 };
 	int ret;
 
 	parent_spec = rbd_spec_alloc();
 	if (!parent_spec)
 		return -ENOMEM;
 
-	size = sizeof (__le64) +				/* pool_id */
-		sizeof (__le32) + RBD_IMAGE_ID_LEN_MAX +	/* image_id */
-		sizeof (__le64) +				/* snap_id */
-		sizeof (__le64);				/* overlap */
-	reply_buf = kmalloc(size, GFP_KERNEL);
-	if (!reply_buf) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
-
-	snapid = cpu_to_le64(rbd_dev->spec->snap_id);
-	ret = rbd_obj_method_sync(rbd_dev, &rbd_dev->header_oid,
-				  &rbd_dev->header_oloc, "get_parent",
-				  &snapid, sizeof(snapid), reply_buf, size);
-	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
-	if (ret < 0)
+	ret = get_parent_info(rbd_dev, &pii);
+	if (ret)
 		goto out_err;
 
-	p = reply_buf;
-	end = reply_buf + ret;
-	ret = -ERANGE;
-	ceph_decode_64_safe(&p, end, pool_id, out_err);
-	if (pool_id == CEPH_NOPOOL) {
+	dout("%s pool_id %llu pool_ns %s image_id %s snap_id %llu has_overlap %d overlap %llu\n",
+	     __func__, pii.pool_id, pii.pool_ns, pii.image_id, pii.snap_id,
+	     pii.has_overlap, pii.overlap);
+
+	if (pii.pool_id == CEPH_NOPOOL || !pii.has_overlap) {
 		/*
 		 * Either the parent never existed, or we have
 		 * record of it but the image got flattened so it no
@@ -4633,6 +4765,10 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 		 * overlap to 0.  The effect of this is that all new
 		 * requests will be treated as if the image had no
 		 * parent.
+		 *
+		 * If !pii.has_overlap, the parent image spec is not
+		 * applicable.  It's there to avoid duplication in each
+		 * snapshot record.
 		 */
 		if (rbd_dev->parent_overlap) {
 			rbd_dev->parent_overlap = 0;
@@ -4647,19 +4783,11 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	/* The ceph file layout needs to fit pool id in 32 bits */
 
 	ret = -EIO;
-	if (pool_id > (u64)U32_MAX) {
+	if (pii.pool_id > (u64)U32_MAX) {
 		rbd_warn(NULL, "parent pool id too large (%llu > %u)",
-			(unsigned long long)pool_id, U32_MAX);
+			(unsigned long long)pii.pool_id, U32_MAX);
 		goto out_err;
 	}
-
-	image_id = ceph_extract_encoded_string(&p, end, NULL, GFP_KERNEL);
-	if (IS_ERR(image_id)) {
-		ret = PTR_ERR(image_id);
-		goto out_err;
-	}
-	ceph_decode_64_safe(&p, end, snap_id, out_err);
-	ceph_decode_64_safe(&p, end, overlap, out_err);
 
 	/*
 	 * The parent won't change (except when the clone is
@@ -4667,31 +4795,24 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	 * record the parent spec we have not already done so.
 	 */
 	if (!rbd_dev->parent_spec) {
-		parent_spec->pool_id = pool_id;
-		parent_spec->image_id = image_id;
-		parent_spec->snap_id = snap_id;
-
-		/* TODO: support cloning across namespaces */
-		if (rbd_dev->spec->pool_ns) {
-			parent_spec->pool_ns = kstrdup(rbd_dev->spec->pool_ns,
-						       GFP_KERNEL);
-			if (!parent_spec->pool_ns) {
-				ret = -ENOMEM;
-				goto out_err;
-			}
+		parent_spec->pool_id = pii.pool_id;
+		if (pii.pool_ns && *pii.pool_ns) {
+			parent_spec->pool_ns = pii.pool_ns;
+			pii.pool_ns = NULL;
 		}
+		parent_spec->image_id = pii.image_id;
+		pii.image_id = NULL;
+		parent_spec->snap_id = pii.snap_id;
 
 		rbd_dev->parent_spec = parent_spec;
 		parent_spec = NULL;	/* rbd_dev now owns this */
-	} else {
-		kfree(image_id);
 	}
 
 	/*
 	 * We always update the parent overlap.  If it's zero we issue
 	 * a warning, as we will proceed as if there was no parent.
 	 */
-	if (!overlap) {
+	if (!pii.overlap) {
 		if (parent_spec) {
 			/* refresh, careful to warn just once */
 			if (rbd_dev->parent_overlap)
@@ -4702,14 +4823,14 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 			rbd_warn(rbd_dev, "clone is standalone (overlap 0)");
 		}
 	}
-	rbd_dev->parent_overlap = overlap;
+	rbd_dev->parent_overlap = pii.overlap;
 
 out:
 	ret = 0;
 out_err:
-	kfree(reply_buf);
+	kfree(pii.pool_ns);
+	kfree(pii.image_id);
 	rbd_spec_put(parent_spec);
-
 	return ret;
 }
 

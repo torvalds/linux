@@ -2067,7 +2067,7 @@ static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
-	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+	if (!drm_drv_uses_atomic_modeset(dev))
 		return;
 
 	list_for_each_entry(plane, &config->plane_list, head) {

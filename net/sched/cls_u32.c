@@ -398,6 +398,7 @@ static int u32_init(struct tcf_proto *tp)
 	rcu_assign_pointer(tp_c->hlist, root_ht);
 	root_ht->tp_c = tp_c;
 
+	root_ht->refcnt++;
 	rcu_assign_pointer(tp->root, root_ht);
 	tp->data = tp_c;
 	return 0;
@@ -610,7 +611,7 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 	struct tc_u_hnode __rcu **hn;
 	struct tc_u_hnode *phn;
 
-	WARN_ON(ht->refcnt);
+	WARN_ON(--ht->refcnt);
 
 	u32_clear_hnode(tp, ht, extack);
 
@@ -649,7 +650,7 @@ static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 
 	WARN_ON(root_ht == NULL);
 
-	if (root_ht && --root_ht->refcnt == 0)
+	if (root_ht && --root_ht->refcnt == 1)
 		u32_destroy_hnode(tp, root_ht, extack);
 
 	if (--tp_c->refcnt == 0) {
@@ -698,7 +699,6 @@ static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
 	}
 
 	if (ht->refcnt == 1) {
-		ht->refcnt--;
 		u32_destroy_hnode(tp, ht, extack);
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Can not delete in-use filter");
@@ -708,11 +708,11 @@ static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
 out:
 	*last = true;
 	if (root_ht) {
-		if (root_ht->refcnt > 1) {
+		if (root_ht->refcnt > 2) {
 			*last = false;
 			goto ret;
 		}
-		if (root_ht->refcnt == 1) {
+		if (root_ht->refcnt == 2) {
 			if (!ht_empty(root_ht)) {
 				*last = false;
 				goto ret;
@@ -914,6 +914,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_U32_MAX + 1];
 	u32 htid, flags = 0;
+	size_t sel_size;
 	int err;
 #ifdef CONFIG_CLS_U32_PERF
 	size_t size;
@@ -1076,8 +1077,13 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	s = nla_data(tb[TCA_U32_SEL]);
+	sel_size = struct_size(s, keys, s->nkeys);
+	if (nla_len(tb[TCA_U32_SEL]) < sel_size) {
+		err = -EINVAL;
+		goto erridr;
+	}
 
-	n = kzalloc(sizeof(*n) + s->nkeys*sizeof(struct tc_u32_key), GFP_KERNEL);
+	n = kzalloc(offsetof(typeof(*n), sel) + sel_size, GFP_KERNEL);
 	if (n == NULL) {
 		err = -ENOBUFS;
 		goto erridr;
@@ -1092,7 +1098,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	}
 #endif
 
-	memcpy(&n->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
+	memcpy(&n->sel, s, sel_size);
 	RCU_INIT_POINTER(n->ht_up, ht);
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;

@@ -2715,10 +2715,12 @@ tpacket_error:
 			}
 		}
 
-		if (po->has_vnet_hdr && virtio_net_hdr_to_skb(skb, vnet_hdr,
-							      vio_le())) {
-			tp_len = -EINVAL;
-			goto tpacket_error;
+		if (po->has_vnet_hdr) {
+			if (virtio_net_hdr_to_skb(skb, vnet_hdr, vio_le())) {
+				tp_len = -EINVAL;
+				goto tpacket_error;
+			}
+			virtio_net_hdr_set_proto(skb, vnet_hdr);
 		}
 
 		skb->destructor = tpacket_destruct_skb;
@@ -2915,6 +2917,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		if (err)
 			goto out_free;
 		len += sizeof(vnet_hdr);
+		virtio_net_hdr_set_proto(skb, &vnet_hdr);
 	}
 
 	skb_probe_transport_header(skb, reserve);
@@ -4137,36 +4140,52 @@ static const struct vm_operations_struct packet_mmap_ops = {
 	.close	=	packet_mm_close,
 };
 
-static void free_pg_vec(struct pgv *pg_vec, unsigned int len)
+static void free_pg_vec(struct pgv *pg_vec, unsigned int order,
+			unsigned int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++) {
 		if (likely(pg_vec[i].buffer)) {
-			kvfree(pg_vec[i].buffer);
+			if (is_vmalloc_addr(pg_vec[i].buffer))
+				vfree(pg_vec[i].buffer);
+			else
+				free_pages((unsigned long)pg_vec[i].buffer,
+					   order);
 			pg_vec[i].buffer = NULL;
 		}
 	}
 	kfree(pg_vec);
 }
 
-static char *alloc_one_pg_vec_page(unsigned long size)
+static char *alloc_one_pg_vec_page(unsigned long order)
 {
 	char *buffer;
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP |
+			  __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY;
 
-	buffer = kvzalloc(size, GFP_KERNEL);
+	buffer = (char *) __get_free_pages(gfp_flags, order);
 	if (buffer)
 		return buffer;
 
-	buffer = kvzalloc(size, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	/* __get_free_pages failed, fall back to vmalloc */
+	buffer = vzalloc(array_size((1 << order), PAGE_SIZE));
+	if (buffer)
+		return buffer;
 
-	return buffer;
+	/* vmalloc failed, lets dig into swap here */
+	gfp_flags &= ~__GFP_NORETRY;
+	buffer = (char *) __get_free_pages(gfp_flags, order);
+	if (buffer)
+		return buffer;
+
+	/* complete and utter failure */
+	return NULL;
 }
 
-static struct pgv *alloc_pg_vec(struct tpacket_req *req)
+static struct pgv *alloc_pg_vec(struct tpacket_req *req, int order)
 {
 	unsigned int block_nr = req->tp_block_nr;
-	unsigned long size = req->tp_block_size;
 	struct pgv *pg_vec;
 	int i;
 
@@ -4175,7 +4194,7 @@ static struct pgv *alloc_pg_vec(struct tpacket_req *req)
 		goto out;
 
 	for (i = 0; i < block_nr; i++) {
-		pg_vec[i].buffer = alloc_one_pg_vec_page(size);
+		pg_vec[i].buffer = alloc_one_pg_vec_page(order);
 		if (unlikely(!pg_vec[i].buffer))
 			goto out_free_pgvec;
 	}
@@ -4184,7 +4203,7 @@ out:
 	return pg_vec;
 
 out_free_pgvec:
-	free_pg_vec(pg_vec, block_nr);
+	free_pg_vec(pg_vec, order, block_nr);
 	pg_vec = NULL;
 	goto out;
 }
@@ -4194,9 +4213,9 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 {
 	struct pgv *pg_vec = NULL;
 	struct packet_sock *po = pkt_sk(sk);
+	int was_running, order = 0;
 	struct packet_ring_buffer *rb;
 	struct sk_buff_head *rb_queue;
-	int was_running;
 	__be16 num;
 	int err = -EINVAL;
 	/* Added to avoid minimal code churn */
@@ -4258,7 +4277,8 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 			goto out;
 
 		err = -ENOMEM;
-		pg_vec = alloc_pg_vec(req);
+		order = get_order(req->tp_block_size);
+		pg_vec = alloc_pg_vec(req, order);
 		if (unlikely(!pg_vec))
 			goto out;
 		switch (po->tp_version) {
@@ -4312,6 +4332,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 		rb->frame_size = req->tp_frame_size;
 		spin_unlock_bh(&rb_queue->lock);
 
+		swap(rb->pg_vec_order, order);
 		swap(rb->pg_vec_len, req->tp_block_nr);
 
 		rb->pg_vec_pages = req->tp_block_size/PAGE_SIZE;
@@ -4337,7 +4358,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 	}
 
 	if (pg_vec)
-		free_pg_vec(pg_vec, req->tp_block_nr);
+		free_pg_vec(pg_vec, order, req->tp_block_nr);
 out:
 	return err;
 }

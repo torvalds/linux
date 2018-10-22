@@ -121,9 +121,9 @@ struct elf32_hdr;
  */
 #define ELF_CLASS	ELFCLASS32
 #ifdef __NDS32_EB__
-#define ELF_DATA	ELFDATA2MSB;
+#define ELF_DATA	ELFDATA2MSB
 #else
-#define ELF_DATA	ELFDATA2LSB;
+#define ELF_DATA	ELFDATA2LSB
 #endif
 #define ELF_ARCH	EM_NDS32
 #define USE_ELF_CORE_DUMP

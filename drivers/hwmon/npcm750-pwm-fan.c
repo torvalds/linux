@@ -908,7 +908,7 @@ static int npcm7xx_en_pwm_fan(struct device *dev,
 	if (fan_cnt < 1)
 		return -EINVAL;
 
-	fan_ch = devm_kzalloc(dev, sizeof(*fan_ch) * fan_cnt, GFP_KERNEL);
+	fan_ch = devm_kcalloc(dev, fan_cnt, sizeof(*fan_ch), GFP_KERNEL);
 	if (!fan_ch)
 		return -ENOMEM;
 

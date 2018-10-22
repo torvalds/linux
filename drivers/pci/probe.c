@@ -2074,6 +2074,7 @@ static void pci_configure_eetlp_prefix(struct pci_dev *dev)
 {
 #ifdef CONFIG_PCI_PASID
 	struct pci_dev *bridge;
+	int pcie_type;
 	u32 cap;
 
 	if (!pci_is_pcie(dev))
@@ -2083,7 +2084,9 @@ static void pci_configure_eetlp_prefix(struct pci_dev *dev)
 	if (!(cap & PCI_EXP_DEVCAP2_EE_PREFIX))
 		return;
 
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
+	pcie_type = pci_pcie_type(dev);
+	if (pcie_type == PCI_EXP_TYPE_ROOT_PORT ||
+	    pcie_type == PCI_EXP_TYPE_RC_END)
 		dev->eetlp_prefix_path = 1;
 	else {
 		bridge = pci_upstream_bridge(dev);

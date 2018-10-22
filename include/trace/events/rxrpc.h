@@ -56,7 +56,6 @@ enum rxrpc_peer_trace {
 	rxrpc_peer_new,
 	rxrpc_peer_processing,
 	rxrpc_peer_put,
-	rxrpc_peer_queued_error,
 };
 
 enum rxrpc_conn_trace {
@@ -257,8 +256,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_peer_got,			"GOT") \
 	EM(rxrpc_peer_new,			"NEW") \
 	EM(rxrpc_peer_processing,		"PRO") \
-	EM(rxrpc_peer_put,			"PUT") \
-	E_(rxrpc_peer_queued_error,		"QER")
+	E_(rxrpc_peer_put,			"PUT")
 
 #define rxrpc_conn_traces \
 	EM(rxrpc_conn_got,			"GOT") \
@@ -933,6 +931,7 @@ TRACE_EVENT(rxrpc_tx_packet,
 	    TP_fast_assign(
 		    __entry->call = call_id;
 		    memcpy(&__entry->whdr, whdr, sizeof(__entry->whdr));
+		    __entry->where = where;
 			   ),
 
 	    TP_printk("c=%08x %08x:%08x:%08x:%04x %08x %08x %02x %02x %s %s",

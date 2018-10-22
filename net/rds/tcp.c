@@ -37,7 +37,6 @@
 #include <net/tcp.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
-#include <net/tcp.h>
 #include <net/addrconf.h>
 
 #include "rds.h"

@@ -187,11 +187,14 @@ static int st_lsm6dsx_set_fifo_odr(struct st_lsm6dsx_sensor *sensor,
 
 int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor, u16 watermark)
 {
-	u16 fifo_watermark = ~0, cur_watermark, sip = 0, fifo_th_mask;
+	u16 fifo_watermark = ~0, cur_watermark, fifo_th_mask;
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	struct st_lsm6dsx_sensor *cur_sensor;
 	int i, err, data;
 	__le16 wdata;
+
+	if (!hw->sip)
+		return 0;
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
 		cur_sensor = iio_priv(hw->iio_devs[i]);
@@ -203,14 +206,10 @@ int st_lsm6dsx_update_watermark(struct st_lsm6dsx_sensor *sensor, u16 watermark)
 						       : cur_sensor->watermark;
 
 		fifo_watermark = min_t(u16, fifo_watermark, cur_watermark);
-		sip += cur_sensor->sip;
 	}
 
-	if (!sip)
-		return 0;
-
-	fifo_watermark = max_t(u16, fifo_watermark, sip);
-	fifo_watermark = (fifo_watermark / sip) * sip;
+	fifo_watermark = max_t(u16, fifo_watermark, hw->sip);
+	fifo_watermark = (fifo_watermark / hw->sip) * hw->sip;
 	fifo_watermark = fifo_watermark * hw->settings->fifo_ops.th_wl;
 
 	err = regmap_read(hw->regmap, hw->settings->fifo_ops.fifo_th.addr + 1,
