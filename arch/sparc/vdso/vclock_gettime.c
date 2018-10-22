@@ -26,13 +26,6 @@
 #include <asm/clocksource.h>
 #include <asm/vvar.h>
 
-#undef	TICK_PRIV_BIT
-#ifdef	CONFIG_SPARC64
-#define	TICK_PRIV_BIT	(1UL << 63)
-#else
-#define	TICK_PRIV_BIT	(1ULL << 63)
-#endif
-
 #ifdef	CONFIG_SPARC64
 #define SYSCALL_STRING							\
 	"ta	0x6d;"							\
@@ -112,7 +105,7 @@ notrace static __always_inline u64 vread_tick(void)
 			     "rd		%%asr24, %0\n\t"
 			     ".popsection\n"
 			     : "=r" (ret));
-	return ret & ~TICK_PRIV_BIT;
+	return ret;
 }
 #else
 notrace static __always_inline u64 vread_tick(void)
