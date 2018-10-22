@@ -547,8 +547,9 @@ static int tegra_bpmp_ping(struct tegra_bpmp *bpmp)
 	return err;
 }
 
-static int tegra_bpmp_get_firmware_tag(struct tegra_bpmp *bpmp, char *tag,
-				       size_t size)
+/* deprecated version of tag query */
+static int tegra_bpmp_get_firmware_tag_old(struct tegra_bpmp *bpmp, char *tag,
+					   size_t size)
 {
 	struct mrq_query_tag_request request;
 	struct tegra_bpmp_message msg;
@@ -583,6 +584,37 @@ static int tegra_bpmp_get_firmware_tag(struct tegra_bpmp *bpmp, char *tag,
 	dma_free_coherent(bpmp->dev, TAG_SZ, virt, phys);
 
 	return err;
+}
+
+static int tegra_bpmp_get_firmware_tag(struct tegra_bpmp *bpmp, char *tag,
+				       size_t size)
+{
+	if (tegra_bpmp_mrq_is_supported(bpmp, MRQ_QUERY_FW_TAG)) {
+		struct mrq_query_fw_tag_response resp;
+		struct tegra_bpmp_message msg = {
+			.mrq = MRQ_QUERY_FW_TAG,
+			.rx = {
+				.data = &resp,
+				.size = sizeof(resp),
+			},
+		};
+		int err;
+
+		if (size != sizeof(resp.tag))
+			return -EINVAL;
+
+		err = tegra_bpmp_transfer(bpmp, &msg);
+
+		if (err)
+			return err;
+		if (msg.rx.ret < 0)
+			return -EINVAL;
+
+		memcpy(tag, resp.tag, sizeof(resp.tag));
+		return 0;
+	}
+
+	return tegra_bpmp_get_firmware_tag_old(bpmp, tag, size);
 }
 
 static void tegra_bpmp_channel_signal(struct tegra_bpmp_channel *channel)
