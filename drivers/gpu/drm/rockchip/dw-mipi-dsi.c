@@ -54,6 +54,8 @@
 #define DSI_DPI_LP_CMD_TIM		0x018
 #define OUTVACT_LPCMD_TIME(x)		UPDATE(x, 23, 16)
 #define INVACT_LPCMD_TIME(x)		UPDATE(x,  7,  0)
+#define DSI_DBI_VCID			0x01c
+#define DBI_VCID(x)			UPDATE(x,  1,  0)
 #define DSI_PCKHDL_CFG			0x02c
 #define CRC_RX_EN			BIT(4)
 #define ECC_RX_EN			BIT(3)
@@ -89,6 +91,8 @@
 #define VFP_LINES(x)			UPDATE(x,  9,  0)
 #define DSI_VID_VACTIVE_LINES		0x060
 #define V_ACTIVE_LINES(x)		UPDATE(x, 13,  0)
+#define DSI_EDPI_CMD_SIZE		0x064
+#define EDPI_ALLOWED_CMD_SIZE(x)	UPDATE(x, 15,  0)
 #define DSI_CMD_MODE_CFG		0x068
 #define MAX_RD_PKT_SIZE			BIT(24)
 #define DCS_LW_TX			BIT(19)
@@ -924,12 +928,23 @@ static const struct mipi_dsi_host_ops dw_mipi_dsi_host_ops = {
 	.transfer = dw_mipi_dsi_host_transfer,
 };
 
-static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_set_vid_mode(struct dw_mipi_dsi *dsi)
 {
+	struct drm_display_mode *mode = &dsi->mode;
+	unsigned int lanebyteclk = dsi->lane_mbps >> 3;
+	unsigned int dpipclk = mode->clock / USEC_PER_MSEC;
+	u32 hline, hsa, hbp, hline_time, hsa_time, hbp_time;
+	u32 vactive, vsa, vfp, vbp;
 	u32 val;
 
 	val = LP_HFP_EN | LP_HBP_EN | LP_VACT_EN | LP_VFP_EN | LP_VBP_EN |
 	      LP_VSA_EN;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HFP)
+		val &= ~LP_HFP_EN;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_HBP)
+		val &= ~LP_HBP_EN;
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
 		val |= VID_MODE_TYPE_BURST;
@@ -939,27 +954,55 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 		val |= VID_MODE_TYPE_NON_BURST_SYNC_EVENTS;
 
 	regmap_write(dsi->regmap, DSI_VID_MODE_CFG, val);
-}
 
-static void dw_mipi_dsi_set_vid_mode(struct dw_mipi_dsi *dsi)
-{
-	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	if (dsi->slave || dsi->master)
+		val = mode->hdisplay / 2;
+	else
+		val = mode->hdisplay;
+
+	regmap_write(dsi->regmap, DSI_VID_PKT_SIZE, VID_PKT_SIZE(val));
+
+	vactive = mode->vdisplay;
+	vsa = mode->vsync_end - mode->vsync_start;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vbp = mode->vtotal - mode->vsync_end;
+	hsa = mode->hsync_end - mode->hsync_start;
+	hbp = mode->htotal - mode->hsync_end;
+	hline = mode->htotal;
+
+	hline_time = DIV_ROUND_CLOSEST_ULL(hline * lanebyteclk, dpipclk);
+	regmap_write(dsi->regmap, DSI_VID_HLINE_TIME,
+		     VID_HLINE_TIME(hline_time));
+	hsa_time = DIV_ROUND_CLOSEST_ULL(hsa * lanebyteclk, dpipclk);
+	regmap_write(dsi->regmap, DSI_VID_HSA_TIME, VID_HSA_TIME(hsa_time));
+	hbp_time = DIV_ROUND_CLOSEST_ULL(hbp * lanebyteclk, dpipclk);
+	regmap_write(dsi->regmap, DSI_VID_HBP_TIME, VID_HBP_TIME(hbp_time));
+
+	regmap_write(dsi->regmap, DSI_VID_VACTIVE_LINES, vactive);
+	regmap_write(dsi->regmap, DSI_VID_VSA_LINES, vsa);
+	regmap_write(dsi->regmap, DSI_VID_VFP_LINES, vfp);
+	regmap_write(dsi->regmap, DSI_VID_VBP_LINES, vbp);
+
 	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(VIDEO_MODE));
-	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
-	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
 }
 
 static void dw_mipi_dsi_set_cmd_mode(struct dw_mipi_dsi *dsi)
 {
-	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
-	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
-	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
+	struct drm_display_mode *mode = &dsi->mode;
+
+	regmap_write(dsi->regmap, DSI_DBI_VCID, DBI_VCID(dsi->channel));
+	regmap_update_bits(dsi->regmap, DSI_CMD_MODE_CFG, DCS_LW_TX, 0);
+	regmap_write(dsi->regmap, DSI_EDPI_CMD_SIZE,
+		     EDPI_ALLOWED_CMD_SIZE(mode->hdisplay));
+	regmap_write(dsi->regmap, DSI_MODE_CFG,
+		     CMD_VIDEO_MODE(COMMAND_MODE));
 }
 
 static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 {
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
+	regmap_write(dsi->regmap, DSI_EDPI_CMD_SIZE, 0);
 	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
 	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
 
@@ -976,161 +1019,6 @@ static void dw_mipi_dsi_post_disable(struct dw_mipi_dsi *dsi)
 
 	if (dsi->slave)
 		dw_mipi_dsi_post_disable(dsi->slave);
-}
-
-static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
-{
-	/*
-	 * The maximum permitted escape clock is 20MHz and it is derived from
-	 * lanebyteclk, which is running at "lane_mbps / 8".  Thus we want:
-	 *
-	 *     (lane_mbps >> 3) / esc_clk_division < 20
-	 * which is:
-	 *     (lane_mbps >> 3) / 20 > esc_clk_division
-	 */
-	u32 esc_clk_division = (dsi->lane_mbps >> 3) / 20 + 1;
-
-	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
-	regmap_write(dsi->regmap, DSI_CLKMGR_CFG, TO_CLK_DIVISION(10) |
-		     TX_ESC_CLK_DIVISION(esc_clk_division));
-}
-
-static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi)
-{
-	struct drm_display_mode *mode = &dsi->mode;
-	u32 val = 0, color = 0;
-
-	switch (dsi->format) {
-	case MIPI_DSI_FMT_RGB666:
-		color = DPI_COLOR_CODING(DPI_COLOR_CODING_18BIT_2) |
-			LOOSELY18_EN;
-		break;
-	case MIPI_DSI_FMT_RGB666_PACKED:
-		color = DPI_COLOR_CODING(DPI_COLOR_CODING_18BIT_1);
-		break;
-	case MIPI_DSI_FMT_RGB565:
-		color = DPI_COLOR_CODING(DPI_COLOR_CODING_16BIT_1);
-		break;
-	case MIPI_DSI_FMT_RGB888:
-	default:
-		color = DPI_COLOR_CODING(DPI_COLOR_CODING_24BIT);
-		break;
-	}
-
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		val |= VSYNC_ACTIVE_LOW;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		val |= HSYNC_ACTIVE_LOW;
-
-	regmap_write(dsi->regmap, DSI_DPI_VCID, DPI_VID(dsi->channel));
-	regmap_write(dsi->regmap, DSI_DPI_COLOR_CODING, color);
-	regmap_write(dsi->regmap, DSI_DPI_CFG_POL, val);
-	regmap_write(dsi->regmap, DSI_DPI_LP_CMD_TIM, OUTVACT_LPCMD_TIME(4) |
-		     INVACT_LPCMD_TIME(4));
-}
-
-static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
-{
-	u32 val = CRC_RX_EN | ECC_RX_EN | BTA_EN | EOTP_TX_EN;
-
-	if (dsi->mode_flags & MIPI_DSI_MODE_EOT_PACKET)
-		val &= ~EOTP_TX_EN;
-
-	regmap_write(dsi->regmap, DSI_PCKHDL_CFG, val);
-}
-
-static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi)
-{
-	struct drm_display_mode *mode = &dsi->mode;
-	u32 vid_pkt_size;
-
-	if (dsi->slave || dsi->master)
-		vid_pkt_size = mode->hdisplay / 2;
-	else
-		vid_pkt_size = mode->hdisplay;
-
-	regmap_write(dsi->regmap, DSI_VID_PKT_SIZE, VID_PKT_SIZE(vid_pkt_size));
-}
-
-static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
-{
-	regmap_write(dsi->regmap, DSI_TO_CNT_CFG,
-		     HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
-	regmap_write(dsi->regmap, DSI_BTA_TO_CNT, 0xd00);
-	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
-}
-
-/* Get lane byte clock cycles. */
-static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
-					   struct drm_display_mode *mode,
-					   u32 hcomponent)
-{
-	u32 frac, lbcc;
-
-	lbcc = hcomponent * dsi->lane_mbps * MSEC_PER_SEC / 8;
-
-	frac = lbcc % mode->clock;
-	lbcc = lbcc / mode->clock;
-	if (frac)
-		lbcc++;
-
-	return lbcc;
-}
-
-static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi)
-{
-	struct drm_display_mode *mode = &dsi->mode;
-	u32 htotal, hsa, hbp, lbcc;
-
-	htotal = mode->htotal;
-	hsa = mode->hsync_end - mode->hsync_start;
-	hbp = mode->htotal - mode->hsync_end;
-
-	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, htotal);
-	regmap_write(dsi->regmap, DSI_VID_HLINE_TIME, lbcc);
-
-	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, hsa);
-	regmap_write(dsi->regmap, DSI_VID_HSA_TIME, lbcc);
-
-	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, hbp);
-	regmap_write(dsi->regmap, DSI_VID_HBP_TIME, lbcc);
-}
-
-static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi)
-{
-	struct drm_display_mode *mode = &dsi->mode;
-	u32 vactive, vsa, vfp, vbp;
-
-	vactive = mode->vdisplay;
-	vsa = mode->vsync_end - mode->vsync_start;
-	vfp = mode->vsync_start - mode->vdisplay;
-	vbp = mode->vtotal - mode->vsync_end;
-
-	regmap_write(dsi->regmap, DSI_VID_VACTIVE_LINES, vactive);
-	regmap_write(dsi->regmap, DSI_VID_VSA_LINES, vsa);
-	regmap_write(dsi->regmap, DSI_VID_VFP_LINES, vfp);
-	regmap_write(dsi->regmap, DSI_VID_VBP_LINES, vbp);
-}
-
-static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
-{
-	regmap_write(dsi->regmap, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x14) |
-		     PHY_LP2HS_TIME(0x10) | MAX_RD_TIME(10000));
-
-	regmap_write(dsi->regmap, DSI_PHY_TMR_LPCLK_CFG,
-		     PHY_CLKHS2LP_TIME(0x40) | PHY_CLKLP2HS_TIME(0x40));
-}
-
-static void dw_mipi_dsi_dphy_interface_config(struct dw_mipi_dsi *dsi)
-{
-	regmap_write(dsi->regmap, DSI_PHY_IF_CFG, PHY_STOP_WAIT_TIME(0x20) |
-		     N_LANES(dsi->lanes - 1));
-}
-
-static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
-{
-	regmap_write(dsi->regmap, DSI_INT_MSK0, 0);
-	regmap_write(dsi->regmap, DSI_INT_MSK1, 0);
 }
 
 static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
@@ -1261,23 +1149,38 @@ static void dw_mipi_dsi_calc_pll_cfg(struct dw_mipi_dsi *dsi,
 
 static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 {
+	u32 val;
 
 	pm_runtime_get_sync(dsi->dev);
 	clk_prepare_enable(dsi->pclk);
 
-	dw_mipi_dsi_init(dsi);
-	dw_mipi_dsi_dpi_config(dsi);
-	dw_mipi_dsi_packet_handler_config(dsi);
-	dw_mipi_dsi_video_mode_config(dsi);
-	dw_mipi_dsi_video_packet_config(dsi);
-	dw_mipi_dsi_command_mode_config(dsi);
-	dw_mipi_dsi_line_timer_config(dsi);
-	dw_mipi_dsi_vertical_timing_config(dsi);
-	dw_mipi_dsi_dphy_timing_config(dsi);
-	dw_mipi_dsi_dphy_interface_config(dsi);
-	dw_mipi_dsi_clear_err(dsi);
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
+
+	val = DIV_ROUND_UP(dsi->lane_mbps >> 3, 20);
+	regmap_write(dsi->regmap, DSI_CLKMGR_CFG, TO_CLK_DIVISION(10) |
+		     TX_ESC_CLK_DIVISION(val));
+
+	val = CRC_RX_EN | ECC_RX_EN | BTA_EN | EOTP_TX_EN;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_EOT_PACKET)
+		val &= ~EOTP_TX_EN;
+
+	regmap_write(dsi->regmap, DSI_PCKHDL_CFG, val);
+
+	regmap_write(dsi->regmap, DSI_TO_CNT_CFG,
+		     HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
+	regmap_write(dsi->regmap, DSI_BTA_TO_CNT, 0xd00);
+	regmap_write(dsi->regmap, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x14) |
+		     PHY_LP2HS_TIME(0x10) | MAX_RD_TIME(10000));
+	regmap_write(dsi->regmap, DSI_PHY_TMR_LPCLK_CFG,
+		     PHY_CLKHS2LP_TIME(0x40) | PHY_CLKLP2HS_TIME(0x40));
+	regmap_write(dsi->regmap, DSI_PHY_IF_CFG, PHY_STOP_WAIT_TIME(0x20) |
+		     N_LANES(dsi->lanes - 1));
+
 	mipi_dphy_power_on(dsi);
-	dw_mipi_dsi_set_cmd_mode(dsi);
+
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
 
 	if (dsi->slave)
 		dw_mipi_dsi_pre_enable(dsi->slave);
@@ -1285,7 +1188,48 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 {
-	dw_mipi_dsi_set_vid_mode(dsi);
+	struct drm_display_mode *mode = &dsi->mode;
+	u32 val;
+
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+
+	switch (dsi->format) {
+	case MIPI_DSI_FMT_RGB666:
+		val = DPI_COLOR_CODING(DPI_COLOR_CODING_18BIT_2) | LOOSELY18_EN;
+		break;
+	case MIPI_DSI_FMT_RGB666_PACKED:
+		val = DPI_COLOR_CODING(DPI_COLOR_CODING_18BIT_1);
+		break;
+	case MIPI_DSI_FMT_RGB565:
+		val = DPI_COLOR_CODING(DPI_COLOR_CODING_16BIT_1);
+		break;
+	case MIPI_DSI_FMT_RGB888:
+	default:
+		val = DPI_COLOR_CODING(DPI_COLOR_CODING_24BIT);
+		break;
+	}
+
+	regmap_write(dsi->regmap, DSI_DPI_COLOR_CODING, val);
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		val = VSYNC_ACTIVE_LOW;
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		val |= HSYNC_ACTIVE_LOW;
+	regmap_write(dsi->regmap, DSI_DPI_CFG_POL, val);
+
+	regmap_write(dsi->regmap, DSI_DPI_VCID, DPI_VID(dsi->channel));
+	regmap_write(dsi->regmap, DSI_DPI_LP_CMD_TIM, OUTVACT_LPCMD_TIME(4) |
+		     INVACT_LPCMD_TIME(4));
+
+	regmap_update_bits(dsi->regmap, DSI_LPCLK_CTRL,
+			   PHY_TXREQUESTCLKHS, PHY_TXREQUESTCLKHS);
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO)
+		dw_mipi_dsi_set_vid_mode(dsi);
+	else
+		dw_mipi_dsi_set_cmd_mode(dsi);
+
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
 
 	if (dsi->slave)
 		dw_mipi_dsi_enable(dsi->slave);
