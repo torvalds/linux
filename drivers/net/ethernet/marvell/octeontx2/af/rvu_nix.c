@@ -1536,6 +1536,57 @@ int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+/* Returns the ALG index to be set into NPC_RX_ACTION */
+static int get_flowkey_alg_idx(u32 flow_cfg)
+{
+	u32 ip_cfg;
+
+	flow_cfg &= ~FLOW_KEY_TYPE_PORT;
+	ip_cfg = FLOW_KEY_TYPE_IPV4 | FLOW_KEY_TYPE_IPV6;
+	if (flow_cfg == ip_cfg)
+		return FLOW_KEY_ALG_IP;
+	else if (flow_cfg == (ip_cfg | FLOW_KEY_TYPE_TCP))
+		return FLOW_KEY_ALG_TCP;
+	else if (flow_cfg == (ip_cfg | FLOW_KEY_TYPE_UDP))
+		return FLOW_KEY_ALG_UDP;
+	else if (flow_cfg == (ip_cfg | FLOW_KEY_TYPE_SCTP))
+		return FLOW_KEY_ALG_SCTP;
+	else if (flow_cfg == (ip_cfg | FLOW_KEY_TYPE_TCP | FLOW_KEY_TYPE_UDP))
+		return FLOW_KEY_ALG_TCP_UDP;
+	else if (flow_cfg == (ip_cfg | FLOW_KEY_TYPE_TCP | FLOW_KEY_TYPE_SCTP))
+		return FLOW_KEY_ALG_TCP_SCTP;
+	else if (flow_cfg == (ip_cfg | FLOW_KEY_TYPE_UDP | FLOW_KEY_TYPE_SCTP))
+		return FLOW_KEY_ALG_UDP_SCTP;
+	else if (flow_cfg == (ip_cfg | FLOW_KEY_TYPE_TCP |
+			      FLOW_KEY_TYPE_UDP | FLOW_KEY_TYPE_SCTP))
+		return FLOW_KEY_ALG_TCP_UDP_SCTP;
+
+	return FLOW_KEY_ALG_PORT;
+}
+
+int rvu_mbox_handler_NIX_RSS_FLOWKEY_CFG(struct rvu *rvu,
+					 struct nix_rss_flowkey_cfg *req,
+					 struct msg_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	int alg_idx, nixlf, blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	alg_idx = get_flowkey_alg_idx(req->flowkey_cfg);
+
+	rvu_npc_update_flowkey_alg_idx(rvu, pcifunc, nixlf, req->group,
+				       alg_idx, req->mcam_index);
+	return 0;
+}
+
 static void set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 {
 	struct nix_rx_flowkey_alg *field = NULL;

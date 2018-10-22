@@ -341,6 +341,9 @@ int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
 int rvu_mbox_handler_NIX_VTAG_CFG(struct rvu *rvu,
 				  struct nix_vtag_config *req,
 				  struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_RSS_FLOWKEY_CFG(struct rvu *rvu,
+					 struct nix_rss_flowkey_cfg *req,
+					 struct msg_rsp *rsp);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
@@ -352,4 +355,6 @@ void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 				       int nixlf, u64 chan);
 void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
+void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
+				    int group, int alg_idx, int mcam_index);
 #endif /* RVU_H */

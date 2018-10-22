@@ -358,6 +358,49 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 			      NIX_INTF_RX, &entry, true);
 }
 
+void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
+				    int group, int alg_idx, int mcam_index)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct nix_rx_action action;
+	int blkaddr, index, bank;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return;
+
+	/* Check if this is for reserved default entry */
+	if (mcam_index < 0) {
+		if (group != DEFAULT_RSS_CONTEXT_GROUP)
+			return;
+		index = npc_get_nixlf_mcam_index(mcam, pcifunc,
+						 nixlf, NIXLF_UCAST_ENTRY);
+	} else {
+		/* TODO: validate this mcam index */
+		index = mcam_index;
+	}
+
+	if (index >= mcam->total_entries)
+		return;
+
+	bank = npc_get_bank(mcam, index);
+	index &= (mcam->banksize - 1);
+
+	*(u64 *)&action = rvu_read64(rvu, blkaddr,
+				     NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
+	/* Ignore if no action was set earlier */
+	if (!*(u64 *)&action)
+		return;
+
+	action.op = NIX_RX_ACTIONOP_RSS;
+	action.pf_func = pcifunc;
+	action.index = group;
+	action.flow_key_alg = alg_idx;
+
+	rvu_write64(rvu, blkaddr,
+		    NPC_AF_MCAMEX_BANKX_ACTION(index, bank), *(u64 *)&action);
+}
+
 void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
