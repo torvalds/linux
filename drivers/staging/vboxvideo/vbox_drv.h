@@ -164,8 +164,6 @@ void vbox_hw_fini(struct vbox_private *vbox);
 int vbox_mode_init(struct vbox_private *vbox);
 void vbox_mode_fini(struct vbox_private *vbox);
 
-#define DRM_MODE_FB_CMD drm_mode_fb_cmd2
-
 void vbox_report_caps(struct vbox_private *vbox);
 
 void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
@@ -174,7 +172,7 @@ void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
 
 int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
-			  const struct DRM_MODE_FB_CMD *mode_cmd,
+			  const struct drm_mode_fb_cmd2 *mode_cmd,
 			  struct drm_gem_object *obj);
 
 int vboxfb_create(struct drm_fb_helper *helper,

@@ -51,7 +51,7 @@ int vboxfb_create(struct drm_fb_helper *helper,
 	struct vbox_private *vbox =
 		container_of(helper, struct vbox_private, fb_helper);
 	struct pci_dev *pdev = vbox->ddev.pdev;
-	struct DRM_MODE_FB_CMD mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_framebuffer *fb;
 	struct fb_info *info;
 	struct drm_gem_object *gobj;

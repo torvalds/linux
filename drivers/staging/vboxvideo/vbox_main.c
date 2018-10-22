@@ -103,7 +103,7 @@ static const struct drm_framebuffer_funcs vbox_fb_funcs = {
 
 int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
-			  const struct DRM_MODE_FB_CMD *mode_cmd,
+			  const struct drm_mode_fb_cmd2 *mode_cmd,
 			  struct drm_gem_object *obj)
 {
 	int ret;
