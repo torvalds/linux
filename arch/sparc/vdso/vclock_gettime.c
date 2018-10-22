@@ -138,7 +138,6 @@ notrace static __always_inline int do_realtime(struct vvar_data *vvar,
 	unsigned long seq;
 	u64 ns;
 
-	ts->tv_nsec = 0;
 	do {
 		seq = vvar_read_begin(vvar);
 		ts->tv_sec = vvar->wall_time_sec;
@@ -147,7 +146,8 @@ notrace static __always_inline int do_realtime(struct vvar_data *vvar,
 		ns >>= vvar->clock.shift;
 	} while (unlikely(vvar_read_retry(vvar, seq)));
 
-	timespec_add_ns(ts, ns);
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
 
 	return 0;
 }
@@ -158,7 +158,6 @@ notrace static __always_inline int do_monotonic(struct vvar_data *vvar,
 	unsigned long seq;
 	u64 ns;
 
-	ts->tv_nsec = 0;
 	do {
 		seq = vvar_read_begin(vvar);
 		ts->tv_sec = vvar->monotonic_time_sec;
@@ -167,7 +166,8 @@ notrace static __always_inline int do_monotonic(struct vvar_data *vvar,
 		ns >>= vvar->clock.shift;
 	} while (unlikely(vvar_read_retry(vvar, seq)));
 
-	timespec_add_ns(ts, ns);
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
 
 	return 0;
 }
