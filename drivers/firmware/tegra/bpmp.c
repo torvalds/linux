@@ -470,6 +470,31 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(tegra_bpmp_free_mrq);
 
+bool tegra_bpmp_mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq)
+{
+	struct mrq_query_abi_request req = { .mrq = cpu_to_le32(mrq) };
+	struct mrq_query_abi_response resp;
+	struct tegra_bpmp_message msg = {
+		.mrq = MRQ_QUERY_ABI,
+		.tx = {
+			.data = &req,
+			.size = sizeof(req),
+		},
+		.rx = {
+			.data = &resp,
+			.size = sizeof(resp),
+		},
+	};
+	int ret;
+
+	ret = tegra_bpmp_transfer(bpmp, &msg);
+	if (ret || msg.rx.ret)
+		return false;
+
+	return resp.status == 0;
+}
+EXPORT_SYMBOL_GPL(tegra_bpmp_mrq_is_supported);
+
 static void tegra_bpmp_mrq_handle_ping(unsigned int mrq,
 				       struct tegra_bpmp_channel *channel,
 				       void *data)
