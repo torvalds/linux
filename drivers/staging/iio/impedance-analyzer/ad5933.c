@@ -210,7 +210,7 @@ static int ad5933_set_freq(struct ad5933_state *st,
 		u8 d8[4];
 	} dat;
 
-	freqreg = (u64) freq * (u64) (1 << 27);
+	freqreg = (u64)freq * (u64)(1 << 27);
 	do_div(freqreg, st->mclk_hz / 4);
 
 	switch (reg) {
