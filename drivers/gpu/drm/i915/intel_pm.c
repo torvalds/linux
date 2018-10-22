@@ -5153,11 +5153,12 @@ skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct skl_ddb_allocation *new_ddb = &intel_state->wm_results.ddb;
 	struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
-	struct drm_plane_state *plane_state;
 	struct drm_plane *plane;
 	enum pipe pipe = intel_crtc->pipe;
 
 	drm_for_each_plane_mask(plane, dev, cstate->base.plane_mask) {
+		struct drm_plane_state *plane_state;
+		struct intel_plane *linked;
 		enum plane_id plane_id = to_intel_plane(plane)->id;
 
 		if (skl_ddb_entry_equal(&cur_ddb->plane[pipe][plane_id],
@@ -5167,6 +5168,15 @@ skl_ddb_add_affected_planes(struct intel_crtc_state *cstate)
 			continue;
 
 		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+
+		/* Make sure linked plane is updated too */
+		linked = to_intel_plane_state(plane_state)->linked_plane;
+		if (!linked)
+			continue;
+
+		plane_state = drm_atomic_get_plane_state(state, &linked->base);
 		if (IS_ERR(plane_state))
 			return PTR_ERR(plane_state);
 	}

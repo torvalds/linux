@@ -539,6 +539,26 @@ struct intel_plane_state {
 	 */
 	int scaler_id;
 
+	/*
+	 * linked_plane:
+	 *
+	 * ICL planar formats require 2 planes that are updated as pairs.
+	 * This member is used to make sure the other plane is also updated
+	 * when required, and for update_slave() to find the correct
+	 * plane_state to pass as argument.
+	 */
+	struct intel_plane *linked_plane;
+
+	/*
+	 * slave:
+	 * If set don't update use the linked plane's state for updating
+	 * this plane during atomic commit with the update_slave() callback.
+	 *
+	 * It's also used by the watermark code to ignore wm calculations on
+	 * this plane. They're calculated by the linked plane's wm code.
+	 */
+	u32 slave;
+
 	struct drm_intel_sprite_colorkey ckey;
 };
 
@@ -983,6 +1003,9 @@ struct intel_plane {
 	void (*update_plane)(struct intel_plane *plane,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct intel_plane_state *plane_state);
+	void (*update_slave)(struct intel_plane *plane,
+			     const struct intel_crtc_state *crtc_state,
+			     const struct intel_plane_state *plane_state);
 	void (*disable_plane)(struct intel_plane *plane,
 			      struct intel_crtc *crtc);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
@@ -1355,6 +1378,27 @@ static inline struct intel_digital_port *
 hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 {
 	return container_of(intel_hdmi, struct intel_digital_port, hdmi);
+}
+
+static inline struct intel_plane_state *
+intel_atomic_get_plane_state(struct intel_atomic_state *state,
+				 struct intel_plane *plane)
+{
+	struct drm_plane_state *ret =
+		drm_atomic_get_plane_state(&state->base, &plane->base);
+
+	if (IS_ERR(ret))
+		return ERR_CAST(ret);
+
+	return to_intel_plane_state(ret);
+}
+
+static inline struct intel_plane_state *
+intel_atomic_get_old_plane_state(struct intel_atomic_state *state,
+				 struct intel_plane *plane)
+{
+	return to_intel_plane_state(drm_atomic_get_old_plane_state(&state->base,
+								   &plane->base));
 }
 
 static inline struct intel_plane_state *
@@ -2164,6 +2208,15 @@ void intel_plane_free(struct intel_plane *plane);
 struct intel_plane *
 skl_universal_plane_create(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, enum plane_id plane_id);
+
+static inline bool icl_is_nv12_y_plane(enum plane_id id)
+{
+	/* Don't need to do a gen check, these planes are only available on gen11 */
+	if (id == PLANE_SPRITE4 || id == PLANE_SPRITE5)
+		return true;
+
+	return false;
+}
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);

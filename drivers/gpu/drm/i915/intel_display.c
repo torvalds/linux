@@ -10713,6 +10713,98 @@ static bool check_single_encoder_cloning(struct drm_atomic_state *state,
 	return true;
 }
 
+static int icl_add_linked_planes(struct intel_atomic_state *state)
+{
+	struct intel_plane *plane, *linked;
+	struct intel_plane_state *plane_state, *linked_plane_state;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		linked = plane_state->linked_plane;
+
+		if (!linked)
+			continue;
+
+		linked_plane_state = intel_atomic_get_plane_state(state, linked);
+		if (IS_ERR(linked_plane_state))
+			return PTR_ERR(linked_plane_state);
+
+		WARN_ON(linked_plane_state->linked_plane != plane);
+		WARN_ON(linked_plane_state->slave == plane_state->slave);
+	}
+
+	return 0;
+}
+
+static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->base.state);
+	struct intel_plane *plane, *linked;
+	struct intel_plane_state *plane_state;
+	int i;
+
+	if (INTEL_GEN(dev_priv) < 11)
+		return 0;
+
+	/*
+	 * Destroy all old plane links and make the slave plane invisible
+	 * in the crtc_state->active_planes mask.
+	 */
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane->pipe != crtc->pipe || !plane_state->linked_plane)
+			continue;
+
+		plane_state->linked_plane = NULL;
+		if (plane_state->slave && !plane_state->base.visible)
+			crtc_state->active_planes &= ~BIT(plane->id);
+
+		plane_state->slave = false;
+	}
+
+	if (!crtc_state->nv12_planes)
+		return 0;
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		struct intel_plane_state *linked_state = NULL;
+
+		if (plane->pipe != crtc->pipe ||
+		    !(crtc_state->nv12_planes & BIT(plane->id)))
+			continue;
+
+		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, linked) {
+			if (!icl_is_nv12_y_plane(linked->id))
+				continue;
+
+			if (crtc_state->active_planes & BIT(linked->id))
+				continue;
+
+			linked_state = intel_atomic_get_plane_state(state, linked);
+			if (IS_ERR(linked_state))
+				return PTR_ERR(linked_state);
+
+			break;
+		}
+
+		if (!linked_state) {
+			DRM_DEBUG_KMS("Need %d free Y planes for NV12\n",
+				      hweight8(crtc_state->nv12_planes));
+
+			return -EINVAL;
+		}
+
+		plane_state->linked_plane = linked;
+
+		linked_state->slave = true;
+		linked_state->linked_plane = plane;
+		crtc_state->active_planes |= BIT(linked->id);
+		DRM_DEBUG_KMS("Using %s as Y plane for %s\n", linked->base.name, plane->base.name);
+	}
+
+	return 0;
+}
+
 static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *crtc_state)
 {
@@ -10784,6 +10876,8 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 		if (mode_changed)
 			ret = skl_update_scaler_crtc(pipe_config);
 
+		if (!ret)
+			ret = icl_check_nv12_planes(pipe_config);
 		if (!ret)
 			ret = skl_check_pipe_max_pixel_rate(intel_crtc,
 							    pipe_config);
@@ -12449,6 +12543,10 @@ static int intel_atomic_check(struct drm_device *dev,
 	} else {
 		intel_state->cdclk.logical = dev_priv->cdclk.logical;
 	}
+
+	ret = icl_add_linked_planes(intel_state);
+	if (ret)
+		return ret;
 
 	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)

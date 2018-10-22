@@ -188,6 +188,25 @@ void intel_update_planes_on_crtc(struct intel_atomic_state *old_state,
 			trace_intel_update_plane(&plane->base, crtc);
 
 			plane->update_plane(plane, new_crtc_state, new_plane_state);
+		} else if (new_plane_state->slave) {
+			struct intel_plane *master =
+				new_plane_state->linked_plane;
+
+			/*
+			 * We update the slave plane from this function because
+			 * programming it from the master plane's update_plane
+			 * callback runs into issues when the Y plane is
+			 * reassigned, disabled or used by a different plane.
+			 *
+			 * The slave plane is updated with the master plane's
+			 * plane_state.
+			 */
+			new_plane_state =
+				intel_atomic_get_new_plane_state(old_state, master);
+
+			trace_intel_update_plane(&plane->base, crtc);
+
+			plane->update_slave(plane, new_crtc_state, new_plane_state);
 		} else {
 			trace_intel_disable_plane(&plane->base, crtc);
 
