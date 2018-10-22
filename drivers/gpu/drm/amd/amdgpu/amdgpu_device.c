@@ -3295,13 +3295,35 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 		return false;
 	}
 
-	if (amdgpu_gpu_recovery == 0 || (amdgpu_gpu_recovery == -1  &&
-					 !amdgpu_sriov_vf(adev))) {
-		DRM_INFO("GPU recovery disabled.\n");
-		return false;
+	if (amdgpu_gpu_recovery == 0)
+		goto disabled;
+
+	if (amdgpu_sriov_vf(adev))
+		return true;
+
+	if (amdgpu_gpu_recovery == -1) {
+		switch (adev->asic_type) {
+		case CHIP_TOPAZ:
+		case CHIP_TONGA:
+		case CHIP_FIJI:
+		case CHIP_POLARIS10:
+		case CHIP_POLARIS11:
+		case CHIP_POLARIS12:
+		case CHIP_VEGAM:
+		case CHIP_VEGA20:
+		case CHIP_VEGA10:
+		case CHIP_VEGA12:
+			break;
+		default:
+			goto disabled;
+		}
 	}
 
 	return true;
+
+disabled:
+		DRM_INFO("GPU recovery disabled.\n");
+		return false;
 }
 
 /**
