@@ -1437,7 +1437,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 				       FORCEWAKE_MEDIA_VEBOX_GEN11(i),
 				       FORCEWAKE_ACK_MEDIA_VEBOX_GEN11(i));
 		}
-	} else if (IS_GEN9(dev_priv) || IS_GEN10(dev_priv)) {
+	} else if (IS_GEN10(dev_priv) || IS_GEN9(dev_priv)) {
 		dev_priv->uncore.funcs.force_wake_get =
 			fw_domains_get_with_fallback;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
