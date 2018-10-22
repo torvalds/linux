@@ -214,8 +214,6 @@ static int igt_guc_clients(void *args)
 	 * client it is currently assigned should not cause a failure.
 	 */
 	err = create_doorbell(guc->execbuf_client);
-	if (err)
-		goto out;
 
 out:
 	/*
