@@ -467,7 +467,6 @@ static void kbd_led_update(struct asus_wmi *asus)
 		ctrl_param = 0x80 | (asus->kbd_led_wk & 0x7F);
 
 	asus_wmi_set_devstate(ASUS_WMI_DEVID_KBD_BACKLIGHT, ctrl_param, NULL);
-	led_classdev_notify_brightness_hw_changed(&asus->kbd_led, asus->kbd_led_wk);
 }
 
 static int kbd_led_read(struct asus_wmi *asus, int *level, int *env)
@@ -519,6 +518,14 @@ static void kbd_led_set(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
 	do_kbd_led_set(led_cdev, value);
+}
+
+static void kbd_led_set_by_kbd(struct asus_wmi *asus, enum led_brightness value)
+{
+	struct led_classdev *led_cdev = &asus->kbd_led;
+
+	do_kbd_led_set(led_cdev, value);
+	led_classdev_notify_brightness_hw_changed(led_cdev, asus->kbd_led_wk);
 }
 
 static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
@@ -1759,18 +1766,18 @@ static void asus_wmi_notify(u32 value, void *context)
 	}
 
 	if (code == NOTIFY_KBD_BRTUP) {
-		do_kbd_led_set(&asus->kbd_led, asus->kbd_led_wk + 1);
+		kbd_led_set_by_kbd(asus, asus->kbd_led_wk + 1);
 		goto exit;
 	}
 	if (code == NOTIFY_KBD_BRTDWN) {
-		do_kbd_led_set(&asus->kbd_led, asus->kbd_led_wk - 1);
+		kbd_led_set_by_kbd(asus, asus->kbd_led_wk - 1);
 		goto exit;
 	}
 	if (code == NOTIFY_KBD_BRTTOGGLE) {
 		if (asus->kbd_led_wk == asus->kbd_led.max_brightness)
-			do_kbd_led_set(&asus->kbd_led, 0);
+			kbd_led_set_by_kbd(asus, 0);
 		else
-			do_kbd_led_set(&asus->kbd_led, asus->kbd_led_wk + 1);
+			kbd_led_set_by_kbd(asus, asus->kbd_led_wk + 1);
 		goto exit;
 	}
 
