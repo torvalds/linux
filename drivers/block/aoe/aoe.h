@@ -1,4 +1,6 @@
 /* Copyright (c) 2013 Coraid, Inc.  See COPYING for GPL terms. */
+#include <linux/blk-mq.h>
+
 #define VERSION "85"
 #define AOE_MAJOR 152
 #define DEVICE_NAME "aoe"
@@ -164,6 +166,8 @@ struct aoedev {
 	struct gendisk *gd;
 	struct dentry *debugfs;
 	struct request_queue *blkq;
+	struct list_head rq_list;
+	struct blk_mq_tag_set tag_set;
 	struct hd_geometry geo;
 	sector_t ssize;
 	struct timer_list timer;
@@ -201,7 +205,6 @@ int aoeblk_init(void);
 void aoeblk_exit(void);
 void aoeblk_gdalloc(void *);
 void aoedisk_rm_debugfs(struct aoedev *d);
-void aoedisk_rm_sysfs(struct aoedev *d);
 
 int aoechr_init(void);
 void aoechr_exit(void);

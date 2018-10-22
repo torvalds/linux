@@ -772,10 +772,10 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 
 		if (!dma_map_sg(dev->dev, &iod->meta_sg, 1, dma_dir))
 			goto out_unmap;
+
+		cmnd->rw.metadata = cpu_to_le64(sg_dma_address(&iod->meta_sg));
 	}
 
-	if (blk_integrity_rq(req))
-		cmnd->rw.metadata = cpu_to_le64(sg_dma_address(&iod->meta_sg));
 	return BLK_STS_OK;
 
 out_unmap:
@@ -1249,7 +1249,7 @@ static void nvme_free_queues(struct nvme_dev *dev, int lowest)
 
 /**
  * nvme_suspend_queue - put queue into suspended state
- * @nvmeq - queue to suspend
+ * @nvmeq: queue to suspend
  */
 static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 {
@@ -2564,13 +2564,12 @@ static void nvme_remove(struct pci_dev *pdev)
 	struct nvme_dev *dev = pci_get_drvdata(pdev);
 
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
-
-	cancel_work_sync(&dev->ctrl.reset_work);
 	pci_set_drvdata(pdev, NULL);
 
 	if (!pci_device_is_present(pdev)) {
 		nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DEAD);
 		nvme_dev_disable(dev, true);
+		nvme_dev_remove_admin(dev);
 	}
 
 	flush_work(&dev->ctrl.reset_work);

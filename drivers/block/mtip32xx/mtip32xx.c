@@ -1862,11 +1862,9 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		if (IS_ERR(outbuf))
 			return PTR_ERR(outbuf);
 
-		outbuf_dma = pci_map_single(dd->pdev,
-					 outbuf,
-					 taskout,
-					 DMA_TO_DEVICE);
-		if (pci_dma_mapping_error(dd->pdev, outbuf_dma)) {
+		outbuf_dma = dma_map_single(&dd->pdev->dev, outbuf,
+					    taskout, DMA_TO_DEVICE);
+		if (dma_mapping_error(&dd->pdev->dev, outbuf_dma)) {
 			err = -ENOMEM;
 			goto abort;
 		}
@@ -1880,10 +1878,9 @@ static int exec_drive_taskfile(struct driver_data *dd,
 			inbuf = NULL;
 			goto abort;
 		}
-		inbuf_dma = pci_map_single(dd->pdev,
-					 inbuf,
-					 taskin, DMA_FROM_DEVICE);
-		if (pci_dma_mapping_error(dd->pdev, inbuf_dma)) {
+		inbuf_dma = dma_map_single(&dd->pdev->dev, inbuf,
+					   taskin, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&dd->pdev->dev, inbuf_dma)) {
 			err = -ENOMEM;
 			goto abort;
 		}
@@ -2002,11 +1999,11 @@ static int exec_drive_taskfile(struct driver_data *dd,
 
 	/* reclaim the DMA buffers.*/
 	if (inbuf_dma)
-		pci_unmap_single(dd->pdev, inbuf_dma,
-			taskin, DMA_FROM_DEVICE);
+		dma_unmap_single(&dd->pdev->dev, inbuf_dma, taskin,
+				 DMA_FROM_DEVICE);
 	if (outbuf_dma)
-		pci_unmap_single(dd->pdev, outbuf_dma,
-			taskout, DMA_TO_DEVICE);
+		dma_unmap_single(&dd->pdev->dev, outbuf_dma, taskout,
+				 DMA_TO_DEVICE);
 	inbuf_dma  = 0;
 	outbuf_dma = 0;
 
@@ -2053,11 +2050,11 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	}
 abort:
 	if (inbuf_dma)
-		pci_unmap_single(dd->pdev, inbuf_dma,
-					taskin, DMA_FROM_DEVICE);
+		dma_unmap_single(&dd->pdev->dev, inbuf_dma, taskin,
+				 DMA_FROM_DEVICE);
 	if (outbuf_dma)
-		pci_unmap_single(dd->pdev, outbuf_dma,
-					taskout, DMA_TO_DEVICE);
+		dma_unmap_single(&dd->pdev->dev, outbuf_dma, taskout,
+				 DMA_TO_DEVICE);
 	kfree(outbuf);
 	kfree(inbuf);
 
@@ -3861,7 +3858,7 @@ skip_create_disk:
 	set_capacity(dd->disk, capacity);
 
 	/* Enable the block device and add it to /dev */
-	device_add_disk(&dd->pdev->dev, dd->disk);
+	device_add_disk(&dd->pdev->dev, dd->disk, NULL);
 
 	dd->bdev = bdget_disk(dd->disk, 0);
 	/*
@@ -4216,18 +4213,10 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 		goto iomap_err;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		rv = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-
-		if (rv) {
-			rv = pci_set_consistent_dma_mask(pdev,
-						DMA_BIT_MASK(32));
-			if (rv) {
-				dev_warn(&pdev->dev,
-					"64-bit DMA enable failed\n");
-				goto setmask_err;
-			}
-		}
+	rv = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rv) {
+		dev_warn(&pdev->dev, "64-bit DMA enable failed\n");
+		goto setmask_err;
 	}
 
 	/* Copy the info we may need later into the private data structure. */

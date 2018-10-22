@@ -84,8 +84,7 @@ struct throtl_service_queue {
 	 * RB tree of active children throtl_grp's, which are sorted by
 	 * their ->disptime.
 	 */
-	struct rb_root		pending_tree;	/* RB tree of active tgs */
-	struct rb_node		*first_pending;	/* first node in the tree */
+	struct rb_root_cached	pending_tree;	/* RB tree of active tgs */
 	unsigned int		nr_pending;	/* # queued in the tree */
 	unsigned long		first_pending_disptime;	/* disptime of the first tg */
 	struct timer_list	pending_timer;	/* fires on first_pending_disptime */
@@ -475,7 +474,7 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq)
 {
 	INIT_LIST_HEAD(&sq->queued[0]);
 	INIT_LIST_HEAD(&sq->queued[1]);
-	sq->pending_tree = RB_ROOT;
+	sq->pending_tree = RB_ROOT_CACHED;
 	timer_setup(&sq->pending_timer, throtl_pending_timer_fn, 0);
 }
 
@@ -616,31 +615,23 @@ static void throtl_pd_free(struct blkg_policy_data *pd)
 static struct throtl_grp *
 throtl_rb_first(struct throtl_service_queue *parent_sq)
 {
+	struct rb_node *n;
 	/* Service tree is empty */
 	if (!parent_sq->nr_pending)
 		return NULL;
 
-	if (!parent_sq->first_pending)
-		parent_sq->first_pending = rb_first(&parent_sq->pending_tree);
-
-	if (parent_sq->first_pending)
-		return rb_entry_tg(parent_sq->first_pending);
-
-	return NULL;
-}
-
-static void rb_erase_init(struct rb_node *n, struct rb_root *root)
-{
-	rb_erase(n, root);
-	RB_CLEAR_NODE(n);
+	n = rb_first_cached(&parent_sq->pending_tree);
+	WARN_ON_ONCE(!n);
+	if (!n)
+		return NULL;
+	return rb_entry_tg(n);
 }
 
 static void throtl_rb_erase(struct rb_node *n,
 			    struct throtl_service_queue *parent_sq)
 {
-	if (parent_sq->first_pending == n)
-		parent_sq->first_pending = NULL;
-	rb_erase_init(n, &parent_sq->pending_tree);
+	rb_erase_cached(n, &parent_sq->pending_tree);
+	RB_CLEAR_NODE(n);
 	--parent_sq->nr_pending;
 }
 
@@ -658,11 +649,11 @@ static void update_min_dispatch_time(struct throtl_service_queue *parent_sq)
 static void tg_service_queue_add(struct throtl_grp *tg)
 {
 	struct throtl_service_queue *parent_sq = tg->service_queue.parent_sq;
-	struct rb_node **node = &parent_sq->pending_tree.rb_node;
+	struct rb_node **node = &parent_sq->pending_tree.rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct throtl_grp *__tg;
 	unsigned long key = tg->disptime;
-	int left = 1;
+	bool leftmost = true;
 
 	while (*node != NULL) {
 		parent = *node;
@@ -672,15 +663,13 @@ static void tg_service_queue_add(struct throtl_grp *tg)
 			node = &parent->rb_left;
 		else {
 			node = &parent->rb_right;
-			left = 0;
+			leftmost = false;
 		}
 	}
 
-	if (left)
-		parent_sq->first_pending = &tg->rb_node;
-
 	rb_link_node(&tg->rb_node, parent, node);
-	rb_insert_color(&tg->rb_node, &parent_sq->pending_tree);
+	rb_insert_color_cached(&tg->rb_node, &parent_sq->pending_tree,
+			       leftmost);
 }
 
 static void __throtl_enqueue_tg(struct throtl_grp *tg)
@@ -2126,21 +2115,11 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 }
 #endif
 
-static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
-{
-#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	/* fallback to root_blkg if we fail to get a blkg ref */
-	if (bio->bi_css && (bio_associate_blkg(bio, tg_to_blkg(tg)) == -ENODEV))
-		bio_associate_blkg(bio, bio->bi_disk->queue->root_blkg);
-	bio_issue_init(&bio->bi_issue, bio_sectors(bio));
-#endif
-}
-
 bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 		    struct bio *bio)
 {
 	struct throtl_qnode *qn = NULL;
-	struct throtl_grp *tg = blkg_to_tg(blkg ?: q->root_blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 	struct throtl_service_queue *sq;
 	bool rw = bio_data_dir(bio);
 	bool throttled = false;
@@ -2159,7 +2138,6 @@ bool blk_throtl_bio(struct request_queue *q, struct blkcg_gq *blkg,
 	if (unlikely(blk_queue_bypass(q)))
 		goto out_unlock;
 
-	blk_throtl_assoc_bio(tg, bio);
 	blk_throtl_update_idletime(tg);
 
 	sq = &tg->service_queue;
