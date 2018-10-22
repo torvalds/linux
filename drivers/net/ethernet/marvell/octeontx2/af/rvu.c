@@ -80,7 +80,7 @@ int rvu_alloc_rsrc(struct rsrc_bmap *rsrc)
 	return id;
 }
 
-static int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc)
+int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc)
 {
 	int start;
 
@@ -105,7 +105,7 @@ static void rvu_free_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc, int start)
 	bitmap_clear(rsrc->bmap, start, nrsrc);
 }
 
-static bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc)
+bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc)
 {
 	int start;
 

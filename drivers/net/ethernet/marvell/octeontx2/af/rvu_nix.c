@@ -689,6 +689,226 @@ int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+/* Disable shaping of pkts by a scheduler queue
+ * at a given scheduler level.
+ */
+static void nix_reset_tx_shaping(struct rvu *rvu, int blkaddr,
+				 int lvl, int schq)
+{
+	u64  cir_reg = 0, pir_reg = 0;
+	u64  cfg;
+
+	switch (lvl) {
+	case NIX_TXSCH_LVL_TL1:
+		cir_reg = NIX_AF_TL1X_CIR(schq);
+		pir_reg = 0; /* PIR not available at TL1 */
+		break;
+	case NIX_TXSCH_LVL_TL2:
+		cir_reg = NIX_AF_TL2X_CIR(schq);
+		pir_reg = NIX_AF_TL2X_PIR(schq);
+		break;
+	case NIX_TXSCH_LVL_TL3:
+		cir_reg = NIX_AF_TL3X_CIR(schq);
+		pir_reg = NIX_AF_TL3X_PIR(schq);
+		break;
+	case NIX_TXSCH_LVL_TL4:
+		cir_reg = NIX_AF_TL4X_CIR(schq);
+		pir_reg = NIX_AF_TL4X_PIR(schq);
+		break;
+	}
+
+	if (!cir_reg)
+		return;
+	cfg = rvu_read64(rvu, blkaddr, cir_reg);
+	rvu_write64(rvu, blkaddr, cir_reg, cfg & ~BIT_ULL(0));
+
+	if (!pir_reg)
+		return;
+	cfg = rvu_read64(rvu, blkaddr, pir_reg);
+	rvu_write64(rvu, blkaddr, pir_reg, cfg & ~BIT_ULL(0));
+}
+
+static void nix_reset_tx_linkcfg(struct rvu *rvu, int blkaddr,
+				 int lvl, int schq)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	int link;
+
+	/* Reset TL4's SDP link config */
+	if (lvl == NIX_TXSCH_LVL_TL4)
+		rvu_write64(rvu, blkaddr, NIX_AF_TL4X_SDP_LINK_CFG(schq), 0x00);
+
+	if (lvl != NIX_TXSCH_LVL_TL3)
+		return;
+
+	/* Reset TL3's CGX or LBK link config */
+	for (link = 0; link < (hw->cgx_links + hw->lbk_links); link++)
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_TL3_TL2X_LINKX_CFG(schq, link), 0x00);
+}
+
+int rvu_mbox_handler_NIX_TXSCH_ALLOC(struct rvu *rvu,
+				     struct nix_txsch_alloc_req *req,
+				     struct nix_txsch_alloc_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	struct nix_txsch *txsch;
+	int lvl, idx, req_schq;
+	struct rvu_pfvf *pfvf;
+	struct nix_hw *nix_hw;
+	int blkaddr, rc = 0;
+	u16 schq;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
+
+	spin_lock(&rvu->rsrc_lock);
+	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		txsch = &nix_hw->txsch[lvl];
+		req_schq = req->schq_contig[lvl] + req->schq[lvl];
+
+		/* There are only 28 TL1s */
+		if (lvl == NIX_TXSCH_LVL_TL1 && req_schq > txsch->schq.max)
+			goto err;
+
+		/* Check if request is valid */
+		if (!req_schq || req_schq > MAX_TXSCHQ_PER_FUNC)
+			goto err;
+
+		/* If contiguous queues are needed, check for availability */
+		if (req->schq_contig[lvl] &&
+		    !rvu_rsrc_check_contig(&txsch->schq, req->schq_contig[lvl]))
+			goto err;
+
+		/* Check if full request can be accommodated */
+		if (req_schq >= rvu_rsrc_free_count(&txsch->schq))
+			goto err;
+	}
+
+	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		txsch = &nix_hw->txsch[lvl];
+		rsp->schq_contig[lvl] = req->schq_contig[lvl];
+		rsp->schq[lvl] = req->schq[lvl];
+
+		schq = 0;
+		/* Alloc contiguous queues first */
+		if (req->schq_contig[lvl]) {
+			schq = rvu_alloc_rsrc_contig(&txsch->schq,
+						     req->schq_contig[lvl]);
+
+			for (idx = 0; idx < req->schq_contig[lvl]; idx++) {
+				txsch->pfvf_map[schq] = pcifunc;
+				nix_reset_tx_linkcfg(rvu, blkaddr, lvl, schq);
+				nix_reset_tx_shaping(rvu, blkaddr, lvl, schq);
+				rsp->schq_contig_list[lvl][idx] = schq;
+				schq++;
+			}
+		}
+
+		/* Alloc non-contiguous queues */
+		for (idx = 0; idx < req->schq[lvl]; idx++) {
+			schq = rvu_alloc_rsrc(&txsch->schq);
+			txsch->pfvf_map[schq] = pcifunc;
+			nix_reset_tx_linkcfg(rvu, blkaddr, lvl, schq);
+			nix_reset_tx_shaping(rvu, blkaddr, lvl, schq);
+			rsp->schq_list[lvl][idx] = schq;
+		}
+	}
+	goto exit;
+err:
+	rc = NIX_AF_ERR_TLX_ALLOC_FAIL;
+exit:
+	spin_unlock(&rvu->rsrc_lock);
+	return rc;
+}
+
+static int nix_txschq_free(struct rvu *rvu, u16 pcifunc)
+{
+	int blkaddr, nixlf, lvl, schq, err;
+	struct rvu_hwinfo *hw = rvu->hw;
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+	u64 cfg;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	/* Disable TL2/3 queue links before SMQ flush*/
+	spin_lock(&rvu->rsrc_lock);
+	for (lvl = NIX_TXSCH_LVL_TL4; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		if (lvl != NIX_TXSCH_LVL_TL3 && lvl != NIX_TXSCH_LVL_TL4)
+			continue;
+
+		txsch = &nix_hw->txsch[lvl];
+		for (schq = 0; schq < txsch->schq.max; schq++) {
+			if (txsch->pfvf_map[schq] != pcifunc)
+				continue;
+			nix_reset_tx_linkcfg(rvu, blkaddr, lvl, schq);
+		}
+	}
+
+	/* Flush SMQs */
+	txsch = &nix_hw->txsch[NIX_TXSCH_LVL_SMQ];
+	for (schq = 0; schq < txsch->schq.max; schq++) {
+		if (txsch->pfvf_map[schq] != pcifunc)
+			continue;
+		cfg = rvu_read64(rvu, blkaddr, NIX_AF_SMQX_CFG(schq));
+		/* Do SMQ flush and set enqueue xoff */
+		cfg |= BIT_ULL(50) | BIT_ULL(49);
+		rvu_write64(rvu, blkaddr, NIX_AF_SMQX_CFG(schq), cfg);
+
+		/* Wait for flush to complete */
+		err = rvu_poll_reg(rvu, blkaddr,
+				   NIX_AF_SMQX_CFG(schq), BIT_ULL(49), true);
+		if (err) {
+			dev_err(rvu->dev,
+				"NIXLF%d: SMQ%d flush failed\n", nixlf, schq);
+		}
+	}
+
+	/* Now free scheduler queues to free pool */
+	for (lvl = 0; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
+		txsch = &nix_hw->txsch[lvl];
+		for (schq = 0; schq < txsch->schq.max; schq++) {
+			if (txsch->pfvf_map[schq] != pcifunc)
+				continue;
+			rvu_free_rsrc(&txsch->schq, schq);
+			txsch->pfvf_map[schq] = 0;
+		}
+	}
+	spin_unlock(&rvu->rsrc_lock);
+
+	/* Sync cached info for this LF in NDC-TX to LLC/DRAM */
+	rvu_write64(rvu, blkaddr, NIX_AF_NDC_TX_SYNC, BIT_ULL(12) | nixlf);
+	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_NDC_TX_SYNC, BIT_ULL(12), true);
+	if (err)
+		dev_err(rvu->dev, "NDC-TX sync failed for NIXLF %d\n", nixlf);
+
+	return 0;
+}
+
+int rvu_mbox_handler_NIX_TXSCH_FREE(struct rvu *rvu,
+				    struct nix_txsch_free_req *req,
+				    struct msg_rsp *rsp)
+{
+	return nix_txschq_free(rvu, req->hdr.pcifunc);
+}
+
 static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 {
 	struct nix_txsch *txsch;

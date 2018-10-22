@@ -180,11 +180,12 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 /* Function Prototypes
  * RVU
  */
-
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);
 int rvu_alloc_rsrc(struct rsrc_bmap *rsrc);
 void rvu_free_rsrc(struct rsrc_bmap *rsrc, int id);
 int rvu_rsrc_free_count(struct rsrc_bmap *rsrc);
+int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc);
+bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc);
 int rvu_get_pf(u16 pcifunc);
 struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
 void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf);
@@ -270,4 +271,10 @@ int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
 int rvu_mbox_handler_NIX_HWCTX_DISABLE(struct rvu *rvu,
 				       struct hwctx_disable_req *req,
 				       struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_TXSCH_ALLOC(struct rvu *rvu,
+				     struct nix_txsch_alloc_req *req,
+				     struct nix_txsch_alloc_rsp *rsp);
+int rvu_mbox_handler_NIX_TXSCH_FREE(struct rvu *rvu,
+				    struct nix_txsch_free_req *req,
+				    struct msg_rsp *rsp);
 #endif /* RVU_H */
