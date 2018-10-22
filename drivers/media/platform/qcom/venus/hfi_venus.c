@@ -1350,6 +1350,8 @@ static int venus_session_set_property(struct venus_inst *inst, u32 ptype,
 	pkt = (struct hfi_session_set_property_pkt *)packet;
 
 	ret = pkt_session_set_property(pkt, inst, ptype, pdata);
+	if (ret == -ENOTSUPP)
+		return 0;
 	if (ret)
 		return ret;
 
