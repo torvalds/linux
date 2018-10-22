@@ -6,8 +6,10 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  *          Michael Thayer <michael.thayer@oracle.com>
  */
+#include <linux/pci.h>
+#include <drm/drm_file.h>
+#include <drm/ttm/ttm_page_alloc.h>
 #include "vbox_drv.h"
-#include <ttm/ttm_page_alloc.h>
 
 static inline struct vbox_private *vbox_bdev(struct ttm_bo_device *bd)
 {
