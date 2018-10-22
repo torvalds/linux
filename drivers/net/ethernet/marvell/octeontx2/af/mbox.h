@@ -154,7 +154,8 @@ M(NIX_LF_FREE,		0x8001, msg_req, msg_rsp)			\
 M(NIX_AQ_ENQ,		0x8002, nix_aq_enq_req, nix_aq_enq_rsp)		\
 M(NIX_HWCTX_DISABLE,	0x8003, hwctx_disable_req, msg_rsp)		\
 M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc_req, nix_txsch_alloc_rsp) \
-M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free_req, msg_rsp)
+M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free_req, msg_rsp)		\
+M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_config, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -446,6 +447,18 @@ struct nix_txsch_free_req {
 	u16 schq_lvl;
 	/* List of scheduler queues to be freed */
 	u16 schq;
+};
+
+struct nix_txschq_config {
+	struct mbox_msghdr hdr;
+	u8 lvl;	/* SMQ/MDQ/TL4/TL3/TL2/TL1 */
+#define TXSCHQ_IDX_SHIFT	16
+#define TXSCHQ_IDX_MASK		(BIT_ULL(10) - 1)
+#define TXSCHQ_IDX(reg, shift)	(((reg) >> (shift)) & TXSCHQ_IDX_MASK)
+	u8 num_regs;
+#define MAX_REGS_PER_MBOX_MSG	20
+	u64 reg[MAX_REGS_PER_MBOX_MSG];
+	u64 regval[MAX_REGS_PER_MBOX_MSG];
 };
 
 #endif /* MBOX_H */

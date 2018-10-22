@@ -195,6 +195,14 @@ int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf);
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
 
+/* RVU HW reg validation */
+enum regmap_block {
+	TXSCHQ_HWREGMAP = 0,
+	MAX_HWREGMAP,
+};
+
+bool rvu_check_valid_reg(int regmap, int regblk, u64 reg);
+
 /* NPA/NIX AQ APIs */
 int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
 		 int qsize, int inst_size, int res_size);
@@ -276,5 +284,8 @@ int rvu_mbox_handler_NIX_TXSCH_ALLOC(struct rvu *rvu,
 				     struct nix_txsch_alloc_rsp *rsp);
 int rvu_mbox_handler_NIX_TXSCH_FREE(struct rvu *rvu,
 				    struct nix_txsch_free_req *req,
+				    struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
+				    struct nix_txschq_config *req,
 				    struct msg_rsp *rsp);
 #endif /* RVU_H */

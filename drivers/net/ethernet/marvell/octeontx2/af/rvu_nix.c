@@ -738,10 +738,10 @@ static void nix_reset_tx_linkcfg(struct rvu *rvu, int blkaddr,
 	if (lvl == NIX_TXSCH_LVL_TL4)
 		rvu_write64(rvu, blkaddr, NIX_AF_TL4X_SDP_LINK_CFG(schq), 0x00);
 
-	if (lvl != NIX_TXSCH_LVL_TL3)
+	if (lvl != NIX_TXSCH_LVL_TL2)
 		return;
 
-	/* Reset TL3's CGX or LBK link config */
+	/* Reset TL2's CGX or LBK link config */
 	for (link = 0; link < (hw->cgx_links + hw->lbk_links); link++)
 		rvu_write64(rvu, blkaddr,
 			    NIX_AF_TL3_TL2X_LINKX_CFG(schq, link), 0x00);
@@ -851,7 +851,7 @@ static int nix_txschq_free(struct rvu *rvu, u16 pcifunc)
 	/* Disable TL2/3 queue links before SMQ flush*/
 	spin_lock(&rvu->rsrc_lock);
 	for (lvl = NIX_TXSCH_LVL_TL4; lvl < NIX_TXSCH_LVL_CNT; lvl++) {
-		if (lvl != NIX_TXSCH_LVL_TL3 && lvl != NIX_TXSCH_LVL_TL4)
+		if (lvl != NIX_TXSCH_LVL_TL2 && lvl != NIX_TXSCH_LVL_TL4)
 			continue;
 
 		txsch = &nix_hw->txsch[lvl];
@@ -907,6 +907,104 @@ int rvu_mbox_handler_NIX_TXSCH_FREE(struct rvu *rvu,
 				    struct msg_rsp *rsp)
 {
 	return nix_txschq_free(rvu, req->hdr.pcifunc);
+}
+
+static bool is_txschq_config_valid(struct rvu *rvu, u16 pcifunc, int blkaddr,
+				   int lvl, u64 reg, u64 regval)
+{
+	u64 regbase = reg & 0xFFFF;
+	u16 schq, parent;
+
+	if (!rvu_check_valid_reg(TXSCHQ_HWREGMAP, lvl, reg))
+		return false;
+
+	schq = TXSCHQ_IDX(reg, TXSCHQ_IDX_SHIFT);
+	/* Check if this schq belongs to this PF/VF or not */
+	if (!is_valid_txschq(rvu, blkaddr, lvl, pcifunc, schq))
+		return false;
+
+	parent = (regval >> 16) & 0x1FF;
+	/* Validate MDQ's TL4 parent */
+	if (regbase == NIX_AF_MDQX_PARENT(0) &&
+	    !is_valid_txschq(rvu, blkaddr, NIX_TXSCH_LVL_TL4, pcifunc, parent))
+		return false;
+
+	/* Validate TL4's TL3 parent */
+	if (regbase == NIX_AF_TL4X_PARENT(0) &&
+	    !is_valid_txschq(rvu, blkaddr, NIX_TXSCH_LVL_TL3, pcifunc, parent))
+		return false;
+
+	/* Validate TL3's TL2 parent */
+	if (regbase == NIX_AF_TL3X_PARENT(0) &&
+	    !is_valid_txschq(rvu, blkaddr, NIX_TXSCH_LVL_TL2, pcifunc, parent))
+		return false;
+
+	/* Validate TL2's TL1 parent */
+	if (regbase == NIX_AF_TL2X_PARENT(0) &&
+	    !is_valid_txschq(rvu, blkaddr, NIX_TXSCH_LVL_TL1, pcifunc, parent))
+		return false;
+
+	return true;
+}
+
+int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
+				    struct nix_txschq_config *req,
+				    struct msg_rsp *rsp)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u16 pcifunc = req->hdr.pcifunc;
+	u64 reg, regval, schq_regbase;
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+	int blkaddr, idx, err;
+	int nixlf;
+
+	if (req->lvl >= NIX_TXSCH_LVL_CNT ||
+	    req->num_regs > MAX_REGS_PER_MBOX_MSG)
+		return NIX_AF_INVAL_TXSCHQ_CFG;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
+
+	nixlf = rvu_get_lf(rvu, &hw->block[blkaddr], pcifunc, 0);
+	if (nixlf < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	txsch = &nix_hw->txsch[req->lvl];
+	for (idx = 0; idx < req->num_regs; idx++) {
+		reg = req->reg[idx];
+		regval = req->regval[idx];
+		schq_regbase = reg & 0xFFFF;
+
+		if (!is_txschq_config_valid(rvu, pcifunc, blkaddr,
+					    txsch->lvl, reg, regval))
+			return NIX_AF_INVAL_TXSCHQ_CFG;
+
+		/* Replace PF/VF visible NIXLF slot with HW NIXLF id */
+		if (schq_regbase == NIX_AF_SMQX_CFG(0)) {
+			nixlf = rvu_get_lf(rvu, &hw->block[blkaddr],
+					   pcifunc, 0);
+			regval &= ~(0x7FULL << 24);
+			regval |= ((u64)nixlf << 24);
+		}
+
+		rvu_write64(rvu, blkaddr, reg, regval);
+
+		/* Check for SMQ flush, if so, poll for its completion */
+		if (schq_regbase == NIX_AF_SMQX_CFG(0) &&
+		    (regval & BIT_ULL(49))) {
+			err = rvu_poll_reg(rvu, blkaddr,
+					   reg, BIT_ULL(49), true);
+			if (err)
+				return NIX_AF_SMQ_FLUSH_FAILED;
+		}
+	}
+	return 0;
 }
 
 static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
