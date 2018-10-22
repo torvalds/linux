@@ -67,6 +67,7 @@ bool of_node_name_eq(const struct device_node *np, const char *name)
 
 	return (strlen(name) == len) && (strncmp(node_name, name, len) == 0);
 }
+EXPORT_SYMBOL(of_node_name_eq);
 
 bool of_node_name_prefix(const struct device_node *np, const char *prefix)
 {
@@ -75,6 +76,7 @@ bool of_node_name_prefix(const struct device_node *np, const char *prefix)
 
 	return strncmp(kbasename(np->full_name), prefix, strlen(prefix)) == 0;
 }
+EXPORT_SYMBOL(of_node_name_prefix);
 
 int of_n_addr_cells(struct device_node *np)
 {
