@@ -1737,16 +1737,16 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	if (INTEL_GEN(dev_priv) <= 8)
-		hsw_ddi_clock_get(encoder, pipe_config);
-	else if (IS_GEN9_BC(dev_priv))
-		skl_ddi_clock_get(encoder, pipe_config);
-	else if (IS_GEN9_LP(dev_priv))
-		bxt_ddi_clock_get(encoder, pipe_config);
+	if (IS_ICELAKE(dev_priv))
+		icl_ddi_clock_get(encoder, pipe_config);
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_clock_get(encoder, pipe_config);
-	else if (IS_ICELAKE(dev_priv))
-		icl_ddi_clock_get(encoder, pipe_config);
+	else if (IS_GEN9_LP(dev_priv))
+		bxt_ddi_clock_get(encoder, pipe_config);
+	else if (IS_GEN9_BC(dev_priv))
+		skl_ddi_clock_get(encoder, pipe_config);
+	else if (INTEL_GEN(dev_priv) <= 8)
+		hsw_ddi_clock_get(encoder, pipe_config);
 }
 
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
