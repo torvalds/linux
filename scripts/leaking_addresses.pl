@@ -231,7 +231,7 @@ sub get_kernel_config_option
 		my $tmp_file = "/tmp/tmpkconf";
 
 		if (system("gunzip < /proc/config.gz > $tmp_file")) {
-			dprint "$0: system(gunzip < /proc/config.gz) failed\n";
+			dprint("system(gunzip < /proc/config.gz) failed\n");
 			return "";
 		} else {
 			@config_files = ($tmp_file);
@@ -243,7 +243,7 @@ sub get_kernel_config_option
 	}
 
 	foreach my $file (@config_files) {
-		dprint("parsing config file: %s\n", $file);
+		dprint("parsing config file: $file\n");
 		$value = option_from_file($option, $file);
 		if ($value ne "") {
 			last;
@@ -502,7 +502,7 @@ sub walk
 				next;
 			}
 
-			dprint "parsing: $path\n";
+			dprint("parsing: $path\n");
 			timed_parse_file($path);
 		}
 	}
