@@ -149,6 +149,8 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 /* intel_dsi.c */
 int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
 int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);
+enum drm_panel_orientation
+intel_dsi_get_panel_orientation(struct intel_connector *connector);
 
 /* vlv_dsi.c */
 void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);

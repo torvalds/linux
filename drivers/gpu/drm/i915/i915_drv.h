@@ -1110,6 +1110,7 @@ struct intel_vbt_data {
 	unsigned int panel_type:4;
 	int lvds_ssc_freq;
 	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
+	enum drm_panel_orientation orientation;
 
 	enum drrs_support_type drrs_type;
 
@@ -1155,6 +1156,7 @@ struct intel_vbt_data {
 		u8 *data;
 		const u8 *sequence[MIPI_SEQ_MAX];
 		u8 *deassert_seq; /* Used by fixup_mipi_sequences() */
+		enum drm_panel_orientation orientation;
 	} dsi;
 
 	int crt_ddc_pin;

@@ -420,6 +420,13 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		intel_bios_ssc_frequency(dev_priv, general->ssc_freq);
 	dev_priv->vbt.display_clock_mode = general->display_clock_mode;
 	dev_priv->vbt.fdi_rx_polarity_inverted = general->fdi_rx_polarity_inverted;
+	if (bdb->version >= 181) {
+		dev_priv->vbt.orientation = general->rotate_180 ?
+			DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP :
+			DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	} else {
+		dev_priv->vbt.orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+	}
 	DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d fdi_rx_polarity_inverted %d\n",
 		      dev_priv->vbt.int_tv_support,
 		      dev_priv->vbt.int_crt_support,
@@ -851,6 +858,30 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	}
 
 	parse_dsi_backlight_ports(dev_priv, bdb->version, port);
+
+	/* FIXME is the 90 vs. 270 correct? */
+	switch (config->rotation) {
+	case ENABLE_ROTATION_0:
+		/*
+		 * Most (all?) VBTs claim 0 degrees despite having
+		 * an upside down panel, thus we do not trust this.
+		 */
+		dev_priv->vbt.dsi.orientation =
+			DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
+		break;
+	case ENABLE_ROTATION_90:
+		dev_priv->vbt.dsi.orientation =
+			DRM_MODE_PANEL_ORIENTATION_RIGHT_UP;
+		break;
+	case ENABLE_ROTATION_180:
+		dev_priv->vbt.dsi.orientation =
+			DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
+		break;
+	case ENABLE_ROTATION_270:
+		dev_priv->vbt.dsi.orientation =
+			DRM_MODE_PANEL_ORIENTATION_LEFT_UP;
+		break;
+	}
 
 	/* We have mandatory mipi config blocks. Initialize as generic panel */
 	dev_priv->vbt.dsi.panel_id = MIPI_DSI_GENERIC_PANEL_ID;

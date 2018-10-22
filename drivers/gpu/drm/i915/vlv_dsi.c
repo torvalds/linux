@@ -1614,7 +1614,7 @@ vlv_dsi_get_panel_orientation(struct intel_connector *connector)
 			return orientation;
 	}
 
-	return DRM_MODE_PANEL_ORIENTATION_NORMAL;
+	return intel_dsi_get_panel_orientation(connector);
 }
 
 static void intel_dsi_add_properties(struct intel_connector *connector)
