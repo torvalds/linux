@@ -3784,7 +3784,7 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 
 static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 			      const struct intel_crtc_state *cstate,
-			      const unsigned int total_data_rate,
+			      const u64 total_data_rate,
 			      const int num_active,
 			      struct skl_ddb_allocation *ddb)
 {
@@ -3798,12 +3798,12 @@ static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 		return ddb_size - 4; /* 4 blocks for bypass path allocation */
 
 	adjusted_mode = &cstate->base.adjusted_mode;
-	total_data_bw = (u64)total_data_rate * drm_mode_vrefresh(adjusted_mode);
+	total_data_bw = total_data_rate * drm_mode_vrefresh(adjusted_mode);
 
 	/*
 	 * 12GB/s is maximum BW supported by single DBuf slice.
 	 */
-	if (total_data_bw >= GBps(12) || num_active > 1) {
+	if (num_active > 1 || total_data_bw >= GBps(12)) {
 		ddb->enabled_slices = 2;
 	} else {
 		ddb->enabled_slices = 1;
@@ -3816,7 +3816,7 @@ static u16 intel_get_ddb_size(struct drm_i915_private *dev_priv,
 static void
 skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 				   const struct intel_crtc_state *cstate,
-				   const unsigned int total_data_rate,
+				   const u64 total_data_rate,
 				   struct skl_ddb_allocation *ddb,
 				   struct skl_ddb_entry *alloc, /* out */
 				   int *num_active /* out */)
@@ -4139,7 +4139,7 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 	return 0;
 }
 
-static unsigned int
+static u64
 skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     const struct drm_plane_state *pstate,
 			     const int plane)
@@ -4151,6 +4151,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	struct drm_framebuffer *fb;
 	u32 format;
 	uint_fixed_16_16_t down_scale_amount;
+	u64 rate;
 
 	if (!intel_pstate->base.visible)
 		return 0;
@@ -4177,28 +4178,26 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 		height /= 2;
 	}
 
-	data_rate = width * height * fb->format->cpp[plane];
+	data_rate = width * height;
 
 	down_scale_amount = skl_plane_downscale_amount(cstate, intel_pstate);
 
-	return mul_round_up_u32_fixed16(data_rate, down_scale_amount);
+	rate = mul_round_up_u32_fixed16(data_rate, down_scale_amount);
+
+	rate *= fb->format->cpp[plane];
+	return rate;
 }
 
-/*
- * We don't overflow 32 bits. Worst case is 3 planes enabled, each fetching
- * a 8192x4096@32bpp framebuffer:
- *   3 * 4096 * 8192  * 4 < 2^32
- */
-static unsigned int
+static u64
 skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate,
-				 unsigned int *plane_data_rate,
-				 unsigned int *uv_plane_data_rate)
+				 u64 *plane_data_rate,
+				 u64 *uv_plane_data_rate)
 {
 	struct drm_crtc_state *cstate = &intel_cstate->base;
 	struct drm_atomic_state *state = cstate->state;
 	struct drm_plane *plane;
 	const struct drm_plane_state *pstate;
-	unsigned int total_data_rate = 0;
+	u64 total_data_rate = 0;
 
 	if (WARN_ON(!state))
 		return 0;
@@ -4206,7 +4205,7 @@ skl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate,
 	/* Calculate and cache data rate for each plane */
 	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, cstate) {
 		enum plane_id plane_id = to_intel_plane(plane)->id;
-		unsigned int rate;
+		u64 rate;
 
 		/* packed/y */
 		rate = skl_plane_relative_data_rate(intel_cstate,
@@ -4325,11 +4324,11 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	uint16_t alloc_size, start;
 	uint16_t minimum[I915_MAX_PLANES] = {};
 	uint16_t uv_minimum[I915_MAX_PLANES] = {};
-	unsigned int total_data_rate;
+	u64 total_data_rate;
 	enum plane_id plane_id;
 	int num_active;
-	unsigned int plane_data_rate[I915_MAX_PLANES] = {};
-	unsigned int uv_plane_data_rate[I915_MAX_PLANES] = {};
+	u64 plane_data_rate[I915_MAX_PLANES] = {};
+	u64 uv_plane_data_rate[I915_MAX_PLANES] = {};
 	uint16_t total_min_blocks = 0;
 
 	/* Clear the partitioning for disabled planes. */
@@ -4388,7 +4387,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 
 	start = alloc->start;
 	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
-		unsigned int data_rate, uv_data_rate;
+		u64 data_rate, uv_data_rate;
 		uint16_t plane_blocks, uv_plane_blocks;
 
 		if (plane_id == PLANE_CURSOR)
@@ -4402,8 +4401,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		 * result is < available as data_rate / total_data_rate < 1
 		 */
 		plane_blocks = minimum[plane_id];
-		plane_blocks += div_u64((uint64_t)alloc_size * data_rate,
-					total_data_rate);
+		plane_blocks += div64_u64(alloc_size * data_rate, total_data_rate);
 
 		/* Leave disabled planes at (0,0) */
 		if (data_rate) {
@@ -4417,8 +4415,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		uv_data_rate = uv_plane_data_rate[plane_id];
 
 		uv_plane_blocks = uv_minimum[plane_id];
-		uv_plane_blocks += div_u64((uint64_t)alloc_size * uv_data_rate,
-					   total_data_rate);
+		uv_plane_blocks += div64_u64(alloc_size * uv_data_rate, total_data_rate);
 
 		if (uv_data_rate) {
 			ddb->uv_plane[pipe][plane_id].start = start;
