@@ -267,7 +267,6 @@ static void ad5933_calc_out_ranges(struct ad5933_state *st)
 
 	for (i = 0; i < 4; i++)
 		st->range_avail[i] = normalized_3v3[i] * st->vref_mv / 3300;
-
 }
 
 /*
