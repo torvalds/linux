@@ -47,7 +47,8 @@ static void *arm_nommu_dma_alloc(struct device *dev, size_t size,
 	 */
 
 	if (attrs & DMA_ATTR_NON_CONSISTENT)
-		return dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
+		return dma_direct_alloc_pages(dev, size, dma_handle, gfp,
+				attrs);
 
 	ret = dma_alloc_from_global_coherent(size, dma_handle);
 
@@ -70,7 +71,7 @@ static void arm_nommu_dma_free(struct device *dev, size_t size,
 			       unsigned long attrs)
 {
 	if (attrs & DMA_ATTR_NON_CONSISTENT) {
-		dma_direct_free(dev, size, cpu_addr, dma_addr, attrs);
+		dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
 	} else {
 		int ret = dma_release_from_global_coherent(get_order(size),
 							   cpu_addr);
@@ -90,7 +91,7 @@ static int arm_nommu_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 	if (dma_mmap_from_global_coherent(vma, cpu_addr, size, &ret))
 		return ret;
 
-	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
+	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
 }
 
 
@@ -236,8 +237,4 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	dma_ops = arm_nommu_get_dma_map_ops(dev->archdata.dma_coherent);
 
 	set_dma_ops(dev, dma_ops);
-}
-
-void arch_teardown_dma_ops(struct device *dev)
-{
 }

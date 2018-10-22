@@ -102,7 +102,7 @@ void __init dma_ops_init(void)
 	case pcxl: /* falls through */
 	case pcxs:
 	case pcxt:
-		hppa_dma_ops = &dma_noncoherent_ops;
+		hppa_dma_ops = &dma_direct_ops;
 		break;
 	default:
 		break;

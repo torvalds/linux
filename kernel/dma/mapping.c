@@ -7,7 +7,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-noncoherent.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
 #include <linux/of_device.h>
@@ -202,17 +202,26 @@ EXPORT_SYMBOL(dmam_release_declared_memory);
  * Create scatter-list for the already allocated DMA buffer.
  */
 int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
-		 void *cpu_addr, dma_addr_t handle, size_t size)
+		 void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		 unsigned long attrs)
 {
-	struct page *page = virt_to_page(cpu_addr);
+	struct page *page;
 	int ret;
 
-	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
-	if (unlikely(ret))
-		return ret;
+	if (!dev_is_dma_coherent(dev)) {
+		if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_COHERENT_TO_PFN))
+			return -ENXIO;
 
-	sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
-	return 0;
+		page = pfn_to_page(arch_dma_coherent_to_pfn(dev, cpu_addr,
+				dma_addr));
+	} else {
+		page = virt_to_page(cpu_addr);
+	}
+
+	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
+	if (!ret)
+		sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
+	return ret;
 }
 EXPORT_SYMBOL(dma_common_get_sgtable);
 
@@ -220,27 +229,37 @@ EXPORT_SYMBOL(dma_common_get_sgtable);
  * Create userspace mapping for the DMA-coherent memory.
  */
 int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
-		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
+		void *cpu_addr, dma_addr_t dma_addr, size_t size,
+		unsigned long attrs)
 {
-	int ret = -ENXIO;
 #ifndef CONFIG_ARCH_NO_COHERENT_DMA_MMAP
 	unsigned long user_count = vma_pages(vma);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	unsigned long off = vma->vm_pgoff;
+	unsigned long pfn;
+	int ret = -ENXIO;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = arch_dma_mmap_pgprot(dev, vma->vm_page_prot, attrs);
 
 	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;
 
-	if (off < count && user_count <= (count - off))
-		ret = remap_pfn_range(vma, vma->vm_start,
-				      page_to_pfn(virt_to_page(cpu_addr)) + off,
-				      user_count << PAGE_SHIFT,
-				      vma->vm_page_prot);
-#endif	/* !CONFIG_ARCH_NO_COHERENT_DMA_MMAP */
+	if (off >= count || user_count > count - off)
+		return -ENXIO;
 
-	return ret;
+	if (!dev_is_dma_coherent(dev)) {
+		if (!IS_ENABLED(CONFIG_ARCH_HAS_DMA_COHERENT_TO_PFN))
+			return -ENXIO;
+		pfn = arch_dma_coherent_to_pfn(dev, cpu_addr, dma_addr);
+	} else {
+		pfn = page_to_pfn(virt_to_page(cpu_addr));
+	}
+
+	return remap_pfn_range(vma, vma->vm_start, pfn + vma->vm_pgoff,
+			user_count << PAGE_SHIFT, vma->vm_page_prot);
+#else
+	return -ENXIO;
+#endif /* !CONFIG_ARCH_NO_COHERENT_DMA_MMAP */
 }
 EXPORT_SYMBOL(dma_common_mmap);
 
@@ -327,19 +346,3 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
 	vunmap(cpu_addr);
 }
 #endif
-
-/*
- * enables DMA API use for a device
- */
-int dma_configure(struct device *dev)
-{
-	if (dev->bus->dma_configure)
-		return dev->bus->dma_configure(dev);
-	return 0;
-}
-
-void dma_deconfigure(struct device *dev)
-{
-	of_dma_deconfigure(dev);
-	acpi_dma_deconfigure(dev);
-}

@@ -170,18 +170,6 @@ int of_dma_configure(struct device *dev, struct device_node *np, bool force_dma)
 }
 EXPORT_SYMBOL_GPL(of_dma_configure);
 
-/**
- * of_dma_deconfigure - Clean up DMA configuration
- * @dev:	Device for which to clean up DMA configuration
- *
- * Clean up all configuration performed by of_dma_configure_ops() and free all
- * resources that have been allocated.
- */
-void of_dma_deconfigure(struct device *dev)
-{
-	arch_teardown_dma_ops(dev);
-}
-
 int of_device_register(struct platform_device *pdev)
 {
 	device_initialize(&pdev->dev);

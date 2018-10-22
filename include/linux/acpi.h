@@ -831,8 +831,6 @@ static inline int acpi_dma_configure(struct device *dev,
 	return 0;
 }
 
-static inline void acpi_dma_deconfigure(struct device *dev) { }
-
 #define ACPI_PTR(_ptr)	(NULL)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)

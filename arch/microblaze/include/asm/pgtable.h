@@ -553,8 +553,6 @@ void __init *early_get_page(void);
 
 extern unsigned long ioremap_bot, ioremap_base;
 
-unsigned long consistent_virt_to_pfn(void *vaddr);
-
 void setup_memory(void);
 #endif /* __ASSEMBLY__ */
 

@@ -662,7 +662,7 @@ xen_swiotlb_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		return xen_get_dma_ops(dev)->mmap(dev, vma, cpu_addr,
 						    dma_addr, size, attrs);
 #endif
-	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size);
+	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
 }
 
 /*
@@ -689,7 +689,7 @@ xen_swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 							   handle, size, attrs);
 	}
 #endif
-	return dma_common_get_sgtable(dev, sgt, cpu_addr, handle, size);
+	return dma_common_get_sgtable(dev, sgt, cpu_addr, handle, size, attrs);
 }
 
 static int xen_swiotlb_mapping_error(struct device *dev, dma_addr_t dma_addr)
