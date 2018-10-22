@@ -3373,10 +3373,10 @@ static bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
 void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 					 struct intel_crtc_state *crtc_state)
 {
-	if (IS_CANNONLAKE(dev_priv) && crtc_state->port_clock > 594000)
-		crtc_state->min_voltage_level = 2;
-	else if (IS_ICELAKE(dev_priv) && crtc_state->port_clock > 594000)
+	if (IS_ICELAKE(dev_priv) && crtc_state->port_clock > 594000)
 		crtc_state->min_voltage_level = 1;
+	else if (IS_CANNONLAKE(dev_priv) && crtc_state->port_clock > 594000)
+		crtc_state->min_voltage_level = 2;
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,
