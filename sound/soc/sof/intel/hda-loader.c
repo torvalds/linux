@@ -38,23 +38,23 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 			     unsigned int size, struct snd_dma_buffer *dmab,
 			     int direction)
 {
-	struct hdac_ext_stream *stream = NULL;
+	struct hdac_ext_stream *dsp_stream = NULL;
 	struct hdac_stream *hstream;
 	struct pci_dev *pci = sdev->pci;
 	int ret;
 
 	if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		stream = hda_dsp_stream_get_pstream(sdev);
+		dsp_stream = hda_dsp_stream_get(sdev, direction);
 	} else {
 		dev_err(sdev->dev, "error: code loading DMA is playback only\n");
 		return -EINVAL;
 	}
 
-	if (!stream) {
+	if (!dsp_stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
 		return -ENODEV;
 	}
-	hstream = &stream->hstream;
+	hstream = &dsp_stream->hstream;
 
 	/* allocate DMA buffer */
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, &pci->dev, size, dmab);
@@ -66,18 +66,18 @@ static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 	hstream->format_val = format;
 	hstream->bufsize = size;
 
-	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, NULL);
+	ret = hda_dsp_stream_hw_params(sdev, dsp_stream, dmab, NULL);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: hdac prepare failed: %x\n", ret);
 		goto error;
 	}
 
-	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_ENABLE, size);
+	hda_dsp_stream_spib_config(sdev, dsp_stream, HDA_DSP_SPIB_ENABLE, size);
 
 	return hstream->stream_tag;
 
 error:
-	hda_dsp_stream_put_pstream(sdev, hstream->stream_tag);
+	hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
 	snd_dma_free_pages(dmab);
 	return ret;
 }

@@ -170,7 +170,7 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction)
 	struct hdac_ext_stream *stream = NULL;
 	struct hdac_stream *s;
 
-	/* get an unused playback stream */
+	/* get an unused stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
 		if (s->direction == direction && !s->opened) {
 			s->opened = true;
@@ -188,56 +188,6 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction)
 	return stream;
 }
 
-/* get next unused playback stream */
-struct hdac_ext_stream *
-hda_dsp_stream_get_pstream(struct snd_sof_dev *sdev)
-{
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_ext_stream *stream = NULL;
-	struct hdac_stream *s;
-
-	/* get an unused playback stream */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		    !s->opened) {
-			s->opened = true;
-			stream = stream_to_hdac_ext_stream(s);
-			break;
-		}
-	}
-
-	/* stream found ? */
-	if (!stream)
-		dev_err(sdev->dev, "error: no free playback streams\n");
-
-	return stream;
-}
-
-/* get next unused capture stream */
-struct hdac_ext_stream *
-hda_dsp_stream_get_cstream(struct snd_sof_dev *sdev)
-{
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_ext_stream *stream = NULL;
-	struct hdac_stream *s;
-
-	/* get an unused capture stream */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_CAPTURE &&
-		    !s->opened) {
-			s->opened = true;
-			stream = stream_to_hdac_ext_stream(s);
-			break;
-		}
-	}
-
-	/* stream found ? */
-	if (!stream)
-		dev_err(sdev->dev, "error: no free capture streams\n");
-
-	return stream;
-}
-
 /* free a stream */
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int tag)
 {
@@ -247,44 +197,6 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int tag)
 	/* find used stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
 		if (s->direction == direction &&
-		    s->opened && s->stream_tag == tag) {
-			s->opened = false;
-			return 0;
-		}
-	}
-
-	dev_dbg(sdev->dev, "tag %d not opened!\n", tag);
-	return -ENODEV;
-}
-
-/* free playback stream */
-int hda_dsp_stream_put_pstream(struct snd_sof_dev *sdev, int tag)
-{
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_stream *s;
-
-	/* find used playback stream */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		    s->opened && s->stream_tag == tag) {
-			s->opened = false;
-			return 0;
-		}
-	}
-
-	dev_dbg(sdev->dev, "tag %d not opened!\n", tag);
-	return -ENODEV;
-}
-
-/* free capture stream */
-int hda_dsp_stream_put_cstream(struct snd_sof_dev *sdev, int tag)
-{
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_stream *s;
-
-	/* find used capture stream */
-	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_CAPTURE &&
 		    s->opened && s->stream_tag == tag) {
 			s->opened = false;
 			return 0;
