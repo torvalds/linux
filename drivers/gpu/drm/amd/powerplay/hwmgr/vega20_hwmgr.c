@@ -2041,6 +2041,13 @@ int vega20_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
+static int vega20_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
+				PHM_PerformanceLevelDesignation designation, uint32_t index,
+				PHM_PerformanceLevel *level)
+{
+	return 0;
+}
+
 static int vega20_notify_smc_display_config_after_ps_adjustment(
 		struct pp_hwmgr *hwmgr)
 {
@@ -3487,6 +3494,8 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 		vega20_set_watermarks_for_clocks_ranges,
 	.display_clock_voltage_request =
 		vega20_display_clock_voltage_request,
+	.get_performance_level =
+		vega20_get_performance_level,
 	/* UMD pstate, profile related */
 	.force_dpm_level =
 		vega20_dpm_force_dpm_level,
