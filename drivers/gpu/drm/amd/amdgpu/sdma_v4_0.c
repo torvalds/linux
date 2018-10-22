@@ -1464,7 +1464,8 @@ static int sdma_v4_0_early_init(void *handle)
 		adev->sdma.has_page_queue = false;
 	} else {
 		adev->sdma.num_instances = 2;
-		adev->sdma.has_page_queue = true;
+		if (adev->asic_type != CHIP_VEGA20)
+			adev->sdma.has_page_queue = true;
 	}
 
 	sdma_v4_0_set_ring_funcs(adev);
