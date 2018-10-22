@@ -11274,7 +11274,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"je 3f \n\t"
 		"mov %%" _ASM_AX", %%cr2 \n\t"
 		"3: \n\t"
-		/* Check if vmlaunch of vmresume is needed */
+		/* Check if vmlaunch or vmresume is needed */
 		"cmpl $0, %c[launched](%0) \n\t"
 		/* Load guest registers.  Don't clobber flags. */
 		"mov %c[rax](%0), %%" _ASM_AX " \n\t"
@@ -13298,15 +13298,13 @@ static int __noclone nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 		__ex("vmwrite %%" _ASM_SP ", %%" _ASM_DX) "\n\t"
 		"mov %%" _ASM_SP ", %c[host_rsp](%0)\n\t"
 
-		/* Check if vmlaunch of vmresume is needed */
+		/* Check if vmlaunch or vmresume is needed */
 		"cmpl $0, %c[launched](%0)\n\t"
-		"je 1f\n\t"
-		__ex("vmresume") "\n\t"
+		"jne 1f\n\t"
+		__ex("vmlaunch") "\n\t"
 		"jmp 2f\n\t"
-		"1: " __ex("vmlaunch") "\n\t"
-		"jmp 2f\n\t"
+		"1: " __ex("vmresume") "\n\t"
 		"2: "
-
 		/* Set vmx->fail accordingly */
 		"setbe %c[fail](%0)\n\t"
 
