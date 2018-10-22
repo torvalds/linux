@@ -105,29 +105,36 @@ static notrace noinline u64
 vread_tick(void) {
 	u64	ret;
 
-	__asm__ __volatile__("rd	%%asr24, %0 \n"
-			     ".section	.vread_tick_patch, \"ax\" \n"
-			     "rd	%%tick, %0 \n"
-			     ".previous \n"
-			     : "=&r" (ret));
+	__asm__ __volatile__("1:\n\t"
+			     "rd		%%tick, %0\n\t"
+			     ".pushsection	.tick_patch, \"a\"\n\t"
+			     ".word		1b - ., 1f - .\n\t"
+			     ".popsection\n\t"
+			     ".pushsection	.tick_patch_replacement, \"ax\"\n\t"
+			     "1:\n\t"
+			     "rd		%%asr24, %0\n\t"
+			     ".popsection\n"
+			     : "=r" (ret));
 	return ret & ~TICK_PRIV_BIT;
 }
 #else
 static notrace noinline u64
 vread_tick(void)
 {
-	unsigned int lo, hi;
+	register unsigned long long ret asm("o4");
 
-	__asm__ __volatile__("rd	%%asr24, %%g1\n\t"
-			     "srlx	%%g1, 32, %1\n\t"
-			     "srl	%%g1, 0, %0\n"
-			     ".section	.vread_tick_patch, \"ax\" \n"
-			     "rd	%%tick, %%g1\n"
-			     ".previous \n"
-			     : "=&r" (lo), "=&r" (hi)
-			     :
-			     : "g1");
-	return lo | ((u64)hi << 32);
+	__asm__ __volatile__("1:\n\t"
+			     "rd		%%tick, %L0\n\t"
+			     "srlx		%L0, 32, %H0\n\t"
+			     ".pushsection	.tick_patch, \"a\"\n\t"
+			     ".word		1b - ., 1f - .\n\t"
+			     ".popsection\n\t"
+			     ".pushsection	.tick_patch_replacement, \"ax\"\n\t"
+			     "1:\n\t"
+			     "rd		%%asr24, %L0\n\t"
+			     ".popsection\n"
+			     : "=r" (ret));
+	return ret;
 }
 #endif
 

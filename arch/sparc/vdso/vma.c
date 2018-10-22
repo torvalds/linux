@@ -16,6 +16,8 @@
 #include <linux/linkage.h>
 #include <linux/random.h>
 #include <linux/elf.h>
+#include <asm/cacheflush.h>
+#include <asm/spitfire.h>
 #include <asm/vdso.h>
 #include <asm/vvar.h>
 #include <asm/page.h>
@@ -40,7 +42,25 @@ static struct vm_special_mapping vdso_mapping32 = {
 
 struct vvar_data *vvar_data;
 
-#define	SAVE_INSTR_SIZE	4
+struct tick_patch_entry {
+	s32 orig, repl;
+};
+
+static void stick_patch(const struct vdso_image *image)
+{
+	struct tick_patch_entry *p, *p_end;
+
+	p = image->data + image->tick_patch;
+	p_end = (void *)p + image->tick_patch_len;
+	while (p < p_end) {
+		u32 *instr = (void *)&p->orig + p->orig;
+		u32 *repl = (void *)&p->repl + p->repl;
+
+		*instr = *repl;
+		flushi(instr);
+		p++;
+	}
+}
 
 /*
  * Allocate pages for the vdso and vvar, and copy in the vdso text from the
@@ -68,21 +88,8 @@ int __init init_vdso_image(const struct vdso_image *image,
 	if (!cpp)
 		goto oom;
 
-	if (vdso_fix_stick) {
-		/*
-		 * If the system uses %tick instead of %stick, patch the VDSO
-		 * with instruction reading %tick instead of %stick.
-		 */
-		unsigned int j, k = SAVE_INSTR_SIZE;
-		unsigned char *data = image->data;
-
-		for (j = image->sym_vread_tick_patch_start;
-		     j < image->sym_vread_tick_patch_end; j++) {
-
-			data[image->sym_vread_tick + k] = data[j];
-			k++;
-		}
-	}
+	if (tlb_type != spitfire)
+		stick_patch(image);
 
 	for (i = 0; i < cnpages; i++) {
 		cp = alloc_page(GFP_KERNEL);
