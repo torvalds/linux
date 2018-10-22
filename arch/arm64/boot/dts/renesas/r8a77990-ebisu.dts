@@ -362,6 +362,11 @@
 	status = "okay";
 };
 
+&usb3_peri0 {
+	companion = <&xhci0>;
+	status = "okay";
+};
+
 &vin4 {
 	status = "okay";
 };
