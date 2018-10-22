@@ -879,6 +879,36 @@ struct nix_lso_format {
 #endif
 };
 
+struct nix_rx_flowkey_alg {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64 reserved_35_63	:29;
+	u64 ltype_match		:4;
+	u64 ltype_mask		:4;
+	u64 sel_chan		:1;
+	u64 ena			:1;
+	u64 reserved_24_24	:1;
+	u64 lid			:3;
+	u64 bytesm1		:5;
+	u64 hdr_offset		:8;
+	u64 fn_mask		:1;
+	u64 ln_mask		:1;
+	u64 key_offset		:6;
+#else
+	u64 key_offset		:6;
+	u64 ln_mask		:1;
+	u64 fn_mask		:1;
+	u64 hdr_offset		:8;
+	u64 bytesm1		:5;
+	u64 lid			:3;
+	u64 reserved_24_24	:1;
+	u64 ena			:1;
+	u64 sel_chan		:1;
+	u64 ltype_mask		:4;
+	u64 ltype_match		:4;
+	u64 reserved_35_63	:29;
+#endif
+};
+
 /* NIX VTAG size */
 enum nix_vtag_size {
 	VTAGSIZE_T4   = 0x0,

@@ -1536,6 +1536,139 @@ int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+static void set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
+{
+	struct nix_rx_flowkey_alg *field = NULL;
+	int idx, key_type;
+
+	if (!alg)
+		return;
+
+	/* FIELD0: IPv4
+	 * FIELD1: IPv6
+	 * FIELD2: TCP/UDP/SCTP/ALL
+	 * FIELD3: Unused
+	 * FIELD4: Unused
+	 *
+	 * Each of the 32 possible flow key algorithm definitions should
+	 * fall into above incremental config (except ALG0). Otherwise a
+	 * single NPC MCAM entry is not sufficient for supporting RSS.
+	 *
+	 * If a different definition or combination needed then NPC MCAM
+	 * has to be programmed to filter such pkts and it's action should
+	 * point to this definition to calculate flowtag or hash.
+	 */
+	for (idx = 0; idx < 32; idx++) {
+		key_type = flow_cfg & BIT_ULL(idx);
+		if (!key_type)
+			continue;
+		switch (key_type) {
+		case FLOW_KEY_TYPE_PORT:
+			field = &alg[0];
+			field->sel_chan = true;
+			/* This should be set to 1, when SEL_CHAN is set */
+			field->bytesm1 = 1;
+			break;
+		case FLOW_KEY_TYPE_IPV4:
+			field = &alg[0];
+			field->lid = NPC_LID_LC;
+			field->ltype_match = NPC_LT_LC_IP;
+			field->hdr_offset = 12; /* SIP offset */
+			field->bytesm1 = 7; /* SIP + DIP, 8 bytes */
+			field->ltype_mask = 0xF; /* Match only IPv4 */
+			break;
+		case FLOW_KEY_TYPE_IPV6:
+			field = &alg[1];
+			field->lid = NPC_LID_LC;
+			field->ltype_match = NPC_LT_LC_IP6;
+			field->hdr_offset = 8; /* SIP offset */
+			field->bytesm1 = 31; /* SIP + DIP, 32 bytes */
+			field->ltype_mask = 0xF; /* Match only IPv6 */
+			break;
+		case FLOW_KEY_TYPE_TCP:
+		case FLOW_KEY_TYPE_UDP:
+		case FLOW_KEY_TYPE_SCTP:
+			field = &alg[2];
+			field->lid = NPC_LID_LD;
+			field->bytesm1 = 3; /* Sport + Dport, 4 bytes */
+			if (key_type == FLOW_KEY_TYPE_TCP)
+				field->ltype_match |= NPC_LT_LD_TCP;
+			else if (key_type == FLOW_KEY_TYPE_UDP)
+				field->ltype_match |= NPC_LT_LD_UDP;
+			else if (key_type == FLOW_KEY_TYPE_SCTP)
+				field->ltype_match |= NPC_LT_LD_SCTP;
+			field->key_offset = 32; /* After IPv4/v6 SIP, DIP */
+			field->ltype_mask = ~field->ltype_match;
+			break;
+		}
+		if (field)
+			field->ena = 1;
+		field = NULL;
+	}
+}
+
+static void nix_rx_flowkey_alg_cfg(struct rvu *rvu, int blkaddr)
+{
+#define FIELDS_PER_ALG	5
+	u64 field[FLOW_KEY_ALG_MAX][FIELDS_PER_ALG];
+	u32 flowkey_cfg, minkey_cfg;
+	int alg, fid;
+
+	memset(&field, 0, sizeof(u64) * FLOW_KEY_ALG_MAX * FIELDS_PER_ALG);
+
+	/* Only incoming channel number */
+	flowkey_cfg = FLOW_KEY_TYPE_PORT;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_PORT], flowkey_cfg);
+
+	/* For a incoming pkt if none of the fields match then flowkey
+	 * will be zero, hence tag generated will also be zero.
+	 * RSS entry at rsse_index = NIX_AF_LF()_RSS_GRP()[OFFSET] will
+	 * be used to queue the packet.
+	 */
+
+	/* IPv4/IPv6 SIP/DIPs */
+	flowkey_cfg = FLOW_KEY_TYPE_IPV4 | FLOW_KEY_TYPE_IPV6;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_IP], flowkey_cfg);
+
+	/* TCPv4/v6 4-tuple, SIP, DIP, Sport, Dport */
+	minkey_cfg = flowkey_cfg;
+	flowkey_cfg = minkey_cfg | FLOW_KEY_TYPE_TCP;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_TCP], flowkey_cfg);
+
+	/* UDPv4/v6 4-tuple, SIP, DIP, Sport, Dport */
+	flowkey_cfg = minkey_cfg | FLOW_KEY_TYPE_UDP;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_UDP], flowkey_cfg);
+
+	/* SCTPv4/v6 4-tuple, SIP, DIP, Sport, Dport */
+	flowkey_cfg = minkey_cfg | FLOW_KEY_TYPE_SCTP;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_SCTP], flowkey_cfg);
+
+	/* TCP/UDP v4/v6 4-tuple, rest IP pkts 2-tuple */
+	flowkey_cfg = minkey_cfg | FLOW_KEY_TYPE_TCP | FLOW_KEY_TYPE_UDP;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_TCP_UDP], flowkey_cfg);
+
+	/* TCP/SCTP v4/v6 4-tuple, rest IP pkts 2-tuple */
+	flowkey_cfg = minkey_cfg | FLOW_KEY_TYPE_TCP | FLOW_KEY_TYPE_SCTP;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_TCP_SCTP], flowkey_cfg);
+
+	/* UDP/SCTP v4/v6 4-tuple, rest IP pkts 2-tuple */
+	flowkey_cfg = minkey_cfg | FLOW_KEY_TYPE_UDP | FLOW_KEY_TYPE_SCTP;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_UDP_SCTP], flowkey_cfg);
+
+	/* TCP/UDP/SCTP v4/v6 4-tuple, rest IP pkts 2-tuple */
+	flowkey_cfg = minkey_cfg | FLOW_KEY_TYPE_TCP |
+		      FLOW_KEY_TYPE_UDP | FLOW_KEY_TYPE_SCTP;
+	set_flowkey_fields((void *)&field[FLOW_KEY_ALG_TCP_UDP_SCTP],
+			   flowkey_cfg);
+
+	for (alg = 0; alg < FLOW_KEY_ALG_MAX; alg++) {
+		for (fid = 0; fid < FIELDS_PER_ALG; fid++)
+			rvu_write64(rvu, blkaddr,
+				    NIX_AF_RX_FLOW_KEY_ALGX_FIELDX(alg, fid),
+				    field[alg][fid]);
+	}
+}
+
 static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 {
 	int idx, err;
@@ -1678,6 +1811,8 @@ int rvu_nix_init(struct rvu *rvu)
 			    (NPC_LID_LD << 8) | (NPC_LT_LD_TCP << 4) | 0x0F);
 		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OIP4,
 			    (NPC_LID_LC << 8) | (NPC_LT_LC_IP << 4) | 0x0F);
+
+		nix_rx_flowkey_alg_cfg(rvu, blkaddr);
 	}
 	return 0;
 }
