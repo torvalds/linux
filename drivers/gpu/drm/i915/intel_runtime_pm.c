@@ -3084,12 +3084,6 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_ICELAKE(dev_priv)) {
 		err = set_power_wells(power_domains, icl_power_wells);
-	} else if (IS_HASWELL(dev_priv)) {
-		err = set_power_wells(power_domains, hsw_power_wells);
-	} else if (IS_BROADWELL(dev_priv)) {
-		err = set_power_wells(power_domains, bdw_power_wells);
-	} else if (IS_GEN9_BC(dev_priv)) {
-		err = set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		err = set_power_wells(power_domains, cnl_power_wells);
 
@@ -3101,13 +3095,18 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		 */
 		if (!IS_CNL_WITH_PORT_F(dev_priv))
 			power_domains->power_well_count -= 2;
-
-	} else if (IS_BROXTON(dev_priv)) {
-		err = set_power_wells(power_domains, bxt_power_wells);
 	} else if (IS_GEMINILAKE(dev_priv)) {
 		err = set_power_wells(power_domains, glk_power_wells);
+	} else if (IS_BROXTON(dev_priv)) {
+		err = set_power_wells(power_domains, bxt_power_wells);
+	} else if (IS_GEN9_BC(dev_priv)) {
+		err = set_power_wells(power_domains, skl_power_wells);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
 		err = set_power_wells(power_domains, chv_power_wells);
+	} else if (IS_BROADWELL(dev_priv)) {
+		err = set_power_wells(power_domains, bdw_power_wells);
+	} else if (IS_HASWELL(dev_priv)) {
+		err = set_power_wells(power_domains, hsw_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		err = set_power_wells(power_domains, vlv_power_wells);
 	} else if (IS_I830(dev_priv)) {
