@@ -102,6 +102,7 @@ struct perf_evsel {
 	int			idx;
 	u32			ids;
 	unsigned long		max_events;
+	unsigned long		nr_events_printed;
 	char			*name;
 	double			scale;
 	const char		*unit;

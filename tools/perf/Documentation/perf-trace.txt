@@ -285,6 +285,26 @@ Trace the next min page page fault to take place on the first CPU:
                                        [0x18b26e6bc2bd] (/tmp/perf-17136.map)
   #
 
+Trace the next two sched:sched_switch events, four block:*_plug events, the
+next block:*_unplug and the next three net:*dev_queue events, this last one
+with a backtrace of at most 16 entries, system wide:
+
+  # perf trace -e sched:*switch/nr=2/,block:*_plug/nr=4/,block:*_unplug/nr=1/,net:*dev_queue/nr=3,max-stack=16/
+     0.000 :0/0 sched:sched_switch:swapper/2:0 [120] S ==> rcu_sched:10 [120]
+     0.015 rcu_sched/10 sched:sched_switch:rcu_sched:10 [120] R ==> swapper/2:0 [120]
+   254.198 irq/50-iwlwifi/680 net:net_dev_queue:dev=wlp3s0 skbaddr=0xffff93498051f600 len=66
+                                       __dev_queue_xmit ([kernel.kallsyms])
+   273.977 :0/0 net:net_dev_queue:dev=wlp3s0 skbaddr=0xffff93498051f600 len=78
+                                       __dev_queue_xmit ([kernel.kallsyms])
+   274.007 :0/0 net:net_dev_queue:dev=wlp3s0 skbaddr=0xffff93498051ff00 len=78
+                                       __dev_queue_xmit ([kernel.kallsyms])
+  2930.140 kworker/u16:58/2722 block:block_plug:[kworker/u16:58]
+  2930.162 kworker/u16:58/2722 block:block_unplug:[kworker/u16:58] 1
+  4466.094 jbd2/dm-2-8/748 block:block_plug:[jbd2/dm-2-8]
+  8050.123 kworker/u16:30/2694 block:block_plug:[kworker/u16:30]
+  8050.271 kworker/u16:30/2694 block:block_plug:[kworker/u16:30]
+  #
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script[1]
