@@ -192,7 +192,7 @@ static struct guc_doorbell_info *__get_doorbell(struct intel_guc_client *client)
 	return client->vaddr + client->doorbell_offset;
 }
 
-static void __create_doorbell(struct intel_guc_client *client)
+static void __init_doorbell(struct intel_guc_client *client)
 {
 	struct guc_doorbell_info *doorbell;
 
@@ -201,7 +201,7 @@ static void __create_doorbell(struct intel_guc_client *client)
 	doorbell->cookie = 0;
 }
 
-static void __destroy_doorbell(struct intel_guc_client *client)
+static void __fini_doorbell(struct intel_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(client->guc);
 	struct guc_doorbell_info *doorbell;
@@ -226,11 +226,11 @@ static int create_doorbell(struct intel_guc_client *client)
 		return -ENODEV; /* internal setup error, should never happen */
 
 	__update_doorbell_desc(client, client->doorbell_id);
-	__create_doorbell(client);
+	__init_doorbell(client);
 
 	ret = __guc_allocate_doorbell(client->guc, client->stage_id);
 	if (ret) {
-		__destroy_doorbell(client);
+		__fini_doorbell(client);
 		__update_doorbell_desc(client, GUC_DOORBELL_INVALID);
 		DRM_DEBUG_DRIVER("Couldn't create client %u doorbell: %d\n",
 				 client->stage_id, ret);
@@ -246,7 +246,7 @@ static int destroy_doorbell(struct intel_guc_client *client)
 
 	GEM_BUG_ON(!has_doorbell(client));
 
-	__destroy_doorbell(client);
+	__fini_doorbell(client);
 	ret = __guc_deallocate_doorbell(client->guc, client->stage_id);
 	if (ret)
 		DRM_ERROR("Couldn't destroy client %u doorbell: %d\n",
@@ -1087,7 +1087,7 @@ static void __guc_client_disable(struct intel_guc_client *client)
 	if (intel_guc_is_alive(client->guc))
 		destroy_doorbell(client);
 	else
-		__destroy_doorbell(client);
+		__fini_doorbell(client);
 
 	guc_stage_desc_fini(client);
 	guc_proc_desc_fini(client);
