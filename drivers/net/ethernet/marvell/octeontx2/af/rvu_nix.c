@@ -14,6 +14,7 @@
 #include "rvu_struct.h"
 #include "rvu_reg.h"
 #include "rvu.h"
+#include "npc.h"
 #include "cgx.h"
 
 static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add);
@@ -1630,6 +1631,19 @@ int rvu_nix_init(struct rvu *rvu)
 		err = nix_setup_mcast(rvu, hw->nix0, blkaddr);
 		if (err)
 			return err;
+
+		/* Config Outer L2, IP, TCP and UDP's NPC layer info.
+		 * This helps HW protocol checker to identify headers
+		 * and validate length and checksums.
+		 */
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OL2,
+			    (NPC_LID_LA << 8) | (NPC_LT_LA_ETHER << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OUDP,
+			    (NPC_LID_LD << 8) | (NPC_LT_LD_UDP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OTCP,
+			    (NPC_LID_LD << 8) | (NPC_LT_LD_TCP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OIP4,
+			    (NPC_LID_LC << 8) | (NPC_LT_LC_IP << 4) | 0x0F);
 	}
 	return 0;
 }
