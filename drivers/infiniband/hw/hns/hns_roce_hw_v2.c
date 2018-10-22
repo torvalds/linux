@@ -4972,13 +4972,12 @@ static int hns_roce_mhop_alloc_eq(struct hns_roce_dev *hr_dev,
 				eqe_alloc = i * (buf_chk_sz / eq->eqe_size);
 				size = (eq->entries - eqe_alloc) * eq->eqe_size;
 			}
-			eq->buf[i] = dma_alloc_coherent(dev, size,
+			eq->buf[i] = dma_zalloc_coherent(dev, size,
 							&(eq->buf_dma[i]),
 							GFP_KERNEL);
 			if (!eq->buf[i])
 				goto err_dma_alloc_buf;
 
-			memset(eq->buf[i], 0, size);
 			*(eq->bt_l0 + i) = eq->buf_dma[i];
 
 			eq_buf_cnt++;
@@ -5008,13 +5007,12 @@ static int hns_roce_mhop_alloc_eq(struct hns_roce_dev *hr_dev,
 					size = (eq->entries - eqe_alloc)
 						* eq->eqe_size;
 				}
-				eq->buf[idx] = dma_alloc_coherent(dev, size,
+				eq->buf[idx] = dma_zalloc_coherent(dev, size,
 							    &(eq->buf_dma[idx]),
 							    GFP_KERNEL);
 				if (!eq->buf[idx])
 					goto err_dma_alloc_buf;
 
-				memset(eq->buf[idx], 0, size);
 				*(eq->bt_l1[i] + j) = eq->buf_dma[idx];
 
 				eq_buf_cnt++;
@@ -5124,7 +5122,7 @@ static int hns_roce_v2_create_eq(struct hns_roce_dev *hr_dev,
 			goto free_cmd_mbox;
 		}
 
-		eq->buf_list->buf = dma_alloc_coherent(dev, buf_chk_sz,
+		eq->buf_list->buf = dma_zalloc_coherent(dev, buf_chk_sz,
 						       &(eq->buf_list->map),
 						       GFP_KERNEL);
 		if (!eq->buf_list->buf) {
@@ -5132,7 +5130,6 @@ static int hns_roce_v2_create_eq(struct hns_roce_dev *hr_dev,
 			goto err_alloc_buf;
 		}
 
-		memset(eq->buf_list->buf, 0, buf_chk_sz);
 	} else {
 		ret = hns_roce_mhop_alloc_eq(hr_dev, eq);
 		if (ret) {
