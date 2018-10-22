@@ -338,15 +338,6 @@ struct mt76x02_dev *mt76x2_alloc_device(struct device *pdev)
 	return dev;
 }
 
-static void mt76x2_regd_notifier(struct wiphy *wiphy,
-				 struct regulatory_request *request)
-{
-	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct mt76x02_dev *dev = hw->priv;
-
-	mt76x2_dfs_set_domain(dev, request->dfs_region);
-}
-
 static void mt76x2_led_set_config(struct mt76_dev *mt76, u8 delay_on,
 				  u8 delay_off)
 {
@@ -423,11 +414,11 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 	wiphy->addresses = dev->macaddr_list;
 	wiphy->n_addresses = ARRAY_SIZE(dev->macaddr_list);
 
-	wiphy->reg_notifier = mt76x2_regd_notifier;
+	wiphy->reg_notifier = mt76x02_regd_notifier;
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 
-	mt76x2_dfs_init_detector(dev);
+	mt76x02_dfs_init_detector(dev);
 
 	/* init led callbacks */
 	dev->mt76.led_cdev.brightness_set = mt76x2_led_set_brightness;

@@ -7,7 +7,7 @@ mt76x2-common-y := \
 
 mt76x2e-y := \
 	pci.o pci_main.o pci_init.o pci_mcu.o \
-	pci_phy.o pci_dfs.o
+	pci_phy.o
 
 mt76x2u-y := \
 	usb.o usb_init.o usb_main.o usb_mac.o usb_mcu.o \

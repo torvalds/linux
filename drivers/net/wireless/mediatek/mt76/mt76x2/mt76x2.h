@@ -33,7 +33,6 @@
 
 #include "../mt76x02.h"
 #include "mac.h"
-#include "dfs.h"
 
 static inline bool is_mt7612(struct mt76x02_dev *dev)
 {
