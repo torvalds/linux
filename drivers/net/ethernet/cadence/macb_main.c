@@ -4156,8 +4156,7 @@ static int macb_remove(struct platform_device *pdev)
 
 static int __maybe_unused macb_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct macb *bp = netdev_priv(netdev);
 
 	netif_carrier_off(netdev);
@@ -4179,8 +4178,7 @@ static int __maybe_unused macb_suspend(struct device *dev)
 
 static int __maybe_unused macb_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct net_device *netdev = dev_get_drvdata(dev);
 	struct macb *bp = netdev_priv(netdev);
 
 	if (bp->wol & MACB_WOL_ENABLED) {
