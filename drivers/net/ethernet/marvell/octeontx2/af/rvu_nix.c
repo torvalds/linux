@@ -16,6 +16,8 @@
 #include "rvu.h"
 #include "cgx.h"
 
+static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add);
+
 enum mc_tbl_sz {
 	MC_TBL_SZ_256,
 	MC_TBL_SZ_512,
@@ -108,6 +110,7 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	u8 cgx_id, lmac_id;
 	int pkind, pf;
+	int err;
 
 	pf = rvu_get_pf(pcifunc);
 	if (!is_pf_cgxmapped(rvu, pf) && type != NIX_INTF_TYPE_LBK)
@@ -130,7 +133,28 @@ static int nix_interface_init(struct rvu *rvu, u16 pcifunc, int type, int nixlf)
 	case NIX_INTF_TYPE_LBK:
 		break;
 	}
+
+	/* Add this PF_FUNC to bcast pkt replication list */
+	err = nix_update_bcast_mce_list(rvu, pcifunc, true);
+	if (err) {
+		dev_err(rvu->dev,
+			"Bcast list, failed to enable PF_FUNC 0x%x\n",
+			pcifunc);
+	}
 	return 0;
+}
+
+static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
+{
+	int err;
+
+	/* Remove this PF_FUNC from bcast pkt replication list */
+	err = nix_update_bcast_mce_list(rvu, pcifunc, false);
+	if (err) {
+		dev_err(rvu->dev,
+			"Bcast list, failed to disable PF_FUNC 0x%x\n",
+			pcifunc);
+	}
 }
 
 static void nix_setup_lso_tso_l3(struct rvu *rvu, int blkaddr,
@@ -786,6 +810,8 @@ int rvu_mbox_handler_NIX_LF_FREE(struct rvu *rvu, struct msg_req *req,
 	if (nixlf < 0)
 		return NIX_AF_ERR_AF_LF_INVALID;
 
+	nix_interface_deinit(rvu, pcifunc, nixlf);
+
 	/* Reset this NIX LF */
 	err = rvu_lf_reset(rvu, block, nixlf);
 	if (err) {
@@ -1145,6 +1171,113 @@ static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
 		return err;
 	}
 	return 0;
+}
+
+static int nix_update_mce_list(struct nix_mce_list *mce_list,
+			       u16 pcifunc, int idx, bool add)
+{
+	struct mce *mce, *tail = NULL;
+	bool delete = false;
+
+	/* Scan through the current list */
+	hlist_for_each_entry(mce, &mce_list->head, node) {
+		/* If already exists, then delete */
+		if (mce->pcifunc == pcifunc && !add) {
+			delete = true;
+			break;
+		}
+		tail = mce;
+	}
+
+	if (delete) {
+		hlist_del(&mce->node);
+		kfree(mce);
+		mce_list->count--;
+		return 0;
+	}
+
+	if (!add)
+		return 0;
+
+	/* Add a new one to the list, at the tail */
+	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+	if (!mce)
+		return -ENOMEM;
+	mce->idx = idx;
+	mce->pcifunc = pcifunc;
+	if (!tail)
+		hlist_add_head(&mce->node, &mce_list->head);
+	else
+		hlist_add_behind(&mce->node, &tail->node);
+	mce_list->count++;
+	return 0;
+}
+
+static int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add)
+{
+	int err = 0, idx, next_idx, count;
+	struct nix_mce_list *mce_list;
+	struct mce *mce, *next_mce;
+	struct nix_mcast *mcast;
+	struct nix_hw *nix_hw;
+	struct rvu_pfvf *pfvf;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (blkaddr < 0)
+		return 0;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return 0;
+
+	mcast = &nix_hw->mcast;
+
+	/* Get this PF/VF func's MCE index */
+	pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
+	idx = pfvf->bcast_mce_idx + (pcifunc & RVU_PFVF_FUNC_MASK);
+
+	mce_list = &pfvf->bcast_mce_list;
+	if (idx > (pfvf->bcast_mce_idx + mce_list->max)) {
+		dev_err(rvu->dev,
+			"%s: Idx %d > max MCE idx %d, for PF%d bcast list\n",
+			__func__, idx, mce_list->max,
+			pcifunc >> RVU_PFVF_PF_SHIFT);
+		return -EINVAL;
+	}
+
+	spin_lock(&mcast->mce_lock);
+
+	err = nix_update_mce_list(mce_list, pcifunc, idx, add);
+	if (err)
+		goto end;
+
+	/* Disable MCAM entry in NPC */
+
+	if (!mce_list->count)
+		goto end;
+	count = mce_list->count;
+
+	/* Dump the updated list to HW */
+	hlist_for_each_entry(mce, &mce_list->head, node) {
+		next_idx = 0;
+		count--;
+		if (count) {
+			next_mce = hlist_entry(mce->node.next,
+					       struct mce, node);
+			next_idx = next_mce->idx;
+		}
+		/* EOL should be set in last MCE */
+		err = nix_setup_mce(rvu, mce->idx,
+				    NIX_AQ_INSTOP_WRITE, mce->pcifunc,
+				    next_idx, count ? false : true);
+		if (err)
+			goto end;
+	}
+
+end:
+	spin_unlock(&mcast->mce_lock);
+	return err;
 }
 
 static int nix_setup_bcast_tables(struct rvu *rvu, struct nix_hw *nix_hw)
