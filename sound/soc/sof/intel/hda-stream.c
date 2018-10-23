@@ -123,7 +123,7 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	      !stream->no_period_wakeup : 0;
 
 	for (i = 0; i < periods; i++) {
-		if (i == periods - 1 && remain)
+		if (i == (periods - 1) && remain)
 			/* set the last small entry */
 			offset = hda_setup_bdle(sdev, dmab,
 						stream, &bdl, offset,
@@ -162,7 +162,6 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-
 /* get next unused stream */
 struct hdac_ext_stream *
 hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction)
@@ -199,8 +198,8 @@ hda_dsp_stream_get_pstream(struct snd_sof_dev *sdev)
 
 	/* get an unused playback stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK
-			&& !s->opened) {
+		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		    !s->opened) {
 			s->opened = true;
 			stream = stream_to_hdac_ext_stream(s);
 			break;
@@ -224,8 +223,8 @@ hda_dsp_stream_get_cstream(struct snd_sof_dev *sdev)
 
 	/* get an unused capture stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_CAPTURE
-			&& !s->opened) {
+		if (s->direction == SNDRV_PCM_STREAM_CAPTURE &&
+		    !s->opened) {
 			s->opened = true;
 			stream = stream_to_hdac_ext_stream(s);
 			break;
@@ -247,8 +246,8 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int tag)
 
 	/* find used stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == direction
-			&& s->opened && s->stream_tag == tag) {
+		if (s->direction == direction &&
+		    s->opened && s->stream_tag == tag) {
 			s->opened = false;
 			return 0;
 		}
@@ -266,8 +265,8 @@ int hda_dsp_stream_put_pstream(struct snd_sof_dev *sdev, int tag)
 
 	/* find used playback stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK
-			&& s->opened && s->stream_tag == tag) {
+		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		    s->opened && s->stream_tag == tag) {
 			s->opened = false;
 			return 0;
 		}
@@ -285,8 +284,8 @@ int hda_dsp_stream_put_cstream(struct snd_sof_dev *sdev, int tag)
 
 	/* find used capture stream */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_CAPTURE
-			&& s->opened && s->stream_tag == tag) {
+		if (s->direction == SNDRV_PCM_STREAM_CAPTURE &&
+		    s->opened && s->stream_tag == tag) {
 			s->opened = false;
 			return 0;
 		}
@@ -423,7 +422,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
 			  0x0);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			 sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
 			  0x0);
 
 	/* clear stream status */
@@ -545,8 +544,7 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 
 	/* check streams */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (status & (1 << s->index)
-			&& s->opened) {
+		if (status & (1 << s->index) && s->opened) {
 			sd_status = snd_hdac_stream_readb(s, SD_STS);
 
 			dev_vdbg(bus->dev, "stream %d status 0x%x\n",
