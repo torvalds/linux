@@ -364,7 +364,7 @@ config HOLTEK_FF
 
 config HID_GOOGLE_HAMMER
 	tristate "Google Hammer Keyboard"
-	depends on USB_HID && LEDS_CLASS
+	depends on USB_HID && LEDS_CLASS && MFD_CROS_EC
 	---help---
 	Say Y here if you have a Google Hammer device.
 

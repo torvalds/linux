@@ -207,8 +207,6 @@ superio_exit(int ioreg)
 
 #define NUM_FAN		7
 
-#define TEMP_SOURCE_VIRTUAL	0x1f
-
 /* Common and NCT6775 specific data */
 
 /* Voltage min/max registers for nr=7..14 are in bank 5 */
@@ -299,8 +297,9 @@ static const u16 NCT6775_REG_PWM_READ[] = {
 
 static const u16 NCT6775_REG_FAN[] = { 0x630, 0x632, 0x634, 0x636, 0x638 };
 static const u16 NCT6775_REG_FAN_MIN[] = { 0x3b, 0x3c, 0x3d };
-static const u16 NCT6775_REG_FAN_PULSES[] = { 0x641, 0x642, 0x643, 0x644, 0 };
-static const u16 NCT6775_FAN_PULSE_SHIFT[] = { 0, 0, 0, 0, 0, 0 };
+static const u16 NCT6775_REG_FAN_PULSES[NUM_FAN] = {
+	0x641, 0x642, 0x643, 0x644 };
+static const u16 NCT6775_FAN_PULSE_SHIFT[NUM_FAN] = { };
 
 static const u16 NCT6775_REG_TEMP[] = {
 	0x27, 0x150, 0x250, 0x62b, 0x62c, 0x62d };
@@ -373,6 +372,7 @@ static const char *const nct6775_temp_label[] = {
 };
 
 #define NCT6775_TEMP_MASK	0x001ffffe
+#define NCT6775_VIRT_TEMP_MASK	0x00000000
 
 static const u16 NCT6775_REG_TEMP_ALTERNATE[32] = {
 	[13] = 0x661,
@@ -425,8 +425,8 @@ static const u8 NCT6776_PWM_MODE_MASK[] = { 0x01, 0, 0, 0, 0, 0 };
 
 static const u16 NCT6776_REG_FAN_MIN[] = {
 	0x63a, 0x63c, 0x63e, 0x640, 0x642, 0x64a, 0x64c };
-static const u16 NCT6776_REG_FAN_PULSES[] = {
-	0x644, 0x645, 0x646, 0x647, 0x648, 0x649, 0 };
+static const u16 NCT6776_REG_FAN_PULSES[NUM_FAN] = {
+	0x644, 0x645, 0x646, 0x647, 0x648, 0x649 };
 
 static const u16 NCT6776_REG_WEIGHT_DUTY_BASE[] = {
 	0x13e, 0x23e, 0x33e, 0x83e, 0x93e, 0xa3e };
@@ -461,6 +461,7 @@ static const char *const nct6776_temp_label[] = {
 };
 
 #define NCT6776_TEMP_MASK	0x007ffffe
+#define NCT6776_VIRT_TEMP_MASK	0x00000000
 
 static const u16 NCT6776_REG_TEMP_ALTERNATE[32] = {
 	[14] = 0x401,
@@ -501,9 +502,9 @@ static const s8 NCT6779_BEEP_BITS[] = {
 	30, 31 };			/* intrusion0, intrusion1 */
 
 static const u16 NCT6779_REG_FAN[] = {
-	0x4b0, 0x4b2, 0x4b4, 0x4b6, 0x4b8, 0x4ba, 0x660 };
-static const u16 NCT6779_REG_FAN_PULSES[] = {
-	0x644, 0x645, 0x646, 0x647, 0x648, 0x649, 0 };
+	0x4c0, 0x4c2, 0x4c4, 0x4c6, 0x4c8, 0x4ca, 0x4ce };
+static const u16 NCT6779_REG_FAN_PULSES[NUM_FAN] = {
+	0x644, 0x645, 0x646, 0x647, 0x648, 0x649 };
 
 static const u16 NCT6779_REG_CRITICAL_PWM_ENABLE[] = {
 	0x136, 0x236, 0x336, 0x836, 0x936, 0xa36, 0xb36 };
@@ -559,7 +560,9 @@ static const char *const nct6779_temp_label[] = {
 };
 
 #define NCT6779_TEMP_MASK	0x07ffff7e
+#define NCT6779_VIRT_TEMP_MASK	0x00000000
 #define NCT6791_TEMP_MASK	0x87ffff7e
+#define NCT6791_VIRT_TEMP_MASK	0x80000000
 
 static const u16 NCT6779_REG_TEMP_ALTERNATE[32]
 	= { 0x490, 0x491, 0x492, 0x493, 0x494, 0x495, 0, 0,
@@ -638,6 +641,7 @@ static const char *const nct6792_temp_label[] = {
 };
 
 #define NCT6792_TEMP_MASK	0x9fffff7e
+#define NCT6792_VIRT_TEMP_MASK	0x80000000
 
 static const char *const nct6793_temp_label[] = {
 	"",
@@ -675,6 +679,7 @@ static const char *const nct6793_temp_label[] = {
 };
 
 #define NCT6793_TEMP_MASK	0xbfff037e
+#define NCT6793_VIRT_TEMP_MASK	0x80000000
 
 static const char *const nct6795_temp_label[] = {
 	"",
@@ -712,6 +717,7 @@ static const char *const nct6795_temp_label[] = {
 };
 
 #define NCT6795_TEMP_MASK	0xbfffff7e
+#define NCT6795_VIRT_TEMP_MASK	0x80000000
 
 static const char *const nct6796_temp_label[] = {
 	"",
@@ -724,8 +730,8 @@ static const char *const nct6796_temp_label[] = {
 	"AUXTIN4",
 	"SMBUSMASTER 0",
 	"SMBUSMASTER 1",
-	"",
-	"",
+	"Virtual_TEMP",
+	"Virtual_TEMP",
 	"",
 	"",
 	"",
@@ -748,7 +754,8 @@ static const char *const nct6796_temp_label[] = {
 	"Virtual_TEMP"
 };
 
-#define NCT6796_TEMP_MASK	0xbfff03fe
+#define NCT6796_TEMP_MASK	0xbfff0ffe
+#define NCT6796_VIRT_TEMP_MASK	0x80000c00
 
 /* NCT6102D/NCT6106D specific data */
 
@@ -779,8 +786,8 @@ static const u16 NCT6106_REG_TEMP_CONFIG[] = {
 
 static const u16 NCT6106_REG_FAN[] = { 0x20, 0x22, 0x24 };
 static const u16 NCT6106_REG_FAN_MIN[] = { 0xe0, 0xe2, 0xe4 };
-static const u16 NCT6106_REG_FAN_PULSES[] = { 0xf6, 0xf6, 0xf6, 0, 0 };
-static const u16 NCT6106_FAN_PULSE_SHIFT[] = { 0, 2, 4, 0, 0 };
+static const u16 NCT6106_REG_FAN_PULSES[] = { 0xf6, 0xf6, 0xf6 };
+static const u16 NCT6106_FAN_PULSE_SHIFT[] = { 0, 2, 4 };
 
 static const u8 NCT6106_REG_PWM_MODE[] = { 0xf3, 0xf3, 0xf3 };
 static const u8 NCT6106_PWM_MODE_MASK[] = { 0x01, 0x02, 0x04 };
@@ -917,6 +924,11 @@ static unsigned int fan_from_reg16(u16 reg, unsigned int divreg)
 	return 1350000U / (reg << divreg);
 }
 
+static unsigned int fan_from_reg_rpm(u16 reg, unsigned int divreg)
+{
+	return reg;
+}
+
 static u16 fan_to_reg(u32 fan, unsigned int divreg)
 {
 	if (!fan)
@@ -969,6 +981,7 @@ struct nct6775_data {
 	u16 reg_temp_config[NUM_TEMP];
 	const char * const *temp_label;
 	u32 temp_mask;
+	u32 virt_temp_mask;
 
 	u16 REG_CONFIG;
 	u16 REG_VBAT;
@@ -1276,11 +1289,11 @@ static bool is_word_sized(struct nct6775_data *data, u16 reg)
 	case nct6795:
 	case nct6796:
 		return reg == 0x150 || reg == 0x153 || reg == 0x155 ||
-		  ((reg & 0xfff0) == 0x4b0 && (reg & 0x000f) < 0x0b) ||
+		  (reg & 0xfff0) == 0x4c0 ||
 		  reg == 0x402 ||
 		  reg == 0x63a || reg == 0x63c || reg == 0x63e ||
 		  reg == 0x640 || reg == 0x642 || reg == 0x64a ||
-		  reg == 0x64c || reg == 0x660 ||
+		  reg == 0x64c ||
 		  reg == 0x73 || reg == 0x75 || reg == 0x77 || reg == 0x79 ||
 		  reg == 0x7b || reg == 0x7d;
 	}
@@ -1558,7 +1571,7 @@ static void nct6775_update_pwm(struct device *dev)
 		reg = nct6775_read_value(data, data->REG_WEIGHT_TEMP_SEL[i]);
 		data->pwm_weight_temp_sel[i] = reg & 0x1f;
 		/* If weight is disabled, report weight source as 0 */
-		if (j == 1 && !(reg & 0x80))
+		if (!(reg & 0x80))
 			data->pwm_weight_temp_sel[i] = 0;
 
 		/* Weight temp data */
@@ -1682,9 +1695,13 @@ static struct nct6775_data *nct6775_update_device(struct device *dev)
 			if (data->has_fan_min & BIT(i))
 				data->fan_min[i] = nct6775_read_value(data,
 					   data->REG_FAN_MIN[i]);
-			data->fan_pulses[i] =
-			  (nct6775_read_value(data, data->REG_FAN_PULSES[i])
-				>> data->FAN_PULSE_SHIFT[i]) & 0x03;
+
+			if (data->REG_FAN_PULSES[i]) {
+				data->fan_pulses[i] =
+				  (nct6775_read_value(data,
+						      data->REG_FAN_PULSES[i])
+				   >> data->FAN_PULSE_SHIFT[i]) & 0x03;
+			}
 
 			nct6775_select_fan_div(dev, data, i, reg);
 		}
@@ -3639,6 +3656,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6776_temp_label;
 		data->temp_mask = NCT6776_TEMP_MASK;
+		data->virt_temp_mask = NCT6776_VIRT_TEMP_MASK;
 
 		data->REG_VBAT = NCT6106_REG_VBAT;
 		data->REG_DIODE = NCT6106_REG_DIODE;
@@ -3717,6 +3735,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6775_temp_label;
 		data->temp_mask = NCT6775_TEMP_MASK;
+		data->virt_temp_mask = NCT6775_VIRT_TEMP_MASK;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3789,6 +3808,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6776_temp_label;
 		data->temp_mask = NCT6776_TEMP_MASK;
+		data->virt_temp_mask = NCT6776_VIRT_TEMP_MASK;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3853,7 +3873,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->ALARM_BITS = NCT6779_ALARM_BITS;
 		data->BEEP_BITS = NCT6779_BEEP_BITS;
 
-		data->fan_from_reg = fan_from_reg13;
+		data->fan_from_reg = fan_from_reg_rpm;
 		data->fan_from_reg_min = fan_from_reg13;
 		data->target_temp_mask = 0xff;
 		data->tolerance_mask = 0x07;
@@ -3861,6 +3881,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 		data->temp_label = nct6779_temp_label;
 		data->temp_mask = NCT6779_TEMP_MASK;
+		data->virt_temp_mask = NCT6779_VIRT_TEMP_MASK;
 
 		data->REG_CONFIG = NCT6775_REG_CONFIG;
 		data->REG_VBAT = NCT6775_REG_VBAT;
@@ -3933,7 +3954,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		data->ALARM_BITS = NCT6791_ALARM_BITS;
 		data->BEEP_BITS = NCT6779_BEEP_BITS;
 
-		data->fan_from_reg = fan_from_reg13;
+		data->fan_from_reg = fan_from_reg_rpm;
 		data->fan_from_reg_min = fan_from_reg13;
 		data->target_temp_mask = 0xff;
 		data->tolerance_mask = 0x07;
@@ -3944,22 +3965,27 @@ static int nct6775_probe(struct platform_device *pdev)
 		case nct6791:
 			data->temp_label = nct6779_temp_label;
 			data->temp_mask = NCT6791_TEMP_MASK;
+			data->virt_temp_mask = NCT6791_VIRT_TEMP_MASK;
 			break;
 		case nct6792:
 			data->temp_label = nct6792_temp_label;
 			data->temp_mask = NCT6792_TEMP_MASK;
+			data->virt_temp_mask = NCT6792_VIRT_TEMP_MASK;
 			break;
 		case nct6793:
 			data->temp_label = nct6793_temp_label;
 			data->temp_mask = NCT6793_TEMP_MASK;
+			data->virt_temp_mask = NCT6793_VIRT_TEMP_MASK;
 			break;
 		case nct6795:
 			data->temp_label = nct6795_temp_label;
 			data->temp_mask = NCT6795_TEMP_MASK;
+			data->virt_temp_mask = NCT6795_VIRT_TEMP_MASK;
 			break;
 		case nct6796:
 			data->temp_label = nct6796_temp_label;
 			data->temp_mask = NCT6796_TEMP_MASK;
+			data->virt_temp_mask = NCT6796_VIRT_TEMP_MASK;
 			break;
 		}
 
@@ -4143,7 +4169,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		 * for each fan reflects a different temperature, and there
 		 * are no duplicates.
 		 */
-		if (src != TEMP_SOURCE_VIRTUAL) {
+		if (!(data->virt_temp_mask & BIT(src))) {
 			if (mask & BIT(src))
 				continue;
 			mask |= BIT(src);

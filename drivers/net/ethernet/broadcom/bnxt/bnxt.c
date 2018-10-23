@@ -7672,21 +7672,6 @@ static void bnxt_tx_timeout(struct net_device *dev)
 	bnxt_queue_sp_work(bp);
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void bnxt_poll_controller(struct net_device *dev)
-{
-	struct bnxt *bp = netdev_priv(dev);
-	int i;
-
-	/* Only process tx rings/combined rings in netpoll mode. */
-	for (i = 0; i < bp->tx_nr_rings; i++) {
-		struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
-
-		napi_schedule(&txr->bnapi->napi);
-	}
-}
-#endif
-
 static void bnxt_timer(struct timer_list *t)
 {
 	struct bnxt *bp = from_timer(bp, t, timer);
@@ -8027,7 +8012,7 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
 		return 0;
 
-	rc = bnxt_approve_mac(bp, addr->sa_data);
+	rc = bnxt_approve_mac(bp, addr->sa_data, true);
 	if (rc)
 		return rc;
 
@@ -8520,9 +8505,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_set_vf_spoofchk	= bnxt_set_vf_spoofchk,
 	.ndo_set_vf_trust	= bnxt_set_vf_trust,
 #endif
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= bnxt_poll_controller,
-#endif
 	.ndo_setup_tc           = bnxt_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= bnxt_rx_flow_steer,
@@ -8827,14 +8809,19 @@ static int bnxt_init_mac_addr(struct bnxt *bp)
 	} else {
 #ifdef CONFIG_BNXT_SRIOV
 		struct bnxt_vf_info *vf = &bp->vf;
+		bool strict_approval = true;
 
 		if (is_valid_ether_addr(vf->mac_addr)) {
 			/* overwrite netdev dev_addr with admin VF MAC */
 			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+			/* Older PF driver or firmware may not approve this
+			 * correctly.
+			 */
+			strict_approval = false;
 		} else {
 			eth_hw_addr_random(bp->dev);
 		}
-		rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
+		rc = bnxt_approve_mac(bp, bp->dev->dev_addr, strict_approval);
 #endif
 	}
 	return rc;

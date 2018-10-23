@@ -1279,7 +1279,7 @@ static unsigned int tcp_nlattr_tuple_size(void)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
@@ -1301,6 +1301,7 @@ static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[],
 		timeouts[TCP_CONNTRACK_SYN_SENT] =
 			ntohl(nla_get_be32(tb[CTA_TIMEOUT_TCP_SYN_SENT]))*HZ;
 	}
+
 	if (tb[CTA_TIMEOUT_TCP_SYN_RECV]) {
 		timeouts[TCP_CONNTRACK_SYN_RECV] =
 			ntohl(nla_get_be32(tb[CTA_TIMEOUT_TCP_SYN_RECV]))*HZ;
@@ -1341,6 +1342,8 @@ static int tcp_timeout_nlattr_to_obj(struct nlattr *tb[],
 		timeouts[TCP_CONNTRACK_UNACK] =
 			ntohl(nla_get_be32(tb[CTA_TIMEOUT_TCP_UNACK]))*HZ;
 	}
+
+	timeouts[CTA_TIMEOUT_TCP_UNSPEC] = timeouts[CTA_TIMEOUT_TCP_SYN_SENT];
 	return 0;
 }
 
@@ -1391,7 +1394,7 @@ static const struct nla_policy tcp_timeout_nla_policy[CTA_TIMEOUT_TCP_MAX+1] = {
 	[CTA_TIMEOUT_TCP_RETRANS]	= { .type = NLA_U32 },
 	[CTA_TIMEOUT_TCP_UNACK]		= { .type = NLA_U32 },
 };
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table tcp_sysctl_table[] = {
@@ -1518,6 +1521,10 @@ static int tcp_init_net(struct net *net, u_int16_t proto)
 		for (i = 0; i < TCP_CONNTRACK_TIMEOUT_MAX; i++)
 			tn->timeouts[i] = tcp_timeouts[i];
 
+		/* timeouts[0] is unused, make it same as SYN_SENT so
+		 * ->timeouts[0] contains 'new' timeout, like udp or icmp.
+		 */
+		tn->timeouts[0] = tcp_timeouts[TCP_CONNTRACK_SYN_SENT];
 		tn->tcp_loose = nf_ct_tcp_loose;
 		tn->tcp_be_liberal = nf_ct_tcp_be_liberal;
 		tn->tcp_max_retrans = nf_ct_tcp_max_retrans;
@@ -1551,7 +1558,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 	.nlattr_size		= TCP_NLATTR_SIZE,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= tcp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= tcp_timeout_obj_to_nlattr,
@@ -1560,7 +1567,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 =
 					TCP_CONNTRACK_TIMEOUT_MAX,
 		.nla_policy	= tcp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= tcp_init_net,
 	.get_net_proto		= tcp_get_net_proto,
 };
@@ -1586,7 +1593,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 	.nlattr_tuple_size	= tcp_nlattr_tuple_size,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	.ctnl_timeout		= {
 		.nlattr_to_obj	= tcp_timeout_nlattr_to_obj,
 		.obj_to_nlattr	= tcp_timeout_obj_to_nlattr,
@@ -1595,7 +1602,7 @@ const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 =
 					TCP_CONNTRACK_TIMEOUT_MAX,
 		.nla_policy	= tcp_timeout_nla_policy,
 	},
-#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	.init_net		= tcp_init_net,
 	.get_net_proto		= tcp_get_net_proto,
 };

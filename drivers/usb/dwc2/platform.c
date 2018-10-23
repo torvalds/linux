@@ -412,8 +412,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
 
-	hsotg->needs_byte_swap = dwc2_check_core_endianness(hsotg);
-
 	retval = dwc2_lowlevel_hw_init(hsotg);
 	if (retval)
 		return retval;
@@ -437,6 +435,8 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	retval = dwc2_lowlevel_hw_enable(hsotg);
 	if (retval)
 		return retval;
+
+	hsotg->needs_byte_swap = dwc2_check_core_endianness(hsotg);
 
 	retval = dwc2_get_dr_mode(hsotg);
 	if (retval)

@@ -5000,6 +5000,12 @@
 			Disables the PV optimizations forcing the HVM guest to
 			run as generic HVM guest with no PV drivers.
 
+	xen_scrub_pages=	[XEN]
+			Boolean option to control scrubbing pages before giving them back
+			to Xen, for use by other domains. Can be also changed at runtime
+			with /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
+			Default value controlled with CONFIG_XEN_SCRUB_PAGES_DEFAULT.
+
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]

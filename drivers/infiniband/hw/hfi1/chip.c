@@ -6733,6 +6733,7 @@ void start_freeze_handling(struct hfi1_pportdata *ppd, int flags)
 	struct hfi1_devdata *dd = ppd->dd;
 	struct send_context *sc;
 	int i;
+	int sc_flags;
 
 	if (flags & FREEZE_SELF)
 		write_csr(dd, CCE_CTRL, CCE_CTRL_SPC_FREEZE_SMASK);
@@ -6743,11 +6744,13 @@ void start_freeze_handling(struct hfi1_pportdata *ppd, int flags)
 	/* notify all SDMA engines that they are going into a freeze */
 	sdma_freeze_notify(dd, !!(flags & FREEZE_LINK_DOWN));
 
+	sc_flags = SCF_FROZEN | SCF_HALTED | (flags & FREEZE_LINK_DOWN ?
+					      SCF_LINK_DOWN : 0);
 	/* do halt pre-handling on all enabled send contexts */
 	for (i = 0; i < dd->num_send_contexts; i++) {
 		sc = dd->send_contexts[i].sc;
 		if (sc && (sc->flags & SCF_ENABLED))
-			sc_stop(sc, SCF_FROZEN | SCF_HALTED);
+			sc_stop(sc, sc_flags);
 	}
 
 	/* Send context are frozen. Notify user space */
@@ -10674,6 +10677,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
 
 		handle_linkup_change(dd, 1);
+		pio_kernel_linkup(dd);
 
 		/*
 		 * After link up, a new link width will have been set.
