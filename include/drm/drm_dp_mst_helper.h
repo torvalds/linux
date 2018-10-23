@@ -409,7 +409,6 @@ struct drm_dp_payload {
 struct drm_dp_mst_topology_state {
 	struct drm_private_state base;
 	int avail_slots;
-	struct drm_atomic_state *state;
 	struct drm_dp_mst_topology_mgr *mgr;
 };
 
@@ -496,11 +495,6 @@ struct drm_dp_mst_topology_mgr {
 	 * @pbn_div: PBN to slots divisor.
 	 */
 	int pbn_div;
-
-	/**
-	 * @state: State information for topology manager
-	 */
-	struct drm_dp_mst_topology_state *state;
 
 	/**
 	 * @funcs: Atomic helper callbacks
