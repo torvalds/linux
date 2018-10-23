@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_pmic_xpower.c - XPower AXP288 PMIC operation region driver
+ * XPower AXP288 PMIC operation region driver
  *
  * Copyright (C) 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/init.h>
 #include <linux/mfd/axp20x.h>
-#include <linux/regmap.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include "intel_pmic.h"
 
 #define XPOWER_GPADC_LOW	0x5b
