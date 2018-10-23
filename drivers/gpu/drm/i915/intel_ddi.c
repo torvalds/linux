@@ -3311,6 +3311,53 @@ static void bxt_ddi_pre_pll_enable(struct intel_encoder *encoder,
 	bxt_ddi_phy_set_lane_optim_mask(encoder, mask);
 }
 
+static void intel_ddi_set_fia_lane_count(struct intel_encoder *encoder,
+					 const struct intel_crtc_state *pipe_config,
+					 enum port port)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+	u32 val = I915_READ(PORT_TX_DFLEXDPMLE1);
+	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
+
+	val &= ~DFLEXDPMLE1_DPMLETC_MASK(tc_port);
+	switch (pipe_config->lane_count) {
+	case 1:
+		val |= (lane_reversal) ? DFLEXDPMLE1_DPMLETC_ML3(tc_port) :
+		DFLEXDPMLE1_DPMLETC_ML0(tc_port);
+		break;
+	case 2:
+		val |= (lane_reversal) ? DFLEXDPMLE1_DPMLETC_ML3_2(tc_port) :
+		DFLEXDPMLE1_DPMLETC_ML1_0(tc_port);
+		break;
+	case 4:
+		val |= DFLEXDPMLE1_DPMLETC_ML3_0(tc_port);
+		break;
+	default:
+		MISSING_CASE(pipe_config->lane_count);
+	}
+	I915_WRITE(PORT_TX_DFLEXDPMLE1, val);
+}
+
+static void icl_ddi_pre_pll_enable(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *pipe_config,
+				   const struct drm_connector_state *conn_state)
+{
+	enum port port = encoder->port;
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+
+	/*
+	 * Program the lane count for static/dynamic connections on Type-C ports.
+	 * Skip this step for TBT.
+	 */
+	if (dig_port->tc_type == TC_PORT_UNKNOWN ||
+	    dig_port->tc_type == TC_PORT_TBT)
+		return;
+
+	intel_ddi_set_fia_lane_count(encoder, pipe_config, port);
+}
+
 void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -3828,6 +3875,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->enable = intel_enable_ddi;
 	if (IS_GEN9_LP(dev_priv))
 		intel_encoder->pre_pll_enable = bxt_ddi_pre_pll_enable;
+	if (IS_ICELAKE(dev_priv))
+		intel_encoder->pre_pll_enable = icl_ddi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_ddi_pre_enable;
 	intel_encoder->disable = intel_disable_ddi;
 	intel_encoder->post_disable = intel_ddi_post_disable;
