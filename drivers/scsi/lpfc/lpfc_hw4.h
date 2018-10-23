@@ -197,6 +197,10 @@ struct lpfc_sli_intf {
 #define	LPFC_FCP_SCHED_ROUND_ROBIN	0
 #define	LPFC_FCP_SCHED_BY_CPU		1
 
+/* Algrithmns for NameServer Query after RSCN */
+#define LPFC_NS_QUERY_GID_FT	0
+#define LPFC_NS_QUERY_GID_PT	1
+
 /* Delay Multiplier constant */
 #define LPFC_DMULT_CONST       651042
 #define LPFC_DMULT_MAX         1023

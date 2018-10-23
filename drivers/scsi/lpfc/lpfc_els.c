@@ -6371,6 +6371,7 @@ int
 lpfc_els_handle_rscn(struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp;
+	struct lpfc_hba  *phba = vport->phba;
 
 	/* Ignore RSCN if the port is being torn down. */
 	if (vport->load_flag & FC_UNLOADING) {
@@ -6399,8 +6400,15 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 		 * flush the RSCN.  Otherwise, the outstanding requests
 		 * need to complete.
 		 */
-		if (lpfc_issue_gidft(vport) > 0)
+		if (phba->cfg_ns_query == LPFC_NS_QUERY_GID_FT) {
+			if (lpfc_issue_gidft(vport) > 0)
+				return 1;
+		} else if (phba->cfg_ns_query == LPFC_NS_QUERY_GID_PT) {
+			if (lpfc_issue_gidpt(vport) > 0)
+				return 1;
+		} else {
 			return 1;
+		}
 	} else {
 		/* Nameserver login in question.  Revalidate. */
 		if (ndlp) {

@@ -1775,9 +1775,16 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 			ndlp->nlp_fc4_type |= NLP_FC4_FCP;
 
 		} else if (ndlp->nlp_fc4_type == 0) {
-			rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
-					 0, ndlp->nlp_DID);
-			return ndlp->nlp_state;
+			/* If we are only configured for FCP, the driver
+			 * should just issue PRLI for FCP. Otherwise issue
+			 * GFT_ID to determine if remote port supports NVME.
+			 */
+			if (phba->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
+				rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
+						 0, ndlp->nlp_DID);
+				return ndlp->nlp_state;
+			}
+			ndlp->nlp_fc4_type = NLP_FC4_FCP;
 		}
 
 		ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;

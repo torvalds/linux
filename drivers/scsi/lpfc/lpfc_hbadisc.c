@@ -3942,6 +3942,35 @@ lpfc_issue_gidft(struct lpfc_vport *vport)
 	return vport->gidft_inp;
 }
 
+/**
+ * lpfc_issue_gidpt - issue a GID_PT for all N_Ports
+ * @vport: The virtual port for which this call is being executed.
+ *
+ * This routine will issue a GID_PT to get a list of all N_Ports
+ *
+ * Return value :
+ *   0 - Failure to issue a GID_PT
+ *   1 - GID_PT issued
+ **/
+int
+lpfc_issue_gidpt(struct lpfc_vport *vport)
+{
+	/* Good status, issue CT Request to NameServer */
+	if (lpfc_ns_cmd(vport, SLI_CTNS_GID_PT, 0, GID_PT_N_PORT)) {
+		/* Cannot issue NameServer FCP Query, so finish up
+		 * discovery
+		 */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
+				 "0606 %s Port TYPE %x %s\n",
+				 "Failed to issue GID_PT to ",
+				 GID_PT_N_PORT,
+				 "Finishing discovery.");
+		return 0;
+	}
+	vport->gidft_inp++;
+	return 1;
+}
+
 /*
  * This routine handles processing a NameServer REG_LOGIN mailbox
  * command upon completion. It is setup in the LPFC_MBOXQ
