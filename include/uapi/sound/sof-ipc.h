@@ -867,7 +867,8 @@ struct sof_ipc_fw_version {
 	uint8_t date[12];
 	uint8_t time[10];
 	uint8_t tag[6];
-	uint8_t pad[2]; /* Make sure the total size is 4 bytes aligned */
+	uint16_t abi_version;
+	/* Make sure the total size is 4 bytes aligned */
 } __attribute__((packed));
 
 /* FW ready Message - sent by firmware when boot has completed */
