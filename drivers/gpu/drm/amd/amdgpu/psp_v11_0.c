@@ -83,6 +83,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		goto out;
 
 	sos_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
+	amdgpu_ucode_print_psp_hdr(&sos_hdr->header);
 
 	switch (sos_hdr->header.header_version_major) {
 	case 1:
