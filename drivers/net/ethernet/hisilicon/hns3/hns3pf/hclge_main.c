@@ -19,6 +19,7 @@
 #include "hclge_mbx.h"
 #include "hclge_mdio.h"
 #include "hclge_tm.h"
+#include "hclge_err.h"
 #include "hnae3.h"
 
 #define HCLGE_NAME			"hclge"
@@ -2488,12 +2489,18 @@ static void hclge_reset(struct hclge_dev *hdev)
 	ae_dev->reset_type = HNAE3_NONE_RESET;
 }
 
-static void hclge_reset_event(struct hnae3_handle *handle)
+static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+	struct hclge_dev *hdev = ae_dev->priv;
 
-	/* check if this is a new reset request and we are not here just because
+	/* We might end up getting called broadly because of 2 below cases:
+	 * 1. Recoverable error was conveyed through APEI and only way to bring
+	 *    normalcy is to reset.
+	 * 2. A new reset request from the stack due to timeout
+	 *
+	 * For the first case,error event might not have ae handle available.
+	 * check if this is a new reset request and we are not here just because
 	 * last reset attempt did not succeed and watchdog hit us again. We will
 	 * know this if last reset request did not occur very recently (watchdog
 	 * timer = 5*HZ, let us check after sufficiently large time, say 4*5*Hz)
@@ -2502,6 +2509,9 @@ static void hclge_reset_event(struct hnae3_handle *handle)
 	 * want to make sure we throttle the reset request. Therefore, we will
 	 * not allow it again before 3*HZ times.
 	 */
+	if (!handle)
+		handle = &hdev->vport[0].nic;
+
 	if (time_before(jiffies, (handle->last_reset_time + 3 * HZ)))
 		return;
 	else if (time_after(jiffies, (handle->last_reset_time + 4 * 5 * HZ)))
@@ -6749,6 +6759,13 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_mdiobus_unreg;
 	}
 
+	ret = hclge_hw_error_set_state(hdev, true);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"hw error interrupts enable failed, ret =%d\n", ret);
+		goto err_mdiobus_unreg;
+	}
+
 	hclge_dcb_ops_set(hdev);
 
 	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
@@ -6864,6 +6881,12 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
+	/* Re-enable the TM hw error interrupts because
+	 * they get disabled on core/global reset.
+	 */
+	if (hclge_enable_tm_hw_error(hdev, true))
+		dev_err(&pdev->dev, "failed to enable TM hw error interrupts\n");
+
 	dev_info(&pdev->dev, "Reset done, %s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
 
@@ -6886,6 +6909,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_enable_vector(&hdev->misc_vector, false);
 	synchronize_irq(hdev->misc_vector.vector_irq);
 
+	hclge_hw_error_set_state(hdev, false);
 	hclge_destroy_cmd_queue(&hdev->hw);
 	hclge_misc_irq_uninit(hdev);
 	hclge_pci_uninit(hdev);
@@ -7312,6 +7336,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_fd_all_rules = hclge_get_all_rules,
 	.restore_fd_rules = hclge_restore_fd_entries,
 	.enable_fd = hclge_enable_fd,
+	.process_hw_error = hclge_process_ras_hw_error,
 };
 
 static struct hnae3_ae_algo ae_algo = {
