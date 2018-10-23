@@ -2006,6 +2006,7 @@ struct drm_i915_private {
 				u32 last_ctx_id;
 				int format;
 				int format_size;
+				int size_exponent;
 
 				/**
 				 * Locks reads and writes to all head/tail state

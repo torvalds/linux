@@ -212,13 +212,7 @@
 #include "i915_oa_icl.h"
 #include "intel_lrc_reg.h"
 
-/* HW requires this to be a power of two, between 128k and 16M, though driver
- * is currently generally designed assuming the largest 16M size is used such
- * that the overflow cases are unlikely in normal operation.
- */
-#define OA_BUFFER_SIZE		SZ_16M
-
-#define OA_TAKEN(tail, head)	((tail - head) & (OA_BUFFER_SIZE - 1))
+#define OA_TAKEN(tail, head)	(((tail) - (head)) & (dev_priv->perf.oa.oa_buffer.vma->size - 1))
 
 /**
  * DOC: OA Tail Pointer Race
@@ -361,6 +355,7 @@ struct perf_open_properties {
 	int oa_format;
 	bool oa_periodic;
 	int oa_period_exponent;
+	u32 oa_buffer_size_exponent;
 };
 
 static void free_oa_config(struct drm_i915_private *dev_priv,
@@ -523,7 +518,7 @@ static bool oa_buffer_check_unlocked(struct drm_i915_private *dev_priv)
 		 * could put the tail out of bounds...
 		 */
 		if (hw_tail >= gtt_offset &&
-		    hw_tail < (gtt_offset + OA_BUFFER_SIZE)) {
+		    hw_tail < (gtt_offset + dev_priv->perf.oa.oa_buffer.vma->size)) {
 			dev_priv->perf.oa.oa_buffer.tails[!aged_idx].offset =
 				aging_tail = hw_tail;
 			dev_priv->perf.oa.oa_buffer.aging_timestamp = now;
@@ -652,7 +647,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 	int report_size = dev_priv->perf.oa.oa_buffer.format_size;
 	u8 *oa_buf_base = dev_priv->perf.oa.oa_buffer.vaddr;
 	u32 gtt_offset = i915_ggtt_offset(dev_priv->perf.oa.oa_buffer.vma);
-	u32 mask = (OA_BUFFER_SIZE - 1);
+	u32 mask = (dev_priv->perf.oa.oa_buffer.vma->size - 1);
 	size_t start_offset = *offset;
 	unsigned long flags;
 	unsigned int aged_tail_idx;
@@ -692,8 +687,8 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 	 * only be incremented by multiples of the report size (notably also
 	 * all a power of two).
 	 */
-	if (WARN_ONCE(head > OA_BUFFER_SIZE || head % report_size ||
-		      tail > OA_BUFFER_SIZE || tail % report_size,
+	if (WARN_ONCE(head > dev_priv->perf.oa.oa_buffer.vma->size || head % report_size ||
+		      tail > dev_priv->perf.oa.oa_buffer.vma->size || tail % report_size,
 		      "Inconsistent OA buffer pointers: head = %u, tail = %u\n",
 		      head, tail))
 		return -EIO;
@@ -716,7 +711,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 * here would imply a driver bug that would result
 		 * in an overrun.
 		 */
-		if (WARN_ON((OA_BUFFER_SIZE - head) < report_size)) {
+		if (WARN_ON((dev_priv->perf.oa.oa_buffer.vma->size - head) < report_size)) {
 			DRM_ERROR("Spurious OA head ptr: non-integral report offset\n");
 			break;
 		}
@@ -875,11 +870,6 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 	 * automatically triggered reports in this condition and so we
 	 * have to assume that old reports are now being trampled
 	 * over.
-	 *
-	 * Considering how we don't currently give userspace control
-	 * over the OA buffer size and always configure a large 16MB
-	 * buffer, then a buffer overflow does anyway likely indicate
-	 * that something has gone quite badly wrong.
 	 */
 	if (oastatus & GEN8_OASTATUS_OABUFFER_OVERFLOW) {
 		ret = append_oa_status(stream, buf, count, offset,
@@ -941,7 +931,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	int report_size = dev_priv->perf.oa.oa_buffer.format_size;
 	u8 *oa_buf_base = dev_priv->perf.oa.oa_buffer.vaddr;
 	u32 gtt_offset = i915_ggtt_offset(dev_priv->perf.oa.oa_buffer.vma);
-	u32 mask = (OA_BUFFER_SIZE - 1);
+	u32 mask = (dev_priv->perf.oa.oa_buffer.vma->size - 1);
 	size_t start_offset = *offset;
 	unsigned long flags;
 	unsigned int aged_tail_idx;
@@ -978,8 +968,8 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	 * only be incremented by multiples of the report size (notably also
 	 * all a power of two).
 	 */
-	if (WARN_ONCE(head > OA_BUFFER_SIZE || head % report_size ||
-		      tail > OA_BUFFER_SIZE || tail % report_size,
+	if (WARN_ONCE(head > dev_priv->perf.oa.oa_buffer.vma->size || head % report_size ||
+		      tail > dev_priv->perf.oa.oa_buffer.vma->size || tail % report_size,
 		      "Inconsistent OA buffer pointers: head = %u, tail = %u\n",
 		      head, tail))
 		return -EIO;
@@ -999,7 +989,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		 * here would imply a driver bug that would result
 		 * in an overrun.
 		 */
-		if (WARN_ON((OA_BUFFER_SIZE - head) < report_size)) {
+		if (WARN_ON((dev_priv->perf.oa.oa_buffer.vma->size - head) < report_size)) {
 			DRM_ERROR("Spurious OA head ptr: non-integral report offset\n");
 			break;
 		}
@@ -1394,7 +1384,9 @@ static void gen7_init_oa_buffer(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GEN7_OABUFFER, gtt_offset);
 
-	I915_WRITE(GEN7_OASTATUS1, gtt_offset | OABUFFER_SIZE_16M); /* tail */
+	I915_WRITE(GEN7_OASTATUS1, gtt_offset |
+		   ((dev_priv->perf.oa.oa_buffer.size_exponent - 17) <<
+		    GEN7_OASTATUS1_BUFFER_SIZE_SHIFT)); /* tail */
 
 	/* Mark that we need updated tail pointers to read from... */
 	dev_priv->perf.oa.oa_buffer.tails[0].offset = INVALID_TAIL_PTR;
@@ -1419,7 +1411,8 @@ static void gen7_init_oa_buffer(struct drm_i915_private *dev_priv)
 	 * the assumption that new reports are being written to zeroed
 	 * memory...
 	 */
-	memset(dev_priv->perf.oa.oa_buffer.vaddr, 0, OA_BUFFER_SIZE);
+	memset(dev_priv->perf.oa.oa_buffer.vaddr, 0,
+	       dev_priv->perf.oa.oa_buffer.vma->size);
 
 	/* Maybe make ->pollin per-stream state if we support multiple
 	 * concurrent streams in the future.
@@ -1449,7 +1442,9 @@ static void gen8_init_oa_buffer(struct drm_i915_private *dev_priv)
 	 *  bit."
 	 */
 	I915_WRITE(GEN8_OABUFFER, gtt_offset |
-		   OABUFFER_SIZE_16M | GEN8_OABUFFER_MEM_SELECT_GGTT);
+		   ((dev_priv->perf.oa.oa_buffer.size_exponent - 17) <<
+		    GEN8_OABUFFER_BUFFER_SIZE_SHIFT) |
+		   GEN8_OABUFFER_MEM_SELECT_GGTT);
 	I915_WRITE(GEN8_OATAILPTR, gtt_offset & GEN8_OATAILPTR_MASK);
 
 	/* Mark that we need updated tail pointers to read from... */
@@ -1477,7 +1472,8 @@ static void gen8_init_oa_buffer(struct drm_i915_private *dev_priv)
 	 * the assumption that new reports are being written to zeroed
 	 * memory...
 	 */
-	memset(dev_priv->perf.oa.oa_buffer.vaddr, 0, OA_BUFFER_SIZE);
+	memset(dev_priv->perf.oa.oa_buffer.vaddr, 0,
+	       dev_priv->perf.oa.oa_buffer.vma->size);
 
 	/*
 	 * Maybe make ->pollin per-stream state if we support multiple
@@ -1486,23 +1482,24 @@ static void gen8_init_oa_buffer(struct drm_i915_private *dev_priv)
 	dev_priv->perf.oa.pollin = false;
 }
 
-static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
+static int alloc_oa_buffer(struct drm_i915_private *dev_priv, int size_exponent)
 {
 	struct drm_i915_gem_object *bo;
 	struct i915_vma *vma;
+	size_t size = 1U << size_exponent;
 	int ret;
 
 	if (WARN_ON(dev_priv->perf.oa.oa_buffer.vma))
 		return -ENODEV;
 
+	if (WARN_ON(size < SZ_128K || size > SZ_16M))
+		return -EINVAL;
+
 	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
 	if (ret)
 		return ret;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(OA_BUFFER_SIZE);
-	BUILD_BUG_ON(OA_BUFFER_SIZE < SZ_128K || OA_BUFFER_SIZE > SZ_16M);
-
-	bo = i915_gem_object_create(dev_priv, OA_BUFFER_SIZE);
+	bo = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(bo)) {
 		DRM_ERROR("Failed to allocate OA buffer\n");
 		ret = PTR_ERR(bo);
@@ -1520,6 +1517,7 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 		goto err_unref;
 	}
 	dev_priv->perf.oa.oa_buffer.vma = vma;
+	dev_priv->perf.oa.oa_buffer.size_exponent = size_exponent;
 
 	dev_priv->perf.oa.oa_buffer.vaddr =
 		i915_gem_object_pin_map(bo, I915_MAP_WB);
@@ -1528,9 +1526,10 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 		goto err_unpin;
 	}
 
-	DRM_DEBUG_DRIVER("OA Buffer initialized, gtt offset = 0x%x, vaddr = %p\n",
+	DRM_DEBUG_DRIVER("OA Buffer initialized, gtt offset = 0x%x, vaddr = %p, size = %llu\n",
 			 i915_ggtt_offset(dev_priv->perf.oa.oa_buffer.vma),
-			 dev_priv->perf.oa.oa_buffer.vaddr);
+			 dev_priv->perf.oa.oa_buffer.vaddr,
+			 dev_priv->perf.oa.oa_buffer.vma->size);
 
 	goto unlock;
 
@@ -2090,7 +2089,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	intel_runtime_pm_get(dev_priv);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
-	ret = alloc_oa_buffer(dev_priv);
+	ret = alloc_oa_buffer(dev_priv, props->oa_buffer_size_exponent);
 	if (ret)
 		goto err_oa_buf_alloc;
 
@@ -2649,6 +2648,26 @@ static u64 oa_exponent_to_ns(struct drm_i915_private *dev_priv, int exponent)
 			 1000ULL * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz);
 }
 
+static int
+select_oa_buffer_exponent(struct drm_i915_private *i915,
+			  u64 requested_size)
+{
+	int order;
+
+	/*
+	 * When no size is specified, use the largest size supported by all
+	 * generations.
+	 */
+	if (!requested_size)
+		return order_base_2(SZ_16M);
+
+	order = order_base_2(clamp_t(u64, requested_size, SZ_128K, SZ_16M));
+	if (requested_size != (1UL << order))
+		return -EINVAL;
+
+	return order;
+}
+
 /**
  * read_properties_unlocked - validate + copy userspace stream open properties
  * @dev_priv: i915 device instance
@@ -2776,12 +2795,26 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 			props->oa_periodic = true;
 			props->oa_period_exponent = value;
 			break;
+		case DRM_I915_PERF_PROP_OA_BUFFER_SIZE:
+			ret = select_oa_buffer_exponent(dev_priv, value);
+			if (ret < 0) {
+				DRM_DEBUG("OA buffer size invalid %llu\n", value);
+				return ret;
+			}
+			props->oa_buffer_size_exponent = ret;
+			break;
 		case DRM_I915_PERF_PROP_MAX:
 			MISSING_CASE(id);
 			return -EINVAL;
 		}
 
 		uprop += 2;
+	}
+
+	/* If no buffer size was requested, select the default one. */
+	if (!props->oa_buffer_size_exponent) {
+		props->oa_buffer_size_exponent =
+			select_oa_buffer_exponent(dev_priv, 0);
 	}
 
 	return 0;

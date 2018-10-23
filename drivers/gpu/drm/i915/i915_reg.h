@@ -569,12 +569,14 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define GEN8_OABUFFER_UDW _MMIO(0x23b4)
 #define GEN8_OABUFFER _MMIO(0x2b14)
 #define  GEN8_OABUFFER_MEM_SELECT_GGTT      (1 << 0)  /* 0: PPGTT, 1: GGTT */
+#define  GEN8_OABUFFER_BUFFER_SIZE_SHIFT    3
 
 #define GEN7_OASTATUS1 _MMIO(0x2364)
 #define  GEN7_OASTATUS1_TAIL_MASK	    0xffffffc0
 #define  GEN7_OASTATUS1_COUNTER_OVERFLOW    (1 << 2)
 #define  GEN7_OASTATUS1_OABUFFER_OVERFLOW   (1 << 1)
 #define  GEN7_OASTATUS1_REPORT_LOST	    (1 << 0)
+#define  GEN7_OASTATUS1_BUFFER_SIZE_SHIFT   3
 
 #define GEN7_OASTATUS2 _MMIO(0x2368)
 #define  GEN7_OASTATUS2_HEAD_MASK           0xffffffc0
