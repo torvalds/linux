@@ -153,7 +153,6 @@ static struct fscrypt_mode {
 	int keysize;
 	bool logged_impl_name;
 } available_modes[] = {
-<<<<<<< HEAD
 	[FS_ENCRYPTION_MODE_AES_256_XTS] = {
 		.friendly_name = "AES-256-XTS",
 		.cipher_str = "xts(aes)",
