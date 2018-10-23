@@ -741,7 +741,7 @@ static __poll_t rxrpc_poll(struct file *file, struct socket *sock,
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
 	__poll_t mask;
 
-	sock_poll_wait(file, wait);
+	sock_poll_wait(file, sock, wait);
 	mask = 0;
 
 	/* the socket is readable if there are any messages waiting on the Rx
