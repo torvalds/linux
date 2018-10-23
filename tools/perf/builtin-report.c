@@ -201,14 +201,13 @@ static void setup_forced_leader(struct report *report,
 		perf_evlist__force_leader(evlist);
 }
 
-static int process_feature_event(struct perf_tool *tool,
-				 union perf_event *event,
-				 struct perf_session *session __maybe_unused)
+static int process_feature_event(struct perf_session *session,
+				 union perf_event *event)
 {
-	struct report *rep = container_of(tool, struct report, tool);
+	struct report *rep = container_of(session->tool, struct report, tool);
 
 	if (event->feat.feat_id < HEADER_LAST_FEATURE)
-		return perf_event__process_feature(tool, event, session);
+		return perf_event__process_feature(session, event);
 
 	if (event->feat.feat_id != HEADER_LAST_FEATURE) {
 		pr_err("failed: wrong feature ID: %" PRIu64 "\n",
@@ -1106,7 +1105,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
 		     "how to display percentage of filtered entries", parse_filter_percentage),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
-			    "Instruction Tracing options",
+			    "Instruction Tracing options\n" ITRACE_HELP,
 			    itrace_parse_synth_opts),
 	OPT_BOOLEAN(0, "full-source-path", &srcline_full_filename,
 			"Show full source file name path for source lines"),

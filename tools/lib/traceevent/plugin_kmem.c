@@ -22,11 +22,12 @@
 #include <string.h>
 
 #include "event-parse.h"
+#include "trace-seq.h"
 
 static int call_site_handler(struct trace_seq *s, struct tep_record *record,
-			     struct event_format *event, void *context)
+			     struct tep_event_format *event, void *context)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	unsigned long long val, addr;
 	void *data = record->data;
 	const char *func;

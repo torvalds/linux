@@ -1073,14 +1073,14 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	INTEL_CPU_FAM6(WESTMERE,		idle_cpu_nehalem),
 	INTEL_CPU_FAM6(WESTMERE_EP,		idle_cpu_nehalem),
 	INTEL_CPU_FAM6(NEHALEM_EX,		idle_cpu_nehalem),
-	INTEL_CPU_FAM6(ATOM_PINEVIEW,		idle_cpu_atom),
-	INTEL_CPU_FAM6(ATOM_LINCROFT,		idle_cpu_lincroft),
+	INTEL_CPU_FAM6(ATOM_BONNELL,		idle_cpu_atom),
+	INTEL_CPU_FAM6(ATOM_BONNELL_MID,	idle_cpu_lincroft),
 	INTEL_CPU_FAM6(WESTMERE_EX,		idle_cpu_nehalem),
 	INTEL_CPU_FAM6(SANDYBRIDGE,		idle_cpu_snb),
 	INTEL_CPU_FAM6(SANDYBRIDGE_X,		idle_cpu_snb),
-	INTEL_CPU_FAM6(ATOM_CEDARVIEW,		idle_cpu_atom),
-	INTEL_CPU_FAM6(ATOM_SILVERMONT1,	idle_cpu_byt),
-	INTEL_CPU_FAM6(ATOM_MERRIFIELD,		idle_cpu_tangier),
+	INTEL_CPU_FAM6(ATOM_SALTWELL,		idle_cpu_atom),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT,		idle_cpu_byt),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_MID,	idle_cpu_tangier),
 	INTEL_CPU_FAM6(ATOM_AIRMONT,		idle_cpu_cht),
 	INTEL_CPU_FAM6(IVYBRIDGE,		idle_cpu_ivb),
 	INTEL_CPU_FAM6(IVYBRIDGE_X,		idle_cpu_ivt),
@@ -1088,7 +1088,7 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	INTEL_CPU_FAM6(HASWELL_X,		idle_cpu_hsw),
 	INTEL_CPU_FAM6(HASWELL_ULT,		idle_cpu_hsw),
 	INTEL_CPU_FAM6(HASWELL_GT3E,		idle_cpu_hsw),
-	INTEL_CPU_FAM6(ATOM_SILVERMONT2,	idle_cpu_avn),
+	INTEL_CPU_FAM6(ATOM_SILVERMONT_X,	idle_cpu_avn),
 	INTEL_CPU_FAM6(BROADWELL_CORE,		idle_cpu_bdw),
 	INTEL_CPU_FAM6(BROADWELL_GT3E,		idle_cpu_bdw),
 	INTEL_CPU_FAM6(BROADWELL_X,		idle_cpu_bdw),
@@ -1101,8 +1101,8 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	INTEL_CPU_FAM6(XEON_PHI_KNL,		idle_cpu_knl),
 	INTEL_CPU_FAM6(XEON_PHI_KNM,		idle_cpu_knl),
 	INTEL_CPU_FAM6(ATOM_GOLDMONT,		idle_cpu_bxt),
-	INTEL_CPU_FAM6(ATOM_GEMINI_LAKE,	idle_cpu_bxt),
-	INTEL_CPU_FAM6(ATOM_DENVERTON,		idle_cpu_dnv),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS,	idle_cpu_bxt),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_X,		idle_cpu_dnv),
 	{}
 };
 
@@ -1319,7 +1319,7 @@ static void intel_idle_state_table_update(void)
 		ivt_idle_state_table_update();
 		break;
 	case INTEL_FAM6_ATOM_GOLDMONT:
-	case INTEL_FAM6_ATOM_GEMINI_LAKE:
+	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 		bxt_idle_state_table_update();
 		break;
 	case INTEL_FAM6_SKYLAKE_DESKTOP:

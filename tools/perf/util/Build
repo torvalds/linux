@@ -73,6 +73,7 @@ libperf-y += vdso.o
 libperf-y += counts.o
 libperf-y += stat.o
 libperf-y += stat-shadow.o
+libperf-y += stat-display.o
 libperf-y += record.o
 libperf-y += srcline.o
 libperf-y += data.o
