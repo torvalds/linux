@@ -1528,8 +1528,7 @@ struct i915_oa_ops {
 	 * counter reports being sampled. May apply system constraints such as
 	 * disabling EU clock gating as required.
 	 */
-	int (*enable_metric_set)(struct drm_i915_private *dev_priv,
-				 const struct i915_oa_config *oa_config);
+	int (*enable_metric_set)(struct i915_perf_stream *stream);
 
 	/**
 	 * @disable_metric_set: Remove system constraints associated with using
@@ -1540,12 +1539,12 @@ struct i915_oa_ops {
 	/**
 	 * @oa_enable: Enable periodic sampling
 	 */
-	void (*oa_enable)(struct drm_i915_private *dev_priv);
+	void (*oa_enable)(struct i915_perf_stream *stream);
 
 	/**
 	 * @oa_disable: Disable periodic sampling
 	 */
-	void (*oa_disable)(struct drm_i915_private *dev_priv);
+	void (*oa_disable)(struct i915_perf_stream *stream);
 
 	/**
 	 * @read: Copy data from the circular OA buffer into a given userspace
