@@ -12,11 +12,6 @@
  * Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
  */
 
-/* Disable profiling for userspace code: */
-#ifndef	DISABLE_BRANCH_PROFILING
-#define	DISABLE_BRANCH_PROFILING
-#endif
-
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/string.h>
@@ -25,13 +20,6 @@
 #include <asm/timex.h>
 #include <asm/clocksource.h>
 #include <asm/vvar.h>
-
-#undef	TICK_PRIV_BIT
-#ifdef	CONFIG_SPARC64
-#define	TICK_PRIV_BIT	(1UL << 63)
-#else
-#define	TICK_PRIV_BIT	(1ULL << 63)
-#endif
 
 #ifdef	CONFIG_SPARC64
 #define SYSCALL_STRING							\
@@ -60,24 +48,22 @@
  * Compute the vvar page's address in the process address space, and return it
  * as a pointer to the vvar_data.
  */
-static notrace noinline struct vvar_data *
-get_vvar_data(void)
+notrace static __always_inline struct vvar_data *get_vvar_data(void)
 {
 	unsigned long ret;
 
 	/*
-	 * vdso data page is the first vDSO page so grab the return address
+	 * vdso data page is the first vDSO page so grab the PC
 	 * and move up a page to get to the data page.
 	 */
-	ret = (unsigned long)__builtin_return_address(0);
+	__asm__("rd %%pc, %0" : "=r" (ret));
 	ret &= ~(8192 - 1);
 	ret -= 8192;
 
 	return (struct vvar_data *) ret;
 }
 
-static notrace long
-vdso_fallback_gettime(long clock, struct timespec *ts)
+notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 {
 	register long num __asm__("g1") = __NR_clock_gettime;
 	register long o0 __asm__("o0") = clock;
@@ -88,8 +74,7 @@ vdso_fallback_gettime(long clock, struct timespec *ts)
 	return o0;
 }
 
-static notrace __always_inline long
-vdso_fallback_gettimeofday(struct timeval *tv, struct timezone *tz)
+notrace static long vdso_fallback_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	register long num __asm__("g1") = __NR_gettimeofday;
 	register long o0 __asm__("o0") = (long) tv;
@@ -101,38 +86,43 @@ vdso_fallback_gettimeofday(struct timeval *tv, struct timezone *tz)
 }
 
 #ifdef	CONFIG_SPARC64
-static notrace noinline u64
-vread_tick(void) {
+notrace static __always_inline u64 vread_tick(void)
+{
 	u64	ret;
 
-	__asm__ __volatile__("rd	%%asr24, %0 \n"
-			     ".section	.vread_tick_patch, \"ax\" \n"
-			     "rd	%%tick, %0 \n"
-			     ".previous \n"
-			     : "=&r" (ret));
-	return ret & ~TICK_PRIV_BIT;
+	__asm__ __volatile__("1:\n\t"
+			     "rd		%%tick, %0\n\t"
+			     ".pushsection	.tick_patch, \"a\"\n\t"
+			     ".word		1b - ., 1f - .\n\t"
+			     ".popsection\n\t"
+			     ".pushsection	.tick_patch_replacement, \"ax\"\n\t"
+			     "1:\n\t"
+			     "rd		%%asr24, %0\n\t"
+			     ".popsection\n"
+			     : "=r" (ret));
+	return ret;
 }
 #else
-static notrace noinline u64
-vread_tick(void)
+notrace static __always_inline u64 vread_tick(void)
 {
-	unsigned int lo, hi;
+	register unsigned long long ret asm("o4");
 
-	__asm__ __volatile__("rd	%%asr24, %%g1\n\t"
-			     "srlx	%%g1, 32, %1\n\t"
-			     "srl	%%g1, 0, %0\n"
-			     ".section	.vread_tick_patch, \"ax\" \n"
-			     "rd	%%tick, %%g1\n"
-			     ".previous \n"
-			     : "=&r" (lo), "=&r" (hi)
-			     :
-			     : "g1");
-	return lo | ((u64)hi << 32);
+	__asm__ __volatile__("1:\n\t"
+			     "rd		%%tick, %L0\n\t"
+			     "srlx		%L0, 32, %H0\n\t"
+			     ".pushsection	.tick_patch, \"a\"\n\t"
+			     ".word		1b - ., 1f - .\n\t"
+			     ".popsection\n\t"
+			     ".pushsection	.tick_patch_replacement, \"ax\"\n\t"
+			     "1:\n\t"
+			     "rd		%%asr24, %L0\n\t"
+			     ".popsection\n"
+			     : "=r" (ret));
+	return ret;
 }
 #endif
 
-static notrace inline u64
-vgetsns(struct vvar_data *vvar)
+notrace static __always_inline u64 vgetsns(struct vvar_data *vvar)
 {
 	u64 v;
 	u64 cycles;
@@ -142,13 +132,12 @@ vgetsns(struct vvar_data *vvar)
 	return v * vvar->clock.mult;
 }
 
-static notrace noinline int
-do_realtime(struct vvar_data *vvar, struct timespec *ts)
+notrace static __always_inline int do_realtime(struct vvar_data *vvar,
+					       struct timespec *ts)
 {
 	unsigned long seq;
 	u64 ns;
 
-	ts->tv_nsec = 0;
 	do {
 		seq = vvar_read_begin(vvar);
 		ts->tv_sec = vvar->wall_time_sec;
@@ -157,18 +146,18 @@ do_realtime(struct vvar_data *vvar, struct timespec *ts)
 		ns >>= vvar->clock.shift;
 	} while (unlikely(vvar_read_retry(vvar, seq)));
 
-	timespec_add_ns(ts, ns);
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
 
 	return 0;
 }
 
-static notrace noinline int
-do_monotonic(struct vvar_data *vvar, struct timespec *ts)
+notrace static __always_inline int do_monotonic(struct vvar_data *vvar,
+						struct timespec *ts)
 {
 	unsigned long seq;
 	u64 ns;
 
-	ts->tv_nsec = 0;
 	do {
 		seq = vvar_read_begin(vvar);
 		ts->tv_sec = vvar->monotonic_time_sec;
@@ -177,13 +166,14 @@ do_monotonic(struct vvar_data *vvar, struct timespec *ts)
 		ns >>= vvar->clock.shift;
 	} while (unlikely(vvar_read_retry(vvar, seq)));
 
-	timespec_add_ns(ts, ns);
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
 
 	return 0;
 }
 
-static notrace noinline int
-do_realtime_coarse(struct vvar_data *vvar, struct timespec *ts)
+notrace static int do_realtime_coarse(struct vvar_data *vvar,
+				      struct timespec *ts)
 {
 	unsigned long seq;
 
@@ -195,8 +185,8 @@ do_realtime_coarse(struct vvar_data *vvar, struct timespec *ts)
 	return 0;
 }
 
-static notrace noinline int
-do_monotonic_coarse(struct vvar_data *vvar, struct timespec *ts)
+notrace static int do_monotonic_coarse(struct vvar_data *vvar,
+				       struct timespec *ts)
 {
 	unsigned long seq;
 
