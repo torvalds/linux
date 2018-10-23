@@ -433,27 +433,27 @@ static int cl_skl_cldma_wait_interruptible(struct snd_sof_dev *sdev)
 				msecs_to_jiffies(HDA_SKL_WAIT_TIMEOUT))) {
 		dev_err(sdev->dev, "cldma copy timeout\n");
 		dev_err(sdev->dev, "ROM code=0x%x: FW status=0x%x\n",
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_SRAM_REG_ROM_ERROR),
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_SRAM_REG_ROM_STATUS));
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_ERROR),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_SRAM_REG_ROM_STATUS));
 
 		/* TODO: temp debug to be removed */
 		dev_err(sdev->dev, "ADSPCS=0x%x: ADSPIC=0x%x: ADSPIS=0x%x INTCTL=0x%x INTSTS=0x%x PPCTL=0x%x PPSTS=0x%x\n",
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_REG_ADSPCS),
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_REG_ADSPIC),
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 HDA_DSP_REG_ADSPIS),
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 SOF_HDA_INTCTL),
-				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-						 SOF_HDA_INTSTS),
-				snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
-						 SOF_HDA_REG_PP_PPCTL),
-				snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
-						 SOF_HDA_REG_PP_PPSTS));
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_REG_ADSPCS),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_REG_ADSPIC),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 HDA_DSP_REG_ADSPIS),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 SOF_HDA_INTCTL),
+			snd_sof_dsp_read(sdev, HDA_DSP_BAR,
+					 SOF_HDA_INTSTS),
+			snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
+					 SOF_HDA_REG_PP_PPCTL),
+			snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR,
+					 SOF_HDA_REG_PP_PPSTS));
 		ret = -EIO;
 		goto cleanup;
 	}
