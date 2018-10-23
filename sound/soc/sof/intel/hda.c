@@ -363,7 +363,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 	/* initialise hdac bus */
 	bus->addr = pci_resource_start(pci, 0);
 	bus->remap_addr = pci_ioremap_bar(pci, 0);
-	if (bus->remap_addr == NULL) {
+	if (!bus->remap_addr) {
 		dev_err(bus->dev, "ioremap error\n");
 		return -ENXIO;
 	}
@@ -623,10 +623,10 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
-						sd_offset +
-						SOF_HDA_ADSP_REG_CL_SD_STS,
-						SOF_HDA_CL_DMA_SD_INT_MASK,
-						SOF_HDA_CL_DMA_SD_INT_MASK);
+					sd_offset +
+					SOF_HDA_ADSP_REG_CL_SD_STS,
+					SOF_HDA_CL_DMA_SD_INT_MASK,
+					SOF_HDA_CL_DMA_SD_INT_MASK);
 	}
 
 	/* clear WAKESTS */
