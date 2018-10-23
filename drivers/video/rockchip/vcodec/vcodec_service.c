@@ -364,6 +364,7 @@ struct vpu_service_info {
 
 	bool auto_freq;
 	bool bug_dec_addr;
+	bool soft_reset;
 	atomic_t freq_status;
 
 	bool secure_isr;
@@ -3721,6 +3722,16 @@ static void get_hw_info(struct vpu_subdev_data *data)
 	} else {
 		dec->max_dec_pic_width = 4096;
 	}
+
+	/* in 3399 3228 and 3229 chips, avoid vpu timeout
+	 * and can't recover problem
+	 */
+	if (of_machine_is_compatible("rockchip,rk3399") ||
+		of_machine_is_compatible("rockchip,rk3228") ||
+		of_machine_is_compatible("rockchip,rk3229"))
+		pservice->soft_reset = true;
+	else
+		pservice->soft_reset = false;
 }
 
 static bool check_irq_err(struct vpu_task_info *task, u32 irq_status)
@@ -3838,8 +3849,8 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 				clear_bit(MMU_PAGEFAULT, &data->state);
 			}
 			reg_from_run_to_done(data, pservice->reg_codec);
-			/* avoid vpu timeout and can't recover problem */
-			vpu_soft_reset(data);
+			if (pservice->soft_reset)
+				vpu_soft_reset(data);
 		}
 	}
 
