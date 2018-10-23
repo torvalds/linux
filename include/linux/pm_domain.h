@@ -17,11 +17,36 @@
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 
-/* Defines used for the flags field in the struct generic_pm_domain */
-#define GENPD_FLAG_PM_CLK	 (1U << 0) /* PM domain uses PM clk */
-#define GENPD_FLAG_IRQ_SAFE	 (1U << 1) /* PM domain operates in atomic */
-#define GENPD_FLAG_ALWAYS_ON	 (1U << 2) /* PM domain is always powered on */
-#define GENPD_FLAG_ACTIVE_WAKEUP (1U << 3) /* Keep devices active if wakeup */
+/*
+ * Flags to control the behaviour of a genpd.
+ *
+ * These flags may be set in the struct generic_pm_domain's flags field by a
+ * genpd backend driver. The flags must be set before it calls pm_genpd_init(),
+ * which initializes a genpd.
+ *
+ * GENPD_FLAG_PM_CLK:		Instructs genpd to use the PM clk framework,
+ *				while powering on/off attached devices.
+ *
+ * GENPD_FLAG_IRQ_SAFE:		This informs genpd that its backend callbacks,
+ *				->power_on|off(), doesn't sleep. Hence, these
+ *				can be invoked from within atomic context, which
+ *				enables genpd to power on/off the PM domain,
+ *				even when pm_runtime_is_irq_safe() returns true,
+ *				for any of its attached devices. Note that, a
+ *				genpd having this flag set, requires its
+ *				masterdomains to also have it set.
+ *
+ * GENPD_FLAG_ALWAYS_ON:	Instructs genpd to always keep the PM domain
+ *				powered on.
+ *
+ * GENPD_FLAG_ACTIVE_WAKEUP:	Instructs genpd to keep the PM domain powered
+ *				on, in case any of its attached devices is used
+ *				in the wakeup path to serve system wakeups.
+ */
+#define GENPD_FLAG_PM_CLK	 (1U << 0)
+#define GENPD_FLAG_IRQ_SAFE	 (1U << 1)
+#define GENPD_FLAG_ALWAYS_ON	 (1U << 2)
+#define GENPD_FLAG_ACTIVE_WAKEUP (1U << 3)
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */

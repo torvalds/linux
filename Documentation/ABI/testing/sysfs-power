@@ -99,7 +99,7 @@ Description:
 		this file, the suspend image will be as small as possible.
 
 		Reading from this file will display the current image size
-		limit, which is set to 500 MB by default.
+		limit, which is set to around 2/5 of available RAM by default.
 
 What:		/sys/power/pm_trace
 Date:		August 2006

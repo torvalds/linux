@@ -611,8 +611,8 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	for_each_compatible_node(np, NULL, "samsung,s5pv210-dmc") {
 		id = of_alias_get_id(np, "dmc");
 		if (id < 0 || id >= ARRAY_SIZE(dmc_base)) {
-			pr_err("%s: failed to get alias of dmc node '%s'\n",
-				__func__, np->name);
+			pr_err("%s: failed to get alias of dmc node '%pOFn'\n",
+				__func__, np);
 			of_node_put(np);
 			return id;
 		}
