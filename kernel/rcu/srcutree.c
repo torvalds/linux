@@ -51,6 +51,10 @@ module_param(exp_holdoff, ulong, 0444);
 static ulong counter_wrap_check = (ULONG_MAX >> 2);
 module_param(counter_wrap_check, ulong, 0444);
 
+/* Early-boot callback-management, so early that no lock is required! */
+static LIST_HEAD(srcu_boot_list);
+static bool __read_mostly srcu_init_done;
+
 static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *sp, unsigned long delay);
 static void process_srcu(struct work_struct *work);
@@ -105,7 +109,7 @@ static void init_srcu_struct_nodes(struct srcu_struct *sp, bool is_static)
 	rcu_init_levelspread(levelspread, num_rcu_lvl);
 
 	/* Each pass through this loop initializes one srcu_node structure. */
-	rcu_for_each_node_breadth_first(sp, snp) {
+	srcu_for_each_node_breadth_first(sp, snp) {
 		spin_lock_init(&ACCESS_PRIVATE(snp, lock));
 		WARN_ON_ONCE(ARRAY_SIZE(snp->srcu_have_cbs) !=
 			     ARRAY_SIZE(snp->srcu_data_have_cbs));
@@ -235,7 +239,6 @@ static void check_init_srcu_struct(struct srcu_struct *sp)
 {
 	unsigned long flags;
 
-	WARN_ON_ONCE(rcu_scheduler_active == RCU_SCHEDULER_INIT);
 	/* The smp_load_acquire() pairs with the smp_store_release(). */
 	if (!rcu_seq_state(smp_load_acquire(&sp->srcu_gp_seq_needed))) /*^^^*/
 		return; /* Already initialized. */
@@ -561,7 +564,7 @@ static void srcu_gp_end(struct srcu_struct *sp)
 
 	/* Initiate callback invocation as needed. */
 	idx = rcu_seq_ctr(gpseq) % ARRAY_SIZE(snp->srcu_have_cbs);
-	rcu_for_each_node_breadth_first(sp, snp) {
+	srcu_for_each_node_breadth_first(sp, snp) {
 		spin_lock_irq_rcu_node(snp);
 		cbs = false;
 		last_lvl = snp >= sp->level[rcu_num_lvls - 1];
@@ -701,7 +704,11 @@ static void srcu_funnel_gp_start(struct srcu_struct *sp, struct srcu_data *sdp,
 	    rcu_seq_state(sp->srcu_gp_seq) == SRCU_STATE_IDLE) {
 		WARN_ON_ONCE(ULONG_CMP_GE(sp->srcu_gp_seq, sp->srcu_gp_seq_needed));
 		srcu_gp_start(sp);
-		queue_delayed_work(rcu_gp_wq, &sp->work, srcu_get_delay(sp));
+		if (likely(srcu_init_done))
+			queue_delayed_work(rcu_gp_wq, &sp->work,
+					   srcu_get_delay(sp));
+		else if (list_empty(&sp->work.work.entry))
+			list_add(&sp->work.work.entry, &srcu_boot_list);
 	}
 	spin_unlock_irqrestore_rcu_node(sp, flags);
 }
@@ -980,7 +987,7 @@ EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
  * There are memory-ordering constraints implied by synchronize_srcu().
  * On systems with more than one CPU, when synchronize_srcu() returns,
  * each CPU is guaranteed to have executed a full memory barrier since
- * the end of its last corresponding SRCU-sched read-side critical section
+ * the end of its last corresponding SRCU read-side critical section
  * whose beginning preceded the call to synchronize_srcu().  In addition,
  * each CPU having an SRCU read-side critical section that extends beyond
  * the return from synchronize_srcu() is guaranteed to have executed a
@@ -1308,3 +1315,17 @@ static int __init srcu_bootup_announce(void)
 	return 0;
 }
 early_initcall(srcu_bootup_announce);
+
+void __init srcu_init(void)
+{
+	struct srcu_struct *sp;
+
+	srcu_init_done = true;
+	while (!list_empty(&srcu_boot_list)) {
+		sp = list_first_entry(&srcu_boot_list, struct srcu_struct,
+				      work.work.entry);
+		check_init_srcu_struct(sp);
+		list_del_init(&sp->work.work.entry);
+		queue_work(rcu_gp_wq, &sp->work.work);
+	}
+}

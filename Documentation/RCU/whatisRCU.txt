@@ -934,7 +934,8 @@ c.	Do you need to treat NMI handlers, hardirq handlers,
 d.	Do you need RCU grace periods to complete even in the face
 	of softirq monopolization of one or more of the CPUs?  For
 	example, is your code subject to network-based denial-of-service
-	attacks?  If so, you need RCU-bh.
+	attacks?  If so, you should disable softirq across your readers,
+	for example, by using rcu_read_lock_bh().
 
 e.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?

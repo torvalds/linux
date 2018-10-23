@@ -3540,14 +3540,14 @@
 
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
-			Invocation of these CPUs' RCU callbacks will
-			be offloaded to "rcuox/N" kthreads created for
-			that purpose, where "x" is "b" for RCU-bh, "p"
-			for RCU-preempt, and "s" for RCU-sched, and "N"
-			is the CPU number.  This reduces OS jitter on the
-			offloaded CPUs, which can be useful for HPC and
-			real-time workloads.  It can also improve energy
-			efficiency for asymmetric multiprocessors.
+			Invocation of these CPUs' RCU callbacks will be
+			offloaded to "rcuox/N" kthreads created for that
+			purpose, where "x" is "p" for RCU-preempt, and
+			"s" for RCU-sched, and "N" is the CPU number.
+			This reduces OS jitter on the offloaded CPUs,
+			which can be useful for HPC and real-time
+			workloads.  It can also improve energy efficiency
+			for asymmetric multiprocessors.
 
 	rcu_nocb_poll	[KNL]
 			Rather than requiring that offloaded CPUs
@@ -3601,7 +3601,14 @@
 			Set required age in jiffies for a
 			given grace period before RCU starts
 			soliciting quiescent-state help from
-			rcu_note_context_switch().
+			rcu_note_context_switch().  If not specified, the
+			kernel will calculate a value based on the most
+			recent settings of rcutree.jiffies_till_first_fqs
+			and rcutree.jiffies_till_next_fqs.
+			This calculated value may be viewed in
+			rcutree.jiffies_to_sched_qs.  Any attempt to
+			set rcutree.jiffies_to_sched_qs will be
+			cheerfully overwritten.
 
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
@@ -3868,12 +3875,6 @@
 
 	rcupdate.rcu_self_test= [KNL]
 			Run the RCU early boot self tests
-
-	rcupdate.rcu_self_test_bh= [KNL]
-			Run the RCU bh early boot self tests
-
-	rcupdate.rcu_self_test_sched= [KNL]
-			Run the RCU sched early boot self tests
 
 	rdinit=		[KNL]
 			Format: <full_path>

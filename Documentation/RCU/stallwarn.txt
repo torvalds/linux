@@ -16,12 +16,9 @@ o	A CPU looping in an RCU read-side critical section.
 
 o	A CPU looping with interrupts disabled.
 
-o	A CPU looping with preemption disabled.  This condition can
-	result in RCU-sched stalls and, if ksoftirqd is in use, RCU-bh
-	stalls.
+o	A CPU looping with preemption disabled.
 
-o	A CPU looping with bottom halves disabled.  This condition can
-	result in RCU-sched and RCU-bh stalls.
+o	A CPU looping with bottom halves disabled.
 
 o	For !CONFIG_PREEMPT kernels, a CPU looping anywhere in the kernel
 	without invoking schedule().  If the looping in the kernel is
@@ -87,9 +84,9 @@ o	A hardware failure.  This is quite unlikely, but has occurred
 	This resulted in a series of RCU CPU stall warnings, eventually
 	leading the realization that the CPU had failed.
 
-The RCU, RCU-sched, RCU-bh, and RCU-tasks implementations have CPU stall
-warning.  Note that SRCU does -not- have CPU stall warnings.  Please note
-that RCU only detects CPU stalls when there is a grace period in progress.
+The RCU, RCU-sched, and RCU-tasks implementations have CPU stall warning.
+Note that SRCU does -not- have CPU stall warnings.  Please note that
+RCU only detects CPU stalls when there is a grace period in progress.
 No grace period, no CPU stall warnings.
 
 To diagnose the cause of the stall, inspect the stack traces.

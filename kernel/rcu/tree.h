@@ -34,34 +34,9 @@
 
 #include "rcu_segcblist.h"
 
-/*
- * Dynticks per-CPU state.
- */
-struct rcu_dynticks {
-	long dynticks_nesting;      /* Track process nesting level. */
-	long dynticks_nmi_nesting;  /* Track irq/NMI nesting level. */
-	atomic_t dynticks;	    /* Even value for idle, else odd. */
-	bool rcu_need_heavy_qs;     /* GP old, need heavy quiescent state. */
-	unsigned long rcu_qs_ctr;   /* Light universal quiescent state ctr. */
-	bool rcu_urgent_qs;	    /* GP old need light quiescent state. */
-#ifdef CONFIG_RCU_FAST_NO_HZ
-	bool all_lazy;		    /* Are all CPU's CBs lazy? */
-	unsigned long nonlazy_posted;
-				    /* # times non-lazy CBs posted to CPU. */
-	unsigned long nonlazy_posted_snap;
-				    /* idle-period nonlazy_posted snapshot. */
-	unsigned long last_accelerate;
-				    /* Last jiffy CBs were accelerated. */
-	unsigned long last_advance_all;
-				    /* Last jiffy CBs were all advanced. */
-	int tick_nohz_enabled_snap; /* Previously seen value from sysfs. */
-#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
-};
-
 /* Communicate arguments to a workqueue handler. */
 struct rcu_exp_work {
 	smp_call_func_t rew_func;
-	struct rcu_state *rew_rsp;
 	unsigned long rew_s;
 	struct work_struct rew_work;
 };
@@ -170,7 +145,7 @@ struct rcu_node {
  * are indexed relative to this interval rather than the global CPU ID space.
  * This generates the bit for a CPU in node-local masks.
  */
-#define leaf_node_cpu_bit(rnp, cpu) (1UL << ((cpu) - (rnp)->grplo))
+#define leaf_node_cpu_bit(rnp, cpu) (BIT((cpu) - (rnp)->grplo))
 
 /*
  * Union to allow "aggregate OR" operation on the need for a quiescent
@@ -189,12 +164,11 @@ struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
 	unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
 	unsigned long	gp_seq_needed;	/* Track rsp->rcu_gp_seq_needed ctr. */
-	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
-					/*  for rcu_all_qs() invocations. */
 	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
 	bool		gpwrap;		/* Possible ->gp_seq wrap. */
+	bool		deferred_qs;	/* This CPU awaiting a deferred QS? */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
 	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
@@ -213,23 +187,27 @@ struct rcu_data {
 	long		blimit;		/* Upper limit on a processed batch */
 
 	/* 3) dynticks interface. */
-	struct rcu_dynticks *dynticks;	/* Shared per-CPU dynticks state. */
 	int dynticks_snap;		/* Per-GP tracking for dynticks. */
-
-	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
-	unsigned long dynticks_fqs;	/* Kicked due to dynticks idle. */
-	unsigned long cond_resched_completed;
-					/* Grace period that needs help */
-					/*  from cond_resched(). */
-
-	/* 5) _rcu_barrier(), OOM callbacks, and expediting. */
-	struct rcu_head barrier_head;
+	long dynticks_nesting;		/* Track process nesting level. */
+	long dynticks_nmi_nesting;	/* Track irq/NMI nesting level. */
+	atomic_t dynticks;		/* Even value for idle, else odd. */
+	bool rcu_need_heavy_qs;		/* GP old, so heavy quiescent state! */
+	bool rcu_urgent_qs;		/* GP old need light quiescent state. */
 #ifdef CONFIG_RCU_FAST_NO_HZ
-	struct rcu_head oom_head;
+	bool all_lazy;			/* Are all CPU's CBs lazy? */
+	unsigned long nonlazy_posted;	/* # times non-lazy CB posted to CPU. */
+	unsigned long nonlazy_posted_snap;
+					/* Nonlazy_posted snapshot. */
+	unsigned long last_accelerate;	/* Last jiffy CBs were accelerated. */
+	unsigned long last_advance_all;	/* Last jiffy CBs were all advanced. */
+	int tick_nohz_enabled_snap;	/* Previously seen value from sysfs. */
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+	/* 4) rcu_barrier(), OOM callbacks, and expediting. */
+	struct rcu_head barrier_head;
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
-	/* 6) Callback offloading. */
+	/* 5) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
 	struct rcu_head *nocb_head;	/* CBs waiting for kthread. */
 	struct rcu_head **nocb_tail;
@@ -256,7 +234,7 @@ struct rcu_data {
 					/* Leader CPU takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-	/* 7) Diagnostic data, including RCU CPU stall warnings. */
+	/* 6) Diagnostic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */
@@ -266,9 +244,9 @@ struct rcu_data {
 	short rcu_ofl_gp_flags;		/* ->gp_flags at last offline. */
 	unsigned long rcu_onl_gp_seq;	/* ->gp_seq at last online. */
 	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
+	unsigned long last_fqs_resched;	/* Time of last rcu_resched(). */
 
 	int cpu;
-	struct rcu_state *rsp;
 };
 
 /* Values for nocb_defer_wakeup field in struct rcu_data. */
@@ -314,8 +292,6 @@ struct rcu_state {
 	struct rcu_node *level[RCU_NUM_LVLS + 1];
 						/* Hierarchy levels (+1 to */
 						/*  shut bogus gcc warning) */
-	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
-	call_rcu_func_t call;			/* call_rcu() flavor. */
 	int ncpus;				/* # CPUs seen so far. */
 
 	/* The following fields are guarded by the root rcu_node's lock. */
@@ -334,7 +310,7 @@ struct rcu_state {
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	struct completion barrier_completion;	/* Wake at barrier end. */
 	unsigned long barrier_sequence;		/* ++ at start and end of */
-						/*  _rcu_barrier(). */
+						/*  rcu_barrier(). */
 	/* End of fields guarded by barrier_mutex. */
 
 	struct mutex exp_mutex;			/* Serialize expedited GP. */
@@ -366,9 +342,8 @@ struct rcu_state {
 						/*  jiffies. */
 	const char *name;			/* Name of structure. */
 	char abbr;				/* Abbreviated name. */
-	struct list_head flavors;		/* List of RCU flavors. */
 
-	spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
+	raw_spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
 						/* Synchronize offline with */
 						/*  GP pre-initialization. */
 };
@@ -388,7 +363,6 @@ struct rcu_state {
 #define RCU_GP_CLEANUP   7	/* Grace-period cleanup started. */
 #define RCU_GP_CLEANED   8	/* Grace-period cleanup complete. */
 
-#ifndef RCU_TREE_NONCORE
 static const char * const gp_state_names[] = {
 	"RCU_GP_IDLE",
 	"RCU_GP_WAIT_GPS",
@@ -400,13 +374,29 @@ static const char * const gp_state_names[] = {
 	"RCU_GP_CLEANUP",
 	"RCU_GP_CLEANED",
 };
-#endif /* #ifndef RCU_TREE_NONCORE */
 
-extern struct list_head rcu_struct_flavors;
-
-/* Sequence through rcu_state structures for each RCU flavor. */
-#define for_each_rcu_flavor(rsp) \
-	list_for_each_entry((rsp), &rcu_struct_flavors, flavors)
+/*
+ * In order to export the rcu_state name to the tracing tools, it
+ * needs to be added in the __tracepoint_string section.
+ * This requires defining a separate variable tp_<sname>_varname
+ * that points to the string being used, and this will allow
+ * the tracing userspace tools to be able to decipher the string
+ * address to the matching string.
+ */
+#ifdef CONFIG_PREEMPT_RCU
+#define RCU_ABBR 'p'
+#define RCU_NAME_RAW "rcu_preempt"
+#else /* #ifdef CONFIG_PREEMPT_RCU */
+#define RCU_ABBR 's'
+#define RCU_NAME_RAW "rcu_sched"
+#endif /* #else #ifdef CONFIG_PREEMPT_RCU */
+#ifndef CONFIG_TRACING
+#define RCU_NAME RCU_NAME_RAW
+#else /* #ifdef CONFIG_TRACING */
+static char rcu_name[] = RCU_NAME_RAW;
+static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
+#define RCU_NAME rcu_name
+#endif /* #else #ifdef CONFIG_TRACING */
 
 /*
  * RCU implementation internal declarations:
@@ -419,7 +409,7 @@ extern struct rcu_state rcu_bh_state;
 extern struct rcu_state rcu_preempt_state;
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 
-int rcu_dynticks_snap(struct rcu_dynticks *rdtp);
+int rcu_dynticks_snap(struct rcu_data *rdp);
 
 #ifdef CONFIG_RCU_BOOST
 DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
@@ -428,45 +418,37 @@ DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 DECLARE_PER_CPU(char, rcu_cpu_has_work);
 #endif /* #ifdef CONFIG_RCU_BOOST */
 
-#ifndef RCU_TREE_NONCORE
-
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);
-static void rcu_preempt_note_context_switch(bool preempt);
+static void rcu_qs(void);
 static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
 static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-static void rcu_print_detail_task_stall(struct rcu_state *rsp);
+static void rcu_print_detail_task_stall(void);
 static int rcu_print_task_stall(struct rcu_node *rnp);
 static int rcu_print_task_exp_stall(struct rcu_node *rnp);
-static void rcu_preempt_check_blocked_tasks(struct rcu_state *rsp,
-					    struct rcu_node *rnp);
-static void rcu_preempt_check_callbacks(void);
+static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
+static void rcu_flavor_check_callbacks(int user);
 void call_rcu(struct rcu_head *head, rcu_callback_t func);
-static void __init __rcu_init_preempt(void);
-static void dump_blkd_tasks(struct rcu_state *rsp, struct rcu_node *rnp,
-			    int ncheck);
+static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
 static void invoke_rcu_callbacks_kthread(void);
 static bool rcu_is_callbacks_kthread(void);
-#ifdef CONFIG_RCU_BOOST
-static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
-						 struct rcu_node *rnp);
-#endif /* #ifdef CONFIG_RCU_BOOST */
 static void __init rcu_spawn_boost_kthreads(void);
 static void rcu_prepare_kthreads(int cpu);
 static void rcu_cleanup_after_idle(void);
 static void rcu_prepare_for_idle(void);
 static void rcu_idle_count_callbacks_posted(void);
 static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
+static bool rcu_preempt_need_deferred_qs(struct task_struct *t);
+static void rcu_preempt_deferred_qs(struct task_struct *t);
 static void print_cpu_stall_info_begin(void);
-static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
+static void print_cpu_stall_info(int cpu);
 static void print_cpu_stall_info_end(void);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
-static void increment_cpu_stall_ticks(void);
-static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu);
+static bool rcu_nocb_cpu_needs_barrier(int cpu);
 static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
 static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
@@ -481,11 +463,11 @@ static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
 static void rcu_spawn_all_nocb_kthreads(int cpu);
 static void __init rcu_spawn_nocb_kthreads(void);
 #ifdef CONFIG_RCU_NOCB_CPU
-static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp);
+static void __init rcu_organize_nocb_kthreads(void);
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 static bool init_nocb_callback_list(struct rcu_data *rdp);
 static void rcu_bind_gp_kthread(void);
-static bool rcu_nohz_full_cpu(struct rcu_state *rsp);
+static bool rcu_nohz_full_cpu(void);
 static void rcu_dynticks_task_enter(void);
 static void rcu_dynticks_task_exit(void);
 
@@ -496,5 +478,3 @@ void srcu_offline_cpu(unsigned int cpu);
 void srcu_online_cpu(unsigned int cpu) { }
 void srcu_offline_cpu(unsigned int cpu) { }
 #endif /* #else #ifdef CONFIG_SRCU */
-
-#endif /* #ifndef RCU_TREE_NONCORE */

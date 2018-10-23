@@ -77,7 +77,7 @@ void torture_shutdown_absorb(const char *title);
 int torture_shutdown_init(int ssecs, void (*cleanup)(void));
 
 /* Task stuttering, which forces load/no-load transitions. */
-void stutter_wait(const char *title);
+bool stutter_wait(const char *title);
 int torture_stutter_init(int s);
 
 /* Initialization and cleanup. */
