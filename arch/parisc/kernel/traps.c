@@ -430,8 +430,8 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	}
 
 	printk("\n");
-	pr_crit("%s: Code=%d (%s) regs=%p (Addr=" RFMT ")\n",
-		msg, code, trap_name(code), regs, offset);
+	pr_crit("%s: Code=%d (%s) at addr " RFMT "\n",
+		msg, code, trap_name(code), offset);
 	show_regs(regs);
 
 	spin_unlock(&terminate_lock);
@@ -802,7 +802,8 @@ void __init initialize_ivt(const void *iva)
 	 *    the Length/4 words starting at Address is zero.
 	 */
 
-	/* Compute Checksum for HPMC handler */
+	/* Setup IVA and compute checksum for HPMC handler */
+	ivap[6] = (u32)__pa(os_hpmc);
 	length = os_hpmc_size;
 	ivap[7] = length;
 

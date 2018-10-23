@@ -494,12 +494,8 @@ static void __init map_pages(unsigned long start_vaddr,
 						pte = pte_mkhuge(pte);
 				}
 
-				if (address >= end_paddr) {
-					if (force)
-						break;
-					else
-						pte_val(pte) = 0;
-				}
+				if (address >= end_paddr)
+					break;
 
 				set_pte(pg_table, pte);
 
@@ -513,6 +509,21 @@ static void __init map_pages(unsigned long start_vaddr,
 		}
 		start_pmd = 0;
 	}
+}
+
+void __init set_kernel_text_rw(int enable_read_write)
+{
+	unsigned long start = (unsigned long)_stext;
+	unsigned long end   = (unsigned long)_etext;
+
+	map_pages(start, __pa(start), end-start,
+		PAGE_KERNEL_RWX, enable_read_write ? 1:0);
+
+	/* force the kernel to see the new TLB entries */
+	__flush_tlb_range(0, start, end);
+
+	/* dump old cached instructions */
+	flush_icache_range(start, end);
 }
 
 void __ref free_initmem(void)
