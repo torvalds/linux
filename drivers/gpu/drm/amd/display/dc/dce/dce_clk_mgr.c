@@ -94,7 +94,7 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
 
-static int dentist_get_divider_from_did(int did)
+int dentist_get_divider_from_did(int did)
 {
 	if (did < DENTIST_BASE_DID_1)
 		did = DENTIST_BASE_DID_1;
