@@ -68,7 +68,7 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 		address, resp);
 
 	hda_priv = devm_kzalloc(&hbus->pci->dev, sizeof(*hda_priv),
-				 GFP_KERNEL);
+				GFP_KERNEL);
 	if (!hda_priv)
 		return -ENOMEM;
 
