@@ -17,6 +17,12 @@
 	compatible = "hisilicon,hi3670-hikey970", "hisilicon,hi3670";
 
 	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
+		serial5 = &uart5;
 		serial6 = &uart6;       /* console UART */
 	};
 
@@ -31,6 +37,20 @@
 	};
 };
 
+&uart0 {
+	/* On High speed expansion header */
+	label = "HS-UART0";
+	status = "okay";
+};
+
+&uart2 {
+	/* On Low speed expansion header */
+	label = "LS-UART0";
+	status = "okay";
+};
+
 &uart6 {
+	/* On Low speed expansion header */
+	label = "LS-UART1";
 	status = "okay";
 };
