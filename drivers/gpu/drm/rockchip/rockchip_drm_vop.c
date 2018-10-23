@@ -1704,10 +1704,11 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (VOP_WIN_SUPPORT(vop, win, vact_st_end_info)) {
 		if (win->feature & WIN_FEATURE_PDAF_AFTER_VBLANK)
 			ex_vact_st = dest->y1 + mode->crtc_vtotal -
-				mode->crtc_vsync_start + mode->crtc_vdisplay;
+				mode->crtc_vsync_start +
+				mode->crtc_vdisplay + 1;
 		else
 			ex_vact_st = dest->y1 + mode->crtc_vsync_end -
-				mode->crtc_vsync_start;
+				mode->crtc_vsync_start + 1;
 		ex_vact_end = ex_vact_st + drm_rect_height(dest);
 		VOP_WIN_SET(vop, win, vact_st_end_info,
 			    ex_vact_st << 16 | ex_vact_end);
