@@ -93,8 +93,8 @@
 /*
  * Timeout for the watch, only used for get flag timer.
  */
-#define SSIF_WATCH_TIMEOUT_MSEC	   100
-#define SSIF_WATCH_TIMEOUT_JIFFIES msecs_to_jiffies(SSIF_WATCH_TIMEOUT_MSEC)
+#define SSIF_WATCH_MSG_TIMEOUT		msecs_to_jiffies(10)
+#define SSIF_WATCH_WATCHDOG_TIMEOUT	msecs_to_jiffies(250)
 
 enum ssif_intf_state {
 	SSIF_NORMAL,
@@ -276,7 +276,7 @@ struct ssif_info {
 	struct timer_list retry_timer;
 	int retries_left;
 
-	bool need_watch;		/* Need to look for flags? */
+	long watch_timeout;		/* Timeout for flags check, 0 if off. */
 	struct timer_list watch_timer;	/* Flag fetch timer. */
 
 	/* Info from SSIF cmd */
@@ -578,9 +578,9 @@ static void watch_timeout(struct timer_list *t)
 		return;
 
 	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
-	if (ssif_info->need_watch) {
+	if (ssif_info->watch_timeout) {
 		mod_timer(&ssif_info->watch_timer,
-			  jiffies + SSIF_WATCH_TIMEOUT_JIFFIES);
+			  jiffies + ssif_info->watch_timeout);
 		if (SSIF_IDLE(ssif_info)) {
 			start_flag_fetch(ssif_info, flags); /* Releases lock */
 			return;
@@ -1121,17 +1121,23 @@ static void request_events(void *send_info)
  * Upper layer is changing the flag saying whether we need to request
  * flags periodically or not.
  */
-static void ssif_set_need_watch(void *send_info, bool enable)
+static void ssif_set_need_watch(void *send_info, unsigned int watch_mask)
 {
 	struct ssif_info *ssif_info = (struct ssif_info *) send_info;
 	unsigned long oflags, *flags;
+	long timeout = 0;
+
+	if (watch_mask & IPMI_WATCH_MASK_CHECK_MESSAGES)
+		timeout = SSIF_WATCH_MSG_TIMEOUT;
+	else if (watch_mask & ~IPMI_WATCH_MASK_INTERNAL)
+		timeout = SSIF_WATCH_WATCHDOG_TIMEOUT;
 
 	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
-	if (enable != ssif_info->need_watch) {
-		ssif_info->need_watch = enable;
-		if (ssif_info->need_watch)
+	if (timeout != ssif_info->watch_timeout) {
+		ssif_info->watch_timeout = timeout;
+		if (ssif_info->watch_timeout)
 			mod_timer(&ssif_info->watch_timer,
-				  jiffies + SSIF_WATCH_TIMEOUT_JIFFIES);
+				  jiffies + ssif_info->watch_timeout);
 	}
 	ipmi_ssif_unlock_cond(ssif_info, flags);
 }
