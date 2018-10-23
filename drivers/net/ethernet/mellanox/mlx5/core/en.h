@@ -650,6 +650,7 @@ enum {
 
 struct mlx5e_rss_params {
 	u32	indirection_rqt[MLX5E_INDIR_RQT_SIZE];
+	u32	rx_hash_fields[MLX5E_NUM_INDIR_TIRS];
 	u8	toeplitz_hash_key[40];
 	u8	hfunc;
 };
