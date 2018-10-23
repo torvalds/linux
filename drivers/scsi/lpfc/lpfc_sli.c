@@ -7636,7 +7636,18 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 */
 	spin_lock_irq(&phba->hbalock);
 	phba->link_state = LPFC_LINK_DOWN;
+
+	/* Check if physical ports are trunked */
+	if (bf_get(lpfc_conf_trunk_port0, &phba->sli4_hba))
+		phba->trunk_link.link0.state = LPFC_LINK_DOWN;
+	if (bf_get(lpfc_conf_trunk_port1, &phba->sli4_hba))
+		phba->trunk_link.link1.state = LPFC_LINK_DOWN;
+	if (bf_get(lpfc_conf_trunk_port2, &phba->sli4_hba))
+		phba->trunk_link.link2.state = LPFC_LINK_DOWN;
+	if (bf_get(lpfc_conf_trunk_port3, &phba->sli4_hba))
+		phba->trunk_link.link3.state = LPFC_LINK_DOWN;
 	spin_unlock_irq(&phba->hbalock);
+
 	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
 	    (phba->hba_flag & LINK_DISABLED)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_SLI,

@@ -718,6 +718,19 @@ struct lpfc_sli4_hba {
 	uint16_t num_online_cpu;
 	uint16_t num_present_cpu;
 	uint16_t curr_disp_cpu;
+	uint32_t conf_trunk;
+#define lpfc_conf_trunk_port0_WORD	conf_trunk
+#define lpfc_conf_trunk_port0_SHIFT	0
+#define lpfc_conf_trunk_port0_MASK	0x1
+#define lpfc_conf_trunk_port1_WORD	conf_trunk
+#define lpfc_conf_trunk_port1_SHIFT	1
+#define lpfc_conf_trunk_port1_MASK	0x1
+#define lpfc_conf_trunk_port2_WORD	conf_trunk
+#define lpfc_conf_trunk_port2_SHIFT	2
+#define lpfc_conf_trunk_port2_MASK	0x1
+#define lpfc_conf_trunk_port3_WORD	conf_trunk
+#define lpfc_conf_trunk_port3_SHIFT	3
+#define lpfc_conf_trunk_port3_MASK	0x1
 };
 
 enum lpfc_sge_type {

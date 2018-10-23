@@ -335,6 +335,18 @@ enum hba_state {
 	LPFC_HBA_ERROR       =  -1
 };
 
+struct lpfc_trunk_link_state {
+	enum hba_state state;
+	uint8_t fault;
+};
+
+struct lpfc_trunk_link  {
+	struct lpfc_trunk_link_state link0,
+				     link1,
+				     link2,
+				     link3;
+};
+
 struct lpfc_vport {
 	struct lpfc_hba *phba;
 	struct list_head listentry;
@@ -684,6 +696,7 @@ struct lpfc_hba {
 	uint32_t iocb_cmd_size;
 	uint32_t iocb_rsp_size;
 
+	struct lpfc_trunk_link  trunk_link;
 	enum hba_state link_state;
 	uint32_t link_flag;	/* link state flags */
 #define LS_LOOPBACK_MODE      0x1	/* NPort is in Loopback mode */
