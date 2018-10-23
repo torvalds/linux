@@ -587,11 +587,16 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 	 */
 	ret = -EINPROGRESS;
 	if (fq->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
-	    fq->q.meat == fq->q.len &&
-	    nf_ct_frag6_reasm(fq, skb, dev))
-		ret = 0;
-	else
+	    fq->q.meat == fq->q.len) {
+		unsigned long orefdst = skb->_skb_refdst;
+
+		skb->_skb_refdst = 0UL;
+		if (nf_ct_frag6_reasm(fq, skb, dev))
+			ret = 0;
+		skb->_skb_refdst = orefdst;
+	} else {
 		skb_dst_drop(skb);
+	}
 
 out_unlock:
 	spin_unlock_bh(&fq->q.lock);
