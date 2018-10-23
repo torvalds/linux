@@ -50,12 +50,15 @@ MODULE_SUPPORTED_DEVICE("{{ALSA,Loopback soundcard}}");
 
 #define MAX_PCM_SUBSTREAMS	8
 
+static bool use_raw_jiffies;
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static bool enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 0};
 static int pcm_substreams[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 8};
 static int pcm_notify[SNDRV_CARDS];
 
+module_param(use_raw_jiffies, bool, 0444);
+MODULE_PARM_DESC(use_raw_jiffies, "Use raw jiffies follows local clocks.");
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for loopback soundcard.");
 module_param_array(id, charp, NULL, 0444);
@@ -124,6 +127,22 @@ struct loopback_pcm {
 };
 
 static struct platform_device *devices[SNDRV_CARDS];
+
+static inline unsigned long get_raw_jiffies(void)
+{
+	struct timespec64 ts64;
+
+	getrawmonotonic64(&ts64);
+	return timespec64_to_jiffies(&ts64);
+}
+
+static inline unsigned long cycles_to_jiffies(void)
+{
+	if (likely(use_raw_jiffies))
+		return get_raw_jiffies();
+
+	return jiffies;
+}
 
 static inline unsigned int byte_pos(struct loopback_pcm *dpcm, unsigned int x)
 {
@@ -270,7 +289,7 @@ static int loopback_trigger(struct snd_pcm_substream *substream, int cmd)
 		err = loopback_check_format(cable, substream->stream);
 		if (err < 0)
 			return err;
-		dpcm->last_jiffies = jiffies;
+		dpcm->last_jiffies = cycles_to_jiffies();
 		dpcm->pcm_rate_shift = 0;
 		dpcm->last_drift = 0;
 		spin_lock(&cable->lock);	
@@ -302,7 +321,7 @@ static int loopback_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		spin_lock(&cable->lock);
-		dpcm->last_jiffies = jiffies;
+		dpcm->last_jiffies = cycles_to_jiffies();
 		cable->pause &= ~stream;
 		loopback_timer_start(dpcm);
 		spin_unlock(&cable->lock);
@@ -482,12 +501,12 @@ static unsigned int loopback_pos_update(struct loopback_cable *cable)
 
 	running = cable->running ^ cable->pause;
 	if (running & (1 << SNDRV_PCM_STREAM_PLAYBACK)) {
-		delta_play = jiffies - dpcm_play->last_jiffies;
+		delta_play = cycles_to_jiffies() - dpcm_play->last_jiffies;
 		dpcm_play->last_jiffies += delta_play;
 	}
 
 	if (running & (1 << SNDRV_PCM_STREAM_CAPTURE)) {
-		delta_capt = jiffies - dpcm_capt->last_jiffies;
+		delta_capt = cycles_to_jiffies() - dpcm_capt->last_jiffies;
 		dpcm_capt->last_jiffies += delta_capt;
 	}
 
@@ -1108,7 +1127,7 @@ static void print_dpcm_info(struct snd_info_buffer *buffer,
 	snd_iprintf(buffer, "    irq_pos:\t\t%u\n", dpcm->irq_pos);
 	snd_iprintf(buffer, "    period_frac:\t%u\n", dpcm->period_size_frac);
 	snd_iprintf(buffer, "    last_jiffies:\t%lu (%lu)\n",
-					dpcm->last_jiffies, jiffies);
+					dpcm->last_jiffies, cycles_to_jiffies());
 	snd_iprintf(buffer, "    timer_expires:\t%lu\n", dpcm->timer.expires);
 }
 
