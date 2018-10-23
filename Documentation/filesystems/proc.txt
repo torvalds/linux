@@ -193,8 +193,10 @@ read the file /proc/PID/status:
   CapPrm: 0000000000000000
   CapEff: 0000000000000000
   CapBnd: ffffffffffffffff
+  CapAmb: 0000000000000000
   NoNewPrivs:     0
   Seccomp:        0
+  Speculation_Store_Bypass:       thread vulnerable
   voluntary_ctxt_switches:        0
   nonvoluntary_ctxt_switches:     1
 
@@ -214,7 +216,7 @@ asynchronous manner and the value may not be very precise. To see a precise
 snapshot of a moment, you can see /proc/<pid>/smaps file and scan page table.
 It's slow but very precise.
 
-Table 1-2: Contents of the status files (as of 4.8)
+Table 1-2: Contents of the status files (as of 4.19)
 ..............................................................................
  Field                       Content
  Name                        filename of the executable
@@ -267,8 +269,10 @@ Table 1-2: Contents of the status files (as of 4.8)
  CapPrm                      bitmap of permitted capabilities
  CapEff                      bitmap of effective capabilities
  CapBnd                      bitmap of capabilities bounding set
+ CapAmb                      bitmap of ambient capabilities
  NoNewPrivs                  no_new_privs, like prctl(PR_GET_NO_NEW_PRIV, ...)
  Seccomp                     seccomp mode, like prctl(PR_GET_SECCOMP, ...)
+ Speculation_Store_Bypass    speculative store bypass mitigation status
  Cpus_allowed                mask of CPUs on which this process may run
  Cpus_allowed_list           Same as previous, but in "list format"
  Mems_allowed                mask of memory nodes allowed to this process
