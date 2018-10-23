@@ -1296,6 +1296,12 @@ enc_to_dig_port(struct drm_encoder *encoder)
 		return NULL;
 }
 
+static inline struct intel_digital_port *
+conn_to_dig_port(struct intel_connector *connector)
+{
+	return enc_to_dig_port(&intel_attached_encoder(&connector->base)->base);
+}
+
 static inline struct intel_dp_mst_encoder *
 enc_to_mst(struct drm_encoder *encoder)
 {
@@ -1955,6 +1961,7 @@ int intel_hdcp_enable(struct intel_connector *connector);
 int intel_hdcp_disable(struct intel_connector *connector);
 int intel_hdcp_check_link(struct intel_connector *connector);
 bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port);
+bool intel_hdcp_capable(struct intel_connector *connector);
 
 /* intel_psr.c */
 #define CAN_PSR(dev_priv) (HAS_PSR(dev_priv) && dev_priv->psr.sink_support)

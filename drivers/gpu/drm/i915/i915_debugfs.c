@@ -4977,6 +4977,28 @@ static int i915_panel_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(i915_panel);
 
+static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	/* HDCP is supported by connector */
+	if (!intel_connector->hdcp_shim)
+		return -EINVAL;
+
+	seq_printf(m, "%s:%d HDCP version: ", connector->name,
+		   connector->base.id);
+	seq_printf(m, "%s ", !intel_hdcp_capable(intel_connector) ?
+		   "None" : "HDCP1.4");
+	seq_puts(m, "\n");
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
+
 /**
  * i915_debugfs_connector_add - add i915 specific connector debugfs files
  * @connector: pointer to a registered drm_connector
@@ -5004,6 +5026,13 @@ int i915_debugfs_connector_add(struct drm_connector *connector)
 				    connector, &i915_panel_fops);
 		debugfs_create_file("i915_psr_sink_status", S_IRUGO, root,
 				    connector, &i915_psr_sink_status_fops);
+	}
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB) {
+		debugfs_create_file("i915_hdcp_sink_capability", S_IRUGO, root,
+				    connector, &i915_hdcp_sink_capability_fops);
 	}
 
 	return 0;

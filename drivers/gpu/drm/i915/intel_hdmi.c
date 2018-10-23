@@ -2072,6 +2072,20 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder,
 	chv_phy_release_cl2_override(encoder);
 }
 
+static int
+intel_hdmi_connector_register(struct drm_connector *connector)
+{
+	int ret;
+
+	ret = intel_connector_register(connector);
+	if (ret)
+		return ret;
+
+	i915_debugfs_connector_add(connector);
+
+	return ret;
+}
+
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
 	if (intel_attached_hdmi(connector)->cec_notifier)
@@ -2086,7 +2100,7 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
-	.late_register = intel_connector_register,
+	.late_register = intel_hdmi_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_hdmi_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
