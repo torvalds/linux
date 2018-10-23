@@ -741,7 +741,7 @@ struct sof_ipc_comp_tone {
 struct sof_ipc_comp_eq_fir {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-	int32_t size;
+	uint32_t size;
 	unsigned char data[0];
 } __attribute__((packed));
 
@@ -749,13 +749,13 @@ struct sof_ipc_comp_eq_fir {
 struct sof_ipc_comp_eq_iir {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-	int32_t size;
+	uint32_t size;
 	unsigned char data[0];
 } __attribute__((packed));
 
 /** \brief Types of EFFECT */
 enum sof_ipc_effect_type {
-	SOF_EFFECT_INTEL_NONE = 0,	/**< None */
+	SOF_EFFECT_NONE = 0,		/**< None */
 	SOF_EFFECT_INTEL_EQFIR,		/**< Intel FIR */
 	SOF_EFFECT_INTEL_EQIIR,		/**< Intel IIR */
 };

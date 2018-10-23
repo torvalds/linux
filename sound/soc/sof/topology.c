@@ -252,7 +252,7 @@ static enum sof_ipc_effect_type find_effect(const char *name)
 			return sof_effects[i].type;
 	}
 
-	return SOF_EFFECT_INTEL_NONE;
+	return SOF_EFFECT_NONE;
 }
 
 /*
