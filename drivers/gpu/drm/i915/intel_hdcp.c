@@ -16,6 +16,41 @@
 
 #define KEY_LOAD_TRIES	5
 
+static
+bool intel_hdcp_is_ksv_valid(u8 *ksv)
+{
+	int i, ones = 0;
+	/* KSV has 20 1's and 20 0's */
+	for (i = 0; i < DRM_HDCP_KSV_LEN; i++)
+		ones += hweight8(ksv[i]);
+	if (ones != 20)
+		return false;
+
+	return true;
+}
+
+static
+int intel_hdcp_read_valid_bksv(struct intel_digital_port *intel_dig_port,
+			       const struct intel_hdcp_shim *shim, u8 *bksv)
+{
+	int ret, i, tries = 2;
+
+	/* HDCP spec states that we must retry the bksv if it is invalid */
+	for (i = 0; i < tries; i++) {
+		ret = shim->read_bksv(intel_dig_port, bksv);
+		if (ret)
+			return ret;
+		if (intel_hdcp_is_ksv_valid(bksv))
+			break;
+	}
+	if (i == tries) {
+		DRM_ERROR("Bksv is invalid\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int intel_hdcp_poll_ksv_fifo(struct intel_digital_port *intel_dig_port,
 				    const struct intel_hdcp_shim *shim)
 {
@@ -165,18 +200,6 @@ u32 intel_hdcp_get_repeater_ctl(struct intel_digital_port *intel_dig_port)
 	}
 	DRM_ERROR("Unknown port %d\n", port);
 	return -EINVAL;
-}
-
-static
-bool intel_hdcp_is_ksv_valid(u8 *ksv)
-{
-	int i, ones = 0;
-	/* KSV has 20 1's and 20 0's */
-	for (i = 0; i < DRM_HDCP_KSV_LEN; i++)
-		ones += hweight8(ksv[i]);
-	if (ones != 20)
-		return false;
-	return true;
 }
 
 static
@@ -527,18 +550,9 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 
 	memset(&bksv, 0, sizeof(bksv));
 
-	/* HDCP spec states that we must retry the bksv if it is invalid */
-	for (i = 0; i < tries; i++) {
-		ret = shim->read_bksv(intel_dig_port, bksv.shim);
-		if (ret)
-			return ret;
-		if (intel_hdcp_is_ksv_valid(bksv.shim))
-			break;
-	}
-	if (i == tries) {
-		DRM_ERROR("HDCP failed, Bksv is invalid\n");
-		return -ENODEV;
-	}
+	ret = intel_hdcp_read_valid_bksv(intel_dig_port, shim, bksv.shim);
+	if (ret < 0)
+		return ret;
 
 	I915_WRITE(PORT_HDCP_BKSVLO(port), bksv.reg[0]);
 	I915_WRITE(PORT_HDCP_BKSVHI(port), bksv.reg[1]);
