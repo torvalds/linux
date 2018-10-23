@@ -231,6 +231,19 @@ void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
 		    strerror(-ret));
 }
 
+void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
+			    uint64_t first_page, uint32_t num_pages)
+{
+	struct kvm_clear_dirty_log args = { .dirty_bitmap = log, .slot = slot,
+		                            .first_page = first_page,
+	                                    .num_pages = num_pages };
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_CLEAR_DIRTY_LOG, &args);
+	TEST_ASSERT(ret == 0, "%s: KVM_CLEAR_DIRTY_LOG failed: %s",
+		    strerror(-ret));
+}
+
 /*
  * Userspace Memory Region Find
  *

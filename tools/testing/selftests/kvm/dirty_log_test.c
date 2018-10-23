@@ -275,6 +275,14 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 
 	vm = create_vm(mode, VCPU_ID, guest_num_pages, guest_code);
 
+#ifdef USE_CLEAR_DIRTY_LOG
+	struct kvm_enable_cap cap = {};
+
+	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT;
+	cap.args[0] = 1;
+	vm_enable_cap(vm, &cap);
+#endif
+
 	/* Add an extra memory slot for testing dirty logging */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 				    guest_test_mem,
@@ -316,6 +324,10 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 		/* Give the vcpu thread some time to dirty some pages */
 		usleep(interval * 1000);
 		kvm_vm_get_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap);
+#ifdef USE_CLEAR_DIRTY_LOG
+		kvm_vm_clear_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap, 0,
+				       DIV_ROUND_UP(host_num_pages, 64) * 64);
+#endif
 		vm_dirty_log_verify(bmap);
 		iteration++;
 		sync_global_to_guest(vm, iteration);
@@ -391,6 +403,13 @@ int main(int argc, char *argv[])
 	bool top_offset = false;
 	unsigned int mode;
 	int opt, i;
+
+#ifdef USE_CLEAR_DIRTY_LOG
+	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT)) {
+		fprintf(stderr, "KVM_CLEAR_DIRTY_LOG not available, skipping tests\n");
+		exit(KSFT_SKIP);
+	}
+#endif
 
 	while ((opt = getopt(argc, argv, "hi:I:o:tm:")) != -1) {
 		switch (opt) {

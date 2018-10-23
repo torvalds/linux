@@ -305,6 +305,9 @@ the address space for which you want to return the dirty bitmap.
 They must be less than the value that KVM_CHECK_EXTENSION returns for
 the KVM_CAP_MULTI_ADDRESS_SPACE capability.
 
+The bits in the dirty bitmap are cleared before the ioctl returns, unless
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is enabled.  For more information,
+see the description of the capability.
 
 4.9 KVM_SET_MEMORY_ALIAS
 
@@ -3758,6 +3761,46 @@ Coalesced pio is based on coalesced mmio. There is little difference
 between coalesced mmio and pio except that coalesced pio records accesses
 to I/O ports.
 
+4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
+
+Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_dirty_log (in)
+Returns: 0 on success, -1 on error
+
+/* for KVM_CLEAR_DIRTY_LOG */
+struct kvm_clear_dirty_log {
+	__u32 slot;
+	__u32 num_pages;
+	__u64 first_page;
+	union {
+		void __user *dirty_bitmap; /* one bit per page */
+		__u64 padding;
+	};
+};
+
+The ioctl clears the dirty status of pages in a memory slot, according to
+the bitmap that is passed in struct kvm_clear_dirty_log's dirty_bitmap
+field.  Bit 0 of the bitmap corresponds to page "first_page" in the
+memory slot, and num_pages is the size in bits of the input bitmap.
+Both first_page and num_pages must be a multiple of 64.  For each bit
+that is set in the input bitmap, the corresponding page is marked "clean"
+in KVM's dirty bitmap, and dirty tracking is re-enabled for that page
+(for example via write-protection, or by clearing the dirty bit in
+a page table entry).
+
+If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 specifies
+the address space for which you want to return the dirty bitmap.
+They must be less than the value that KVM_CHECK_EXTENSION returns for
+the KVM_CAP_MULTI_ADDRESS_SPACE capability.
+
+This ioctl is mostly useful when KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+is enabled; for more information, see the description of the capability.
+However, it can always be used as long as KVM_CHECK_EXTENSION confirms
+that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is present.
+
+
 5. The kvm_run structure
 ------------------------
 
@@ -4651,6 +4694,30 @@ and injected exceptions.
 
 * For the new DR6 bits, note that bit 16 is set iff the #DB exception
   will clear DR6.RTM.
+
+7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+
+Architectures: all
+Parameters: args[0] whether feature should be enabled or not
+
+With this capability enabled, KVM_GET_DIRTY_LOG will not automatically
+clear and write-protect all pages that are returned as dirty.
+Rather, userspace will have to do this operation separately using
+KVM_CLEAR_DIRTY_LOG.
+
+At the cost of a slightly more complicated operation, this provides better
+scalability and responsiveness for two reasons.  First,
+KVM_CLEAR_DIRTY_LOG ioctl can operate on a 64-page granularity rather
+than requiring to sync a full memslot; this ensures that KVM does not
+take spinlocks for an extended period of time.  Second, in some cases a
+large amount of time can pass between a call to KVM_GET_DIRTY_LOG and
+userspace actually using the data in the page.  Pages can be modified
+during this time, which is inefficint for both the guest and userspace:
+the guest will incur a higher penalty due to write protection faults,
+while userspace can see false reports of dirty pages.  Manual reprotection
+helps reducing this time, improving guest performance and reducing the
+number of dirty log false positives.
+
 
 8. Other capabilities.
 ----------------------
