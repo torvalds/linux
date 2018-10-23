@@ -87,6 +87,7 @@
 			      "suspend_clk";
 		assigned-clocks = <&cru SCLK_USB3_OTG0_SUSPEND>;
 		assigned-clock-rates = <24000000>;
+		power-domains = <&power RK1808_PD_PCIE>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -106,7 +107,6 @@
 			snps,dis_u3_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
-			power-domains = <&power RK1808_PD_PCIE>;
 			status = "disabled";
 		};
 	};
