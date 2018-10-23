@@ -2097,8 +2097,12 @@ enum i915_power_well_id {
 
 /* ICL PHY DFLEX registers */
 #define PORT_TX_DFLEXDPMLE1		_MMIO(0x1638C0)
-#define   DFLEXDPMLE1_DPMLETC_MASK(n)	(0xf << (4 * (n)))
-#define   DFLEXDPMLE1_DPMLETC(n, x)	((x) << (4 * (n)))
+#define   DFLEXDPMLE1_DPMLETC_MASK(tc_port)	(0xf << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML0(tc_port)	(1 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML1_0(tc_port)	(3 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML3(tc_port)	(8 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML3_2(tc_port)	(12 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML3_0(tc_port)	(15 << (4 * (tc_port)))
 
 /* BXT PHY Ref registers */
 #define _PORT_REF_DW3_A			0x16218C
