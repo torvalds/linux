@@ -416,8 +416,8 @@ static int stm32_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	pins = of_find_property(node, "pinmux", NULL);
 	if (!pins) {
-		dev_err(pctl->dev, "missing pins property in node %s .\n",
-				node->name);
+		dev_err(pctl->dev, "missing pins property in node %pOFn .\n",
+				node);
 		return -EINVAL;
 	}
 

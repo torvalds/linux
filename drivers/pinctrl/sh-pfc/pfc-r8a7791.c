@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7791/r8a7743 processor support - PFC hardware block.
  *
  * Copyright (C) 2013 Renesas Electronics Corporation
  * Copyright (C) 2014-2017 Cogent Embedded, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -4458,7 +4455,7 @@ static const unsigned int vin2_clk_mux[] = {
 
 static const struct {
 	struct sh_pfc_pin_group common[346];
-	struct sh_pfc_pin_group r8a779x[9];
+	struct sh_pfc_pin_group automotive[9];
 } pinmux_groups = {
 	.common = {
 		SH_PFC_PIN_GROUP(audio_clk_a),
@@ -4808,7 +4805,7 @@ static const struct {
 		SH_PFC_PIN_GROUP(vin2_clkenb),
 		SH_PFC_PIN_GROUP(vin2_clk),
 	},
-	.r8a779x = {
+	.automotive = {
 		SH_PFC_PIN_GROUP(adi_common),
 		SH_PFC_PIN_GROUP(adi_chsel0),
 		SH_PFC_PIN_GROUP(adi_chsel1),
@@ -5365,7 +5362,7 @@ static const char * const vin2_groups[] = {
 
 static const struct {
 	struct sh_pfc_function common[58];
-	struct sh_pfc_function r8a779x[2];
+	struct sh_pfc_function automotive[2];
 } pinmux_functions = {
 	.common = {
 		SH_PFC_FUNCTION(audio_clk),
@@ -5427,7 +5424,7 @@ static const struct {
 		SH_PFC_FUNCTION(vin1),
 		SH_PFC_FUNCTION(vin2),
 	},
-	.r8a779x = {
+	.automotive = {
 		SH_PFC_FUNCTION(adi),
 		SH_PFC_FUNCTION(mlb),
 	}
@@ -6634,6 +6631,28 @@ const struct sh_pfc_soc_info r8a7743_pinmux_info = {
 };
 #endif
 
+#ifdef CONFIG_PINCTRL_PFC_R8A7744
+const struct sh_pfc_soc_info r8a7744_pinmux_info = {
+	.name = "r8a77440_pfc",
+	.ops = &r8a7791_pinmux_ops,
+	.unlock_reg = 0xe6060000, /* PMMR */
+
+	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
+
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.groups = pinmux_groups.common,
+	.nr_groups = ARRAY_SIZE(pinmux_groups.common),
+	.functions = pinmux_functions.common,
+	.nr_functions = ARRAY_SIZE(pinmux_functions.common),
+
+	.cfg_regs = pinmux_config_regs,
+
+	.pinmux_data = pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
+};
+#endif
+
 #ifdef CONFIG_PINCTRL_PFC_R8A7791
 const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 	.name = "r8a77910_pfc",
@@ -6646,10 +6665,10 @@ const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
 	.groups = pinmux_groups.common,
 	.nr_groups = ARRAY_SIZE(pinmux_groups.common) +
-		     ARRAY_SIZE(pinmux_groups.r8a779x),
+		     ARRAY_SIZE(pinmux_groups.automotive),
 	.functions = pinmux_functions.common,
 	.nr_functions = ARRAY_SIZE(pinmux_functions.common) +
-			ARRAY_SIZE(pinmux_functions.r8a779x),
+			ARRAY_SIZE(pinmux_functions.automotive),
 
 	.cfg_regs = pinmux_config_regs,
 
@@ -6670,10 +6689,10 @@ const struct sh_pfc_soc_info r8a7793_pinmux_info = {
 	.nr_pins = ARRAY_SIZE(pinmux_pins),
 	.groups = pinmux_groups.common,
 	.nr_groups = ARRAY_SIZE(pinmux_groups.common) +
-		     ARRAY_SIZE(pinmux_groups.r8a779x),
+		     ARRAY_SIZE(pinmux_groups.automotive),
 	.functions = pinmux_functions.common,
 	.nr_functions = ARRAY_SIZE(pinmux_functions.common) +
-			ARRAY_SIZE(pinmux_functions.r8a779x),
+			ARRAY_SIZE(pinmux_functions.automotive),
 
 	.cfg_regs = pinmux_config_regs,
 

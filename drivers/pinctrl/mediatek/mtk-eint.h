@@ -92,13 +92,13 @@ static inline int mtk_eint_do_resume(struct mtk_eint *eint)
 	return -EOPNOTSUPP;
 }
 
-int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_n,
+static inline int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_n,
 			  unsigned int debounce)
 {
 	return -EOPNOTSUPP;
 }
 
-int mtk_eint_find_irq(struct mtk_eint *eint, unsigned long eint_n)
+static inline int mtk_eint_find_irq(struct mtk_eint *eint, unsigned long eint_n)
 {
 	return -EOPNOTSUPP;
 }

@@ -3,11 +3,30 @@ menu "MediaTek pinctrl drivers"
 
 config EINT_MTK
 	bool "MediaTek External Interrupt Support"
-	depends on PINCTRL_MTK || PINCTRL_MT7622 || COMPILE_TEST
+	depends on PINCTRL_MTK || PINCTRL_MTK_MOORE || COMPILE_TEST
+	select GPIOLIB
 	select IRQ_DOMAIN
 
 config PINCTRL_MTK
 	bool
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select EINT_MTK
+	select OF_GPIO
+
+config PINCTRL_MTK_MOORE
+	bool "MediaTek Moore Core that implements generic binding"
+	depends on OF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select OF_GPIO
+
+config PINCTRL_MTK_PARIS
+	bool "MediaTek Paris Core that implements vendor binding"
 	depends on OF
 	select PINMUX
 	select GENERIC_PINCONF
@@ -22,6 +41,12 @@ config PINCTRL_MT2701
 	depends on OF
 	default MACH_MT2701
 	select PINCTRL_MTK
+
+config PINCTRL_MT7623
+	bool "Mediatek MT7623 pin control with generic binding"
+	depends on MACH_MT7623 || COMPILE_TEST
+	depends on PINCTRL_MTK_MOORE
+	default y
 
 config PINCTRL_MT8135
 	bool "Mediatek MT8135 pin control"
@@ -45,15 +70,18 @@ config PINCTRL_MT2712
 	default ARM64 && ARCH_MEDIATEK
 	select PINCTRL_MTK
 
-config PINCTRL_MT7622
-	bool "MediaTek MT7622 pin control"
+config PINCTRL_MT6765
+	bool "Mediatek MT6765 pin control"
 	depends on OF
 	depends on ARM64 || COMPILE_TEST
-	select GENERIC_PINCONF
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GPIOLIB
-	select OF_GPIO
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
+
+config PINCTRL_MT7622
+	bool "MediaTek MT7622 pin control"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_MTK_MOORE
+	default y
 
 config PINCTRL_MT8173
 	bool "Mediatek MT8173 pin control"
@@ -61,6 +89,13 @@ config PINCTRL_MT8173
 	depends on ARM64 || COMPILE_TEST
 	default ARM64 && ARCH_MEDIATEK
 	select PINCTRL_MTK
+
+config PINCTRL_MT8183
+	bool "Mediatek MT8183 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK_PARIS
 
 # For PMIC
 config PINCTRL_MT6397

@@ -9,7 +9,6 @@
  * version 2, as published by the Free Software Foundation.
  */
 
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>

@@ -69,8 +69,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	 */
 	grp = imx_pinctrl_find_group_by_name(pctldev, np->name);
 	if (!grp) {
-		dev_err(ipctl->dev, "unable to find group for node %s\n",
-			np->name);
+		dev_err(ipctl->dev, "unable to find group for node %pOFn\n", np);
 		return -EINVAL;
 	}
 
@@ -434,7 +433,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	int i;
 	u32 config;
 
-	dev_dbg(ipctl->dev, "group(%d): %s\n", index, np->name);
+	dev_dbg(ipctl->dev, "group(%d): %pOFn\n", index, np);
 
 	if (info->flags & SHARE_MUX_CONF_REG)
 		pin_size = FSL_PIN_SHARE_SIZE;
@@ -544,7 +543,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	struct group_desc *grp;
 	u32 i = 0;
 
-	dev_dbg(pctl->dev, "parse function(%d): %s\n", index, np->name);
+	dev_dbg(pctl->dev, "parse function(%d): %pOFn\n", index, np);
 
 	func = pinmux_generic_get_function(pctl, index);
 	if (!func)

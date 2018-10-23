@@ -550,7 +550,7 @@ static void __maybe_unused madera_pin_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(s, " DRV=%umA", madera_pin_unmake_drv_str(priv, conf[1]));
 
 	if (conf[0] & MADERA_GP1_IP_CFG_MASK)
-		seq_puts(s, "SCHMITT");
+		seq_puts(s, " SCHMITT");
 }
 
 
@@ -608,7 +608,7 @@ static int madera_mux_set_mux(struct pinctrl_dev *pctldev,
 	unsigned int n_chip_groups = priv->chip->n_pin_groups;
 	const char *func_name = madera_mux_funcs[selector].name;
 	unsigned int reg;
-	int i, ret;
+	int i, ret = 0;
 
 	dev_dbg(priv->dev, "%s selecting %u (%s) for group %u (%s)\n",
 		__func__, selector, func_name, group,
@@ -801,7 +801,7 @@ static int madera_pin_conf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			result = 1;
 		break;
 	default:
-		break;
+		return -ENOTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, result);
@@ -905,7 +905,7 @@ static int madera_pin_conf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			conf[1] &= ~MADERA_GP1_DIR;
 			break;
 		default:
-			break;
+			return -ENOTSUPP;
 		}
 
 		++configs;
@@ -971,10 +971,10 @@ static int madera_pin_conf_group_set(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinconf_ops madera_pin_conf_ops = {
+	.is_generic = true,
 	.pin_config_get = madera_pin_conf_get,
 	.pin_config_set = madera_pin_conf_set,
 	.pin_config_group_set = madera_pin_conf_group_set,
-
 };
 
 static struct pinctrl_desc madera_pin_desc = {

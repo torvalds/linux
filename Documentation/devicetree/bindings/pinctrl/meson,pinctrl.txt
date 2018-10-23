@@ -13,6 +13,8 @@ Required properties for the root node:
 		      "amlogic,meson-gxl-aobus-pinctrl"
 		      "amlogic,meson-axg-periphs-pinctrl"
 		      "amlogic,meson-axg-aobus-pinctrl"
+		      "amlogic,meson-g12a-periphs-pinctrl"
+		      "amlogic,meson-g12a-aobus-pinctrl"
  - reg: address and size of registers controlling irq functionality
 
 === GPIO sub-nodes ===

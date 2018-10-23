@@ -17,7 +17,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -413,14 +413,14 @@ static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	ret = of_property_read_string(np, "marvell,function", &function);
 	if (ret) {
 		dev_err(pctl->dev,
-			"missing marvell,function in node %s\n", np->name);
+			"missing marvell,function in node %pOFn\n", np);
 		return 0;
 	}
 
 	nmaps = of_property_count_strings(np, "marvell,pins");
 	if (nmaps < 0) {
 		dev_err(pctl->dev,
-			"missing marvell,pins in node %s\n", np->name);
+			"missing marvell,pins in node %pOFn\n", np);
 		return 0;
 	}
 
