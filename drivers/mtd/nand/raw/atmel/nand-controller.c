@@ -410,25 +410,15 @@ err:
 	return -EIO;
 }
 
-static u8 atmel_nand_read_byte(struct mtd_info *mtd)
+static u8 atmel_nand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 
 	return ioread8(nand->activecs->io.virt);
 }
 
-static u16 atmel_nand_read_word(struct mtd_info *mtd)
+static void atmel_nand_write_byte(struct nand_chip *chip, u8 byte)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct atmel_nand *nand = to_atmel_nand(chip);
-
-	return ioread16(nand->activecs->io.virt);
-}
-
-static void atmel_nand_write_byte(struct mtd_info *mtd, u8 byte)
-{
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 
 	if (chip->options & NAND_BUSWIDTH_16)
@@ -437,9 +427,8 @@ static void atmel_nand_write_byte(struct mtd_info *mtd, u8 byte)
 		iowrite8(byte, nand->activecs->io.virt);
 }
 
-static void atmel_nand_read_buf(struct mtd_info *mtd, u8 *buf, int len)
+static void atmel_nand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_nand_controller *nc;
 
@@ -462,9 +451,8 @@ static void atmel_nand_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 		ioread8_rep(nand->activecs->io.virt, buf, len);
 }
 
-static void atmel_nand_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
+static void atmel_nand_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_nand_controller *nc;
 
@@ -487,34 +475,31 @@ static void atmel_nand_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 		iowrite8_rep(nand->activecs->io.virt, buf, len);
 }
 
-static int atmel_nand_dev_ready(struct mtd_info *mtd)
+static int atmel_nand_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 
 	return gpiod_get_value(nand->activecs->rb.gpio);
 }
 
-static void atmel_nand_select_chip(struct mtd_info *mtd, int cs)
+static void atmel_nand_select_chip(struct nand_chip *chip, int cs)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 
 	if (cs < 0 || cs >= nand->numcs) {
 		nand->activecs = NULL;
-		chip->dev_ready = NULL;
+		chip->legacy.dev_ready = NULL;
 		return;
 	}
 
 	nand->activecs = &nand->cs[cs];
 
 	if (nand->activecs->rb.type == ATMEL_NAND_GPIO_RB)
-		chip->dev_ready = atmel_nand_dev_ready;
+		chip->legacy.dev_ready = atmel_nand_dev_ready;
 }
 
-static int atmel_hsmc_nand_dev_ready(struct mtd_info *mtd)
+static int atmel_hsmc_nand_dev_ready(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_hsmc_nand_controller *nc;
 	u32 status;
@@ -526,15 +511,15 @@ static int atmel_hsmc_nand_dev_ready(struct mtd_info *mtd)
 	return status & ATMEL_HSMC_NFC_SR_RBEDGE(nand->activecs->rb.id);
 }
 
-static void atmel_hsmc_nand_select_chip(struct mtd_info *mtd, int cs)
+static void atmel_hsmc_nand_select_chip(struct nand_chip *chip, int cs)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_hsmc_nand_controller *nc;
 
 	nc = to_hsmc_nand_controller(chip->controller);
 
-	atmel_nand_select_chip(mtd, cs);
+	atmel_nand_select_chip(chip, cs);
 
 	if (!nand->activecs) {
 		regmap_write(nc->base.smc, ATMEL_HSMC_NFC_CTRL,
@@ -543,7 +528,7 @@ static void atmel_hsmc_nand_select_chip(struct mtd_info *mtd, int cs)
 	}
 
 	if (nand->activecs->rb.type == ATMEL_NAND_NATIVE_RB)
-		chip->dev_ready = atmel_hsmc_nand_dev_ready;
+		chip->legacy.dev_ready = atmel_hsmc_nand_dev_ready;
 
 	regmap_update_bits(nc->base.smc, ATMEL_HSMC_NFC_CFG,
 			   ATMEL_HSMC_NFC_CFG_PAGESIZE_MASK |
@@ -607,10 +592,9 @@ static int atmel_nfc_exec_op(struct atmel_hsmc_nand_controller *nc, bool poll)
 	return ret;
 }
 
-static void atmel_hsmc_nand_cmd_ctrl(struct mtd_info *mtd, int dat,
+static void atmel_hsmc_nand_cmd_ctrl(struct nand_chip *chip, int dat,
 				     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_hsmc_nand_controller *nc;
 
@@ -634,10 +618,9 @@ static void atmel_hsmc_nand_cmd_ctrl(struct mtd_info *mtd, int dat,
 	}
 }
 
-static void atmel_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void atmel_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
 				unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_nand_controller *nc;
 
@@ -851,7 +834,7 @@ static int atmel_nand_pmecc_write_pg(struct nand_chip *chip, const u8 *buf,
 	if (ret)
 		return ret;
 
-	atmel_nand_write_buf(mtd, buf, mtd->writesize);
+	atmel_nand_write_buf(chip, buf, mtd->writesize);
 
 	ret = atmel_nand_pmecc_generate_eccbytes(chip, raw);
 	if (ret) {
@@ -861,20 +844,18 @@ static int atmel_nand_pmecc_write_pg(struct nand_chip *chip, const u8 *buf,
 
 	atmel_nand_pmecc_disable(chip, raw);
 
-	atmel_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	atmel_nand_write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	return nand_prog_page_end_op(chip);
 }
 
-static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
-				       struct nand_chip *chip, const u8 *buf,
+static int atmel_nand_pmecc_write_page(struct nand_chip *chip, const u8 *buf,
 				       int oob_required, int page)
 {
 	return atmel_nand_pmecc_write_pg(chip, buf, oob_required, page, false);
 }
 
-static int atmel_nand_pmecc_write_page_raw(struct mtd_info *mtd,
-					   struct nand_chip *chip,
+static int atmel_nand_pmecc_write_page_raw(struct nand_chip *chip,
 					   const u8 *buf, int oob_required,
 					   int page)
 {
@@ -893,8 +874,8 @@ static int atmel_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	if (ret)
 		return ret;
 
-	atmel_nand_read_buf(mtd, buf, mtd->writesize);
-	atmel_nand_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	atmel_nand_read_buf(chip, buf, mtd->writesize);
+	atmel_nand_read_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	ret = atmel_nand_pmecc_correct_data(chip, buf, raw);
 
@@ -903,15 +884,13 @@ static int atmel_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	return ret;
 }
 
-static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
-				      struct nand_chip *chip, u8 *buf,
+static int atmel_nand_pmecc_read_page(struct nand_chip *chip, u8 *buf,
 				      int oob_required, int page)
 {
 	return atmel_nand_pmecc_read_pg(chip, buf, oob_required, page, false);
 }
 
-static int atmel_nand_pmecc_read_page_raw(struct mtd_info *mtd,
-					  struct nand_chip *chip, u8 *buf,
+static int atmel_nand_pmecc_read_page_raw(struct nand_chip *chip, u8 *buf,
 					  int oob_required, int page)
 {
 	return atmel_nand_pmecc_read_pg(chip, buf, oob_required, page, true);
@@ -956,7 +935,7 @@ static int atmel_hsmc_nand_pmecc_write_pg(struct nand_chip *chip,
 	if (ret)
 		return ret;
 
-	atmel_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+	atmel_nand_write_buf(chip, chip->oob_poi, mtd->oobsize);
 
 	nc->op.cmds[0] = NAND_CMD_PAGEPROG;
 	nc->op.ncmds = 1;
@@ -966,15 +945,14 @@ static int atmel_hsmc_nand_pmecc_write_pg(struct nand_chip *chip,
 		dev_err(nc->base.dev, "Failed to program NAND page (err = %d)\n",
 			ret);
 
-	status = chip->waitfunc(mtd, chip);
+	status = chip->legacy.waitfunc(chip);
 	if (status & NAND_STATUS_FAIL)
 		return -EIO;
 
 	return ret;
 }
 
-static int atmel_hsmc_nand_pmecc_write_page(struct mtd_info *mtd,
-					    struct nand_chip *chip,
+static int atmel_hsmc_nand_pmecc_write_page(struct nand_chip *chip,
 					    const u8 *buf, int oob_required,
 					    int page)
 {
@@ -982,8 +960,7 @@ static int atmel_hsmc_nand_pmecc_write_page(struct mtd_info *mtd,
 					      false);
 }
 
-static int atmel_hsmc_nand_pmecc_write_page_raw(struct mtd_info *mtd,
-						struct nand_chip *chip,
+static int atmel_hsmc_nand_pmecc_write_page_raw(struct nand_chip *chip,
 						const u8 *buf,
 						int oob_required, int page)
 {
@@ -1045,16 +1022,14 @@ static int atmel_hsmc_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	return ret;
 }
 
-static int atmel_hsmc_nand_pmecc_read_page(struct mtd_info *mtd,
-					   struct nand_chip *chip, u8 *buf,
+static int atmel_hsmc_nand_pmecc_read_page(struct nand_chip *chip, u8 *buf,
 					   int oob_required, int page)
 {
 	return atmel_hsmc_nand_pmecc_read_pg(chip, buf, oob_required, page,
 					     false);
 }
 
-static int atmel_hsmc_nand_pmecc_read_page_raw(struct mtd_info *mtd,
-					       struct nand_chip *chip,
+static int atmel_hsmc_nand_pmecc_read_page_raw(struct nand_chip *chip,
 					       u8 *buf, int oob_required,
 					       int page)
 {
@@ -1473,10 +1448,9 @@ static int atmel_hsmc_nand_setup_data_interface(struct atmel_nand *nand,
 	return 0;
 }
 
-static int atmel_nand_setup_data_interface(struct mtd_info *mtd, int csline,
+static int atmel_nand_setup_data_interface(struct nand_chip *chip, int csline,
 					const struct nand_data_interface *conf)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	struct atmel_nand_controller *nc;
 
@@ -1498,19 +1472,18 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	mtd->dev.parent = nc->dev;
 	nand->base.controller = &nc->base;
 
-	chip->cmd_ctrl = atmel_nand_cmd_ctrl;
-	chip->read_byte = atmel_nand_read_byte;
-	chip->read_word = atmel_nand_read_word;
-	chip->write_byte = atmel_nand_write_byte;
-	chip->read_buf = atmel_nand_read_buf;
-	chip->write_buf = atmel_nand_write_buf;
+	chip->legacy.cmd_ctrl = atmel_nand_cmd_ctrl;
+	chip->legacy.read_byte = atmel_nand_read_byte;
+	chip->legacy.write_byte = atmel_nand_write_byte;
+	chip->legacy.read_buf = atmel_nand_read_buf;
+	chip->legacy.write_buf = atmel_nand_write_buf;
 	chip->select_chip = atmel_nand_select_chip;
 
 	if (nc->mck && nc->caps->ops->setup_data_interface)
 		chip->setup_data_interface = atmel_nand_setup_data_interface;
 
 	/* Some NANDs require a longer delay than the default one (20us). */
-	chip->chip_delay = 40;
+	chip->legacy.chip_delay = 40;
 
 	/*
 	 * Use a bounce buffer when the buffer passed by the MTD user is not
@@ -1551,7 +1524,7 @@ static void atmel_hsmc_nand_init(struct atmel_nand_controller *nc,
 	atmel_nand_init(nc, nand);
 
 	/* Overload some methods for the HSMC controller. */
-	chip->cmd_ctrl = atmel_hsmc_nand_cmd_ctrl;
+	chip->legacy.cmd_ctrl = atmel_hsmc_nand_cmd_ctrl;
 	chip->select_chip = atmel_hsmc_nand_select_chip;
 }
 
@@ -1586,9 +1559,7 @@ static struct atmel_nand *atmel_nand_create(struct atmel_nand_controller *nc,
 		return ERR_PTR(-EINVAL);
 	}
 
-	nand = devm_kzalloc(nc->dev,
-			    sizeof(*nand) + (numcs * sizeof(*nand->cs)),
-			    GFP_KERNEL);
+	nand = devm_kzalloc(nc->dev, struct_size(nand, cs, numcs), GFP_KERNEL);
 	if (!nand) {
 		dev_err(nc->dev, "Failed to allocate NAND object\n");
 		return ERR_PTR(-ENOMEM);
@@ -1694,7 +1665,7 @@ atmel_nand_controller_add_nand(struct atmel_nand_controller *nc,
 
 	nc->caps->ops->nand_init(nc, nand);
 
-	ret = nand_scan(mtd, nand->numcs);
+	ret = nand_scan(chip, nand->numcs);
 	if (ret) {
 		dev_err(nc->dev, "NAND scan failed: %d\n", ret);
 		return ret;
@@ -2063,6 +2034,10 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	nand_np = dev->of_node;
 	nfc_np = of_find_compatible_node(dev->of_node, NULL,
 					 "atmel,sama5d3-nfc");
+	if (!nfc_np) {
+		dev_err(dev, "Could not find device node for sama5d3-nfc\n");
+		return -ENODEV;
+	}
 
 	nc->clk = of_clk_get(nfc_np, 0);
 	if (IS_ERR(nc->clk)) {

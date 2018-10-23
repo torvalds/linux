@@ -1231,15 +1231,14 @@ static void brcmnand_send_cmd(struct brcmnand_host *host, int cmd)
  * NAND MTD API: read/program/erase
  ***********************************************************************/
 
-static void brcmnand_cmd_ctrl(struct mtd_info *mtd, int dat,
-	unsigned int ctrl)
+static void brcmnand_cmd_ctrl(struct nand_chip *chip, int dat,
+			      unsigned int ctrl)
 {
 	/* intentionally left blank */
 }
 
-static int brcmnand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
+static int brcmnand_waitfunc(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	struct brcmnand_controller *ctrl = host->ctrl;
 	unsigned long timeo = msecs_to_jiffies(100);
@@ -1274,7 +1273,6 @@ static int brcmnand_low_level_op(struct brcmnand_host *host,
 				 enum brcmnand_llop_type type, u32 data,
 				 bool last_op)
 {
-	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 	struct nand_chip *chip = &host->chip;
 	struct brcmnand_controller *ctrl = host->ctrl;
 	u32 tmp;
@@ -1307,13 +1305,13 @@ static int brcmnand_low_level_op(struct brcmnand_host *host,
 	(void)brcmnand_read_reg(ctrl, BRCMNAND_LL_OP);
 
 	brcmnand_send_cmd(host, CMD_LOW_LEVEL_OP);
-	return brcmnand_waitfunc(mtd, chip);
+	return brcmnand_waitfunc(chip);
 }
 
-static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
+static void brcmnand_cmdfunc(struct nand_chip *chip, unsigned command,
 			     int column, int page_addr)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	struct brcmnand_controller *ctrl = host->ctrl;
 	u64 addr = (u64)page_addr << chip->page_shift;
@@ -1383,7 +1381,7 @@ static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	(void)brcmnand_read_reg(ctrl, BRCMNAND_CMD_ADDRESS);
 
 	brcmnand_send_cmd(host, native_cmd);
-	brcmnand_waitfunc(mtd, chip);
+	brcmnand_waitfunc(chip);
 
 	if (native_cmd == CMD_PARAMETER_READ ||
 			native_cmd == CMD_PARAMETER_CHANGE_COL) {
@@ -1417,9 +1415,8 @@ static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		brcmnand_wp(mtd, 1);
 }
 
-static uint8_t brcmnand_read_byte(struct mtd_info *mtd)
+static uint8_t brcmnand_read_byte(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	struct brcmnand_controller *ctrl = host->ctrl;
 	uint8_t ret = 0;
@@ -1474,19 +1471,18 @@ static uint8_t brcmnand_read_byte(struct mtd_info *mtd)
 	return ret;
 }
 
-static void brcmnand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void brcmnand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++, buf++)
-		*buf = brcmnand_read_byte(mtd);
+		*buf = brcmnand_read_byte(chip);
 }
 
-static void brcmnand_write_buf(struct mtd_info *mtd, const uint8_t *buf,
-				   int len)
+static void brcmnand_write_buf(struct nand_chip *chip, const uint8_t *buf,
+			       int len)
 {
 	int i;
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 
 	switch (host->last_cmd) {
@@ -1617,7 +1613,7 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 		(void)brcmnand_read_reg(ctrl, BRCMNAND_CMD_ADDRESS);
 		/* SPARE_AREA_READ does not use ECC, so just use PAGE_READ */
 		brcmnand_send_cmd(host, CMD_PAGE_READ);
-		brcmnand_waitfunc(mtd, chip);
+		brcmnand_waitfunc(chip);
 
 		if (likely(buf)) {
 			brcmnand_soc_data_bus_prepare(ctrl->soc, false);
@@ -1689,7 +1685,7 @@ static int brcmstb_nand_verify_erased_page(struct mtd_info *mtd,
 	sas = mtd->oobsize / chip->ecc.steps;
 
 	/* read without ecc for verification */
-	ret = chip->ecc.read_page_raw(mtd, chip, buf, true, page);
+	ret = chip->ecc.read_page_raw(chip, buf, true, page);
 	if (ret)
 		return ret;
 
@@ -1786,9 +1782,10 @@ try_dmaread:
 	return 0;
 }
 
-static int brcmnand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			      uint8_t *buf, int oob_required, int page)
+static int brcmnand_read_page(struct nand_chip *chip, uint8_t *buf,
+			      int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	u8 *oob = oob_required ? (u8 *)chip->oob_poi : NULL;
 
@@ -1798,10 +1795,11 @@ static int brcmnand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			mtd->writesize >> FC_SHIFT, (u32 *)buf, oob);
 }
 
-static int brcmnand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				  uint8_t *buf, int oob_required, int page)
+static int brcmnand_read_page_raw(struct nand_chip *chip, uint8_t *buf,
+				  int oob_required, int page)
 {
 	struct brcmnand_host *host = nand_get_controller_data(chip);
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	u8 *oob = oob_required ? (u8 *)chip->oob_poi : NULL;
 	int ret;
 
@@ -1814,17 +1812,18 @@ static int brcmnand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	return ret;
 }
 
-static int brcmnand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			     int page)
+static int brcmnand_read_oob(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
 	return brcmnand_read(mtd, chip, (u64)page << chip->page_shift,
 			mtd->writesize >> FC_SHIFT,
 			NULL, (u8 *)chip->oob_poi);
 }
 
-static int brcmnand_read_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				 int page)
+static int brcmnand_read_oob_raw(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 
 	brcmnand_set_ecc_enabled(host, 0);
@@ -1892,7 +1891,7 @@ static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 
 		/* we cannot use SPARE_AREA_PROGRAM when PARTIAL_PAGE_EN=0 */
 		brcmnand_send_cmd(host, CMD_PROGRAM_PAGE);
-		status = brcmnand_waitfunc(mtd, chip);
+		status = brcmnand_waitfunc(chip);
 
 		if (status & NAND_STATUS_FAIL) {
 			dev_info(ctrl->dev, "program failed at %llx\n",
@@ -1906,9 +1905,10 @@ out:
 	return ret;
 }
 
-static int brcmnand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       const uint8_t *buf, int oob_required, int page)
+static int brcmnand_write_page(struct nand_chip *chip, const uint8_t *buf,
+			       int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	void *oob = oob_required ? chip->oob_poi : NULL;
 
@@ -1918,10 +1918,10 @@ static int brcmnand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return nand_prog_page_end_op(chip);
 }
 
-static int brcmnand_write_page_raw(struct mtd_info *mtd,
-				   struct nand_chip *chip, const uint8_t *buf,
+static int brcmnand_write_page_raw(struct nand_chip *chip, const uint8_t *buf,
 				   int oob_required, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	void *oob = oob_required ? chip->oob_poi : NULL;
 
@@ -1933,16 +1933,16 @@ static int brcmnand_write_page_raw(struct mtd_info *mtd,
 	return nand_prog_page_end_op(chip);
 }
 
-static int brcmnand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
-				  int page)
+static int brcmnand_write_oob(struct nand_chip *chip, int page)
 {
-	return brcmnand_write(mtd, chip, (u64)page << chip->page_shift,
-				  NULL, chip->oob_poi);
+	return brcmnand_write(nand_to_mtd(chip), chip,
+			      (u64)page << chip->page_shift, NULL,
+			      chip->oob_poi);
 }
 
-static int brcmnand_write_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
-				  int page)
+static int brcmnand_write_oob_raw(struct nand_chip *chip, int page)
 {
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	int ret;
 
@@ -2270,15 +2270,12 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 
-	chip->IO_ADDR_R = (void __iomem *)0xdeadbeef;
-	chip->IO_ADDR_W = (void __iomem *)0xdeadbeef;
-
-	chip->cmd_ctrl = brcmnand_cmd_ctrl;
-	chip->cmdfunc = brcmnand_cmdfunc;
-	chip->waitfunc = brcmnand_waitfunc;
-	chip->read_byte = brcmnand_read_byte;
-	chip->read_buf = brcmnand_read_buf;
-	chip->write_buf = brcmnand_write_buf;
+	chip->legacy.cmd_ctrl = brcmnand_cmd_ctrl;
+	chip->legacy.cmdfunc = brcmnand_cmdfunc;
+	chip->legacy.waitfunc = brcmnand_waitfunc;
+	chip->legacy.read_byte = brcmnand_read_byte;
+	chip->legacy.read_buf = brcmnand_read_buf;
+	chip->legacy.write_buf = brcmnand_write_buf;
 
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.read_page = brcmnand_read_page;
@@ -2301,7 +2298,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	nand_writereg(ctrl, cfg_offs,
 		      nand_readreg(ctrl, cfg_offs) & ~CFG_BUS_WIDTH);
 
-	ret = nand_scan(mtd, 1);
+	ret = nand_scan(chip, 1);
 	if (ret)
 		return ret;
 
@@ -2616,7 +2613,7 @@ int brcmnand_remove(struct platform_device *pdev)
 	struct brcmnand_host *host;
 
 	list_for_each_entry(host, &ctrl->host_list, node)
-		nand_release(nand_to_mtd(&host->chip));
+		nand_release(&host->chip);
 
 	clk_disable_unprepare(ctrl->clk);
 
