@@ -75,9 +75,13 @@ struct drm_syncobj {
          */
 	struct list_head cb_list;
 	/**
-	 * @lock: Protects syncobj list and write-locks &fence.
+	 * @pt_lock: Protects pt list.
 	 */
-	spinlock_t lock;
+	spinlock_t pt_lock;
+	/**
+	 * @cb_mutex: Protects syncobj cb list.
+	 */
+	struct mutex cb_mutex;
 	/**
 	 * @file: A file backing for this syncobj.
 	 */
