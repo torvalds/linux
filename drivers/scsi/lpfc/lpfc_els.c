@@ -3242,6 +3242,62 @@ lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
 }
 
 /**
+ * lpfc_link_reset - Issue link reset
+ * @vport: pointer to a virtual N_Port data structure.
+ *
+ * This routine performs link reset by sending INIT_LINK mailbox command.
+ * For SLI-3 adapter, link attention interrupt is enabled before issuing
+ * INIT_LINK mailbox command.
+ *
+ * Return code
+ *   0 - Link reset initiated successfully
+ *   1 - Failed to initiate link reset
+ **/
+int
+lpfc_link_reset(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	LPFC_MBOXQ_t *mbox;
+	uint32_t control;
+	int rc;
+
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			 "2851 Attempt link reset\n");
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2852 Failed to allocate mbox memory");
+		return 1;
+	}
+
+	/* Enable Link attention interrupts */
+	if (phba->sli_rev <= LPFC_SLI_REV3) {
+		spin_lock_irq(&phba->hbalock);
+		phba->sli.sli_flag |= LPFC_PROCESS_LA;
+		control = readl(phba->HCregaddr);
+		control |= HC_LAINT_ENA;
+		writel(control, phba->HCregaddr);
+		readl(phba->HCregaddr); /* flush */
+		spin_unlock_irq(&phba->hbalock);
+	}
+
+	lpfc_init_link(phba, mbox, phba->cfg_topology,
+		       phba->cfg_link_speed);
+	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	mbox->vport = vport;
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2853 Failed to issue INIT_LINK "
+				"mbox command, rc:x%x\n", rc);
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return 1;
+	}
+
+	return 0;
+}
+
+/**
  * lpfc_els_retry - Make retry decision on an els command iocb
  * @phba: pointer to lpfc hba data structure.
  * @cmdiocb: pointer to lpfc command iocb data structure.
@@ -3277,6 +3333,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int logerr = 0;
 	uint32_t cmd = 0;
 	uint32_t did;
+	int link_reset = 0, rc;
 
 
 	/* Note: context2 may be 0 for internal driver abort
@@ -3358,7 +3415,6 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			retry = 1;
 			break;
 
-		case IOERR_SEQUENCE_TIMEOUT:
 		case IOERR_INVALID_RPI:
 			if (cmd == ELS_CMD_PLOGI &&
 			    did == NameServer_DID) {
@@ -3368,6 +3424,18 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				delay = 100;
 			}
 			retry = 1;
+			break;
+
+		case IOERR_SEQUENCE_TIMEOUT:
+			if (cmd == ELS_CMD_PLOGI &&
+			    did == NameServer_DID &&
+			    (cmdiocb->retry + 1) == maxretry) {
+				/* Reset the Link */
+				link_reset = 1;
+				break;
+			}
+			retry = 1;
+			delay = 100;
 			break;
 		}
 		break;
@@ -3523,6 +3591,19 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	default:
 		break;
+	}
+
+	if (link_reset) {
+		rc = lpfc_link_reset(vport);
+		if (rc) {
+			/* Do not give up. Retry PLOGI one more time and attempt
+			 * link reset if PLOGI fails again.
+			 */
+			retry = 1;
+			delay = 100;
+			goto out_retry;
+		}
+		return 1;
 	}
 
 	if (did == FDMI_DID)

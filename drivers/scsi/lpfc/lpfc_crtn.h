@@ -380,6 +380,7 @@ void lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virtp, dma_addr_t dma);
 
 void lpfc_in_buf_free(struct lpfc_hba *, struct lpfc_dmabuf *);
 void lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp);
+int lpfc_link_reset(struct lpfc_vport *vport);
 
 /* Function prototypes. */
 const char* lpfc_info(struct Scsi_Host *);
