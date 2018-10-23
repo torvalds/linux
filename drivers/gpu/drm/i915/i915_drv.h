@@ -1523,23 +1523,6 @@ struct i915_oa_ops {
 	bool (*is_valid_flex_reg)(struct drm_i915_private *dev_priv, u32 addr);
 
 	/**
-	 * @init_oa_buffer: Resets the head and tail pointers of the
-	 * circular buffer for periodic OA reports.
-	 *
-	 * Called when first opening a stream for OA metrics, but also may be
-	 * called in response to an OA buffer overflow or other error
-	 * condition.
-	 *
-	 * Note it may be necessary to clear the full OA buffer here as part of
-	 * maintaining the invariable that new reports must be written to
-	 * zeroed memory for us to be able to reliable detect if an expected
-	 * report has not yet landed in memory.  (At least on Haswell the OA
-	 * buffer tail pointer is not synchronized with reports being visible
-	 * to the CPU)
-	 */
-	void (*init_oa_buffer)(struct drm_i915_private *dev_priv);
-
-	/**
 	 * @enable_metric_set: Selects and applies any MUX configuration to set
 	 * up the Boolean and Custom (B/C) counters that are part of the
 	 * counter reports being sampled. May apply system constraints such as
