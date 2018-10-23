@@ -51,6 +51,8 @@ void dcn10_get_hw_state(
 		char *pBuf, unsigned int bufSize,
 		unsigned int mask);
 
+void dcn10_clear_status_bits(struct dc *dc, unsigned int mask);
+
 bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
 
 bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx);

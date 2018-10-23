@@ -99,6 +99,14 @@ static unsigned int hubp1_get_underflow_status(struct hubp *hubp)
 	return hubp_underflow;
 }
 
+
+void hubp1_clear_underflow(struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_CNTL, HUBP_UNDERFLOW_CLEAR, 1);
+}
+
 static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
@@ -1190,6 +1198,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_clk_cntl = hubp1_clk_cntl,
 	.hubp_vtg_sel = hubp1_vtg_sel,
 	.hubp_read_state = hubp1_read_state,
+	.hubp_clear_underflow = hubp1_clear_underflow,
 	.hubp_disable_control =  hubp1_disable_control,
 	.hubp_get_underflow_status = hubp1_get_underflow_status,
 
