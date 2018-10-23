@@ -83,6 +83,14 @@ config SPI_ATMEL
 	  This selects a driver for the Atmel SPI Controller, present on
 	  many AT91 ARM chips.
 
+config SPI_AT91_USART
+	tristate "Atmel USART Controller SPI driver"
+	depends on (ARCH_AT91 || COMPILE_TEST)
+	depends on MFD_AT91_USART
+	help
+	  This selects a driver for the AT91 USART Controller as SPI Master,
+	  present on AT91 and SAMA5 SoC series.
+
 config SPI_AU1550
 	tristate "Au1550/Au1200/Au1300 SPI Controller"
 	depends on MIPS_ALCHEMY
