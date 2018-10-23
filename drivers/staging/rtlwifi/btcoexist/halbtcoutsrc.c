@@ -476,17 +476,6 @@ static u32 halbtc_get_wifi_link_status(struct btc_coexist *btcoexist)
 	return ret_val;
 }
 
-static s32 halbtc_get_wifi_rssi(struct rtl_priv *rtlpriv)
-{
-	int undec_sm_pwdb = 0;
-
-	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED)
-		undec_sm_pwdb = rtlpriv->dm.undec_sm_pwdb;
-	else /* associated entry pwdb */
-		undec_sm_pwdb = rtlpriv->dm.undec_sm_pwdb;
-	return undec_sm_pwdb;
-}
-
 static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)void_btcoexist;
@@ -585,7 +574,7 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 		*bool_tmp = false;
 		break;
 	case BTC_GET_S4_WIFI_RSSI:
-		*s32_tmp = halbtc_get_wifi_rssi(rtlpriv);
+		*s32_tmp = rtlpriv->dm.undec_sm_pwdb;
 		break;
 	case BTC_GET_S4_HS_RSSI:
 		*s32_tmp = 0;
