@@ -16,7 +16,7 @@
  * This is the IO-APIC register space as specified
  * by Intel docs:
  */
-#define IO_APIC_SLOT_SIZE		1024
+#define IO_APIC_SLOT_SIZE		68
 
 #define	APIC_ID		0x20
 
