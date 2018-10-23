@@ -1154,7 +1154,7 @@ EXPORT_SYMBOL_GPL(kvm_get_dirty_log);
  *
  */
 int kvm_get_dirty_log_protect(struct kvm *kvm,
-			struct kvm_dirty_log *log, bool *is_dirty)
+			struct kvm_dirty_log *log, bool *flush)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
@@ -1181,7 +1181,7 @@ int kvm_get_dirty_log_protect(struct kvm *kvm,
 	memset(dirty_bitmap_buffer, 0, n);
 
 	spin_lock(&kvm->mmu_lock);
-	*is_dirty = false;
+	*flush = false;
 	for (i = 0; i < n / sizeof(long); i++) {
 		unsigned long mask;
 		gfn_t offset;
@@ -1189,7 +1189,7 @@ int kvm_get_dirty_log_protect(struct kvm *kvm,
 		if (!dirty_bitmap[i])
 			continue;
 
-		*is_dirty = true;
+		*flush = true;
 
 		mask = xchg(&dirty_bitmap[i], 0);
 		dirty_bitmap_buffer[i] = mask;
