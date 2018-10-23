@@ -109,6 +109,7 @@ struct inet_fill_args {
 	int event;
 	unsigned int flags;
 	int netnsid;
+	int ifindex;
 };
 
 #define IN4_ADDR_HSIZE_SHIFT	8
@@ -1663,8 +1664,9 @@ nla_put_failure:
 static int inet_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 				      struct inet_fill_args *fillargs,
 				      struct net **tgt_net, struct sock *sk,
-				      struct netlink_ext_ack *extack)
+				      struct netlink_callback *cb)
 {
+	struct netlink_ext_ack *extack = cb->extack;
 	struct nlattr *tb[IFA_MAX+1];
 	struct ifaddrmsg *ifm;
 	int err, i;
@@ -1679,9 +1681,11 @@ static int inet_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 		NL_SET_ERR_MSG(extack, "ipv4: Invalid values in header for address dump request");
 		return -EINVAL;
 	}
-	if (ifm->ifa_index) {
-		NL_SET_ERR_MSG(extack, "ipv4: Filter by device index not supported for address dump");
-		return -EINVAL;
+
+	fillargs->ifindex = ifm->ifa_index;
+	if (fillargs->ifindex) {
+		cb->answer_flags |= NLM_F_DUMP_FILTERED;
+		fillargs->flags |= NLM_F_DUMP_FILTERED;
 	}
 
 	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFA_MAX,
@@ -1713,6 +1717,32 @@ static int inet_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 	return 0;
 }
 
+static int in_dev_dump_addr(struct in_device *in_dev, struct sk_buff *skb,
+			    struct netlink_callback *cb, int s_ip_idx,
+			    struct inet_fill_args *fillargs)
+{
+	struct in_ifaddr *ifa;
+	int ip_idx = 0;
+	int err;
+
+	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next, ip_idx++) {
+		if (ip_idx < s_ip_idx)
+			continue;
+
+		err = inet_fill_ifaddr(skb, ifa, fillargs);
+		if (err < 0)
+			goto done;
+
+		nl_dump_check_consistent(cb, nlmsg_hdr(skb));
+	}
+	err = 0;
+
+done:
+	cb->args[2] = ip_idx;
+
+	return err;
+}
+
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = cb->nlh;
@@ -1727,23 +1757,34 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *tgt_net = net;
 	int h, s_h;
 	int idx, s_idx;
-	int ip_idx, s_ip_idx;
+	int s_ip_idx;
 	struct net_device *dev;
 	struct in_device *in_dev;
-	struct in_ifaddr *ifa;
 	struct hlist_head *head;
+	int err;
 
 	s_h = cb->args[0];
 	s_idx = idx = cb->args[1];
-	s_ip_idx = ip_idx = cb->args[2];
+	s_ip_idx = cb->args[2];
 
 	if (cb->strict_check) {
-		int err;
-
 		err = inet_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
-						 skb->sk, cb->extack);
+						 skb->sk, cb);
 		if (err < 0)
 			return err;
+
+		if (fillargs.ifindex) {
+			dev = __dev_get_by_index(tgt_net, fillargs.ifindex);
+			if (!dev)
+				return -ENODEV;
+
+			in_dev = __in_dev_get_rtnl(dev);
+			if (in_dev) {
+				err = in_dev_dump_addr(in_dev, skb, cb, s_ip_idx,
+						       &fillargs);
+			}
+			goto put_tgt_net;
+		}
 	}
 
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
@@ -1761,15 +1802,11 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 			if (!in_dev)
 				goto cont;
 
-			for (ifa = in_dev->ifa_list, ip_idx = 0; ifa;
-			     ifa = ifa->ifa_next, ip_idx++) {
-				if (ip_idx < s_ip_idx)
-					continue;
-				if (inet_fill_ifaddr(skb, ifa, &fillargs) < 0) {
-					rcu_read_unlock();
-					goto done;
-				}
-				nl_dump_check_consistent(cb, nlmsg_hdr(skb));
+			err = in_dev_dump_addr(in_dev, skb, cb, s_ip_idx,
+					       &fillargs);
+			if (err < 0) {
+				rcu_read_unlock();
+				goto done;
 			}
 cont:
 			idx++;
@@ -1780,7 +1817,7 @@ cont:
 done:
 	cb->args[0] = h;
 	cb->args[1] = idx;
-	cb->args[2] = ip_idx;
+put_tgt_net:
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
