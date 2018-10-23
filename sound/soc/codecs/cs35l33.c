@@ -857,7 +857,8 @@ static const struct regmap_config cs35l33_regmap = {
 	.readable_reg = cs35l33_readable_register,
 	.writeable_reg = cs35l33_writeable_register,
 	.cache_type = REGCACHE_RBTREE,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 };
 
 static int __maybe_unused cs35l33_runtime_resume(struct device *dev)

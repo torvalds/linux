@@ -3559,7 +3559,8 @@ static const struct snd_soc_component_driver soc_component_dev_rt5645 = {
 static const struct regmap_config rt5645_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = RT5645_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5645_ranges) *
 					       RT5645_PR_SPACING),
 	.volatile_reg = rt5645_volatile_register,
@@ -3575,7 +3576,8 @@ static const struct regmap_config rt5645_regmap = {
 static const struct regmap_config rt5650_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = RT5645_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5645_ranges) *
 					       RT5645_PR_SPACING),
 	.volatile_reg = rt5645_volatile_register,
@@ -3592,7 +3594,8 @@ static const struct regmap_config temp_regmap = {
 	.name="nocache",
 	.reg_bits = 8,
 	.val_bits = 16,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.max_register = RT5645_VENDOR_ID2 + 1,
 	.cache_type = REGCACHE_NONE,
 };
