@@ -227,6 +227,30 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 	}
 }
 
+void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr)
+{
+	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
+	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+
+	DRM_DEBUG("PSP\n");
+	amdgpu_ucode_print_common_hdr(hdr);
+
+	if (version_major == 1) {
+		const struct psp_firmware_header_v1_0 *psp_hdr =
+			container_of(hdr, struct psp_firmware_header_v1_0, header);
+
+		DRM_DEBUG("ucode_feature_version: %u\n",
+			  le32_to_cpu(psp_hdr->ucode_feature_version));
+		DRM_DEBUG("sos_offset_bytes: %u\n",
+			  le32_to_cpu(psp_hdr->sos_offset_bytes));
+		DRM_DEBUG("sos_size_bytes: %u\n",
+			  le32_to_cpu(psp_hdr->sos_size_bytes));
+	} else {
+		DRM_ERROR("Unknown PSP ucode version: %u.%u\n",
+			  version_major, version_minor);
+	}
+}
+
 void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr)
 {
 	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
