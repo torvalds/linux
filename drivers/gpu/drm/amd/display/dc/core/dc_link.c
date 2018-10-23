@@ -2218,7 +2218,7 @@ bool dc_link_set_psr_enable(const struct dc_link *link, bool enable, bool wait)
 	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
-	if (dmcu != NULL && link->psr_enabled)
+	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, enable, wait);
 
 	return true;
