@@ -250,7 +250,7 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 	struct resource *res;
 	int rc;
 
-	hpriv = ahci_platform_get_resources(pdev);
+	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 

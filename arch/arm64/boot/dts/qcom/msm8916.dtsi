@@ -858,9 +858,9 @@
 			clocks = <&gcc GCC_MDSS_AHB_CLK>,
 				 <&gcc GCC_MDSS_AXI_CLK>,
 				 <&gcc GCC_MDSS_VSYNC_CLK>;
-			clock-names = "iface_clk",
-				      "bus_clk",
-				      "vsync_clk";
+			clock-names = "iface",
+				      "bus",
+				      "vsync";
 
 			interrupts = <0 72 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -883,10 +883,10 @@
 					 <&gcc GCC_MDSS_AXI_CLK>,
 					 <&gcc GCC_MDSS_MDP_CLK>,
 					 <&gcc GCC_MDSS_VSYNC_CLK>;
-				clock-names = "iface_clk",
-					      "bus_clk",
-					      "core_clk",
-					      "vsync_clk";
+				clock-names = "iface",
+					      "bus",
+					      "core",
+					      "vsync";
 
 				iommus = <&apps_iommu 4>;
 
@@ -922,12 +922,12 @@
 					 <&gcc GCC_MDSS_BYTE0_CLK>,
 					 <&gcc GCC_MDSS_PCLK0_CLK>,
 					 <&gcc GCC_MDSS_ESC0_CLK>;
-				clock-names = "mdp_core_clk",
-					      "iface_clk",
-					      "bus_clk",
-					      "byte_clk",
-					      "pixel_clk",
-					      "core_clk";
+				clock-names = "mdp_core",
+					      "iface",
+					      "bus",
+					      "byte",
+					      "pixel",
+					      "core";
 				phys = <&dsi_phy0>;
 				phy-names = "dsi-phy";
 
@@ -963,7 +963,7 @@
 				#phy-cells = <0>;
 
 				clocks = <&gcc GCC_MDSS_AHB_CLK>;
-				clock-names = "iface_clk";
+				clock-names = "iface";
 			};
 		};
 

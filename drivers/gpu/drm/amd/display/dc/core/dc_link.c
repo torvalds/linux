@@ -754,8 +754,12 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			 * fail-safe mode
 			 */
 			if (dc_is_hdmi_signal(link->connector_signal) ||
-			    dc_is_dvi_signal(link->connector_signal))
+			    dc_is_dvi_signal(link->connector_signal)) {
+				if (prev_sink != NULL)
+					dc_sink_release(prev_sink);
+
 				return false;
+			}
 		default:
 			break;
 		}
@@ -1039,15 +1043,15 @@ static bool construct(
 
 	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
 
-	if (dc_ctx->dc_bios->integrated_info)
-		link->dp_ss_off = !!dc_ctx->dc_bios->integrated_info->dp_ss_control;
-
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
 		dm_error("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d! type %d expected %d\n",
 			 __func__, init_params->connector_index,
 			 link->link_id.type, OBJECT_TYPE_CONNECTOR);
 		goto create_fail;
 	}
+
+	if (link->dc->res_pool->funcs->link_init)
+		link->dc->res_pool->funcs->link_init(link);
 
 	hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 

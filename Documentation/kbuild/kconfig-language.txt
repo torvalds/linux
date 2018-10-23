@@ -545,7 +545,7 @@ make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
 Practical solutions to kconfig recursive issue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Developers who run into the recursive Kconfig issue have three options
+Developers who run into the recursive Kconfig issue have two options
 at their disposal. We document them below and also provide a list of
 historical issues resolved through these different solutions.
 
@@ -553,7 +553,6 @@ historical issues resolved through these different solutions.
   b) Match dependency semantics:
 	b1) Swap all "select FOO" to "depends on FOO" or,
 	b2) Swap all "depends on FOO" to "select FOO"
-  c) Consider the use of "imply" instead of "select"
 
 The resolution to a) can be tested with the sample Kconfig file
 Documentation/kbuild/Kconfig.recursion-issue-01 through the removal

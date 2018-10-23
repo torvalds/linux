@@ -1,5 +1,10 @@
 Rockchip platforms device tree bindings
 ---------------------------------------
+
+- 96boards RK3399 Ficus (ROCK960 Enterprise Edition)
+    Required root node properties:
+      - compatible = "vamrs,ficus", "rockchip,rk3399";
+
 - Amarula Vyasa RK3288 board
     Required root node properties:
       - compatible = "amarula,vyasa-rk3288", "rockchip,rk3288";
@@ -65,6 +70,15 @@ Rockchip platforms device tree bindings
 - GeekBuying GeekBox:
     Required root node properties:
       - compatible = "geekbuying,geekbox", "rockchip,rk3368";
+
+- Google Bob (Asus Chromebook Flip C101PA):
+    Required root node properties:
+	compatible = "google,bob-rev13", "google,bob-rev12",
+		     "google,bob-rev11", "google,bob-rev10",
+		     "google,bob-rev9", "google,bob-rev8",
+		     "google,bob-rev7", "google,bob-rev6",
+		     "google,bob-rev5", "google,bob-rev4",
+		     "google,bob", "google,gru", "rockchip,rk3399";
 
 - Google Brain (dev-board):
     Required root node properties:

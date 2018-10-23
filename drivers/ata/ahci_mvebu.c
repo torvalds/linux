@@ -158,7 +158,7 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 	const struct mbus_dram_target_info *dram;
 	int rc;
 
-	hpriv = ahci_platform_get_resources(pdev);
+	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 

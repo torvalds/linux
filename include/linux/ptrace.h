@@ -214,8 +214,6 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 			task_set_jobctl_pending(child, JOBCTL_TRAP_STOP);
 		else
 			sigaddset(&child->pending.signal, SIGSTOP);
-
-		set_tsk_thread_flag(child, TIF_SIGPENDING);
 	}
 	else
 		child->ptracer_cred = NULL;

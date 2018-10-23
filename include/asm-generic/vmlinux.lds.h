@@ -54,8 +54,6 @@
 #define LOAD_OFFSET 0
 #endif
 
-#include <linux/export.h>
-
 /* Align . to a 8 byte boundary equals to maximum function alignment. */
 #define ALIGN_FUNCTION()  . = ALIGN(8)
 

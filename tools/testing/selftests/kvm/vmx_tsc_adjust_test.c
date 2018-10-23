@@ -62,27 +62,12 @@ struct kvm_single_msr {
 /* The virtual machine object. */
 static struct kvm_vm *vm;
 
-#define exit_to_l0(_port, _arg) do_exit_to_l0(_port, (unsigned long) (_arg))
-static void do_exit_to_l0(uint16_t port, unsigned long arg)
-{
-	__asm__ __volatile__("in %[port], %%al"
-		:
-		: [port]"d"(port), "D"(arg)
-		: "rax");
-}
-
-
-#define GUEST_ASSERT(_condition) do {					     \
-	if (!(_condition))						     \
-		exit_to_l0(PORT_ABORT, "Failed guest assert: " #_condition); \
-} while (0)
-
 static void check_ia32_tsc_adjust(int64_t max)
 {
 	int64_t adjust;
 
 	adjust = rdmsr(MSR_IA32_TSC_ADJUST);
-	exit_to_l0(PORT_REPORT, adjust);
+	GUEST_SYNC(adjust);
 	GUEST_ASSERT(adjust <= max);
 }
 
@@ -132,7 +117,7 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 
 	check_ia32_tsc_adjust(-2 * TSC_ADJUST_VALUE);
 
-	exit_to_l0(PORT_DONE, 0);
+	GUEST_DONE();
 }
 
 void report(int64_t val)
@@ -152,7 +137,7 @@ int main(int argc, char *argv[])
 		exit(KSFT_SKIP);
 	}
 
-	vm = vm_create_default(VCPU_ID, (void *) l1_guest_code);
+	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
 	/* Allocate VMX pages and shared descriptors (vmx_pages). */
@@ -161,26 +146,26 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
-		struct kvm_regs regs;
+		struct guest_args args;
 
 		vcpu_run(vm, VCPU_ID);
-		vcpu_regs_get(vm, VCPU_ID, &regs);
+		guest_args_read(vm, VCPU_ID, &args);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "Got exit_reason other than KVM_EXIT_IO: %u (%s), rip=%lx\n",
+			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 			    run->exit_reason,
-			    exit_reason_str(run->exit_reason), regs.rip);
+			    exit_reason_str(run->exit_reason));
 
-		switch (run->io.port) {
-		case PORT_ABORT:
-			TEST_ASSERT(false, "%s", (const char *) regs.rdi);
+		switch (args.port) {
+		case GUEST_PORT_ABORT:
+			TEST_ASSERT(false, "%s", (const char *) args.arg0);
 			/* NOT REACHED */
-		case PORT_REPORT:
-			report(regs.rdi);
+		case GUEST_PORT_SYNC:
+			report(args.arg1);
 			break;
-		case PORT_DONE:
+		case GUEST_PORT_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown port 0x%x.", run->io.port);
+			TEST_ASSERT(false, "Unknown port 0x%x.", args.port);
 		}
 	}
 

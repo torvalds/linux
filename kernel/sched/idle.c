@@ -190,7 +190,7 @@ static void cpuidle_idle_call(void)
 		 */
 		next_state = cpuidle_select(drv, dev, &stop_tick);
 
-		if (stop_tick)
+		if (stop_tick || tick_nohz_tick_stopped())
 			tick_nohz_idle_stop_tick();
 		else
 			tick_nohz_idle_retain_tick();

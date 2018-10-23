@@ -315,20 +315,19 @@ void user_single_step_siginfo(struct task_struct *tsk,
 	info->si_addr = (void __user *)regs->nip;
 }
 
-static bool show_unhandled_signals_ratelimited(void)
-{
-	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
-				      DEFAULT_RATELIMIT_BURST);
-	return show_unhandled_signals && __ratelimit(&rs);
-}
-
 static void show_signal_msg(int signr, struct pt_regs *regs, int code,
 			    unsigned long addr)
 {
-	if (!show_unhandled_signals_ratelimited())
+	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
+
+	if (!show_unhandled_signals)
 		return;
 
 	if (!unhandled_signal(current, signr))
+		return;
+
+	if (!__ratelimit(&rs))
 		return;
 
 	pr_info("%s[%d]: %s (%d) at %lx nip %lx lr %lx code %x",

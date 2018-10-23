@@ -244,15 +244,6 @@ config RTC_DRV_DS1307
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1307.
 
-config RTC_DRV_DS1307_HWMON
-	bool "HWMON support for rtc-ds1307"
-	depends on RTC_DRV_DS1307 && HWMON
-	depends on !(RTC_DRV_DS1307=y && HWMON=m)
-	default y
-	help
-	  Say Y here if you want to expose temperature sensor data on
-	  rtc-ds1307 (only DS3231)
-
 config RTC_DRV_DS1307_CENTURY
 	bool "Century bit support for rtc-ds1307"
 	depends on RTC_DRV_DS1307
@@ -1026,18 +1017,6 @@ config RTC_DS1685_PROC_REGS
 	  all pending IRQ flags.
 
 	  Unless you are debugging this driver, choose N.
-
-config RTC_DS1685_SYSFS_REGS
-	bool "SysFS access to RTC register bits"
-	depends on RTC_DRV_DS1685_FAMILY && SYSFS
-	help
-	  Enable this to provide access to the RTC control register bits
-	  in /sys.  Some of the bits are read-write, others are read-only.
-
-	  Keep in mind that reading Control C's bits automatically clears
-	  all pending IRQ flags - this can cause lost interrupts.
-
-	  If you know that you need access to these bits, choose Y, Else N.
 
 config RTC_DRV_DS1742
 	tristate "Maxim/Dallas DS1742/1743"

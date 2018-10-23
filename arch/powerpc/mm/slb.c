@@ -70,7 +70,7 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 
 static inline void slb_shadow_clear(enum slb_index index)
 {
-	WRITE_ONCE(get_slb_shadow()->save_area[index].esid, 0);
+	WRITE_ONCE(get_slb_shadow()->save_area[index].esid, cpu_to_be64(index));
 }
 
 static inline void create_shadowed_slbe(unsigned long ea, int ssize,

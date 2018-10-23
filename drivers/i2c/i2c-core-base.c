@@ -62,7 +62,7 @@
 
 /*
  * core_lock protects i2c_adapter_idr, and guarantees that device detection,
- * deletion of detected devices, and attach_adapter calls are serialized
+ * deletion of detected devices are serialized
  */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
@@ -158,6 +158,22 @@ static void set_sda_gpio_value(struct i2c_adapter *adap, int val)
 	gpiod_set_value_cansleep(adap->bus_recovery_info->sda_gpiod, val);
 }
 
+static int i2c_generic_bus_free(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	int ret = -EOPNOTSUPP;
+
+	if (bri->get_bus_free)
+		ret = bri->get_bus_free(adap);
+	else if (bri->get_sda)
+		ret = bri->get_sda(adap);
+
+	if (ret < 0)
+		return ret;
+
+	return ret ? 0 : -EBUSY;
+}
+
 /*
  * We are generating clock pulses. ndelay() determines durating of clk pulses.
  * We will generate clock with rate 100 KHz and so duration of both clock levels
@@ -169,21 +185,28 @@ static void set_sda_gpio_value(struct i2c_adapter *adap, int val)
 int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 {
 	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
-	int i = 0, val = 1, ret = 0;
+	int i = 0, scl = 1, ret;
 
 	if (bri->prepare_recovery)
 		bri->prepare_recovery(adap);
 
-	bri->set_scl(adap, val);
+	/*
+	 * If we can set SDA, we will always create a STOP to ensure additional
+	 * pulses will do no harm. This is achieved by letting SDA follow SCL
+	 * half a cycle later. Check the 'incomplete_write_byte' fault injector
+	 * for details.
+	 */
+	bri->set_scl(adap, scl);
+	ndelay(RECOVERY_NDELAY / 2);
 	if (bri->set_sda)
-		bri->set_sda(adap, 1);
-	ndelay(RECOVERY_NDELAY);
+		bri->set_sda(adap, scl);
+	ndelay(RECOVERY_NDELAY / 2);
 
 	/*
 	 * By this time SCL is high, as we need to give 9 falling-rising edges
 	 */
 	while (i++ < RECOVERY_CLK_CNT * 2) {
-		if (val) {
+		if (scl) {
 			/* SCL shouldn't be low here */
 			if (!bri->get_scl(adap)) {
 				dev_err(&adap->dev,
@@ -191,40 +214,26 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 				ret = -EBUSY;
 				break;
 			}
-			/* Break if SDA is high */
-			if (bri->get_sda && bri->get_sda(adap))
-				break;
 		}
 
-		val = !val;
-		bri->set_scl(adap, val);
-
-		/*
-		 * If we can set SDA, we will always create STOP here to ensure
-		 * the additional pulses will do no harm. This is achieved by
-		 * letting SDA follow SCL half a cycle later.
-		 */
+		scl = !scl;
+		bri->set_scl(adap, scl);
+		/* Creating STOP again, see above */
 		ndelay(RECOVERY_NDELAY / 2);
 		if (bri->set_sda)
-			bri->set_sda(adap, val);
+			bri->set_sda(adap, scl);
 		ndelay(RECOVERY_NDELAY / 2);
+
+		if (scl) {
+			ret = i2c_generic_bus_free(adap);
+			if (ret == 0)
+				break;
+		}
 	}
 
-	/* check if recovery actually succeeded */
-	if (bri->get_sda && !bri->get_sda(adap))
-		ret = -EBUSY;
-
-	/* If all went well, send STOP for a sane bus state. */
-	if (ret == 0 && bri->set_sda) {
-		bri->set_scl(adap, 0);
-		ndelay(RECOVERY_NDELAY / 2);
-		bri->set_sda(adap, 0);
-		ndelay(RECOVERY_NDELAY / 2);
-		bri->set_scl(adap, 1);
-		ndelay(RECOVERY_NDELAY / 2);
-		bri->set_sda(adap, 1);
-		ndelay(RECOVERY_NDELAY / 2);
-	}
+	/* If we can't check bus status, assume recovery worked */
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
 
 	if (bri->unprepare_recovery)
 		bri->unprepare_recovery(adap);
@@ -272,6 +281,10 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 		/* Generic SCL recovery */
 		if (!bri->set_scl || !bri->get_scl) {
 			err_str = "no {get|set}_scl() found";
+			goto err;
+		}
+		if (!bri->set_sda && !bri->get_sda) {
+			err_str = "either get_sda() or set_sda() needed";
 			goto err;
 		}
 	}
@@ -1111,15 +1124,6 @@ static int i2c_do_add_adapter(struct i2c_driver *driver,
 	/* Detect supported devices on that bus, and instantiate them */
 	i2c_detect(adap, driver);
 
-	/* Let legacy drivers scan this bus for matching devices */
-	if (driver->attach_adapter) {
-		dev_warn(&adap->dev, "%s: attach_adapter method is deprecated\n",
-			 driver->driver.name);
-		dev_warn(&adap->dev,
-			 "Please use another way to instantiate your i2c_client\n");
-		/* We ignore the return code; if it fails, too bad */
-		driver->attach_adapter(adap);
-	}
 	return 0;
 }
 
@@ -1563,6 +1567,8 @@ void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_de
 	ret = device_property_read_u32(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns);
 	if (ret && use_defaults)
 		t->sda_fall_ns = t->scl_fall_ns;
+
+	device_property_read_u32(dev, "i2c-sda-hold-time-ns", &t->sda_hold_ns);
 }
 EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
 
@@ -1826,9 +1832,15 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
 		if (msgs[i].flags & I2C_M_RD) {
 			if (do_len_check && i2c_quirk_exceeded(len, q->max_read_len))
 				return i2c_quirk_error(adap, &msgs[i], "msg too long");
+
+			if (q->flags & I2C_AQ_NO_ZERO_LEN_READ && len == 0)
+				return i2c_quirk_error(adap, &msgs[i], "no zero length");
 		} else {
 			if (do_len_check && i2c_quirk_exceeded(len, q->max_write_len))
 				return i2c_quirk_error(adap, &msgs[i], "msg too long");
+
+			if (q->flags & I2C_AQ_NO_ZERO_LEN_WRITE && len == 0)
+				return i2c_quirk_error(adap, &msgs[i], "no zero length");
 		}
 	}
 
@@ -2281,21 +2293,22 @@ u8 *i2c_get_dma_safe_msg_buf(struct i2c_msg *msg, unsigned int threshold)
 EXPORT_SYMBOL_GPL(i2c_get_dma_safe_msg_buf);
 
 /**
- * i2c_release_dma_safe_msg_buf - release DMA safe buffer and sync with i2c_msg
- * @msg: the message to be synced with
+ * i2c_put_dma_safe_msg_buf - release DMA safe buffer and sync with i2c_msg
  * @buf: the buffer obtained from i2c_get_dma_safe_msg_buf(). May be NULL.
+ * @msg: the message which the buffer corresponds to
+ * @xferred: bool saying if the message was transferred
  */
-void i2c_release_dma_safe_msg_buf(struct i2c_msg *msg, u8 *buf)
+void i2c_put_dma_safe_msg_buf(u8 *buf, struct i2c_msg *msg, bool xferred)
 {
 	if (!buf || buf == msg->buf)
 		return;
 
-	if (msg->flags & I2C_M_RD)
+	if (xferred && msg->flags & I2C_M_RD)
 		memcpy(msg->buf, buf, msg->len);
 
 	kfree(buf);
 }
-EXPORT_SYMBOL_GPL(i2c_release_dma_safe_msg_buf);
+EXPORT_SYMBOL_GPL(i2c_put_dma_safe_msg_buf);
 
 MODULE_AUTHOR("Simon G. Vogl <simon@tk.uni-linz.ac.at>");
 MODULE_DESCRIPTION("I2C-Bus main module");

@@ -180,6 +180,8 @@ char acpi_ut_remove_leading_zeros(char **string);
 
 u8 acpi_ut_detect_hex_prefix(char **string);
 
+void acpi_ut_remove_hex_prefix(char **string);
+
 u8 acpi_ut_detect_octal_prefix(char **string);
 
 /*

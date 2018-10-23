@@ -122,8 +122,8 @@ static __inline__ int atomic_fetch_##op##_relaxed(int i, atomic_t * v)	      \
 		"	" #asm_op " %0, %1, %3				\n"   \
 		"	sc	%0, %2					\n"   \
 		"\t" __scbeqz "	%0, 1b					\n"   \
-		"	move	%0, %1					\n"   \
 		"	.set	mips0					\n"   \
+		"	move	%0, %1					\n"   \
 		: "=&r" (result), "=&r" (temp),				      \
 		  "+" GCC_OFF_SMALL_ASM() (v->counter)			      \
 		: "Ir" (i));						      \
@@ -190,9 +190,11 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		__asm__ __volatile__(
 		"	.set	"MIPS_ISA_LEVEL"			\n"
 		"1:	ll	%1, %2		# atomic_sub_if_positive\n"
+		"	.set	mips0					\n"
 		"	subu	%0, %1, %3				\n"
 		"	move	%1, %0					\n"
 		"	bltz	%0, 1f					\n"
+		"	.set	"MIPS_ISA_LEVEL"			\n"
 		"	sc	%1, %2					\n"
 		"\t" __scbeqz "	%1, 1b					\n"
 		"1:							\n"

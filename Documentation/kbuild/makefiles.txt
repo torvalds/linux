@@ -680,7 +680,7 @@ Both possibilities are described in the following.
 
 	Example:
 		#scripts/kconfig/Makefile
-		HOSTLOADLIBES_qconf := -L$(QTDIR)/lib
+		HOSTLDLIBS_qconf := -L$(QTDIR)/lib
 
 	When linking qconf, it will be passed the extra option
 	"-L$(QTDIR)/lib".

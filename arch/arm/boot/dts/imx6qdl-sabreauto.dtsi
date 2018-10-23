@@ -6,6 +6,10 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
+	chosen {
+		stdout-path = &uart4;
+	};
+
 	memory@10000000 {
 		reg = <0x10000000 0x80000000>;
 	};
@@ -154,6 +158,27 @@
 				reg = <0x34>;
 				gpio-controller;
 				#gpio-cells = <2>;
+			};
+
+			light-sensor@44 {
+				compatible = "isil,isl29023";
+				reg = <0x44>;
+				interrupt-parent = <&gpio5>;
+				interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
+			};
+
+			magnetometer@e {
+				compatible = "fsl,mag3110";
+				reg = <0x0e>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <29 IRQ_TYPE_EDGE_RISING>;
+			};
+
+			accelerometer@1c {
+				compatible = "fsl,mma8451";
+				reg = <0x1c>;
+				interrupt-parent = <&gpio6>;
+				interrupts = <31 IRQ_TYPE_LEVEL_LOW>;
 			};
 		};
 	};

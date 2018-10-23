@@ -514,7 +514,7 @@ static void kvmppc_set_msr_pr(struct kvm_vcpu *vcpu, u64 msr)
 	/*
 	 * When switching from 32 to 64-bit, we may have a stale 32-bit
 	 * magic page around, we need to flush it. Typically 32-bit magic
-	 * page will be instanciated when calling into RTAS. Note: We
+	 * page will be instantiated when calling into RTAS. Note: We
 	 * assume that such transition only happens while in kernel mode,
 	 * ie, we never transition from user 32-bit to kernel 64-bit with
 	 * a 32-bit magic page around.

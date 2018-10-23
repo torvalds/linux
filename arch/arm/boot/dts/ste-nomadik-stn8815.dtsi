@@ -661,7 +661,6 @@
 		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
 		clocks = <&hclksmc>;
 		status = "okay";
-		timings = /bits/ 8 <0 0 0 0x10 0x0a 0>;
 
 		partition@0 {
 		label = "X-Loader(NAND)";

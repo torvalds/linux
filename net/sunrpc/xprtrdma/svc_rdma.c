@@ -94,7 +94,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 		atomic_set(stat, 0);
 	else {
 		char str_buf[32];
-		char *data;
 		int len = snprintf(str_buf, 32, "%d\n", atomic_read(stat));
 		if (len >= 32)
 			return -EFAULT;
@@ -103,7 +102,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 			*lenp = 0;
 			return 0;
 		}
-		data = &str_buf[*ppos];
 		len -= *ppos;
 		if (len > *lenp)
 			len = *lenp;

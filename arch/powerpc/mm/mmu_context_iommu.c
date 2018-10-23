@@ -129,6 +129,7 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 	long i, j, ret = 0, locked_entries = 0;
 	unsigned int pageshift;
 	unsigned long flags;
+	unsigned long cur_ua;
 	struct page *page = NULL;
 
 	mutex_lock(&mem_list_mutex);
@@ -177,7 +178,8 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 	}
 
 	for (i = 0; i < entries; ++i) {
-		if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+		cur_ua = ua + (i << PAGE_SHIFT);
+		if (1 != get_user_pages_fast(cur_ua,
 					1/* pages */, 1/* iswrite */, &page)) {
 			ret = -EFAULT;
 			for (j = 0; j < i; ++j)
@@ -196,7 +198,7 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 		if (is_migrate_cma_page(page)) {
 			if (mm_iommu_move_page_from_cma(page))
 				goto populate;
-			if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+			if (1 != get_user_pages_fast(cur_ua,
 						1/* pages */, 1/* iswrite */,
 						&page)) {
 				ret = -EFAULT;
@@ -210,20 +212,21 @@ long mm_iommu_get(struct mm_struct *mm, unsigned long ua, unsigned long entries,
 		}
 populate:
 		pageshift = PAGE_SHIFT;
-		if (PageCompound(page)) {
+		if (mem->pageshift > PAGE_SHIFT && PageCompound(page)) {
 			pte_t *pte;
 			struct page *head = compound_head(page);
 			unsigned int compshift = compound_order(head);
+			unsigned int pteshift;
 
 			local_irq_save(flags); /* disables as well */
-			pte = find_linux_pte(mm->pgd, ua, NULL, &pageshift);
-			local_irq_restore(flags);
+			pte = find_linux_pte(mm->pgd, cur_ua, NULL, &pteshift);
 
 			/* Double check it is still the same pinned page */
 			if (pte && pte_page(*pte) == head &&
-					pageshift == compshift)
-				pageshift = max_t(unsigned int, pageshift,
+			    pteshift == compshift + PAGE_SHIFT)
+				pageshift = max_t(unsigned int, pteshift,
 						PAGE_SHIFT);
+			local_irq_restore(flags);
 		}
 		mem->pageshift = min(mem->pageshift, pageshift);
 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;

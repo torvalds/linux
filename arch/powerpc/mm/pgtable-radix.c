@@ -1045,20 +1045,22 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
 					      _PAGE_RW | _PAGE_EXEC);
+
+	unsigned long change = pte_val(entry) ^ pte_val(*ptep);
 	/*
 	 * To avoid NMMU hang while relaxing access, we need mark
 	 * the pte invalid in between.
 	 */
-	if (atomic_read(&mm->context.copros) > 0) {
+	if ((change & _PAGE_RW) && atomic_read(&mm->context.copros) > 0) {
 		unsigned long old_pte, new_pte;
 
-		old_pte = __radix_pte_update(ptep, ~0, 0);
+		old_pte = __radix_pte_update(ptep, _PAGE_PRESENT, _PAGE_INVALID);
 		/*
 		 * new value of pte
 		 */
 		new_pte = old_pte | set;
 		radix__flush_tlb_page_psize(mm, address, psize);
-		__radix_pte_update(ptep, 0, new_pte);
+		__radix_pte_update(ptep, _PAGE_INVALID, new_pte);
 	} else {
 		__radix_pte_update(ptep, 0, set);
 		/*

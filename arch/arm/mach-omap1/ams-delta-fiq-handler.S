@@ -14,11 +14,12 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/platform_data/ams-delta-fiq.h>
+
 #include <asm/assembler.h>
-
 #include <mach/board-ams-delta.h>
-#include <mach/ams-delta-fiq.h>
 
+#include "ams-delta-fiq.h"
 #include "iomap.h"
 #include "soc.h"
 

@@ -29,7 +29,7 @@ ifeq ($(CONFIG_ARCH_RV64I),y)
 	KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
 
 	KBUILD_MARCH = rv64im
-	LDFLAGS += -melf64lriscv
+	KBUILD_LDFLAGS += -melf64lriscv
 else
 	BITS := 32
 	UTS_MACHINE := riscv32
@@ -37,7 +37,7 @@ else
 	KBUILD_CFLAGS += -mabi=ilp32
 	KBUILD_AFLAGS += -mabi=ilp32
 	KBUILD_MARCH = rv32im
-	LDFLAGS += -melf32lriscv
+	KBUILD_LDFLAGS += -melf32lriscv
 endif
 
 KBUILD_CFLAGS += -Wall

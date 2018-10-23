@@ -21,7 +21,6 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 #include "xattr.h"
-#include "acl.h"
 
 static int hfsplus_readpage(struct file *file, struct page *page)
 {
@@ -267,12 +266,6 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
 
-	if (attr->ia_valid & ATTR_MODE) {
-		error = posix_acl_chmod(inode, inode->i_mode);
-		if (unlikely(error))
-			return error;
-	}
-
 	return 0;
 }
 
@@ -336,10 +329,6 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 static const struct inode_operations hfsplus_file_inode_operations = {
 	.setattr	= hfsplus_setattr,
 	.listxattr	= hfsplus_listxattr,
-#ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
-	.get_acl	= hfsplus_get_posix_acl,
-	.set_acl	= hfsplus_set_posix_acl,
-#endif
 };
 
 static const struct file_operations hfsplus_file_operations = {

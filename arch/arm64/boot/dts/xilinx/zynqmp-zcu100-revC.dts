@@ -44,8 +44,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 		sw4 {
 			label = "sw4";
@@ -87,12 +85,6 @@
 		vbus_det { /* U5 USB5744 VBUS detection via MIO25 */
 			label = "vbus_det";
 			gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
-
-		bt_power {
-			label = "bt_power";
-			gpios = <&gpio 8 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
@@ -267,6 +259,10 @@
 
 &uart0 {
 	status = "okay";
+	bluetooth {
+		compatible = "ti,wl1831-st";
+		enable-gpios = <&gpio 8 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &uart1 {

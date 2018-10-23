@@ -284,7 +284,12 @@ err:
 	return p;
 }
 
-#define UPCALL_BUF_LEN 128
+/* XXX: Need some documentation about why UPCALL_BUF_LEN is so small.
+ *	Is user space expecting no more than UPCALL_BUF_LEN bytes?
+ *	Note that there are now _two_ NI_MAXHOST sized data items
+ *	being passed in this string.
+ */
+#define UPCALL_BUF_LEN	256
 
 struct gss_upcall_msg {
 	refcount_t count;
@@ -456,18 +461,44 @@ static int gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 	buflen -= len;
 	p += len;
 	gss_msg->msg.len = len;
+
+	/*
+	 * target= is a full service principal that names the remote
+	 * identity that we are authenticating to.
+	 */
 	if (target_name) {
 		len = scnprintf(p, buflen, "target=%s ", target_name);
 		buflen -= len;
 		p += len;
 		gss_msg->msg.len += len;
 	}
-	if (service_name != NULL) {
-		len = scnprintf(p, buflen, "service=%s ", service_name);
+
+	/*
+	 * gssd uses service= and srchost= to select a matching key from
+	 * the system's keytab to use as the source principal.
+	 *
+	 * service= is the service name part of the source principal,
+	 * or "*" (meaning choose any).
+	 *
+	 * srchost= is the hostname part of the source principal. When
+	 * not provided, gssd uses the local hostname.
+	 */
+	if (service_name) {
+		char *c = strchr(service_name, '@');
+
+		if (!c)
+			len = scnprintf(p, buflen, "service=%s ",
+					service_name);
+		else
+			len = scnprintf(p, buflen,
+					"service=%.*s srchost=%s ",
+					(int)(c - service_name),
+					service_name, c + 1);
 		buflen -= len;
 		p += len;
 		gss_msg->msg.len += len;
 	}
+
 	if (mech->gm_upcall_enctypes) {
 		len = scnprintf(p, buflen, "enctypes=%s ",
 				mech->gm_upcall_enctypes);
@@ -985,7 +1016,7 @@ static void gss_pipe_free(struct gss_pipe *p)
  * parameters based on the input flavor (which must be a pseudoflavor)
  */
 static struct gss_auth *
-gss_create_new(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
+gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	rpc_authflavor_t flavor = args->pseudoflavor;
 	struct gss_auth *gss_auth;
@@ -1132,7 +1163,7 @@ gss_destroy(struct rpc_auth *auth)
  * (which is guaranteed to last as long as any of its descendants).
  */
 static struct gss_auth *
-gss_auth_find_or_add_hashed(struct rpc_auth_create_args *args,
+gss_auth_find_or_add_hashed(const struct rpc_auth_create_args *args,
 		struct rpc_clnt *clnt,
 		struct gss_auth *new)
 {
@@ -1169,7 +1200,8 @@ out:
 }
 
 static struct gss_auth *
-gss_create_hashed(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
+gss_create_hashed(const struct rpc_auth_create_args *args,
+		  struct rpc_clnt *clnt)
 {
 	struct gss_auth *gss_auth;
 	struct gss_auth *new;
@@ -1188,7 +1220,7 @@ out:
 }
 
 static struct rpc_auth *
-gss_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
+gss_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	struct gss_auth *gss_auth;
 	struct rpc_xprt_switch *xps = rcu_access_pointer(clnt->cl_xpi.xpi_xpswitch);
@@ -1571,7 +1603,7 @@ static int gss_cred_is_negative_entry(struct rpc_cred *cred)
 	if (test_bit(RPCAUTH_CRED_NEGATIVE, &cred->cr_flags)) {
 		unsigned long now = jiffies;
 		unsigned long begin, expire;
-		struct gss_cred *gss_cred; 
+		struct gss_cred *gss_cred;
 
 		gss_cred = container_of(cred, struct gss_cred, gc_base);
 		begin = gss_cred->gc_upcall_timestamp;

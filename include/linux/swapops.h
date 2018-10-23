@@ -4,6 +4,7 @@
 
 #include <linux/radix-tree.h>
 #include <linux/bug.h>
+#include <linux/mm_types.h>
 
 /*
  * swapcache pages are stored in the swapper_space radix tree.  We want to
@@ -134,7 +135,7 @@ static inline struct page *device_private_entry_to_page(swp_entry_t entry)
 	return pfn_to_page(swp_offset(entry));
 }
 
-int device_private_entry_fault(struct vm_area_struct *vma,
+vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 		       unsigned long addr,
 		       swp_entry_t entry,
 		       unsigned int flags,
@@ -169,7 +170,7 @@ static inline struct page *device_private_entry_to_page(swp_entry_t entry)
 	return NULL;
 }
 
-static inline int device_private_entry_fault(struct vm_area_struct *vma,
+static inline vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 				     unsigned long addr,
 				     swp_entry_t entry,
 				     unsigned int flags,
@@ -340,11 +341,6 @@ static inline int is_hwpoison_entry(swp_entry_t entry)
 	return swp_type(entry) == SWP_HWPOISON;
 }
 
-static inline bool test_set_page_hwpoison(struct page *page)
-{
-	return TestSetPageHWPoison(page);
-}
-
 static inline void num_poisoned_pages_inc(void)
 {
 	atomic_long_inc(&num_poisoned_pages);
@@ -365,11 +361,6 @@ static inline swp_entry_t make_hwpoison_entry(struct page *page)
 static inline int is_hwpoison_entry(swp_entry_t swp)
 {
 	return 0;
-}
-
-static inline bool test_set_page_hwpoison(struct page *page)
-{
-	return false;
 }
 
 static inline void num_poisoned_pages_inc(void)

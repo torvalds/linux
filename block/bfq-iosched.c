@@ -187,11 +187,25 @@ static const int bfq_stats_min_budgets = 194;
 static const int bfq_default_max_budget = 16 * 1024;
 
 /*
- * Async to sync throughput distribution is controlled as follows:
- * when an async request is served, the entity is charged the number
- * of sectors of the request, multiplied by the factor below
+ * When a sync request is dispatched, the queue that contains that
+ * request, and all the ancestor entities of that queue, are charged
+ * with the number of sectors of the request. In constrast, if the
+ * request is async, then the queue and its ancestor entities are
+ * charged with the number of sectors of the request, multiplied by
+ * the factor below. This throttles the bandwidth for async I/O,
+ * w.r.t. to sync I/O, and it is done to counter the tendency of async
+ * writes to steal I/O throughput to reads.
+ *
+ * The current value of this parameter is the result of a tuning with
+ * several hardware and software configurations. We tried to find the
+ * lowest value for which writes do not cause noticeable problems to
+ * reads. In fact, the lower this parameter, the stabler I/O control,
+ * in the following respect.  The lower this parameter is, the less
+ * the bandwidth enjoyed by a group decreases
+ * - when the group does writes, w.r.t. to when it does reads;
+ * - when other groups do reads, w.r.t. to when they do writes.
  */
-static const int bfq_async_charge_factor = 10;
+static const int bfq_async_charge_factor = 3;
 
 /* Default timeout values, in jiffies, approximating CFQ defaults. */
 const int bfq_timeout = HZ / 8;
@@ -853,16 +867,7 @@ static unsigned long bfq_serv_to_charge(struct request *rq,
 	if (bfq_bfqq_sync(bfqq) || bfqq->wr_coeff > 1)
 		return blk_rq_sectors(rq);
 
-	/*
-	 * If there are no weight-raised queues, then amplify service
-	 * by just the async charge factor; otherwise amplify service
-	 * by twice the async charge factor, to further reduce latency
-	 * for weight-raised queues.
-	 */
-	if (bfqq->bfqd->wr_busy_queues == 0)
-		return blk_rq_sectors(rq) * bfq_async_charge_factor;
-
-	return blk_rq_sectors(rq) * 2 * bfq_async_charge_factor;
+	return blk_rq_sectors(rq) * bfq_async_charge_factor;
 }
 
 /**
@@ -3297,6 +3302,27 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 		 * service with this same budget (as if it never expired)
 		 */
 	} else
+		entity->service = 0;
+
+	/*
+	 * Reset the received-service counter for every parent entity.
+	 * Differently from what happens with bfqq->entity.service,
+	 * the resetting of this counter never needs to be postponed
+	 * for parent entities. In fact, in case bfqq may have a
+	 * chance to go on being served using the last, partially
+	 * consumed budget, bfqq->entity.service needs to be kept,
+	 * because if bfqq then actually goes on being served using
+	 * the same budget, the last value of bfqq->entity.service is
+	 * needed to properly decrement bfqq->entity.budget by the
+	 * portion already consumed. In contrast, it is not necessary
+	 * to keep entity->service for parent entities too, because
+	 * the bubble up of the new value of bfqq->entity.budget will
+	 * make sure that the budgets of parent entities are correct,
+	 * even in case bfqq and thus parent entities go on receiving
+	 * service with the same budget.
+	 */
+	entity = entity->parent;
+	for_each_entity(entity)
 		entity->service = 0;
 }
 

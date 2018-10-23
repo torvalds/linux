@@ -27,12 +27,80 @@
 		spi0 = &spi1;
 	};
 
+	backlight: backlight-pwm {
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap2_pins>;
+		power-supply = <&backlight_lcd>;
+		compatible = "pwm-backlight";
+		/*
+		 * The PWM here corresponds to production hardware. The
+		 * schematic needs to be 1015171 (15 March 2010), Rev A
+		 * or newer.
+		 */
+		pwms = <&ecap2 0 50000 0>;
+		brightness-levels = <0 10 20 30 40 50 60 70 80 90 99>;
+		default-brightness-level = <7>;
+	};
+
+	panel {
+		compatible = "ti,tilcdc,panel";
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_pins>;
+		/*
+		 * The vpif and the LCD are mutually exclusive.
+		 * To enable VPIF, change the status below to 'disabled' then
+		 * then change the status of the vpif below to 'okay'
+		 */
+		status = "okay";
+		enable-gpios = <&gpio 40 GPIO_ACTIVE_HIGH>; /* lcd_panel_pwr */
+
+		panel-info {
+			ac-bias		= <255>;
+			ac-bias-intrpt	= <0>;
+			dma-burst-sz	= <16>;
+			bpp		= <16>;
+			fdd		= <0x80>;
+			sync-edge	= <0>;
+			sync-ctrl	= <1>;
+			raster-order	= <0>;
+			fifo-th		= <0>;
+		};
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: 480x272 {
+				clock-frequency = <9000000>;
+				hactive = <480>;
+				vactive = <272>;
+				hfront-porch = <3>;
+				hback-porch = <2>;
+				hsync-len = <42>;
+				vback-porch = <3>;
+				vfront-porch = <4>;
+				vsync-len = <11>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+		};
+	};
+
 	vbat: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vbat";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
+	};
+
+	backlight_lcd: backlight-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_backlight_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio 47 GPIO_ACTIVE_HIGH>; /* lcd_backlight_pwr */
+		enable-active-high;
 	};
 
 	sound {
@@ -61,6 +129,14 @@
 			system-clock-frequency = <24576000>;
 		};
 	};
+};
+
+&ecap2 {
+	status = "okay";
+};
+
+&ref_clk {
+	clock-frequency = <24000000>;
 };
 
 &pmx_core {
@@ -93,6 +169,10 @@
 	};
 };
 
+&sata {
+	status = "okay";
+};
+
 &serial0 {
 	status = "okay";
 };
@@ -106,6 +186,10 @@
 };
 
 &rtc0 {
+	status = "okay";
+};
+
+&lcdc {
 	status = "okay";
 };
 
@@ -336,5 +420,10 @@
 &vpif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&vpif_capture_pins>, <&vpif_display_pins>;
-	status = "okay";
+	/*
+	 * The vpif and the LCD are mutually exclusive.
+	 * To enable VPIF, disable the ti,tilcdc,panel then
+	 * change the status below to 'okay'
+	 */
+	status = "disabled";
 };

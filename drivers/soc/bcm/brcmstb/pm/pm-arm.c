@@ -628,7 +628,23 @@ static const struct of_device_id ddr_shimphy_dt_ids[] = {
 
 static const struct of_device_id brcmstb_memc_of_match[] = {
 	{
+		.compatible = "brcm,brcmstb-memc-ddr-rev-b.2.1",
+		.data = &ddr_seq,
+	},
+	{
 		.compatible = "brcm,brcmstb-memc-ddr-rev-b.2.2",
+		.data = &ddr_seq_b22,
+	},
+	{
+		.compatible = "brcm,brcmstb-memc-ddr-rev-b.2.3",
+		.data = &ddr_seq_b22,
+	},
+	{
+		.compatible = "brcm,brcmstb-memc-ddr-rev-b.3.0",
+		.data = &ddr_seq_b22,
+	},
+	{
+		.compatible = "brcm,brcmstb-memc-ddr-rev-b.3.1",
 		.data = &ddr_seq_b22,
 	},
 	{

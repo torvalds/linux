@@ -67,34 +67,35 @@ void bch_btree_verify(struct btree *b)
 	if (inmemory->keys != sorted->keys ||
 	    memcmp(inmemory->start,
 		   sorted->start,
-		   (void *) bset_bkey_last(inmemory) - (void *) inmemory->start)) {
+		   (void *) bset_bkey_last(inmemory) -
+		   (void *) inmemory->start)) {
 		struct bset *i;
-		unsigned j;
+		unsigned int j;
 
 		console_lock();
 
-		printk(KERN_ERR "*** in memory:\n");
+		pr_err("*** in memory:\n");
 		bch_dump_bset(&b->keys, inmemory, 0);
 
-		printk(KERN_ERR "*** read back in:\n");
+		pr_err("*** read back in:\n");
 		bch_dump_bset(&v->keys, sorted, 0);
 
 		for_each_written_bset(b, ondisk, i) {
-			unsigned block = ((void *) i - (void *) ondisk) /
+			unsigned int block = ((void *) i - (void *) ondisk) /
 				block_bytes(b->c);
 
-			printk(KERN_ERR "*** on disk block %u:\n", block);
+			pr_err("*** on disk block %u:\n", block);
 			bch_dump_bset(&b->keys, i, block);
 		}
 
-		printk(KERN_ERR "*** block %zu not written\n",
+		pr_err("*** block %zu not written\n",
 		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
 
 		for (j = 0; j < inmemory->keys; j++)
 			if (inmemory->d[j] != sorted->d[j])
 				break;
 
-		printk(KERN_ERR "b->written %u\n", b->written);
+		pr_err("b->written %u\n", b->written);
 
 		console_unlock();
 		panic("verify failed at %u\n", j);
@@ -176,9 +177,9 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 
 	while (size) {
 		struct keybuf_key *w;
-		unsigned bytes = min(i->bytes, size);
-
+		unsigned int bytes = min(i->bytes, size);
 		int err = copy_to_user(buf, i->buf, bytes);
+
 		if (err)
 			return err;
 
@@ -237,8 +238,8 @@ void bch_debug_init_cache_set(struct cache_set *c)
 {
 	if (!IS_ERR_OR_NULL(bcache_debug)) {
 		char name[50];
-		snprintf(name, 50, "bcache-%pU", c->sb.set_uuid);
 
+		snprintf(name, 50, "bcache-%pU", c->sb.set_uuid);
 		c->debug = debugfs_create_file(name, 0400, bcache_debug, c,
 					       &cache_set_debug_ops);
 	}

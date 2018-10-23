@@ -93,18 +93,17 @@
 		};
 	};
 
-	usbphy {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "simple-bus";
+	pmu: pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupt-parent = <&tzic>;
+		interrupts = <77>;
+	};
 
-		usbphy0: usbphy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
-			clock-names = "main_clk";
-			#phy-cells = <0>;
-		};
+	usbphy0: usbphy0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 
 	display-subsystem {
@@ -248,6 +247,11 @@
 					bus-width = <4>;
 					status = "disabled";
 				};
+			};
+
+			aipstz1: bridge@73f00000 {
+				compatible = "fsl,imx51-aipstz";
+				reg = <0x73f00000 0x60>;
 			};
 
 			usbotg: usb@73f80000 {
@@ -435,11 +439,21 @@
 			reg = <0x80000000 0x10000000>;
 			ranges;
 
+			aipstz2: bridge@83f00000 {
+				compatible = "fsl,imx51-aipstz";
+				reg = <0x83f00000 0x60>;
+			};
+
 			iim: iim@83f98000 {
 				compatible = "fsl,imx51-iim", "fsl,imx27-iim";
 				reg = <0x83f98000 0x4000>;
 				interrupts = <69>;
 				clocks = <&clks IMX5_CLK_IIM_GATE>;
+			};
+
+			tigerp: tigerp@83fa0000 {
+				compatible = "fsl,imx51-tigerp";
+				reg = <0x83fa0000 0x28>;
 			};
 
 			owire: owire@83fa4000 {
@@ -528,6 +542,11 @@
 				status = "disabled";
 			};
 
+			m4if: m4if@83fd8000 {
+				compatible = "fsl,imx51-m4if";
+				reg = <0x83fd8000 0x1000>;
+			};
+
 			weim: weim@83fda000 {
 				#address-cells = <2>;
 				#size-cells = <1>;
@@ -587,6 +606,26 @@
 					 <&clks IMX5_CLK_FEC_GATE>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
+			};
+
+			vpu@83ff4000 {
+				compatible = "fsl,imx51-vpu", "cnm,codahx4";
+				reg = <0x83ff4000 0x1000>;
+				interrupts = <9>;
+				clocks = <&clks IMX5_CLK_VPU_REFERENCE_GATE>,
+					 <&clks IMX5_CLK_VPU_GATE>;
+				clock-names = "per", "ahb";
+				resets = <&src 1>;
+				iram = <&iram>;
+			};
+
+			sahara: crypto@83ff8000 {
+				compatible = "fsl,imx53-sahara", "fsl,imx51-sahara";
+				reg = <0x83ff8000 0x4000>;
+				interrupts = <19 20>;
+				clocks = <&clks IMX5_CLK_SAHARA_IPG_GATE>,
+					 <&clks IMX5_CLK_SAHARA_IPG_GATE>;
+				clock-names = "ipg", "ahb";
 			};
 		};
 	};

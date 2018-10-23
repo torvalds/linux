@@ -5,11 +5,16 @@
 #include <dt-bindings/pinctrl/pinctrl-tegra.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "nvidia,tegra30";
 	interrupt-parent = <&lic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x0>;
+	};
 
 	pcie@3000 {
 		compatible = "nvidia,tegra30-pcie";
@@ -404,7 +409,8 @@
 			     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>; /* SXE interrupt */
 		interrupt-names = "sync-token", "bsev", "sxe";
 		clocks = <&tegra_car TEGRA30_CLK_VDE>;
-		resets = <&tegra_car 61>;
+		reset-names = "vde", "mc";
+		resets = <&tegra_car 61>, <&mc TEGRA30_MC_RESET_VDE>;
 	};
 
 	apbmisc@70000800 {
@@ -712,6 +718,7 @@
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 
 		#iommu-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	fuse@7000f800 {

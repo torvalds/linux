@@ -38,13 +38,11 @@ void dummycon_register_output_notifier(struct notifier_block *nb)
 	if (dummycon_putc_called)
 		nb->notifier_call(nb, 0, NULL);
 }
-EXPORT_SYMBOL_GPL(dummycon_register_output_notifier);
 
 void dummycon_unregister_output_notifier(struct notifier_block *nb)
 {
 	raw_notifier_chain_unregister(&dummycon_output_nh, nb);
 }
-EXPORT_SYMBOL_GPL(dummycon_unregister_output_notifier);
 
 static void dummycon_putc(struct vc_data *vc, int c, int ypos, int xpos)
 {

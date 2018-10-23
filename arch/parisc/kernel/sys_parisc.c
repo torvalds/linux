@@ -156,11 +156,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	int do_color_align, last_mmap;
 	struct vm_unmapped_area_info info;
 
-#ifdef CONFIG_64BIT
-	/* This should only ever run for 32-bit processes.  */
-	BUG_ON(!test_thread_flag(TIF_32BIT));
-#endif
-
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)
 		return -ENOMEM;

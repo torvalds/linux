@@ -9,6 +9,7 @@ config ARCH_UNIPHIER
 	select HAVE_ARM_SCU
 	select HAVE_ARM_TWD if SMP
 	select PINCTRL
+	select RESET_CONTROLLER
 	help
 	  Support for UniPhier SoC family developed by Socionext Inc.
 	  (formerly, System LSI Business Division of Panasonic Corporation)

@@ -75,10 +75,12 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = NULL;
 	int ret = -EINVAL;;
 	PHM_FUNC_CHECK(hwmgr);
+	adev = hwmgr->adev;
 
-	if (smum_is_dpm_running(hwmgr)) {
+	if (smum_is_dpm_running(hwmgr) && !amdgpu_passthrough(adev)) {
 		pr_info("dpm has been enabled\n");
 		return 0;
 	}

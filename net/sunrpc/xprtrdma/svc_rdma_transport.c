@@ -296,7 +296,6 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 			       struct rdma_cm_event *event)
 {
 	struct sockaddr *sap = (struct sockaddr *)&cma_id->route.addr.src_addr;
-	int ret = 0;
 
 	trace_svcrdma_cm_event(event, sap);
 
@@ -315,7 +314,7 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int rdma_cma_handler(struct rdma_cm_id *cma_id,

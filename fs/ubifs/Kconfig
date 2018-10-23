@@ -51,9 +51,20 @@ config UBIFS_ATIME_SUPPORT
 
 	  If unsure, say 'N'
 
+config UBIFS_FS_XATTR
+	bool "UBIFS XATTR support"
+	depends on UBIFS_FS
+	default y
+	help
+	  Saying Y here includes support for extended attributes (xattrs).
+	  Xattrs are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page).
+
+	  If unsure, say Y.
+
 config UBIFS_FS_ENCRYPTION
 	bool "UBIFS Encryption"
-	depends on UBIFS_FS && BLOCK
+	depends on UBIFS_FS && UBIFS_FS_XATTR && BLOCK
 	select FS_ENCRYPTION
 	default n
 	help
@@ -64,7 +75,7 @@ config UBIFS_FS_ENCRYPTION
 
 config UBIFS_FS_SECURITY
 	bool "UBIFS Security Labels"
-	depends on UBIFS_FS
+	depends on UBIFS_FS && UBIFS_FS_XATTR
 	default y
 	help
 	  Security labels provide an access control facility to support Linux

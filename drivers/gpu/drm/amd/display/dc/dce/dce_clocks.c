@@ -30,7 +30,7 @@
 #include "bios_parser_interface.h"
 #include "dc.h"
 #include "dmcu.h"
-#ifdef CONFIG_X86
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn_calcs.h"
 #endif
 #include "core_types.h"
@@ -106,7 +106,8 @@ enum dentist_base_divider_id {
 	DENTIST_BASE_DID_1 = 0x08,
 	DENTIST_BASE_DID_2 = 0x40,
 	DENTIST_BASE_DID_3 = 0x60,
-	DENTIST_MAX_DID    = 0x80
+	DENTIST_BASE_DID_4 = 0x7e,
+	DENTIST_MAX_DID = 0x7f
 };
 
 /* Starting point and step size for each divider range.*/
@@ -117,6 +118,8 @@ enum dentist_divider_range {
 	DENTIST_DIVIDER_RANGE_2_STEP  = 2,   /* 0.50  */
 	DENTIST_DIVIDER_RANGE_3_START = 128, /* 32.00 */
 	DENTIST_DIVIDER_RANGE_3_STEP  = 4,   /* 1.00  */
+	DENTIST_DIVIDER_RANGE_4_START = 248, /* 62.00 */
+	DENTIST_DIVIDER_RANGE_4_STEP  = 264, /* 66.00 */
 	DENTIST_DIVIDER_RANGE_SCALE_FACTOR = 4
 };
 
@@ -133,9 +136,12 @@ static int dentist_get_divider_from_did(int did)
 	} else if (did < DENTIST_BASE_DID_3) {
 		return DENTIST_DIVIDER_RANGE_2_START + DENTIST_DIVIDER_RANGE_2_STEP
 							* (did - DENTIST_BASE_DID_2);
-	} else {
+	} else if (did < DENTIST_BASE_DID_4) {
 		return DENTIST_DIVIDER_RANGE_3_START + DENTIST_DIVIDER_RANGE_3_STEP
 							* (did - DENTIST_BASE_DID_3);
+	} else {
+		return DENTIST_DIVIDER_RANGE_4_START + DENTIST_DIVIDER_RANGE_4_STEP
+							* (did - DENTIST_BASE_DID_4);
 	}
 }
 
@@ -478,7 +484,7 @@ static void dce12_update_clocks(struct dccg *dccg,
 	}
 }
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 static int dcn1_determine_dppclk_threshold(struct dccg *dccg, struct dc_clocks *new_clocks)
 {
 	bool request_dpp_div = new_clocks->dispclk_khz > new_clocks->dppclk_khz;
@@ -668,7 +674,7 @@ static void dce_update_clocks(struct dccg *dccg,
 	}
 }
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 static const struct display_clock_funcs dcn1_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.set_dispclk = dce112_set_clock,
@@ -823,7 +829,7 @@ struct dccg *dce120_dccg_create(struct dc_context *ctx)
 	return &clk_dce->base;
 }
 
-#ifdef CONFIG_X86
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 struct dccg *dcn1_dccg_create(struct dc_context *ctx)
 {
 	struct dc_debug_options *debug = &ctx->dc->debug;

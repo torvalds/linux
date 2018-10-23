@@ -14,6 +14,7 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <linux/kernel.h>
 
 #define KVM_DEV_PATH "/dev/kvm"
 
@@ -166,6 +167,16 @@ void kvm_vm_restart(struct kvm_vm *vmp, int perm)
 			    region->region.guest_phys_addr,
 			    region->region.memory_size);
 	}
+}
+
+void kvm_vm_get_dirty_log(struct kvm_vm *vm, int slot, void *log)
+{
+	struct kvm_dirty_log args = { .dirty_bitmap = log, .slot = slot };
+	int ret;
+
+	ret = ioctl(vm->fd, KVM_GET_DIRTY_LOG, &args);
+	TEST_ASSERT(ret == 0, "%s: KVM_GET_DIRTY_LOG failed: %s",
+		    strerror(-ret));
 }
 
 /* Userspace Memory Region Find
@@ -923,6 +934,39 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
 	return vaddr_start;
 }
 
+/*
+ * Map a range of VM virtual address to the VM's physical address
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vaddr - Virtuall address to map
+ *   paddr - VM Physical Address
+ *   size - The size of the range to map
+ *   pgd_memslot - Memory region slot for new virtual translation tables
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Within the VM given by vm, creates a virtual translation for the
+ * page range starting at vaddr to the page range starting at paddr.
+ */
+void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+	      size_t size, uint32_t pgd_memslot)
+{
+	size_t page_size = vm->page_size;
+	size_t npages = size / page_size;
+
+	TEST_ASSERT(vaddr + size > vaddr, "Vaddr overflow");
+	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
+
+	while (npages--) {
+		virt_pg_map(vm, vaddr, paddr, pgd_memslot);
+		vaddr += page_size;
+		paddr += page_size;
+	}
+}
+
 /* Address VM Physical to Host Virtual
  *
  * Input Args:
@@ -1535,4 +1579,18 @@ vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm,
 void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva)
 {
 	return addr_gpa2hva(vm, addr_gva2gpa(vm, gva));
+}
+
+void guest_args_read(struct kvm_vm *vm, uint32_t vcpu_id,
+		     struct guest_args *args)
+{
+	struct kvm_run *run = vcpu_state(vm, vcpu_id);
+	struct kvm_regs regs;
+
+	memset(&regs, 0, sizeof(regs));
+	vcpu_regs_get(vm, vcpu_id, &regs);
+
+	args->port = run->io.port;
+	args->arg0 = regs.rdi;
+	args->arg1 = regs.rsi;
 }

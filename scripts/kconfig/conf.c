@@ -508,6 +508,11 @@ int main(int ac, char **av)
 		input_mode = (enum input_mode)opt;
 		switch (opt) {
 		case syncconfig:
+			/*
+			 * syncconfig is invoked during the build stage.
+			 * Suppress distracting "configuration written to ..."
+			 */
+			conf_set_message_callback(NULL);
 			sync_kconfig = 1;
 			break;
 		case defconfig:

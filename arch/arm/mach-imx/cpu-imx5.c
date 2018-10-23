@@ -117,3 +117,48 @@ int mx53_revision(void)
 	return mx5_cpu_rev;
 }
 EXPORT_SYMBOL(mx53_revision);
+
+#define ARM_GPC		0x4
+#define DBGEN		BIT(16)
+
+/*
+ * This enables the DBGEN bit in ARM_GPC register, which is
+ * required for accessing some performance counter features.
+ * Technically it is only required while perf is used, but to
+ * keep the source code simple we just enable it all the time
+ * when the kernel configuration allows using the feature.
+ */
+void __init imx5_pmu_init(void)
+{
+	void __iomem *tigerp_base;
+	struct device_node *np;
+	u32 gpc;
+
+	if (!IS_ENABLED(CONFIG_ARM_PMU))
+		return;
+
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a8-pmu");
+	if (!np)
+		return;
+
+	if (!of_property_read_bool(np, "secure-reg-access"))
+		goto exit;
+
+	of_node_put(np);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-tigerp");
+	if (!np)
+		return;
+
+	tigerp_base = of_iomap(np, 0);
+	if (!tigerp_base)
+		goto exit;
+
+	gpc = readl_relaxed(tigerp_base + ARM_GPC);
+	gpc |= DBGEN;
+	writel_relaxed(gpc, tigerp_base + ARM_GPC);
+	iounmap(tigerp_base);
+exit:
+	of_node_put(np);
+
+}

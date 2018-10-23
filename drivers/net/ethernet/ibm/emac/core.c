@@ -494,9 +494,6 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 	case 16384:
 		ret |= EMAC_MR1_RFS_16K;
 		break;
-	case 8192:
-		ret |= EMAC4_MR1_RFS_8K;
-		break;
 	case 4096:
 		ret |= EMAC_MR1_RFS_4K;
 		break;
@@ -536,6 +533,9 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 	switch(rx_size) {
 	case 16384:
 		ret |= EMAC4_MR1_RFS_16K;
+		break;
+	case 8192:
+		ret |= EMAC4_MR1_RFS_8K;
 		break;
 	case 4096:
 		ret |= EMAC4_MR1_RFS_4K;

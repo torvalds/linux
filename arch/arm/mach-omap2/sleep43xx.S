@@ -9,7 +9,7 @@
 #include <generated/ti-pm-asm-offsets.h>
 #include <linux/linkage.h>
 #include <linux/ti-emif-sram.h>
-
+#include <linux/platform_data/pm33xx.h>
 #include <asm/assembler.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/memory.h>
@@ -21,6 +21,9 @@
 #include "omap44xx.h"
 #include "prm33xx.h"
 #include "prcm43xx.h"
+
+/* replicated define because linux/bitops.h cannot be included in assembly */
+#define BIT(nr)			(1 << (nr))
 
 #define AM33XX_CM_CLKCTRL_MODULESTATE_DISABLED		0x00030000
 #define AM33XX_CM_CLKCTRL_MODULEMODE_DISABLE		0x0003
@@ -45,11 +48,24 @@
 					AM43XX_CM_PER_EMIF_CLKCTRL_OFFSET)
 #define AM43XX_PRM_EMIF_CTRL_OFFSET			0x0030
 
+#define RTC_SECONDS_REG					0x0
+#define RTC_PMIC_REG					0x98
+#define RTC_PMIC_POWER_EN				BIT(16)
+#define RTC_PMIC_EXT_WAKEUP_STS				BIT(12)
+#define RTC_PMIC_EXT_WAKEUP_POL				BIT(4)
+#define RTC_PMIC_EXT_WAKEUP_EN				BIT(0)
+
 	.arm
 	.align 3
 
 ENTRY(am43xx_do_wfi)
 	stmfd	sp!, {r4 - r11, lr}	@ save registers on stack
+
+	/* Save wfi_flags arg to data space */
+	mov	r4, r0
+	adr	r3, am43xx_pm_ro_sram_data
+	ldr	r2, [r3, #AMX3_PM_RO_SRAM_DATA_VIRT_OFFSET]
+	str	r4, [r2, #AMX3_PM_WFI_FLAGS_OFFSET]
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Retrieve l2 cache virt address BEFORE we shut off EMIF */
@@ -57,6 +73,10 @@ ENTRY(am43xx_do_wfi)
 	blx	r1
 	mov	r8, r0
 #endif
+
+	/* Only flush cache is we know we are losing MPU context */
+	tst	r4, #WFI_FLAG_FLUSH_CACHE
+	beq	cache_skip_flush
 
 	/*
 	 * Flush all data from the L1 and L2 data cache before disabling
@@ -128,13 +148,47 @@ sync:
 	bne	sync
 #endif
 
+	/* Restore wfi_flags */
+	adr	r3, am43xx_pm_ro_sram_data
+	ldr	r2, [r3, #AMX3_PM_RO_SRAM_DATA_VIRT_OFFSET]
+	ldr	r4, [r2, #AMX3_PM_WFI_FLAGS_OFFSET]
+
+cache_skip_flush:
+	/*
+	 * If we are trying to enter RTC+DDR mode we must perform
+	 * a read from the rtc address space to ensure translation
+	 * presence in the TLB to avoid page table walk after DDR
+	 * is unavailable.
+	 */
+	tst	r4, #WFI_FLAG_RTC_ONLY
+	beq	skip_rtc_va_refresh
+
+	adr	r3, am43xx_pm_ro_sram_data
+	ldr	r1, [r3, #AMX3_PM_RTC_BASE_VIRT_OFFSET]
+	ldr	r0, [r1]
+
+skip_rtc_va_refresh:
+	/* Check if we want self refresh */
+	tst	r4, #WFI_FLAG_SELF_REFRESH
+	beq	emif_skip_enter_sr
+
 	adr     r9, am43xx_emif_sram_table
 
 	ldr     r3, [r9, #EMIF_PM_ENTER_SR_OFFSET]
 	blx     r3
 
+emif_skip_enter_sr:
+	/* Only necessary if PER is losing context */
+	tst	r4, #WFI_FLAG_SAVE_EMIF
+	beq	emif_skip_save
+
 	ldr     r3, [r9, #EMIF_PM_SAVE_CONTEXT_OFFSET]
-	blx     r3
+	blx	r3
+
+emif_skip_save:
+	/* Only can disable EMIF if we have entered self refresh */
+	tst	r4, #WFI_FLAG_SELF_REFRESH
+	beq	emif_skip_disable
 
 	/* Disable EMIF */
 	ldr	r1, am43xx_virt_emif_clkctrl
@@ -147,6 +201,38 @@ wait_emif_disable:
 	mov	r3, #AM33XX_CM_CLKCTRL_MODULESTATE_DISABLED
 	cmp	r2, r3
 	bne	wait_emif_disable
+
+emif_skip_disable:
+	tst	r4, #WFI_FLAG_RTC_ONLY
+	beq	skip_rtc_only
+
+	adr	r3, am43xx_pm_ro_sram_data
+	ldr	r1, [r3, #AMX3_PM_RTC_BASE_VIRT_OFFSET]
+
+	ldr	r0, [r1, #RTC_PMIC_REG]
+	orr	r0, r0, #RTC_PMIC_POWER_EN
+	orr	r0, r0, #RTC_PMIC_EXT_WAKEUP_STS
+	orr	r0, r0, #RTC_PMIC_EXT_WAKEUP_EN
+	orr	r0, r0, #RTC_PMIC_EXT_WAKEUP_POL
+	str	r0, [r1, #RTC_PMIC_REG]
+	ldr	r0, [r1, #RTC_PMIC_REG]
+	/* Wait for 2 seconds to lose power */
+	mov	r3, #2
+	ldr	r2, [r1, #RTC_SECONDS_REG]
+rtc_loop:
+	ldr	r0, [r1, #RTC_SECONDS_REG]
+	cmp	r0, r2
+	beq	rtc_loop
+	mov	r2, r0
+	subs	r3, r3, #1
+	bne	rtc_loop
+
+	b	re_enable_emif
+
+skip_rtc_only:
+
+	tst	r4, #WFI_FLAG_WAKE_M3
+	beq	wkup_m3_skip
 
 	/*
 	 * For the MPU WFI to be registered as an interrupt
@@ -165,6 +251,7 @@ wait_emif_disable:
 	mov	r2, #AM43XX_CM_CLKSTCTRL_CLKTRCTRL_SW_SLEEP
 	str	r2, [r1]
 
+wkup_m3_skip:
 	/*
 	 * Execute a barrier instruction to ensure that all cache,
 	 * TLB and branch predictor maintenance operations issued
@@ -209,6 +296,7 @@ wait_emif_disable:
 	mov	r2, #AM33XX_CM_CLKCTRL_MODULEMODE_ENABLE
 	str	r2, [r1]
 
+re_enable_emif:
 	/* Re-enable EMIF */
 	ldr	r1, am43xx_virt_emif_clkctrl
 	mov	r2, #AM33XX_CM_CLKCTRL_MODULEMODE_ENABLE
@@ -218,6 +306,9 @@ wait_emif_enable:
 	cmp	r2, r3
 	bne	wait_emif_enable
 
+	tst	r4, #WFI_FLAG_FLUSH_CACHE
+	beq	cache_skip_restore
+
 	/*
 	 * Set SCTLR.C bit to allow data cache allocation
 	 */
@@ -226,9 +317,16 @@ wait_emif_enable:
 	mcr	p15, 0, r0, c1, c0, 0
 	isb
 
-	ldr     r1, [r9, #EMIF_PM_ABORT_SR_OFFSET]
-	blx     r1
+cache_skip_restore:
+	/* Only necessary if PER is losing context */
+	tst	r4, #WFI_FLAG_SELF_REFRESH
+	beq	emif_skip_exit_sr_abt
 
+	adr	r9, am43xx_emif_sram_table
+	ldr	r1, [r9, #EMIF_PM_ABORT_SR_OFFSET]
+	blx	r1
+
+emif_skip_exit_sr_abt:
 	/* Let the suspend code know about the abort */
 	mov	r0, #1
 	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
@@ -333,8 +431,6 @@ ENDPROC(am43xx_resume_from_deep_sleep)
  * Local variables
  */
 	.align
-resume_addr:
-	.word	cpu_resume - PAGE_OFFSET + 0x80000000
 kernel_flush:
 	.word   v7_flush_dcache_all
 ddr_start:
@@ -381,6 +477,8 @@ ENTRY(am43xx_pm_sram)
 	.word am43xx_emif_sram_table
 	.word am43xx_pm_ro_sram_data
 
+resume_addr:
+	.word   cpu_resume - PAGE_OFFSET + 0x80000000
 .align 3
 
 ENTRY(am43xx_pm_ro_sram_data)

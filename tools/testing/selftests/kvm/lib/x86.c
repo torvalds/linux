@@ -702,6 +702,9 @@ void vcpu_set_cpuid(struct kvm_vm *vm,
  *
  * Input Args:
  *   vcpuid - The id of the single VCPU to add to the VM.
+ *   extra_mem_pages - The size of extra memories to add (this will
+ *                     decide how much extra space we will need to
+ *                     setup the page tables using mem slot 0)
  *   guest_code - The vCPU's entry point
  *
  * Output Args: None
@@ -709,12 +712,23 @@ void vcpu_set_cpuid(struct kvm_vm *vm,
  * Return:
  *   Pointer to opaque structure that describes the created VM.
  */
-struct kvm_vm *vm_create_default(uint32_t vcpuid, void *guest_code)
+struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
+				 void *guest_code)
 {
 	struct kvm_vm *vm;
+	/*
+	 * For x86 the maximum page table size for a memory region
+	 * will be when only 4K pages are used.  In that case the
+	 * total extra size for page tables (for extra N pages) will
+	 * be: N/512+N/512^2+N/512^3+... which is definitely smaller
+	 * than N/512*2.
+	 */
+	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
 
 	/* Create VM */
-	vm = vm_create(VM_MODE_FLAT48PG, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
+	vm = vm_create(VM_MODE_FLAT48PG,
+		       DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
+		       O_RDWR);
 
 	/* Setup guest code */
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);

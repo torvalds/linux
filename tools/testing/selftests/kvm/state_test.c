@@ -21,28 +21,6 @@
 #include "vmx.h"
 
 #define VCPU_ID		5
-#define PORT_SYNC	0x1000
-#define PORT_ABORT	0x1001
-#define PORT_DONE	0x1002
-
-static inline void __exit_to_l0(uint16_t port, uint64_t arg0, uint64_t arg1)
-{
-	__asm__ __volatile__("in %[port], %%al"
-			     :
-			     : [port]"d"(port), "D"(arg0), "S"(arg1)
-			     : "rax");
-}
-
-#define exit_to_l0(_port, _arg0, _arg1) \
-	__exit_to_l0(_port, (uint64_t) (_arg0), (uint64_t) (_arg1))
-
-#define GUEST_ASSERT(_condition) do { \
-	if (!(_condition)) \
-		exit_to_l0(PORT_ABORT, "Failed guest assert: " #_condition, __LINE__);\
-} while (0)
-
-#define GUEST_SYNC(stage) \
-	exit_to_l0(PORT_SYNC, "hello", stage);
 
 static bool have_nested_state;
 
@@ -137,7 +115,7 @@ void guest_code(struct vmx_pages *vmx_pages)
 	if (vmx_pages)
 		l1_guest_code(vmx_pages);
 
-	exit_to_l0(PORT_DONE, 0, 0);
+	GUEST_DONE();
 }
 
 int main(int argc, char *argv[])
@@ -154,7 +132,7 @@ int main(int argc, char *argv[])
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, guest_code);
+	vm = vm_create_default(VCPU_ID, 0, guest_code);
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 	run = vcpu_state(vm, VCPU_ID);
 
@@ -178,13 +156,13 @@ int main(int argc, char *argv[])
 		memset(&regs1, 0, sizeof(regs1));
 		vcpu_regs_get(vm, VCPU_ID, &regs1);
 		switch (run->io.port) {
-		case PORT_ABORT:
+		case GUEST_PORT_ABORT:
 			TEST_ASSERT(false, "%s at %s:%d", (const char *) regs1.rdi,
 				    __FILE__, regs1.rsi);
 			/* NOT REACHED */
-		case PORT_SYNC:
+		case GUEST_PORT_SYNC:
 			break;
-		case PORT_DONE:
+		case GUEST_PORT_DONE:
 			goto done;
 		default:
 			TEST_ASSERT(false, "Unknown port 0x%x.", run->io.port);

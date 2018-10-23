@@ -695,7 +695,9 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 			r = -EINVAL;
 		else {
 			r = 0;
+			down_write(&kvm->mm->mmap_sem);
 			kvm->mm->context.allow_gmap_hpage_1m = 1;
+			up_write(&kvm->mm->mmap_sem);
 			/*
 			 * We might have to create fake 4k page
 			 * tables. To avoid that the hardware works on

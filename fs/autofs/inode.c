@@ -10,7 +10,6 @@
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
-#include <linux/magic.h>
 
 #include "autofs_i.h"
 

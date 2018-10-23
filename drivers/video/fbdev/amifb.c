@@ -2303,7 +2303,7 @@ static void ami_build_copper(struct fb_info *info)
 	ami_rebuild_copper(info->par);
 }
 
-
+#ifndef MODULE
 static void __init amifb_setup_mcap(char *spec)
 {
 	char *p;
@@ -2368,7 +2368,7 @@ static int __init amifb_setup(char *options)
 
 	return 0;
 }
-
+#endif
 
 static int amifb_check_var(struct fb_var_screeninfo *var,
 			   struct fb_info *info)

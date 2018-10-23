@@ -17,14 +17,13 @@ Required properties:
 	"atmel,at91sam9x5-clk-slow-rc-osc":
 		at91 internal slow RC oscillator
 
-	"atmel,at91rm9200-pmc" or
-	"atmel,at91sam9g45-pmc" or
-	"atmel,at91sam9n12-pmc" or
-	"atmel,at91sam9x5-pmc" or
-	"atmel,sama5d3-pmc":
+	"atmel,<chip>-pmc":
 		at91 PMC (Power Management Controller)
 		All at91 specific clocks (clocks defined below) must be child
 		node of the PMC node.
+		<chip> can be: at91rm9200, at91sam9260, at91sam9261,
+		at91sam9263, at91sam9g45, at91sam9n12, at91sam9rl, at91sam9x5,
+		sama5d2, sama5d3 or sama5d4.
 
 	"atmel,at91sam9x5-clk-slow" (under sckc node)
 	or

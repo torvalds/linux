@@ -46,6 +46,7 @@
 #include <linux/compiler.h>
 #include <linux/of.h>
 
+#include <asm/ftrace.h>
 #include <asm/reg.h>
 #include <asm/ppc-opcode.h>
 #include <asm/asm-prototypes.h>

@@ -614,6 +614,18 @@ struct smb2_tree_disconnect_rsp {
 #define SMB2_CREATE_TAG_POSIX		0x93AD25509CB411E7B42383DE968BCD7C
 
 
+/*
+ * Maximum number of iovs we need for an open/create request.
+ * [0] : struct smb2_create_req
+ * [1] : path
+ * [2] : lease context
+ * [3] : durable context
+ * [4] : posix context
+ * [5] : time warp context
+ * [6] : compound padding
+ */
+#define SMB2_CREATE_IOV_SIZE 7
+
 struct smb2_create_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 57 */

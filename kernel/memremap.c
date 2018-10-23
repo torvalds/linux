@@ -43,7 +43,7 @@ static unsigned long order_at(struct resource *res, unsigned long pgoff)
 			pgoff += 1UL << order, order = order_at((res), pgoff))
 
 #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
-int device_private_entry_fault(struct vm_area_struct *vma,
+vm_fault_t device_private_entry_fault(struct vm_area_struct *vma,
 		       unsigned long addr,
 		       swp_entry_t entry,
 		       unsigned int flags,
@@ -365,7 +365,6 @@ void __put_devmap_managed_page(struct page *page)
 		__ClearPageActive(page);
 		__ClearPageWaiters(page);
 
-		page->mapping = NULL;
 		mem_cgroup_uncharge(page);
 
 		page->pgmap->page_free(page, page->pgmap->data);

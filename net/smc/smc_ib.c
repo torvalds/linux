@@ -145,17 +145,21 @@ out:
 
 static int smc_ib_fill_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
-	struct ib_gid_attr gattr;
-	union ib_gid gid;
-	int rc;
+	const struct ib_gid_attr *attr;
+	int rc = 0;
 
-	rc = ib_query_gid(smcibdev->ibdev, ibport, 0, &gid, &gattr);
-	if (rc || !gattr.ndev)
+	attr = rdma_get_gid_attr(smcibdev->ibdev, ibport, 0);
+	if (IS_ERR(attr))
 		return -ENODEV;
 
-	memcpy(smcibdev->mac[ibport - 1], gattr.ndev->dev_addr, ETH_ALEN);
-	dev_put(gattr.ndev);
-	return 0;
+	if (attr->ndev)
+		memcpy(smcibdev->mac[ibport - 1], attr->ndev->dev_addr,
+		       ETH_ALEN);
+	else
+		rc = -ENODEV;
+
+	rdma_put_gid_attr(attr);
+	return rc;
 }
 
 /* Create an identifier unique for this instance of SMC-R.
@@ -180,29 +184,27 @@ bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport)
 int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
 			 unsigned short vlan_id, u8 gid[], u8 *sgid_index)
 {
-	struct ib_gid_attr gattr;
-	union ib_gid _gid;
+	const struct ib_gid_attr *attr;
 	int i;
 
 	for (i = 0; i < smcibdev->pattr[ibport - 1].gid_tbl_len; i++) {
-		memset(&_gid, 0, SMC_GID_SIZE);
-		memset(&gattr, 0, sizeof(gattr));
-		if (ib_query_gid(smcibdev->ibdev, ibport, i, &_gid, &gattr))
+		attr = rdma_get_gid_attr(smcibdev->ibdev, ibport, i);
+		if (IS_ERR(attr))
 			continue;
-		if (!gattr.ndev)
-			continue;
-		if (((!vlan_id && !is_vlan_dev(gattr.ndev)) ||
-		     (vlan_id && is_vlan_dev(gattr.ndev) &&
-		      vlan_dev_vlan_id(gattr.ndev) == vlan_id)) &&
-		    gattr.gid_type == IB_GID_TYPE_IB) {
+
+		if (attr->ndev &&
+		    ((!vlan_id && !is_vlan_dev(attr->ndev)) ||
+		     (vlan_id && is_vlan_dev(attr->ndev) &&
+		      vlan_dev_vlan_id(attr->ndev) == vlan_id)) &&
+		    attr->gid_type == IB_GID_TYPE_ROCE) {
 			if (gid)
-				memcpy(gid, &_gid, SMC_GID_SIZE);
+				memcpy(gid, &attr->gid, SMC_GID_SIZE);
 			if (sgid_index)
-				*sgid_index = i;
-			dev_put(gattr.ndev);
+				*sgid_index = attr->index;
+			rdma_put_gid_attr(attr);
 			return 0;
 		}
-		dev_put(gattr.ndev);
+		rdma_put_gid_attr(attr);
 	}
 	return -ENODEV;
 }

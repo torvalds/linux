@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 
 	heap_size = 0;
 	flags = 0;
+	heap_type = ION_HEAP_TYPE_SYSTEM;
 
 	while ((opt = getopt(argc, argv, "hi:s:")) != -1) {
 		switch (opt) {

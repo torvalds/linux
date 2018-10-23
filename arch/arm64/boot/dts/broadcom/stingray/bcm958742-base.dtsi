@@ -30,20 +30,9 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "stingray.dtsi"
+#include "stingray-board-base.dtsi"
 
 / {
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	aliases {
-		serial0 = &uart1;
-		serial1 = &uart0;
-		serial2 = &uart2;
-		serial3 = &uart3;
-	};
-
 	sdio0_vddo_ctrl_reg: sdio0_vddo_ctrl {
 		compatible = "regulator-gpio";
 		regulator-name = "sdio0_vddo_ctrl_reg";
@@ -65,11 +54,6 @@
 		states = <3300000 0x0
 			  1800000 0x1>;
 	};
-};
-
-&memory { /* Default DRAM banks */
-	reg = <0x00000000 0x80000000 0x0 0x80000000>, /* 2G @ 2G */
-	      <0x00000008 0x80000000 0x1 0x80000000>; /* 6G @ 34G */
 };
 
 &sata0 {
@@ -136,18 +120,6 @@
 	status = "okay";
 };
 
-&mdio_mux_iproc {
-	mdio@10 {
-		gphy0: eth-phy@10 {
-			reg = <0x10>;
-		};
-	};
-};
-
-&uart1 {
-	status = "okay";
-};
-
 &pwm {
 	status = "okay";
 };
@@ -175,8 +147,6 @@
 };
 
 &enet {
-	phy-mode = "rgmii-id";
-	phy-handle = <&gphy0>;
 	status = "okay";
 };
 
@@ -197,13 +167,10 @@
 
 &sdio0 {
 	vqmmc-supply = <&sdio0_vddo_ctrl_reg>;
-	non-removable;
-	full-pwr-cycle;
 	status = "okay";
 };
 
 &sdio1 {
 	vqmmc-supply = <&sdio1_vddo_ctrl_reg>;
-	full-pwr-cycle;
 	status = "okay";
 };

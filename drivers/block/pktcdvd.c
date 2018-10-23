@@ -2740,6 +2740,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	pd->write_congestion_on  = write_congestion_on;
 	pd->write_congestion_off = write_congestion_off;
 
+	ret = -ENOMEM;
 	disk = alloc_disk(1);
 	if (!disk)
 		goto out_mem;

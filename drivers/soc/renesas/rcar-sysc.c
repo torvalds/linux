@@ -58,6 +58,12 @@
 
 #define RCAR_PD_ALWAYS_ON	32	/* Always-on power area */
 
+struct rcar_sysc_ch {
+	u16 chan_offs;
+	u8 chan_bit;
+	u8 isr_bit;
+};
+
 static void __iomem *rcar_sysc_base;
 static DEFINE_SPINLOCK(rcar_sysc_lock); /* SMP CPUs + I/O devices */
 
@@ -143,12 +149,12 @@ static int rcar_sysc_power(const struct rcar_sysc_ch *sysc_ch, bool on)
 	return ret;
 }
 
-int rcar_sysc_power_down(const struct rcar_sysc_ch *sysc_ch)
+static int rcar_sysc_power_down(const struct rcar_sysc_ch *sysc_ch)
 {
 	return rcar_sysc_power(sysc_ch, false);
 }
 
-int rcar_sysc_power_up(const struct rcar_sysc_ch *sysc_ch)
+static int rcar_sysc_power_up(const struct rcar_sysc_ch *sysc_ch)
 {
 	return rcar_sysc_power(sysc_ch, true);
 }
@@ -315,6 +321,8 @@ struct rcar_pm_domains {
 	struct generic_pm_domain *domains[RCAR_PD_ALWAYS_ON + 1];
 };
 
+static struct genpd_onecell_data *rcar_sysc_onecell_data;
+
 static int __init rcar_sysc_pd_init(void)
 {
 	const struct rcar_sysc_info *info;
@@ -325,9 +333,6 @@ static int __init rcar_sysc_pd_init(void)
 	void __iomem *base;
 	unsigned int i;
 	int error;
-
-	if (rcar_sysc_base)
-		return 0;
 
 	np = of_find_matching_node_and_match(NULL, rcar_sysc_matches, &match);
 	if (!np)
@@ -361,6 +366,7 @@ static int __init rcar_sysc_pd_init(void)
 
 	domains->onecell_data.domains = domains->domains;
 	domains->onecell_data.num_domains = ARRAY_SIZE(domains->domains);
+	rcar_sysc_onecell_data = &domains->onecell_data;
 
 	for (i = 0, syscier = 0; i < info->num_areas; i++)
 		syscier |= BIT(info->areas[i].isr_bit);
@@ -448,27 +454,39 @@ void __init rcar_sysc_nullify(struct rcar_sysc_area *areas,
 		}
 }
 
-void __init rcar_sysc_init(phys_addr_t base, u32 syscier)
+#ifdef CONFIG_ARCH_R8A7779
+static int rcar_sysc_power_cpu(unsigned int idx, bool on)
 {
-	u32 syscimr;
+	struct generic_pm_domain *genpd;
+	struct rcar_sysc_pd *pd;
+	unsigned int i;
 
-	if (!rcar_sysc_pd_init())
-		return;
+	if (!rcar_sysc_onecell_data)
+		return -ENODEV;
 
-	rcar_sysc_base = ioremap_nocache(base, PAGE_SIZE);
+	for (i = 0; i < rcar_sysc_onecell_data->num_domains; i++) {
+		genpd = rcar_sysc_onecell_data->domains[i];
+		if (!genpd)
+			continue;
 
-	/*
-	 * Mask all interrupt sources to prevent the CPU from receiving them.
-	 * Make sure not to clear reserved bits that were set before.
-	 */
-	syscimr = ioread32(rcar_sysc_base + SYSCIMR);
-	syscimr |= syscier;
-	pr_debug("%s: syscimr = 0x%08x\n", __func__, syscimr);
-	iowrite32(syscimr, rcar_sysc_base + SYSCIMR);
+		pd = to_rcar_pd(genpd);
+		if (!(pd->flags & PD_CPU) || pd->ch.chan_bit != idx)
+			continue;
 
-	/*
-	 * SYSC needs all interrupt sources enabled to control power.
-	 */
-	pr_debug("%s: syscier = 0x%08x\n", __func__, syscier);
-	iowrite32(syscier, rcar_sysc_base + SYSCIER);
+		return on ? rcar_sysc_power_up(&pd->ch)
+			  : rcar_sysc_power_down(&pd->ch);
+	}
+
+	return -ENOENT;
 }
+
+int rcar_sysc_power_down_cpu(unsigned int cpu)
+{
+	return rcar_sysc_power_cpu(cpu, false);
+}
+
+int rcar_sysc_power_up_cpu(unsigned int cpu)
+{
+	return rcar_sysc_power_cpu(cpu, true);
+}
+#endif /* CONFIG_ARCH_R8A7779 */

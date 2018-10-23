@@ -30,8 +30,8 @@ __irf_start:
 .incbin __stringify(INITRAMFS_IMAGE)
 __irf_end:
 .section .init.ramfs.info,"a"
-.globl VMLINUX_SYMBOL(__initramfs_size)
-VMLINUX_SYMBOL(__initramfs_size):
+.globl __initramfs_size
+__initramfs_size:
 #ifdef CONFIG_64BIT
 	.quad __irf_end - __irf_start
 #else

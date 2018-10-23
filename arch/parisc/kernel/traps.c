@@ -45,7 +45,7 @@
 
 #include "../math-emu/math-emu.h"	/* for handle_fpe() */
 
-static void parisc_show_stack(struct task_struct *task, unsigned long *sp,
+static void parisc_show_stack(struct task_struct *task,
 	struct pt_regs *regs);
 
 static int printbinary(char *buf, unsigned long x, int nbits)
@@ -152,7 +152,7 @@ void show_regs(struct pt_regs *regs)
 		printk("%s IAOQ[1]: %pS\n", level, (void *) regs->iaoq[1]);
 		printk("%s RP(r2): %pS\n", level, (void *) regs->gr[2]);
 
-		parisc_show_stack(current, NULL, regs);
+		parisc_show_stack(current, regs);
 	}
 }
 
@@ -185,44 +185,19 @@ static void do_show_stack(struct unwind_frame_info *info)
 	printk(KERN_CRIT "\n");
 }
 
-static void parisc_show_stack(struct task_struct *task, unsigned long *sp,
+static void parisc_show_stack(struct task_struct *task,
 	struct pt_regs *regs)
 {
 	struct unwind_frame_info info;
-	struct task_struct *t;
 
-	t = task ? task : current;
-	if (regs) {
-		unwind_frame_init(&info, t, regs);
-		goto show_stack;
-	}
+	unwind_frame_init_task(&info, task, regs);
 
-	if (t == current) {
-		unsigned long sp;
-
-HERE:
-		asm volatile ("copy %%r30, %0" : "=r"(sp));
-		{
-			struct pt_regs r;
-
-			memset(&r, 0, sizeof(struct pt_regs));
-			r.iaoq[0] = (unsigned long)&&HERE;
-			r.gr[2] = (unsigned long)__builtin_return_address(0);
-			r.gr[30] = sp;
-
-			unwind_frame_init(&info, current, &r);
-		}
-	} else {
-		unwind_frame_init_from_blocked_task(&info, t);
-	}
-
-show_stack:
 	do_show_stack(&info);
 }
 
 void show_stack(struct task_struct *t, unsigned long *sp)
 {
-	return parisc_show_stack(t, sp, NULL);
+	parisc_show_stack(t, NULL);
 }
 
 int is_valid_bugaddr(unsigned long iaoq)
@@ -557,7 +532,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		cpu_lpmc(5, regs);
 		return;
 
-	case  6:
+	case  PARISC_ITLB_TRAP:
 		/* Instruction TLB miss fault/Instruction page fault */
 		fault_address = regs->iaoq[0];
 		fault_space   = regs->iasq[0];

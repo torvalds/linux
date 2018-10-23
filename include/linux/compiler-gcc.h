@@ -75,48 +75,6 @@
 #define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 #endif
 
-/*
- * Feature detection for gnu_inline (gnu89 extern inline semantics). Either
- * __GNUC_STDC_INLINE__ is defined (not using gnu89 extern inline semantics,
- * and we opt in to the gnu89 semantics), or __GNUC_STDC_INLINE__ is not
- * defined so the gnu89 semantics are the default.
- */
-#ifdef __GNUC_STDC_INLINE__
-# define __gnu_inline	__attribute__((gnu_inline))
-#else
-# define __gnu_inline
-#endif
-
-/*
- * Force always-inline if the user requests it so via the .config,
- * or if gcc is too old.
- * GCC does not warn about unused static inline functions for
- * -Wunused-function.  This turns out to avoid the need for complex #ifdef
- * directives.  Suppress the warning in clang as well by using "unused"
- * function attribute, which is redundant but not harmful for gcc.
- * Prefer gnu_inline, so that extern inline functions do not emit an
- * externally visible function. This makes extern inline behave as per gnu89
- * semantics rather than c99. This prevents multiple symbol definition errors
- * of extern inline functions at link time.
- * A lot of inline functions can cause havoc with function tracing.
- */
-#if !defined(CONFIG_ARCH_SUPPORTS_OPTIMIZED_INLINING) ||		\
-    !defined(CONFIG_OPTIMIZE_INLINING)
-#define inline \
-	inline __attribute__((always_inline, unused)) notrace __gnu_inline
-#else
-#define inline inline		__attribute__((unused)) notrace __gnu_inline
-#endif
-
-#define __inline__ inline
-#define __inline inline
-#define __always_inline	inline __attribute__((always_inline))
-#define  noinline	__attribute__((noinline))
-
-#define __packed	__attribute__((packed))
-#define __weak		__attribute__((weak))
-#define __alias(symbol)	__attribute__((alias(#symbol)))
-
 #ifdef RETPOLINE
 #define __noretpoline __attribute__((indirect_branch("keep")))
 #endif
@@ -135,55 +93,9 @@
  */
 #define __naked		__attribute__((naked)) noinline __noclone notrace
 
-#define __noreturn	__attribute__((noreturn))
-
-/*
- * From the GCC manual:
- *
- * Many functions have no effects except the return value and their
- * return value depends only on the parameters and/or global
- * variables.  Such a function can be subject to common subexpression
- * elimination and loop optimization just as an arithmetic operator
- * would be.
- * [...]
- */
-#define __pure			__attribute__((pure))
-#define __aligned(x)		__attribute__((aligned(x)))
-#define __aligned_largest	__attribute__((aligned))
-#define __printf(a, b)		__attribute__((format(printf, a, b)))
-#define __scanf(a, b)		__attribute__((format(scanf, a, b)))
-#define __attribute_const__	__attribute__((__const__))
-#define __maybe_unused		__attribute__((unused))
-#define __always_unused		__attribute__((unused))
-#define __mode(x)               __attribute__((mode(x)))
-
-#define __must_check		__attribute__((warn_unused_result))
-#define __malloc		__attribute__((__malloc__))
-
-#define __used			__attribute__((__used__))
-#define __compiler_offsetof(a, b)					\
-	__builtin_offsetof(a, b)
-
-/* Mark functions as cold. gcc will assume any path leading to a call
- * to them will be unlikely.  This means a lot of manual unlikely()s
- * are unnecessary now for any paths leading to the usual suspects
- * like BUG(), printk(), panic() etc. [but let's keep them for now for
- * older compilers]
- *
- * Early snapshots of gcc 4.3 don't support this and we can't detect this
- * in the preprocessor, but we can live with this because they're unreleased.
- * Maketime probing would be overkill here.
- *
- * gcc also has a __attribute__((__hot__)) to move hot functions into
- * a special section, but I don't see any sense in this right now in
- * the kernel context
- */
-#define __cold			__attribute__((__cold__))
-
 #define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
 
 #define __optimize(level)	__attribute__((__optimize__(level)))
-#define __nostackprotector	__optimize("no-stack-protector")
 
 #define __compiletime_object_size(obj) __builtin_object_size(obj, 0)
 

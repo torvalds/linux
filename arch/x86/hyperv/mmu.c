@@ -9,6 +9,7 @@
 #include <asm/mshyperv.h>
 #include <asm/msr.h>
 #include <asm/tlbflush.h>
+#include <asm/tlb.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/hyperv.h>
@@ -231,4 +232,5 @@ void hyperv_setup_mmu_ops(void)
 
 	pr_info("Using hypercall for remote TLB flush\n");
 	pv_mmu_ops.flush_tlb_others = hyperv_flush_tlb_others;
+	pv_mmu_ops.tlb_remove_table = tlb_remove_table;
 }

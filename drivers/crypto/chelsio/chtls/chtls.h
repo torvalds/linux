@@ -96,6 +96,10 @@ enum csk_flags {
 	CSK_CONN_INLINE,	/* Connection on HW */
 };
 
+enum chtls_cdev_state {
+	CHTLS_CDEV_STATE_UP = 1
+};
+
 struct listen_ctx {
 	struct sock *lsk;
 	struct chtls_dev *cdev;
@@ -146,6 +150,7 @@ struct chtls_dev {
 	unsigned int send_page_order;
 	int max_host_sndbuf;
 	struct key_map kmap;
+	unsigned int cdev_state;
 };
 
 struct chtls_hws {

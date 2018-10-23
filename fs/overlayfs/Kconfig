@@ -64,6 +64,7 @@ config OVERLAY_FS_NFS_EXPORT
 	bool "Overlayfs: turn on NFS export feature by default"
 	depends on OVERLAY_FS
 	depends on OVERLAY_FS_INDEX
+	depends on !OVERLAY_FS_METACOPY
 	help
 	  If this config option is enabled then overlay filesystems will use
 	  the index directory to decode overlay NFS file handles by default.
@@ -101,5 +102,23 @@ config OVERLAY_FS_XINO_AUTO
 	  issue, then it is safe and recommended to say Y here.
 
 	  For more information, see Documentation/filesystems/overlayfs.txt
+
+	  If unsure, say N.
+
+config OVERLAY_FS_METACOPY
+	bool "Overlayfs: turn on metadata only copy up feature by default"
+	depends on OVERLAY_FS
+	select OVERLAY_FS_REDIRECT_DIR
+	help
+	  If this config option is enabled then overlay filesystems will
+	  copy up only metadata where appropriate and data copy up will
+	  happen when a file is opened for WRITE operation. It is still
+	  possible to turn off this feature globally with the "metacopy=off"
+	  module option or on a filesystem instance basis with the
+	  "metacopy=off" mount option.
+
+	  Note, that this feature is not backward compatible.  That is,
+	  mounting an overlay which has metacopy only inodes on a kernel
+	  that doesn't support this feature will have unexpected results.
 
 	  If unsure, say N.

@@ -55,7 +55,7 @@
 #define VHOST_SCSI_DEFAULT_TAGS 256
 #define VHOST_SCSI_PREALLOC_SGLS 2048
 #define VHOST_SCSI_PREALLOC_UPAGES 2048
-#define VHOST_SCSI_PREALLOC_PROT_SGLS 512
+#define VHOST_SCSI_PREALLOC_PROT_SGLS 2048
 
 struct vhost_scsi_inflight {
 	/* Wait for the flush operation to finish */

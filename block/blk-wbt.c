@@ -118,21 +118,16 @@ static void rwb_wake_all(struct rq_wb *rwb)
 	for (i = 0; i < WBT_NUM_RWQ; i++) {
 		struct rq_wait *rqw = &rwb->rq_wait[i];
 
-		if (waitqueue_active(&rqw->wait))
+		if (wq_has_sleeper(&rqw->wait))
 			wake_up_all(&rqw->wait);
 	}
 }
 
-static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
+static void wbt_rqw_done(struct rq_wb *rwb, struct rq_wait *rqw,
+			 enum wbt_flags wb_acct)
 {
-	struct rq_wb *rwb = RQWB(rqos);
-	struct rq_wait *rqw;
 	int inflight, limit;
 
-	if (!(wb_acct & WBT_TRACKED))
-		return;
-
-	rqw = get_rq_wait(rwb, wb_acct);
 	inflight = atomic_dec_return(&rqw->inflight);
 
 	/*
@@ -162,12 +157,24 @@ static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
 	if (inflight && inflight >= limit)
 		return;
 
-	if (waitqueue_active(&rqw->wait)) {
+	if (wq_has_sleeper(&rqw->wait)) {
 		int diff = limit - inflight;
 
 		if (!inflight || diff >= rwb->wb_background / 2)
-			wake_up(&rqw->wait);
+			wake_up_all(&rqw->wait);
 	}
+}
+
+static void __wbt_done(struct rq_qos *rqos, enum wbt_flags wb_acct)
+{
+	struct rq_wb *rwb = RQWB(rqos);
+	struct rq_wait *rqw;
+
+	if (!(wb_acct & WBT_TRACKED))
+		return;
+
+	rqw = get_rq_wait(rwb, wb_acct);
+	wbt_rqw_done(rwb, rqw, wb_acct);
 }
 
 /*
@@ -449,6 +456,13 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 {
 	unsigned int limit;
 
+	/*
+	 * If we got disabled, just return UINT_MAX. This ensures that
+	 * we'll properly inc a new IO, and dec+wakeup at the end.
+	 */
+	if (!rwb_enabled(rwb))
+		return UINT_MAX;
+
 	if ((rw & REQ_OP_MASK) == REQ_OP_DISCARD)
 		return rwb->wb_background;
 
@@ -474,6 +488,34 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 	return limit;
 }
 
+struct wbt_wait_data {
+	struct wait_queue_entry wq;
+	struct task_struct *task;
+	struct rq_wb *rwb;
+	struct rq_wait *rqw;
+	unsigned long rw;
+	bool got_token;
+};
+
+static int wbt_wake_function(struct wait_queue_entry *curr, unsigned int mode,
+			     int wake_flags, void *key)
+{
+	struct wbt_wait_data *data = container_of(curr, struct wbt_wait_data,
+							wq);
+
+	/*
+	 * If we fail to get a budget, return -1 to interrupt the wake up
+	 * loop in __wake_up_common.
+	 */
+	if (!rq_wait_inc_below(data->rqw, get_limit(data->rwb, data->rw)))
+		return -1;
+
+	data->got_token = true;
+	list_del_init(&curr->entry);
+	wake_up_process(data->task);
+	return 1;
+}
+
 /*
  * Block if we will exceed our limit, or if we are currently waiting for
  * the timer to kick off queuing again.
@@ -484,33 +526,40 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 	__acquires(lock)
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
-	DECLARE_WAITQUEUE(wait, current);
+	struct wbt_wait_data data = {
+		.wq = {
+			.func	= wbt_wake_function,
+			.entry	= LIST_HEAD_INIT(data.wq.entry),
+		},
+		.task = current,
+		.rwb = rwb,
+		.rqw = rqw,
+		.rw = rw,
+	};
+	bool has_sleeper;
 
-	/*
-	* inc it here even if disabled, since we'll dec it at completion.
-	* this only happens if the task was sleeping in __wbt_wait(),
-	* and someone turned it off at the same time.
-	*/
-	if (!rwb_enabled(rwb)) {
-		atomic_inc(&rqw->inflight);
+	has_sleeper = wq_has_sleeper(&rqw->wait);
+	if (!has_sleeper && rq_wait_inc_below(rqw, get_limit(rwb, rw)))
 		return;
-	}
 
-	if (!waitqueue_active(&rqw->wait)
-		&& rq_wait_inc_below(rqw, get_limit(rwb, rw)))
-		return;
-
-	add_wait_queue_exclusive(&rqw->wait, &wait);
+	prepare_to_wait_exclusive(&rqw->wait, &data.wq, TASK_UNINTERRUPTIBLE);
 	do {
-		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (data.got_token)
+			break;
 
-		if (!rwb_enabled(rwb)) {
-			atomic_inc(&rqw->inflight);
+		if (!has_sleeper &&
+		    rq_wait_inc_below(rqw, get_limit(rwb, rw))) {
+			finish_wait(&rqw->wait, &data.wq);
+
+			/*
+			 * We raced with wbt_wake_function() getting a token,
+			 * which means we now have two. Put our local token
+			 * and wake anyone else potentially waiting for one.
+			 */
+			if (data.got_token)
+				wbt_rqw_done(rwb, rqw, wb_acct);
 			break;
 		}
-
-		if (rq_wait_inc_below(rqw, get_limit(rwb, rw)))
-			break;
 
 		if (lock) {
 			spin_unlock_irq(lock);
@@ -518,10 +567,11 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 			spin_lock_irq(lock);
 		} else
 			io_schedule();
+
+		has_sleeper = false;
 	} while (1);
 
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&rqw->wait, &wait);
+	finish_wait(&rqw->wait, &data.wq);
 }
 
 static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
@@ -545,6 +595,9 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
 static enum wbt_flags bio_to_wbt_flags(struct rq_wb *rwb, struct bio *bio)
 {
 	enum wbt_flags flags = 0;
+
+	if (!rwb_enabled(rwb))
+		return 0;
 
 	if (bio_op(bio) == REQ_OP_READ) {
 		flags = WBT_READ;
@@ -576,21 +629,12 @@ static void wbt_wait(struct rq_qos *rqos, struct bio *bio, spinlock_t *lock)
 	struct rq_wb *rwb = RQWB(rqos);
 	enum wbt_flags flags;
 
-	if (!rwb_enabled(rwb))
-		return;
-
 	flags = bio_to_wbt_flags(rwb, bio);
-
-	if (!wbt_should_throttle(rwb, bio)) {
+	if (!(flags & WBT_TRACKED)) {
 		if (flags & WBT_READ)
 			wb_timestamp(rwb, &rwb->last_issue);
 		return;
 	}
-
-	if (current_is_kswapd())
-		flags |= WBT_KSWAPD;
-	if (bio_op(bio) == REQ_OP_DISCARD)
-		flags |= WBT_DISCARD;
 
 	__wbt_wait(rwb, flags, bio->bi_opf, lock);
 

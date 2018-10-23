@@ -127,12 +127,14 @@ enum ppfear_regs {
 #define CNP_PMC_SLP_S0_RES_COUNTER_OFFSET      0x193C
 #define CNP_PMC_LTR_IGNORE_OFFSET              0x1B0C
 #define CNP_PMC_PM_CFG_OFFSET                  0x1818
+#define CNP_PMC_SLPS0_DBG_OFFSET		0x10B4
 /* Cannonlake: PGD PFET Enable Ack Status Register(s) start */
 #define CNP_PMC_HOST_PPFEAR0A                  0x1D90
 
 #define CNP_PMC_MMIO_REG_LEN                   0x2000
 #define CNP_PPFEAR_NUM_ENTRIES                 8
 #define CNP_PMC_READ_DISABLE_BIT               22
+#define CNP_PMC_LATCH_SLPS0_EVENTS		BIT(31)
 
 struct pmc_bit_map {
 	const char *name;
@@ -145,6 +147,7 @@ struct pmc_bit_map {
  * @pfear_sts:		Maps name of IP block to PPFEAR* bit
  * @mphy_sts:		Maps name of MPHY lane to MPHY status lane status bit
  * @pll_sts:		Maps name of PLL to corresponding bit status
+ * @slps0_dbg_maps:	Array of SLP_S0_DBG* registers containing debug info
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
  * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
  * @regmap_length:	Length of memory to map from PWRMBASE address to access
@@ -153,6 +156,7 @@ struct pmc_bit_map {
  *			PPFEAR
  * @pm_cfg_offset:	PWRMBASE offset to PM_CFG register
  * @pm_read_disable_bit: Bit index to read PMC_READ_DISABLE
+ * @slps0_dbg_offset:	PWRMBASE offset to SLP_S0_DEBUG_REG*
  *
  * Each PCH has unique set of register offsets and bit indexes. This structure
  * captures them to have a common implementation.
@@ -161,6 +165,7 @@ struct pmc_reg_map {
 	const struct pmc_bit_map *pfear_sts;
 	const struct pmc_bit_map *mphy_sts;
 	const struct pmc_bit_map *pll_sts;
+	const struct pmc_bit_map **slps0_dbg_maps;
 	const u32 slp_s0_offset;
 	const u32 ltr_ignore_offset;
 	const int regmap_length;
@@ -168,6 +173,7 @@ struct pmc_reg_map {
 	const int ppfear_buckets;
 	const u32 pm_cfg_offset;
 	const int pm_read_disable_bit;
+	const u32 slps0_dbg_offset;
 };
 
 /**

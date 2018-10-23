@@ -12,7 +12,7 @@
 
 compiler="$*"
 
-if !( $compiler --version | grep -q clang) ; then
+if ! ( $compiler --version | grep -q clang) ; then
 	echo 0
 	exit 1
 fi

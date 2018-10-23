@@ -24,7 +24,7 @@
 static int da_command_address;
 static int da_command_code;
 static struct calling_interface_buffer *buffer;
-struct platform_device *platform_device;
+static struct platform_device *platform_device;
 static DEFINE_MUTEX(smm_mutex);
 
 static const struct dmi_system_id dell_device_table[] __initconst = {
@@ -82,7 +82,7 @@ static void find_cmd_address(const struct dmi_header *dm, void *dummy)
 	}
 }
 
-int dell_smbios_smm_call(struct calling_interface_buffer *input)
+static int dell_smbios_smm_call(struct calling_interface_buffer *input)
 {
 	struct smi_cmd command;
 	size_t size;

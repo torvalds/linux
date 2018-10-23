@@ -36,6 +36,7 @@
 #include <asm/signal.h>
 #include <asm/unistd.h>
 #include <asm/ldcw.h>
+#include <asm/traps.h>
 #include <asm/thread_info.h>
 
 #include <linux/linkage.h>
@@ -692,7 +693,7 @@ ENTRY(fault_vector_20)
 	def		 3
 	extint		 4
 	def		 5
-	itlb_20		 6
+	itlb_20		 PARISC_ITLB_TRAP
 	def		 7
 	def		 8
 	def              9
@@ -735,7 +736,7 @@ ENTRY(fault_vector_11)
 	def		 3
 	extint		 4
 	def		 5
-	itlb_11		 6
+	itlb_11		 PARISC_ITLB_TRAP
 	def		 7
 	def		 8
 	def              9
@@ -776,7 +777,7 @@ END(fault_vector_11)
 	 * copy_thread moved args into task save area.
 	 */
 
-ENTRY_CFI(ret_from_kernel_thread)
+ENTRY(ret_from_kernel_thread)
 	/* Call schedule_tail first though */
 	BL	schedule_tail, %r2
 	nop
@@ -791,7 +792,7 @@ ENTRY_CFI(ret_from_kernel_thread)
 	copy	%r31, %r2
 	b	finish_child_return
 	nop
-ENDPROC_CFI(ret_from_kernel_thread)
+END(ret_from_kernel_thread)
 
 
 	/*
@@ -815,9 +816,8 @@ ENTRY_CFI(_switch_to)
 	LDREG	TASK_THREAD_INFO(%r25), %r25
 	bv	%r0(%r2)
 	mtctl   %r25,%cr30
-ENDPROC_CFI(_switch_to)
 
-ENTRY_CFI(_switch_to_ret)
+ENTRY(_switch_to_ret)
 	mtctl	%r0, %cr0		/* Needed for single stepping */
 	callee_rest
 	callee_rest_float
@@ -825,7 +825,7 @@ ENTRY_CFI(_switch_to_ret)
 	LDREG	-RP_OFFSET(%r30), %r2
 	bv	%r0(%r2)
 	copy	%r26, %r28
-ENDPROC_CFI(_switch_to_ret)
+ENDPROC_CFI(_switch_to)
 
 	/*
 	 * Common rfi return path for interruptions, kernel execve, and
@@ -886,14 +886,12 @@ ENTRY_CFI(syscall_exit_rfi)
 	STREG   %r19,PT_SR5(%r16)
 	STREG   %r19,PT_SR6(%r16)
 	STREG   %r19,PT_SR7(%r16)
-ENDPROC_CFI(syscall_exit_rfi)
 
-ENTRY_CFI(intr_return)
+ENTRY(intr_return)
 	/* check for reschedule */
 	mfctl   %cr30,%r1
 	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
 	bb,<,n	%r19,31-TIF_NEED_RESCHED,intr_do_resched /* forward */
-ENDPROC_CFI(intr_return)
 
 	.import do_notify_resume,code
 intr_check_sig:
@@ -1049,6 +1047,7 @@ intr_extint:
 
 	b	do_cpu_irq_mask
 	ldo	R%intr_return(%r2), %r2	/* return to intr_return, not here */
+ENDPROC_CFI(syscall_exit_rfi)
 
 
 	/* Generic interruptions (illegal insn, unaligned, page fault, etc) */
@@ -1068,21 +1067,12 @@ ENTRY_CFI(intr_save)		/* for os_hpmc */
 	save_specials	%r29
 
 	/* If this trap is a itlb miss, skip saving/adjusting isr/ior */
-
-	/*
-	 * FIXME: 1) Use a #define for the hardwired "6" below (and in
-	 *           traps.c.
-	 *        2) Once we start executing code above 4 Gb, we need
-	 *           to adjust iasq/iaoq here in the same way we
-	 *           adjust isr/ior below.
-	 */
-
-	cmpib,COND(=),n        6,%r26,skip_save_ior
+	cmpib,COND(=),n        PARISC_ITLB_TRAP,%r26,skip_save_ior
 
 
-	mfctl           %cr20, %r16 /* isr */
+	mfctl           %isr, %r16
 	nop		/* serialize mfctl on PA 2.0 to avoid 4 cycle penalty */
-	mfctl           %cr21, %r17 /* ior */
+	mfctl           %ior, %r17
 
 
 #ifdef CONFIG_64BIT
@@ -1094,22 +1084,34 @@ ENTRY_CFI(intr_save)		/* for os_hpmc */
 	extrd,u,*<>     %r8,PSW_W_BIT,1,%r0
 	depdi           0,1,2,%r17
 
-	/*
-	 * FIXME: This code has hardwired assumptions about the split
-	 *        between space bits and offset bits. This will change
-	 *        when we allow alternate page sizes.
-	 */
-
-	/* adjust isr/ior. */
-	extrd,u         %r16,63,SPACEID_SHIFT,%r1	/* get high bits from isr for ior */
-	depd            %r1,31,SPACEID_SHIFT,%r17	/* deposit them into ior */
-	depdi           0,63,SPACEID_SHIFT,%r16		/* clear them from isr */
+	/* adjust isr/ior: get high bits from isr and deposit in ior */
+	space_adjust	%r16,%r17,%r1
 #endif
 	STREG           %r16, PT_ISR(%r29)
 	STREG           %r17, PT_IOR(%r29)
 
+#if 0 && defined(CONFIG_64BIT)
+	/* Revisit when we have 64-bit code above 4Gb */
+	b,n		intr_save2
 
 skip_save_ior:
+	/* We have a itlb miss, and when executing code above 4 Gb on ILP64, we
+	 * need to adjust iasq/iaoq here in the same way we adjusted isr/ior
+	 * above.
+	 */
+	extrd,u,*	%r8,PSW_W_BIT,1,%r1
+	cmpib,COND(=),n	1,%r1,intr_save2
+	LDREG		PT_IASQ0(%r29), %r16
+	LDREG		PT_IAOQ0(%r29), %r17
+	/* adjust iasq/iaoq */
+	space_adjust	%r16,%r17,%r1
+	STREG           %r16, PT_IASQ0(%r29)
+	STREG           %r17, PT_IAOQ0(%r29)
+#else
+skip_save_ior:
+#endif
+
+intr_save2:
 	virt_map
 	save_general	%r29
 
@@ -1747,7 +1749,7 @@ fork_like fork
 fork_like vfork
 
 	/* Set the return value for the child */
-ENTRY_CFI(child_return)
+ENTRY(child_return)
 	BL	schedule_tail, %r2
 	nop
 finish_child_return:
@@ -1759,7 +1761,7 @@ finish_child_return:
 	reg_restore %r1
 	b	syscall_exit
 	copy	%r0,%r28
-ENDPROC_CFI(child_return)
+END(child_return)
 
 ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	TI_TASK-THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r26
@@ -1791,7 +1793,7 @@ ENTRY_CFI(sys_rt_sigreturn_wrapper)
 	LDREG	PT_GR28(%r1),%r28  /* reload original r28 for syscall_exit */
 ENDPROC_CFI(sys_rt_sigreturn_wrapper)
 
-ENTRY_CFI(syscall_exit)
+ENTRY(syscall_exit)
 	/* NOTE: Not all syscalls exit this way.  rt_sigreturn will exit
 	 * via syscall_exit_rfi if the signal was received while the process
 	 * was running.
@@ -1990,15 +1992,13 @@ syscall_do_resched:
 #else
 	nop
 #endif
-ENDPROC_CFI(syscall_exit)
+END(syscall_exit)
 
 
 #ifdef CONFIG_FUNCTION_TRACER
 
 	.import ftrace_function_trampoline,code
 	.align L1_CACHE_BYTES
-	.globl mcount
-	.type  mcount, @function
 ENTRY_CFI(mcount, caller)
 _mcount:
 	.export _mcount,data
@@ -2027,8 +2027,6 @@ ENDPROC_CFI(mcount)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.align 8
-	.globl return_to_handler
-	.type  return_to_handler, @function
 ENTRY_CFI(return_to_handler, caller,frame=FRAME_SIZE)
 	.export parisc_return_to_handler,data
 parisc_return_to_handler:
@@ -2078,6 +2076,7 @@ ENDPROC_CFI(return_to_handler)
 /* void call_on_stack(unsigned long param1, void *func,
 		      unsigned long new_stack) */
 ENTRY_CFI(call_on_stack, FRAME=2*FRAME_SIZE,CALLS,SAVE_RP,SAVE_SP)
+ENTRY(_call_on_stack)
 	copy	%sp, %r1
 
 	/* Regarding the HPPA calling conventions for function pointers,

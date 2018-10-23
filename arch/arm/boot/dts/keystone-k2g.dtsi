@@ -391,13 +391,10 @@
 		};
 
 		mmc0: mmc@23000000 {
-			compatible = "ti,k2g-hsmmc", "ti,omap4-hsmmc";
+			compatible = "ti,k2g-sdhci";
 			reg = <0x23000000 0x400>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_EDGE_RISING>;
-			dmas = <&edma1 24 0>, <&edma1 25 0>;
-			dma-names = "tx", "rx";
 			bus-width = <4>;
-			ti,needs-special-reset;
 			no-1-8-v;
 			max-frequency = <96000000>;
 			power-domains = <&k2g_pds 0xb>;
@@ -407,13 +404,12 @@
 		};
 
 		mmc1: mmc@23100000 {
-			compatible = "ti,k2g-hsmmc", "ti,omap4-hsmmc";
+			compatible = "ti,k2g-sdhci";
 			reg = <0x23100000 0x400>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_EDGE_RISING>;
-			dmas = <&edma1 26 0>, <&edma1 27 0>;
-			dma-names = "tx", "rx";
 			bus-width = <8>;
-			ti,needs-special-reset;
+			no-1-8-v;
+			non-removable;
 			max-frequency = <96000000>;
 			power-domains = <&k2g_pds 0xc>;
 			clocks = <&k2g_clks 0xc 1>, <&k2g_clks 0xc 2>;
@@ -609,5 +605,18 @@
 			reg = <0x21010000 0x200>;
 			interrupts = <GIC_SPI 123 IRQ_TYPE_EDGE_RISING>;
 		};
+
+		mdio: mdio@4200f00 {
+			compatible = "ti,keystone_mdio", "ti,davinci_mdio";
+			reg = <0x04200f00 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&k2g_clks 0x0018 3>;
+			clock-names = "fck";
+			power-domains = <&k2g_pds 0x0018>;
+			status = "disabled";
+			bus_freq = <2500000>;
+		};
+		#include "keystone-k2g-netcp.dtsi"
 	};
 };

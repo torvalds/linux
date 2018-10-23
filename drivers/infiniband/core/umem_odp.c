@@ -186,6 +186,7 @@ static void ib_umem_notifier_release(struct mmu_notifier *mn,
 	rbt_ib_umem_for_each_in_range(&context->umem_tree, 0,
 				      ULLONG_MAX,
 				      ib_umem_notifier_release_trampoline,
+				      true,
 				      NULL);
 	up_read(&context->umem_rwsem);
 }
@@ -207,22 +208,31 @@ static int invalidate_range_start_trampoline(struct ib_umem *item, u64 start,
 	return 0;
 }
 
-static void ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
+static int ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
 						    struct mm_struct *mm,
 						    unsigned long start,
-						    unsigned long end)
+						    unsigned long end,
+						    bool blockable)
 {
 	struct ib_ucontext *context = container_of(mn, struct ib_ucontext, mn);
+	int ret;
 
 	if (!context->invalidate_range)
-		return;
+		return 0;
+
+	if (blockable)
+		down_read(&context->umem_rwsem);
+	else if (!down_read_trylock(&context->umem_rwsem))
+		return -EAGAIN;
 
 	ib_ucontext_notifier_start_account(context);
-	down_read(&context->umem_rwsem);
-	rbt_ib_umem_for_each_in_range(&context->umem_tree, start,
+	ret = rbt_ib_umem_for_each_in_range(&context->umem_tree, start,
 				      end,
-				      invalidate_range_start_trampoline, NULL);
+				      invalidate_range_start_trampoline,
+				      blockable, NULL);
 	up_read(&context->umem_rwsem);
+
+	return ret;
 }
 
 static int invalidate_range_end_trampoline(struct ib_umem *item, u64 start,
@@ -242,10 +252,15 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	if (!context->invalidate_range)
 		return;
 
+	/*
+	 * TODO: we currently bail out if there is any sleepable work to be done
+	 * in ib_umem_notifier_invalidate_range_start so we shouldn't really block
+	 * here. But this is ugly and fragile.
+	 */
 	down_read(&context->umem_rwsem);
 	rbt_ib_umem_for_each_in_range(&context->umem_tree, start,
 				      end,
-				      invalidate_range_end_trampoline, NULL);
+				      invalidate_range_end_trampoline, true, NULL);
 	up_read(&context->umem_rwsem);
 	ib_ucontext_notifier_end_account(context);
 }
@@ -798,6 +813,7 @@ EXPORT_SYMBOL(ib_umem_odp_unmap_dma_pages);
 int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,
 				  u64 start, u64 last,
 				  umem_call_back cb,
+				  bool blockable,
 				  void *cookie)
 {
 	int ret_val = 0;
@@ -809,6 +825,9 @@ int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,
 
 	for (node = rbt_ib_umem_iter_first(root, start, last - 1);
 			node; node = next) {
+		/* TODO move the blockable decision up to the callback */
+		if (!blockable)
+			return -EAGAIN;
 		next = rbt_ib_umem_iter_next(node, start, last - 1);
 		umem = container_of(node, struct ib_umem_odp, interval_tree);
 		ret_val = cb(umem->umem, start, last, cookie) || ret_val;
