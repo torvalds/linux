@@ -1931,10 +1931,17 @@ static ssize_t ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	if (!prealloc_cf)
 		return -ENOMEM;
 
-	/* Start by sync'ing the source file */
+	/* Start by sync'ing the source and destination files */
 	ret = file_write_and_wait_range(src_file, src_off, (src_off + len));
-	if (ret < 0)
+	if (ret < 0) {
+		dout("failed to write src file (%zd)\n", ret);
 		goto out;
+	}
+	ret = file_write_and_wait_range(dst_file, dst_off, (dst_off + len));
+	if (ret < 0) {
+		dout("failed to write dst file (%zd)\n", ret);
+		goto out;
+	}
 
 	/*
 	 * We need FILE_WR caps for dst_ci and FILE_RD for src_ci as other
