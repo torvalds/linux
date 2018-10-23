@@ -799,6 +799,7 @@ int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
 void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_params *params,
 				    enum mlx5e_traffic_types tt,
 				    void *tirc, bool inner);
+void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
