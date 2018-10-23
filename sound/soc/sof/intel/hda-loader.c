@@ -257,8 +257,8 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, int tag)
 
 	/* get stream with tag */
 	list_for_each_entry(s, &bus->stream_list, list) {
-		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK
-			&& s->stream_tag == tag) {
+		if (s->direction == SNDRV_PCM_STREAM_PLAYBACK &&
+		    s->stream_tag == tag) {
 			stream = stream_to_hdac_ext_stream(s);
 			break;
 		}
