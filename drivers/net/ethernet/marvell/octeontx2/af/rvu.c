@@ -80,7 +80,7 @@ int rvu_alloc_rsrc(struct rsrc_bmap *rsrc)
 	return id;
 }
 
-static int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc)
+int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc)
 {
 	int start;
 
@@ -105,7 +105,7 @@ static void rvu_free_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc, int start)
 	bitmap_clear(rsrc->bmap, start, nrsrc);
 }
 
-static bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc)
+bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc)
 {
 	int start;
 
@@ -180,6 +180,9 @@ int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc)
 	bool is_pf;
 
 	switch (blktype) {
+	case BLKTYPE_NPC:
+		blkaddr = BLKADDR_NPC;
+		goto exit;
 	case BLKTYPE_NPA:
 		blkaddr = BLKADDR_NPA;
 		goto exit;
@@ -566,6 +569,7 @@ static void rvu_free_hw_resources(struct rvu *rvu)
 	u64 cfg;
 
 	rvu_npa_freemem(rvu);
+	rvu_npc_freemem(rvu);
 	rvu_nix_freemem(rvu);
 
 	/* Free block LF bitmaps */
@@ -770,6 +774,10 @@ init:
 		 */
 		rvu_scan_block(rvu, block);
 	}
+
+	err = rvu_npc_init(rvu);
+	if (err)
+		return err;
 
 	err = rvu_npa_init(rvu);
 	if (err)

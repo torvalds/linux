@@ -59,6 +59,32 @@ struct rvu_block {
 	unsigned char name[NAME_SIZE];
 };
 
+struct nix_mcast {
+	struct qmem	*mce_ctx;
+	struct qmem	*mcast_buf;
+	int		replay_pkind;
+	int		next_free_mce;
+	spinlock_t	mce_lock; /* Serialize MCE updates */
+};
+
+struct nix_mce_list {
+	struct hlist_head	head;
+	int			count;
+	int			max;
+};
+
+struct npc_mcam {
+	spinlock_t	lock;	/* MCAM entries and counters update lock */
+	u8	keysize;	/* MCAM keysize 112/224/448 bits */
+	u8	banks;		/* Number of MCAM banks */
+	u8	banks_per_entry;/* Number of keywords in key */
+	u16	banksize;	/* Number of MCAM entries in each bank */
+	u16	total_entries;	/* Total number of MCAM entries */
+	u16     entries;	/* Total minus reserved for NIX LFs */
+	u16	nixlf_offset;	/* Offset of nixlf rsvd uncast entries */
+	u16	pf_offset;	/* Offset of PF's rsvd bcast, promisc entries */
+};
+
 /* Structure for per RVU func info ie PF/VF */
 struct rvu_pfvf {
 	bool		npalf; /* Only one NPALF per RVU_FUNC */
@@ -67,6 +93,7 @@ struct rvu_pfvf {
 	u16		ssow;
 	u16		cptlfs;
 	u16		timlfs;
+	u8		cgx_lmac;
 
 	/* Block LF's MSIX vector info */
 	struct rsrc_bmap msix;      /* Bitmap for MSIX vector alloc */
@@ -91,7 +118,16 @@ struct rvu_pfvf {
 	unsigned long	*rq_bmap;
 	unsigned long	*cq_bmap;
 
+	u16		rx_chan_base;
+	u16		tx_chan_base;
+	u8              rx_chan_cnt; /* total number of RX channels */
+	u8              tx_chan_cnt; /* total number of TX channels */
+
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
+
+	/* Broadcast pkt replication info */
+	u16			bcast_mce_idx;
+	struct nix_mce_list	bcast_mce_list;
 };
 
 struct nix_txsch {
@@ -100,8 +136,14 @@ struct nix_txsch {
 	u16  *pfvf_map;
 };
 
+struct npc_pkind {
+	struct rsrc_bmap rsrc;
+	u32	*pfchan_map;
+};
+
 struct nix_hw {
 	struct nix_txsch txsch[NIX_TXSCH_LVL_CNT]; /* Tx schedulers */
+	struct nix_mcast mcast;
 };
 
 struct rvu_hwinfo {
@@ -113,9 +155,13 @@ struct rvu_hwinfo {
 	u8	cgx_links;
 	u8	lbk_links;
 	u8	sdp_links;
+	u8	npc_kpus;          /* No of parser units */
+
 
 	struct rvu_block block[BLK_COUNT]; /* Block info */
 	struct nix_hw    *nix0;
+	struct npc_pkind pkind;
+	struct npc_mcam  mcam;
 };
 
 struct rvu {
@@ -180,11 +226,12 @@ static inline u64 rvupf_read64(struct rvu *rvu, u64 offset)
 /* Function Prototypes
  * RVU
  */
-
 int rvu_alloc_bitmap(struct rsrc_bmap *rsrc);
 int rvu_alloc_rsrc(struct rsrc_bmap *rsrc);
 void rvu_free_rsrc(struct rsrc_bmap *rsrc, int id);
 int rvu_rsrc_free_count(struct rsrc_bmap *rsrc);
+int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc);
+bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc);
 int rvu_get_pf(u16 pcifunc);
 struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
 void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf);
@@ -193,6 +240,14 @@ int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot);
 int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf);
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
+
+/* RVU HW reg validation */
+enum regmap_block {
+	TXSCHQ_HWREGMAP = 0,
+	MAX_HWREGMAP,
+};
+
+bool rvu_check_valid_reg(int regmap, int regblk, u64 reg);
 
 /* NPA/NIX AQ APIs */
 int rvu_aq_alloc(struct rvu *rvu, struct admin_queue **ad_queue,
@@ -213,6 +268,7 @@ static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
 
 int rvu_cgx_probe(struct rvu *rvu);
 void rvu_cgx_wq_destroy(struct rvu *rvu);
+void *rvu_cgx_pdata(u8 cgx_id, struct rvu *rvu);
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start);
 int rvu_mbox_handler_CGX_START_RXTX(struct rvu *rvu, struct msg_req *req,
 				    struct msg_rsp *rsp);
@@ -259,6 +315,7 @@ int rvu_mbox_handler_NPA_LF_FREE(struct rvu *rvu, struct msg_req *req,
 /* NIX APIs */
 int rvu_nix_init(struct rvu *rvu);
 void rvu_nix_freemem(struct rvu *rvu);
+int rvu_get_nixlf_count(struct rvu *rvu);
 int rvu_mbox_handler_NIX_LF_ALLOC(struct rvu *rvu,
 				  struct nix_lf_alloc_req *req,
 				  struct nix_lf_alloc_rsp *rsp);
@@ -270,4 +327,42 @@ int rvu_mbox_handler_NIX_AQ_ENQ(struct rvu *rvu,
 int rvu_mbox_handler_NIX_HWCTX_DISABLE(struct rvu *rvu,
 				       struct hwctx_disable_req *req,
 				       struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_TXSCH_ALLOC(struct rvu *rvu,
+				     struct nix_txsch_alloc_req *req,
+				     struct nix_txsch_alloc_rsp *rsp);
+int rvu_mbox_handler_NIX_TXSCH_FREE(struct rvu *rvu,
+				    struct nix_txsch_free_req *req,
+				    struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_TXSCHQ_CFG(struct rvu *rvu,
+				    struct nix_txschq_config *req,
+				    struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_STATS_RST(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_VTAG_CFG(struct rvu *rvu,
+				  struct nix_vtag_config *req,
+				  struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_RSS_FLOWKEY_CFG(struct rvu *rvu,
+					 struct nix_rss_flowkey_cfg *req,
+					 struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_SET_MAC_ADDR(struct rvu *rvu,
+				      struct nix_set_mac_addr *req,
+				      struct msg_rsp *rsp);
+int rvu_mbox_handler_NIX_SET_RX_MODE(struct rvu *rvu, struct nix_rx_mode *req,
+				     struct msg_rsp *rsp);
+
+/* NPC APIs */
+int rvu_npc_init(struct rvu *rvu);
+void rvu_npc_freemem(struct rvu *rvu);
+int rvu_npc_get_pkind(struct rvu *rvu, u16 pf);
+void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf);
+void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
+				 int nixlf, u64 chan, u8 *mac_addr);
+void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
+				   int nixlf, u64 chan, bool allmulti);
+void rvu_npc_disable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf);
+void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
+				       int nixlf, u64 chan);
+void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
+void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
+				    int group, int alg_idx, int mcam_index);
 #endif /* RVU_H */

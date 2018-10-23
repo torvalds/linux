@@ -15,6 +15,7 @@
 #include <linux/sizes.h>
 
 #include "rvu_struct.h"
+#include "common.h"
 
 #define MBOX_SIZE		SZ_64K
 
@@ -151,7 +152,15 @@ M(NPA_HWCTX_DISABLE,	0x403, hwctx_disable_req, msg_rsp)		\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc_req, nix_lf_alloc_rsp)	\
 M(NIX_LF_FREE,		0x8001, msg_req, msg_rsp)			\
 M(NIX_AQ_ENQ,		0x8002, nix_aq_enq_req, nix_aq_enq_rsp)		\
-M(NIX_HWCTX_DISABLE,	0x8003, hwctx_disable_req, msg_rsp)
+M(NIX_HWCTX_DISABLE,	0x8003, hwctx_disable_req, msg_rsp)		\
+M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc_req, nix_txsch_alloc_rsp) \
+M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free_req, msg_rsp)		\
+M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_config, msg_rsp)		\
+M(NIX_STATS_RST,	0x8007, msg_req, msg_rsp)			\
+M(NIX_VTAG_CFG,	0x8008, nix_vtag_config, msg_rsp)		\
+M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg, msg_rsp)		\
+M(NIX_SET_MAC_ADDR,	0x800a, nix_set_mac_addr, msg_rsp)		\
+M(NIX_SET_RX_MODE,	0x800b, nix_rx_mode, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -376,6 +385,10 @@ struct nix_lf_alloc_req {
 struct nix_lf_alloc_rsp {
 	struct mbox_msghdr hdr;
 	u16	sqb_size;
+	u16	rx_chan_base;
+	u16	tx_chan_base;
+	u8      rx_chan_cnt; /* total number of RX channels */
+	u8      tx_chan_cnt; /* total number of TX channels */
 	u8	lso_tsov4_idx;
 	u8	lso_tsov6_idx;
 	u8      mac_addr[ETH_ALEN];
@@ -412,6 +425,101 @@ struct nix_aq_enq_rsp {
 		struct nix_rsse_s   rss;
 		struct nix_rx_mce_s mce;
 	};
+};
+
+/* Tx scheduler/shaper mailbox messages */
+
+#define MAX_TXSCHQ_PER_FUNC		128
+
+struct nix_txsch_alloc_req {
+	struct mbox_msghdr hdr;
+	/* Scheduler queue count request at each level */
+	u16 schq_contig[NIX_TXSCH_LVL_CNT]; /* No of contiguous queues */
+	u16 schq[NIX_TXSCH_LVL_CNT]; /* No of non-contiguous queues */
+};
+
+struct nix_txsch_alloc_rsp {
+	struct mbox_msghdr hdr;
+	/* Scheduler queue count allocated at each level */
+	u16 schq_contig[NIX_TXSCH_LVL_CNT];
+	u16 schq[NIX_TXSCH_LVL_CNT];
+	/* Scheduler queue list allocated at each level */
+	u16 schq_contig_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+	u16 schq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+};
+
+struct nix_txsch_free_req {
+	struct mbox_msghdr hdr;
+#define TXSCHQ_FREE_ALL BIT_ULL(0)
+	u16 flags;
+	/* Scheduler queue level to be freed */
+	u16 schq_lvl;
+	/* List of scheduler queues to be freed */
+	u16 schq;
+};
+
+struct nix_txschq_config {
+	struct mbox_msghdr hdr;
+	u8 lvl;	/* SMQ/MDQ/TL4/TL3/TL2/TL1 */
+#define TXSCHQ_IDX_SHIFT	16
+#define TXSCHQ_IDX_MASK		(BIT_ULL(10) - 1)
+#define TXSCHQ_IDX(reg, shift)	(((reg) >> (shift)) & TXSCHQ_IDX_MASK)
+	u8 num_regs;
+#define MAX_REGS_PER_MBOX_MSG	20
+	u64 reg[MAX_REGS_PER_MBOX_MSG];
+	u64 regval[MAX_REGS_PER_MBOX_MSG];
+};
+
+struct nix_vtag_config {
+	struct mbox_msghdr hdr;
+	u8 vtag_size;
+	/* cfg_type is '0' for tx vlan cfg
+	 * cfg_type is '1' for rx vlan cfg
+	 */
+	u8 cfg_type;
+	union {
+		/* valid when cfg_type is '0' */
+		struct {
+			/* tx vlan0 tag(C-VLAN) */
+			u64 vlan0;
+			/* tx vlan1 tag(S-VLAN) */
+			u64 vlan1;
+			/* insert tx vlan tag */
+			u8 insert_vlan :1;
+			/* insert tx double vlan tag */
+			u8 double_vlan :1;
+		} tx;
+
+		/* valid when cfg_type is '1' */
+		struct {
+			/* rx vtag type index */
+			u8 vtag_type;
+			/* rx vtag strip */
+			u8 strip_vtag :1;
+			/* rx vtag capture */
+			u8 capture_vtag :1;
+		} rx;
+	};
+};
+
+struct nix_rss_flowkey_cfg {
+	struct mbox_msghdr hdr;
+	int	mcam_index;  /* MCAM entry index to modify */
+	u32	flowkey_cfg; /* Flowkey types selected */
+	u8	group;       /* RSS context or group */
+};
+
+struct nix_set_mac_addr {
+	struct mbox_msghdr hdr;
+	u8 mac_addr[ETH_ALEN]; /* MAC address to be set for this pcifunc */
+};
+
+struct nix_rx_mode {
+	struct mbox_msghdr hdr;
+#define NIX_RX_MODE_UCAST	BIT(0)
+#define NIX_RX_MODE_PROMISC	BIT(1)
+#define NIX_RX_MODE_ALLMULTI	BIT(2)
+	u16	mode;
 };
 
 #endif /* MBOX_H */
