@@ -44,7 +44,7 @@ int intel_hdcp_read_valid_bksv(struct intel_digital_port *intel_dig_port,
 			break;
 	}
 	if (i == tries) {
-		DRM_ERROR("Bksv is invalid\n");
+		DRM_DEBUG_KMS("Bksv is invalid\n");
 		return -ENODEV;
 	}
 

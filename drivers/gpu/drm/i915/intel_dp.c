@@ -5350,7 +5350,8 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 	dpcd_ret = drm_dp_dpcd_write(&intel_dig_port->dp.aux, DP_AUX_HDCP_AN,
 				     an, DRM_HDCP_AN_LEN);
 	if (dpcd_ret != DRM_HDCP_AN_LEN) {
-		DRM_ERROR("Failed to write An over DP/AUX (%zd)\n", dpcd_ret);
+		DRM_DEBUG_KMS("Failed to write An over DP/AUX (%zd)\n",
+			      dpcd_ret);
 		return dpcd_ret >= 0 ? -EIO : dpcd_ret;
 	}
 
@@ -5366,10 +5367,10 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 				rxbuf, sizeof(rxbuf),
 				DP_AUX_CH_CTL_AUX_AKSV_SELECT);
 	if (ret < 0) {
-		DRM_ERROR("Write Aksv over DP/AUX failed (%d)\n", ret);
+		DRM_DEBUG_KMS("Write Aksv over DP/AUX failed (%d)\n", ret);
 		return ret;
 	} else if (ret == 0) {
-		DRM_ERROR("Aksv write over DP/AUX was empty\n");
+		DRM_DEBUG_KMS("Aksv write over DP/AUX was empty\n");
 		return -EIO;
 	}
 
@@ -5384,7 +5385,7 @@ static int intel_dp_hdcp_read_bksv(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BKSV, bksv,
 			       DRM_HDCP_KSV_LEN);
 	if (ret != DRM_HDCP_KSV_LEN) {
-		DRM_ERROR("Read Bksv from DP/AUX failed (%zd)\n", ret);
+		DRM_DEBUG_KMS("Read Bksv from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5402,7 +5403,7 @@ static int intel_dp_hdcp_read_bstatus(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BINFO,
 			       bstatus, DRM_HDCP_BSTATUS_LEN);
 	if (ret != DRM_HDCP_BSTATUS_LEN) {
-		DRM_ERROR("Read bstatus from DP/AUX failed (%zd)\n", ret);
+		DRM_DEBUG_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5417,7 +5418,7 @@ int intel_dp_hdcp_read_bcaps(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BCAPS,
 			       bcaps, 1);
 	if (ret != 1) {
-		DRM_ERROR("Read bcaps from DP/AUX failed (%zd)\n", ret);
+		DRM_DEBUG_KMS("Read bcaps from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 
@@ -5447,7 +5448,7 @@ int intel_dp_hdcp_read_ri_prime(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_RI_PRIME,
 			       ri_prime, DRM_HDCP_RI_LEN);
 	if (ret != DRM_HDCP_RI_LEN) {
-		DRM_ERROR("Read Ri' from DP/AUX failed (%zd)\n", ret);
+		DRM_DEBUG_KMS("Read Ri' from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5462,7 +5463,7 @@ int intel_dp_hdcp_read_ksv_ready(struct intel_digital_port *intel_dig_port,
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BSTATUS,
 			       &bstatus, 1);
 	if (ret != 1) {
-		DRM_ERROR("Read bstatus from DP/AUX failed (%zd)\n", ret);
+		DRM_DEBUG_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	*ksv_ready = bstatus & DP_BSTATUS_READY;
@@ -5484,8 +5485,8 @@ int intel_dp_hdcp_read_ksv_fifo(struct intel_digital_port *intel_dig_port,
 				       ksv_fifo + i * DRM_HDCP_KSV_LEN,
 				       len);
 		if (ret != len) {
-			DRM_ERROR("Read ksv[%d] from DP/AUX failed (%zd)\n", i,
-				  ret);
+			DRM_DEBUG_KMS("Read ksv[%d] from DP/AUX failed (%zd)\n",
+				      i, ret);
 			return ret >= 0 ? -EIO : ret;
 		}
 	}
@@ -5505,7 +5506,7 @@ int intel_dp_hdcp_read_v_prime_part(struct intel_digital_port *intel_dig_port,
 			       DP_AUX_HDCP_V_PRIME(i), part,
 			       DRM_HDCP_V_PRIME_PART_LEN);
 	if (ret != DRM_HDCP_V_PRIME_PART_LEN) {
-		DRM_ERROR("Read v'[%d] from DP/AUX failed (%zd)\n", i, ret);
+		DRM_DEBUG_KMS("Read v'[%d] from DP/AUX failed (%zd)\n", i, ret);
 		return ret >= 0 ? -EIO : ret;
 	}
 	return 0;
@@ -5528,7 +5529,7 @@ bool intel_dp_hdcp_check_link(struct intel_digital_port *intel_dig_port)
 	ret = drm_dp_dpcd_read(&intel_dig_port->dp.aux, DP_AUX_HDCP_BSTATUS,
 			       &bstatus, 1);
 	if (ret != 1) {
-		DRM_ERROR("Read bstatus from DP/AUX failed (%zd)\n", ret);
+		DRM_DEBUG_KMS("Read bstatus from DP/AUX failed (%zd)\n", ret);
 		return false;
 	}
 
