@@ -354,8 +354,7 @@ int rk618_output_bind(struct rk618_output *output, struct drm_device *drm,
 		drm_connector_helper_add(connector,
 					 &rk618_output_connector_helper_funcs);
 
-		drm_mode_connector_attach_encoder(connector,
-						  output->bridge.encoder);
+		drm_mode_connector_attach_encoder(connector, encoder);
 
 		ret = drm_panel_attach(output->panel, connector);
 		if (ret) {
