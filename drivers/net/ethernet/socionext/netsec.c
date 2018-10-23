@@ -432,9 +432,12 @@ static int netsec_mac_update_to_phy_state(struct netsec_priv *priv)
 	return 0;
 }
 
+static int netsec_phy_read(struct mii_bus *bus, int phy_addr, int reg_addr);
+
 static int netsec_phy_write(struct mii_bus *bus,
 			    int phy_addr, int reg, u16 val)
 {
+	int status;
 	struct netsec_priv *priv = bus->priv;
 
 	if (netsec_mac_write(priv, GMAC_REG_GDR, val))
@@ -447,8 +450,19 @@ static int netsec_phy_write(struct mii_bus *bus,
 			      GMAC_REG_SHIFT_CR_GAR)))
 		return -ETIMEDOUT;
 
-	return netsec_mac_wait_while_busy(priv, GMAC_REG_GAR,
-					  NETSEC_GMAC_GAR_REG_GB);
+	status = netsec_mac_wait_while_busy(priv, GMAC_REG_GAR,
+					    NETSEC_GMAC_GAR_REG_GB);
+
+	/* Developerbox implements RTL8211E PHY and there is
+	 * a compatibility problem with F_GMAC4.
+	 * RTL8211E expects MDC clock must be kept toggling for several
+	 * clock cycle with MDIO high before entering the IDLE state.
+	 * To meet this requirement, netsec driver needs to issue dummy
+	 * read(e.g. read PHYID1(offset 0x2) register) right after write.
+	 */
+	netsec_phy_read(bus, phy_addr, MII_PHYSID1);
+
+	return status;
 }
 
 static int netsec_phy_read(struct mii_bus *bus, int phy_addr, int reg_addr)
