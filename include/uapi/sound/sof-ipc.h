@@ -795,7 +795,9 @@ struct sof_ipc_pipe_new {
 	uint32_t mips;		/* worst case instruction count per period */
 	uint32_t frames_per_sched;/* output frames of pipeline, 0 is variable */
 	uint32_t xrun_limit_usecs; /* report xruns greater than limit */
-	uint32_t timer;/* non zero if timer scheduled otherwise DAI scheduled */
+
+	/* non zero if timer scheduled, otherwise DAI DMA irq scheduled */
+	uint32_t timer_delay;
 }  __attribute__((packed));
 
 /* pipeline construction complete - SOF_IPC_TPLG_PIPE_COMPLETE */
