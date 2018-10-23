@@ -1,13 +1,14 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note)) OR BSD-3-Clause)
-//
-// This file is provided under a dual BSD/GPLv2 license.  When using or
-// redistributing this file, you may do so under either license.
-//
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
-//
-// Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
-//         Keyon Jie <yang.jie@linux.intel.com>
-//
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note)) OR BSD-3-Clause) */
+
+/*
+ * This file is provided under a dual BSD/GPLv2 license.  When using or
+ * redistributing this file, you may do so under either license.
+ *
+ * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ *
+ * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
+ *         Keyon Jie <yang.jie@linux.intel.com>
+ */
 
 #ifndef __INCLUDE_UAPI_SOF_IPC_H__
 #define __INCLUDE_UAPI_SOF_IPC_H__
