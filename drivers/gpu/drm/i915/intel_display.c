@@ -2341,10 +2341,26 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 				 int color_plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
+	unsigned int height;
 
 	if (fb->modifier != DRM_FORMAT_MOD_LINEAR &&
-	    fb->offsets[color_plane] % intel_tile_size(dev_priv))
+	    fb->offsets[color_plane] % intel_tile_size(dev_priv)) {
+		DRM_DEBUG_KMS("Misaligned offset 0x%08x for color plane %d\n",
+			      fb->offsets[color_plane], color_plane);
 		return -EINVAL;
+	}
+
+	height = drm_framebuffer_plane_height(fb->height, fb, color_plane);
+	height = ALIGN(height, intel_tile_height(fb, color_plane));
+
+	/* Catch potential overflows early */
+	if (add_overflows_t(u32, mul_u32_u32(height, fb->pitches[color_plane]),
+			    fb->offsets[color_plane])) {
+		DRM_DEBUG_KMS("Bad offset 0x%08x or pitch %d for color plane %d\n",
+			      fb->offsets[color_plane], fb->pitches[color_plane],
+			      color_plane);
+		return -ERANGE;
+	}
 
 	*x = 0;
 	*y = 0;
