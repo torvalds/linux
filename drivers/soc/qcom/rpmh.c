@@ -192,9 +192,8 @@ static int __rpmh_write(const struct device *dev, enum rpmh_state state,
 		WARN_ON(irqs_disabled());
 		ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msg->msg);
 	} else {
-		ret = rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr),
-				&rpm_msg->msg);
 		/* Clean up our call by spoofing tx_done */
+		ret = 0;
 		rpmh_tx_done(&rpm_msg->msg, ret);
 	}
 
