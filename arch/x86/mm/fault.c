@@ -46,17 +46,19 @@ kmmio_fault(struct pt_regs *regs, unsigned long addr)
 
 static nokprobe_inline int kprobes_fault(struct pt_regs *regs)
 {
-	int ret = 0;
-
-	/* kprobe_running() needs smp_processor_id() */
-	if (kprobes_built_in() && !user_mode(regs)) {
-		preempt_disable();
-		if (kprobe_running() && kprobe_fault_handler(regs, 14))
-			ret = 1;
-		preempt_enable();
-	}
-
-	return ret;
+	if (!kprobes_built_in())
+		return 0;
+	if (user_mode(regs))
+		return 0;
+	/*
+	 * To be potentially processing a kprobe fault and to be allowed to call
+	 * kprobe_running(), we have to be non-preemptible.
+	 */
+	if (preemptible())
+		return 0;
+	if (!kprobe_running())
+		return 0;
+	return kprobe_fault_handler(regs, X86_TRAP_PF);
 }
 
 /*
@@ -711,7 +713,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	int sig;
 
 	/* Are we prepared to handle this kernel fault? */
-	if (fixup_exception(regs, X86_TRAP_PF)) {
+	if (fixup_exception(regs, X86_TRAP_PF, error_code, address)) {
 		/*
 		 * Any interrupt that takes a fault gets the fixup. This makes
 		 * the below recursive fault logic only apply to a faults from

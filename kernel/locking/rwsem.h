@@ -1,24 +1,30 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * The owner field of the rw_semaphore structure will be set to
- * RWSEM_READER_OWNED when a reader grabs the lock. A writer will clear
- * the owner field when it unlocks. A reader, on the other hand, will
- * not touch the owner field when it unlocks.
+ * The least significant 2 bits of the owner value has the following
+ * meanings when set.
+ *  - RWSEM_READER_OWNED (bit 0): The rwsem is owned by readers
+ *  - RWSEM_ANONYMOUSLY_OWNED (bit 1): The rwsem is anonymously owned,
+ *    i.e. the owner(s) cannot be readily determined. It can be reader
+ *    owned or the owning writer is indeterminate.
  *
- * In essence, the owner field now has the following 4 states:
- *  1) 0
- *     - lock is free or the owner hasn't set the field yet
- *  2) RWSEM_READER_OWNED
- *     - lock is currently or previously owned by readers (lock is free
- *       or not set by owner yet)
- *  3) RWSEM_ANONYMOUSLY_OWNED bit set with some other bits set as well
- *     - lock is owned by an anonymous writer, so spinning on the lock
- *       owner should be disabled.
- *  4) Other non-zero value
- *     - a writer owns the lock and other writers can spin on the lock owner.
+ * When a writer acquires a rwsem, it puts its task_struct pointer
+ * into the owner field. It is cleared after an unlock.
+ *
+ * When a reader acquires a rwsem, it will also puts its task_struct
+ * pointer into the owner field with both the RWSEM_READER_OWNED and
+ * RWSEM_ANONYMOUSLY_OWNED bits set. On unlock, the owner field will
+ * largely be left untouched. So for a free or reader-owned rwsem,
+ * the owner value may contain information about the last reader that
+ * acquires the rwsem. The anonymous bit is set because that particular
+ * reader may or may not still own the lock.
+ *
+ * That information may be helpful in debugging cases where the system
+ * seems to hang on a reader owned rwsem especially if only one reader
+ * is involved. Ideally we would like to track all the readers that own
+ * a rwsem, but the overhead is simply too big.
  */
-#define RWSEM_ANONYMOUSLY_OWNED	(1UL << 0)
-#define RWSEM_READER_OWNED	((struct task_struct *)RWSEM_ANONYMOUSLY_OWNED)
+#define RWSEM_READER_OWNED	(1UL << 0)
+#define RWSEM_ANONYMOUSLY_OWNED	(1UL << 1)
 
 #ifdef CONFIG_DEBUG_RWSEMS
 # define DEBUG_RWSEMS_WARN_ON(c)	DEBUG_LOCKS_WARN_ON(c)
@@ -44,15 +50,26 @@ static inline void rwsem_clear_owner(struct rw_semaphore *sem)
 	WRITE_ONCE(sem->owner, NULL);
 }
 
+/*
+ * The task_struct pointer of the last owning reader will be left in
+ * the owner field.
+ *
+ * Note that the owner value just indicates the task has owned the rwsem
+ * previously, it may not be the real owner or one of the real owners
+ * anymore when that field is examined, so take it with a grain of salt.
+ */
+static inline void __rwsem_set_reader_owned(struct rw_semaphore *sem,
+					    struct task_struct *owner)
+{
+	unsigned long val = (unsigned long)owner | RWSEM_READER_OWNED
+						 | RWSEM_ANONYMOUSLY_OWNED;
+
+	WRITE_ONCE(sem->owner, (struct task_struct *)val);
+}
+
 static inline void rwsem_set_reader_owned(struct rw_semaphore *sem)
 {
-	/*
-	 * We check the owner value first to make sure that we will only
-	 * do a write to the rwsem cacheline when it is really necessary
-	 * to minimize cacheline contention.
-	 */
-	if (READ_ONCE(sem->owner) != RWSEM_READER_OWNED)
-		WRITE_ONCE(sem->owner, RWSEM_READER_OWNED);
+	__rwsem_set_reader_owned(sem, current);
 }
 
 /*
@@ -72,6 +89,25 @@ static inline bool rwsem_has_anonymous_owner(struct task_struct *owner)
 {
 	return (unsigned long)owner & RWSEM_ANONYMOUSLY_OWNED;
 }
+
+#ifdef CONFIG_DEBUG_RWSEMS
+/*
+ * With CONFIG_DEBUG_RWSEMS configured, it will make sure that if there
+ * is a task pointer in owner of a reader-owned rwsem, it will be the
+ * real owner or one of the real owners. The only exception is when the
+ * unlock is done by up_read_non_owner().
+ */
+#define rwsem_clear_reader_owned rwsem_clear_reader_owned
+static inline void rwsem_clear_reader_owned(struct rw_semaphore *sem)
+{
+	unsigned long val = (unsigned long)current | RWSEM_READER_OWNED
+						   | RWSEM_ANONYMOUSLY_OWNED;
+	if (READ_ONCE(sem->owner) == (struct task_struct *)val)
+		cmpxchg_relaxed((unsigned long *)&sem->owner, val,
+				RWSEM_READER_OWNED | RWSEM_ANONYMOUSLY_OWNED);
+}
+#endif
+
 #else
 static inline void rwsem_set_owner(struct rw_semaphore *sem)
 {
@@ -81,7 +117,18 @@ static inline void rwsem_clear_owner(struct rw_semaphore *sem)
 {
 }
 
+static inline void __rwsem_set_reader_owned(struct rw_semaphore *sem,
+					   struct task_struct *owner)
+{
+}
+
 static inline void rwsem_set_reader_owned(struct rw_semaphore *sem)
+{
+}
+#endif
+
+#ifndef rwsem_clear_reader_owned
+static inline void rwsem_clear_reader_owned(struct rw_semaphore *sem)
 {
 }
 #endif
