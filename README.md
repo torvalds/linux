@@ -39,12 +39,13 @@ Kernel upstream + BPI-R2
 * <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.17-main">4.17-main</a> (EOL)
 * <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.18-main">4.18-main</a>
 * <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.19-rc">4.19-rc</a> (next LTS)
+* <a href="https://github.com/frank-w/BPI-R2-4.14/tree/4.19-main">4.19-main</a> (LTS, currently not all features merged)
 
 ## Kernel version
 
 Kernel breakdown features by version
 
-|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 | 4.18 | 4.19 |
+|          | 4.4 | 4.9 | 4.14 | 4.16 | 4.17 | 4.18 | 4.19 (rc) |
 |----------| --- | --- | --- | --- | --- | --- | --- |
 | PCIe     |  Y  |  Y  |  Y  |  Y  |     |   ?  |    |
 | SATA     |  Y  |  Y  |  Y  |  Y?  |     |  Y   |    |
