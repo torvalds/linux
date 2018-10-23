@@ -872,7 +872,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 
 	list_for_each_entry(rtd, &card->rtd_list, list) {
 		dev_vdbg(sdev->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
-			w->name,  w->sname, rtd->dai_link->stream_name);
+			 w->name,  w->sname, rtd->dai_link->stream_name);
 
 		if (!w->sname || !rtd->dai_link->stream_name)
 			continue;
@@ -2313,7 +2313,8 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		}
 
 		if (route->control) {
-			sroute->route.control = kstrdup(route->control, GFP_KERNEL);
+			sroute->route.control = kstrdup(route->control,
+							GFP_KERNEL);
 			if (!sroute->route.control) {
 				kfree(sroute->route.source);
 				kfree(sroute->route.sink);
