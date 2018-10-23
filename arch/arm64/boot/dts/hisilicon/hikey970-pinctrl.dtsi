@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Pinctrl dts file for HiSilicon HiKey970 development board
+ */
+
+#include <dt-bindings/pinctrl/hisi.h>
+
+/ {
+	soc {
+		range: gpio-range {
+			#pinctrl-single,gpio-range-cells = <3>;
+		};
+
+		pmx0: pinmux@e896c000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xe896c000 0x0 0x72c>;
+			#pinctrl-cells = <1>;
+			#gpio-range-cells = <0x3>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <0x7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 82 0>;
+		};
+
+		pmx2: pinmux@e896c800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xe896c800 0x0 0x72c>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+		};
+
+		pmx5: pinmux@fc182000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xfc182000 0x0 0x028>;
+			#gpio-range-cells = <3>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <0x7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 10 0>;
+
+		};
+
+		pmx6: pinmux@fc182800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xfc182800 0x0 0x028>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+		};
+
+		pmx7: pinmux@ff37e000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xff37e000 0x0 0x030>;
+			#gpio-range-cells = <3>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 12 0>;
+		};
+
+		pmx8: pinmux@ff37e800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xff37e800 0x0 0x030>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+		};
+
+		pmx1: pinmux@fff11000 {
+			compatible = "pinctrl-single";
+			reg = <0x0 0xfff11000 0x0 0x73c>;
+			#gpio-range-cells = <0x3>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+			pinctrl-single,function-mask = <0x7>;
+			/* pin base, nr pins & gpio function */
+			pinctrl-single,gpio-range = <&range 0 46 0>;
+		};
+
+		pmx16: pinmux@fff11800 {
+			compatible = "pinconf-single";
+			reg = <0x0 0xfff11800 0x0 0x73c>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <0x20>;
+		};
+	};
+};
