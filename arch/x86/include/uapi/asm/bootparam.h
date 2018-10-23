@@ -16,6 +16,9 @@
 #define RAMDISK_PROMPT_FLAG		0x8000
 #define RAMDISK_LOAD_FLAG		0x4000
 
+/* version flags */
+#define VERSION_WRITTEN	0x8000
+
 /* loadflags */
 #define LOADED_HIGH	(1<<0)
 #define KASLR_FLAG	(1<<1)
@@ -86,6 +89,7 @@ struct setup_header {
 	__u64	pref_address;
 	__u32	init_size;
 	__u32	handover_offset;
+	__u64	acpi_rsdp_addr;
 } __attribute__((packed));
 
 struct sys_desc_table {
