@@ -2129,11 +2129,16 @@ static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
 static void
 intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *connector)
 {
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
 	intel_attach_aspect_ratio_property(connector);
 	drm_connector_attach_content_type_property(connector);
 	connector->state->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
+
+	if (!HAS_GMCH_DISPLAY(dev_priv))
+		drm_connector_attach_max_bpc_property(connector, 8, 12);
 }
 
 /*

@@ -5859,6 +5859,10 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 		intel_attach_force_audio_property(connector);
 
 	intel_attach_broadcast_rgb_property(connector);
+	if (HAS_GMCH_DISPLAY(dev_priv))
+		drm_connector_attach_max_bpc_property(connector, 6, 10);
+	else if (INTEL_GEN(dev_priv) >= 5)
+		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
 	if (intel_dp_is_edp(intel_dp)) {
 		u32 allowed_scalers;
