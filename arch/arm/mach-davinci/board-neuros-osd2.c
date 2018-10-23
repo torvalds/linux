@@ -130,10 +130,10 @@ static struct platform_device davinci_fb_device = {
 };
 
 static const struct gpio_led ntosd2_leds[] = {
-	{ .name = "led1_green", .gpio = GPIO(10), },
-	{ .name = "led1_red",   .gpio = GPIO(11), },
-	{ .name = "led2_green", .gpio = GPIO(12), },
-	{ .name = "led2_red",   .gpio = GPIO(13), },
+	{ .name = "led1_green", .gpio = 10, },
+	{ .name = "led1_red",   .gpio = 11, },
+	{ .name = "led2_green", .gpio = 12, },
+	{ .name = "led2_red",   .gpio = 13, },
 };
 
 static struct gpio_led_platform_data ntosd2_leds_data = {
