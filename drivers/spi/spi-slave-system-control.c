@@ -60,6 +60,7 @@ static void spi_slave_system_control_complete(void *arg)
 	case CMD_REBOOT:
 		dev_info(&priv->spi->dev, "Rebooting system...\n");
 		kernel_restart(NULL);
+		break;
 
 	case CMD_POWEROFF:
 		dev_info(&priv->spi->dev, "Powering off system...\n");
