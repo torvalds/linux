@@ -5416,7 +5416,7 @@ lpfc_bsg_set_ras_config(struct bsg_job *job)
 	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	uint8_t action = 0, log_level = 0;
-	int rc = 0;
+	int rc = 0, action_status = 0;
 
 	if (job->request_len <
 	    sizeof(struct fc_bsg_request) +
@@ -5449,16 +5449,25 @@ lpfc_bsg_set_ras_config(struct bsg_job *job)
 		lpfc_ras_stop_fwlog(phba);
 	} else {
 		/*action = LPFC_RASACTION_START_LOGGING*/
-		if (ras_fwlog->ras_active == true) {
-			rc = -EINPROGRESS;
-			goto ras_job_error;
-		}
+
+		/* Even though FW-logging is active re-initialize
+		 * FW-logging with new log-level. Return status
+		 * "Logging already Running" to caller.
+		 **/
+		if (ras_fwlog->ras_active)
+			action_status = -EINPROGRESS;
 
 		/* Enable logging */
 		rc = lpfc_sli4_ras_fwlog_init(phba, log_level,
 					      LPFC_RAS_ENABLE_LOGGING);
-		if (rc)
+		if (rc) {
 			rc = -EINVAL;
+			goto ras_job_error;
+		}
+
+		/* Check if FW-logging is re-initialized */
+		if (action_status == -EINPROGRESS)
+			rc = action_status;
 	}
 ras_job_error:
 	/* make error code available to userspace */
@@ -5487,8 +5496,7 @@ lpfc_bsg_get_ras_lwpd(struct bsg_job *job)
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
 	struct fc_bsg_reply *bsg_reply = job->reply;
-	uint32_t lwpd_offset = 0;
-	uint64_t wrap_value = 0;
+	u32 *lwpd_ptr = NULL;
 	int rc = 0;
 
 	rc = lpfc_check_fwlog_support(phba);
@@ -5508,11 +5516,12 @@ lpfc_bsg_get_ras_lwpd(struct bsg_job *job)
 	ras_reply = (struct lpfc_bsg_get_ras_lwpd *)
 		bsg_reply->reply_data.vendor_reply.vendor_rsp;
 
-	lwpd_offset = *((uint32_t *)ras_fwlog->lwpd.virt) & 0xffffffff;
-	ras_reply->offset = be32_to_cpu(lwpd_offset);
+	/* Get lwpd offset */
+	lwpd_ptr = (uint32_t *)(ras_fwlog->lwpd.virt);
+	ras_reply->offset = be32_to_cpu(*lwpd_ptr & 0xffffffff);
 
-	wrap_value = *((uint64_t *)ras_fwlog->lwpd.virt);
-	ras_reply->wrap_count = be32_to_cpu((wrap_value >> 32) & 0xffffffff);
+	/* Get wrap count */
+	ras_reply->wrap_count = be32_to_cpu(*(++lwpd_ptr) & 0xffffffff);
 
 ras_job_error:
 	/* make error code available to userspace */
@@ -5539,9 +5548,8 @@ lpfc_bsg_get_ras_fwlog(struct bsg_job *job)
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	struct lpfc_bsg_get_fwlog_req *ras_req;
-	uint32_t rd_offset, rd_index, offset, pending_wlen;
-	uint32_t boundary = 0, align_len = 0, write_len = 0;
-	void *dest, *src, *fwlog_buff;
+	u32 rd_offset, rd_index, offset;
+	void *src, *fwlog_buff;
 	struct lpfc_ras_fwlog *ras_fwlog = NULL;
 	struct lpfc_dmabuf *dmabuf, *next;
 	int rc = 0;
@@ -5581,8 +5589,6 @@ lpfc_bsg_get_ras_fwlog(struct bsg_job *job)
 
 	rd_index = (rd_offset / LPFC_RAS_MAX_ENTRY_SIZE);
 	offset = (rd_offset % LPFC_RAS_MAX_ENTRY_SIZE);
-	pending_wlen = ras_req->read_size;
-	dest = fwlog_buff;
 
 	list_for_each_entry_safe(dmabuf, next,
 			      &ras_fwlog->fwlog_buff_list, list) {
@@ -5590,29 +5596,9 @@ lpfc_bsg_get_ras_fwlog(struct bsg_job *job)
 		if (dmabuf->buffer_tag < rd_index)
 			continue;
 
-		/* Align read to buffer size */
-		if (offset) {
-			boundary = ((dmabuf->buffer_tag + 1) *
-				    LPFC_RAS_MAX_ENTRY_SIZE);
-
-			align_len = (boundary - offset);
-			write_len = min_t(u32, align_len,
-					  LPFC_RAS_MAX_ENTRY_SIZE);
-		} else {
-			write_len = min_t(u32, pending_wlen,
-					  LPFC_RAS_MAX_ENTRY_SIZE);
-			align_len = 0;
-			boundary = 0;
-		}
 		src = dmabuf->virt + offset;
-		memcpy(dest, src, write_len);
-
-		pending_wlen -= write_len;
-		if (!pending_wlen)
-			break;
-
-		dest += write_len;
-		offset = (offset + write_len) % LPFC_RAS_MAX_ENTRY_SIZE;
+		memcpy(fwlog_buff, src, ras_req->read_size);
+		break;
 	}
 
 	bsg_reply->reply_payload_rcv_len =
