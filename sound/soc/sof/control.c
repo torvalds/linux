@@ -333,7 +333,6 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	snd_sof_ipc_set_comp_data(sdev->ipc, scontrol, SOF_IPC_COMP_SET_DATA,
 				  SOF_CTRL_TYPE_DATA_SET, scontrol->cmd);
 
-
 out:
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
