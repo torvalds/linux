@@ -4102,6 +4102,30 @@ finished:
 	return stat;
 }
 
+void lpfc_host_supported_speeds_set(struct Scsi_Host *shost)
+{
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	fc_host_supported_speeds(shost) = 0;
+	if (phba->lmt & LMT_64Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_64GBIT;
+	if (phba->lmt & LMT_32Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_32GBIT;
+	if (phba->lmt & LMT_16Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_16GBIT;
+	if (phba->lmt & LMT_10Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_10GBIT;
+	if (phba->lmt & LMT_8Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_8GBIT;
+	if (phba->lmt & LMT_4Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_4GBIT;
+	if (phba->lmt & LMT_2Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_2GBIT;
+	if (phba->lmt & LMT_1Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_1GBIT;
+}
+
 /**
  * lpfc_host_attrib_init - Initialize SCSI host attributes on a FC port
  * @shost: pointer to SCSI host data structure.
@@ -4129,23 +4153,7 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	lpfc_vport_symbolic_node_name(vport, fc_host_symbolic_name(shost),
 				 sizeof fc_host_symbolic_name(shost));
 
-	fc_host_supported_speeds(shost) = 0;
-	if (phba->lmt & LMT_64Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_64GBIT;
-	if (phba->lmt & LMT_32Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_32GBIT;
-	if (phba->lmt & LMT_16Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_16GBIT;
-	if (phba->lmt & LMT_10Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_10GBIT;
-	if (phba->lmt & LMT_8Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_8GBIT;
-	if (phba->lmt & LMT_4Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_4GBIT;
-	if (phba->lmt & LMT_2Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_2GBIT;
-	if (phba->lmt & LMT_1Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_1GBIT;
+	lpfc_host_supported_speeds_set(shost);
 
 	fc_host_maxframe_size(shost) =
 		(((uint32_t) vport->fc_sparam.cmn.bbRcvSizeMsb & 0x0F) << 8) |
@@ -4758,6 +4766,8 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	struct temp_event temp_event_data;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
 	struct Scsi_Host  *shost;
+	struct lpfc_vport **vports;
+	int rc, i;
 
 	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
 
@@ -4883,6 +4893,25 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			sprintf(message, "Unknown event status x%02x", status);
 			break;
 		}
+
+		/* Issue READ_CONFIG mbox command to refresh supported speeds */
+		rc = lpfc_sli4_read_config(phba);
+		if (rc == -EIO) {
+			phba->lmt = 0;
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3194 Unable to retrieve supported "
+					"speeds\n");
+		}
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports != NULL) {
+			for (i = 0; i <= phba->max_vports && vports[i] != NULL;
+					i++) {
+				shost = lpfc_shost_from_vport(vports[i]);
+				lpfc_host_supported_speeds_set(shost);
+			}
+		}
+		lpfc_destroy_vport_work_array(phba, vports);
+
 		phba->sli4_hba.lnk_info.optic_state = status;
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3176 Port Name %c %s\n", port_name, message);
