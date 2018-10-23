@@ -448,7 +448,6 @@ config RETPOLINE
 
 config INTEL_RDT
 	bool "Intel Resource Director Technology support"
-	default n
 	depends on X86 && CPU_SUP_INTEL
 	select KERNFS
 	help
@@ -702,7 +701,6 @@ config STA2X11
 	select SWIOTLB
 	select MFD_STA2X11
 	select GPIOLIB
-	default n
 	---help---
 	  This adds support for boards based on the STA2X11 IO-Hub,
 	  a.k.a. "ConneXt". The chip is used in place of the standard
@@ -800,7 +798,6 @@ config KVM_GUEST
 config KVM_DEBUG_FS
 	bool "Enable debug information for KVM Guests in debugfs"
 	depends on KVM_GUEST && DEBUG_FS
-	default n
 	---help---
 	  This option enables collection of various statistics for KVM guest.
 	  Statistics are displayed in debugfs filesystem. Enabling this option
@@ -809,7 +806,6 @@ config KVM_DEBUG_FS
 config PARAVIRT_TIME_ACCOUNTING
 	bool "Paravirtual steal time accounting"
 	depends on PARAVIRT
-	default n
 	---help---
 	  Select this option to enable fine granularity task steal time
 	  accounting. Time spent executing other tasks in parallel with
@@ -1169,7 +1165,6 @@ source "arch/x86/events/Kconfig"
 
 config X86_LEGACY_VM86
 	bool "Legacy VM86 support"
-	default n
 	depends on X86_32
 	---help---
 	  This option allows user programs to put the CPU into V8086
@@ -2221,7 +2216,6 @@ config HOTPLUG_CPU
 
 config BOOTPARAM_HOTPLUG_CPU0
 	bool "Set default setting of cpu0_hotpluggable"
-	default n
 	depends on HOTPLUG_CPU
 	---help---
 	  Set whether default state of cpu0_hotpluggable is on or off.
@@ -2826,7 +2820,6 @@ source "drivers/pcmcia/Kconfig"
 config RAPIDIO
 	tristate "RapidIO support"
 	depends on PCI
-	default n
 	help
 	  If enabled this option will include drivers and the core
 	  infrastructure code to support RapidIO interconnect devices.
