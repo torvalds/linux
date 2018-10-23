@@ -1933,7 +1933,6 @@ struct drm_i915_private {
 
 	struct dram_info {
 		bool valid;
-		bool valid_dimm;
 		bool is_16gb_dimm;
 		u8 num_channels;
 		enum dram_rank {
