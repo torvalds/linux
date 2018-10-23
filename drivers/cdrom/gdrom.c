@@ -327,15 +327,15 @@ static int get_entry_track(int track)
 static int gdrom_get_last_session(struct cdrom_device_info *cd_info,
 	struct cdrom_multisession *ms_info)
 {
-	int fentry, lentry, track, data, tocuse, err;
+	int fentry, lentry, track, data, err;
+
 	if (!gd.toc)
 		return -ENOMEM;
-	tocuse = 1;
+
 	/* Check if GD-ROM */
 	err = gdrom_readtoc_cmd(gd.toc, 1);
 	/* Not a GD-ROM so check if standard CD-ROM */
 	if (err) {
-		tocuse = 0;
 		err = gdrom_readtoc_cmd(gd.toc, 0);
 		if (err) {
 			pr_info("Could not get CD table of contents\n");
