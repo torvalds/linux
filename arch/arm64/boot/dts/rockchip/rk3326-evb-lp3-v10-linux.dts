@@ -17,7 +17,7 @@
 	compatible = "rockchip,rk3326-evb-lp3-v10-linux", "rockchip,rk3326";
 
 	chosen {
-                bootargs = "earlycon=uart8250,mmio32,0xff160000 swiotlb=1 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait";
+                bootargs = "earlycon=uart8250,mmio32,0xff160000 swiotlb=1 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
         };
 
 	adc-keys {
