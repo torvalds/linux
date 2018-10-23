@@ -4896,11 +4896,11 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 
 		/* Issue READ_CONFIG mbox command to refresh supported speeds */
 		rc = lpfc_sli4_read_config(phba);
-		if (rc == -EIO) {
+		if (rc) {
 			phba->lmt = 0;
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"3194 Unable to retrieve supported "
-					"speeds\n");
+					"speeds, rc = 0x%x\n", rc);
 		}
 		vports = lpfc_create_vport_work_array(phba);
 		if (vports != NULL) {
