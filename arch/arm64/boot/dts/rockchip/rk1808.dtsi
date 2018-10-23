@@ -143,6 +143,7 @@
 			      "suspend_clk";
 		assigned-clocks = <&cru SCLK_USB3_OTG0_SUSPEND>;
 		assigned-clock-rates = <24000000>;
+		power-domains = <&power RK1808_PD_PCIE>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
