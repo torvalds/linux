@@ -242,13 +242,62 @@ static inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
-static inline unsigned short stap(void)
+static __no_sanitize_address_or_inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 
 	asm volatile("stap %0" : "=Q" (cpu_address));
 	return cpu_address;
 }
+
+#define CALL_ARGS_0()							\
+	register unsigned long r2 asm("2")
+#define CALL_ARGS_1(arg1)						\
+	register unsigned long r2 asm("2") = (unsigned long)(arg1)
+#define CALL_ARGS_2(arg1, arg2)						\
+	CALL_ARGS_1(arg1);						\
+	register unsigned long r3 asm("3") = (unsigned long)(arg2)
+#define CALL_ARGS_3(arg1, arg2, arg3)					\
+	CALL_ARGS_2(arg1, arg2);					\
+	register unsigned long r4 asm("4") = (unsigned long)(arg3)
+#define CALL_ARGS_4(arg1, arg2, arg3, arg4)				\
+	CALL_ARGS_3(arg1, arg2, arg3);					\
+	register unsigned long r4 asm("5") = (unsigned long)(arg4)
+#define CALL_ARGS_5(arg1, arg2, arg3, arg4, arg5)			\
+	CALL_ARGS_4(arg1, arg2, arg3, arg4);				\
+	register unsigned long r4 asm("6") = (unsigned long)(arg5)
+
+#define CALL_FMT_0
+#define CALL_FMT_1 CALL_FMT_0, "0" (r2)
+#define CALL_FMT_2 CALL_FMT_1, "d" (r3)
+#define CALL_FMT_3 CALL_FMT_2, "d" (r4)
+#define CALL_FMT_4 CALL_FMT_3, "d" (r5)
+#define CALL_FMT_5 CALL_FMT_4, "d" (r6)
+
+#define CALL_CLOBBER_5 "0", "1", "14", "cc", "memory"
+#define CALL_CLOBBER_4 CALL_CLOBBER_5
+#define CALL_CLOBBER_3 CALL_CLOBBER_4, "5"
+#define CALL_CLOBBER_2 CALL_CLOBBER_3, "4"
+#define CALL_CLOBBER_1 CALL_CLOBBER_2, "3"
+#define CALL_CLOBBER_0 CALL_CLOBBER_1
+
+#define CALL_ON_STACK(fn, stack, nr, args...)				\
+({									\
+	CALL_ARGS_##nr(args);						\
+	unsigned long prev;						\
+									\
+	asm volatile(							\
+		"	la	%[_prev],0(15)\n"			\
+		"	la	15,0(%[_stack])\n"			\
+		"	stg	%[_prev],%[_bc](15)\n"			\
+		"	brasl	14,%[_fn]\n"				\
+		"	la	15,0(%[_prev])\n"			\
+		: "+&d" (r2), [_prev] "=&a" (prev)			\
+		: [_stack] "a" (stack),					\
+		  [_bc] "i" (offsetof(struct stack_frame, back_chain)),	\
+		  [_fn] "X" (fn) CALL_FMT_##nr : CALL_CLOBBER_##nr);	\
+	r2;								\
+})
 
 /*
  * Give up the time slice of the virtual PU.
@@ -287,7 +336,7 @@ static inline void __load_psw(psw_t psw)
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
-static inline void __load_psw_mask(unsigned long mask)
+static __no_sanitize_address_or_inline void __load_psw_mask(unsigned long mask)
 {
 	unsigned long addr;
 	psw_t psw;

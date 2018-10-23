@@ -9,9 +9,13 @@
 #include <asm/lowcore.h>
 #include <asm/ebcdic.h>
 #include <asm/irq.h>
+#include <asm/sections.h>
+#include <asm/mem_detect.h>
 #include "sclp.h"
 #include "sclp_rw.h"
 
+static struct read_info_sccb __bootdata(sclp_info_sccb);
+static int __bootdata(sclp_info_sccb_valid);
 char sclp_early_sccb[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
 int sclp_init_state __section(.data) = sclp_init_state_uninitialized;
 /*
@@ -233,4 +237,116 @@ void sclp_early_printk(const char *str)
 void sclp_early_printk_force(const char *str)
 {
 	__sclp_early_printk(str, strlen(str), 1);
+}
+
+int __init sclp_early_read_info(void)
+{
+	int i;
+	struct read_info_sccb *sccb = &sclp_info_sccb;
+	sclp_cmdw_t commands[] = {SCLP_CMDW_READ_SCP_INFO_FORCED,
+				  SCLP_CMDW_READ_SCP_INFO};
+
+	for (i = 0; i < ARRAY_SIZE(commands); i++) {
+		memset(sccb, 0, sizeof(*sccb));
+		sccb->header.length = sizeof(*sccb);
+		sccb->header.function_code = 0x80;
+		sccb->header.control_mask[2] = 0x80;
+		if (sclp_early_cmd(commands[i], sccb))
+			break;
+		if (sccb->header.response_code == 0x10) {
+			sclp_info_sccb_valid = 1;
+			return 0;
+		}
+		if (sccb->header.response_code != 0x1f0)
+			break;
+	}
+	return -EIO;
+}
+
+int __init sclp_early_get_info(struct read_info_sccb *info)
+{
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	*info = sclp_info_sccb;
+	return 0;
+}
+
+int __init sclp_early_get_memsize(unsigned long *mem)
+{
+	unsigned long rnmax;
+	unsigned long rnsize;
+	struct read_info_sccb *sccb = &sclp_info_sccb;
+
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
+	rnsize = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
+	rnsize <<= 20;
+	*mem = rnsize * rnmax;
+	return 0;
+}
+
+int __init sclp_early_get_hsa_size(unsigned long *hsa_size)
+{
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	*hsa_size = 0;
+	if (sclp_info_sccb.hsa_size)
+		*hsa_size = (sclp_info_sccb.hsa_size - 1) * PAGE_SIZE;
+	return 0;
+}
+
+#define SCLP_STORAGE_INFO_FACILITY     0x0000400000000000UL
+
+void __weak __init add_mem_detect_block(u64 start, u64 end) {}
+int __init sclp_early_read_storage_info(void)
+{
+	struct read_storage_sccb *sccb = (struct read_storage_sccb *)&sclp_early_sccb;
+	int rc, id, max_id = 0;
+	unsigned long rn, rzm;
+	sclp_cmdw_t command;
+	u16 sn;
+
+	if (!sclp_info_sccb_valid)
+		return -EIO;
+
+	if (!(sclp_info_sccb.facilities & SCLP_STORAGE_INFO_FACILITY))
+		return -EOPNOTSUPP;
+
+	rzm = sclp_info_sccb.rnsize ?: sclp_info_sccb.rnsize2;
+	rzm <<= 20;
+
+	for (id = 0; id <= max_id; id++) {
+		memset(sclp_early_sccb, 0, sizeof(sclp_early_sccb));
+		sccb->header.length = sizeof(sclp_early_sccb);
+		command = SCLP_CMDW_READ_STORAGE_INFO | (id << 8);
+		rc = sclp_early_cmd(command, sccb);
+		if (rc)
+			goto fail;
+
+		max_id = sccb->max_id;
+		switch (sccb->header.response_code) {
+		case 0x0010:
+			for (sn = 0; sn < sccb->assigned; sn++) {
+				if (!sccb->entries[sn])
+					continue;
+				rn = sccb->entries[sn] >> 16;
+				add_mem_detect_block((rn - 1) * rzm, rn * rzm);
+			}
+			break;
+		case 0x0310:
+		case 0x0410:
+			break;
+		default:
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	mem_detect.count = 0;
+	return -EIO;
 }

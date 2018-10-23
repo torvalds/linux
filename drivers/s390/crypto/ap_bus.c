@@ -65,12 +65,11 @@ static struct device *ap_root_device;
 DEFINE_SPINLOCK(ap_list_lock);
 LIST_HEAD(ap_card_list);
 
-/* Default permissions (card and domain masking) */
-static struct ap_perms {
-	DECLARE_BITMAP(apm, AP_DEVICES);
-	DECLARE_BITMAP(aqm, AP_DOMAINS);
-} ap_perms;
-static DEFINE_MUTEX(ap_perms_mutex);
+/* Default permissions (ioctl, card and domain masking) */
+struct ap_perms ap_perms;
+EXPORT_SYMBOL(ap_perms);
+DEFINE_MUTEX(ap_perms_mutex);
+EXPORT_SYMBOL(ap_perms_mutex);
 
 static struct ap_config_info *ap_configuration;
 static bool initialised;
@@ -944,21 +943,9 @@ static int modify_bitmap(const char *str, unsigned long *bitmap, int bits)
 	return 0;
 }
 
-/*
- * process_mask_arg() - parse a bitmap string and clear/set the
- * bits in the bitmap accordingly. The string may be given as
- * absolute value, a hex string like 0x1F2E3D4C5B6A" simple over-
- * writing the current content of the bitmap. Or as relative string
- * like "+1-16,-32,-0x40,+128" where only single bits or ranges of
- * bits are cleared or set. Distinction is done based on the very
- * first character which may be '+' or '-' for the relative string
- * and othewise assume to be an absolute value string. If parsing fails
- * a negative errno value is returned. All arguments and bitmaps are
- * big endian order.
- */
-static int process_mask_arg(const char *str,
-			    unsigned long *bitmap, int bits,
-			    struct mutex *lock)
+int ap_parse_mask_str(const char *str,
+		      unsigned long *bitmap, int bits,
+		      struct mutex *lock)
 {
 	unsigned long *newmap, size;
 	int rc;
@@ -989,6 +976,7 @@ static int process_mask_arg(const char *str,
 	kfree(newmap);
 	return rc;
 }
+EXPORT_SYMBOL(ap_parse_mask_str);
 
 /*
  * AP bus attributes.
@@ -1048,6 +1036,21 @@ static ssize_t ap_usage_domain_mask_show(struct bus_type *bus, char *buf)
 }
 
 static BUS_ATTR_RO(ap_usage_domain_mask);
+
+static ssize_t ap_adapter_mask_show(struct bus_type *bus, char *buf)
+{
+	if (!ap_configuration)	/* QCI not supported */
+		return snprintf(buf, PAGE_SIZE, "not supported\n");
+
+	return snprintf(buf, PAGE_SIZE,
+			"0x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+			ap_configuration->apm[0], ap_configuration->apm[1],
+			ap_configuration->apm[2], ap_configuration->apm[3],
+			ap_configuration->apm[4], ap_configuration->apm[5],
+			ap_configuration->apm[6], ap_configuration->apm[7]);
+}
+
+static BUS_ATTR_RO(ap_adapter_mask);
 
 static ssize_t ap_interrupts_show(struct bus_type *bus, char *buf)
 {
@@ -1161,7 +1164,7 @@ static ssize_t apmask_store(struct bus_type *bus, const char *buf,
 {
 	int rc;
 
-	rc = process_mask_arg(buf, ap_perms.apm, AP_DEVICES, &ap_perms_mutex);
+	rc = ap_parse_mask_str(buf, ap_perms.apm, AP_DEVICES, &ap_perms_mutex);
 	if (rc)
 		return rc;
 
@@ -1192,7 +1195,7 @@ static ssize_t aqmask_store(struct bus_type *bus, const char *buf,
 {
 	int rc;
 
-	rc = process_mask_arg(buf, ap_perms.aqm, AP_DOMAINS, &ap_perms_mutex);
+	rc = ap_parse_mask_str(buf, ap_perms.aqm, AP_DOMAINS, &ap_perms_mutex);
 	if (rc)
 		return rc;
 
@@ -1207,6 +1210,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
 	&bus_attr_ap_control_domain_mask,
 	&bus_attr_ap_usage_domain_mask,
+	&bus_attr_ap_adapter_mask,
 	&bus_attr_config_time,
 	&bus_attr_poll_thread,
 	&bus_attr_ap_interrupts,
@@ -1218,11 +1222,10 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 };
 
 /**
- * ap_select_domain(): Select an AP domain.
- *
- * Pick one of the 16 AP domains.
+ * ap_select_domain(): Select an AP domain if possible and we haven't
+ * already done so before.
  */
-static int ap_select_domain(void)
+static void ap_select_domain(void)
 {
 	int count, max_count, best_domain;
 	struct ap_queue_status status;
@@ -1237,7 +1240,7 @@ static int ap_select_domain(void)
 	if (ap_domain_index >= 0) {
 		/* Domain has already been selected. */
 		spin_unlock_bh(&ap_domain_lock);
-		return 0;
+		return;
 	}
 	best_domain = -1;
 	max_count = 0;
@@ -1264,11 +1267,8 @@ static int ap_select_domain(void)
 	if (best_domain >= 0) {
 		ap_domain_index = best_domain;
 		AP_DBF(DBF_DEBUG, "new ap_domain_index=%d\n", ap_domain_index);
-		spin_unlock_bh(&ap_domain_lock);
-		return 0;
 	}
 	spin_unlock_bh(&ap_domain_lock);
-	return -ENODEV;
 }
 
 /*
@@ -1346,8 +1346,7 @@ static void ap_scan_bus(struct work_struct *unused)
 	AP_DBF(DBF_DEBUG, "%s running\n", __func__);
 
 	ap_query_configuration(ap_configuration);
-	if (ap_select_domain() != 0)
-		goto out;
+	ap_select_domain();
 
 	for (id = 0; id < AP_DEVICES; id++) {
 		/* check if device is registered */
@@ -1467,12 +1466,11 @@ static void ap_scan_bus(struct work_struct *unused)
 		}
 	} /* end device loop */
 
-	if (defdomdevs < 1)
+	if (ap_domain_index >= 0 && defdomdevs < 1)
 		AP_DBF(DBF_INFO,
 		       "no queue device with default domain %d available\n",
 		       ap_domain_index);
 
-out:
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 }
 
@@ -1496,21 +1494,22 @@ static int __init ap_debug_init(void)
 static void __init ap_perms_init(void)
 {
 	/* all resources useable if no kernel parameter string given */
+	memset(&ap_perms.ioctlm, 0xFF, sizeof(ap_perms.ioctlm));
 	memset(&ap_perms.apm, 0xFF, sizeof(ap_perms.apm));
 	memset(&ap_perms.aqm, 0xFF, sizeof(ap_perms.aqm));
 
 	/* apm kernel parameter string */
 	if (apm_str) {
 		memset(&ap_perms.apm, 0, sizeof(ap_perms.apm));
-		process_mask_arg(apm_str, ap_perms.apm, AP_DEVICES,
-				 &ap_perms_mutex);
+		ap_parse_mask_str(apm_str, ap_perms.apm, AP_DEVICES,
+				  &ap_perms_mutex);
 	}
 
 	/* aqm kernel parameter string */
 	if (aqm_str) {
 		memset(&ap_perms.aqm, 0, sizeof(ap_perms.aqm));
-		process_mask_arg(aqm_str, ap_perms.aqm, AP_DOMAINS,
-				 &ap_perms_mutex);
+		ap_parse_mask_str(aqm_str, ap_perms.aqm, AP_DOMAINS,
+				  &ap_perms_mutex);
 	}
 }
 
@@ -1533,7 +1532,7 @@ static int __init ap_module_init(void)
 		return -ENODEV;
 	}
 
-	/* set up the AP permissions (ap and aq masks) */
+	/* set up the AP permissions (ioctls, ap and aq masks) */
 	ap_perms_init();
 
 	/* Get AP configuration data if available */

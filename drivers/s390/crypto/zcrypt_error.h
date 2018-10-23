@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
  *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
@@ -16,6 +14,7 @@
 #include <linux/atomic.h>
 #include "zcrypt_debug.h"
 #include "zcrypt_api.h"
+#include "zcrypt_msgtype6.h"
 
 /**
  * Reply Messages
@@ -114,6 +113,27 @@ static inline int convert_error(struct zcrypt_queue *zq,
 			   card, queue, ehdr->reply_code);
 		return -EAGAIN;
 	case REP82_ERROR_TRANSPORT_FAIL:
+		/* Card or infrastructure failure, disable card */
+		atomic_set(&zcrypt_rescan_req, 1);
+		zq->online = 0;
+		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
+		       card, queue);
+		/* For type 86 response show the apfs value (failure reason) */
+		if (ehdr->type == TYPE86_RSP_CODE) {
+			struct {
+				struct type86_hdr hdr;
+				struct type86_fmt2_ext fmt2;
+			} __packed * head = reply->message;
+			unsigned int apfs = *((u32 *)head->fmt2.apfs);
+
+			ZCRYPT_DBF(DBF_ERR,
+				   "device=%02x.%04x reply=0x%02x apfs=0x%x => online=0 rc=EAGAIN\n",
+				   card, queue, apfs, ehdr->reply_code);
+		} else
+			ZCRYPT_DBF(DBF_ERR,
+				   "device=%02x.%04x reply=0x%02x => online=0 rc=EAGAIN\n",
+				   card, queue, ehdr->reply_code);
+		return -EAGAIN;
 	case REP82_ERROR_MACHINE_FAILURE:
 	//   REP88_ERROR_MODULE_FAILURE		// '10' CEX2A
 		/* If a card fails disable it and repeat the request. */

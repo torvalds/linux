@@ -341,6 +341,8 @@ static inline int is_module_addr(void *addr)
 #define PTRS_PER_P4D	_CRST_ENTRIES
 #define PTRS_PER_PGD	_CRST_ENTRIES
 
+#define MAX_PTRS_PER_P4D	PTRS_PER_P4D
+
 /*
  * Segment table and region3 table entry encoding
  * (R = read-only, I = invalid, y = young bit):
@@ -466,6 +468,12 @@ static inline int is_module_addr(void *addr)
 				 _SEGMENT_ENTRY_YOUNG |	\
 				 _SEGMENT_ENTRY_PROTECT | \
 				 _SEGMENT_ENTRY_NOEXEC)
+#define SEGMENT_KERNEL_EXEC __pgprot(_SEGMENT_ENTRY |	\
+				 _SEGMENT_ENTRY_LARGE |	\
+				 _SEGMENT_ENTRY_READ |	\
+				 _SEGMENT_ENTRY_WRITE | \
+				 _SEGMENT_ENTRY_YOUNG |	\
+				 _SEGMENT_ENTRY_DIRTY)
 
 /*
  * Region3 entry (large page) protection definitions.
@@ -597,6 +605,14 @@ static inline int pgd_bad(pgd_t pgd)
 		~_SEGMENT_ENTRY_ORIGIN & ~_REGION_ENTRY_INVALID &
 		~_REGION_ENTRY_TYPE_MASK & ~_REGION_ENTRY_LENGTH;
 	return (pgd_val(pgd) & mask) != 0;
+}
+
+static inline unsigned long pgd_pfn(pgd_t pgd)
+{
+	unsigned long origin_mask;
+
+	origin_mask = _REGION_ENTRY_ORIGIN;
+	return (pgd_val(pgd) & origin_mask) >> PAGE_SHIFT;
 }
 
 static inline int p4d_folded(p4d_t p4d)
@@ -1171,6 +1187,7 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 
 #define pgd_offset(mm, address) ((mm)->pgd + pgd_index(address))
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
+#define pgd_offset_raw(pgd, addr) ((pgd) + pgd_index(addr))
 
 #define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
 #define pud_deref(pud) (pud_val(pud) & _REGION_ENTRY_ORIGIN)
@@ -1210,7 +1227,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 
 #define pmd_page(pmd) pfn_to_page(pmd_pfn(pmd))
 #define pud_page(pud) pfn_to_page(pud_pfn(pud))
-#define p4d_page(pud) pfn_to_page(p4d_pfn(p4d))
+#define p4d_page(p4d) pfn_to_page(p4d_pfn(p4d))
+#define pgd_page(pgd) pfn_to_page(pgd_pfn(pgd))
 
 /* Find an entry in the lowest level page table.. */
 #define pte_offset(pmd, addr) ((pte_t *) pmd_deref(*(pmd)) + pte_index(addr))

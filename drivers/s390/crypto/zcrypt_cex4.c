@@ -37,8 +37,8 @@
 #define CEX4_CLEANUP_TIME	(900*HZ)
 
 MODULE_AUTHOR("IBM Corporation");
-MODULE_DESCRIPTION("CEX4 Cryptographic Card device driver, " \
-		   "Copyright IBM Corp. 2012");
+MODULE_DESCRIPTION("CEX4/CEX5/CEX6 Cryptographic Card device driver, " \
+		   "Copyright IBM Corp. 2018");
 MODULE_LICENSE("GPL");
 
 static struct ap_device_id zcrypt_cex4_card_ids[] = {
@@ -66,8 +66,9 @@ static struct ap_device_id zcrypt_cex4_queue_ids[] = {
 MODULE_DEVICE_TABLE(ap, zcrypt_cex4_queue_ids);
 
 /**
- * Probe function for CEX4 card device. It always accepts the AP device
- * since the bus_match already checked the hardware type.
+ * Probe function for CEX4/CEX5/CEX6 card device. It always
+ * accepts the AP device since the bus_match already checked
+ * the hardware type.
  * @ap_dev: pointer to the AP device.
  */
 static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
@@ -199,7 +200,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 }
 
 /**
- * This is called to remove the CEX4 card driver information
+ * This is called to remove the CEX4/CEX5/CEX6 card driver information
  * if an AP card device is removed.
  */
 static void zcrypt_cex4_card_remove(struct ap_device *ap_dev)
@@ -218,8 +219,9 @@ static struct ap_driver zcrypt_cex4_card_driver = {
 };
 
 /**
- * Probe function for CEX4 queue device. It always accepts the AP device
- * since the bus_match already checked the hardware type.
+ * Probe function for CEX4/CEX5/CEX6 queue device. It always
+ * accepts the AP device since the bus_match already checked
+ * the hardware type.
  * @ap_dev: pointer to the AP device.
  */
 static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
@@ -265,8 +267,8 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 }
 
 /**
- * This is called to remove the CEX4 queue driver information
- * if an AP queue device is removed.
+ * This is called to remove the CEX4/CEX5/CEX6 queue driver
+ * information if an AP queue device is removed.
  */
 static void zcrypt_cex4_queue_remove(struct ap_device *ap_dev)
 {

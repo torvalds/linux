@@ -186,36 +186,34 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
-#define ASYNC_FRAME_OFFSET (ASYNC_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
-#define PANIC_FRAME_OFFSET (PAGE_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
-
 static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
-	unsigned long async_stack, panic_stack;
+	unsigned long async_stack, nodat_stack;
 	struct lowcore *lc;
 
 	if (pcpu != &pcpu_devices[0]) {
 		pcpu->lowcore =	(struct lowcore *)
 			__get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
-		async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
-		panic_stack = __get_free_page(GFP_KERNEL);
-		if (!pcpu->lowcore || !panic_stack || !async_stack)
+		nodat_stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+		if (!pcpu->lowcore || !nodat_stack)
 			goto out;
 	} else {
-		async_stack = pcpu->lowcore->async_stack - ASYNC_FRAME_OFFSET;
-		panic_stack = pcpu->lowcore->panic_stack - PANIC_FRAME_OFFSET;
+		nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
 	}
+	async_stack = stack_alloc();
+	if (!async_stack)
+		goto out;
 	lc = pcpu->lowcore;
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
-	lc->async_stack = async_stack + ASYNC_FRAME_OFFSET;
-	lc->panic_stack = panic_stack + PANIC_FRAME_OFFSET;
+	lc->async_stack = async_stack + STACK_INIT_OFFSET;
+	lc->nodat_stack = nodat_stack + STACK_INIT_OFFSET;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 	if (nmi_alloc_per_cpu(lc))
-		goto out;
+		goto out_async;
 	if (vdso_alloc_per_cpu(lc))
 		goto out_mcesa;
 	lowcore_ptr[cpu] = lc;
@@ -224,10 +222,11 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 
 out_mcesa:
 	nmi_free_per_cpu(lc);
+out_async:
+	stack_free(async_stack);
 out:
 	if (pcpu != &pcpu_devices[0]) {
-		free_page(panic_stack);
-		free_pages(async_stack, ASYNC_ORDER);
+		free_pages(nodat_stack, THREAD_SIZE_ORDER);
 		free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
 	}
 	return -ENOMEM;
@@ -237,15 +236,21 @@ out:
 
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
+	unsigned long async_stack, nodat_stack, lowcore;
+
+	nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
+	async_stack = pcpu->lowcore->async_stack - STACK_INIT_OFFSET;
+	lowcore = (unsigned long) pcpu->lowcore;
+
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[pcpu - pcpu_devices] = NULL;
 	vdso_free_per_cpu(pcpu->lowcore);
 	nmi_free_per_cpu(pcpu->lowcore);
+	stack_free(async_stack);
 	if (pcpu == &pcpu_devices[0])
 		return;
-	free_page(pcpu->lowcore->panic_stack-PANIC_FRAME_OFFSET);
-	free_pages(pcpu->lowcore->async_stack-ASYNC_FRAME_OFFSET, ASYNC_ORDER);
-	free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
+	free_pages(nodat_stack, THREAD_SIZE_ORDER);
+	free_pages(lowcore, LC_ORDER);
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
@@ -293,7 +298,7 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 {
 	struct lowcore *lc = pcpu->lowcore;
 
-	lc->restart_stack = lc->kernel_stack;
+	lc->restart_stack = lc->nodat_stack;
 	lc->restart_fn = (unsigned long) func;
 	lc->restart_data = (unsigned long) data;
 	lc->restart_source = -1UL;
@@ -303,15 +308,21 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 /*
  * Call function via PSW restart on pcpu and stop the current cpu.
  */
-static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
-			  void *data, unsigned long stack)
+static void __pcpu_delegate(void (*func)(void*), void *data)
+{
+	func(data);	/* should not return */
+}
+
+static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
+						void (*func)(void *),
+						void *data, unsigned long stack)
 {
 	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
 	unsigned long source_cpu = stap();
 
-	__load_psw_mask(PSW_KERNEL_BITS);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	if (pcpu->address == source_cpu)
-		func(data);	/* should not return */
+		CALL_ON_STACK(__pcpu_delegate, stack, 2, func, data);
 	/* Stop target cpu (if func returns this stops the current cpu). */
 	pcpu_sigp_retry(pcpu, SIGP_STOP, 0);
 	/* Restart func on the target cpu and stop the current cpu. */
@@ -372,8 +383,7 @@ void smp_call_online_cpu(void (*func)(void *), void *data)
 void smp_call_ipl_cpu(void (*func)(void *), void *data)
 {
 	pcpu_delegate(&pcpu_devices[0], func, data,
-		      pcpu_devices->lowcore->panic_stack -
-		      PANIC_FRAME_OFFSET + PAGE_SIZE);
+		      pcpu_devices->lowcore->nodat_stack);
 }
 
 int smp_find_processor_id(u16 address)
@@ -791,35 +801,40 @@ void __init smp_detect_cpus(void)
 	memblock_free_early((unsigned long)info, sizeof(*info));
 }
 
-/*
- *	Activate a secondary processor.
- */
-static void smp_start_secondary(void *cpuvoid)
+static void smp_init_secondary(void)
 {
 	int cpu = smp_processor_id();
 
 	S390_lowcore.last_update_clock = get_tod_clock();
-	S390_lowcore.restart_stack = (unsigned long) restart_stack;
-	S390_lowcore.restart_fn = (unsigned long) do_restart;
-	S390_lowcore.restart_data = 0;
-	S390_lowcore.restart_source = -1UL;
 	restore_access_regs(S390_lowcore.access_regs_save_area);
-	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
-	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
 	vtime_init();
 	pfault_init();
-	notify_cpu_starting(cpu);
+	notify_cpu_starting(smp_processor_id());
 	if (topology_cpu_dedicated(cpu))
 		set_cpu_flag(CIF_DEDICATED_CPU);
 	else
 		clear_cpu_flag(CIF_DEDICATED_CPU);
-	set_cpu_online(cpu, true);
+	set_cpu_online(smp_processor_id(), true);
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
+}
+
+/*
+ *	Activate a secondary processor.
+ */
+static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
+{
+	S390_lowcore.restart_stack = (unsigned long) restart_stack;
+	S390_lowcore.restart_fn = (unsigned long) do_restart;
+	S390_lowcore.restart_data = 0;
+	S390_lowcore.restart_source = -1UL;
+	__ctl_load(S390_lowcore.cregs_save_area, 0, 15);
+	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
+	CALL_ON_STACK(smp_init_secondary, S390_lowcore.kernel_stack, 0);
 }
 
 /* Upping and downing of CPUs */

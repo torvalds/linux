@@ -65,11 +65,10 @@
 #define OLDMEM_SIZE	(*(unsigned long *)  (OLDMEM_SIZE_OFFSET))
 #define COMMAND_LINE	((char *)	     (COMMAND_LINE_OFFSET))
 
+extern int noexec_disabled;
 extern int memory_end_set;
 extern unsigned long memory_end;
 extern unsigned long max_physmem_end;
-
-extern void detect_memory_memblock(void);
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)

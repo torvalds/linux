@@ -32,6 +32,8 @@ typedef struct {
 	unsigned int uses_cmm:1;
 	/* The gmaps associated with this context are allowed to use huge pages. */
 	unsigned int allow_gmap_hpage_1m:1;
+	/* The mmu context is for compat task */
+	unsigned int compat_mm:1;
 } mm_context_t;
 
 #define INIT_MM_CONTEXT(name)						   \
