@@ -4530,8 +4530,11 @@ static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
 	if (val & DP_AUTOMATED_TEST_REQUEST)
 		intel_dp_handle_test_request(intel_dp);
 
-	if (val & (DP_CP_IRQ | DP_SINK_SPECIFIC_IRQ))
-		DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
+	if (val & DP_CP_IRQ)
+		intel_hdcp_check_link(intel_dp->attached_connector);
+
+	if (val & DP_SINK_SPECIFIC_IRQ)
+		DRM_DEBUG_DRIVER("Sink specific irq unhandled\n");
 }
 
 /*
@@ -5696,9 +5699,6 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		bool handled;
 
 		handled = intel_dp_short_pulse(intel_dp);
-
-		/* Short pulse can signify loss of hdcp authentication */
-		intel_hdcp_check_link(intel_dp->attached_connector);
 
 		if (!handled)
 			goto put_power;
