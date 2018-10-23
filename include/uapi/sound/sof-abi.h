@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note)) OR BSD-3-Clause)
-//
-// This file is provided under a dual BSD/GPLv2 license.  When using or
-// redistributing this file, you may do so under either license.
-//
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
-//
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note)) OR BSD-3-Clause) */
+/*
+ * This file is provided under a dual BSD/GPLv2 license.  When using or
+ * redistributing this file, you may do so under either license.
+ *
+ * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ */
 
 #ifndef __INCLUDE_UAPI_ABI_H__
 #define __INCLUDE_UAPI_ABI_H__
