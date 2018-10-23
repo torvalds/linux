@@ -1245,8 +1245,31 @@ static inline bool tcp_needs_internal_pacing(const struct sock *sk)
 	return smp_load_acquire(&sk->sk_pacing_status) == SK_PACING_NEEDED;
 }
 
+/* Return in jiffies the delay before one skb is sent.
+ * If @skb is NULL, we look at EDT for next packet being sent on the socket.
+ */
+static inline unsigned long tcp_pacing_delay(const struct sock *sk,
+					     const struct sk_buff *skb)
+{
+	s64 pacing_delay = skb ? skb->tstamp : tcp_sk(sk)->tcp_wstamp_ns;
+
+	pacing_delay -= tcp_sk(sk)->tcp_clock_cache;
+
+	return pacing_delay > 0 ? nsecs_to_jiffies(pacing_delay) : 0;
+}
+
+static inline void tcp_reset_xmit_timer(struct sock *sk,
+					const int what,
+					unsigned long when,
+					const unsigned long max_when,
+					const struct sk_buff *skb)
+{
+	inet_csk_reset_xmit_timer(sk, what, when + tcp_pacing_delay(sk, skb),
+				  max_when);
+}
+
 /* Something is really bad, we could not queue an additional packet,
- * because qdisc is full or receiver sent a 0 window.
+ * because qdisc is full or receiver sent a 0 window, or we are paced.
  * We do not want to add fuel to the fire, or abort too early,
  * so make sure the timer we arm now is at least 200ms in the future,
  * regardless of current icsk_rto value (as it could be ~2ms)
@@ -1268,8 +1291,9 @@ static inline unsigned long tcp_probe0_when(const struct sock *sk,
 static inline void tcp_check_probe_timer(struct sock *sk)
 {
 	if (!tcp_sk(sk)->packets_out && !inet_csk(sk)->icsk_pending)
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
-					  tcp_probe0_base(sk), TCP_RTO_MAX);
+		tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
+				     tcp_probe0_base(sk), TCP_RTO_MAX,
+				     NULL);
 }
 
 static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)
