@@ -2012,7 +2012,6 @@ int vega20_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 	if (data->smu_features[GNLD_DPM_DCEFCLK].enabled) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
-			clk_freq = clock_req->clock_freq_in_khz / 100;
 			clk_select = PPCLK_DCEFCLK;
 			break;
 		case amd_pp_disp_clock:
@@ -2072,7 +2071,7 @@ static int vega20_notify_smc_display_config_after_ps_adjustment(
 
 	if (data->smu_features[GNLD_DPM_DCEFCLK].supported) {
 		clock_req.clock_type = amd_pp_dcef_clock;
-		clock_req.clock_freq_in_khz = min_clocks.dcefClock;
+		clock_req.clock_freq_in_khz = min_clocks.dcefClock * 10;
 		if (!vega20_display_clock_voltage_request(hwmgr, &clock_req)) {
 			if (data->smu_features[GNLD_DS_DCEFCLK].supported)
 				PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(
@@ -2371,7 +2370,7 @@ static int vega20_get_sclks(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < count; i++) {
 		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 100;
+			dpm_table->dpm_levels[i].value * 1000;
 		clocks->data[i].latency_in_us = 0;
 	}
 
@@ -2401,7 +2400,7 @@ static int vega20_get_memclocks(struct pp_hwmgr *hwmgr,
 	for (i = 0; i < count; i++) {
 		clocks->data[i].clocks_in_khz =
 			data->mclk_latency_table.entries[i].frequency =
-			dpm_table->dpm_levels[i].value * 100;
+			dpm_table->dpm_levels[i].value * 1000;
 		clocks->data[i].latency_in_us =
 			data->mclk_latency_table.entries[i].latency =
 			vega20_get_mem_latency(hwmgr, dpm_table->dpm_levels[i].value);
@@ -2426,7 +2425,7 @@ static int vega20_get_dcefclocks(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < count; i++) {
 		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 100;
+			dpm_table->dpm_levels[i].value * 1000;
 		clocks->data[i].latency_in_us = 0;
 	}
 
@@ -2449,7 +2448,7 @@ static int vega20_get_socclocks(struct pp_hwmgr *hwmgr,
 
 	for (i = 0; i < count; i++) {
 		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 100;
+			dpm_table->dpm_levels[i].value * 1000;
 		clocks->data[i].latency_in_us = 0;
 	}
 
@@ -2600,11 +2599,11 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 				return -EINVAL;
 			}
 
-			if (input_clk < clocks.data[0].clocks_in_khz / 100 ||
+			if (input_clk < clocks.data[0].clocks_in_khz / 1000 ||
 			    input_clk > od8_settings[OD8_SETTING_UCLK_FMAX].max_value) {
 				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
 					input_clk,
-					clocks.data[0].clocks_in_khz / 100,
+					clocks.data[0].clocks_in_khz / 1000,
 					od8_settings[OD8_SETTING_UCLK_FMAX].max_value);
 				return -EINVAL;
 			}
@@ -2756,7 +2755,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 100,
+				i, clocks.data[i].clocks_in_khz / 1000,
 				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
 		break;
 
@@ -2773,7 +2772,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 100,
+				i, clocks.data[i].clocks_in_khz / 1000,
 				(clocks.data[i].clocks_in_khz == now) ? "*" : "");
 		break;
 
@@ -2838,7 +2837,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 					return ret);
 
 			size += sprintf(buf + size, "MCLK: %7uMhz %10uMhz\n",
-				clocks.data[0].clocks_in_khz / 100,
+				clocks.data[0].clocks_in_khz / 1000,
 				od8_settings[OD8_SETTING_UCLK_FMAX].max_value);
 		}
 
