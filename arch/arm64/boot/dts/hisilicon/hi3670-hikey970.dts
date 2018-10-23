@@ -10,6 +10,7 @@
 /dts-v1/;
 
 #include "hi3670.dtsi"
+#include "hikey970-pinctrl.dtsi"
 
 / {
 	model = "HiKey970";
