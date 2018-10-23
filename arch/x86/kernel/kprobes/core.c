@@ -1028,18 +1028,10 @@ NOKPROBE_SYMBOL(kprobe_fault_handler);
 
 bool arch_within_kprobe_blacklist(unsigned long addr)
 {
-	bool is_in_entry_trampoline_section = false;
-
-#ifdef CONFIG_X86_64
-	is_in_entry_trampoline_section =
-		(addr >= (unsigned long)__entry_trampoline_start &&
-		 addr < (unsigned long)__entry_trampoline_end);
-#endif
 	return  (addr >= (unsigned long)__kprobes_text_start &&
 		 addr < (unsigned long)__kprobes_text_end) ||
 		(addr >= (unsigned long)__entry_text_start &&
-		 addr < (unsigned long)__entry_text_end) ||
-		is_in_entry_trampoline_section;
+		 addr < (unsigned long)__entry_text_end);
 }
 
 int __init arch_init_kprobes(void)
