@@ -789,25 +789,27 @@ int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 /**
  * rdtgroup_cbm_overlaps_pseudo_locked - Test if CBM or portion is pseudo-locked
  * @d: RDT domain
- * @_cbm: CBM to test
+ * @cbm: CBM to test
  *
- * @d represents a cache instance and @_cbm a capacity bitmask that is
- * considered for it. Determine if @_cbm overlaps with any existing
+ * @d represents a cache instance and @cbm a capacity bitmask that is
+ * considered for it. Determine if @cbm overlaps with any existing
  * pseudo-locked region on @d.
  *
- * Return: true if @_cbm overlaps with pseudo-locked region on @d, false
+ * @cbm is unsigned long, even if only 32 bits are used, to make the
+ * bitmap functions work correctly.
+ *
+ * Return: true if @cbm overlaps with pseudo-locked region on @d, false
  * otherwise.
  */
-bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, u32 _cbm)
+bool rdtgroup_cbm_overlaps_pseudo_locked(struct rdt_domain *d, unsigned long cbm)
 {
-	unsigned long *cbm = (unsigned long *)&_cbm;
-	unsigned long *cbm_b;
 	unsigned int cbm_len;
+	unsigned long cbm_b;
 
 	if (d->plr) {
 		cbm_len = d->plr->r->cache.cbm_len;
-		cbm_b = (unsigned long *)&d->plr->cbm;
-		if (bitmap_intersects(cbm, cbm_b, cbm_len))
+		cbm_b = d->plr->cbm;
+		if (bitmap_intersects(&cbm, &cbm_b, cbm_len))
 			return true;
 	}
 	return false;
@@ -1172,6 +1174,11 @@ static int pseudo_lock_measure_cycles(struct rdtgroup *rdtgrp, int sel)
 		goto out;
 	}
 
+	if (!plr->d) {
+		ret = -ENODEV;
+		goto out;
+	}
+
 	plr->thread_done = 0;
 	cpu = cpumask_first(&plr->d->cpu_mask);
 	if (!cpu_online(cpu)) {
@@ -1236,7 +1243,7 @@ static ssize_t pseudo_lock_measure_trigger(struct file *file,
 	buf[buf_size] = '\0';
 	ret = kstrtoint(buf, 10, &sel);
 	if (ret == 0) {
-		if (sel != 1)
+		if (sel != 1 && sel != 2 && sel != 3)
 			return -EINVAL;
 		ret = debugfs_file_get(file->f_path.dentry);
 		if (ret)
@@ -1491,6 +1498,11 @@ static int pseudo_lock_dev_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	plr = rdtgrp->plr;
+
+	if (!plr->d) {
+		mutex_unlock(&rdtgroup_mutex);
+		return -ENODEV;
+	}
 
 	/*
 	 * Task is required to run with affinity to the cpus associated

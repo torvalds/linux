@@ -1368,6 +1368,9 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 
 			*match_level = MLX5_MATCH_L2;
 		}
+	} else {
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, svlan_tag, 1);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
 	}
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CVLAN)) {
@@ -2946,14 +2949,71 @@ int mlx5e_stats_flower(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static void mlx5e_tc_hairpin_update_dead_peer(struct mlx5e_priv *priv,
+					      struct mlx5e_priv *peer_priv)
+{
+	struct mlx5_core_dev *peer_mdev = peer_priv->mdev;
+	struct mlx5e_hairpin_entry *hpe;
+	u16 peer_vhca_id;
+	int bkt;
+
+	if (!same_hw_devs(priv, peer_priv))
+		return;
+
+	peer_vhca_id = MLX5_CAP_GEN(peer_mdev, vhca_id);
+
+	hash_for_each(priv->fs.tc.hairpin_tbl, bkt, hpe, hairpin_hlist) {
+		if (hpe->peer_vhca_id == peer_vhca_id)
+			hpe->hp->pair->peer_gone = true;
+	}
+}
+
+static int mlx5e_tc_netdev_event(struct notifier_block *this,
+				 unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct mlx5e_flow_steering *fs;
+	struct mlx5e_priv *peer_priv;
+	struct mlx5e_tc_table *tc;
+	struct mlx5e_priv *priv;
+
+	if (ndev->netdev_ops != &mlx5e_netdev_ops ||
+	    event != NETDEV_UNREGISTER ||
+	    ndev->reg_state == NETREG_REGISTERED)
+		return NOTIFY_DONE;
+
+	tc = container_of(this, struct mlx5e_tc_table, netdevice_nb);
+	fs = container_of(tc, struct mlx5e_flow_steering, tc);
+	priv = container_of(fs, struct mlx5e_priv, fs);
+	peer_priv = netdev_priv(ndev);
+	if (priv == peer_priv ||
+	    !(priv->netdev->features & NETIF_F_HW_TC))
+		return NOTIFY_DONE;
+
+	mlx5e_tc_hairpin_update_dead_peer(priv, peer_priv);
+
+	return NOTIFY_DONE;
+}
+
 int mlx5e_tc_nic_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
+	int err;
 
 	hash_init(tc->mod_hdr_tbl);
 	hash_init(tc->hairpin_tbl);
 
-	return rhashtable_init(&tc->ht, &tc_ht_params);
+	err = rhashtable_init(&tc->ht, &tc_ht_params);
+	if (err)
+		return err;
+
+	tc->netdevice_nb.notifier_call = mlx5e_tc_netdev_event;
+	if (register_netdevice_notifier(&tc->netdevice_nb)) {
+		tc->netdevice_nb.notifier_call = NULL;
+		mlx5_core_warn(priv->mdev, "Failed to register netdev notifier\n");
+	}
+
+	return err;
 }
 
 static void _mlx5e_tc_del_flow(void *ptr, void *arg)
@@ -2968,6 +3028,9 @@ static void _mlx5e_tc_del_flow(void *ptr, void *arg)
 void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_tc_table *tc = &priv->fs.tc;
+
+	if (tc->netdevice_nb.notifier_call)
+		unregister_netdevice_notifier(&tc->netdevice_nb);
 
 	rhashtable_free_and_destroy(&tc->ht, _mlx5e_tc_del_flow, NULL);
 

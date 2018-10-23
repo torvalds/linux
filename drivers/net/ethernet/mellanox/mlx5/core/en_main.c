@@ -4315,7 +4315,7 @@ static int mlx5e_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
-static const struct net_device_ops mlx5e_netdev_ops = {
+const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_open                = mlx5e_open,
 	.ndo_stop                = mlx5e_close,
 	.ndo_start_xmit          = mlx5e_xmit,
