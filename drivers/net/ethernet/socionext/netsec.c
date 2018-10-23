@@ -940,6 +940,9 @@ static void netsec_uninit_pkt_dring(struct netsec_priv *priv, int id)
 	dring->head = 0;
 	dring->tail = 0;
 	dring->pkt_cnt = 0;
+
+	if (id == NETSEC_RING_TX)
+		netdev_reset_queue(priv->ndev);
 }
 
 static void netsec_free_dring(struct netsec_priv *priv, int id)
