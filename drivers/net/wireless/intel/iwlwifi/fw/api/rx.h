@@ -719,6 +719,9 @@ struct iwl_rx_mpdu_desc {
 #define RX_NO_DATA_FRAME_TIME_POS	0
 #define RX_NO_DATA_FRAME_TIME_MSK	(0xfffff << RX_NO_DATA_FRAME_TIME_POS)
 
+#define RX_NO_DATA_RX_VEC0_HE_NSTS_MSK	0x03800000
+#define RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
+
 /**
  * struct iwl_rx_no_data - RX no data descriptor
  * @info: 7:0 frame type, 15:8 RX error type
@@ -739,7 +742,7 @@ struct iwl_rx_no_data {
 	__le32 fr_time;
 	__le32 rate;
 	__le32 phy_info[2];
-	__le32 rx_vec[3];
+	__le32 rx_vec[2];
 } __packed; /* RX_NO_DATA_NTFY_API_S_VER_1 */
 
 /**

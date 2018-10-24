@@ -1701,15 +1701,24 @@ void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
 	} else if (rate_n_flags & RATE_MCS_VHT_MSK) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 				RATE_MCS_STBC_POS;
-		rx_status->nss =
-			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
-						RATE_VHT_MCS_NSS_POS) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
 		rx_status->encoding = RX_ENC_VHT;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		if (rate_n_flags & RATE_MCS_BF_MSK)
 			rx_status->enc_flags |= RX_ENC_FLAG_BF;
-	} else if (!(rate_n_flags & RATE_MCS_HE_MSK)) {
+		/*
+		 * take the nss from the rx_vec since the rate_n_flags has
+		 * only 2 bits for the nss which gives a max of 4 ss but
+		 * there may be up to 8 spatial streams
+		 */
+		rx_status->nss =
+			le32_get_bits(desc->rx_vec[0],
+				      RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK) + 1;
+	} else if (rate_n_flags & RATE_MCS_HE_MSK) {
+		rx_status->nss =
+			le32_get_bits(desc->rx_vec[0],
+				      RX_NO_DATA_RX_VEC0_HE_NSTS_MSK) + 1;
+	} else {
 		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
 							       rx_status->band);
 
