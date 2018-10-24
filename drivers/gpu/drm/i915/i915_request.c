@@ -136,6 +136,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 			  intel_engine_get_seqno(engine),
 			  seqno);
 
+		kthread_park(engine->breadcrumbs.signaler);
+
 		if (!i915_seqno_passed(seqno, engine->timeline.seqno)) {
 			/* Flush any waiters before we reuse the seqno */
 			intel_engine_disarm_breadcrumbs(engine);
@@ -150,6 +152,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 		/* Finally reset hw state */
 		intel_engine_init_global_seqno(engine, seqno);
 		engine->timeline.seqno = seqno;
+
+		kthread_unpark(engine->breadcrumbs.signaler);
 	}
 
 	list_for_each_entry(timeline, &i915->gt.timelines, link)
