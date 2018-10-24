@@ -876,8 +876,8 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	for (i = 0; i < num_rqst; i++) {
 		rc = wait_for_response(ses->server, midQ[i]);
 		if (rc != 0) {
-			cifs_dbg(FYI, "Cancelling wait for mid %llu\n",
-				 midQ[i]->mid);
+			cifs_dbg(VFS, "Cancelling wait for mid %llu cmd: %d\n",
+				 midQ[i]->mid, le16_to_cpu(midQ[i]->command));
 			send_cancel(ses->server, &rqst[i], midQ[i]);
 			spin_lock(&GlobalMid_Lock);
 			if (midQ[i]->mid_state == MID_REQUEST_SUBMITTED) {
