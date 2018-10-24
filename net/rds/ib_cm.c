@@ -734,8 +734,10 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 
 	/* Check whether the remote protocol version matches ours. */
 	version = rds_ib_protocol_compatible(event, isv6);
-	if (!version)
+	if (!version) {
+		err = RDS_RDMA_REJ_INCOMPAT;
 		goto out;
+	}
 
 	dp = event->param.conn.private_data;
 	if (isv6) {
@@ -851,7 +853,7 @@ out:
 	if (conn)
 		mutex_unlock(&conn->c_cm_lock);
 	if (err)
-		rdma_reject(cm_id, NULL, 0);
+		rdma_reject(cm_id, &err, sizeof(int));
 	return destroy;
 }
 
