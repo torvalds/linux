@@ -293,7 +293,7 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 #define arch_has_block_step()	(boot_cpu_data.x86 >= 6)
 #endif
 
-#define ARCH_HAS_USER_SINGLE_STEP_INFO
+#define ARCH_HAS_USER_SINGLE_STEP_REPORT
 
 /*
  * When hitting ptrace_stop(), we cannot return using SYSRET because
