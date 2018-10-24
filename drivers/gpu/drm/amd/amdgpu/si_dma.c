@@ -61,9 +61,11 @@ static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
 }
 
 static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
+				struct amdgpu_job *job,
 				struct amdgpu_ib *ib,
-				unsigned vmid, bool ctx_switch)
+				bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
 	 * Pad as necessary with NOPs.
 	 */

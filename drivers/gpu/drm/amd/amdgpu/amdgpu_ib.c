@@ -221,8 +221,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			!amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
 			continue;
 
-		amdgpu_ring_emit_ib(ring, ib, job ? job->vmid : 0,
-				    need_ctx_switch);
+		amdgpu_ring_emit_ib(ring, job, ib, need_ctx_switch);
 		need_ctx_switch = false;
 	}
 

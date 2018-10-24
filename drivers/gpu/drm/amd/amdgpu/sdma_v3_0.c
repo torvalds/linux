@@ -419,9 +419,12 @@ static void sdma_v3_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  * Schedule an IB in the DMA ring (VI).
  */
 static void sdma_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
+				   struct amdgpu_job *job,
 				   struct amdgpu_ib *ib,
-				   unsigned vmid, bool ctx_switch)
+				   bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	/* IB packet must end on a 8 DW boundary */
 	sdma_v3_0_ring_insert_nop(ring, (10 - (lower_32_bits(ring->wptr) & 7)) % 8);
 

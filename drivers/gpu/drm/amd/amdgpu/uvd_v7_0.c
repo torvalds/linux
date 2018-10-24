@@ -1270,10 +1270,12 @@ static int uvd_v7_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
  * Write ring commands to execute the indirect buffer
  */
 static void uvd_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
+				  struct amdgpu_job *job,
 				  struct amdgpu_ib *ib,
-				  unsigned vmid, bool ctx_switch)
+				  bool ctx_switch)
 {
 	struct amdgpu_device *adev = ring->adev;
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, ring->me, mmUVD_LMI_RBC_IB_VMID), 0));
@@ -1299,8 +1301,12 @@ static void uvd_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
  * Write enc ring commands to execute the indirect buffer
  */
 static void uvd_v7_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_IB_VM);
 	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

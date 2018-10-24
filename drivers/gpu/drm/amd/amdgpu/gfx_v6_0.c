@@ -1840,9 +1840,11 @@ static void gfx_v6_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 }
 
 static void gfx_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
+				  struct amdgpu_job *job,
 				  struct amdgpu_ib *ib,
-				  unsigned vmid, bool ctx_switch)
+				  bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 header, control = 0;
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */

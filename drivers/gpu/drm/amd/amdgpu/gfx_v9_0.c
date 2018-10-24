@@ -4049,9 +4049,11 @@ static void gfx_v9_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 }
 
 static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
-                                      struct amdgpu_ib *ib,
-                                      unsigned vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 header, control = 0;
 
 	if (ib->flags & AMDGPU_IB_FLAG_CE)
@@ -4080,20 +4082,22 @@ static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 }
 
 static void gfx_v9_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
-                                          struct amdgpu_ib *ib,
-                                          unsigned vmid, bool ctx_switch)
+					  struct amdgpu_job *job,
+					  struct amdgpu_ib *ib,
+					  bool ctx_switch)
 {
-        u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vmid << 24);
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+	u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vmid << 24);
 
-        amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
+	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
-        amdgpu_ring_write(ring,
+	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
-                                (2 << 0) |
+				(2 << 0) |
 #endif
-                                lower_32_bits(ib->gpu_addr));
-        amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
-        amdgpu_ring_write(ring, control);
+				lower_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
+	amdgpu_ring_write(ring, control);
 }
 
 static void gfx_v9_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,

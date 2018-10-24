@@ -946,9 +946,11 @@ static int vce_v4_0_set_powergating_state(void *handle,
 }
 #endif
 
-static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
+static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_job *job,
+					struct amdgpu_ib *ib, bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	amdgpu_ring_write(ring, VCE_CMD_IB_VM);
 	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

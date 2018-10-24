@@ -1358,10 +1358,12 @@ static void vcn_v1_0_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64
  * Write ring commands to execute the indirect buffer
  */
 static void vcn_v1_0_dec_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib,
-				  unsigned vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
 	struct amdgpu_device *adev = ring->adev;
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_IB_VMID), 0));
@@ -1516,8 +1518,12 @@ static void vcn_v1_0_enc_ring_insert_end(struct amdgpu_ring *ring)
  * Write enc ring commands to execute the indirect buffer
  */
 static void vcn_v1_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	amdgpu_ring_write(ring, VCN_ENC_CMD_IB);
 	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
@@ -1717,10 +1723,12 @@ static void vcn_v1_0_jpeg_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u6
  * Write ring commands to execute the indirect buffer.
  */
 static void vcn_v1_0_jpeg_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib,
-				  unsigned vmid, bool ctx_switch)
+					struct amdgpu_job *job,
+					struct amdgpu_ib *ib,
+					bool ctx_switch)
 {
 	struct amdgpu_device *adev = ring->adev;
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
 	amdgpu_ring_write(ring,
 		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_JRBC_IB_VMID), 0, 0, PACKETJ_TYPE0));
