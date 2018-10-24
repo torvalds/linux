@@ -37,8 +37,6 @@ MODULE_LICENSE("GPL");
 static LIST_HEAD(hwsim_phys);
 static DEFINE_MUTEX(hwsim_phys_lock);
 
-static LIST_HEAD(hwsim_ifup_phys);
-
 static struct platform_device *mac802154hwsim_dev;
 
 /* MAC802154_HWSIM netlink family */
@@ -85,7 +83,6 @@ struct hwsim_phy {
 	struct list_head edges;
 
 	struct list_head list;
-	struct list_head list_ifup;
 };
 
 static int hwsim_add_one(struct genl_info *info, struct device *dev,
@@ -159,9 +156,6 @@ static int hwsim_hw_start(struct ieee802154_hw *hw)
 	struct hwsim_phy *phy = hw->priv;
 
 	phy->suspended = false;
-	list_add_rcu(&phy->list_ifup, &hwsim_ifup_phys);
-	synchronize_rcu();
-
 	return 0;
 }
 
@@ -170,8 +164,6 @@ static void hwsim_hw_stop(struct ieee802154_hw *hw)
 	struct hwsim_phy *phy = hw->priv;
 
 	phy->suspended = true;
-	list_del_rcu(&phy->list_ifup);
-	synchronize_rcu();
 }
 
 static int

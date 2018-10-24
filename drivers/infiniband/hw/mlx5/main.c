@@ -2793,7 +2793,7 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 			return -EINVAL;
 
 		action->flow_tag = ib_spec->flow_tag.tag_id;
-		action->has_flow_tag = true;
+		action->flags |= FLOW_ACT_HAS_TAG;
 		break;
 	case IB_FLOW_SPEC_ACTION_DROP:
 		if (FIELDS_NOT_SUPPORTED(ib_spec->drop,
@@ -2886,7 +2886,7 @@ is_valid_esp_aes_gcm(struct mlx5_core_dev *mdev,
 		return egress ? VALID_SPEC_INVALID : VALID_SPEC_NA;
 
 	return is_crypto && is_ipsec &&
-		(!egress || (!is_drop && !flow_act->has_flow_tag)) ?
+		(!egress || (!is_drop && !(flow_act->flags & FLOW_ACT_HAS_TAG))) ?
 		VALID_SPEC_VALID : VALID_SPEC_INVALID;
 }
 
@@ -3320,15 +3320,18 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
+		struct mlx5_ib_mcounters *mcounters;
+
 		err = flow_counters_set_data(flow_act.counters, ucmd);
 		if (err)
 			goto free;
 
+		mcounters = to_mcounters(flow_act.counters);
 		handler->ibcounters = flow_act.counters;
 		dest_arr[dest_num].type =
 			MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-		dest_arr[dest_num].counter =
-			to_mcounters(flow_act.counters)->hw_cntrs_hndl;
+		dest_arr[dest_num].counter_id =
+			mlx5_fc_id(mcounters->hw_cntrs_hndl);
 		dest_num++;
 	}
 
@@ -3346,7 +3349,7 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 					MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
 	}
 
-	if (flow_act.has_flow_tag &&
+	if ((flow_act.flags & FLOW_ACT_HAS_TAG)  &&
 	    (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 	     flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT)) {
 		mlx5_ib_warn(dev, "Flow tag %u and attribute type %x isn't allowed in leftovers\n",
@@ -5163,22 +5166,14 @@ done:
 	return num_counters;
 }
 
-static struct net_device*
-mlx5_ib_alloc_rdma_netdev(struct ib_device *hca,
-			  u8 port_num,
-			  enum rdma_netdev_t type,
-			  const char *name,
-			  unsigned char name_assign_type,
-			  void (*setup)(struct net_device *))
+static int mlx5_ib_rn_get_params(struct ib_device *device, u8 port_num,
+				 enum rdma_netdev_t type,
+				 struct rdma_netdev_alloc_params *params)
 {
-	struct net_device *netdev;
-
 	if (type != RDMA_NETDEV_IPOIB)
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
-	netdev = mlx5_rdma_netdev_alloc(to_mdev(hca)->mdev, hca,
-					name, setup);
-	return netdev;
+	return mlx5_rdma_rn_get_params(to_mdev(device)->mdev, device, params);
 }
 
 static void delay_drop_debugfs_cleanup(struct mlx5_ib_dev *dev)
@@ -5824,8 +5819,9 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 	dev->ib_dev.get_dev_fw_str      = get_dev_fw_str;
 	dev->ib_dev.get_vector_affinity	= mlx5_ib_get_vector_affinity;
-	if (MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads))
-		dev->ib_dev.alloc_rdma_netdev	= mlx5_ib_alloc_rdma_netdev;
+	if (MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads) &&
+	    IS_ENABLED(CONFIG_MLX5_CORE_IPOIB))
+		dev->ib_dev.rdma_netdev_get_params = mlx5_ib_rn_get_params;
 
 	if (mlx5_core_is_pf(mdev)) {
 		dev->ib_dev.get_vf_config	= mlx5_ib_get_vf_config;

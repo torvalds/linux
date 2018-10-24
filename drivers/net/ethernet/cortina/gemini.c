@@ -372,9 +372,8 @@ static int gmac_setup_phy(struct net_device *netdev)
 		return -ENODEV;
 	netdev->phydev = phy;
 
-	phy->supported &= PHY_GBIT_FEATURES;
-	phy->supported |= SUPPORTED_Asym_Pause | SUPPORTED_Pause;
-	phy->advertising = phy->supported;
+	phy_set_max_speed(phy, SPEED_1000);
+	phy_support_asym_pause(phy);
 
 	/* set PHY interface type */
 	switch (phy->interface) {

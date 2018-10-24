@@ -554,7 +554,9 @@ static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
 	return read_sysfs_hex_int(full_path);
 }
 
-const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
+const char *
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+		      const char **opt)
 {
 	char devname[IF_NAMESIZE];
 	int vendor_id;
@@ -579,6 +581,7 @@ const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino)
 		    device_id != 0x6000 &&
 		    device_id != 0x6003)
 			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
+		*opt = "ctx4";
 		return "NFP-6xxx";
 	default:
 		p_err("Can't get bfd arch name for device vendor id 0x%04x",
@@ -617,4 +620,25 @@ void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
 		jsonw_string_field(json_wtr, "ifname", name);
 	jsonw_end_object(json_wtr);
+}
+
+int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what)
+{
+	char *endptr;
+
+	NEXT_ARGP();
+
+	if (*val) {
+		p_err("%s already specified", what);
+		return -1;
+	}
+
+	*val = strtoul(**argv, &endptr, 0);
+	if (*endptr) {
+		p_err("can't parse %s as %s", **argv, what);
+		return -1;
+	}
+	NEXT_ARGP();
+
+	return 0;
 }

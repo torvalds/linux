@@ -57,16 +57,12 @@
  * @idr_lock: protect the connection identifier set
  * @idr_in_use: amount of allocated identifier entry
  * @net: network namspace instance
- * @rcvbuf_cache: memory cache of server receive buffer
+ * @awork: accept work item
  * @rcv_wq: receive workqueue
  * @send_wq: send workqueue
  * @max_rcvbuf_size: maximum permitted receive message length
- * @tipc_conn_new: callback will be called when new connection is incoming
- * @tipc_conn_release: callback will be called before releasing the connection
- * @tipc_conn_recvmsg: callback will be called when message arrives
+ * @listener: topsrv listener socket
  * @name: server name
- * @imp: message importance
- * @type: socket type
  */
 struct tipc_topsrv {
 	struct idr conn_idr;
@@ -90,9 +86,7 @@ struct tipc_topsrv {
  * @server: pointer to connected server
  * @sub_list: lsit to all pertaing subscriptions
  * @sub_lock: lock protecting the subscription list
- * @outqueue_lock: control access to the outqueue
  * @rwork: receive work item
- * @rx_action: what to do when connection socket is active
  * @outqueue: pointer to first outbound message in queue
  * @outqueue_lock: control access to the outqueue
  * @swork: send work item
@@ -657,7 +651,7 @@ int tipc_topsrv_start(struct net *net)
 	srv->max_rcvbuf_size = sizeof(struct tipc_subscr);
 	INIT_WORK(&srv->awork, tipc_topsrv_accept);
 
-	strncpy(srv->name, name, strlen(name) + 1);
+	strscpy(srv->name, name, sizeof(srv->name));
 	tn->topsrv = srv;
 	atomic_set(&tn->subscription_count, 0);
 

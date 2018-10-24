@@ -236,8 +236,7 @@ mISDN_sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 done:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	release_sock(sk);
 	return err;
 }

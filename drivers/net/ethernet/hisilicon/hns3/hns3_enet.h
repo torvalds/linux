@@ -419,8 +419,7 @@ struct hns3_nic_ring_data {
 
 struct hns3_nic_ops {
 	int (*fill_desc)(struct hns3_enet_ring *ring, void *priv,
-			 int size, dma_addr_t dma, int frag_end,
-			 enum hns_desc_type type);
+			 int size, int frag_end, enum hns_desc_type type);
 	int (*maybe_stop_tx)(struct sk_buff **out_skb,
 			     int *bnum, struct hns3_enet_ring *ring);
 	void (*get_rxd_bnum)(u32 bnum_flag, int *out_bnum);
@@ -491,7 +490,9 @@ struct hns3_enet_tqp_vector {
 	struct hns3_enet_ring_group rx_group;
 	struct hns3_enet_ring_group tx_group;
 
+	cpumask_t affinity_mask;
 	u16 num_tqps;	/* total number of tqps in TQP vector */
+	struct irq_affinity_notify affinity_notify;
 
 	char name[HNAE3_INT_NAME_LEN];
 
@@ -541,6 +542,8 @@ struct hns3_nic_priv {
 	/* Vxlan/Geneve information */
 	struct hns3_udp_tunnel udp_tnl[HNS3_UDP_TNL_MAX];
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	struct hns3_enet_coalesce tx_coal;
+	struct hns3_enet_coalesce rx_coal;
 };
 
 union l3_hdr_info {
@@ -581,6 +584,11 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 	writel(value, reg_addr + reg);
 }
 
+static inline bool hns3_dev_ongoing_func_reset(struct hnae3_ae_dev *ae_dev)
+{
+	return (ae_dev && (ae_dev->reset_type == HNAE3_FUNC_RESET));
+}
+
 #define hns3_write_dev(a, reg, value) \
 	hns3_write_reg((a)->io_base, (reg), (value))
 
@@ -615,7 +623,7 @@ void hns3_ethtool_set_ops(struct net_device *netdev);
 int hns3_set_channels(struct net_device *netdev,
 		      struct ethtool_channels *ch);
 
-bool hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
+void hns3_clean_tx_ring(struct hns3_enet_ring *ring);
 int hns3_init_all_ring(struct hns3_nic_priv *priv);
 int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
 int hns3_nic_reset_all_ring(struct hnae3_handle *h);
@@ -630,6 +638,9 @@ void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 gl_value);
 void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 				 u32 rl_value);
+
+void hns3_enable_vlan_filter(struct net_device *netdev, bool enable);
+void hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags);
 
 #ifdef CONFIG_HNS3_DCB
 void hns3_dcbnl_setup(struct hnae3_handle *handle);

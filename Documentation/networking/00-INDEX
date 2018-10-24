@@ -56,6 +56,8 @@ de4x5.txt
 	- the Digital EtherWORKS DE4?? and DE5?? PCI Ethernet driver
 decnet.txt
 	- info on using the DECnet networking layer in Linux.
+defza.txt
+	- the DEC FDDIcontroller 700 (DEFZA-xx) TURBOchannel FDDI driver
 dl2k.txt
 	- README for D-Link DL2000-based Gigabit Ethernet Adapters (dl2k.ko).
 dm9000.txt
@@ -68,12 +70,6 @@ driver.txt
 	- Softnet driver issues.
 ena.txt
 	- info on Amazon's Elastic Network Adapter (ENA)
-e100.txt
-	- info on Intel's EtherExpress PRO/100 line of 10/100 boards
-e1000.txt
-	- info on Intel's E1000 line of gigabit ethernet boards
-e1000e.txt
-	- README for the Intel Gigabit Ethernet Driver (e1000e).
 eql.txt
 	- serial IP load balancing
 fib_trie.txt
@@ -92,16 +88,8 @@ generic_netlink.txt
 	- info on Generic Netlink
 gianfar.txt
 	- Gianfar Ethernet Driver.
-i40e.txt
-	- README for the Intel Ethernet Controller XL710 Driver (i40e).
-i40evf.txt
-	- Short note on the Driver for the Intel(R) XL710 X710 Virtual Function
 ieee802154.txt
 	- Linux IEEE 802.15.4 implementation, API and drivers
-igb.txt
-	- README for the Intel Gigabit Ethernet Driver (igb).
-igbvf.txt
-	- README for the Intel Gigabit Ethernet Driver (igbvf).
 ip-sysctl.txt
 	- /proc/sys/net/ipv4/* variables
 ip_dynaddr.txt
@@ -118,12 +106,6 @@ ipvs-sysctl.txt
 	- Per-inode explanation of the /proc/sys/net/ipv4/vs interface.
 irda.txt
 	- where to get IrDA (infrared) utilities and info for Linux.
-ixgb.txt
-	- README for the Intel 10 Gigabit Ethernet Driver (ixgb).
-ixgbe.txt
-	- README for the Intel 10 Gigabit Ethernet Driver (ixgbe).
-ixgbevf.txt
-	- README for the Intel Virtual Function (VF) Driver (ixgbevf).
 l2tp.txt
 	- User guide to the L2TP tunnel protocol.
 lapb-module.txt
@@ -198,8 +180,6 @@ tc-actions-env-rules.txt
 	- rules for traffic control (tc) actions.
 timestamping.txt
 	- overview of network packet timestamping variants.
-tcp.txt
-	- short blurb on how TCP output takes place.
 tcp-thin.txt
 	- kernel tuning options for low rate 'thin' TCP streams.
 team.txt

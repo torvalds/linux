@@ -3488,11 +3488,9 @@ static int be_msix_register(struct be_adapter *adapter)
 	int status, i, vec;
 
 	for_all_evt_queues(adapter, eqo, i) {
-		char irq_name[IFNAMSIZ+4];
-
-		snprintf(irq_name, sizeof(irq_name), "%s-q%d", netdev->name, i);
+		sprintf(eqo->desc, "%s-q%d", netdev->name, i);
 		vec = be_msix_vec_get(adapter, eqo);
-		status = request_irq(vec, be_msix, 0, irq_name, eqo);
+		status = request_irq(vec, be_msix, 0, eqo->desc, eqo);
 		if (status)
 			goto err_msix;
 

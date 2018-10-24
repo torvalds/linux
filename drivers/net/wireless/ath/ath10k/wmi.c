@@ -1307,7 +1307,8 @@ static struct wmi_pdev_param_map wmi_10_2_4_pdev_param_map = {
 	.set_mcast2ucast_mode = WMI_PDEV_PARAM_UNSUPPORTED,
 	.set_mcast2ucast_buffer = WMI_PDEV_PARAM_UNSUPPORTED,
 	.remove_mcast2ucast_buffer = WMI_PDEV_PARAM_UNSUPPORTED,
-	.peer_sta_ps_statechg_enable = WMI_PDEV_PARAM_UNSUPPORTED,
+	.peer_sta_ps_statechg_enable =
+				WMI_10X_PDEV_PARAM_PEER_STA_PS_STATECHG_ENABLE,
 	.igmpmld_ac_override = WMI_PDEV_PARAM_UNSUPPORTED,
 	.block_interbss = WMI_PDEV_PARAM_UNSUPPORTED,
 	.set_disable_reset_cmdid = WMI_PDEV_PARAM_UNSUPPORTED,
@@ -1869,6 +1870,12 @@ int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id)
 	if (ret)
 		dev_kfree_skb_any(skb);
 
+	if (ret == -EAGAIN) {
+		ath10k_warn(ar, "wmi command %d timeout, restarting hardware\n",
+			    cmd_id);
+		queue_work(ar->workqueue, &ar->restart_work);
+	}
+
 	return ret;
 }
 
@@ -2336,7 +2343,12 @@ static int wmi_process_mgmt_tx_comp(struct ath10k *ar, u32 desc_id,
 	dma_unmap_single(ar->dev, pkt_addr->paddr,
 			 msdu->len, DMA_FROM_DEVICE);
 	info = IEEE80211_SKB_CB(msdu);
-	info->flags |= status;
+
+	if (status)
+		info->flags &= ~IEEE80211_TX_STAT_ACK;
+	else
+		info->flags |= IEEE80211_TX_STAT_ACK;
+
 	ieee80211_tx_status_irqsafe(ar->hw, msdu);
 
 	ret = 0;
@@ -2476,7 +2488,8 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 		   status->freq, status->band, status->signal,
 		   status->rate_idx);
 
-	ieee80211_rx(ar->hw, skb);
+	ieee80211_rx_ni(ar->hw, skb);
+
 	return 0;
 }
 
@@ -3236,18 +3249,31 @@ void ath10k_wmi_event_vdev_start_resp(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct wmi_vdev_start_ev_arg arg = {};
 	int ret;
+	u32 status;
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_VDEV_START_RESP_EVENTID\n");
+
+	ar->last_wmi_vdev_start_status = 0;
 
 	ret = ath10k_wmi_pull_vdev_start(ar, skb, &arg);
 	if (ret) {
 		ath10k_warn(ar, "failed to parse vdev start event: %d\n", ret);
-		return;
+		ar->last_wmi_vdev_start_status = ret;
+		goto out;
 	}
 
-	if (WARN_ON(__le32_to_cpu(arg.status)))
-		return;
+	status = __le32_to_cpu(arg.status);
+	if (WARN_ON_ONCE(status)) {
+		ath10k_warn(ar, "vdev-start-response reports status error: %d (%s)\n",
+			    status, (status == WMI_VDEV_START_CHAN_INVALID) ?
+			    "chan-invalid" : "unknown");
+		/* Setup is done one way or another though, so we should still
+		 * do the completion, so don't return here.
+		 */
+		ar->last_wmi_vdev_start_status = -EINVAL;
+	}
 
+out:
 	complete(&ar->vdev_setup_done);
 }
 
@@ -4774,6 +4800,13 @@ ath10k_wmi_tpc_final_get_rate(struct ath10k *ar,
 		}
 	}
 
+	if (pream == -1) {
+		ath10k_warn(ar, "unknown wmi tpc final index and frequency: %u, %u\n",
+			    pream_idx, __le32_to_cpu(ev->chan_freq));
+		tpc = 0;
+		goto out;
+	}
+
 	if (pream == 4)
 		tpc = min_t(u8, ev->rates_array[rate_idx],
 			    ev->max_reg_allow_pow[ch]);
@@ -5014,6 +5047,36 @@ ath10k_wmi_handle_tdls_peer_event(struct ath10k *ar, struct sk_buff *skb)
 			   peer_status);
 		break;
 	}
+}
+
+static void
+ath10k_wmi_event_peer_sta_ps_state_chg(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct wmi_peer_sta_ps_state_chg_event *ev;
+	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
+	u8 peer_addr[ETH_ALEN];
+
+	lockdep_assert_held(&ar->data_lock);
+
+	ev = (struct wmi_peer_sta_ps_state_chg_event *)skb->data;
+	ether_addr_copy(peer_addr, ev->peer_macaddr.addr);
+
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta_by_ifaddr(ar->hw, peer_addr, NULL);
+
+	if (!sta) {
+		ath10k_warn(ar, "failed to find station entry %pM\n",
+			    peer_addr);
+		goto exit;
+	}
+
+	arsta = (struct ath10k_sta *)sta->drv_priv;
+	arsta->peer_ps_state = __le32_to_cpu(ev->peer_ps_state);
+
+exit:
+	rcu_read_unlock();
 }
 
 void ath10k_wmi_event_pdev_ftm_intg(struct ath10k *ar, struct sk_buff *skb)
@@ -5449,7 +5512,8 @@ int ath10k_wmi_event_ready(struct ath10k *ar, struct sk_buff *skb)
 		   arg.mac_addr,
 		   __le32_to_cpu(arg.status));
 
-	ether_addr_copy(ar->mac_addr, arg.mac_addr);
+	if (is_zero_ether_addr(ar->mac_addr))
+		ether_addr_copy(ar->mac_addr, arg.mac_addr);
 	complete(&ar->wmi.unified_ready);
 	return 0;
 }
@@ -5945,6 +6009,9 @@ static void ath10k_wmi_10_2_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "received event id %d not implemented\n", id);
 		break;
+	case WMI_10_2_PEER_STA_PS_STATECHG_EVENTID:
+		ath10k_wmi_event_peer_sta_ps_state_chg(ar, skb);
+		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);
 		break;
@@ -6061,6 +6128,9 @@ static void ath10k_wmi_10_4_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_10_4_DFS_STATUS_CHECK_EVENTID:
 		ath10k_wmi_event_dfs_status_check(ar, skb);
+		break;
+	case WMI_10_4_PEER_STA_PS_STATECHG_EVENTID:
+		ath10k_wmi_event_peer_sta_ps_state_chg(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);

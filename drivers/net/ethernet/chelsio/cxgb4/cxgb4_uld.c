@@ -702,15 +702,14 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
  *	about any presently available devices that support its type.  Returns
  *	%-EBUSY if a ULD of the same type is already registered.
  */
-int cxgb4_register_uld(enum cxgb4_uld type,
-		       const struct cxgb4_uld_info *p)
+void cxgb4_register_uld(enum cxgb4_uld type,
+			const struct cxgb4_uld_info *p)
 {
 	int ret = 0;
-	unsigned int adap_idx = 0;
 	struct adapter *adap;
 
 	if (type >= CXGB4_ULD_MAX)
-		return -EINVAL;
+		return;
 
 	mutex_lock(&uld_mutex);
 	list_for_each_entry(adap, &adapter_list, list_node) {
@@ -733,52 +732,29 @@ int cxgb4_register_uld(enum cxgb4_uld type,
 		}
 		if (adap->flags & FULL_INIT_DONE)
 			enable_rx_uld(adap, type);
-		if (adap->uld[type].add) {
-			ret = -EBUSY;
+		if (adap->uld[type].add)
 			goto free_irq;
-		}
 		ret = setup_sge_txq_uld(adap, type, p);
 		if (ret)
 			goto free_irq;
 		adap->uld[type] = *p;
 		uld_attach(adap, type);
-		adap_idx++;
-	}
-	mutex_unlock(&uld_mutex);
-	return 0;
-
+		continue;
 free_irq:
-	if (adap->flags & FULL_INIT_DONE)
-		quiesce_rx_uld(adap, type);
-	if (adap->flags & USING_MSIX)
-		free_msix_queue_irqs_uld(adap, type);
-free_rxq:
-	free_sge_queues_uld(adap, type);
-free_queues:
-	free_queues_uld(adap, type);
-out:
-
-	list_for_each_entry(adap, &adapter_list, list_node) {
-		if ((type == CXGB4_ULD_CRYPTO && !is_pci_uld(adap)) ||
-		    (type != CXGB4_ULD_CRYPTO && !is_offload(adap)))
-			continue;
-		if (type == CXGB4_ULD_ISCSIT && is_t4(adap->params.chip))
-			continue;
-		if (!adap_idx)
-			break;
-		adap->uld[type].handle = NULL;
-		adap->uld[type].add = NULL;
-		release_sge_txq_uld(adap, type);
 		if (adap->flags & FULL_INIT_DONE)
 			quiesce_rx_uld(adap, type);
 		if (adap->flags & USING_MSIX)
 			free_msix_queue_irqs_uld(adap, type);
+free_rxq:
 		free_sge_queues_uld(adap, type);
+free_queues:
 		free_queues_uld(adap, type);
-		adap_idx--;
+out:
+		dev_warn(adap->pdev_dev,
+			 "ULD registration failed for uld type %d\n", type);
 	}
 	mutex_unlock(&uld_mutex);
-	return ret;
+	return;
 }
 EXPORT_SYMBOL(cxgb4_register_uld);
 

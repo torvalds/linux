@@ -70,8 +70,6 @@
 #define SQ_MASKED_IDX(sq, idx)  ((idx) & (sq)->wq->mask)
 #define RQ_MASKED_IDX(rq, idx)  ((idx) & (rq)->wq->mask)
 
-#define TX_MAX_MSS_DEFAULT      0x3E00
-
 enum sq_wqe_type {
 	SQ_NORMAL_WQE = 0,
 };
@@ -494,39 +492,102 @@ static void sq_prepare_ctrl(struct hinic_sq_ctrl *ctrl, u16 prod_idx,
 			  HINIC_SQ_CTRL_SET(SQ_NORMAL_WQE, DATA_FORMAT)     |
 			  HINIC_SQ_CTRL_SET(ctrl_size, LEN);
 
-	ctrl->queue_info = HINIC_SQ_CTRL_SET(TX_MAX_MSS_DEFAULT,
-					     QUEUE_INFO_MSS);
+	ctrl->queue_info = HINIC_SQ_CTRL_SET(HINIC_MSS_DEFAULT,
+					     QUEUE_INFO_MSS) |
+			   HINIC_SQ_CTRL_SET(1, QUEUE_INFO_UC);
 }
 
 static void sq_prepare_task(struct hinic_sq_task *task)
 {
-	task->pkt_info0 =
-		HINIC_SQ_TASK_INFO0_SET(0, L2HDR_LEN) |
-		HINIC_SQ_TASK_INFO0_SET(HINIC_L4_OFF_DISABLE, L4_OFFLOAD) |
-		HINIC_SQ_TASK_INFO0_SET(HINIC_OUTER_L3TYPE_UNKNOWN,
-					INNER_L3TYPE) |
-		HINIC_SQ_TASK_INFO0_SET(HINIC_VLAN_OFF_DISABLE,
-					VLAN_OFFLOAD) |
-		HINIC_SQ_TASK_INFO0_SET(HINIC_PKT_NOT_PARSED, PARSE_FLAG);
-
-	task->pkt_info1 =
-		HINIC_SQ_TASK_INFO1_SET(HINIC_MEDIA_UNKNOWN, MEDIA_TYPE) |
-		HINIC_SQ_TASK_INFO1_SET(0, INNER_L4_LEN) |
-		HINIC_SQ_TASK_INFO1_SET(0, INNER_L3_LEN);
-
-	task->pkt_info2 =
-		HINIC_SQ_TASK_INFO2_SET(0, TUNNEL_L4_LEN) |
-		HINIC_SQ_TASK_INFO2_SET(0, OUTER_L3_LEN)  |
-		HINIC_SQ_TASK_INFO2_SET(HINIC_TUNNEL_L4TYPE_UNKNOWN,
-					TUNNEL_L4TYPE)    |
-		HINIC_SQ_TASK_INFO2_SET(HINIC_OUTER_L3TYPE_UNKNOWN,
-					OUTER_L3TYPE);
+	task->pkt_info0 = 0;
+	task->pkt_info1 = 0;
+	task->pkt_info2 = 0;
 
 	task->ufo_v6_identify = 0;
 
 	task->pkt_info4 = HINIC_SQ_TASK_INFO4_SET(HINIC_L2TYPE_ETH, L2TYPE);
 
 	task->zero_pad = 0;
+}
+
+void hinic_task_set_l2hdr(struct hinic_sq_task *task, u32 len)
+{
+	task->pkt_info0 |= HINIC_SQ_TASK_INFO0_SET(len, L2HDR_LEN);
+}
+
+void hinic_task_set_outter_l3(struct hinic_sq_task *task,
+			      enum hinic_l3_offload_type l3_type,
+			      u32 network_len)
+{
+	task->pkt_info2 |= HINIC_SQ_TASK_INFO2_SET(l3_type, OUTER_L3TYPE) |
+			   HINIC_SQ_TASK_INFO2_SET(network_len, OUTER_L3LEN);
+}
+
+void hinic_task_set_inner_l3(struct hinic_sq_task *task,
+			     enum hinic_l3_offload_type l3_type,
+			     u32 network_len)
+{
+	task->pkt_info0 |= HINIC_SQ_TASK_INFO0_SET(l3_type, INNER_L3TYPE);
+	task->pkt_info1 |= HINIC_SQ_TASK_INFO1_SET(network_len, INNER_L3LEN);
+}
+
+void hinic_task_set_tunnel_l4(struct hinic_sq_task *task,
+			      enum hinic_l4_offload_type l4_type,
+			      u32 tunnel_len)
+{
+	task->pkt_info2 |= HINIC_SQ_TASK_INFO2_SET(l4_type, TUNNEL_L4TYPE) |
+			   HINIC_SQ_TASK_INFO2_SET(tunnel_len, TUNNEL_L4LEN);
+}
+
+void hinic_set_cs_inner_l4(struct hinic_sq_task *task, u32 *queue_info,
+			   enum hinic_l4_offload_type l4_offload,
+			   u32 l4_len, u32 offset)
+{
+	u32 tcp_udp_cs = 0, sctp = 0;
+	u32 mss = HINIC_MSS_DEFAULT;
+
+	if (l4_offload == TCP_OFFLOAD_ENABLE ||
+	    l4_offload == UDP_OFFLOAD_ENABLE)
+		tcp_udp_cs = 1;
+	else if (l4_offload == SCTP_OFFLOAD_ENABLE)
+		sctp = 1;
+
+	task->pkt_info0 |= HINIC_SQ_TASK_INFO0_SET(l4_offload, L4_OFFLOAD);
+	task->pkt_info1 |= HINIC_SQ_TASK_INFO1_SET(l4_len, INNER_L4LEN);
+
+	*queue_info |= HINIC_SQ_CTRL_SET(offset, QUEUE_INFO_PLDOFF) |
+		       HINIC_SQ_CTRL_SET(tcp_udp_cs, QUEUE_INFO_TCPUDP_CS) |
+		       HINIC_SQ_CTRL_SET(sctp, QUEUE_INFO_SCTP);
+
+	*queue_info = HINIC_SQ_CTRL_CLEAR(*queue_info, QUEUE_INFO_MSS);
+	*queue_info |= HINIC_SQ_CTRL_SET(mss, QUEUE_INFO_MSS);
+}
+
+void hinic_set_tso_inner_l4(struct hinic_sq_task *task, u32 *queue_info,
+			    enum hinic_l4_offload_type l4_offload,
+			    u32 l4_len, u32 offset, u32 ip_ident, u32 mss)
+{
+	u32 tso = 0, ufo = 0;
+
+	if (l4_offload == TCP_OFFLOAD_ENABLE)
+		tso = 1;
+	else if (l4_offload == UDP_OFFLOAD_ENABLE)
+		ufo = 1;
+
+	task->ufo_v6_identify = ip_ident;
+
+	task->pkt_info0 |= HINIC_SQ_TASK_INFO0_SET(l4_offload, L4_OFFLOAD);
+	task->pkt_info0 |= HINIC_SQ_TASK_INFO0_SET(tso || ufo, TSO_FLAG);
+	task->pkt_info1 |= HINIC_SQ_TASK_INFO1_SET(l4_len, INNER_L4LEN);
+
+	*queue_info |= HINIC_SQ_CTRL_SET(offset, QUEUE_INFO_PLDOFF) |
+		       HINIC_SQ_CTRL_SET(tso, QUEUE_INFO_TSO) |
+		       HINIC_SQ_CTRL_SET(ufo, QUEUE_INFO_UFO) |
+		       HINIC_SQ_CTRL_SET(!!l4_offload, QUEUE_INFO_TCPUDP_CS);
+
+	/* set MSS value */
+	*queue_info = HINIC_SQ_CTRL_CLEAR(*queue_info, QUEUE_INFO_MSS);
+	*queue_info |= HINIC_SQ_CTRL_SET(mss, QUEUE_INFO_MSS);
 }
 
 /**
@@ -610,6 +671,16 @@ struct hinic_sq_wqe *hinic_sq_get_wqe(struct hinic_sq *sq,
 		return NULL;
 
 	return &hw_wqe->sq_wqe;
+}
+
+/**
+ * hinic_sq_return_wqe - return the wqe to the sq
+ * @sq: send queue
+ * @wqe_size: the size of the wqe
+ **/
+void hinic_sq_return_wqe(struct hinic_sq *sq, unsigned int wqe_size)
+{
+	hinic_return_wqe(sq->wq, wqe_size);
 }
 
 /**

@@ -507,7 +507,7 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int state;
 
-	sock_poll_wait(file, wait);
+	sock_poll_wait(file, sock, wait);
 
 	state = inet_sk_state_load(sk);
 	if (state == TCP_LISTEN)
@@ -1295,7 +1295,7 @@ new_segment:
 			copy = size_goal;
 
 			/* All packets are restored as if they have
-			 * already been sent. skb_mstamp isn't set to
+			 * already been sent. skb_mstamp_ns isn't set to
 			 * avoid wrong rtt estimation.
 			 */
 			if (tp->repair)
@@ -1753,6 +1753,7 @@ static int tcp_zerocopy_receive(struct sock *sk,
 	struct vm_area_struct *vma;
 	struct sk_buff *skb = NULL;
 	struct tcp_sock *tp;
+	int inq;
 	int ret;
 
 	if (address & (PAGE_SIZE - 1) || address != zc->address)
@@ -1773,12 +1774,15 @@ static int tcp_zerocopy_receive(struct sock *sk,
 
 	tp = tcp_sk(sk);
 	seq = tp->copied_seq;
-	zc->length = min_t(u32, zc->length, tcp_inq(sk));
+	inq = tcp_inq(sk);
+	zc->length = min_t(u32, zc->length, inq);
 	zc->length &= ~(PAGE_SIZE - 1);
-
-	zap_page_range(vma, address, zc->length);
-
-	zc->recv_skip_hint = 0;
+	if (zc->length) {
+		zap_page_range(vma, address, zc->length);
+		zc->recv_skip_hint = 0;
+	} else {
+		zc->recv_skip_hint = inq;
+	}
 	ret = 0;
 	while (length + PAGE_SIZE <= zc->length) {
 		if (zc->recv_skip_hint < PAGE_SIZE) {
@@ -1801,8 +1805,17 @@ static int tcp_zerocopy_receive(struct sock *sk,
 				frags++;
 			}
 		}
-		if (frags->size != PAGE_SIZE || frags->page_offset)
+		if (frags->size != PAGE_SIZE || frags->page_offset) {
+			int remaining = zc->recv_skip_hint;
+
+			while (remaining && (frags->size != PAGE_SIZE ||
+					     frags->page_offset)) {
+				remaining -= frags->size;
+				frags++;
+			}
+			zc->recv_skip_hint -= remaining;
 			break;
+		}
 		ret = vm_insert_page(vma, address + length,
 				     skb_frag_page(frags));
 		if (ret)
@@ -2403,16 +2416,10 @@ adjudge_to_death:
 	sock_hold(sk);
 	sock_orphan(sk);
 
-	/* It is the last release_sock in its life. It will remove backlog. */
-	release_sock(sk);
-
-
-	/* Now socket is owned by kernel and we acquire BH lock
-	 *  to finish close. No need to check for user refs.
-	 */
 	local_bh_disable();
 	bh_lock_sock(sk);
-	WARN_ON(sock_owned_by_user(sk));
+	/* remove backlog if any, without releasing ownership. */
+	__release_sock(sk);
 
 	percpu_counter_inc(sk->sk_prot->orphan_count);
 
@@ -2481,6 +2488,7 @@ adjudge_to_death:
 out:
 	bh_unlock_sock(sk);
 	local_bh_enable();
+	release_sock(sk);
 	sock_put(sk);
 }
 EXPORT_SYMBOL(tcp_close);
@@ -2595,6 +2603,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->compressed_ack = 0;
 	tp->bytes_sent = 0;
 	tp->bytes_retrans = 0;
+	tp->duplicate_sack[0].start_seq = 0;
+	tp->duplicate_sack[0].end_seq = 0;
 	tp->dsack_dups = 0;
 	tp->reord_seen = 0;
 
@@ -3101,10 +3111,10 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct tcp_sock *tp = tcp_sk(sk); /* iff sk_type == SOCK_STREAM */
 	const struct inet_connection_sock *icsk = inet_csk(sk);
+	unsigned long rate;
 	u32 now;
 	u64 rate64;
 	bool slow;
-	u32 rate;
 
 	memset(info, 0, sizeof(*info));
 	if (sk->sk_type != SOCK_STREAM)
@@ -3114,11 +3124,11 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 
 	/* Report meaningful fields for all TCP states, including listeners */
 	rate = READ_ONCE(sk->sk_pacing_rate);
-	rate64 = rate != ~0U ? rate : ~0ULL;
+	rate64 = (rate != ~0UL) ? rate : ~0ULL;
 	info->tcpi_pacing_rate = rate64;
 
 	rate = READ_ONCE(sk->sk_max_pacing_rate);
-	rate64 = rate != ~0U ? rate : ~0ULL;
+	rate64 = (rate != ~0UL) ? rate : ~0ULL;
 	info->tcpi_max_pacing_rate = rate64;
 
 	info->tcpi_reordering = tp->reordering;
@@ -3244,8 +3254,8 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *stats;
 	struct tcp_info info;
+	unsigned long rate;
 	u64 rate64;
-	u32 rate;
 
 	stats = alloc_skb(tcp_opt_stats_get_size(), GFP_ATOMIC);
 	if (!stats)
@@ -3264,7 +3274,7 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
 			  tp->total_retrans, TCP_NLA_PAD);
 
 	rate = READ_ONCE(sk->sk_pacing_rate);
-	rate64 = rate != ~0U ? rate : ~0ULL;
+	rate64 = (rate != ~0UL) ? rate : ~0ULL;
 	nla_put_u64_64bit(stats, TCP_NLA_PACING_RATE, rate64, TCP_NLA_PAD);
 
 	rate64 = tcp_compute_delivery_rate(tp);
@@ -3894,8 +3904,8 @@ void __init tcp_init(void)
 	init_net.ipv4.sysctl_tcp_wmem[2] = max(64*1024, max_wshare);
 
 	init_net.ipv4.sysctl_tcp_rmem[0] = SK_MEM_QUANTUM;
-	init_net.ipv4.sysctl_tcp_rmem[1] = 87380;
-	init_net.ipv4.sysctl_tcp_rmem[2] = max(87380, max_rshare);
+	init_net.ipv4.sysctl_tcp_rmem[1] = 131072;
+	init_net.ipv4.sysctl_tcp_rmem[2] = max(131072, max_rshare);
 
 	pr_info("Hash tables configured (established %u bind %u)\n",
 		tcp_hashinfo.ehash_mask + 1, tcp_hashinfo.bhash_size);

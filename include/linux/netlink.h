@@ -176,8 +176,11 @@ struct netlink_callback {
 	void			*data;
 	/* the module that dump function belong to */
 	struct module		*module;
+	struct netlink_ext_ack	*extack;
 	u16			family;
 	u16			min_dump_alloc;
+	bool			strict_check;
+	u16			answer_flags;
 	unsigned int		prev_seq, seq;
 	long			args[6];
 };

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 /*
  * Common eBPF ELF object loading operations.
@@ -7,19 +7,6 @@
  * Copyright (C) 2015 Wang Nan <wangnan0@huawei.com>
  * Copyright (C) 2015 Huawei Inc.
  * Copyright (C) 2017 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
  */
 
 #define _GNU_SOURCE
@@ -32,7 +19,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <perf-sys.h>
 #include <asm/unistd.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -40,6 +26,8 @@
 #include <linux/btf.h>
 #include <linux/list.h>
 #include <linux/limits.h>
+#include <linux/perf_event.h>
+#include <linux/ring_buffer.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
@@ -182,7 +170,7 @@ static LIST_HEAD(bpf_objects_list);
 
 struct bpf_object {
 	char license[64];
-	u32 kern_version;
+	__u32 kern_version;
 
 	struct bpf_program *programs;
 	size_t nr_programs;
@@ -228,7 +216,7 @@ struct bpf_object {
 };
 #define obj_elf_valid(o)	((o)->efile.elf)
 
-static void bpf_program__unload(struct bpf_program *prog)
+void bpf_program__unload(struct bpf_program *prog)
 {
 	int i;
 
@@ -470,7 +458,8 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 		obj->efile.fd = open(obj->path, O_RDONLY);
 		if (obj->efile.fd < 0) {
 			char errmsg[STRERR_BUFSIZE];
-			char *cp = str_error(errno, errmsg, sizeof(errmsg));
+			char *cp = libbpf_strerror_r(errno, errmsg,
+						     sizeof(errmsg));
 
 			pr_warning("failed to open %s: %s\n", obj->path, cp);
 			return -errno;
@@ -552,7 +541,7 @@ static int
 bpf_object__init_kversion(struct bpf_object *obj,
 			  void *data, size_t size)
 {
-	u32 kver;
+	__u32 kver;
 
 	if (size != sizeof(kver)) {
 		pr_warning("invalid kver section in %s\n", obj->path);
@@ -574,8 +563,9 @@ static int compare_bpf_map(const void *_a, const void *_b)
 }
 
 static int
-bpf_object__init_maps(struct bpf_object *obj)
+bpf_object__init_maps(struct bpf_object *obj, int flags)
 {
+	bool strict = !(flags & MAPS_RELAX_COMPAT);
 	int i, map_idx, map_def_sz, nr_maps = 0;
 	Elf_Scn *scn;
 	Elf_Data *data;
@@ -697,7 +687,8 @@ bpf_object__init_maps(struct bpf_object *obj)
 						   "has unrecognized, non-zero "
 						   "options\n",
 						   obj->path, map_name);
-					return -EINVAL;
+					if (strict)
+						return -EINVAL;
 				}
 			}
 			memcpy(&obj->maps[map_idx].def, def,
@@ -728,7 +719,7 @@ static bool section_have_execinstr(struct bpf_object *obj, int idx)
 	return false;
 }
 
-static int bpf_object__elf_collect(struct bpf_object *obj)
+static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 {
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
@@ -811,7 +802,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 						      data->d_size, name, idx);
 			if (err) {
 				char errmsg[STRERR_BUFSIZE];
-				char *cp = str_error(-err, errmsg, sizeof(errmsg));
+				char *cp = libbpf_strerror_r(-err, errmsg,
+							     sizeof(errmsg));
 
 				pr_warning("failed to alloc program %s (%s): %s",
 					   name, obj->path, cp);
@@ -854,7 +846,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 		return LIBBPF_ERRNO__FORMAT;
 	}
 	if (obj->efile.maps_shndx >= 0) {
-		err = bpf_object__init_maps(obj);
+		err = bpf_object__init_maps(obj, flags);
 		if (err)
 			goto out;
 	}
@@ -1140,7 +1132,7 @@ bpf_object__create_maps(struct bpf_object *obj)
 
 		*pfd = bpf_create_map_xattr(&create_attr);
 		if (*pfd < 0 && create_attr.btf_key_type_id) {
-			cp = str_error(errno, errmsg, sizeof(errmsg));
+			cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 			pr_warning("Error in bpf_create_map_xattr(%s):%s(%d). Retrying without BTF.\n",
 				   map->name, cp, errno);
 			create_attr.btf_fd = 0;
@@ -1155,7 +1147,7 @@ bpf_object__create_maps(struct bpf_object *obj)
 			size_t j;
 
 			err = *pfd;
-			cp = str_error(errno, errmsg, sizeof(errmsg));
+			cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 			pr_warning("failed to create map (name: '%s'): %s\n",
 				   map->name, cp);
 			for (j = 0; j < i; j++)
@@ -1306,7 +1298,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 static int
 load_program(enum bpf_prog_type type, enum bpf_attach_type expected_attach_type,
 	     const char *name, struct bpf_insn *insns, int insns_cnt,
-	     char *license, u32 kern_version, int *pfd, int prog_ifindex)
+	     char *license, __u32 kern_version, int *pfd, int prog_ifindex)
 {
 	struct bpf_load_program_attr load_attr;
 	char *cp, errmsg[STRERR_BUFSIZE];
@@ -1339,7 +1331,7 @@ load_program(enum bpf_prog_type type, enum bpf_attach_type expected_attach_type,
 	}
 
 	ret = -LIBBPF_ERRNO__LOAD;
-	cp = str_error(errno, errmsg, sizeof(errmsg));
+	cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 	pr_warning("load bpf program failed: %s\n", cp);
 
 	if (log_buf && log_buf[0] != '\0') {
@@ -1375,9 +1367,9 @@ out:
 	return ret;
 }
 
-static int
+int
 bpf_program__load(struct bpf_program *prog,
-		  char *license, u32 kern_version)
+		  char *license, __u32 kern_version)
 {
 	int err = 0, fd, i;
 
@@ -1502,6 +1494,7 @@ static bool bpf_prog_type__needs_kver(enum bpf_prog_type type)
 	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
 	case BPF_PROG_TYPE_LIRC_MODE2:
 	case BPF_PROG_TYPE_SK_REUSEPORT:
+	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 		return false;
 	case BPF_PROG_TYPE_UNSPEC:
 	case BPF_PROG_TYPE_KPROBE:
@@ -1525,7 +1518,7 @@ static int bpf_object__validate(struct bpf_object *obj, bool needs_kver)
 
 static struct bpf_object *
 __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz,
-		   bool needs_kver)
+		   bool needs_kver, int flags)
 {
 	struct bpf_object *obj;
 	int err;
@@ -1541,7 +1534,7 @@ __bpf_object__open(const char *path, void *obj_buf, size_t obj_buf_sz,
 
 	CHECK_ERR(bpf_object__elf_init(obj), err, out);
 	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
-	CHECK_ERR(bpf_object__elf_collect(obj), err, out);
+	CHECK_ERR(bpf_object__elf_collect(obj, flags), err, out);
 	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
 	CHECK_ERR(bpf_object__validate(obj, needs_kver), err, out);
 
@@ -1552,7 +1545,8 @@ out:
 	return ERR_PTR(err);
 }
 
-struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
+struct bpf_object *__bpf_object__open_xattr(struct bpf_object_open_attr *attr,
+					    int flags)
 {
 	/* param validation */
 	if (!attr->file)
@@ -1561,7 +1555,13 @@ struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
 	pr_debug("loading %s\n", attr->file);
 
 	return __bpf_object__open(attr->file, NULL, 0,
-				  bpf_prog_type__needs_kver(attr->prog_type));
+				  bpf_prog_type__needs_kver(attr->prog_type),
+				  flags);
+}
+
+struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
+{
+	return __bpf_object__open_xattr(attr, 0);
 }
 
 struct bpf_object *bpf_object__open(const char *path)
@@ -1594,7 +1594,7 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 	pr_debug("loading object '%s' from buffer\n",
 		 name);
 
-	return __bpf_object__open(name, obj_buf, obj_buf_sz, true);
+	return __bpf_object__open(name, obj_buf, obj_buf_sz, true, true);
 }
 
 int bpf_object__unload(struct bpf_object *obj)
@@ -1654,7 +1654,7 @@ static int check_path(const char *path)
 
 	dir = dirname(dname);
 	if (statfs(dir, &st_fs)) {
-		cp = str_error(errno, errmsg, sizeof(errmsg));
+		cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 		pr_warning("failed to statfs %s: %s\n", dir, cp);
 		err = -errno;
 	}
@@ -1690,7 +1690,7 @@ int bpf_program__pin_instance(struct bpf_program *prog, const char *path,
 	}
 
 	if (bpf_obj_pin(prog->instances.fds[instance], path)) {
-		cp = str_error(errno, errmsg, sizeof(errmsg));
+		cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 		pr_warning("failed to pin program: %s\n", cp);
 		return -errno;
 	}
@@ -1708,7 +1708,7 @@ static int make_dir(const char *path)
 		err = -errno;
 
 	if (err) {
-		cp = str_error(-err, errmsg, sizeof(errmsg));
+		cp = libbpf_strerror_r(-err, errmsg, sizeof(errmsg));
 		pr_warning("failed to mkdir %s: %s\n", path, cp);
 	}
 	return err;
@@ -1770,7 +1770,7 @@ int bpf_map__pin(struct bpf_map *map, const char *path)
 	}
 
 	if (bpf_obj_pin(map->fd, path)) {
-		cp = str_error(errno, errmsg, sizeof(errmsg));
+		cp = libbpf_strerror_r(errno, errmsg, sizeof(errmsg));
 		pr_warning("failed to pin map: %s\n", cp);
 		return -errno;
 	}
@@ -2084,57 +2084,90 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	prog->expected_attach_type = type;
 }
 
-#define BPF_PROG_SEC_FULL(string, ptype, atype) \
-	{ string, sizeof(string) - 1, ptype, atype }
+#define BPF_PROG_SEC_IMPL(string, ptype, eatype, atype) \
+	{ string, sizeof(string) - 1, ptype, eatype, atype }
 
-#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_FULL(string, ptype, 0)
+/* Programs that can NOT be attached. */
+#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, -EINVAL)
 
-#define BPF_S_PROG_SEC(string, ptype) \
-	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK, ptype)
+/* Programs that can be attached. */
+#define BPF_APROG_SEC(string, ptype, atype) \
+	BPF_PROG_SEC_IMPL(string, ptype, 0, atype)
 
-#define BPF_SA_PROG_SEC(string, ptype) \
-	BPF_PROG_SEC_FULL(string, BPF_PROG_TYPE_CGROUP_SOCK_ADDR, ptype)
+/* Programs that must specify expected attach type at load time. */
+#define BPF_EAPROG_SEC(string, ptype, eatype) \
+	BPF_PROG_SEC_IMPL(string, ptype, eatype, eatype)
+
+/* Programs that can be attached but attach type can't be identified by section
+ * name. Kept for backward compatibility.
+ */
+#define BPF_APROG_COMPAT(string, ptype) BPF_PROG_SEC(string, ptype)
 
 static const struct {
 	const char *sec;
 	size_t len;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
+	enum bpf_attach_type attach_type;
 } section_names[] = {
-	BPF_PROG_SEC("socket",		BPF_PROG_TYPE_SOCKET_FILTER),
-	BPF_PROG_SEC("kprobe/",		BPF_PROG_TYPE_KPROBE),
-	BPF_PROG_SEC("kretprobe/",	BPF_PROG_TYPE_KPROBE),
-	BPF_PROG_SEC("classifier",	BPF_PROG_TYPE_SCHED_CLS),
-	BPF_PROG_SEC("action",		BPF_PROG_TYPE_SCHED_ACT),
-	BPF_PROG_SEC("tracepoint/",	BPF_PROG_TYPE_TRACEPOINT),
-	BPF_PROG_SEC("raw_tracepoint/",	BPF_PROG_TYPE_RAW_TRACEPOINT),
-	BPF_PROG_SEC("xdp",		BPF_PROG_TYPE_XDP),
-	BPF_PROG_SEC("perf_event",	BPF_PROG_TYPE_PERF_EVENT),
-	BPF_PROG_SEC("cgroup/skb",	BPF_PROG_TYPE_CGROUP_SKB),
-	BPF_PROG_SEC("cgroup/sock",	BPF_PROG_TYPE_CGROUP_SOCK),
-	BPF_PROG_SEC("cgroup/dev",	BPF_PROG_TYPE_CGROUP_DEVICE),
-	BPF_PROG_SEC("lwt_in",		BPF_PROG_TYPE_LWT_IN),
-	BPF_PROG_SEC("lwt_out",		BPF_PROG_TYPE_LWT_OUT),
-	BPF_PROG_SEC("lwt_xmit",	BPF_PROG_TYPE_LWT_XMIT),
-	BPF_PROG_SEC("lwt_seg6local",	BPF_PROG_TYPE_LWT_SEG6LOCAL),
-	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
-	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
-	BPF_PROG_SEC("sk_msg",		BPF_PROG_TYPE_SK_MSG),
-	BPF_PROG_SEC("lirc_mode2",	BPF_PROG_TYPE_LIRC_MODE2),
-	BPF_SA_PROG_SEC("cgroup/bind4",	BPF_CGROUP_INET4_BIND),
-	BPF_SA_PROG_SEC("cgroup/bind6",	BPF_CGROUP_INET6_BIND),
-	BPF_SA_PROG_SEC("cgroup/connect4", BPF_CGROUP_INET4_CONNECT),
-	BPF_SA_PROG_SEC("cgroup/connect6", BPF_CGROUP_INET6_CONNECT),
-	BPF_SA_PROG_SEC("cgroup/sendmsg4", BPF_CGROUP_UDP4_SENDMSG),
-	BPF_SA_PROG_SEC("cgroup/sendmsg6", BPF_CGROUP_UDP6_SENDMSG),
-	BPF_S_PROG_SEC("cgroup/post_bind4", BPF_CGROUP_INET4_POST_BIND),
-	BPF_S_PROG_SEC("cgroup/post_bind6", BPF_CGROUP_INET6_POST_BIND),
+	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
+	BPF_PROG_SEC("kprobe/",			BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("kretprobe/",		BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("classifier",		BPF_PROG_TYPE_SCHED_CLS),
+	BPF_PROG_SEC("action",			BPF_PROG_TYPE_SCHED_ACT),
+	BPF_PROG_SEC("tracepoint/",		BPF_PROG_TYPE_TRACEPOINT),
+	BPF_PROG_SEC("raw_tracepoint/",		BPF_PROG_TYPE_RAW_TRACEPOINT),
+	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
+	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
+	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
+	BPF_PROG_SEC("lwt_out",			BPF_PROG_TYPE_LWT_OUT),
+	BPF_PROG_SEC("lwt_xmit",		BPF_PROG_TYPE_LWT_XMIT),
+	BPF_PROG_SEC("lwt_seg6local",		BPF_PROG_TYPE_LWT_SEG6LOCAL),
+	BPF_APROG_SEC("cgroup_skb/ingress",	BPF_PROG_TYPE_CGROUP_SKB,
+						BPF_CGROUP_INET_INGRESS),
+	BPF_APROG_SEC("cgroup_skb/egress",	BPF_PROG_TYPE_CGROUP_SKB,
+						BPF_CGROUP_INET_EGRESS),
+	BPF_APROG_COMPAT("cgroup/skb",		BPF_PROG_TYPE_CGROUP_SKB),
+	BPF_APROG_SEC("cgroup/sock",		BPF_PROG_TYPE_CGROUP_SOCK,
+						BPF_CGROUP_INET_SOCK_CREATE),
+	BPF_EAPROG_SEC("cgroup/post_bind4",	BPF_PROG_TYPE_CGROUP_SOCK,
+						BPF_CGROUP_INET4_POST_BIND),
+	BPF_EAPROG_SEC("cgroup/post_bind6",	BPF_PROG_TYPE_CGROUP_SOCK,
+						BPF_CGROUP_INET6_POST_BIND),
+	BPF_APROG_SEC("cgroup/dev",		BPF_PROG_TYPE_CGROUP_DEVICE,
+						BPF_CGROUP_DEVICE),
+	BPF_APROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS,
+						BPF_CGROUP_SOCK_OPS),
+	BPF_APROG_SEC("sk_skb/stream_parser",	BPF_PROG_TYPE_SK_SKB,
+						BPF_SK_SKB_STREAM_PARSER),
+	BPF_APROG_SEC("sk_skb/stream_verdict",	BPF_PROG_TYPE_SK_SKB,
+						BPF_SK_SKB_STREAM_VERDICT),
+	BPF_APROG_COMPAT("sk_skb",		BPF_PROG_TYPE_SK_SKB),
+	BPF_APROG_SEC("sk_msg",			BPF_PROG_TYPE_SK_MSG,
+						BPF_SK_MSG_VERDICT),
+	BPF_APROG_SEC("lirc_mode2",		BPF_PROG_TYPE_LIRC_MODE2,
+						BPF_LIRC_MODE2),
+	BPF_APROG_SEC("flow_dissector",		BPF_PROG_TYPE_FLOW_DISSECTOR,
+						BPF_FLOW_DISSECTOR),
+	BPF_EAPROG_SEC("cgroup/bind4",		BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET4_BIND),
+	BPF_EAPROG_SEC("cgroup/bind6",		BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET6_BIND),
+	BPF_EAPROG_SEC("cgroup/connect4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET4_CONNECT),
+	BPF_EAPROG_SEC("cgroup/connect6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_INET6_CONNECT),
+	BPF_EAPROG_SEC("cgroup/sendmsg4",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_UDP4_SENDMSG),
+	BPF_EAPROG_SEC("cgroup/sendmsg6",	BPF_PROG_TYPE_CGROUP_SOCK_ADDR,
+						BPF_CGROUP_UDP6_SENDMSG),
 };
 
+#undef BPF_PROG_SEC_IMPL
 #undef BPF_PROG_SEC
-#undef BPF_PROG_SEC_FULL
-#undef BPF_S_PROG_SEC
-#undef BPF_SA_PROG_SEC
+#undef BPF_APROG_SEC
+#undef BPF_EAPROG_SEC
+#undef BPF_APROG_COMPAT
 
 int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			     enum bpf_attach_type *expected_attach_type)
@@ -2149,6 +2182,25 @@ int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			continue;
 		*prog_type = section_names[i].prog_type;
 		*expected_attach_type = section_names[i].expected_attach_type;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+int libbpf_attach_type_by_name(const char *name,
+			       enum bpf_attach_type *attach_type)
+{
+	int i;
+
+	if (!name)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
+		if (strncmp(name, section_names[i].sec, section_names[i].len))
+			continue;
+		if (section_names[i].attach_type == -EINVAL)
+			return -EINVAL;
+		*attach_type = section_names[i].attach_type;
 		return 0;
 	}
 	return -EINVAL;
@@ -2336,7 +2388,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		bpf_program__set_expected_attach_type(prog,
 						      expected_attach_type);
 
-		if (!bpf_program__is_function_storage(prog, obj) && !first_prog)
+		if (!first_prog)
 			first_prog = prog;
 	}
 
@@ -2363,61 +2415,49 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 }
 
 enum bpf_perf_event_ret
-bpf_perf_event_read_simple(void *mem, unsigned long size,
-			   unsigned long page_size, void **buf, size_t *buf_len,
-			   bpf_perf_event_print_t fn, void *priv)
+bpf_perf_event_read_simple(void *mmap_mem, size_t mmap_size, size_t page_size,
+			   void **copy_mem, size_t *copy_size,
+			   bpf_perf_event_print_t fn, void *private_data)
 {
-	volatile struct perf_event_mmap_page *header = mem;
+	struct perf_event_mmap_page *header = mmap_mem;
+	__u64 data_head = ring_buffer_read_head(header);
 	__u64 data_tail = header->data_tail;
-	__u64 data_head = header->data_head;
-	int ret = LIBBPF_PERF_EVENT_ERROR;
-	void *base, *begin, *end;
+	void *base = ((__u8 *)header) + page_size;
+	int ret = LIBBPF_PERF_EVENT_CONT;
+	struct perf_event_header *ehdr;
+	size_t ehdr_size;
 
-	asm volatile("" ::: "memory"); /* in real code it should be smp_rmb() */
-	if (data_head == data_tail)
-		return LIBBPF_PERF_EVENT_CONT;
+	while (data_head != data_tail) {
+		ehdr = base + (data_tail & (mmap_size - 1));
+		ehdr_size = ehdr->size;
 
-	base = ((char *)header) + page_size;
+		if (((void *)ehdr) + ehdr_size > base + mmap_size) {
+			void *copy_start = ehdr;
+			size_t len_first = base + mmap_size - copy_start;
+			size_t len_secnd = ehdr_size - len_first;
 
-	begin = base + data_tail % size;
-	end = base + data_head % size;
-
-	while (begin != end) {
-		struct perf_event_header *ehdr;
-
-		ehdr = begin;
-		if (begin + ehdr->size > base + size) {
-			long len = base + size - begin;
-
-			if (*buf_len < ehdr->size) {
-				free(*buf);
-				*buf = malloc(ehdr->size);
-				if (!*buf) {
+			if (*copy_size < ehdr_size) {
+				free(*copy_mem);
+				*copy_mem = malloc(ehdr_size);
+				if (!*copy_mem) {
+					*copy_size = 0;
 					ret = LIBBPF_PERF_EVENT_ERROR;
 					break;
 				}
-				*buf_len = ehdr->size;
+				*copy_size = ehdr_size;
 			}
 
-			memcpy(*buf, begin, len);
-			memcpy(*buf + len, base, ehdr->size - len);
-			ehdr = (void *)*buf;
-			begin = base + ehdr->size - len;
-		} else if (begin + ehdr->size == base + size) {
-			begin = base;
-		} else {
-			begin += ehdr->size;
+			memcpy(*copy_mem, copy_start, len_first);
+			memcpy(*copy_mem + len_first, base, len_secnd);
+			ehdr = *copy_mem;
 		}
 
-		ret = fn(ehdr, priv);
+		ret = fn(ehdr, private_data);
+		data_tail += ehdr_size;
 		if (ret != LIBBPF_PERF_EVENT_CONT)
 			break;
-
-		data_tail += ehdr->size;
 	}
 
-	__sync_synchronize(); /* smp_mb() */
-	header->data_tail = data_tail;
-
+	ring_buffer_write_tail(header, data_tail);
 	return ret;
 }

@@ -435,6 +435,7 @@ struct mlx5_ib_qp {
 
 struct mlx5_ib_cq_buf {
 	struct mlx5_frag_buf_ctrl fbc;
+	struct mlx5_frag_buf    frag_buf;
 	struct ib_umem		*umem;
 	int			cqe_size;
 	int			nent;

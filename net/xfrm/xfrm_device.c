@@ -99,7 +99,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 
 	do {
 		struct sk_buff *nskb = skb2->next;
-		skb2->next = NULL;
+		skb_mark_not_on_list(skb2);
 
 		xo = xfrm_offload(skb2);
 		xo->flags |= XFRM_DEV_RESUME;
@@ -192,9 +192,13 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 
 	err = dev->xfrmdev_ops->xdo_dev_state_add(x);
 	if (err) {
+		xso->num_exthdrs = 0;
+		xso->flags = 0;
 		xso->dev = NULL;
 		dev_put(dev);
-		return err;
+
+		if (err != -EOPNOTSUPP)
+			return err;
 	}
 
 	return 0;

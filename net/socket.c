@@ -1475,7 +1475,7 @@ int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
 		err = move_addr_to_kernel(umyaddr, addrlen, &address);
-		if (err >= 0) {
+		if (!err) {
 			err = security_socket_bind(sock,
 						   (struct sockaddr *)&address,
 						   addrlen);

@@ -275,16 +275,19 @@ void ath10k_ce_free_rri(struct ath10k *ar);
 
 /* ce_attr.flags values */
 /* Use NonSnooping PCIe accesses? */
-#define CE_ATTR_NO_SNOOP		1
+#define CE_ATTR_NO_SNOOP		BIT(0)
 
 /* Byte swap data words */
-#define CE_ATTR_BYTE_SWAP_DATA		2
+#define CE_ATTR_BYTE_SWAP_DATA		BIT(1)
 
 /* Swizzle descriptors? */
-#define CE_ATTR_SWIZZLE_DESCRIPTORS	4
+#define CE_ATTR_SWIZZLE_DESCRIPTORS	BIT(2)
 
 /* no interrupt on copy completion */
-#define CE_ATTR_DIS_INTR		8
+#define CE_ATTR_DIS_INTR		BIT(3)
+
+/* no interrupt, only polling */
+#define CE_ATTR_POLL			BIT(4)
 
 /* Attributes of an instance of a Copy Engine */
 struct ce_attr {

@@ -4194,6 +4194,11 @@ S:	Maintained
 F:	drivers/platform/x86/dell-smbios-wmi.c
 F:	tools/wmi/dell-smbios-example.c
 
+DEFZA FDDI NETWORK DRIVER
+M:	"Maciej W. Rozycki" <macro@linux-mips.org>
+S:	Maintained
+F:	drivers/net/fddi/defza.*
+
 DELL LAPTOP DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
 M:	Pali Rohár <pali.rohar@gmail.com>
@@ -4551,9 +4556,13 @@ F:	drivers/soc/fsl/dpio
 
 DPAA2 ETHERNET DRIVER
 M:	Ioana Radulescu <ruxandra.radulescu@nxp.com>
-L:	linux-kernel@vger.kernel.org
+L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/staging/fsl-dpaa2/ethernet
+F:	drivers/net/ethernet/freescale/dpaa2/dpaa2-eth*
+F:	drivers/net/ethernet/freescale/dpaa2/dpni*
+F:	drivers/net/ethernet/freescale/dpaa2/dpkg.h
+F:	drivers/net/ethernet/freescale/dpaa2/Makefile
+F:	drivers/net/ethernet/freescale/dpaa2/Kconfig
 
 DPAA2 ETHERNET SWITCH DRIVER
 M:	Ioana Radulescu <ruxandra.radulescu@nxp.com>
@@ -4564,9 +4573,10 @@ F:	drivers/staging/fsl-dpaa2/ethsw
 
 DPAA2 PTP CLOCK DRIVER
 M:	Yangbo Lu <yangbo.lu@nxp.com>
-L:	linux-kernel@vger.kernel.org
+L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/staging/fsl-dpaa2/rtc
+F:	drivers/net/ethernet/freescale/dpaa2/dpaa2-ptp*
+F:	drivers/net/ethernet/freescale/dpaa2/dprtc*
 
 DPT_I2O SCSI RAID DRIVER
 M:	Adaptec OEM Raid Solutions <aacraid@microsemi.com>
@@ -7372,15 +7382,16 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/next-queue.git
 S:	Supported
 F:	Documentation/networking/e100.rst
 F:	Documentation/networking/e1000.rst
-F:	Documentation/networking/e1000e.txt
-F:	Documentation/networking/igb.txt
-F:	Documentation/networking/igbvf.txt
-F:	Documentation/networking/ixgb.txt
-F:	Documentation/networking/ixgbe.txt
-F:	Documentation/networking/ixgbevf.txt
-F:	Documentation/networking/i40e.txt
-F:	Documentation/networking/i40evf.txt
-F:	Documentation/networking/ice.txt
+F:	Documentation/networking/e1000e.rst
+F:	Documentation/networking/fm10k.rst
+F:	Documentation/networking/igb.rst
+F:	Documentation/networking/igbvf.rst
+F:	Documentation/networking/ixgb.rst
+F:	Documentation/networking/ixgbe.rst
+F:	Documentation/networking/ixgbevf.rst
+F:	Documentation/networking/i40e.rst
+F:	Documentation/networking/iavf.rst
+F:	Documentation/networking/ice.rst
 F:	drivers/net/ethernet/intel/
 F:	drivers/net/ethernet/intel/*/
 F:	include/linux/avf/virtchnl.h
@@ -8221,6 +8232,25 @@ S:	Maintained
 F:	net/l3mdev
 F:	include/net/l3mdev.h
 
+L7 BPF FRAMEWORK
+M:	John Fastabend <john.fastabend@gmail.com>
+M:	Daniel Borkmann <daniel@iogearbox.net>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	include/linux/skmsg.h
+F:	net/core/skmsg.c
+F:	net/core/sock_map.c
+F:	net/ipv4/tcp_bpf.c
+
+LANTIQ / INTEL Ethernet drivers
+M:	Hauke Mehrtens <hauke@hauke-m.de>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/dsa/tag_gswip.c
+F:	drivers/net/ethernet/lantiq_xrx200.c
+F:	drivers/net/dsa/lantiq_pce.h
+F:	drivers/net/dsa/lantiq_gswip.c
+
 LANTIQ MIPS ARCHITECTURE
 M:	John Crispin <john@phrozen.org>
 L:	linux-mips@linux-mips.org
@@ -8781,7 +8811,7 @@ M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/dsa/mv88e6xxx/
-F:	linux/platform_data/mv88e6xxx.h
+F:	include/linux/platform_data/mv88e6xxx.h
 F:	Documentation/devicetree/bindings/net/dsa/marvell.txt
 
 MARVELL ARMADA DRM SUPPORT
@@ -8870,6 +8900,15 @@ L:	linux-mmc@vger.kernel.org
 S:	Supported
 F:	drivers/mmc/host/sdhci-xenon*
 F:	Documentation/devicetree/bindings/mmc/marvell,xenon-sdhci.txt
+
+MARVELL OCTEONTX2 RVU ADMIN FUNCTION DRIVER
+M:	Sunil Goutham <sgoutham@marvell.com>
+M:	Linu Cherian <lcherian@marvell.com>
+M:	Geetha sowjanya <gakula@marvell.com>
+M:	Jerin Jacob <jerinj@marvell.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/marvell/octeontx2/af/
 
 MATROX FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
@@ -10228,6 +10267,8 @@ NETWORKING [TLS]
 M:	Boris Pismenny <borisp@mellanox.com>
 M:	Aviad Yehezkel <aviadye@mellanox.com>
 M:	Dave Watson <davejwatson@fb.com>
+M:	John Fastabend <john.fastabend@gmail.com>
+M:	Daniel Borkmann <daniel@iogearbox.net>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	net/tls/*
@@ -15773,7 +15814,7 @@ F:	include/linux/regulator/
 
 VRF
 M:	David Ahern <dsa@cumulusnetworks.com>
-M:	Shrijeet Mukherjee <shm@cumulusnetworks.com>
+M:	Shrijeet Mukherjee <shrijeet@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/vrf.c

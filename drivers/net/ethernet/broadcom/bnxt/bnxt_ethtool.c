@@ -148,6 +148,65 @@ reset_coalesce:
 #define BNXT_RX_STATS_EXT_ENTRY(counter)	\
 	{ BNXT_RX_STATS_EXT_OFFSET(counter), __stringify(counter) }
 
+#define BNXT_TX_STATS_EXT_ENTRY(counter)	\
+	{ BNXT_TX_STATS_EXT_OFFSET(counter), __stringify(counter) }
+
+#define BNXT_RX_STATS_EXT_PFC_ENTRY(n)				\
+	BNXT_RX_STATS_EXT_ENTRY(pfc_pri##n##_rx_duration_us),	\
+	BNXT_RX_STATS_EXT_ENTRY(pfc_pri##n##_rx_transitions)
+
+#define BNXT_TX_STATS_EXT_PFC_ENTRY(n)				\
+	BNXT_TX_STATS_EXT_ENTRY(pfc_pri##n##_tx_duration_us),	\
+	BNXT_TX_STATS_EXT_ENTRY(pfc_pri##n##_tx_transitions)
+
+#define BNXT_RX_STATS_EXT_PFC_ENTRIES				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(0),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(1),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(2),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(3),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(4),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(5),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(6),				\
+	BNXT_RX_STATS_EXT_PFC_ENTRY(7)
+
+#define BNXT_TX_STATS_EXT_PFC_ENTRIES				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(0),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(1),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(2),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(3),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(4),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(5),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(6),				\
+	BNXT_TX_STATS_EXT_PFC_ENTRY(7)
+
+#define BNXT_RX_STATS_EXT_COS_ENTRY(n)				\
+	BNXT_RX_STATS_EXT_ENTRY(rx_bytes_cos##n),		\
+	BNXT_RX_STATS_EXT_ENTRY(rx_packets_cos##n)
+
+#define BNXT_TX_STATS_EXT_COS_ENTRY(n)				\
+	BNXT_TX_STATS_EXT_ENTRY(tx_bytes_cos##n),		\
+	BNXT_TX_STATS_EXT_ENTRY(tx_packets_cos##n)
+
+#define BNXT_RX_STATS_EXT_COS_ENTRIES				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(0),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(1),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(2),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(3),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(4),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(5),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(6),				\
+	BNXT_RX_STATS_EXT_COS_ENTRY(7)				\
+
+#define BNXT_TX_STATS_EXT_COS_ENTRIES				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(0),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(1),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(2),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(3),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(4),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(5),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(6),				\
+	BNXT_TX_STATS_EXT_COS_ENTRY(7)				\
+
 enum {
 	RX_TOTAL_DISCARDS,
 	TX_TOTAL_DISCARDS,
@@ -256,11 +315,20 @@ static const struct {
 	BNXT_RX_STATS_EXT_ENTRY(resume_pause_events),
 	BNXT_RX_STATS_EXT_ENTRY(continuous_roce_pause_events),
 	BNXT_RX_STATS_EXT_ENTRY(resume_roce_pause_events),
+	BNXT_RX_STATS_EXT_COS_ENTRIES,
+	BNXT_RX_STATS_EXT_PFC_ENTRIES,
+};
+
+static const struct {
+	long offset;
+	char string[ETH_GSTRING_LEN];
+} bnxt_tx_port_stats_ext_arr[] = {
+	BNXT_TX_STATS_EXT_COS_ENTRIES,
+	BNXT_TX_STATS_EXT_PFC_ENTRIES,
 };
 
 #define BNXT_NUM_SW_FUNC_STATS	ARRAY_SIZE(bnxt_sw_func_stats)
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
-#define BNXT_NUM_PORT_STATS_EXT ARRAY_SIZE(bnxt_port_stats_ext_arr)
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
@@ -272,7 +340,8 @@ static int bnxt_get_num_stats(struct bnxt *bp)
 		num_stats += BNXT_NUM_PORT_STATS;
 
 	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT)
-		num_stats += BNXT_NUM_PORT_STATS_EXT;
+		num_stats += bp->fw_rx_stats_ext_size +
+			     bp->fw_tx_stats_ext_size;
 
 	return num_stats;
 }
@@ -334,11 +403,16 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		}
 	}
 	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
-		__le64 *port_stats_ext = (__le64 *)bp->hw_rx_port_stats_ext;
+		__le64 *rx_port_stats_ext = (__le64 *)bp->hw_rx_port_stats_ext;
+		__le64 *tx_port_stats_ext = (__le64 *)bp->hw_tx_port_stats_ext;
 
-		for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++, j++) {
-			buf[j] = le64_to_cpu(*(port_stats_ext +
+		for (i = 0; i < bp->fw_rx_stats_ext_size; i++, j++) {
+			buf[j] = le64_to_cpu(*(rx_port_stats_ext +
 					    bnxt_port_stats_ext_arr[i].offset));
+		}
+		for (i = 0; i < bp->fw_tx_stats_ext_size; i++, j++) {
+			buf[j] = le64_to_cpu(*(tx_port_stats_ext +
+					bnxt_tx_port_stats_ext_arr[i].offset));
 		}
 	}
 }
@@ -407,8 +481,13 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			}
 		}
 		if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
-			for (i = 0; i < BNXT_NUM_PORT_STATS_EXT; i++) {
+			for (i = 0; i < bp->fw_rx_stats_ext_size; i++) {
 				strcpy(buf, bnxt_port_stats_ext_arr[i].string);
+				buf += ETH_GSTRING_LEN;
+			}
+			for (i = 0; i < bp->fw_tx_stats_ext_size; i++) {
+				strcpy(buf,
+				       bnxt_tx_port_stats_ext_arr[i].string);
 				buf += ETH_GSTRING_LEN;
 			}
 		}
@@ -2419,11 +2498,11 @@ static int bnxt_hwrm_phy_loopback(struct bnxt *bp, bool enable, bool ext)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
-static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_napi *bnapi,
+static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 			    u32 raw_cons, int pkt_size)
 {
-	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	struct bnxt_napi *bnapi = cpr->bnapi;
+	struct bnxt_rx_ring_info *rxr;
 	struct bnxt_sw_rx_bd *rx_buf;
 	struct rx_cmp *rxcmp;
 	u16 cp_cons, cons;
@@ -2431,6 +2510,7 @@ static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_napi *bnapi,
 	u32 len;
 	int i;
 
+	rxr = bnapi->rx_ring;
 	cp_cons = RING_CMP(raw_cons);
 	rxcmp = (struct rx_cmp *)
 		&cpr->cp_desc_ring[CP_RING(cp_cons)][CP_IDX(cp_cons)];
@@ -2451,17 +2531,15 @@ static int bnxt_rx_loopback(struct bnxt *bp, struct bnxt_napi *bnapi,
 	return 0;
 }
 
-static int bnxt_poll_loopback(struct bnxt *bp, int pkt_size)
+static int bnxt_poll_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
+			      int pkt_size)
 {
-	struct bnxt_napi *bnapi = bp->bnapi[0];
-	struct bnxt_cp_ring_info *cpr;
 	struct tx_cmp *txcmp;
 	int rc = -EIO;
 	u32 raw_cons;
 	u32 cons;
 	int i;
 
-	cpr = &bnapi->cp_ring;
 	raw_cons = cpr->cp_raw_cons;
 	for (i = 0; i < 200; i++) {
 		cons = RING_CMP(raw_cons);
@@ -2477,7 +2555,7 @@ static int bnxt_poll_loopback(struct bnxt *bp, int pkt_size)
 		 */
 		dma_rmb();
 		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP) {
-			rc = bnxt_rx_loopback(bp, bnapi, raw_cons, pkt_size);
+			rc = bnxt_rx_loopback(bp, cpr, raw_cons, pkt_size);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
 			break;
@@ -2491,12 +2569,14 @@ static int bnxt_poll_loopback(struct bnxt *bp, int pkt_size)
 static int bnxt_run_loopback(struct bnxt *bp)
 {
 	struct bnxt_tx_ring_info *txr = &bp->tx_ring[0];
+	struct bnxt_cp_ring_info *cpr;
 	int pkt_size, i = 0;
 	struct sk_buff *skb;
 	dma_addr_t map;
 	u8 *data;
 	int rc;
 
+	cpr = &txr->bnapi->cp_ring;
 	pkt_size = min(bp->dev->mtu + ETH_HLEN, bp->rx_copy_thresh);
 	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)
@@ -2520,8 +2600,8 @@ static int bnxt_run_loopback(struct bnxt *bp)
 	/* Sync BD data before updating doorbell */
 	wmb();
 
-	bnxt_db_write(bp, txr->tx_doorbell, DB_KEY_TX | txr->tx_prod);
-	rc = bnxt_poll_loopback(bp, pkt_size);
+	bnxt_db_write(bp, &txr->tx_db, txr->tx_prod);
+	rc = bnxt_poll_loopback(bp, cpr, pkt_size);
 
 	dma_unmap_single(&bp->pdev->dev, map, pkt_size, PCI_DMA_TODEVICE);
 	dev_kfree_skb(skb);

@@ -379,7 +379,7 @@ bool nf_ct_get_tuplepr(const struct sk_buff *skb, unsigned int nhoff,
 		return false;
 	}
 
-	l4proto = __nf_ct_l4proto_find(l3num, protonum);
+	l4proto = __nf_ct_l4proto_find(protonum);
 
 	ret = nf_ct_get_tuple(skb, nhoff, protoff, l3num, protonum, net, tuple,
 			      l4proto);
@@ -539,7 +539,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 		nf_ct_tmpl_free(ct);
 		return;
 	}
-	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
+	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->destroy)
 		l4proto->destroy(ct);
 
@@ -840,7 +840,7 @@ static int nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
 	enum ip_conntrack_info oldinfo;
 	struct nf_conn *loser_ct = nf_ct_get(skb, &oldinfo);
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
+	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->allow_clash &&
 	    !nf_ct_is_dying(ct) &&
 	    atomic_inc_not_zero(&ct->ct_general.use)) {
@@ -1109,7 +1109,7 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 	if (!test_bit(IPS_ASSURED_BIT, &ct->status))
 		return true;
 
-	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
+	l4proto = __nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->can_early_drop && l4proto->can_early_drop(ct))
 		return true;
 
@@ -1370,12 +1370,6 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 
 	timeout_ext = tmpl ? nf_ct_timeout_find(tmpl) : NULL;
 
-	if (!l4proto->new(ct, skb, dataoff)) {
-		nf_conntrack_free(ct);
-		pr_debug("can't track with proto module\n");
-		return NULL;
-	}
-
 	if (timeout_ext)
 		nf_ct_timeout_ext_add(ct, rcu_dereference(timeout_ext->timeout),
 				      GFP_ATOMIC);
@@ -1436,12 +1430,12 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 
 /* On success, returns 0, sets skb->_nfct | ctinfo */
 static int
-resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
+resolve_normal_ct(struct nf_conn *tmpl,
 		  struct sk_buff *skb,
 		  unsigned int dataoff,
-		  u_int16_t l3num,
 		  u_int8_t protonum,
-		  const struct nf_conntrack_l4proto *l4proto)
+		  const struct nf_conntrack_l4proto *l4proto,
+		  const struct nf_hook_state *state)
 {
 	const struct nf_conntrack_zone *zone;
 	struct nf_conntrack_tuple tuple;
@@ -1452,17 +1446,18 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	u32 hash;
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
-			     dataoff, l3num, protonum, net, &tuple, l4proto)) {
+			     dataoff, state->pf, protonum, state->net,
+			     &tuple, l4proto)) {
 		pr_debug("Can't get tuple\n");
 		return 0;
 	}
 
 	/* look for tuple match */
 	zone = nf_ct_zone_tmpl(tmpl, skb, &tmp);
-	hash = hash_conntrack_raw(&tuple, net);
-	h = __nf_conntrack_find_get(net, zone, &tuple, hash);
+	hash = hash_conntrack_raw(&tuple, state->net);
+	h = __nf_conntrack_find_get(state->net, zone, &tuple, hash);
 	if (!h) {
-		h = init_conntrack(net, tmpl, &tuple, l4proto,
+		h = init_conntrack(state->net, tmpl, &tuple, l4proto,
 				   skb, dataoff, hash);
 		if (!h)
 			return 0;
@@ -1491,13 +1486,45 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	return 0;
 }
 
+/*
+ * icmp packets need special treatment to handle error messages that are
+ * related to a connection.
+ *
+ * Callers need to check if skb has a conntrack assigned when this
+ * helper returns; in such case skb belongs to an already known connection.
+ */
+static unsigned int __cold
+nf_conntrack_handle_icmp(struct nf_conn *tmpl,
+			 struct sk_buff *skb,
+			 unsigned int dataoff,
+			 u8 protonum,
+			 const struct nf_hook_state *state)
+{
+	int ret;
+
+	if (state->pf == NFPROTO_IPV4 && protonum == IPPROTO_ICMP)
+		ret = nf_conntrack_icmpv4_error(tmpl, skb, dataoff, state);
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (state->pf == NFPROTO_IPV6 && protonum == IPPROTO_ICMPV6)
+		ret = nf_conntrack_icmpv6_error(tmpl, skb, dataoff, state);
+#endif
+	else
+		return NF_ACCEPT;
+
+	if (ret <= 0) {
+		NF_CT_STAT_INC_ATOMIC(state->net, error);
+		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
+	}
+
+	return ret;
+}
+
 unsigned int
-nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
-		struct sk_buff *skb)
+nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 {
 	const struct nf_conntrack_l4proto *l4proto;
-	struct nf_conn *ct, *tmpl;
 	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct, *tmpl;
 	u_int8_t protonum;
 	int dataoff, ret;
 
@@ -1506,32 +1533,28 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		/* Previously seen (loopback or untracked)?  Ignore. */
 		if ((tmpl && !nf_ct_is_template(tmpl)) ||
 		     ctinfo == IP_CT_UNTRACKED) {
-			NF_CT_STAT_INC_ATOMIC(net, ignore);
+			NF_CT_STAT_INC_ATOMIC(state->net, ignore);
 			return NF_ACCEPT;
 		}
 		skb->_nfct = 0;
 	}
 
 	/* rcu_read_lock()ed by nf_hook_thresh */
-	dataoff = get_l4proto(skb, skb_network_offset(skb), pf, &protonum);
+	dataoff = get_l4proto(skb, skb_network_offset(skb), state->pf, &protonum);
 	if (dataoff <= 0) {
 		pr_debug("not prepared to track yet or error occurred\n");
-		NF_CT_STAT_INC_ATOMIC(net, error);
-		NF_CT_STAT_INC_ATOMIC(net, invalid);
+		NF_CT_STAT_INC_ATOMIC(state->net, error);
+		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
 		ret = NF_ACCEPT;
 		goto out;
 	}
 
-	l4proto = __nf_ct_l4proto_find(pf, protonum);
+	l4proto = __nf_ct_l4proto_find(protonum);
 
-	/* It may be an special packet, error, unclean...
-	 * inverse of the return code tells to the netfilter
-	 * core what to do with the packet. */
-	if (l4proto->error != NULL) {
-		ret = l4proto->error(net, tmpl, skb, dataoff, pf, hooknum);
+	if (protonum == IPPROTO_ICMP || protonum == IPPROTO_ICMPV6) {
+		ret = nf_conntrack_handle_icmp(tmpl, skb, dataoff,
+					       protonum, state);
 		if (ret <= 0) {
-			NF_CT_STAT_INC_ATOMIC(net, error);
-			NF_CT_STAT_INC_ATOMIC(net, invalid);
 			ret = -ret;
 			goto out;
 		}
@@ -1540,10 +1563,11 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			goto out;
 	}
 repeat:
-	ret = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum, l4proto);
+	ret = resolve_normal_ct(tmpl, skb, dataoff,
+				protonum, l4proto, state);
 	if (ret < 0) {
 		/* Too stressed to deal. */
-		NF_CT_STAT_INC_ATOMIC(net, drop);
+		NF_CT_STAT_INC_ATOMIC(state->net, drop);
 		ret = NF_DROP;
 		goto out;
 	}
@@ -1551,21 +1575,21 @@ repeat:
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct) {
 		/* Not valid part of a connection */
-		NF_CT_STAT_INC_ATOMIC(net, invalid);
+		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
 		ret = NF_ACCEPT;
 		goto out;
 	}
 
-	ret = l4proto->packet(ct, skb, dataoff, ctinfo);
+	ret = l4proto->packet(ct, skb, dataoff, ctinfo, state);
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */
 		pr_debug("nf_conntrack_in: Can't track with proto module\n");
 		nf_conntrack_put(&ct->ct_general);
 		skb->_nfct = 0;
-		NF_CT_STAT_INC_ATOMIC(net, invalid);
+		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
 		if (ret == -NF_DROP)
-			NF_CT_STAT_INC_ATOMIC(net, drop);
+			NF_CT_STAT_INC_ATOMIC(state->net, drop);
 		/* Special case: TCP tracker reports an attempt to reopen a
 		 * closed/aborted connection. We have to go back and create a
 		 * fresh conntrack.
@@ -1594,8 +1618,7 @@ bool nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
 
 	rcu_read_lock();
 	ret = nf_ct_invert_tuple(inverse, orig,
-				 __nf_ct_l4proto_find(orig->src.l3num,
-						      orig->dst.protonum));
+				 __nf_ct_l4proto_find(orig->dst.protonum));
 	rcu_read_unlock();
 	return ret;
 }
@@ -1752,7 +1775,7 @@ static int nf_conntrack_update(struct net *net, struct sk_buff *skb)
 	if (dataoff <= 0)
 		return -1;
 
-	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
+	l4proto = nf_ct_l4proto_find_get(l4num);
 
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb), dataoff, l3num,
 			     l4num, net, &tuple, l4proto))

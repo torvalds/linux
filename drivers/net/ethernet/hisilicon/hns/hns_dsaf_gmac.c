@@ -319,7 +319,7 @@ static void hns_gmac_set_promisc(void *mac_drv, u8 en)
 		hns_gmac_set_uc_match(mac_drv, en);
 }
 
-int hns_gmac_wait_fifo_clean(void *mac_drv)
+static int hns_gmac_wait_fifo_clean(void *mac_drv)
 {
 	struct mac_driver *drv = (struct mac_driver *)mac_drv;
 	int wait_cnt;

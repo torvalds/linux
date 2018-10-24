@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2016-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
 
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
 
@@ -264,6 +234,38 @@ static void
 emit_br_bset(struct nfp_prog *nfp_prog, swreg src, u8 bit, u16 addr, u8 defer)
 {
 	emit_br_bit_relo(nfp_prog, src, bit, addr, defer, true, RELO_BR_REL);
+}
+
+static void
+__emit_br_alu(struct nfp_prog *nfp_prog, u16 areg, u16 breg, u16 imm_hi,
+	      u8 defer, bool dst_lmextn, bool src_lmextn)
+{
+	u64 insn;
+
+	insn = OP_BR_ALU_BASE |
+		FIELD_PREP(OP_BR_ALU_A_SRC, areg) |
+		FIELD_PREP(OP_BR_ALU_B_SRC, breg) |
+		FIELD_PREP(OP_BR_ALU_DEFBR, defer) |
+		FIELD_PREP(OP_BR_ALU_IMM_HI, imm_hi) |
+		FIELD_PREP(OP_BR_ALU_SRC_LMEXTN, src_lmextn) |
+		FIELD_PREP(OP_BR_ALU_DST_LMEXTN, dst_lmextn);
+
+	nfp_prog_push(nfp_prog, insn);
+}
+
+static void emit_rtn(struct nfp_prog *nfp_prog, swreg base, u8 defer)
+{
+	struct nfp_insn_ur_regs reg;
+	int err;
+
+	err = swreg_to_unrestricted(reg_none(), base, reg_imm(0), &reg);
+	if (err) {
+		nfp_prog->error = err;
+		return;
+	}
+
+	__emit_br_alu(nfp_prog, reg.areg, reg.breg, 0, defer, reg.dst_lmextn,
+		      reg.src_lmextn);
 }
 
 static void
@@ -1137,7 +1139,7 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	     unsigned int size, unsigned int ptr_off, u8 gpr, u8 ptr_gpr,
 	     bool clr_gpr, lmem_step step)
 {
-	s32 off = nfp_prog->stack_depth + meta->insn.off + ptr_off;
+	s32 off = nfp_prog->stack_frame_depth + meta->insn.off + ptr_off;
 	bool first = true, last;
 	bool needs_inc = false;
 	swreg stack_off_reg;
@@ -1146,7 +1148,8 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	bool lm3 = true;
 	int ret;
 
-	if (meta->ptr_not_const) {
+	if (meta->ptr_not_const ||
+	    meta->flags & FLAG_INSN_PTR_CALLER_STACK_FRAME) {
 		/* Use of the last encountered ptr_off is OK, they all have
 		 * the same alignment.  Depend on low bits of value being
 		 * discarded when written to LMaddr register.
@@ -1695,7 +1698,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	s64 lm_off;
 
 	/* We only have to reload LM0 if the key is not at start of stack */
-	lm_off = nfp_prog->stack_depth;
+	lm_off = nfp_prog->stack_frame_depth;
 	lm_off += meta->arg2.reg.var_off.value + meta->arg2.reg.off;
 	load_lm_ptr = meta->arg2.var_off || lm_off;
 
@@ -1808,10 +1811,10 @@ static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		swreg stack_depth_reg;
 
 		stack_depth_reg = ur_load_imm_any(nfp_prog,
-						  nfp_prog->stack_depth,
+						  nfp_prog->stack_frame_depth,
 						  stack_imm(nfp_prog));
-		emit_alu(nfp_prog, reg_both(dst),
-			 stack_reg(nfp_prog), ALU_OP_ADD, stack_depth_reg);
+		emit_alu(nfp_prog, reg_both(dst), stack_reg(nfp_prog),
+			 ALU_OP_ADD, stack_depth_reg);
 		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 	} else {
 		wrp_reg_mov(nfp_prog, dst, src);
@@ -3081,7 +3084,93 @@ static int jne_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return wrp_test_reg(nfp_prog, meta, ALU_OP_XOR, BR_BNE);
 }
 
-static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static int
+bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	u32 ret_tgt, stack_depth, offset_br;
+	swreg tmp_reg;
+
+	stack_depth = round_up(nfp_prog->stack_frame_depth, STACK_FRAME_ALIGN);
+	/* Space for saving the return address is accounted for by the callee,
+	 * so stack_depth can be zero for the main function.
+	 */
+	if (stack_depth) {
+		tmp_reg = ur_load_imm_any(nfp_prog, stack_depth,
+					  stack_imm(nfp_prog));
+		emit_alu(nfp_prog, stack_reg(nfp_prog),
+			 stack_reg(nfp_prog), ALU_OP_ADD, tmp_reg);
+		emit_csr_wr(nfp_prog, stack_reg(nfp_prog),
+			    NFP_CSR_ACT_LM_ADDR0);
+	}
+
+	/* Two cases for jumping to the callee:
+	 *
+	 * - If callee uses and needs to save R6~R9 then:
+	 *     1. Put the start offset of the callee into imm_b(). This will
+	 *        require a fixup step, as we do not necessarily know this
+	 *        address yet.
+	 *     2. Put the return address from the callee to the caller into
+	 *        register ret_reg().
+	 *     3. (After defer slots are consumed) Jump to the subroutine that
+	 *        pushes the registers to the stack.
+	 *   The subroutine acts as a trampoline, and returns to the address in
+	 *   imm_b(), i.e. jumps to the callee.
+	 *
+	 * - If callee does not need to save R6~R9 then just load return
+	 *   address to the caller in ret_reg(), and jump to the callee
+	 *   directly.
+	 *
+	 * Using ret_reg() to pass the return address to the callee is set here
+	 * as a convention. The callee can then push this address onto its
+	 * stack frame in its prologue. The advantages of passing the return
+	 * address through ret_reg(), instead of pushing it to the stack right
+	 * here, are the following:
+	 * - It looks cleaner.
+	 * - If the called function is called multiple time, we get a lower
+	 *   program size.
+	 * - We save two no-op instructions that should be added just before
+	 *   the emit_br() when stack depth is not null otherwise.
+	 * - If we ever find a register to hold the return address during whole
+	 *   execution of the callee, we will not have to push the return
+	 *   address to the stack for leaf functions.
+	 */
+	if (!meta->jmp_dst) {
+		pr_err("BUG: BPF-to-BPF call has no destination recorded\n");
+		return -ELOOP;
+	}
+	if (nfp_prog->subprog[meta->jmp_dst->subprog_idx].needs_reg_push) {
+		ret_tgt = nfp_prog_current_offset(nfp_prog) + 3;
+		emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 2,
+			     RELO_BR_GO_CALL_PUSH_REGS);
+		offset_br = nfp_prog_current_offset(nfp_prog);
+		wrp_immed_relo(nfp_prog, imm_b(nfp_prog), 0, RELO_IMMED_REL);
+	} else {
+		ret_tgt = nfp_prog_current_offset(nfp_prog) + 2;
+		emit_br(nfp_prog, BR_UNC, meta->n + 1 + meta->insn.imm, 1);
+		offset_br = nfp_prog_current_offset(nfp_prog);
+	}
+	wrp_immed_relo(nfp_prog, ret_reg(nfp_prog), ret_tgt, RELO_IMMED_REL);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_tgt))
+		return -EINVAL;
+
+	if (stack_depth) {
+		tmp_reg = ur_load_imm_any(nfp_prog, stack_depth,
+					  stack_imm(nfp_prog));
+		emit_alu(nfp_prog, stack_reg(nfp_prog),
+			 stack_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
+		emit_csr_wr(nfp_prog, stack_reg(nfp_prog),
+			    NFP_CSR_ACT_LM_ADDR0);
+		wrp_nops(nfp_prog, 3);
+	}
+
+	meta->num_insns_after_br = nfp_prog_current_offset(nfp_prog);
+	meta->num_insns_after_br -= offset_br;
+
+	return 0;
+}
+
+static int helper_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	switch (meta->insn.imm) {
 	case BPF_FUNC_xdp_adjust_head:
@@ -3102,11 +3191,57 @@ static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	}
 }
 
+static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	if (is_mbpf_pseudo_call(meta))
+		return bpf_to_bpf_call(nfp_prog, meta);
+	else
+		return helper_call(nfp_prog, meta);
+}
+
+static bool nfp_is_main_function(struct nfp_insn_meta *meta)
+{
+	return meta->subprog_idx == 0;
+}
+
 static int goto_out(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 0, RELO_BR_GO_OUT);
 
 	return 0;
+}
+
+static int
+nfp_subprog_epilogue(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	if (nfp_prog->subprog[meta->subprog_idx].needs_reg_push) {
+		/* Pop R6~R9 to the stack via related subroutine.
+		 * We loaded the return address to the caller into ret_reg().
+		 * This means that the subroutine does not come back here, we
+		 * make it jump back to the subprogram caller directly!
+		 */
+		emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 1,
+			     RELO_BR_GO_CALL_POP_REGS);
+		/* Pop return address from the stack. */
+		wrp_mov(nfp_prog, ret_reg(nfp_prog), reg_lm(0, 0));
+	} else {
+		/* Pop return address from the stack. */
+		wrp_mov(nfp_prog, ret_reg(nfp_prog), reg_lm(0, 0));
+		/* Jump back to caller if no callee-saved registers were used
+		 * by the subprogram.
+		 */
+		emit_rtn(nfp_prog, ret_reg(nfp_prog), 0);
+	}
+
+	return 0;
+}
+
+static int jmp_exit(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	if (nfp_is_main_function(meta))
+		return goto_out(nfp_prog, meta);
+	else
+		return nfp_subprog_epilogue(nfp_prog, meta);
 }
 
 static const instr_cb_t instr_cb[256] = {
@@ -3197,21 +3332,39 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_JMP | BPF_JSET | BPF_X] =	jset_reg,
 	[BPF_JMP | BPF_JNE | BPF_X] =	jne_reg,
 	[BPF_JMP | BPF_CALL] =		call,
-	[BPF_JMP | BPF_EXIT] =		goto_out,
+	[BPF_JMP | BPF_EXIT] =		jmp_exit,
 };
 
 /* --- Assembler logic --- */
+static int
+nfp_fixup_immed_relo(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		     struct nfp_insn_meta *jmp_dst, u32 br_idx)
+{
+	if (immed_get_value(nfp_prog->prog[br_idx + 1])) {
+		pr_err("BUG: failed to fix up callee register saving\n");
+		return -EINVAL;
+	}
+
+	immed_set_value(&nfp_prog->prog[br_idx + 1], jmp_dst->off);
+
+	return 0;
+}
+
 static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta, *jmp_dst;
 	u32 idx, br_idx;
+	int err;
 
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		if (meta->skip)
 			continue;
-		if (meta->insn.code == (BPF_JMP | BPF_CALL))
-			continue;
 		if (BPF_CLASS(meta->insn.code) != BPF_JMP)
+			continue;
+		if (meta->insn.code == (BPF_JMP | BPF_EXIT) &&
+		    !nfp_is_main_function(meta))
+			continue;
+		if (is_mbpf_helper_call(meta))
 			continue;
 
 		if (list_is_last(&meta->l, &nfp_prog->insns))
@@ -3219,14 +3372,26 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 		else
 			br_idx = list_next_entry(meta, l)->off - 1;
 
+		/* For BPF-to-BPF function call, a stack adjustment sequence is
+		 * generated after the return instruction. Therefore, we must
+		 * withdraw the length of this sequence to have br_idx pointing
+		 * to where the "branch" NFP instruction is expected to be.
+		 */
+		if (is_mbpf_pseudo_call(meta))
+			br_idx -= meta->num_insns_after_br;
+
 		if (!nfp_is_br(nfp_prog->prog[br_idx])) {
 			pr_err("Fixup found block not ending in branch %d %02x %016llx!!\n",
 			       br_idx, meta->insn.code, nfp_prog->prog[br_idx]);
 			return -ELOOP;
 		}
+
+		if (meta->insn.code == (BPF_JMP | BPF_EXIT))
+			continue;
+
 		/* Leave special branches for later */
 		if (FIELD_GET(OP_RELO_TYPE, nfp_prog->prog[br_idx]) !=
-		    RELO_BR_REL)
+		    RELO_BR_REL && !is_mbpf_pseudo_call(meta))
 			continue;
 
 		if (!meta->jmp_dst) {
@@ -3240,6 +3405,18 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			pr_err("Branch landing on removed instruction!!\n");
 			return -ELOOP;
 		}
+
+		if (is_mbpf_pseudo_call(meta) &&
+		    nfp_prog->subprog[jmp_dst->subprog_idx].needs_reg_push) {
+			err = nfp_fixup_immed_relo(nfp_prog, meta,
+						   jmp_dst, br_idx);
+			if (err)
+				return err;
+		}
+
+		if (FIELD_GET(OP_RELO_TYPE, nfp_prog->prog[br_idx]) !=
+		    RELO_BR_REL)
+			continue;
 
 		for (idx = meta->off; idx <= br_idx; idx++) {
 			if (!nfp_is_br(nfp_prog->prog[idx]))
@@ -3256,6 +3433,27 @@ static void nfp_intro(struct nfp_prog *nfp_prog)
 	wrp_immed(nfp_prog, plen_reg(nfp_prog), GENMASK(13, 0));
 	emit_alu(nfp_prog, plen_reg(nfp_prog),
 		 plen_reg(nfp_prog), ALU_OP_AND, pv_len(nfp_prog));
+}
+
+static void
+nfp_subprog_prologue(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	/* Save return address into the stack. */
+	wrp_mov(nfp_prog, reg_lm(0, 0), ret_reg(nfp_prog));
+}
+
+static void
+nfp_start_subprog(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	unsigned int depth = nfp_prog->subprog[meta->subprog_idx].stack_depth;
+
+	nfp_prog->stack_frame_depth = round_up(depth, 4);
+	nfp_subprog_prologue(nfp_prog, meta);
+}
+
+bool nfp_is_subprog_start(struct nfp_insn_meta *meta)
+{
+	return meta->flags & FLAG_INSN_IS_SUBPROG_START;
 }
 
 static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
@@ -3348,6 +3546,67 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_b(2), SHF_SC_L_SHF, 16);
 }
 
+static bool nfp_prog_needs_callee_reg_save(struct nfp_prog *nfp_prog)
+{
+	unsigned int idx;
+
+	for (idx = 1; idx < nfp_prog->subprog_cnt; idx++)
+		if (nfp_prog->subprog[idx].needs_reg_push)
+			return true;
+
+	return false;
+}
+
+static void nfp_push_callee_registers(struct nfp_prog *nfp_prog)
+{
+	u8 reg;
+
+	/* Subroutine: Save all callee saved registers (R6 ~ R9).
+	 * imm_b() holds the return address.
+	 */
+	nfp_prog->tgt_call_push_regs = nfp_prog_current_offset(nfp_prog);
+	for (reg = BPF_REG_6; reg <= BPF_REG_9; reg++) {
+		u8 adj = (reg - BPF_REG_0) * 2;
+		u8 idx = (reg - BPF_REG_6) * 2;
+
+		/* The first slot in the stack frame is used to push the return
+		 * address in bpf_to_bpf_call(), start just after.
+		 */
+		wrp_mov(nfp_prog, reg_lm(0, 1 + idx), reg_b(adj));
+
+		if (reg == BPF_REG_8)
+			/* Prepare to jump back, last 3 insns use defer slots */
+			emit_rtn(nfp_prog, imm_b(nfp_prog), 3);
+
+		wrp_mov(nfp_prog, reg_lm(0, 1 + idx + 1), reg_b(adj + 1));
+	}
+}
+
+static void nfp_pop_callee_registers(struct nfp_prog *nfp_prog)
+{
+	u8 reg;
+
+	/* Subroutine: Restore all callee saved registers (R6 ~ R9).
+	 * ret_reg() holds the return address.
+	 */
+	nfp_prog->tgt_call_pop_regs = nfp_prog_current_offset(nfp_prog);
+	for (reg = BPF_REG_6; reg <= BPF_REG_9; reg++) {
+		u8 adj = (reg - BPF_REG_0) * 2;
+		u8 idx = (reg - BPF_REG_6) * 2;
+
+		/* The first slot in the stack frame holds the return address,
+		 * start popping just after that.
+		 */
+		wrp_mov(nfp_prog, reg_both(adj), reg_lm(0, 1 + idx));
+
+		if (reg == BPF_REG_8)
+			/* Prepare to jump back, last 3 insns use defer slots */
+			emit_rtn(nfp_prog, ret_reg(nfp_prog), 3);
+
+		wrp_mov(nfp_prog, reg_both(adj + 1), reg_lm(0, 1 + idx + 1));
+	}
+}
+
 static void nfp_outro(struct nfp_prog *nfp_prog)
 {
 	switch (nfp_prog->type) {
@@ -3360,12 +3619,22 @@ static void nfp_outro(struct nfp_prog *nfp_prog)
 	default:
 		WARN_ON(1);
 	}
+
+	if (!nfp_prog_needs_callee_reg_save(nfp_prog))
+		return;
+
+	nfp_push_callee_registers(nfp_prog);
+	nfp_pop_callee_registers(nfp_prog);
 }
 
 static int nfp_translate(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
+	unsigned int depth;
 	int err;
+
+	depth = nfp_prog->subprog[0].stack_depth;
+	nfp_prog->stack_frame_depth = round_up(depth, 4);
 
 	nfp_intro(nfp_prog);
 	if (nfp_prog->error)
@@ -3375,6 +3644,12 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 		instr_cb_t cb = instr_cb[meta->insn.code];
 
 		meta->off = nfp_prog_current_offset(nfp_prog);
+
+		if (nfp_is_subprog_start(meta)) {
+			nfp_start_subprog(nfp_prog, meta);
+			if (nfp_prog->error)
+				return nfp_prog->error;
+		}
 
 		if (meta->skip) {
 			nfp_prog->n_translated++;
@@ -4018,20 +4293,35 @@ void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt)
 
 	/* Another pass to record jump information. */
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		struct nfp_insn_meta *dst_meta;
 		u64 code = meta->insn.code;
+		unsigned int dst_idx;
+		bool pseudo_call;
 
-		if (BPF_CLASS(code) == BPF_JMP && BPF_OP(code) != BPF_EXIT &&
-		    BPF_OP(code) != BPF_CALL) {
-			struct nfp_insn_meta *dst_meta;
-			unsigned short dst_indx;
+		if (BPF_CLASS(code) != BPF_JMP)
+			continue;
+		if (BPF_OP(code) == BPF_EXIT)
+			continue;
+		if (is_mbpf_helper_call(meta))
+			continue;
 
-			dst_indx = meta->n + 1 + meta->insn.off;
-			dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_indx,
-						     cnt);
+		/* If opcode is BPF_CALL at this point, this can only be a
+		 * BPF-to-BPF call (a.k.a pseudo call).
+		 */
+		pseudo_call = BPF_OP(code) == BPF_CALL;
 
-			meta->jmp_dst = dst_meta;
-			dst_meta->flags |= FLAG_INSN_IS_JUMP_DST;
-		}
+		if (pseudo_call)
+			dst_idx = meta->n + 1 + meta->insn.imm;
+		else
+			dst_idx = meta->n + 1 + meta->insn.off;
+
+		dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_idx, cnt);
+
+		if (pseudo_call)
+			dst_meta->flags |= FLAG_INSN_IS_SUBPROG_START;
+
+		dst_meta->flags |= FLAG_INSN_IS_JUMP_DST;
+		meta->jmp_dst = dst_meta;
 	}
 }
 
@@ -4054,6 +4344,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 	for (i = 0; i < nfp_prog->prog_len; i++) {
 		enum nfp_relo_type special;
 		u32 val;
+		u16 off;
 
 		special = FIELD_GET(OP_RELO_TYPE, prog[i]);
 		switch (special) {
@@ -4069,6 +4360,24 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 		case RELO_BR_GO_ABORT:
 			br_set_offset(&prog[i],
 				      nfp_prog->tgt_abort + bv->start_off);
+			break;
+		case RELO_BR_GO_CALL_PUSH_REGS:
+			if (!nfp_prog->tgt_call_push_regs) {
+				pr_err("BUG: failed to detect subprogram registers needs\n");
+				err = -EINVAL;
+				goto err_free_prog;
+			}
+			off = nfp_prog->tgt_call_push_regs + bv->start_off;
+			br_set_offset(&prog[i], off);
+			break;
+		case RELO_BR_GO_CALL_POP_REGS:
+			if (!nfp_prog->tgt_call_pop_regs) {
+				pr_err("BUG: failed to detect subprogram registers needs\n");
+				err = -EINVAL;
+				goto err_free_prog;
+			}
+			off = nfp_prog->tgt_call_pop_regs + bv->start_off;
+			br_set_offset(&prog[i], off);
 			break;
 		case RELO_BR_NEXT_PKT:
 			br_set_offset(&prog[i], bv->tgt_done);

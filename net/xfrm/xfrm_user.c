@@ -1007,7 +1007,7 @@ static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
 		int err;
 
 		err = nlmsg_parse(cb->nlh, 0, attrs, XFRMA_MAX, xfrma_policy,
-				  NULL);
+				  cb->extack);
 		if (err < 0)
 			return err;
 

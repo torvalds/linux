@@ -323,6 +323,7 @@ void __neigh_set_probe_once(struct neighbour *neigh);
 bool neigh_remove_one(struct neighbour *ndel, struct neigh_table *tbl);
 void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev);
 int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev);
+int neigh_carrier_down(struct neigh_table *tbl, struct net_device *dev);
 int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb);
 int neigh_connected_output(struct neighbour *neigh, struct sk_buff *skb);
 int neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb);
@@ -541,6 +542,21 @@ static inline void neigh_update_ext_learned(struct neighbour *neigh, u32 flags,
 			neigh->flags |= NTF_EXT_LEARNED;
 		else
 			neigh->flags &= ~NTF_EXT_LEARNED;
+		*notify = 1;
+	}
+}
+
+static inline void neigh_update_is_router(struct neighbour *neigh, u32 flags,
+					  int *notify)
+{
+	u8 ndm_flags = 0;
+
+	ndm_flags |= (flags & NEIGH_UPDATE_F_ISROUTER) ? NTF_ROUTER : 0;
+	if ((neigh->flags ^ ndm_flags) & NTF_ROUTER) {
+		if (ndm_flags & NTF_ROUTER)
+			neigh->flags |= NTF_ROUTER;
+		else
+			neigh->flags &= ~NTF_ROUTER;
 		*notify = 1;
 	}
 }

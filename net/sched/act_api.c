@@ -81,6 +81,7 @@ static void tcf_set_action_cookie(struct tc_cookie __rcu **old_cookie,
 static void free_tcf(struct tc_action *p)
 {
 	free_percpu(p->cpu_bstats);
+	free_percpu(p->cpu_bstats_hw);
 	free_percpu(p->cpu_qstats);
 
 	tcf_set_action_cookie(&p->act_cookie, NULL);
@@ -103,11 +104,11 @@ static int __tcf_action_put(struct tc_action *p, bool bind)
 {
 	struct tcf_idrinfo *idrinfo = p->idrinfo;
 
-	if (refcount_dec_and_lock(&p->tcfa_refcnt, &idrinfo->lock)) {
+	if (refcount_dec_and_mutex_lock(&p->tcfa_refcnt, &idrinfo->lock)) {
 		if (bind)
 			atomic_dec(&p->tcfa_bindcnt);
 		idr_remove(&idrinfo->action_idr, p->tcfa_index);
-		spin_unlock(&idrinfo->lock);
+		mutex_unlock(&idrinfo->lock);
 
 		tcf_action_cleanup(p);
 		return 1;
@@ -199,7 +200,7 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 	struct tc_action *p;
 	unsigned long id = 1;
 
-	spin_lock(&idrinfo->lock);
+	mutex_lock(&idrinfo->lock);
 
 	s_i = cb->args[0];
 
@@ -234,7 +235,7 @@ done:
 	if (index >= 0)
 		cb->args[0] = index + 1;
 
-	spin_unlock(&idrinfo->lock);
+	mutex_unlock(&idrinfo->lock);
 	if (n_i) {
 		if (act_flags & TCA_FLAG_LARGE_DUMP_ON)
 			cb->args[1] = n_i;
@@ -244,6 +245,20 @@ done:
 nla_put_failure:
 	nla_nest_cancel(skb, nest);
 	goto done;
+}
+
+static int tcf_idr_release_unsafe(struct tc_action *p)
+{
+	if (atomic_read(&p->tcfa_bindcnt) > 0)
+		return -EPERM;
+
+	if (refcount_dec_and_test(&p->tcfa_refcnt)) {
+		idr_remove(&p->idrinfo->action_idr, p->tcfa_index);
+		tcf_action_cleanup(p);
+		return ACT_P_DELETED;
+	}
+
+	return 0;
 }
 
 static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
@@ -262,15 +277,19 @@ static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 	if (nla_put_string(skb, TCA_KIND, ops->kind))
 		goto nla_put_failure;
 
+	mutex_lock(&idrinfo->lock);
 	idr_for_each_entry_ul(idr, p, id) {
-		ret = __tcf_idr_release(p, false, true);
+		ret = tcf_idr_release_unsafe(p);
 		if (ret == ACT_P_DELETED) {
 			module_put(ops->owner);
 			n_i++;
 		} else if (ret < 0) {
+			mutex_unlock(&idrinfo->lock);
 			goto nla_put_failure;
 		}
 	}
+	mutex_unlock(&idrinfo->lock);
+
 	if (nla_put_u32(skb, TCA_FCNT, n_i))
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
@@ -305,13 +324,13 @@ int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 	struct tc_action *p;
 
-	spin_lock(&idrinfo->lock);
+	mutex_lock(&idrinfo->lock);
 	p = idr_find(&idrinfo->action_idr, index);
 	if (IS_ERR(p))
 		p = NULL;
 	else if (p)
 		refcount_inc(&p->tcfa_refcnt);
-	spin_unlock(&idrinfo->lock);
+	mutex_unlock(&idrinfo->lock);
 
 	if (p) {
 		*a = p;
@@ -326,10 +345,10 @@ static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 	struct tc_action *p;
 	int ret = 0;
 
-	spin_lock(&idrinfo->lock);
+	mutex_lock(&idrinfo->lock);
 	p = idr_find(&idrinfo->action_idr, index);
 	if (!p) {
-		spin_unlock(&idrinfo->lock);
+		mutex_unlock(&idrinfo->lock);
 		return -ENOENT;
 	}
 
@@ -339,7 +358,7 @@ static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 
 			WARN_ON(p != idr_remove(&idrinfo->action_idr,
 						p->tcfa_index));
-			spin_unlock(&idrinfo->lock);
+			mutex_unlock(&idrinfo->lock);
 
 			tcf_action_cleanup(p);
 			module_put(owner);
@@ -350,7 +369,7 @@ static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 		ret = -EPERM;
 	}
 
-	spin_unlock(&idrinfo->lock);
+	mutex_unlock(&idrinfo->lock);
 	return ret;
 }
 
@@ -372,9 +391,12 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		p->cpu_bstats = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
 		if (!p->cpu_bstats)
 			goto err1;
+		p->cpu_bstats_hw = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
+		if (!p->cpu_bstats_hw)
+			goto err2;
 		p->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
 		if (!p->cpu_qstats)
-			goto err2;
+			goto err3;
 	}
 	spin_lock_init(&p->tcfa_lock);
 	p->tcfa_index = index;
@@ -386,15 +408,17 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 					&p->tcfa_rate_est,
 					&p->tcfa_lock, NULL, est);
 		if (err)
-			goto err3;
+			goto err4;
 	}
 
 	p->idrinfo = idrinfo;
 	p->ops = ops;
 	*a = p;
 	return 0;
-err3:
+err4:
 	free_percpu(p->cpu_qstats);
+err3:
+	free_percpu(p->cpu_bstats_hw);
 err2:
 	free_percpu(p->cpu_bstats);
 err1:
@@ -407,10 +431,10 @@ void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
 {
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
-	spin_lock(&idrinfo->lock);
+	mutex_lock(&idrinfo->lock);
 	/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
 	WARN_ON(!IS_ERR(idr_replace(&idrinfo->action_idr, a, a->tcfa_index)));
-	spin_unlock(&idrinfo->lock);
+	mutex_unlock(&idrinfo->lock);
 }
 EXPORT_SYMBOL(tcf_idr_insert);
 
@@ -420,10 +444,10 @@ void tcf_idr_cleanup(struct tc_action_net *tn, u32 index)
 {
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
-	spin_lock(&idrinfo->lock);
+	mutex_lock(&idrinfo->lock);
 	/* Remove ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc */
 	WARN_ON(!IS_ERR(idr_remove(&idrinfo->action_idr, index)));
-	spin_unlock(&idrinfo->lock);
+	mutex_unlock(&idrinfo->lock);
 }
 EXPORT_SYMBOL(tcf_idr_cleanup);
 
@@ -441,14 +465,14 @@ int tcf_idr_check_alloc(struct tc_action_net *tn, u32 *index,
 	int ret;
 
 again:
-	spin_lock(&idrinfo->lock);
+	mutex_lock(&idrinfo->lock);
 	if (*index) {
 		p = idr_find(&idrinfo->action_idr, *index);
 		if (IS_ERR(p)) {
 			/* This means that another process allocated
 			 * index but did not assign the pointer yet.
 			 */
-			spin_unlock(&idrinfo->lock);
+			mutex_unlock(&idrinfo->lock);
 			goto again;
 		}
 
@@ -461,7 +485,7 @@ again:
 		} else {
 			*a = NULL;
 			ret = idr_alloc_u32(&idrinfo->action_idr, NULL, index,
-					    *index, GFP_ATOMIC);
+					    *index, GFP_KERNEL);
 			if (!ret)
 				idr_replace(&idrinfo->action_idr,
 					    ERR_PTR(-EBUSY), *index);
@@ -470,12 +494,12 @@ again:
 		*index = 1;
 		*a = NULL;
 		ret = idr_alloc_u32(&idrinfo->action_idr, NULL, index,
-				    UINT_MAX, GFP_ATOMIC);
+				    UINT_MAX, GFP_KERNEL);
 		if (!ret)
 			idr_replace(&idrinfo->action_idr, ERR_PTR(-EBUSY),
 				    *index);
 	}
-	spin_unlock(&idrinfo->lock);
+	mutex_unlock(&idrinfo->lock);
 	return ret;
 }
 EXPORT_SYMBOL(tcf_idr_check_alloc);
@@ -979,6 +1003,8 @@ int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *p,
 		goto errout;
 
 	if (gnet_stats_copy_basic(NULL, &d, p->cpu_bstats, &p->tcfa_bstats) < 0 ||
+	    gnet_stats_copy_basic_hw(NULL, &d, p->cpu_bstats_hw,
+				     &p->tcfa_bstats_hw) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &p->tcfa_rate_est) < 0 ||
 	    gnet_stats_copy_queue(&d, p->cpu_qstats,
 				  &p->tcfa_qstats,
@@ -1073,12 +1099,14 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 	err = -EINVAL;
 	ops = tc_lookup_action(tb[TCA_ACT_KIND]);
 	if (!ops) { /* could happen in batch of actions */
-		NL_SET_ERR_MSG(extack, "Specified TC action not found");
+		NL_SET_ERR_MSG(extack, "Specified TC action kind not found");
 		goto err_out;
 	}
 	err = -ENOENT;
-	if (ops->lookup(net, &a, index, extack) == 0)
+	if (ops->lookup(net, &a, index) == 0) {
+		NL_SET_ERR_MSG(extack, "TC action with specified index not found");
 		goto err_mod;
+	}
 
 	module_put(ops->owner);
 	return a;
@@ -1424,7 +1452,7 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	u32 act_count = 0;
 
 	ret = nlmsg_parse(cb->nlh, sizeof(struct tcamsg), tb, TCA_ROOT_MAX,
-			  tcaa_policy, NULL);
+			  tcaa_policy, cb->extack);
 	if (ret < 0)
 		return ret;
 

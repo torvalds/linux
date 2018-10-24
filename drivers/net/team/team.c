@@ -1104,10 +1104,7 @@ static void team_port_disable_netpoll(struct team_port *port)
 		return;
 	port->np = NULL;
 
-	/* Wait for transmitting packets to finish before freeing. */
-	synchronize_rcu_bh();
-	__netpoll_cleanup(np);
-	kfree(np);
+	__netpoll_free(np);
 }
 #else
 static int team_port_enable_netpoll(struct team_port *port)
