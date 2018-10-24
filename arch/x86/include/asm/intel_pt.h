@@ -16,6 +16,7 @@ enum pt_capabilities {
 	PT_CAP_topa_output,
 	PT_CAP_topa_multiple_entries,
 	PT_CAP_single_range_output,
+	PT_CAP_output_subsys,
 	PT_CAP_payloads_lip,
 	PT_CAP_num_address_ranges,
 	PT_CAP_mtc_periods,
