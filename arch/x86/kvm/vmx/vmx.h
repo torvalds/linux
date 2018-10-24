@@ -66,6 +66,25 @@ struct pi_desc {
 	u32 rsvd[6];
 } __aligned(64);
 
+#define RTIT_ADDR_RANGE		4
+
+struct pt_ctx {
+	u64 ctl;
+	u64 status;
+	u64 output_base;
+	u64 output_mask;
+	u64 cr3_match;
+	u64 addr_a[RTIT_ADDR_RANGE];
+	u64 addr_b[RTIT_ADDR_RANGE];
+};
+
+struct pt_desc {
+	u64 ctl_bitmask;
+	u32 addr_range;
+	u32 caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
+	struct pt_ctx host;
+	struct pt_ctx guest;
+};
 
 /*
  * The nested_vmx structure is part of vcpu_vmx, and holds information we need
@@ -249,6 +268,8 @@ struct vcpu_vmx {
 	u64 msr_ia32_feature_control;
 	u64 msr_ia32_feature_control_valid_bits;
 	u64 ept_pointer;
+
+	struct pt_desc pt_desc;
 };
 
 enum ept_pointers_status {
