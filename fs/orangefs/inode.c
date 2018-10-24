@@ -405,7 +405,11 @@ struct inode *orangefs_iget(struct super_block *sb,
 			orangefs_test_inode,
 			orangefs_set_inode,
 			ref);
-	if (!inode || !(inode->i_state & I_NEW))
+
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	if (!(inode->i_state & I_NEW))
 		return inode;
 
 	error = orangefs_inode_getattr(inode, 1, 1, STATX_ALL);
@@ -448,7 +452,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 
 	inode = new_inode(sb);
 	if (!inode)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	orangefs_set_inode(inode, ref);
 	inode->i_ino = hash;	/* needed for stat etc */
