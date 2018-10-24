@@ -43,7 +43,7 @@ int blk_mq_pci_map_queues(struct blk_mq_queue_map *qmap, struct pci_dev *pdev,
 			goto fallback;
 
 		for_each_cpu(cpu, mask)
-			qmap->mq_map[cpu] = queue;
+			qmap->mq_map[cpu] = qmap->queue_offset + queue;
 	}
 
 	return 0;

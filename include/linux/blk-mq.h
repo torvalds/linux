@@ -78,10 +78,11 @@ struct blk_mq_hw_ctx {
 struct blk_mq_queue_map {
 	unsigned int *mq_map;
 	unsigned int nr_queues;
+	unsigned int queue_offset;
 };
 
 enum {
-	HCTX_MAX_TYPES = 1,
+	HCTX_MAX_TYPES = 2,
 };
 
 struct blk_mq_tag_set {
