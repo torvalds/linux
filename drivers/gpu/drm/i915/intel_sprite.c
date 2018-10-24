@@ -458,7 +458,7 @@ skl_program_plane(struct intel_plane *plane,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void
+static void
 skl_update_plane(struct intel_plane *plane,
 		 const struct intel_crtc_state *crtc_state,
 		 const struct intel_plane_state *plane_state)
@@ -483,7 +483,7 @@ icl_update_slave(struct intel_plane *plane,
 			  plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE);
 }
 
-void
+static void
 skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
