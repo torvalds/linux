@@ -259,7 +259,7 @@ latex_elements = {
 'papersize': 'a4paper',
 
 # The font size ('10pt', '11pt' or '12pt').
-'pointsize': '8pt',
+'pointsize': '11pt',
 
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
@@ -272,8 +272,8 @@ latex_elements = {
     'preamble': '''
 	% Use some font with UTF-8 support with XeLaTeX
         \\usepackage{fontspec}
-        \\setsansfont{DejaVu Serif}
-        \\setromanfont{DejaVu Sans}
+        \\setsansfont{DejaVu Sans}
+        \\setromanfont{DejaVu Serif}
         \\setmonofont{DejaVu Sans Mono}
 
      '''

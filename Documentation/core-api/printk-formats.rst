@@ -376,15 +376,15 @@ correctness of the format string and va_list arguments.
 
 Passed by reference.
 
-kobjects
---------
+Device tree nodes
+-----------------
 
 ::
 
 	%pOF[fnpPcCF]
 
 
-For printing kobject based structs (device nodes). Default behaviour is
+For printing device tree node structures. Default behaviour is
 equivalent to %pOFf.
 
 	- f - device node full_name

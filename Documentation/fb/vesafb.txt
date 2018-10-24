@@ -114,11 +114,11 @@ to turn it on.
 
 You can pass options to vesafb using "video=vesafb:option" on
 the kernel command line.  Multiple options should be separated
-by comma, like this: "video=vesafb:ypan,invers"
+by comma, like this: "video=vesafb:ypan,inverse"
 
 Accepted options:
 
-invers	no comment...
+inverse	use inverse color map
 
 ypan	enable display panning using the VESA protected mode 
 	interface.  The visible screen is just a window of the

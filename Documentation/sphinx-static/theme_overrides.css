@@ -4,6 +4,44 @@
  *
  */
 
+/* Improve contrast and increase size for easier reading. */
+
+body {
+	font-family: serif;
+	color: black;
+	font-size: 100%;
+}
+
+h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend {
+	font-family: sans-serif;
+}
+
+.wy-menu-vertical li.current a {
+	color: #505050;
+}
+
+.wy-menu-vertical li.on a, .wy-menu-vertical li.current > a {
+	color: #303030;
+}
+
+div[class^="highlight"] pre {
+	font-family: monospace;
+	color: black;
+	font-size: 100%;
+}
+
+.wy-menu-vertical {
+	font-family: sans-serif;
+}
+
+.c {
+	font-style: normal;
+}
+
+p {
+	font-size: 100%;
+}
+
 /* Interim: Code-blocks with line nos - lines and line numbers don't line up.
  * see: https://github.com/rtfd/sphinx_rtd_theme/issues/419
  */

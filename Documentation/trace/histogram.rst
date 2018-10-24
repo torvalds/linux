@@ -1765,7 +1765,7 @@ For example, here's how a latency can be calculated::
   # echo 'hist:keys=pid,prio:ts0=common_timestamp ...' >> event1/trigger
   # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp-$ts0 ...' >> event2/trigger
 
-In the first line above, the event's timetamp is saved into the
+In the first line above, the event's timestamp is saved into the
 variable ts0.  In the next line, ts0 is subtracted from the second
 event's timestamp to produce the latency, which is then assigned into
 yet another variable, 'wakeup_lat'.  The hist trigger below in turn
@@ -1811,7 +1811,7 @@ the command that defined it with a '!'::
     /sys/kernel/debug/tracing/synthetic_events
 
 At this point, there isn't yet an actual 'wakeup_latency' event
-instantiated in the event subsytem - for this to happen, a 'hist
+instantiated in the event subsystem - for this to happen, a 'hist
 trigger action' needs to be instantiated and bound to actual fields
 and variables defined on other events (see Section 2.2.3 below on
 how that is done using hist trigger 'onmatch' action). Once that is
@@ -1837,7 +1837,7 @@ output can be displayed by reading the event's 'hist' file.
 A hist trigger 'action' is a function that's executed whenever a
 histogram entry is added or updated.
 
-The default 'action' if no special function is explicity specified is
+The default 'action' if no special function is explicitly specified is
 as it always has been, to simply update the set of values associated
 with an entry.  Some applications, however, may want to perform
 additional actions at that point, such as generate another event, or

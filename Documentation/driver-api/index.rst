@@ -29,6 +29,7 @@ available subsections can be seen below.
    iio/index
    input
    usb/index
+   firewire
    pci
    spi
    i2c
