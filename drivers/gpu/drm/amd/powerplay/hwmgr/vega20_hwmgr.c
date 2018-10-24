@@ -1875,38 +1875,20 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-static int vega20_get_current_gfx_clk_freq(struct pp_hwmgr *hwmgr, uint32_t *gfx_freq)
+static int vega20_get_current_clk_freq(struct pp_hwmgr *hwmgr,
+		PPCLK_e clk_id, uint32_t *clk_freq)
 {
-	uint32_t gfx_clk = 0;
 	int ret = 0;
 
-	*gfx_freq = 0;
+	*clk_freq = 0;
 
 	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_GetDpmClockFreq, (PPCLK_GFXCLK << 16))) == 0,
-			"[GetCurrentGfxClkFreq] Attempt to get Current GFXCLK Frequency Failed!",
+			PPSMC_MSG_GetDpmClockFreq, (clk_id << 16))) == 0,
+			"[GetCurrentClkFreq] Attempt to get Current Frequency Failed!",
 			return ret);
-	gfx_clk = smum_get_argument(hwmgr);
+	*clk_freq = smum_get_argument(hwmgr);
 
-	*gfx_freq = gfx_clk * 100;
-
-	return 0;
-}
-
-static int vega20_get_current_mclk_freq(struct pp_hwmgr *hwmgr, uint32_t *mclk_freq)
-{
-	uint32_t mem_clk = 0;
-	int ret = 0;
-
-	*mclk_freq = 0;
-
-	PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_GetDpmClockFreq, (PPCLK_UCLK << 16))) == 0,
-			"[GetCurrentMClkFreq] Attempt to get Current MCLK Frequency Failed!",
-			return ret);
-	mem_clk = smum_get_argument(hwmgr);
-
-	*mclk_freq = mem_clk * 100;
+	*clk_freq = *clk_freq * 100;
 
 	return 0;
 }
@@ -1937,12 +1919,16 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
-		ret = vega20_get_current_gfx_clk_freq(hwmgr, (uint32_t *)value);
+		ret = vega20_get_current_clk_freq(hwmgr,
+				PPCLK_GFXCLK,
+				(uint32_t *)value);
 		if (!ret)
 			*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
-		ret = vega20_get_current_mclk_freq(hwmgr, (uint32_t *)value);
+		ret = vega20_get_current_clk_freq(hwmgr,
+				PPCLK_UCLK,
+				(uint32_t *)value);
 		if (!ret)
 			*size = 4;
 		break;
@@ -2743,7 +2729,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 	switch (type) {
 	case PP_SCLK:
-		ret = vega20_get_current_gfx_clk_freq(hwmgr, &now);
+		ret = vega20_get_current_clk_freq(hwmgr, PPCLK_GFXCLK, &now);
 		PP_ASSERT_WITH_CODE(!ret,
 				"Attempt to get current gfx clk Failed!",
 				return ret);
@@ -2760,7 +2746,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_MCLK:
-		ret = vega20_get_current_mclk_freq(hwmgr, &now);
+		ret = vega20_get_current_clk_freq(hwmgr, PPCLK_UCLK, &now);
 		PP_ASSERT_WITH_CODE(!ret,
 				"Attempt to get current mclk freq Failed!",
 				return ret);
