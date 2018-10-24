@@ -58,6 +58,10 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg	pipe_usb3_sel;
 	struct combphy_reg	pipe_pll_lock;
 	struct combphy_reg	pipe_status_l0;
+	struct combphy_reg	pipe_l0rxterm_sel;
+	struct combphy_reg	pipe_l1rxterm_sel;
+	struct combphy_reg	pipe_l0rxterm_set;
+	struct combphy_reg	pipe_l1rxterm_set;
 };
 
 struct rockchip_combphy_cfg {
@@ -73,6 +77,7 @@ struct rockchip_combphy_priv {
 	struct clk *ref_clk;
 	struct phy *phy;
 	struct regmap *combphy_grf;
+	struct regmap *usb_pcie_grf;
 	struct reset_control *rsts[PHY_RESET_MAX];
 	const struct rockchip_combphy_cfg *cfg;
 };
@@ -149,6 +154,17 @@ static int phy_pcie_init(struct rockchip_combphy_priv *priv)
 	reset_control_deassert(priv->rsts[PHY_APB_RSTN]);
 	udelay(5);
 
+	/* Set rxtermination for lane0 */
+	param_write(priv->combphy_grf, &grfcfg->pipe_l0rxterm_set, true);
+	/* Set rxtermination for lane1 */
+	param_write(priv->combphy_grf, &grfcfg->pipe_l1rxterm_set, true);
+	/* Select pipe_l0_rxtermination from grf */
+	param_write(priv->combphy_grf, &grfcfg->pipe_l0rxterm_sel, true);
+	/* Select pipe_l1_rxtermination from grf */
+	param_write(priv->combphy_grf, &grfcfg->pipe_l1rxterm_sel, true);
+	/* Select rxelecidle_disable and txcommonmode from PCIe controller */
+	param_write(priv->combphy_grf, &grfcfg->pipe_txrx_sel, false);
+
 	/* Start to configurate PHY registers for PCIE. */
 	if (priv->cfg->combphy_cfg) {
 		ret = priv->cfg->combphy_cfg(priv);
@@ -167,14 +183,8 @@ static int phy_pcie_init(struct rockchip_combphy_priv *priv)
 	}
 
 	reset_control_deassert(priv->rsts[PHY_PIPE_RSTN]);
-
-	/* Wait PIPE PHY status lane0 ready */
-	ret = readx_poll_timeout_atomic(rockchip_combphy_is_ready, priv, val,
-					val == grfcfg->pipe_status_l0.enable,
-					10, 1000);
-	if (ret)
-		dev_err(priv->dev, "wait phy status lane0 ready timeout\n");
-
+	/* Release link reset grant */
+	return regmap_write(priv->usb_pcie_grf, 0x0, 0x40004);
 error:
 	return ret;
 }
@@ -383,6 +393,13 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 		return PTR_ERR(priv->combphy_grf);
 	}
 
+	priv->usb_pcie_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
+							 "rockchip,usbpciegrf");
+	if (IS_ERR(priv->usb_pcie_grf)) {
+		dev_err(dev, "failed to find usb_pcie_grf regmap\n");
+		return PTR_ERR(priv->usb_pcie_grf);
+	}
+
 	priv->ref_clk = devm_clk_get(dev, "refclk");
 	if (IS_ERR(priv->ref_clk)) {
 		dev_err(dev, "failed to find ref clock\n");
@@ -489,6 +506,13 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		writel(0x01, priv->mmio + 0x2020);
 		writel(0x64, priv->mmio + 0x2028);
 		writel(0x21, priv->mmio + 0x2030);
+
+		if (priv->phy_type == PHY_TYPE_PCIE) {
+			writel(0x1,  priv->mmio + 0x3020);
+			writel(0x64, priv->mmio + 0x3028);
+			writel(0x21, priv->mmio + 0x3030);
+		}
+
 		break;
 	case 50000000:
 		writel(0x00, priv->mmio + 0x2118);
@@ -505,9 +529,29 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 	if (priv->phy_type == PHY_TYPE_PCIE) {
 		/* Adjust Lane 0 Rx interface timing */
 		writel(0x20, priv->mmio + 0x20ac);
+		writel(0x12, priv->mmio + 0x20c8);
+		writel(0x76, priv->mmio + 0x2150);
 
 		/* Adjust Lane 1 Rx interface timing */
 		writel(0x20, priv->mmio + 0x30ac);
+		writel(0x12, priv->mmio + 0x30c8);
+		writel(0x76, priv->mmio + 0x3150);
+		/* Set PHY output refclk path */
+		writel(0x0, priv->mmio + 0x21a4);
+		writel(0x0, priv->mmio + 0x21a8);
+		writel(0xb, priv->mmio + 0x21ec);
+
+		/* Physical ordered set for PCIe */
+		writel(0x02, priv->mmio + 0x45c0);
+		writel(0x83, priv->mmio + 0x45c4);
+		writel(0x03, priv->mmio + 0x45c8);
+		writel(0x43, priv->mmio + 0x45cc);
+		writel(0x00, priv->mmio + 0x45d0);
+		writel(0xbc, priv->mmio + 0x45d4);
+
+		/* Boost pre-emphasis */
+		writel(0x8b, priv->mmio + 0x21b8);
+		writel(0x8b, priv->mmio + 0x31b8);
 	} else if (priv->phy_type == PHY_TYPE_USB3) {
 		/* Adjust Lane 0 Rx interface timing */
 		writel(0x20, priv->mmio + 0x20ac);
@@ -569,8 +613,10 @@ static const struct rockchip_combphy_cfg rk1808_combphy_cfgs = {
 	.grfcfg	= {
 		.pipe_l1_sel	= { 0x0000, 15, 11, 0x00, 0x1f },
 		.pipe_l1_set	= { 0x0008, 13, 8, 0x00, 0x13 },
+		.pipe_l1rxterm_sel = { 0x0000, 12, 12, 0x0, 0x1 },
 		.pipe_l1pd_sel	= { 0x0000, 11, 11, 0x0, 0x1},
 		.pipe_l1pd_p3	= { 0x0008, 9, 8, 0x0, 0x3 },
+		.pipe_l0rxterm_sel = { 0x0000, 7, 7, 0x0, 0x1 },
 		.pipe_l0pd_sel	= { 0x0000, 6, 6, 0x0, 0x1 },
 		.pipe_l0pd_p3	= { 0x0008, 1, 0, 0x0, 0x3 },
 		.pipe_clk_sel	= { 0x0000, 3, 3, 0x0, 0x1 },
@@ -579,8 +625,10 @@ static const struct rockchip_combphy_cfg rk1808_combphy_cfgs = {
 		.pipe_rate_set	= { 0x0004, 5, 4, 0x0, 0x1 },
 		.pipe_mode_sel	= { 0x0000, 1, 1, 0x0, 0x1 },
 		.pipe_mode_set	= { 0x0004, 3, 2, 0x0, 0x1 },
-		.pipe_txrx_sel	= { 0x0004, 15, 8, 0x14, 0x2f },
+		.pipe_txrx_sel	= { 0x0004, 15, 8, 0x10, 0x2f },
 		.pipe_txrx_set	= { 0x0008, 15, 14, 0x0, 0x3 },
+		.pipe_l1rxterm_set = { 0x0008, 10, 10, 0x0, 0x1 },
+		.pipe_l0rxterm_set = { 0x0008, 2, 2, 0x0, 0x1 },
 		.pipe_width_sel	= { 0x0000, 0, 0, 0x0, 0x1 },
 		.pipe_width_set	= { 0x0004, 1, 0, 0x2, 0x0 },
 		.pipe_usb3_sel	= { 0x000c, 0, 0, 0x0, 0x1 },
