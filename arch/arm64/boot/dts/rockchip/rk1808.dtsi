@@ -268,6 +268,11 @@
 		};
 	};
 
+	usb_pcie_grf: syscon@fe040000 {
+		compatible = "rockchip,usb-pcie-grf", "syscon";
+		reg = <0x0 0xfe040000 0x0 0x1000>;
+	};
+
 	coregrf: syscon@fe050000 {
 		compatible = "rockchip,rk1808-coregrf", "syscon", "simple-mfd";
 		reg = <0x0 0xfe050000 0x0 0x1000>;
@@ -418,6 +423,7 @@
 		reset-names = "otg-rst", "combphy-por",
 			      "combphy-apb", "combphy-pipe";
 		rockchip,combphygrf = <&combphy_grf>;
+		rockchip,usbpciegrf = <&usb_pcie_grf>;
 		status = "disabled";
 	};
 
