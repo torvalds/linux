@@ -1055,6 +1055,10 @@ static int  ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
+static int get_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss);
+static int set_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
 static bool ftdi_tx_empty(struct usb_serial_port *port);
 static int ftdi_get_modem_status(struct usb_serial_port *port,
@@ -1091,6 +1095,8 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.tiocmiwait =		usb_serial_generic_tiocmiwait,
 	.get_icount =           usb_serial_generic_get_icount,
 	.ioctl =		ftdi_ioctl,
+	.get_serial =		get_serial_info,
+	.set_serial =		set_serial_info,
 	.set_termios =		ftdi_set_termios,
 	.break_ctl =		ftdi_break_ctl,
 	.tx_empty =		ftdi_tx_empty,
@@ -1443,30 +1449,24 @@ static int read_latency_timer(struct usb_serial_port *port)
 	return 0;
 }
 
-static int get_serial_info(struct usb_serial_port *port,
-				struct serial_struct __user *retinfo)
+static int get_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct serial_struct tmp;
 
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.flags = priv->flags;
-	tmp.baud_base = priv->baud_base;
-	tmp.custom_divisor = priv->custom_divisor;
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
+	ss->flags = priv->flags;
+	ss->baud_base = priv->baud_base;
+	ss->custom_divisor = priv->custom_divisor;
 	return 0;
 }
 
 static int set_serial_info(struct tty_struct *tty,
-	struct usb_serial_port *port, struct serial_struct __user *newinfo)
+	struct serial_struct *ss)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct serial_struct new_serial;
 	struct ftdi_private old_priv;
-
-	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
-		return -EFAULT;
 
 	mutex_lock(&priv->cfg_lock);
 	old_priv = *priv;
@@ -1474,17 +1474,17 @@ static int set_serial_info(struct tty_struct *tty,
 	/* Do error checking and permission checking */
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if ((new_serial.flags ^ priv->flags) & ~ASYNC_USR_MASK) {
+		if ((ss->flags ^ priv->flags) & ~ASYNC_USR_MASK) {
 			mutex_unlock(&priv->cfg_lock);
 			return -EPERM;
 		}
 		priv->flags = ((priv->flags & ~ASYNC_USR_MASK) |
-			       (new_serial.flags & ASYNC_USR_MASK));
-		priv->custom_divisor = new_serial.custom_divisor;
+			       (ss->flags & ASYNC_USR_MASK));
+		priv->custom_divisor = ss->custom_divisor;
 		goto check_and_exit;
 	}
 
-	if (new_serial.baud_base != priv->baud_base) {
+	if (ss->baud_base != priv->baud_base) {
 		mutex_unlock(&priv->cfg_lock);
 		return -EINVAL;
 	}
@@ -1492,8 +1492,8 @@ static int set_serial_info(struct tty_struct *tty,
 	/* Make the changes - these are privileged changes! */
 
 	priv->flags = ((priv->flags & ~ASYNC_FLAGS) |
-					(new_serial.flags & ASYNC_FLAGS));
-	priv->custom_divisor = new_serial.custom_divisor;
+					(ss->flags & ASYNC_FLAGS));
+	priv->custom_divisor = ss->custom_divisor;
 
 check_and_exit:
 	write_latency_timer(port);
@@ -1507,10 +1507,8 @@ check_and_exit:
 			dev_warn_ratelimited(&port->dev, "use of SPD flags is deprecated\n");
 
 		change_speed(tty, port);
-		mutex_unlock(&priv->cfg_lock);
 	}
-	else
-		mutex_unlock(&priv->cfg_lock);
+	mutex_unlock(&priv->cfg_lock);
 	return 0;
 }
 
@@ -2452,10 +2450,6 @@ static int ftdi_ioctl(struct tty_struct *tty,
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-	case TIOCGSERIAL:
-		return get_serial_info(port, argp);
-	case TIOCSSERIAL:
-		return set_serial_info(tty, port, argp);
 	case TIOCSERGETLSR:
 		return get_lsr_info(port, argp);
 	default:

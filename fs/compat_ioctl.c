@@ -560,69 +560,6 @@ static int mt_ioctl_trans(struct file *file,
 #define HIDPGETCONNLIST	_IOR('H', 210, int)
 #define HIDPGETCONNINFO	_IOR('H', 211, int)
 
-
-struct serial_struct32 {
-        compat_int_t    type;
-        compat_int_t    line;
-        compat_uint_t   port;
-        compat_int_t    irq;
-        compat_int_t    flags;
-        compat_int_t    xmit_fifo_size;
-        compat_int_t    custom_divisor;
-        compat_int_t    baud_base;
-        unsigned short  close_delay;
-        char    io_type;
-        char    reserved_char[1];
-        compat_int_t    hub6;
-        unsigned short  closing_wait; /* time to wait before closing */
-        unsigned short  closing_wait2; /* no longer used... */
-        compat_uint_t   iomem_base;
-        unsigned short  iomem_reg_shift;
-        unsigned int    port_high;
-     /* compat_ulong_t  iomap_base FIXME */
-        compat_int_t    reserved[1];
-};
-
-static int serial_struct_ioctl(struct file *file,
-		unsigned cmd, struct serial_struct32 __user *ss32)
-{
-        typedef struct serial_struct32 SS32;
-        int err;
-	struct serial_struct __user *ss = compat_alloc_user_space(sizeof(*ss));
-        __u32 udata;
-	unsigned int base;
-	unsigned char *iomem_base;
-
-	if (ss == NULL)
-		return -EFAULT;
-        if (cmd == TIOCSSERIAL) {
-		if (copy_in_user(ss, ss32, offsetof(SS32, iomem_base)) ||
-		    get_user(udata, &ss32->iomem_base))
-			return -EFAULT;
-		iomem_base = compat_ptr(udata);
-		if (put_user(iomem_base, &ss->iomem_base) ||
-		    convert_in_user(&ss32->iomem_reg_shift,
-		      &ss->iomem_reg_shift) ||
-		    convert_in_user(&ss32->port_high, &ss->port_high) ||
-		    put_user(0UL, &ss->iomap_base))
-			return -EFAULT;
-        }
-	err = do_ioctl(file, cmd, (unsigned long)ss);
-        if (cmd == TIOCGSERIAL && err >= 0) {
-		if (copy_in_user(ss32, ss, offsetof(SS32, iomem_base)) ||
-		    get_user(iomem_base, &ss->iomem_base))
-			return -EFAULT;
-		base = (unsigned long)iomem_base  >> 32 ?
-			0xffffffff : (unsigned)(unsigned long)iomem_base;
-		if (put_user(base, &ss32->iomem_base) ||
-		    convert_in_user(&ss->iomem_reg_shift,
-		      &ss32->iomem_reg_shift) ||
-		    convert_in_user(&ss->port_high, &ss32->port_high))
-			return -EFAULT;
-        }
-        return err;
-}
-
 #define RTC_IRQP_READ32		_IOR('p', 0x0b, compat_ulong_t)
 #define RTC_IRQP_SET32		_IOW('p', 0x0c, compat_ulong_t)
 #define RTC_EPOCH_READ32	_IOR('p', 0x0d, compat_ulong_t)
@@ -707,60 +644,8 @@ static int compat_ioctl_preallocate(struct file *file,
 
 static unsigned int ioctl_pointer[] = {
 /* compatible ioctls first */
-COMPATIBLE_IOCTL(0x4B50)   /* KDGHWCLK - not in the kernel, but don't complain */
-COMPATIBLE_IOCTL(0x4B51)   /* KDSHWCLK - not in the kernel, but don't complain */
-
-/* Big T */
-COMPATIBLE_IOCTL(TCGETA)
-COMPATIBLE_IOCTL(TCSETA)
-COMPATIBLE_IOCTL(TCSETAW)
-COMPATIBLE_IOCTL(TCSETAF)
-COMPATIBLE_IOCTL(TCSBRK)
-COMPATIBLE_IOCTL(TCXONC)
-COMPATIBLE_IOCTL(TCFLSH)
-COMPATIBLE_IOCTL(TCGETS)
-COMPATIBLE_IOCTL(TCSETS)
-COMPATIBLE_IOCTL(TCSETSW)
-COMPATIBLE_IOCTL(TCSETSF)
-COMPATIBLE_IOCTL(TIOCLINUX)
-COMPATIBLE_IOCTL(TIOCSBRK)
-COMPATIBLE_IOCTL(TIOCGDEV)
-COMPATIBLE_IOCTL(TIOCCBRK)
-COMPATIBLE_IOCTL(TIOCGSID)
-COMPATIBLE_IOCTL(TIOCGICOUNT)
-COMPATIBLE_IOCTL(TIOCGEXCL)
 /* Little t */
-COMPATIBLE_IOCTL(TIOCGETD)
-COMPATIBLE_IOCTL(TIOCSETD)
-COMPATIBLE_IOCTL(TIOCEXCL)
-COMPATIBLE_IOCTL(TIOCNXCL)
-COMPATIBLE_IOCTL(TIOCCONS)
-COMPATIBLE_IOCTL(TIOCGSOFTCAR)
-COMPATIBLE_IOCTL(TIOCSSOFTCAR)
-COMPATIBLE_IOCTL(TIOCSWINSZ)
-COMPATIBLE_IOCTL(TIOCGWINSZ)
-COMPATIBLE_IOCTL(TIOCMGET)
-COMPATIBLE_IOCTL(TIOCMBIC)
-COMPATIBLE_IOCTL(TIOCMBIS)
-COMPATIBLE_IOCTL(TIOCMSET)
-COMPATIBLE_IOCTL(TIOCNOTTY)
-COMPATIBLE_IOCTL(TIOCSTI)
 COMPATIBLE_IOCTL(TIOCOUTQ)
-COMPATIBLE_IOCTL(TIOCSPGRP)
-COMPATIBLE_IOCTL(TIOCGPGRP)
-COMPATIBLE_IOCTL(TIOCSERGETLSR)
-#ifdef TIOCSRS485
-COMPATIBLE_IOCTL(TIOCSRS485)
-#endif
-#ifdef TIOCGRS485
-COMPATIBLE_IOCTL(TIOCGRS485)
-#endif
-#ifdef TCGETS2
-COMPATIBLE_IOCTL(TCGETS2)
-COMPATIBLE_IOCTL(TCSETS2)
-COMPATIBLE_IOCTL(TCSETSW2)
-COMPATIBLE_IOCTL(TCSETSF2)
-#endif
 /* Little f */
 COMPATIBLE_IOCTL(FIOCLEX)
 COMPATIBLE_IOCTL(FIONCLEX)
@@ -775,23 +660,6 @@ COMPATIBLE_IOCTL(FIGETBSZ)
 COMPATIBLE_IOCTL(FIFREEZE)
 COMPATIBLE_IOCTL(FITHAW)
 COMPATIBLE_IOCTL(FITRIM)
-COMPATIBLE_IOCTL(KDGETKEYCODE)
-COMPATIBLE_IOCTL(KDSETKEYCODE)
-COMPATIBLE_IOCTL(KDGKBTYPE)
-COMPATIBLE_IOCTL(KDGETMODE)
-COMPATIBLE_IOCTL(KDGKBMODE)
-COMPATIBLE_IOCTL(KDGKBMETA)
-COMPATIBLE_IOCTL(KDGKBENT)
-COMPATIBLE_IOCTL(KDSKBENT)
-COMPATIBLE_IOCTL(KDGKBSENT)
-COMPATIBLE_IOCTL(KDSKBSENT)
-COMPATIBLE_IOCTL(KDGKBDIACR)
-COMPATIBLE_IOCTL(KDSKBDIACR)
-COMPATIBLE_IOCTL(KDGKBDIACRUC)
-COMPATIBLE_IOCTL(KDSKBDIACRUC)
-COMPATIBLE_IOCTL(KDKBDREP)
-COMPATIBLE_IOCTL(KDGKBLED)
-COMPATIBLE_IOCTL(KDGETLED)
 #ifdef CONFIG_BLOCK
 /* Big S */
 COMPATIBLE_IOCTL(SCSI_IOCTL_GET_IDLUN)
@@ -1133,11 +1001,6 @@ COMPATIBLE_IOCTL(CAPI_SET_FLAGS)
 COMPATIBLE_IOCTL(CAPI_CLR_FLAGS)
 COMPATIBLE_IOCTL(CAPI_NCCI_OPENCOUNT)
 COMPATIBLE_IOCTL(CAPI_NCCI_GETUNIT)
-/* Siemens Gigaset */
-COMPATIBLE_IOCTL(GIGASET_REDIR)
-COMPATIBLE_IOCTL(GIGASET_CONFIG)
-COMPATIBLE_IOCTL(GIGASET_BRKCHARS)
-COMPATIBLE_IOCTL(GIGASET_VERSION)
 /* Misc. */
 COMPATIBLE_IOCTL(0x41545900)		/* ATYIO_CLKR */
 COMPATIBLE_IOCTL(0x41545901)		/* ATYIO_CLKW */
@@ -1223,21 +1086,6 @@ COMPATIBLE_IOCTL(JSIOCGAXES)
 COMPATIBLE_IOCTL(JSIOCGBUTTONS)
 COMPATIBLE_IOCTL(JSIOCGNAME(0))
 
-#ifdef TIOCGLTC
-COMPATIBLE_IOCTL(TIOCGLTC)
-COMPATIBLE_IOCTL(TIOCSLTC)
-#endif
-#ifdef TIOCSTART
-/*
- * For these two we have definitions in ioctls.h and/or termios.h on
- * some architectures but no actual implemention.  Some applications
- * like bash call them if they are defined in the headers, so we provide
- * entries here to avoid syslog message spew.
- */
-COMPATIBLE_IOCTL(TIOCSTART)
-COMPATIBLE_IOCTL(TIOCSTOP)
-#endif
-
 /* fat 'r' ioctls. These are handled by fat with ->compat_ioctl,
    but we don't want warnings on other file systems. So declare
    them as compatible here. */
@@ -1293,10 +1141,6 @@ static long do_ioctl_trans(unsigned int cmd,
 	case MTIOCPOS32:
 		return mt_ioctl_trans(file, cmd, argp);
 #endif
-	/* Serial */
-	case TIOCGSERIAL:
-	case TIOCSSERIAL:
-		return serial_struct_ioctl(file, cmd, argp);
 	/* Not implemented in the native kernel */
 	case RTC_IRQP_READ32:
 	case RTC_IRQP_SET32:
@@ -1316,24 +1160,11 @@ static long do_ioctl_trans(unsigned int cmd,
 	 * so we must not do a compat_ptr() translation.
 	 */
 	switch (cmd) {
-	/* Big T */
-	case TCSBRKP:
-	case TIOCMIWAIT:
-	case TIOCSCTTY:
 	/* RAID */
 	case HOT_REMOVE_DISK:
 	case HOT_ADD_DISK:
 	case SET_DISK_FAULTY:
 	case SET_BITMAP_FILE:
-	/* Big K */
-	case KDSIGACCEPT:
-	case KIOCSOUND:
-	case KDMKTONE:
-	case KDSETMODE:
-	case KDSKBMODE:
-	case KDSKBMETA:
-	case KDSKBLED:
-	case KDSETLED:
 		return vfs_ioctl(file, cmd, arg);
 	}
 

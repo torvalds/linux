@@ -463,6 +463,7 @@ static struct tty_ldisc_ops nci_uart_ldisc = {
 	.receive_buf	= nci_uart_tty_receive,
 	.write_wakeup	= nci_uart_tty_wakeup,
 	.ioctl		= nci_uart_tty_ioctl,
+	.compat_ioctl	= nci_uart_tty_ioctl,
 };
 
 static int __init nci_uart_init(void)
