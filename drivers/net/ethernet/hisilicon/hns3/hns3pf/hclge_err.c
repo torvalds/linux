@@ -859,10 +859,12 @@ static int hclge_log_and_clear_ppp_error(struct hclge_dev *hdev, u32 cmd,
 		reset_level = HNAE3_FUNC_RESET;
 	}
 
-	err_sts = (le32_to_cpu(desc[0].data[4]) >> 8) & 0x3;
-	if (err_sts) {
-		hclge_log_error(dev, hw_err_lst3, err_sts);
-		reset_level = HNAE3_FUNC_RESET;
+	if (cmd == HCLGE_PPP_CMD0_INT_CMD) {
+		err_sts = (le32_to_cpu(desc[0].data[4]) >> 8) & 0x3;
+		if (err_sts) {
+			hclge_log_error(dev, hw_err_lst3, err_sts);
+			reset_level = HNAE3_FUNC_RESET;
+		}
 	}
 
 	/* clear PPP INT */
