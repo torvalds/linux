@@ -290,7 +290,6 @@ EXPORT_SYMBOL(drm_connector_init);
 
 /**
  * drm_connector_attach_edid_property - attach edid property.
- * @dev: DRM device
  * @connector: the connector
  *
  * Some connector types like DRM_MODE_CONNECTOR_VIRTUAL do not get a
