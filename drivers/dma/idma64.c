@@ -408,10 +408,6 @@ static int idma64_slave_config(struct dma_chan *chan,
 {
 	struct idma64_chan *idma64c = to_idma64_chan(chan);
 
-	/* Check if chan will be configured for slave transfers */
-	if (!is_slave_direction(config->direction))
-		return -EINVAL;
-
 	memcpy(&idma64c->config, config, sizeof(idma64c->config));
 
 	convert_burst(&idma64c->config.src_maxburst);
