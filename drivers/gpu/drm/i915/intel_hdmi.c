@@ -474,7 +474,8 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
 	struct drm_connector *connector = &intel_hdmi->attached_connector->base;
-	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported;
+	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported ||
+	   connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB420;
 	union hdmi_infoframe frame;
 	int ret;
 
