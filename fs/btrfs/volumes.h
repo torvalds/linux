@@ -410,12 +410,9 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
 void btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices, int step);
 void btrfs_assign_next_active_device(struct btrfs_device *device,
 				     struct btrfs_device *this_dev);
-int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
-					 const char *device_path,
-					 struct btrfs_device **device);
-int btrfs_find_device_by_devspec(struct btrfs_fs_info *fs_info, u64 devid,
-					 const char *devpath,
-					 struct btrfs_device **device);
+struct btrfs_device *btrfs_find_device_by_devspec(struct btrfs_fs_info *fs_info,
+						  u64 devid,
+						  const char *devpath);
 struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 					const u64 *devid,
 					const u8 *uuid);

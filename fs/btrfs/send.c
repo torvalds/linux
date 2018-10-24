@@ -1186,9 +1186,9 @@ static int __clone_root_cmp_bsearch(const void *key, const void *elt)
 	u64 root = (u64)(uintptr_t)key;
 	struct clone_root *cr = (struct clone_root *)elt;
 
-	if (root < cr->root->objectid)
+	if (root < cr->root->root_key.objectid)
 		return -1;
-	if (root > cr->root->objectid)
+	if (root > cr->root->root_key.objectid)
 		return 1;
 	return 0;
 }
@@ -1198,9 +1198,9 @@ static int __clone_root_cmp_sort(const void *e1, const void *e2)
 	struct clone_root *cr1 = (struct clone_root *)e1;
 	struct clone_root *cr2 = (struct clone_root *)e2;
 
-	if (cr1->root->objectid < cr2->root->objectid)
+	if (cr1->root->root_key.objectid < cr2->root->root_key.objectid)
 		return -1;
-	if (cr1->root->objectid > cr2->root->objectid)
+	if (cr1->root->root_key.objectid > cr2->root->root_key.objectid)
 		return 1;
 	return 0;
 }
@@ -1693,12 +1693,8 @@ static int lookup_dir_item_inode(struct btrfs_root *root,
 
 	di = btrfs_lookup_dir_item(NULL, root, path,
 			dir, name, name_len, 0);
-	if (!di) {
-		ret = -ENOENT;
-		goto out;
-	}
-	if (IS_ERR(di)) {
-		ret = PTR_ERR(di);
+	if (IS_ERR_OR_NULL(di)) {
+		ret = di ? PTR_ERR(di) : -ENOENT;
 		goto out;
 	}
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, &key);
@@ -2346,7 +2342,7 @@ static int send_subvol_begin(struct send_ctx *sctx)
 		return -ENOMEM;
 	}
 
-	key.objectid = send_root->objectid;
+	key.objectid = send_root->root_key.objectid;
 	key.type = BTRFS_ROOT_BACKREF_KEY;
 	key.offset = 0;
 
@@ -2362,7 +2358,7 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 	if (key.type != BTRFS_ROOT_BACKREF_KEY ||
-	    key.objectid != send_root->objectid) {
+	    key.objectid != send_root->root_key.objectid) {
 		ret = -ENOENT;
 		goto out;
 	}
@@ -4907,8 +4903,8 @@ static int send_clone(struct send_ctx *sctx,
 
 	btrfs_debug(sctx->send_root->fs_info,
 		    "send_clone offset=%llu, len=%d, clone_root=%llu, clone_inode=%llu, clone_offset=%llu",
-		    offset, len, clone_root->root->objectid, clone_root->ino,
-		    clone_root->offset);
+		    offset, len, clone_root->root->root_key.objectid,
+		    clone_root->ino, clone_root->offset);
 
 	p = fs_path_alloc();
 	if (!p)
