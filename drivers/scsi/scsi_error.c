@@ -1932,7 +1932,7 @@ maybe_retry:
 
 static void eh_lock_door_done(struct request *req, blk_status_t status)
 {
-	__blk_put_request(req->q, req);
+	blk_put_request(req);
 }
 
 /**

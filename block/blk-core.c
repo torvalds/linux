@@ -803,15 +803,6 @@ void part_round_stats(struct request_queue *q, int cpu, struct hd_struct *part)
 }
 EXPORT_SYMBOL_GPL(part_round_stats);
 
-void __blk_put_request(struct request_queue *q, struct request *req)
-{
-	if (unlikely(!q))
-		return;
-
-	blk_mq_free_request(req);
-}
-EXPORT_SYMBOL_GPL(__blk_put_request);
-
 void blk_put_request(struct request *req)
 {
 	blk_mq_free_request(req);

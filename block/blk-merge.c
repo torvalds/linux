@@ -866,7 +866,7 @@ int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 
 	free = attempt_merge(q, rq, next);
 	if (free) {
-		__blk_put_request(q, free);
+		blk_put_request(free);
 		return 1;
 	}
 
