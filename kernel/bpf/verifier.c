@@ -5709,7 +5709,11 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 	bool is_narrower_load;
 	u32 target_size;
 
-	if (ops->gen_prologue) {
+	if (ops->gen_prologue || env->seen_direct_write) {
+		if (!ops->gen_prologue) {
+			verbose(env, "bpf verifier is misconfigured\n");
+			return -EINVAL;
+		}
 		cnt = ops->gen_prologue(insn_buf, env->seen_direct_write,
 					env->prog);
 		if (cnt >= ARRAY_SIZE(insn_buf)) {
