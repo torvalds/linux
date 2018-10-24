@@ -535,9 +535,6 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 
 	memcpy(&spcm->stream[direction].posn, &posn, sizeof(posn));
 
-	/* optionally update position for vBE */
-	sof_vbe_update_guest_posn(sdev, &posn);
-
 	/* only inform ALSA for period_wakeup mode */
 	if (!spcm->stream[direction].substream->runtime->no_period_wakeup)
 		snd_pcm_period_elapsed(spcm->stream[direction].substream);

@@ -22,7 +22,6 @@
 #include <uapi/sound/sof-ipc.h>
 
 struct snd_sof_dsp_ops;
-struct virtio_device;
 
 /* SOF probe type */
 enum sof_device_type {
@@ -53,9 +52,6 @@ struct snd_sof_pdata {
 	/* parent device */
 	struct device *dev;
 	enum sof_device_type type;
-
-	struct sof_vfe *vfe;
-	int is_vfe;
 
 	/* descriptor */
 	const struct sof_dev_desc *desc;

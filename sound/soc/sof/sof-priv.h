@@ -22,7 +22,6 @@
 #include <uapi/sound/sof-ipc.h>
 #include <uapi/sound/sof-fw.h>
 #include <uapi/sound/asoc.h>
-#include <uapi/sound/sof-virtio.h>
 #include <sound/hdaudio.h>
 #include <sound/compress_driver.h>
 
@@ -55,11 +54,6 @@
 #define SOF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
 	SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_FLOAT)
 
-/* The maximum number of components a virtio guest vFE driver can use */
-#define SOF_VIRTIO_MAX_GOS_COMPS	1000
-
-#define SOF_VIRTIO_COMP_ID_UNASSIGNED		0xffffffff
-
 struct snd_sof_dev;
 struct snd_sof_ipc_msg;
 struct snd_sof_ipc;
@@ -68,8 +62,6 @@ struct snd_soc_tplg_ops;
 struct snd_soc_component;
 struct sof_intel_hda_dev;
 struct snd_sof_pdata;
-struct virtio_device;
-struct virtqueue;
 
 /*
  * SOF DSP HW abstraction operations.
@@ -299,47 +291,6 @@ struct snd_sof_dai {
 };
 
 /*
- * in virtio iovec array:
- *  iovec[0]: the ipc message data between vFE and vBE
- *  iovec[1]: the ipc reply data between vFE and vBE
- */
-#define SOF_VIRTIO_IPC_MSG 0
-#define SOF_VIRTIO_IPC_REPLY 1
-
-/* Virtio Frontend */
-struct sof_vfe {
-	struct sof_virtio_priv *priv;
-	struct snd_sof_dev *sdev;
-
-	/* IPC cmd from frontend to backend */
-	struct virtqueue *ipc_cmd_tx_vq;
-
-	/* IPC cmd reply from backend to frontend */
-	struct virtqueue *ipc_cmd_rx_vq;
-
-	/* IPC notification from backend to frontend */
-	struct virtqueue *ipc_not_rx_vq;
-
-	/* IPC notification reply from frontend to backend */
-	struct virtqueue *ipc_not_tx_vq;
-
-	/* position update work */
-	struct work_struct posn_update_work;
-
-	/* current pending cmd message */
-	struct snd_sof_ipc_msg *msg;
-
-	/* current and pending notification */
-	struct snd_sof_ipc_msg *not;
-	struct sof_ipc_stream_posn *posn;
-};
-
-struct vbs_sof_posn {
-	struct list_head list;
-	struct sof_ipc_stream_posn pos;
-};
-
-/*
  * SOF Device Level.
  */
 struct snd_sof_dev {
@@ -351,7 +302,6 @@ struct snd_sof_dev {
 
 	/* ASoC components */
 	struct snd_soc_component_driver plat_drv;
-	struct snd_soc_card *card;
 
 	/* DSP firmware boot */
 	wait_queue_head_t boot_wait;
@@ -408,11 +358,6 @@ struct snd_sof_dev {
 	wait_queue_head_t waitq;
 	int code_loading;
 
-	/* virtio for BE and FE */
-	struct list_head vbe_list;
-	struct sof_vfe *vfe;
-	int is_vfe;
-
 	/* DMA for Trace */
 	struct snd_dma_buffer dmatb;
 	struct snd_dma_buffer dmatp;
@@ -431,29 +376,6 @@ struct snd_sof_dev {
 
 #define sof_to_bus(s)  (&(s)->hda->hbus.core)
 #define sof_to_hbus(s) (&(s)->hda->hbus)
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_VIRTIO_BE)
-int sof_virtio_miscdev_register(struct snd_sof_dev *sdev);
-int sof_virtio_miscdev_unregister(void);
-int sof_vbe_update_guest_posn(struct snd_sof_dev *sdev,
-			      struct sof_ipc_stream_posn *posn);
-#else
-static inline int sof_virtio_miscdev_register(struct snd_sof_dev *sdev)
-{
-	return 0;
-}
-
-static inline int sof_virtio_miscdev_unregister(void)
-{
-	return 0;
-}
-
-static inline int sof_vbe_update_guest_posn(struct snd_sof_dev *sdev,
-					    struct sof_ipc_stream_posn *posn)
-{
-	return 0;
-}
-#endif
 
 /*
  * SOF platform private struct used as drvdata of
@@ -574,25 +496,9 @@ int snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev);
 
 /*
- * VirtIO
- */
-int sof_virtio_submit_guest_ipc(struct snd_sof_dev *sdev, int vm_id,
-				void *ipc_buf, void *reply_buf,
-				size_t count, size_t reply_sz);
-int snd_sof_virtio_fs_init(struct snd_sof_dev *sdev);
-int snd_sof_virtio_fs_release(void);
-int sof_virtio_update_guest_posn(void *ctx, struct sof_ipc_stream_posn *posn);
-int sof_virtio_try_update_guest_posn(struct snd_sof_dev *sdev,
-				     struct sof_ipc_stream_posn *posn);
-void sof_virtio_set_spcm_posn_offset(struct snd_sof_pcm *spcm, int direction);
-int sof_virtio_register_guest(void *ctx);
-int sof_virtio_release_guest(int id);
-
-/*
  * Platform specific ops.
  */
 extern struct snd_compr_ops sof_compressed_ops;
-extern struct snd_sof_dsp_ops snd_sof_virtio_fe_ops;
 
 /*
  * Kcontrols.

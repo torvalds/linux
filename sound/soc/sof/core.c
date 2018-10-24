@@ -81,7 +81,6 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_sof_dev *sdev,
 
 	return NULL;
 }
-EXPORT_SYMBOL(snd_sof_find_spcm_comp);
 
 struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_sof_dev *sdev,
 					     unsigned int pcm_id)
@@ -225,25 +224,6 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 	return pages;
 }
 
-static void sof_virtio_vfe_init(struct snd_sof_dev *sdev,
-				struct snd_sof_pdata *plat_data)
-{
-	sdev->is_vfe = plat_data->is_vfe;
-
-	/*
-	 * Currently we only support one VM. comp_id from 0 to
-	 * SOF_VIRTIO_MAX_GOS_COMPS - 1 is for SOS. Other comp_id numbers
-	 * are for VM1.
-	 * TBD: comp_id number range should be dynamically assigned when
-	 * multiple VMs are supported.
-	 */
-	if (sdev->is_vfe) {
-		sdev->next_comp_id = SOF_VIRTIO_MAX_GOS_COMPS;
-		sdev->vfe = plat_data->vfe;
-		sdev->vfe->sdev = sdev;
-	}
-}
-
 /*
  * SOF Driver enumeration.
  */
@@ -276,7 +256,6 @@ static int sof_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&sdev->widget_list);
 	INIT_LIST_HEAD(&sdev->dai_list);
 	INIT_LIST_HEAD(&sdev->route_list);
-	INIT_LIST_HEAD(&sdev->vbe_list);
 	dev_set_drvdata(&pdev->dev, sdev);
 	spin_lock_init(&sdev->ipc_lock);
 	spin_lock_init(&sdev->hw_lock);
@@ -309,21 +288,12 @@ static int sof_probe(struct platform_device *pdev)
 		goto dbg_err;
 	}
 
-	/* optionally register virtio miscdev */
-	sof_virtio_miscdev_register(sdev);
-
 	/* init the IPC */
 	sdev->ipc = snd_sof_ipc_init(sdev);
 	if (!sdev->ipc) {
 		dev_err(sdev->dev, "error: failed to init DSP IPC %d\n", ret);
 		goto ipc_err;
 	}
-
-	sof_virtio_vfe_init(sdev, plat_data);
-
-	/* vFE will not touch HW. Let's skip fw loading */
-	if (sdev->is_vfe)
-		goto skip_load_fw_and_trace;
 
 	/* load the firmware */
 	ret = snd_sof_load_firmware(sdev, true);
@@ -348,8 +318,6 @@ static int sof_probe(struct platform_device *pdev)
 		dev_warn(sdev->dev,
 			 "warning: failed to initialize trace %d\n", ret);
 	}
-
-skip_load_fw_and_trace:
 
 	/* now register audio DSP platform driver and dai */
 	ret = snd_soc_register_component(&pdev->dev,  &sdev->plat_drv,
@@ -415,7 +383,6 @@ static int sof_remove(struct platform_device *pdev)
 	snd_soc_unregister_component(&pdev->dev);
 	snd_sof_fw_unload(sdev);
 	snd_sof_ipc_free(sdev);
-	sof_virtio_miscdev_unregister();
 	snd_sof_free_debug(sdev);
 	snd_sof_free_trace(sdev);
 	snd_sof_remove(sdev);
