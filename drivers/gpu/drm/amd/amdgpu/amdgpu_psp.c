@@ -183,10 +183,44 @@ static void psp_prep_tmr_cmd_buf(struct psp_context *psp,
 	cmd->cmd.cmd_setup_tmr.buf_size = size;
 }
 
+static void psp_prep_load_toc_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+				      uint64_t pri_buf_mc, uint32_t size)
+{
+	cmd->cmd_id = GFX_CMD_ID_LOAD_TOC;
+	cmd->cmd.cmd_load_toc.toc_phy_addr_lo = lower_32_bits(pri_buf_mc);
+	cmd->cmd.cmd_load_toc.toc_phy_addr_hi = upper_32_bits(pri_buf_mc);
+	cmd->cmd.cmd_load_toc.toc_size = size;
+}
+
+/* Issue LOAD TOC cmd to PSP to part toc and calculate tmr size needed */
+static int psp_load_toc(struct psp_context *psp,
+			uint32_t *tmr_size)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+	/* Copy toc to psp firmware private buffer */
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->toc_start_addr, psp->toc_bin_size);
+
+	psp_prep_load_toc_cmd_buf(cmd, psp->fw_pri_mc_addr, psp->toc_bin_size);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+	if (!ret)
+		*tmr_size = psp->cmd_buf_mem->resp.tmr_size;
+	kfree(cmd);
+	return ret;
+}
+
 /* Set up Trusted Memory Region */
 static int psp_tmr_init(struct psp_context *psp)
 {
 	int ret;
+	int tmr_size;
 
 	/*
 	 * According to HW engineer, they prefer the TMR address be "naturally
@@ -195,7 +229,21 @@ static int psp_tmr_init(struct psp_context *psp)
 	 * Note: this memory need be reserved till the driver
 	 * uninitializes.
 	 */
-	ret = amdgpu_bo_create_kernel(psp->adev, PSP_TMR_SIZE, PSP_TMR_SIZE,
+	tmr_size = PSP_TMR_SIZE;
+
+	/* For ASICs support RLC autoload, psp will parse the toc
+	 * and calculate the total size of TMR needed */
+	if (psp->toc_start_addr &&
+	    psp->toc_bin_size &&
+	    psp->fw_pri_buf) {
+		ret = psp_load_toc(psp, &tmr_size);
+		if (ret) {
+			DRM_ERROR("Failed to load toc\n");
+			return ret;
+		}
+	}
+
+	ret = amdgpu_bo_create_kernel(psp->adev, tmr_size, PSP_TMR_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &psp->tmr_bo, &psp->tmr_mc_addr, &psp->tmr_buf);
 
@@ -211,9 +259,10 @@ static int psp_tmr_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	psp_prep_tmr_cmd_buf(psp, cmd, psp->tmr_mc_addr, PSP_TMR_SIZE);
-	DRM_INFO("reserve 0x%x from 0x%llx for PSP TMR SIZE\n",
-			PSP_TMR_SIZE, psp->tmr_mc_addr);
+	psp_prep_tmr_cmd_buf(psp, cmd, psp->tmr_mc_addr,
+			     amdgpu_bo_size(psp->tmr_bo));
+	DRM_INFO("reserve 0x%lx from 0x%llx for PSP TMR\n",
+		 amdgpu_bo_size(psp->tmr_bo), psp->tmr_mc_addr);
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd,
 				 psp->fence_buf_mc_addr);
