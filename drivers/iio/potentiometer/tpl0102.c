@@ -37,7 +37,7 @@ static const struct tpl0102_cfg tpl0102_cfg[] = {
 
 struct tpl0102_data {
 	struct regmap *regmap;
-	unsigned long devid;
+	const struct tpl0102_cfg *cfg;
 };
 
 static const struct regmap_config tpl0102_regmap_config = {
@@ -72,8 +72,8 @@ static int tpl0102_read_raw(struct iio_dev *indio_dev,
 		return ret ? ret : IIO_VAL_INT;
 	}
 	case IIO_CHAN_INFO_SCALE:
-		*val = 1000 * tpl0102_cfg[data->devid].kohms;
-		*val2 = tpl0102_cfg[data->devid].max_pos;
+		*val = 1000 * data->cfg->kohms;
+		*val2 = data->cfg->max_pos;
 		return IIO_VAL_FRACTIONAL;
 	}
 
@@ -89,7 +89,7 @@ static int tpl0102_write_raw(struct iio_dev *indio_dev,
 	if (mask != IIO_CHAN_INFO_RAW)
 		return -EINVAL;
 
-	if (val >= tpl0102_cfg[data->devid].max_pos || val < 0)
+	if (val >= data->cfg->max_pos || val < 0)
 		return -EINVAL;
 
 	return regmap_write(data->regmap, chan->channel, val);
@@ -113,7 +113,7 @@ static int tpl0102_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 
-	data->devid = id->driver_data;
+	data->cfg = &tpl0102_cfg[id->driver_data];
 	data->regmap = devm_regmap_init_i2c(client, &tpl0102_regmap_config);
 	if (IS_ERR(data->regmap)) {
 		dev_err(dev, "regmap initialization failed\n");
@@ -123,7 +123,7 @@ static int tpl0102_probe(struct i2c_client *client,
 	indio_dev->dev.parent = dev;
 	indio_dev->info = &tpl0102_info;
 	indio_dev->channels = tpl0102_channels;
-	indio_dev->num_channels = tpl0102_cfg[data->devid].wipers;
+	indio_dev->num_channels = data->cfg->wipers;
 	indio_dev->name = client->name;
 
 	return devm_iio_device_register(dev, indio_dev);
