@@ -931,6 +931,14 @@ static int psp_np_fw_load(struct psp_context *psp)
 		if (ret)
 			return ret;
 
+		/* Start rlc autoload after psp recieved all the gfx firmware */
+		if (ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM) {
+			ret = psp_rlc_autoload(psp);
+			if (ret) {
+				DRM_ERROR("Failed to start rlc autoload\n");
+				return ret;
+			}
+		}
 #if 0
 		/* check if firmware loaded sucessfully */
 		if (!amdgpu_psp_check_fw_loading_status(adev, i))
@@ -1146,6 +1154,26 @@ int psp_gpu_reset(struct amdgpu_device *adev)
 		return 0;
 
 	return psp_mode1_reset(&adev->psp);
+}
+
+int psp_rlc_autoload_start(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->cmd_id = GFX_CMD_ID_AUTOLOAD_RLC;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+	kfree(cmd);
+	return ret;
 }
 
 static bool psp_check_fw_loading_status(struct amdgpu_device *adev,

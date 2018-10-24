@@ -807,6 +807,11 @@ static int psp_v11_0_ras_cure_posion(struct psp_context *psp, uint64_t *mode_ptr
 #endif
 }
 
+static int psp_v11_0_rlc_autoload_start(struct psp_context *psp)
+{
+	return psp_rlc_autoload_start(psp);
+}
+
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_sysdrv = psp_v11_0_bootloader_load_sysdrv,
@@ -825,6 +830,7 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.support_vmr_ring = psp_v11_0_support_vmr_ring,
 	.ras_trigger_error = psp_v11_0_ras_trigger_error,
 	.ras_cure_posion = psp_v11_0_ras_cure_posion,
+	.rlc_autoload_start = psp_v11_0_rlc_autoload_start,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)
