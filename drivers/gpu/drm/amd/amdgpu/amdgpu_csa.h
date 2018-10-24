@@ -25,7 +25,7 @@
 #ifndef AMDGPU_CSA_MANAGER_H
 #define AMDGPU_CSA_MANAGER_H
 
-#define AMDGPU_CSA_SIZE		(8 * 1024)
+#define AMDGPU_CSA_SIZE		(128 * 1024)
 
 uint32_t amdgpu_get_total_csa_size(struct amdgpu_device *adev);
 uint64_t amdgpu_csa_vaddr(struct amdgpu_device *adev);
