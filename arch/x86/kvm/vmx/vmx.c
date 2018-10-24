@@ -977,15 +977,11 @@ static void pt_guest_enter(struct vcpu_vmx *vmx)
 	if (pt_mode == PT_MODE_SYSTEM)
 		return;
 
-	/* Save host state before VM entry */
-	rdmsrl(MSR_IA32_RTIT_CTL, vmx->pt_desc.host.ctl);
-
 	/*
-	 * Set guest state of MSR_IA32_RTIT_CTL MSR (PT will be disabled
-	 * on VM entry when it has been disabled in guest before).
+	 * GUEST_IA32_RTIT_CTL is already set in the VMCS.
+	 * Save host state before VM entry.
 	 */
-	vmcs_write64(GUEST_IA32_RTIT_CTL, vmx->pt_desc.guest.ctl);
-
+	rdmsrl(MSR_IA32_RTIT_CTL, vmx->pt_desc.host.ctl);
 	if (vmx->pt_desc.guest.ctl & RTIT_CTL_TRACEEN) {
 		wrmsrl(MSR_IA32_RTIT_CTL, 0);
 		pt_save_msr(&vmx->pt_desc.host, vmx->pt_desc.addr_range);
@@ -1934,6 +1930,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		vmcs_write64(GUEST_IA32_RTIT_CTL, data);
 		vmx->pt_desc.guest.ctl = data;
+		pt_update_intercept_for_msr(vmx);
 		break;
 	case MSR_IA32_RTIT_STATUS:
 		if ((pt_mode != PT_MODE_HOST_GUEST) ||
@@ -3565,6 +3562,28 @@ void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu)
 		vmx_update_msr_bitmap_x2apic(msr_bitmap, mode);
 
 	vmx->msr_bitmap_mode = mode;
+}
+
+void pt_update_intercept_for_msr(struct vcpu_vmx *vmx)
+{
+	unsigned long *msr_bitmap = vmx->vmcs01.msr_bitmap;
+	bool flag = !(vmx->pt_desc.guest.ctl & RTIT_CTL_TRACEEN);
+	u32 i;
+
+	vmx_set_intercept_for_msr(msr_bitmap, MSR_IA32_RTIT_STATUS,
+							MSR_TYPE_RW, flag);
+	vmx_set_intercept_for_msr(msr_bitmap, MSR_IA32_RTIT_OUTPUT_BASE,
+							MSR_TYPE_RW, flag);
+	vmx_set_intercept_for_msr(msr_bitmap, MSR_IA32_RTIT_OUTPUT_MASK,
+							MSR_TYPE_RW, flag);
+	vmx_set_intercept_for_msr(msr_bitmap, MSR_IA32_RTIT_CR3_MATCH,
+							MSR_TYPE_RW, flag);
+	for (i = 0; i < vmx->pt_desc.addr_range; i++) {
+		vmx_set_intercept_for_msr(msr_bitmap,
+			MSR_IA32_RTIT_ADDR0_A + i * 2, MSR_TYPE_RW, flag);
+		vmx_set_intercept_for_msr(msr_bitmap,
+			MSR_IA32_RTIT_ADDR0_B + i * 2, MSR_TYPE_RW, flag);
+	}
 }
 
 static bool vmx_get_enable_apicv(struct kvm_vcpu *vcpu)
