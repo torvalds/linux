@@ -1761,7 +1761,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 
 	struct pwl_float_data *rgb_user = NULL;
 	struct pwl_float_data_ex *curve = NULL;
-	struct gamma_pixel *axix_x = NULL;
+	struct gamma_pixel *axis_x = NULL;
 	struct pixel_gamma_point *coeff = NULL;
 	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
 	bool ret = false;
@@ -1787,10 +1787,10 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 			 GFP_KERNEL);
 	if (!curve)
 		goto curve_alloc_fail;
-	axix_x = kvcalloc(ramp->num_entries + _EXTRA_POINTS, sizeof(*axix_x),
+	axis_x = kvcalloc(ramp->num_entries + _EXTRA_POINTS, sizeof(*axis_x),
 			  GFP_KERNEL);
-	if (!axix_x)
-		goto axix_x_alloc_fail;
+	if (!axis_x)
+		goto axis_x_alloc_fail;
 	coeff = kvcalloc(MAX_HW_POINTS + _EXTRA_POINTS, sizeof(*coeff),
 			 GFP_KERNEL);
 	if (!coeff)
@@ -1803,7 +1803,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	tf = input_tf->tf;
 
 	build_evenly_distributed_points(
-			axix_x,
+			axis_x,
 			ramp->num_entries,
 			dividers);
 
@@ -1828,7 +1828,7 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 	tf_pts->x_point_at_y1_blue = 1;
 
 	map_regamma_hw_to_x_user(ramp, coeff, rgb_user,
-			coordinates_x, axix_x, curve,
+			coordinates_x, axis_x, curve,
 			MAX_HW_POINTS, tf_pts,
 			mapUserRamp && ramp->type != GAMMA_CUSTOM);
 	if (ramp->type == GAMMA_CUSTOM)
@@ -1838,8 +1838,8 @@ bool mod_color_calculate_degamma_params(struct dc_transfer_func *input_tf,
 
 	kvfree(coeff);
 coeff_alloc_fail:
-	kvfree(axix_x);
-axix_x_alloc_fail:
+	kvfree(axis_x);
+axis_x_alloc_fail:
 	kvfree(curve);
 curve_alloc_fail:
 	kvfree(rgb_user);
