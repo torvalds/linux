@@ -34,6 +34,9 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		struct ice_sq_cd *cd);
 void ice_clear_pxe_mode(struct ice_hw *hw);
 enum ice_status ice_get_caps(struct ice_hw *hw);
+
+void ice_dev_onetime_setup(struct ice_hw *hw);
+
 enum ice_status
 ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
 		  u32 rxq_index);
@@ -82,12 +85,6 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures,
 enum ice_status
 ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 			   struct ice_sq_cd *cd);
-enum ice_status
-ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
-		     struct ice_link_status *link, struct ice_sq_cd *cd);
-enum ice_status
-ice_aq_set_event_mask(struct ice_hw *hw, u8 port_num, u16 mask,
-		      struct ice_sq_cd *cd);
 enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 		u32 *q_teids, enum ice_disq_rst_src rst_src, u16 vmvf_num,
