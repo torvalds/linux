@@ -167,10 +167,8 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-void i915_gem_cleanup_stolen(struct drm_device *dev)
+void i915_gem_cleanup_stolen(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return;
 

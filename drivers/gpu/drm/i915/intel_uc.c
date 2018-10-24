@@ -401,6 +401,10 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 		ret = intel_guc_submission_enable(guc);
 		if (ret)
 			goto err_communication;
+	} else if (INTEL_GEN(i915) < 11) {
+		ret = intel_guc_sample_forcewake(guc);
+		if (ret)
+			goto err_communication;
 	}
 
 	dev_info(i915->drm.dev, "GuC firmware version %u.%u\n",

@@ -148,6 +148,7 @@ static const struct soc15_reg_golden golden_settings_sdma0_4_2[] =
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC7_RB_RPTR_ADDR_LO, 0xfffffffd, 0x00000001),
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_RLC7_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_UTCL1_PAGE, 0x000003ff, 0x000003c0),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_UTCL1_WATERMK, 0xFE000000, 0x00000000),
 };
 
 static const struct soc15_reg_golden golden_settings_sdma1_4_2[] = {
@@ -177,6 +178,7 @@ static const struct soc15_reg_golden golden_settings_sdma1_4_2[] = {
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_RLC7_RB_RPTR_ADDR_LO, 0xfffffffd, 0x00000001),
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_RLC7_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_UTCL1_PAGE, 0x000003ff, 0x000003c0),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_UTCL1_WATERMK, 0xFE000000, 0x00000000),
 };
 
 static const struct soc15_reg_golden golden_settings_sdma_rv1[] =
@@ -818,7 +820,7 @@ sdma_v4_1_update_power_gating(struct amdgpu_device *adev, bool enable)
 	uint32_t def, data;
 
 	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_SDMA)) {
-		/* disable idle interrupt */
+		/* enable idle interrupt */
 		def = data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CNTL));
 		data |= SDMA0_CNTL__CTXEMPTY_INT_ENABLE_MASK;
 
@@ -1320,9 +1322,15 @@ static int sdma_v4_0_sw_init(void *handle)
 		DRM_INFO("use_doorbell being set to: [%s]\n",
 				ring->use_doorbell?"true":"false");
 
-		ring->doorbell_index = (i == 0) ?
-			(AMDGPU_DOORBELL64_sDMA_ENGINE0 << 1) //get DWORD offset
-			: (AMDGPU_DOORBELL64_sDMA_ENGINE1 << 1); // get DWORD offset
+		if (adev->asic_type == CHIP_VEGA10)
+			ring->doorbell_index = (i == 0) ?
+				(AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE0 << 1) //get DWORD offset
+				: (AMDGPU_VEGA10_DOORBELL64_sDMA_ENGINE1 << 1); // get DWORD offset
+		else
+			ring->doorbell_index = (i == 0) ?
+				(AMDGPU_DOORBELL64_sDMA_ENGINE0 << 1) //get DWORD offset
+				: (AMDGPU_DOORBELL64_sDMA_ENGINE1 << 1); // get DWORD offset
+
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
@@ -1358,6 +1366,9 @@ static int sdma_v4_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs->set_powergating_by_smu)
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, false);
+
 	sdma_v4_0_init_golden_registers(adev);
 
 	r = sdma_v4_0_start(adev);
@@ -1374,6 +1385,9 @@ static int sdma_v4_0_hw_fini(void *handle)
 
 	sdma_v4_0_ctx_switch_enable(adev, false);
 	sdma_v4_0_enable(adev, false);
+
+	if (adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs->set_powergating_by_smu)
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, true);
 
 	return 0;
 }
@@ -1801,10 +1815,8 @@ static const struct amdgpu_buffer_funcs sdma_v4_0_buffer_funcs = {
 
 static void sdma_v4_0_set_buffer_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mman.buffer_funcs == NULL) {
-		adev->mman.buffer_funcs = &sdma_v4_0_buffer_funcs;
-		adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
-	}
+	adev->mman.buffer_funcs = &sdma_v4_0_buffer_funcs;
+	adev->mman.buffer_funcs_ring = &adev->sdma.instance[0].ring;
 }
 
 static const struct amdgpu_vm_pte_funcs sdma_v4_0_vm_pte_funcs = {
@@ -1820,15 +1832,13 @@ static void sdma_v4_0_set_vm_pte_funcs(struct amdgpu_device *adev)
 	struct drm_gpu_scheduler *sched;
 	unsigned i;
 
-	if (adev->vm_manager.vm_pte_funcs == NULL) {
-		adev->vm_manager.vm_pte_funcs = &sdma_v4_0_vm_pte_funcs;
-		for (i = 0; i < adev->sdma.num_instances; i++) {
-			sched = &adev->sdma.instance[i].ring.sched;
-			adev->vm_manager.vm_pte_rqs[i] =
-				&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
-		}
-		adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
+	adev->vm_manager.vm_pte_funcs = &sdma_v4_0_vm_pte_funcs;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		sched = &adev->sdma.instance[i].ring.sched;
+		adev->vm_manager.vm_pte_rqs[i] =
+			&sched->sched_rq[DRM_SCHED_PRIORITY_KERNEL];
 	}
+	adev->vm_manager.vm_pte_num_rqs = adev->sdma.num_instances;
 }
 
 const struct amdgpu_ip_block_version sdma_v4_0_ip_block = {

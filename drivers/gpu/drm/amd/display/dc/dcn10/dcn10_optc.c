@@ -98,7 +98,6 @@ static uint32_t get_start_vline(struct timing_generator *optc, const struct dc_c
 	struct dc_crtc_timing patched_crtc_timing;
 	int vesa_sync_start;
 	int asic_blank_end;
-	int interlace_factor;
 	int vertical_line_start;
 
 	patched_crtc_timing = *dc_crtc_timing;
@@ -112,16 +111,13 @@ static uint32_t get_start_vline(struct timing_generator *optc, const struct dc_c
 			vesa_sync_start -
 			patched_crtc_timing.h_border_left;
 
-	interlace_factor = patched_crtc_timing.flags.INTERLACE ? 2 : 1;
-
 	vesa_sync_start = patched_crtc_timing.v_addressable +
 			patched_crtc_timing.v_border_bottom +
 			patched_crtc_timing.v_front_porch;
 
 	asic_blank_end = (patched_crtc_timing.v_total -
 			vesa_sync_start -
-			patched_crtc_timing.v_border_top)
-			* interlace_factor;
+			patched_crtc_timing.v_border_top);
 
 	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
 	if (vertical_line_start < 0) {
@@ -154,7 +150,7 @@ void optc1_program_vline_interrupt(
 		req_delta_lines--;
 
 	if (req_delta_lines > vsync_line)
-		start_line = dc_crtc_timing->v_total - (req_delta_lines - vsync_line) - 1;
+		start_line = dc_crtc_timing->v_total - (req_delta_lines - vsync_line) + 2;
 	else
 		start_line = vsync_line - req_delta_lines;
 
@@ -186,7 +182,6 @@ void optc1_program_timing(
 	uint32_t v_sync_end;
 	uint32_t v_init, v_fp2;
 	uint32_t h_sync_polarity, v_sync_polarity;
-	uint32_t interlace_factor;
 	uint32_t start_point = 0;
 	uint32_t field_num = 0;
 	uint32_t h_div_2;
@@ -237,16 +232,8 @@ void optc1_program_timing(
 	REG_UPDATE(OTG_H_SYNC_A_CNTL,
 			OTG_H_SYNC_A_POL, h_sync_polarity);
 
-	/* Load vertical timing */
+	v_total = patched_crtc_timing.v_total - 1;
 
-	/* CRTC_V_TOTAL = v_total - 1 */
-	if (patched_crtc_timing.flags.INTERLACE) {
-		interlace_factor = 2;
-		v_total = 2 * patched_crtc_timing.v_total;
-	} else {
-		interlace_factor = 1;
-		v_total = patched_crtc_timing.v_total - 1;
-	}
 	REG_SET(OTG_V_TOTAL, 0,
 			OTG_V_TOTAL, v_total);
 
@@ -259,7 +246,7 @@ void optc1_program_timing(
 		OTG_V_TOTAL_MIN, v_total);
 
 	/* v_sync_start = 0, v_sync_end = v_sync_width */
-	v_sync_end = patched_crtc_timing.v_sync_width * interlace_factor;
+	v_sync_end = patched_crtc_timing.v_sync_width;
 
 	REG_UPDATE_2(OTG_V_SYNC_A,
 			OTG_V_SYNC_A_START, 0,
@@ -271,15 +258,13 @@ void optc1_program_timing(
 
 	asic_blank_end = (patched_crtc_timing.v_total -
 			vesa_sync_start -
-			patched_crtc_timing.v_border_top)
-			* interlace_factor;
+			patched_crtc_timing.v_border_top);
 
 	/* v_blank_start = v_blank_end + v_active */
 	asic_blank_start = asic_blank_end +
 			(patched_crtc_timing.v_border_top +
 			patched_crtc_timing.v_addressable +
-			patched_crtc_timing.v_border_bottom)
-			* interlace_factor;
+			patched_crtc_timing.v_border_bottom);
 
 	REG_UPDATE_2(OTG_V_BLANK_START_END,
 			OTG_V_BLANK_START, asic_blank_start,
@@ -301,7 +286,7 @@ void optc1_program_timing(
 			0 : 1;
 
 	REG_UPDATE(OTG_V_SYNC_A_CNTL,
-			OTG_V_SYNC_A_POL, v_sync_polarity);
+		OTG_V_SYNC_A_POL, v_sync_polarity);
 
 	v_init = asic_blank_start;
 	if (optc->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT ||
@@ -532,7 +517,6 @@ bool optc1_validate_timing(
 	struct timing_generator *optc,
 	const struct dc_crtc_timing *timing)
 {
-	uint32_t interlace_factor;
 	uint32_t v_blank;
 	uint32_t h_blank;
 	uint32_t min_v_blank;
@@ -540,10 +524,8 @@ bool optc1_validate_timing(
 
 	ASSERT(timing != NULL);
 
-	interlace_factor = timing->flags.INTERLACE ? 2 : 1;
 	v_blank = (timing->v_total - timing->v_addressable -
-					timing->v_border_top - timing->v_border_bottom) *
-					interlace_factor;
+					timing->v_border_top - timing->v_border_bottom);
 
 	h_blank = (timing->h_total - timing->h_addressable -
 		timing->h_border_right -

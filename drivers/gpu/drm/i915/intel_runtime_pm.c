@@ -1996,6 +1996,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_F_IO))
 
 #define ICL_AUX_A_IO_POWER_DOMAINS (			\
+	BIT_ULL(POWER_DOMAIN_AUX_IO_A) |		\
 	BIT_ULL(POWER_DOMAIN_AUX_A))
 #define ICL_AUX_B_IO_POWER_DOMAINS (			\
 	BIT_ULL(POWER_DOMAIN_AUX_B))
@@ -3563,6 +3564,9 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 
 	/* 7. Setup MBUS. */
 	icl_mbus_init(dev_priv);
+
+	if (resume && dev_priv->csr.dmc_payload)
+		intel_csr_load_program(dev_priv);
 }
 
 static void icl_display_core_uninit(struct drm_i915_private *dev_priv)

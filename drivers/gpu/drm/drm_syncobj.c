@@ -157,6 +157,8 @@ static void drm_syncobj_fence_get_or_add_callback(struct drm_syncobj *syncobj,
 {
 	u64 pt_value = 0;
 
+	WARN_ON(*fence);
+
 	if (syncobj->type == DRM_SYNCOBJ_TYPE_BINARY) {
 		/*BINARY syncobj always wait on last pt */
 		pt_value = syncobj->signal_point;
@@ -935,6 +937,9 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 
 	if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT) {
 		for (i = 0; i < count; ++i) {
+			if (entries[i].fence)
+				continue;
+
 			drm_syncobj_fence_get_or_add_callback(syncobjs[i],
 							      &entries[i].fence,
 							      &entries[i].syncobj_cb,

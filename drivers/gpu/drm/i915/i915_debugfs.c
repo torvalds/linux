@@ -4117,6 +4117,17 @@ i915_ring_test_irq_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
 
+	/* GuC keeps the user interrupt permanently enabled for submission */
+	if (USES_GUC_SUBMISSION(i915))
+		return -ENODEV;
+
+	/*
+	 * From icl, we can no longer individually mask interrupt generation
+	 * from each engine.
+	 */
+	if (INTEL_GEN(i915) >= 11)
+		return -ENODEV;
+
 	val &= INTEL_INFO(i915)->ring_mask;
 	DRM_DEBUG_DRIVER("Masking interrupts on rings 0x%08llx\n", val);
 
@@ -4178,7 +4189,7 @@ i915_drop_caches_set(void *data, u64 val)
 						     I915_WAIT_LOCKED,
 						     MAX_SCHEDULE_TIMEOUT);
 
-		if (val & DROP_RESET_SEQNO) {
+		if (ret == 0 && val & DROP_RESET_SEQNO) {
 			intel_runtime_pm_get(i915);
 			ret = i915_gem_set_global_seqno(&i915->drm, 1);
 			intel_runtime_pm_put(i915);

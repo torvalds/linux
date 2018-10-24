@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x11
+#define SMU11_DRIVER_IF_VERSION 0x12
 
 #define PPTABLE_V20_SMU_VERSION 2
 
@@ -165,7 +165,7 @@
 #define FEATURE_DS_FCLK_MASK            (1 << FEATURE_DS_FCLK_BIT            )
 #define FEATURE_DS_MP1CLK_MASK          (1 << FEATURE_DS_MP1CLK_BIT          )
 #define FEATURE_DS_MP0CLK_MASK          (1 << FEATURE_DS_MP0CLK_BIT          )
-
+#define FEATURE_XGMI_MASK               (1 << FEATURE_XGMI_BIT               )
 
 #define DPM_OVERRIDE_DISABLE_SOCCLK_PID             0x00000001
 #define DPM_OVERRIDE_DISABLE_UCLK_PID               0x00000002
@@ -185,6 +185,9 @@
 #define DPM_OVERRIDE_ENABLE_GFXOFF_SOCCLK_SWITCH    0x00008000
 #define DPM_OVERRIDE_ENABLE_GFXOFF_UCLK_SWITCH      0x00010000
 #define DPM_OVERRIDE_ENABLE_GFXOFF_FCLK_SWITCH      0x00020000
+
+#define I2C_CONTROLLER_ENABLED     1
+#define I2C_CONTROLLER_DISABLED    0
 
 #define VR_MAPPING_VR_SELECT_MASK  0x01
 #define VR_MAPPING_VR_SELECT_SHIFT 0x00
@@ -208,15 +211,17 @@
 #define THROTTLER_STATUS_TEMP_HOTSPOT_BIT 2
 #define THROTTLER_STATUS_TEMP_HBM_BIT     3
 #define THROTTLER_STATUS_TEMP_VR_GFX_BIT  4
-#define THROTTLER_STATUS_TEMP_VR_MEM_BIT  5
-#define THROTTLER_STATUS_TEMP_LIQUID_BIT  6
-#define THROTTLER_STATUS_TEMP_PLX_BIT     7
-#define THROTTLER_STATUS_TEMP_SKIN_BIT    8
-#define THROTTLER_STATUS_TDC_GFX_BIT      9
-#define THROTTLER_STATUS_TDC_SOC_BIT      10
-#define THROTTLER_STATUS_PPT_BIT          11
-#define THROTTLER_STATUS_FIT_BIT          12
-#define THROTTLER_STATUS_PPM_BIT          13
+#define THROTTLER_STATUS_TEMP_VR_SOC_BIT  5
+#define THROTTLER_STATUS_TEMP_VR_MEM0_BIT 6
+#define THROTTLER_STATUS_TEMP_VR_MEM1_BIT 7
+#define THROTTLER_STATUS_TEMP_LIQUID_BIT  8
+#define THROTTLER_STATUS_TEMP_PLX_BIT     9
+#define THROTTLER_STATUS_TEMP_SKIN_BIT    10
+#define THROTTLER_STATUS_TDC_GFX_BIT      11
+#define THROTTLER_STATUS_TDC_SOC_BIT      12
+#define THROTTLER_STATUS_PPT_BIT          13
+#define THROTTLER_STATUS_FIT_BIT          14
+#define THROTTLER_STATUS_PPM_BIT          15
 
 
 #define TABLE_TRANSFER_OK         0x0
@@ -235,6 +240,58 @@
 
 #define XGMI_STATE_D0 1
 #define XGMI_STATE_D3 0
+
+typedef enum {
+  I2C_CONTROLLER_PORT_0 = 0,
+  I2C_CONTROLLER_PORT_1 = 1,
+} I2cControllerPort_e;
+
+typedef enum {
+  I2C_CONTROLLER_NAME_VR_GFX = 0,
+  I2C_CONTROLLER_NAME_VR_SOC,
+  I2C_CONTROLLER_NAME_VR_VDDCI,
+  I2C_CONTROLLER_NAME_VR_HBM,
+  I2C_CONTROLLER_NAME_LIQUID_0,
+  I2C_CONTROLLER_NAME_LIQUID_1,
+  I2C_CONTROLLER_NAME_PLX,
+  I2C_CONTROLLER_NAME_COUNT,
+} I2cControllerName_e;
+
+typedef enum {
+  I2C_CONTROLLER_THROTTLER_TYPE_NONE = 0,
+  I2C_CONTROLLER_THROTTLER_VR_GFX,
+  I2C_CONTROLLER_THROTTLER_VR_SOC,
+  I2C_CONTROLLER_THROTTLER_VR_VDDCI,
+  I2C_CONTROLLER_THROTTLER_VR_HBM,
+  I2C_CONTROLLER_THROTTLER_LIQUID_0,
+  I2C_CONTROLLER_THROTTLER_LIQUID_1,
+  I2C_CONTROLLER_THROTTLER_PLX,
+} I2cControllerThrottler_e;
+
+typedef enum {
+  I2C_CONTROLLER_PROTOCOL_VR_XPDE132G5,
+  I2C_CONTROLLER_PROTOCOL_VR_IR35217,
+  I2C_CONTROLLER_PROTOCOL_TMP_TMP102A,
+  I2C_CONTROLLER_PROTOCOL_SPARE_0,
+  I2C_CONTROLLER_PROTOCOL_SPARE_1,
+  I2C_CONTROLLER_PROTOCOL_SPARE_2,
+} I2cControllerProtocol_e;
+
+typedef enum {
+  I2C_CONTROLLER_SPEED_SLOW = 0,
+  I2C_CONTROLLER_SPEED_FAST = 1,
+} I2cControllerSpeed_e;
+
+typedef struct {
+  uint32_t Enabled;
+  uint32_t SlaveAddress;
+  uint32_t ControllerPort;
+  uint32_t ControllerName;
+
+  uint32_t ThermalThrottler;
+  uint32_t I2cProtocol;
+  uint32_t I2cSpeed;
+} I2cControllerConfig_t;
 
 typedef struct {
   uint32_t a;
@@ -267,6 +324,12 @@ typedef enum {
   PPCLK_FCLK,
   PPCLK_COUNT,
 } PPCLK_e;
+
+typedef enum {
+  POWER_SOURCE_AC,
+  POWER_SOURCE_DC,
+  POWER_SOURCE_COUNT,
+} POWER_SOURCE_e;
 
 typedef enum {
   VOLTAGE_MODE_AVFS = 0,
@@ -328,8 +391,8 @@ typedef struct {
   uint16_t PpmTemperatureThreshold;
 
   uint8_t  MemoryOnPackage;
-  uint8_t  padding8_limits[3];
-
+  uint8_t  padding8_limits;
+  uint16_t Tvr_SocLimit;
 
   uint16_t  UlvVoltageOffsetSoc;
   uint16_t  UlvVoltageOffsetGfx;
@@ -400,8 +463,8 @@ typedef struct {
   uint16_t     FanGainEdge;
   uint16_t     FanGainHotspot;
   uint16_t     FanGainLiquid;
-  uint16_t     FanGainVrVddc;
-  uint16_t     FanGainVrMvdd;
+  uint16_t     FanGainVrGfx;
+  uint16_t     FanGainVrSoc;
   uint16_t     FanGainPlx;
   uint16_t     FanGainHbm;
   uint16_t     FanPwmMin;
@@ -438,7 +501,7 @@ typedef struct {
   uint8_t           DcBtcEnabled[AVFS_VOLTAGE_COUNT];
   uint8_t           Padding8_GfxBtc[2];
 
-  uint16_t          DcBtcMin[AVFS_VOLTAGE_COUNT];
+  int16_t           DcBtcMin[AVFS_VOLTAGE_COUNT];
   uint16_t          DcBtcMax[AVFS_VOLTAGE_COUNT];
 
 
@@ -461,24 +524,14 @@ typedef struct {
   uint16_t     MGpuFanBoostLimitRpm;
   uint16_t     padding16_Fan;
 
-  uint32_t     Reserved[13];
+  uint16_t     FanGainVrMem0;
+  uint16_t     FanGainVrMem1;
 
+  uint16_t     DcBtcGb[AVFS_VOLTAGE_COUNT];
 
+  uint32_t     Reserved[11];
 
-  uint8_t      Liquid1_I2C_address;
-  uint8_t      Liquid2_I2C_address;
-  uint8_t      Vr_I2C_address;
-  uint8_t      Plx_I2C_address;
-
-  uint8_t      Liquid_I2C_LineSCL;
-  uint8_t      Liquid_I2C_LineSDA;
-  uint8_t      Vr_I2C_LineSCL;
-  uint8_t      Vr_I2C_LineSDA;
-
-  uint8_t      Plx_I2C_LineSCL;
-  uint8_t      Plx_I2C_LineSDA;
-  uint8_t      VrSensorPresent;
-  uint8_t      LiquidSensorPresent;
+  uint32_t     Padding32[3];
 
   uint16_t     MaxVoltageStepGfx;
   uint16_t     MaxVoltageStepSoc;
@@ -545,6 +598,8 @@ typedef struct {
   uint8_t      FllGfxclkSpreadPercent;
   uint16_t     FllGfxclkSpreadFreq;
 
+  I2cControllerConfig_t I2cControllers[I2C_CONTROLLER_NAME_COUNT];
+
   uint32_t     BoardReserved[10];
 
 
@@ -601,7 +656,9 @@ typedef struct {
   uint16_t TemperatureHotspot    ;
   uint16_t TemperatureHBM        ;
   uint16_t TemperatureVrGfx      ;
-  uint16_t TemperatureVrMem      ;
+  uint16_t TemperatureVrSoc      ;
+  uint16_t TemperatureVrMem0     ;
+  uint16_t TemperatureVrMem1     ;
   uint16_t TemperatureLiquid     ;
   uint16_t TemperaturePlx        ;
   uint32_t ThrottlerStatus       ;

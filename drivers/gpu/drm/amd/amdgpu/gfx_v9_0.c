@@ -97,6 +97,7 @@ MODULE_FIRMWARE("amdgpu/raven2_rlc.bin");
 static const struct soc15_reg_golden golden_settings_gc_9_0[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000400),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG3, 0x80000000, 0x80000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_GPU_ID, 0x0000000f, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3, 0x00000003, 0x82400024),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE, 0x3fffffff, 0x00000001),
@@ -133,7 +134,10 @@ static const struct soc15_reg_golden golden_settings_gc_9_0_vg10[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmRMI_UTCL1_CNTL2, 0x00030000, 0x00020000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0x0000000f, 0x01000107),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x00001800, 0x00000800),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x08000000, 0x08000080)
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x08000000, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC1_F32_INT_DIS, 0x00000000, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC2_F32_INT_DIS, 0x00000000, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DEBUG, 0x00000000, 0x00008000)
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_0_vg20[] =
@@ -173,7 +177,10 @@ static const struct soc15_reg_golden golden_settings_gc_9_1[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00003120),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_CACHE_INVALIDATION, 0x3fff3af3, 0x19200000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmVGT_GS_MAX_WAVE_ID, 0x00000fff, 0x000000ff),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x08000000, 0x08000080)
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x08000000, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC1_F32_INT_DIS, 0x00000000, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC2_F32_INT_DIS, 0x00000000, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DEBUG, 0x00000000, 0x00008000)
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_1_rv1[] =
@@ -247,7 +254,10 @@ static const struct soc15_reg_golden golden_settings_gc_9_2_1_vg12[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSPI_CONFIG_CNTL_1, 0xffff03ff, 0x01000107),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_LO, 0xffffffff, 0x76325410),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01bd9f33, 0x01000000)
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01bd9f33, 0x01000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC1_F32_INT_DIS, 0x00000000, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_MEC2_F32_INT_DIS, 0x00000000, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_DEBUG, 0x00000000, 0x00008000)
 };
 
 static const u32 GFX_RLC_SRM_INDEX_CNTL_ADDR_OFFSETS[] =
@@ -908,6 +918,50 @@ static void gfx_v9_0_get_csb_buffer(struct amdgpu_device *adev,
 	buffer[count++] = cpu_to_le32(0);
 }
 
+static void gfx_v9_0_init_always_on_cu_mask(struct amdgpu_device *adev)
+{
+	struct amdgpu_cu_info *cu_info = &adev->gfx.cu_info;
+	uint32_t pg_always_on_cu_num = 2;
+	uint32_t always_on_cu_num;
+	uint32_t i, j, k;
+	uint32_t mask, cu_bitmap, counter;
+
+	if (adev->flags & AMD_IS_APU)
+		always_on_cu_num = 4;
+	else if (adev->asic_type == CHIP_VEGA12)
+		always_on_cu_num = 8;
+	else
+		always_on_cu_num = 12;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+			mask = 1;
+			cu_bitmap = 0;
+			counter = 0;
+			gfx_v9_0_select_se_sh(adev, i, j, 0xffffffff);
+
+			for (k = 0; k < adev->gfx.config.max_cu_per_sh; k ++) {
+				if (cu_info->bitmap[i][j] & mask) {
+					if (counter == pg_always_on_cu_num)
+						WREG32_SOC15(GC, 0, mmRLC_PG_ALWAYS_ON_CU_MASK, cu_bitmap);
+					if (counter < always_on_cu_num)
+						cu_bitmap |= mask;
+					else
+						break;
+					counter++;
+				}
+				mask <<= 1;
+			}
+
+			WREG32_SOC15(GC, 0, mmRLC_LB_ALWAYS_ACTIVE_CU_MASK, cu_bitmap);
+			cu_info->ao_cu_bitmap[i][j] = cu_bitmap;
+		}
+	}
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 {
 	uint32_t data;
@@ -941,8 +995,10 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	data |= 0x00C00000;
 	WREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7, data);
 
-	/* set RLC_LB_ALWAYS_ACTIVE_CU_MASK = 0xFFF */
-	WREG32_SOC15(GC, 0, mmRLC_LB_ALWAYS_ACTIVE_CU_MASK, 0xFFF);
+	/*
+	 * RLC_LB_ALWAYS_ACTIVE_CU_MASK = 0xF (4 CUs AON for Raven),
+	 * programmed in gfx_v9_0_init_always_on_cu_mask()
+	 */
 
 	/* set RLC_LB_CNTL = 0x8000_0095, 31 bit is reserved,
 	 * but used for RLC_LB_CNTL configuration */
@@ -951,6 +1007,57 @@ static void gfx_v9_0_init_lbpw(struct amdgpu_device *adev)
 	data |= REG_SET_FIELD(data, RLC_LB_CNTL, RESERVED, 0x80000);
 	WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
 	mutex_unlock(&adev->grbm_idx_mutex);
+
+	gfx_v9_0_init_always_on_cu_mask(adev);
+}
+
+static void gfx_v9_4_init_lbpw(struct amdgpu_device *adev)
+{
+	uint32_t data;
+
+	/* set mmRLC_LB_THR_CONFIG_1/2/3/4 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_1, 0x0000007F);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_2, 0x033388F8);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_3, 0x00000077);
+	WREG32_SOC15(GC, 0, mmRLC_LB_THR_CONFIG_4, (0x10 | 0x27 << 8 | 0x02FA << 16));
+
+	/* set mmRLC_LB_CNTR_INIT = 0x0000_0000 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTR_INIT, 0x00000000);
+
+	/* set mmRLC_LB_CNTR_MAX = 0x0000_0500 */
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTR_MAX, 0x00000800);
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	/* set mmRLC_LB_INIT_CU_MASK thru broadcast mode to enable all SE/SH*/
+	gfx_v9_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	WREG32_SOC15(GC, 0, mmRLC_LB_INIT_CU_MASK, 0xffffffff);
+
+	/* set mmRLC_LB_PARAMS = 0x003F_1006 */
+	data = REG_SET_FIELD(0, RLC_LB_PARAMS, FIFO_SAMPLES, 0x0003);
+	data |= REG_SET_FIELD(data, RLC_LB_PARAMS, PG_IDLE_SAMPLES, 0x0010);
+	data |= REG_SET_FIELD(data, RLC_LB_PARAMS, PG_IDLE_SAMPLE_INTERVAL, 0x033F);
+	WREG32_SOC15(GC, 0, mmRLC_LB_PARAMS, data);
+
+	/* set mmRLC_GPM_GENERAL_7[31-16] = 0x00C0 */
+	data = RREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7);
+	data &= 0x0000FFFF;
+	data |= 0x00C00000;
+	WREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_7, data);
+
+	/*
+	 * RLC_LB_ALWAYS_ACTIVE_CU_MASK = 0xFFF (12 CUs AON),
+	 * programmed in gfx_v9_0_init_always_on_cu_mask()
+	 */
+
+	/* set RLC_LB_CNTL = 0x8000_0095, 31 bit is reserved,
+	 * but used for RLC_LB_CNTL configuration */
+	data = RLC_LB_CNTL__LB_CNT_SPIM_ACTIVE_MASK;
+	data |= REG_SET_FIELD(data, RLC_LB_CNTL, CU_MASK_USED_OFF_HYST, 0x09);
+	data |= REG_SET_FIELD(data, RLC_LB_CNTL, RESERVED, 0x80000);
+	WREG32_SOC15(GC, 0, mmRLC_LB_CNTL, data);
+	mutex_unlock(&adev->grbm_idx_mutex);
+
+	gfx_v9_0_init_always_on_cu_mask(adev);
 }
 
 static void gfx_v9_0_enable_lbpw(struct amdgpu_device *adev, bool enable)
@@ -1084,8 +1191,17 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 		rv_init_cp_jump_table(adev);
 		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
+	}
 
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
 		gfx_v9_0_init_lbpw(adev);
+		break;
+	case CHIP_VEGA20:
+		gfx_v9_4_init_lbpw(adev);
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -1605,11 +1721,6 @@ static int gfx_v9_0_sw_init(void *handle)
 	adev->gfx.mec.num_pipe_per_mec = 4;
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
-	/* KIQ event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, GFX_9_0__SRCID__CP_IB2_INTERRUPT_PKT, &adev->gfx.kiq.irq);
-	if (r)
-		return r;
-
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, GFX_9_0__SRCID__CP_EOP_INTERRUPT, &adev->gfx.eop_irq);
 	if (r)
@@ -1847,7 +1958,7 @@ static void gfx_v9_0_init_compute_vmid(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 }
 
-static void gfx_v9_0_gpu_init(struct amdgpu_device *adev)
+static void gfx_v9_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 tmp;
 	int i;
@@ -2403,7 +2514,8 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 			return r;
 	}
 
-	if (adev->asic_type == CHIP_RAVEN) {
+	if (adev->asic_type == CHIP_RAVEN ||
+	    adev->asic_type == CHIP_VEGA20) {
 		if (amdgpu_lbpw != 0)
 			gfx_v9_0_enable_lbpw(adev, true);
 		else
@@ -3091,7 +3203,7 @@ static int gfx_v9_0_kcq_init_queue(struct amdgpu_ring *ring)
 	struct v9_mqd *mqd = ring->mqd_ptr;
 	int mqd_idx = ring - &adev->gfx.compute_ring[0];
 
-	if (!adev->in_gpu_reset && !adev->gfx.in_suspend) {
+	if (!adev->in_gpu_reset && !adev->in_suspend) {
 		memset((void *)mqd, 0, sizeof(struct v9_mqd_allocation));
 		((struct v9_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct v9_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
@@ -3235,7 +3347,7 @@ static int gfx_v9_0_hw_init(void *handle)
 
 	gfx_v9_0_init_golden_registers(adev);
 
-	gfx_v9_0_gpu_init(adev);
+	gfx_v9_0_constants_init(adev);
 
 	r = gfx_v9_0_csb_vram_pin(adev);
 	if (r)
@@ -3310,7 +3422,7 @@ static int gfx_v9_0_hw_fini(void *handle)
 	/* Use deinitialize sequence from CAIL when unbinding device from driver,
 	 * otherwise KIQ is hanging when binding back
 	 */
-	if (!adev->in_gpu_reset && !adev->gfx.in_suspend) {
+	if (!adev->in_gpu_reset && !adev->in_suspend) {
 		mutex_lock(&adev->srbm_mutex);
 		soc15_grbm_select(adev, adev->gfx.kiq.ring.me,
 				adev->gfx.kiq.ring.pipe,
@@ -3330,20 +3442,12 @@ static int gfx_v9_0_hw_fini(void *handle)
 
 static int gfx_v9_0_suspend(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	adev->gfx.in_suspend = true;
-	return gfx_v9_0_hw_fini(adev);
+	return gfx_v9_0_hw_fini(handle);
 }
 
 static int gfx_v9_0_resume(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r;
-
-	r = gfx_v9_0_hw_init(adev);
-	adev->gfx.in_suspend = false;
-	return r;
+	return gfx_v9_0_hw_init(handle);
 }
 
 static bool gfx_v9_0_is_idle(void *handle)
@@ -4609,68 +4713,6 @@ static int gfx_v9_0_priv_inst_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int gfx_v9_0_kiq_set_interrupt_state(struct amdgpu_device *adev,
-					    struct amdgpu_irq_src *src,
-					    unsigned int type,
-					    enum amdgpu_interrupt_state state)
-{
-	uint32_t tmp, target;
-	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
-
-	if (ring->me == 1)
-		target = SOC15_REG_OFFSET(GC, 0, mmCP_ME1_PIPE0_INT_CNTL);
-	else
-		target = SOC15_REG_OFFSET(GC, 0, mmCP_ME2_PIPE0_INT_CNTL);
-	target += ring->pipe;
-
-	switch (type) {
-	case AMDGPU_CP_KIQ_IRQ_DRIVER0:
-		if (state == AMDGPU_IRQ_STATE_DISABLE) {
-			tmp = RREG32_SOC15(GC, 0, mmCPC_INT_CNTL);
-			tmp = REG_SET_FIELD(tmp, CPC_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 0);
-			WREG32_SOC15(GC, 0, mmCPC_INT_CNTL, tmp);
-
-			tmp = RREG32(target);
-			tmp = REG_SET_FIELD(tmp, CP_ME2_PIPE0_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 0);
-			WREG32(target, tmp);
-		} else {
-			tmp = RREG32_SOC15(GC, 0, mmCPC_INT_CNTL);
-			tmp = REG_SET_FIELD(tmp, CPC_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 1);
-			WREG32_SOC15(GC, 0, mmCPC_INT_CNTL, tmp);
-
-			tmp = RREG32(target);
-			tmp = REG_SET_FIELD(tmp, CP_ME2_PIPE0_INT_CNTL,
-						 GENERIC2_INT_ENABLE, 1);
-			WREG32(target, tmp);
-		}
-		break;
-	default:
-		BUG(); /* kiq only support GENERIC2_INT now */
-		break;
-	}
-	return 0;
-}
-
-static int gfx_v9_0_kiq_irq(struct amdgpu_device *adev,
-			    struct amdgpu_irq_src *source,
-			    struct amdgpu_iv_entry *entry)
-{
-	u8 me_id, pipe_id, queue_id;
-	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
-
-	me_id = (entry->ring_id & 0x0c) >> 2;
-	pipe_id = (entry->ring_id & 0x03) >> 0;
-	queue_id = (entry->ring_id & 0x70) >> 4;
-	DRM_DEBUG("IH: CPC GENERIC2_INT, me:%d, pipe:%d, queue:%d\n",
-		   me_id, pipe_id, queue_id);
-
-	amdgpu_fence_process(ring);
-	return 0;
-}
-
 static const struct amd_ip_funcs gfx_v9_0_ip_funcs = {
 	.name = "gfx_v9_0",
 	.early_init = gfx_v9_0_early_init,
@@ -4819,11 +4861,6 @@ static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev)
 		adev->gfx.compute_ring[i].funcs = &gfx_v9_0_ring_funcs_compute;
 }
 
-static const struct amdgpu_irq_src_funcs gfx_v9_0_kiq_irq_funcs = {
-	.set = gfx_v9_0_kiq_set_interrupt_state,
-	.process = gfx_v9_0_kiq_irq,
-};
-
 static const struct amdgpu_irq_src_funcs gfx_v9_0_eop_irq_funcs = {
 	.set = gfx_v9_0_set_eop_interrupt_state,
 	.process = gfx_v9_0_eop_irq,
@@ -4849,9 +4886,6 @@ static void gfx_v9_0_set_irq_funcs(struct amdgpu_device *adev)
 
 	adev->gfx.priv_inst_irq.num_types = 1;
 	adev->gfx.priv_inst_irq.funcs = &gfx_v9_0_priv_inst_irq_funcs;
-
-	adev->gfx.kiq.irq.num_types = AMDGPU_CP_KIQ_IRQ_LAST;
-	adev->gfx.kiq.irq.funcs = &gfx_v9_0_kiq_irq_funcs;
 }
 
 static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev)
@@ -4871,7 +4905,20 @@ static void gfx_v9_0_set_rlc_funcs(struct amdgpu_device *adev)
 static void gfx_v9_0_set_gds_init(struct amdgpu_device *adev)
 {
 	/* init asci gds info */
-	adev->gds.mem.total_size = RREG32_SOC15(GC, 0, mmGDS_VMID0_SIZE);
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+		adev->gds.mem.total_size = 0x10000;
+		break;
+	case CHIP_RAVEN:
+		adev->gds.mem.total_size = 0x1000;
+		break;
+	default:
+		adev->gds.mem.total_size = 0x10000;
+		break;
+	}
+
 	adev->gds.gws.total_size = 64;
 	adev->gds.oa.total_size = 16;
 

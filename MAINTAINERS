@@ -4761,8 +4761,8 @@ F:	include/uapi/drm/
 F:	include/linux/vga*
 
 DRM DRIVERS AND MISC GPU PATCHES
-M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>
+M:	Maxime Ripard <maxime.ripard@bootlin.com>
 M:	Sean Paul <sean@poorly.run>
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 S:	Maintained
@@ -9727,13 +9727,6 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 S:	Maintained
 F:	drivers/media/dvb-frontends/mn88473*
 
-PCI DRIVER FOR MOBIVEIL PCIE IP
-M:	Subrahmanya Lingappa <l.subrahmanya@mobiveil.co.in>
-L:	linux-pci@vger.kernel.org
-S:	Supported
-F:	Documentation/devicetree/bindings/pci/mobiveil-pcie.txt
-F:	drivers/pci/controller/pcie-mobiveil.c
-
 MODULE SUPPORT
 M:	Jessica Yu <jeyu@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jeyu/linux.git modules-next
@@ -10963,7 +10956,7 @@ M:	Willy Tarreau <willy@haproxy.com>
 M:	Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
 S:	Odd Fixes
 F:	Documentation/auxdisplay/lcd-panel-cgram.txt
-F:	drivers/misc/panel.c
+F:	drivers/auxdisplay/panel.c
 
 PARALLEL PORT SUBSYSTEM
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
@@ -11151,6 +11144,13 @@ F:	include/uapi/linux/switchtec_ioctl.h
 F:	include/linux/switchtec.h
 F:	drivers/ntb/hw/mscc/
 
+PCI DRIVER FOR MOBIVEIL PCIE IP
+M:	Subrahmanya Lingappa <l.subrahmanya@mobiveil.co.in>
+L:	linux-pci@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/pci/mobiveil-pcie.txt
+F:	drivers/pci/controller/pcie-mobiveil.c
+
 PCI DRIVER FOR MVEBU (Marvell Armada 370 and Armada XP SOC support)
 M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
 M:	Jason Cooper <jason@lakedaemon.net>
@@ -11217,8 +11217,14 @@ F:	tools/pci/
 
 PCI ENHANCED ERROR HANDLING (EEH) FOR POWERPC
 M:	Russell Currey <ruscur@russell.cc>
+M:	Sam Bobroff <sbobroff@linux.ibm.com>
+M:	Oliver O'Halloran <oohall@gmail.com>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
+F:	Documentation/PCI/pci-error-recovery.txt
+F:	drivers/pci/pcie/aer.c
+F:	drivers/pci/pcie/dpc.c
+F:	drivers/pci/pcie/err.c
 F:	Documentation/powerpc/eeh-pci-error-recovery.txt
 F:	arch/powerpc/kernel/eeh*.c
 F:	arch/powerpc/platforms/*/eeh*.c

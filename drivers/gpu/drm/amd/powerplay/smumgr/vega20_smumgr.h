@@ -47,11 +47,6 @@ struct vega20_smumgr {
 #define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
 #define SMU_FEATURES_HIGH_SHIFT      32
 
-int vega20_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg);
-int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id);
-int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id);
 int vega20_enable_smc_features(struct pp_hwmgr *hwmgr,
 		bool enable, uint64_t feature_mask);
 int vega20_get_enabled_smc_features(struct pp_hwmgr *hwmgr,

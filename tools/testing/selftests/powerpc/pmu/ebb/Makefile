@@ -17,6 +17,7 @@ TEST_GEN_PROGS := reg_access_test event_attributes_test cycles_test	\
 	 lost_exception_test no_handler_test			\
 	 cycles_with_mmcr2_test
 
+top_srcdir = ../../../../../..
 include ../../../lib.mk
 
 $(TEST_GEN_PROGS): ../../harness.c ../../utils.c ../event.c ../lib.c \

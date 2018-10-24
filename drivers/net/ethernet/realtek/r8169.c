@@ -4071,6 +4071,15 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 	phy_speed_up(dev->phydev);
 
 	genphy_soft_reset(dev->phydev);
+
+	/* It was reported that chip version 33 ends up with 10MBit/Half on a
+	 * 1GBit link after resuming from S3. For whatever reason the PHY on
+	 * this chip doesn't properly start a renegotiation when soft-reset.
+	 * Explicitly requesting a renegotiation fixes this.
+	 */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_33 &&
+	    dev->phydev->autoneg == AUTONEG_ENABLE)
+		phy_restart_aneg(dev->phydev);
 }
 
 static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)

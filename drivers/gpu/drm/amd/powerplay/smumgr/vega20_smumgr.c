@@ -148,19 +148,11 @@ static int vega20_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 	return (ret == PPSMC_Result_OK) ? 0 : -EIO;
 }
 
-/*
- * Retrieve an argument from SMC.
- * @param    hwmgr  the address of the powerplay hardware manager.
- * @param    arg     pointer to store the argument from SMC.
- * @return   Always return 0.
- */
-int vega20_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg)
+static uint32_t vega20_get_argument(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
-
-	return 0;
+	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 }
 
 /*
@@ -168,8 +160,8 @@ int vega20_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg)
  * @param   hwmgr    the address of the HW manager
  * @param   table_id    the driver's table ID to copy from
  */
-int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id)
+static int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
+				      uint8_t *table, int16_t table_id)
 {
 	struct vega20_smumgr *priv =
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
@@ -208,8 +200,8 @@ int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
  * @param   hwmgr    the address of the HW manager
  * @param   table_id    the table to copy from
  */
-int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id)
+static int vega20_copy_table_to_smc(struct pp_hwmgr *hwmgr,
+				    uint8_t *table, int16_t table_id)
 {
 	struct vega20_smumgr *priv =
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
@@ -345,18 +337,12 @@ int vega20_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
 			PPSMC_MSG_GetEnabledSmuFeaturesLow)) == 0,
 			"[GetEnabledSMCFeatures] Attemp to get SMU features Low failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_read_arg_from_smc(hwmgr,
-			&smc_features_low)) == 0,
-			"[GetEnabledSMCFeatures] Attemp to read SMU features Low argument failed!",
-			return ret);
+	smc_features_low = vega20_get_argument(hwmgr);
 	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_GetEnabledSmuFeaturesHigh)) == 0,
 			"[GetEnabledSMCFeatures] Attemp to get SMU features High failed!",
 			return ret);
-	PP_ASSERT_WITH_CODE((ret = vega20_read_arg_from_smc(hwmgr,
-			&smc_features_high)) == 0,
-			"[GetEnabledSMCFeatures] Attemp to read SMU features High argument failed!",
-			return ret);
+	smc_features_high = vega20_get_argument(hwmgr);
 
 	*features_enabled = ((((uint64_t)smc_features_low << SMU_FEATURES_LOW_SHIFT) & SMU_FEATURES_LOW_MASK) |
 			(((uint64_t)smc_features_high << SMU_FEATURES_HIGH_SHIFT) & SMU_FEATURES_HIGH_MASK));
@@ -574,6 +560,19 @@ static bool vega20_is_dpm_running(struct pp_hwmgr *hwmgr)
 		return false;
 }
 
+static int vega20_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table,
+				    uint16_t table_id, bool rw)
+{
+	int ret;
+
+	if (rw)
+		ret = vega20_copy_table_from_smc(hwmgr, table, table_id);
+	else
+		ret = vega20_copy_table_to_smc(hwmgr, table, table_id);
+
+	return ret;
+}
+
 const struct pp_smumgr_func vega20_smu_funcs = {
 	.smu_init = &vega20_smu_init,
 	.smu_fini = &vega20_smu_fini,
@@ -584,4 +583,6 @@ const struct pp_smumgr_func vega20_smu_funcs = {
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.is_dpm_running = vega20_is_dpm_running,
+	.get_argument = vega20_get_argument,
+	.smc_table_manager = vega20_smc_table_manager,
 };

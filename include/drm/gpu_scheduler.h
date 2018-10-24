@@ -175,8 +175,6 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  *               finished to remove the job from the
  *               @drm_gpu_scheduler.ring_mirror_list.
  * @node: used to append this struct to the @drm_gpu_scheduler.ring_mirror_list.
- * @work_tdr: schedules a delayed call to @drm_sched_job_timedout after the timeout
- *            interval is over.
  * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
  *         limit of the scheduler then the job is marked guilty and will not
@@ -195,7 +193,6 @@ struct drm_sched_job {
 	struct dma_fence_cb		finish_cb;
 	struct work_struct		finish_work;
 	struct list_head		node;
-	struct delayed_work		work_tdr;
 	uint64_t			id;
 	atomic_t			karma;
 	enum drm_sched_priority		s_priority;
@@ -259,6 +256,8 @@ struct drm_sched_backend_ops {
  *                 finished.
  * @hw_rq_count: the number of jobs currently in the hardware queue.
  * @job_id_count: used to assign unique id to the each job.
+ * @work_tdr: schedules a delayed call to @drm_sched_job_timedout after the
+ *            timeout interval is over.
  * @thread: the kthread on which the scheduler which run.
  * @ring_mirror_list: the list of jobs which are currently in the job queue.
  * @job_list_lock: lock to protect the ring_mirror_list.
@@ -278,6 +277,7 @@ struct drm_gpu_scheduler {
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;
 	atomic64_t			job_id_count;
+	struct delayed_work		work_tdr;
 	struct task_struct		*thread;
 	struct list_head		ring_mirror_list;
 	spinlock_t			job_list_lock;

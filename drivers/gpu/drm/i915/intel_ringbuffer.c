@@ -1677,9 +1677,26 @@ static int switch_context(struct i915_request *rq)
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
 	if (ppgtt) {
-		ret = load_pd_dir(rq, ppgtt);
-		if (ret)
-			goto err;
+		int loops;
+
+		/*
+		 * Baytail takes a little more convincing that it really needs
+		 * to reload the PD between contexts. It is not just a little
+		 * longer, as adding more stalls after the load_pd_dir (i.e.
+		 * adding a long loop around flush_pd_dir) is not as effective
+		 * as reloading the PD umpteen times. 32 is derived from
+		 * experimentation (gem_exec_parallel/fds) and has no good
+		 * explanation.
+		 */
+		loops = 1;
+		if (engine->id == BCS && IS_VALLEYVIEW(engine->i915))
+			loops = 32;
+
+		do {
+			ret = load_pd_dir(rq, ppgtt);
+			if (ret)
+				goto err;
+		} while (--loops);
 
 		if (intel_engine_flag(engine) & ppgtt->pd_dirty_rings) {
 			unwind_mm = intel_engine_flag(engine);

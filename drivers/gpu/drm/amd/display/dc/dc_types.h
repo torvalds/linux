@@ -659,4 +659,16 @@ enum i2c_mot_mode {
 	I2C_MOT_FALSE
 };
 
+struct AsicStateEx {
+	unsigned int memoryClock;
+	unsigned int displayClock;
+	unsigned int engineClock;
+	unsigned int maxSupportedDppClock;
+	unsigned int dppClock;
+	unsigned int socClock;
+	unsigned int dcfClockDeepSleep;
+	unsigned int fClock;
+	unsigned int phyClock;
+};
+
 #endif /* DC_TYPES_H_ */

@@ -862,7 +862,7 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		break;
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
-		args->value = ctx->flags & CONTEXT_NO_ZEROMAP;
+		args->value = test_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags);
 		break;
 	case I915_CONTEXT_PARAM_GTT_SIZE:
 		if (ctx->ppgtt)
@@ -896,27 +896,23 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct drm_i915_gem_context_param *args = data;
 	struct i915_gem_context *ctx;
-	int ret;
+	int ret = 0;
 
 	ctx = i915_gem_context_lookup(file_priv, args->ctx_id);
 	if (!ctx)
 		return -ENOENT;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		goto out;
 
 	switch (args->param) {
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 		ret = -EINVAL;
 		break;
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
-		if (args->size) {
+		if (args->size)
 			ret = -EINVAL;
-		} else {
-			ctx->flags &= ~CONTEXT_NO_ZEROMAP;
-			ctx->flags |= args->value ? CONTEXT_NO_ZEROMAP : 0;
-		}
+		else if (args->value)
+			set_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags);
+		else
+			clear_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags);
 		break;
 	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
 		if (args->size)
@@ -960,9 +956,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		break;
 	}
-	mutex_unlock(&dev->struct_mutex);
 
-out:
 	i915_gem_context_put(ctx);
 	return ret;
 }

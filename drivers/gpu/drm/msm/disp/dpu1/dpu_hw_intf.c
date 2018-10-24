@@ -65,9 +65,6 @@
 #define   INTF_FRAME_COUNT              0x0AC
 #define   INTF_LINE_COUNT               0x0B0
 
-#define INTF_MISR_CTRL			0x180
-#define INTF_MISR_SIGNATURE		0x184
-
 static struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
 		struct dpu_mdss_cfg *m,
 		void __iomem *addr,
@@ -246,30 +243,6 @@ static void dpu_hw_intf_get_status(
 	}
 }
 
-static void dpu_hw_intf_setup_misr(struct dpu_hw_intf *intf,
-						bool enable, u32 frame_count)
-{
-	struct dpu_hw_blk_reg_map *c = &intf->hw;
-	u32 config = 0;
-
-	DPU_REG_WRITE(c, INTF_MISR_CTRL, MISR_CTRL_STATUS_CLEAR);
-	/* clear misr data */
-	wmb();
-
-	if (enable)
-		config = (frame_count & MISR_FRAME_COUNT_MASK) |
-			MISR_CTRL_ENABLE | INTF_MISR_CTRL_FREE_RUN_MASK;
-
-	DPU_REG_WRITE(c, INTF_MISR_CTRL, config);
-}
-
-static u32 dpu_hw_intf_collect_misr(struct dpu_hw_intf *intf)
-{
-	struct dpu_hw_blk_reg_map *c = &intf->hw;
-
-	return DPU_REG_READ(c, INTF_MISR_SIGNATURE);
-}
-
 static u32 dpu_hw_intf_get_line_count(struct dpu_hw_intf *intf)
 {
 	struct dpu_hw_blk_reg_map *c;
@@ -289,8 +262,6 @@ static void _setup_intf_ops(struct dpu_hw_intf_ops *ops,
 	ops->setup_prg_fetch  = dpu_hw_intf_setup_prg_fetch;
 	ops->get_status = dpu_hw_intf_get_status;
 	ops->enable_timing = dpu_hw_intf_enable_timing_engine;
-	ops->setup_misr = dpu_hw_intf_setup_misr;
-	ops->collect_misr = dpu_hw_intf_collect_misr;
 	ops->get_line_count = dpu_hw_intf_get_line_count;
 }
 

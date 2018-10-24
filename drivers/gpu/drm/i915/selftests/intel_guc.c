@@ -142,6 +142,7 @@ static int igt_guc_clients(void *args)
 
 	GEM_BUG_ON(!HAS_GUC(dev_priv));
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	intel_runtime_pm_get(dev_priv);
 
 	guc = &dev_priv->guc;
 	if (!guc) {
@@ -269,6 +270,7 @@ out:
 	guc_clients_create(guc);
 	guc_clients_doorbell_init(guc);
 unlock:
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }
@@ -287,6 +289,7 @@ static int igt_guc_doorbells(void *arg)
 
 	GEM_BUG_ON(!HAS_GUC(dev_priv));
 	mutex_lock(&dev_priv->drm.struct_mutex);
+	intel_runtime_pm_get(dev_priv);
 
 	guc = &dev_priv->guc;
 	if (!guc) {
@@ -379,6 +382,7 @@ out:
 			guc_client_free(clients[i]);
 		}
 unlock:
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }

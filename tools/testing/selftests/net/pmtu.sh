@@ -178,8 +178,8 @@ setup() {
 
 cleanup() {
 	[ ${cleanup_done} -eq 1 ] && return
-	ip netns del ${NS_A} 2 > /dev/null
-	ip netns del ${NS_B} 2 > /dev/null
+	ip netns del ${NS_A} 2> /dev/null
+	ip netns del ${NS_B} 2> /dev/null
 	cleanup_done=1
 }
 

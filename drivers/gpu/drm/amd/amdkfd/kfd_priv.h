@@ -176,6 +176,7 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	unsigned int num_sdma_engines;
+	unsigned int num_sdma_queues_per_engine;
 };
 
 struct kfd_mem_obj {
@@ -247,6 +248,10 @@ struct kfd_dev {
 	/* Debug manager */
 	struct kfd_dbgmgr           *dbgmgr;
 
+	/* Firmware versions */
+	uint16_t mec_fw_version;
+	uint16_t sdma_fw_version;
+
 	/* Maximum process number mapped to HW scheduler */
 	unsigned int max_proc_per_quantum;
 
@@ -257,6 +262,8 @@ struct kfd_dev {
 
 	/* xGMI */
 	uint64_t hive_id;
+
+	bool pci_atomic_requested;
 };
 
 /* KGD2KFD callbacks */
@@ -500,11 +507,11 @@ struct qcm_process_device {
 	 * All the memory management data should be here too
 	 */
 	uint64_t gds_context_area;
+	uint64_t page_table_base;
 	uint32_t sh_mem_config;
 	uint32_t sh_mem_bases;
 	uint32_t sh_mem_ape1_base;
 	uint32_t sh_mem_ape1_limit;
-	uint32_t page_table_base;
 	uint32_t gds_size;
 	uint32_t num_gws;
 	uint32_t num_oac;
@@ -856,6 +863,11 @@ int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
+int pqm_get_wave_state(struct process_queue_manager *pqm,
+		       unsigned int qid,
+		       void __user *ctl_stack,
+		       u32 *ctl_stack_used_size,
+		       u32 *save_area_used_size);
 
 int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,

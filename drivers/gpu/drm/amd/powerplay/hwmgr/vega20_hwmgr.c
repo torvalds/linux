@@ -46,6 +46,9 @@
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
+#include "soc15_common.h"
+#include "smuio/smuio_9_0_offset.h"
+#include "smuio/smuio_9_0_sh_mask.h"
 
 static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 {
@@ -461,7 +464,7 @@ static int vega20_get_number_of_dpm_level(struct pp_hwmgr *hwmgr,
 			"[GetNumOfDpmLevel] failed to get dpm levels!",
 			return ret);
 
-	vega20_read_arg_from_smc(hwmgr, num_of_levels);
+	*num_of_levels = smum_get_argument(hwmgr);
 	PP_ASSERT_WITH_CODE(*num_of_levels > 0,
 			"[GetNumOfDpmLevel] number of clk levels is invalid!",
 			return -EINVAL);
@@ -481,7 +484,7 @@ static int vega20_get_dpm_frequency_by_index(struct pp_hwmgr *hwmgr,
 			"[GetDpmFreqByIndex] failed to get dpm freq by index!",
 			return ret);
 
-	vega20_read_arg_from_smc(hwmgr, clk);
+	*clk = smum_get_argument(hwmgr);
 	PP_ASSERT_WITH_CODE(*clk,
 			"[GetDpmFreqByIndex] clk value is invalid!",
 			return -EINVAL);
@@ -743,8 +746,8 @@ static int vega20_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	memcpy(pp_table, pptable_information->smc_pptable, sizeof(PPTable_t));
 
-	result = vega20_copy_table_to_smc(hwmgr,
-			(uint8_t *)pp_table, TABLE_PPTABLE);
+	result = smum_smc_table_manager(hwmgr,
+					(uint8_t *)pp_table, TABLE_PPTABLE, false);
 	PP_ASSERT_WITH_CODE(!result,
 			"[InitSMCTable] Failed to upload PPtable!",
 			return result);
@@ -1044,7 +1047,7 @@ static int vega20_od8_get_gfx_clock_base_voltage(
 			"[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!",
 			return ret);
 
-	vega20_read_arg_from_smc(hwmgr, voltage);
+	*voltage = smum_get_argument(hwmgr);
 	*voltage = *voltage / VOLTAGE_SCALE;
 
 	return 0;
@@ -1067,7 +1070,7 @@ static int vega20_od8_initialize_default_settings(
 	vega20_od8_set_feature_id(hwmgr);
 
 	/* Set default values */
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export over drive table!",
 			return ret);
@@ -1195,7 +1198,7 @@ static int vega20_od8_initialize_default_settings(
 		}
 	}
 
-	ret = vega20_copy_table_to_smc(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)od_table, TABLE_OVERDRIVE, false);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to import over drive table!",
 			return ret);
@@ -1214,7 +1217,7 @@ static int vega20_od8_set_settings(
 	struct vega20_od8_single_setting *od8_settings =
 			data->od8_settings.od8_settings_array;
 
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export over drive table!",
 			return ret);
@@ -1271,7 +1274,7 @@ static int vega20_od8_set_settings(
 		break;
 	}
 
-	ret = vega20_copy_table_to_smc(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)(&od_table), TABLE_OVERDRIVE, false);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to import over drive table!",
 			return ret);
@@ -1401,7 +1404,7 @@ static int vega20_get_max_sustainable_clock(struct pp_hwmgr *hwmgr,
 			(clock_select << 16))) == 0,
 			"[GetMaxSustainableClock] Failed to get max DC clock from SMC!",
 			return ret);
-	vega20_read_arg_from_smc(hwmgr, clock);
+	*clock = smum_get_argument(hwmgr);
 
 	/* if DC limit is zero, return AC limit */
 	if (*clock == 0) {
@@ -1410,7 +1413,7 @@ static int vega20_get_max_sustainable_clock(struct pp_hwmgr *hwmgr,
 			(clock_select << 16))) == 0,
 			"[GetMaxSustainableClock] failed to get max AC clock from SMC!",
 			return ret);
-		vega20_read_arg_from_smc(hwmgr, clock);
+		*clock = smum_get_argument(hwmgr);
 	}
 
 	return 0;
@@ -1470,6 +1473,19 @@ static int vega20_init_max_sustainable_clocks(struct pp_hwmgr *hwmgr)
 
 	if (max_sustainable_clocks->soc_clock < max_sustainable_clocks->uclock)
 		max_sustainable_clocks->uclock = max_sustainable_clocks->soc_clock;
+
+	return 0;
+}
+
+static int vega20_enable_mgpu_fan_boost(struct pp_hwmgr *hwmgr)
+{
+	int result;
+
+	result = smum_send_msg_to_smc(hwmgr,
+		PPSMC_MSG_SetMGpuFanBoostLimitRpm);
+	PP_ASSERT_WITH_CODE(!result,
+			"[EnableMgpuFan] Failed to enable mgpu fan boost!",
+			return result);
 
 	return 0;
 }
@@ -1543,6 +1559,14 @@ static int vega20_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!result,
 			"[EnableDPMTasks] Failed to populate umdpstate clocks!",
 			return result);
+
+	result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetPptLimit,
+			POWER_SOURCE_AC << 16);
+	PP_ASSERT_WITH_CODE(!result,
+			"[GetPptLimit] get default PPT limit failed!",
+			return result);
+	hwmgr->power_limit =
+		hwmgr->default_power_limit = smum_get_argument(hwmgr);
 
 	return 0;
 }
@@ -1770,14 +1794,14 @@ static int vega20_get_clock_ranges(struct pp_hwmgr *hwmgr,
 				PPSMC_MSG_GetMaxDpmFreq, (clock_select << 16))) == 0,
 				"[GetClockRanges] Failed to get max clock from SMC!",
 				return ret);
-		vega20_read_arg_from_smc(hwmgr, clock);
+		*clock = smum_get_argument(hwmgr);
 	} else {
 		PP_ASSERT_WITH_CODE((ret = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_GetMinDpmFreq,
 				(clock_select << 16))) == 0,
 				"[GetClockRanges] Failed to get min clock from SMC!",
 				return ret);
-		vega20_read_arg_from_smc(hwmgr, clock);
+		*clock = smum_get_argument(hwmgr);
 	}
 
 	return 0;
@@ -1841,7 +1865,7 @@ static int vega20_get_gpu_power(struct pp_hwmgr *hwmgr,
 	int ret = 0;
 	SmuMetrics_t metrics_table;
 
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export SMU METRICS table!",
 			return ret);
@@ -1862,7 +1886,7 @@ static int vega20_get_current_gfx_clk_freq(struct pp_hwmgr *hwmgr, uint32_t *gfx
 			PPSMC_MSG_GetDpmClockFreq, (PPCLK_GFXCLK << 16))) == 0,
 			"[GetCurrentGfxClkFreq] Attempt to get Current GFXCLK Frequency Failed!",
 			return ret);
-	vega20_read_arg_from_smc(hwmgr, &gfx_clk);
+	gfx_clk = smum_get_argument(hwmgr);
 
 	*gfx_freq = gfx_clk * 100;
 
@@ -1880,7 +1904,7 @@ static int vega20_get_current_mclk_freq(struct pp_hwmgr *hwmgr, uint32_t *mclk_f
 			PPSMC_MSG_GetDpmClockFreq, (PPCLK_UCLK << 16))) == 0,
 			"[GetCurrentMClkFreq] Attempt to get Current MCLK Frequency Failed!",
 			return ret);
-	vega20_read_arg_from_smc(hwmgr, &mem_clk);
+	mem_clk = smum_get_argument(hwmgr);
 
 	*mclk_freq = mem_clk * 100;
 
@@ -1893,7 +1917,7 @@ static int vega20_get_current_activity_percent(struct pp_hwmgr *hwmgr,
 	int ret = 0;
 	SmuMetrics_t metrics_table;
 
-	ret = vega20_copy_table_from_smc(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS);
+	ret = smum_smc_table_manager(hwmgr, (uint8_t *)&metrics_table, TABLE_SMU_METRICS, true);
 	PP_ASSERT_WITH_CODE(!ret,
 			"Failed to export SMU METRICS table!",
 			return ret);
@@ -1907,6 +1931,8 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t val_vid;
 	int ret = 0;
 
 	switch (idx) {
@@ -1940,6 +1966,18 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	case AMDGPU_PP_SENSOR_GPU_POWER:
 		*size = 16;
 		ret = vega20_get_gpu_power(hwmgr, (uint32_t *)value);
+		break;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		val_vid = (RREG32_SOC15(SMUIO, 0, mmSMUSVI0_TEL_PLANE0) &
+			SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR_MASK) >>
+			SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR__SHIFT;
+		*((uint32_t *)value) =
+			(uint32_t)convert_to_vddc((uint8_t)val_vid);
+		break;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = vega20_get_enabled_smc_features(hwmgr, (uint64_t *)value);
+		if (!ret)
+			*size = 8;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2262,6 +2300,25 @@ static uint32_t vega20_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 		return AMD_FAN_CTRL_MANUAL;
 	else
 		return AMD_FAN_CTRL_AUTO;
+}
+
+static void vega20_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+{
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
+		vega20_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+			vega20_fan_ctrl_stop_smc_fan_control(hwmgr);
+		break;
+	case AMD_FAN_CTRL_AUTO:
+		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+			vega20_fan_ctrl_start_smc_fan_control(hwmgr);
+		break;
+	default:
+		break;
+	}
 }
 
 static int vega20_get_dal_power_level(struct pp_hwmgr *hwmgr,
@@ -2612,18 +2669,18 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 		data->gfxclk_overdrive = false;
 		data->memclk_overdrive = false;
 
-		ret = vega20_copy_table_from_smc(hwmgr,
-				(uint8_t *)od_table,
-				TABLE_OVERDRIVE);
+		ret = smum_smc_table_manager(hwmgr,
+					     (uint8_t *)od_table,
+					     TABLE_OVERDRIVE, true);
 		PP_ASSERT_WITH_CODE(!ret,
 				"Failed to export overdrive table!",
 				return ret);
 		break;
 
 	case PP_OD_COMMIT_DPM_TABLE:
-		ret = vega20_copy_table_to_smc(hwmgr,
-				(uint8_t *)od_table,
-				TABLE_OVERDRIVE);
+		ret = smum_smc_table_manager(hwmgr,
+					     (uint8_t *)od_table,
+					     TABLE_OVERDRIVE, false);
 		PP_ASSERT_WITH_CODE(!ret,
 				"Failed to import overdrive table!",
 				return ret);
@@ -2847,8 +2904,8 @@ static int vega20_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 	    !(data->water_marks_bitmap & WaterMarksLoaded)) {
-		result = vega20_copy_table_to_smc(hwmgr,
-			(uint8_t *)wm_table, TABLE_WATERMARKS);
+		result = smum_smc_table_manager(hwmgr,
+						(uint8_t *)wm_table, TABLE_WATERMARKS, false);
 		PP_ASSERT_WITH_CODE(!result,
 				"Failed to update WMTABLE!",
 				return result);
@@ -3118,6 +3175,34 @@ static int vega20_power_off_asic(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
+static int conv_power_profile_to_pplib_workload(int power_profile)
+{
+	int pplib_workload = 0;
+
+	switch (power_profile) {
+	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
+		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_POWERSAVING:
+		pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VIDEO:
+		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VR:
+		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_COMPUTE:
+		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_CUSTOM:
+		pplib_workload = WORKLOAD_PPLIB_CUSTOM_BIT;
+		break;
+	}
+
+	return pplib_workload;
+}
+
 static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
@@ -3153,14 +3238,14 @@ static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-		workload_type = i + 1;
+		workload_type = conv_power_profile_to_pplib_workload(i);
 		result = vega20_get_activity_monitor_coeff(hwmgr,
 				(uint8_t *)(&activity_monitor), workload_type);
 		PP_ASSERT_WITH_CODE(!result,
 				"[GetPowerProfile] Failed to get activity monitor!",
 				return result);
 
-		size += sprintf(buf + size, "%2d(%14s%s)\n",
+		size += sprintf(buf + size, "%2d %14s%s:\n",
 			i, profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ");
 
 		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
@@ -3226,9 +3311,14 @@ static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
-	int result = 0;
+	int workload_type, result = 0;
 
 	hwmgr->power_profile_mode = input[size];
+
+	if (hwmgr->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", hwmgr->power_profile_mode);
+		return -EINVAL;
+	}
 
 	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 		if (size < 10)
@@ -3296,8 +3386,11 @@ static int vega20_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 				return result);
 	}
 
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type =
+		conv_power_profile_to_pplib_workload(hwmgr->power_profile_mode);
 	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
-						1 << hwmgr->power_profile_mode);
+						1 << workload_type);
 
 	return 0;
 }
@@ -3427,15 +3520,25 @@ static const struct pp_hwmgr_func vega20_hwmgr_funcs = {
 	.disable_smc_firmware_ctf =
 		vega20_thermal_disable_alert,
 	/* fan control related */
+	.get_fan_speed_percent =
+		vega20_fan_ctrl_get_fan_speed_percent,
+	.set_fan_speed_percent =
+		vega20_fan_ctrl_set_fan_speed_percent,
 	.get_fan_speed_info =
 		vega20_fan_ctrl_get_fan_speed_info,
 	.get_fan_speed_rpm =
 		vega20_fan_ctrl_get_fan_speed_rpm,
+	.set_fan_speed_rpm =
+		vega20_fan_ctrl_set_fan_speed_rpm,
 	.get_fan_control_mode =
 		vega20_get_fan_control_mode,
+	.set_fan_control_mode =
+		vega20_set_fan_control_mode,
 	/* smu memory related */
 	.notify_cac_buffer_info =
 		vega20_notify_cac_buffer_info,
+	.enable_mgpu_fan_boost =
+		vega20_enable_mgpu_fan_boost,
 };
 
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr)

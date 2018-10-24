@@ -146,6 +146,8 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 {
 	const uint64_t four_gb = 0x100000000ULL;
 	u64 size_af, size_bf;
+	/*To avoid the hole, limit the max mc address to AMDGPU_GMC_HOLE_START*/
+	u64 max_mc_address = min(adev->gmc.mc_mask, AMDGPU_GMC_HOLE_START - 1);
 
 	mc->gart_size += adev->pm.smu_prv_buffer_size;
 
@@ -153,7 +155,7 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	 * the GART base on a 4GB boundary as well.
 	 */
 	size_bf = mc->fb_start;
-	size_af = adev->gmc.mc_mask + 1 - ALIGN(mc->fb_end + 1, four_gb);
+	size_af = max_mc_address + 1 - ALIGN(mc->fb_end + 1, four_gb);
 
 	if (mc->gart_size > max(size_bf, size_af)) {
 		dev_warn(adev->dev, "limiting GART\n");
@@ -164,7 +166,7 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	    (size_af < mc->gart_size))
 		mc->gart_start = 0;
 	else
-		mc->gart_start = mc->mc_mask - mc->gart_size + 1;
+		mc->gart_start = max_mc_address - mc->gart_size + 1;
 
 	mc->gart_start &= ~(four_gb - 1);
 	mc->gart_end = mc->gart_start + mc->gart_size - 1;
@@ -200,16 +202,13 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 	}
 
 	if (size_bf > size_af) {
-		mc->agp_start = mc->fb_start > mc->gart_start ?
-			mc->gart_end + 1 : 0;
+		mc->agp_start = (mc->fb_start - size_bf) & sixteen_gb_mask;
 		mc->agp_size = size_bf;
 	} else {
-		mc->agp_start = (mc->fb_start > mc->gart_start ?
-			mc->fb_end : mc->gart_end) + 1,
+		mc->agp_start = ALIGN(mc->fb_end + 1, sixteen_gb);
 		mc->agp_size = size_af;
 	}
 
-	mc->agp_start = ALIGN(mc->agp_start, sixteen_gb);
 	mc->agp_end = mc->agp_start + mc->agp_size - 1;
 	dev_info(adev->dev, "AGP: %lluM 0x%016llX - 0x%016llX\n",
 			mc->agp_size >> 20, mc->agp_start, mc->agp_end);

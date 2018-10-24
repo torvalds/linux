@@ -947,7 +947,7 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 				&dss_debug_fops);
 	if (IS_ERR(d)) {
 		kfree(entry);
-		return ERR_PTR(PTR_ERR(d));
+		return ERR_CAST(d);
 	}
 
 	entry->dentry = d;

@@ -2875,6 +2875,16 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			}
 		}
 
+		/*
+		 * WA Level-0 adjustment for 16GB DIMMs: SKL+
+		 * If we could not get dimm info enable this WA to prevent from
+		 * any underrun. If not able to get Dimm info assume 16GB dimm
+		 * to avoid any underrun.
+		 */
+		if (!dev_priv->dram_info.valid_dimm ||
+		    dev_priv->dram_info.is_16gb_dimm)
+			wm[0] += 1;
+
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
 
@@ -6108,10 +6118,13 @@ void intel_enable_ipc(struct drm_i915_private *dev_priv)
 	u32 val;
 
 	/* Display WA #0477 WaDisableIPC: skl */
-	if (IS_SKYLAKE(dev_priv)) {
+	if (IS_SKYLAKE(dev_priv))
 		dev_priv->ipc_enabled = false;
-		return;
-	}
+
+	/* Display WA #1141: SKL:all KBL:all CFL */
+	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) &&
+	    !dev_priv->dram_info.symmetric_memory)
+		dev_priv->ipc_enabled = false;
 
 	val = I915_READ(DISP_ARB_CTL2);
 

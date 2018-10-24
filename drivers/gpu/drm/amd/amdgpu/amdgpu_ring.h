@@ -77,6 +77,7 @@ struct amdgpu_fence_driver {
 	bool				initialized;
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
+	struct timer_list		fallback_timer;
 	unsigned			num_fences_mask;
 	spinlock_t			lock;
 	struct dma_fence		**fences;
@@ -96,7 +97,7 @@ void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence,
 		      unsigned flags);
 int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s);
-void amdgpu_fence_process(struct amdgpu_ring *ring);
+bool amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
 				      uint32_t wait_seq,

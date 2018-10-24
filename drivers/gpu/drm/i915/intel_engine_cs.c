@@ -990,6 +990,9 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		}
 		local_bh_enable();
 
+		/* Otherwise flush the tasklet if it was on another cpu */
+		tasklet_unlock_wait(t);
+
 		if (READ_ONCE(engine->execlists.active))
 			return false;
 	}

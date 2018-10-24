@@ -100,9 +100,8 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("PpmTemperatureThreshold = %d\n", pptable->PpmTemperatureThreshold);
 
 	pr_info("MemoryOnPackage = 0x%02x\n", pptable->MemoryOnPackage);
-	pr_info("padding8_limits[0] = 0x%02x\n", pptable->padding8_limits[0]);
-	pr_info("padding8_limits[1] = 0x%02x\n", pptable->padding8_limits[1]);
-	pr_info("padding8_limits[2] = 0x%02x\n", pptable->padding8_limits[2]);
+	pr_info("padding8_limits = 0x%02x\n", pptable->padding8_limits);
+	pr_info("Tvr_SocLimit = %d\n", pptable->Tvr_SocLimit);
 
 	pr_info("UlvVoltageOffsetSoc = %d\n", pptable->UlvVoltageOffsetSoc);
 	pr_info("UlvVoltageOffsetGfx = %d\n", pptable->UlvVoltageOffsetGfx);
@@ -417,8 +416,8 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("FanGainEdge = %d\n", pptable->FanGainEdge);
 	pr_info("FanGainHotspot = %d\n", pptable->FanGainHotspot);
 	pr_info("FanGainLiquid = %d\n", pptable->FanGainLiquid);
-	pr_info("FanGainVrVddc = %d\n", pptable->FanGainVrVddc);
-	pr_info("FanGainVrMvdd = %d\n", pptable->FanGainVrMvdd);
+	pr_info("FanGainVrGfx = %d\n", pptable->FanGainVrGfx);
+	pr_info("FanGainVrSoc = %d\n", pptable->FanGainVrSoc);
 	pr_info("FanGainPlx = %d\n", pptable->FanGainPlx);
 	pr_info("FanGainHbm = %d\n", pptable->FanGainHbm);
 	pr_info("FanPwmMin = %d\n", pptable->FanPwmMin);
@@ -533,23 +532,20 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("MinVoltageUlvGfx = %d\n", pptable->MinVoltageUlvGfx);
 	pr_info("MinVoltageUlvSoc = %d\n", pptable->MinVoltageUlvSoc);
 
-	for (i = 0; i < 14; i++)
+	pr_info("MGpuFanBoostLimitRpm = %d\n", pptable->MGpuFanBoostLimitRpm);
+	pr_info("padding16_Fan = %d\n", pptable->padding16_Fan);
+
+	pr_info("FanGainVrMem0 = %d\n", pptable->FanGainVrMem0);
+	pr_info("FanGainVrMem0 = %d\n", pptable->FanGainVrMem0);
+
+	pr_info("DcBtcGb[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_GFX]);
+	pr_info("DcBtcGb[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_SOC]);
+
+	for (i = 0; i < 11; i++)
 		pr_info("Reserved[%d] = 0x%x\n", i, pptable->Reserved[i]);
 
-	pr_info("Liquid1_I2C_address = 0x%x\n", pptable->Liquid1_I2C_address);
-	pr_info("Liquid2_I2C_address = 0x%x\n", pptable->Liquid2_I2C_address);
-	pr_info("Vr_I2C_address = 0x%x\n", pptable->Vr_I2C_address);
-	pr_info("Plx_I2C_address = 0x%x\n", pptable->Plx_I2C_address);
-
-	pr_info("Liquid_I2C_LineSCL = 0x%x\n", pptable->Liquid_I2C_LineSCL);
-	pr_info("Liquid_I2C_LineSDA = 0x%x\n", pptable->Liquid_I2C_LineSDA);
-	pr_info("Vr_I2C_LineSCL = 0x%x\n", pptable->Vr_I2C_LineSCL);
-	pr_info("Vr_I2C_LineSDA = 0x%x\n", pptable->Vr_I2C_LineSDA);
-
-	pr_info("Plx_I2C_LineSCL = 0x%x\n", pptable->Plx_I2C_LineSCL);
-	pr_info("Plx_I2C_LineSDA = 0x%x\n", pptable->Plx_I2C_LineSDA);
-	pr_info("VrSensorPresent = 0x%x\n", pptable->VrSensorPresent);
-	pr_info("LiquidSensorPresent = 0x%x\n", pptable->LiquidSensorPresent);
+	for (i = 0; i < 3; i++)
+		pr_info("Padding32[%d] = 0x%x\n", i, pptable->Padding32[i]);
 
 	pr_info("MaxVoltageStepGfx = 0x%x\n", pptable->MaxVoltageStepGfx);
 	pr_info("MaxVoltageStepSoc = 0x%x\n", pptable->MaxVoltageStepSoc);
@@ -611,6 +607,24 @@ static void dump_pptable(PPTable_t *pptable)
 	pr_info("FllGfxclkSpreadPercent = %d\n", pptable->FllGfxclkSpreadPercent);
 	pr_info("FllGfxclkSpreadFreq = %d\n", pptable->FllGfxclkSpreadFreq);
 
+	for (i = 0; i < I2C_CONTROLLER_NAME_COUNT; i++) {
+		pr_info("I2cControllers[%d]:\n", i);
+		pr_info("                   .Enabled = %d\n",
+				pptable->I2cControllers[i].Enabled);
+		pr_info("                   .SlaveAddress = 0x%x\n",
+				pptable->I2cControllers[i].SlaveAddress);
+		pr_info("                   .ControllerPort = %d\n",
+				pptable->I2cControllers[i].ControllerPort);
+		pr_info("                   .ControllerName = %d\n",
+				pptable->I2cControllers[i].ControllerName);
+		pr_info("                   .ThermalThrottler = %d\n",
+				pptable->I2cControllers[i].ThermalThrottler);
+		pr_info("                   .I2cProtocol = %d\n",
+				pptable->I2cControllers[i].I2cProtocol);
+		pr_info("                   .I2cSpeed = %d\n",
+				pptable->I2cControllers[i].I2cSpeed);
+	}
+
 	for (i = 0; i < 10; i++)
 		pr_info("BoardReserved[%d] = 0x%x\n", i, pptable->BoardReserved[i]);
 
@@ -661,50 +675,6 @@ static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 	return 0;
 }
 
-static int copy_clock_limits_array(
-	struct pp_hwmgr *hwmgr,
-	uint32_t **pptable_info_array,
-	const uint32_t *pptable_array,
-	uint32_t power_saving_clock_count)
-{
-	uint32_t array_size, i;
-	uint32_t *table;
-
-	array_size = sizeof(uint32_t) * power_saving_clock_count;
-	table = kzalloc(array_size, GFP_KERNEL);
-	if (NULL == table)
-		return -ENOMEM;
-
-	for (i = 0; i < power_saving_clock_count; i++)
-		table[i] = pptable_array[i];
-
-	*pptable_info_array = table;
-
-	return 0;
-}
-
-static int copy_overdrive_settings_limits_array(
-		struct pp_hwmgr *hwmgr,
-		uint32_t **pptable_info_array,
-		const uint32_t *pptable_array,
-		uint32_t od_setting_count)
-{
-	uint32_t array_size, i;
-	uint32_t *table;
-
-	array_size = sizeof(uint32_t) * od_setting_count;
-	table = kzalloc(array_size, GFP_KERNEL);
-	if (NULL == table)
-		return -ENOMEM;
-
-	for (i = 0; i < od_setting_count; i++)
-		table[i] = pptable_array[i];
-
-	*pptable_info_array = table;
-
-	return 0;
-}
-
 static int copy_overdrive_feature_capabilities_array(
 		struct pp_hwmgr *hwmgr,
 		uint8_t **pptable_info_array,
@@ -721,7 +691,7 @@ static int copy_overdrive_feature_capabilities_array(
 		return -ENOMEM;
 
 	for (i = 0; i < od_feature_count; i++) {
-		table[i] = pptable_array[i];
+		table[i] = le32_to_cpu(pptable_array[i]);
 		if (table[i])
 			od_supported = true;
 	}
@@ -737,29 +707,19 @@ static int copy_overdrive_feature_capabilities_array(
 
 static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable)
 {
-	struct atom_smc_dpm_info_v4_3 *smc_dpm_table;
+	struct atom_smc_dpm_info_v4_4 *smc_dpm_table;
 	int index = GetIndexIntoMasterDataTable(smc_dpm_info);
+	int i;
 
 	PP_ASSERT_WITH_CODE(
 		smc_dpm_table = smu_atom_get_data_table(hwmgr->adev, index, NULL, NULL, NULL),
 		"[appendVbiosPPTable] Failed to retrieve Smc Dpm Table from VBIOS!",
 		return -1);
 
-	ppsmc_pptable->Liquid1_I2C_address = smc_dpm_table->liquid1_i2c_address;
-	ppsmc_pptable->Liquid2_I2C_address = smc_dpm_table->liquid2_i2c_address;
-	ppsmc_pptable->Vr_I2C_address = smc_dpm_table->vr_i2c_address;
-	ppsmc_pptable->Plx_I2C_address = smc_dpm_table->plx_i2c_address;
-
-	ppsmc_pptable->Liquid_I2C_LineSCL = smc_dpm_table->liquid_i2c_linescl;
-	ppsmc_pptable->Liquid_I2C_LineSDA = smc_dpm_table->liquid_i2c_linesda;
-	ppsmc_pptable->Vr_I2C_LineSCL = smc_dpm_table->vr_i2c_linescl;
-	ppsmc_pptable->Vr_I2C_LineSDA = smc_dpm_table->vr_i2c_linesda;
-
-	ppsmc_pptable->Plx_I2C_LineSCL = smc_dpm_table->plx_i2c_linescl;
-	ppsmc_pptable->Plx_I2C_LineSDA = smc_dpm_table->plx_i2c_linesda;
-	ppsmc_pptable->VrSensorPresent = smc_dpm_table->vrsensorpresent;
-	ppsmc_pptable->LiquidSensorPresent = smc_dpm_table->liquidsensorpresent;
-
+	memset(ppsmc_pptable->Padding32,
+			0,
+			sizeof(struct atom_smc_dpm_info_v4_4) -
+			sizeof(struct atom_common_table_header));
 	ppsmc_pptable->MaxVoltageStepGfx = smc_dpm_table->maxvoltagestepgfx;
 	ppsmc_pptable->MaxVoltageStepSoc = smc_dpm_table->maxvoltagestepsoc;
 
@@ -818,6 +778,24 @@ static int append_vbios_pptable(struct pp_hwmgr *hwmgr, PPTable_t *ppsmc_pptable
 	ppsmc_pptable->FllGfxclkSpreadPercent = smc_dpm_table->fllgfxclkspreadpercent;
 	ppsmc_pptable->FllGfxclkSpreadFreq = smc_dpm_table->fllgfxclkspreadfreq;
 
+	if ((smc_dpm_table->table_header.format_revision == 4) &&
+	    (smc_dpm_table->table_header.content_revision == 4)) {
+		for (i = 0; i < I2C_CONTROLLER_NAME_COUNT; i++) {
+			ppsmc_pptable->I2cControllers[i].Enabled =
+				smc_dpm_table->i2ccontrollers[i].enabled;
+			ppsmc_pptable->I2cControllers[i].SlaveAddress =
+				smc_dpm_table->i2ccontrollers[i].slaveaddress;
+			ppsmc_pptable->I2cControllers[i].ControllerPort =
+				smc_dpm_table->i2ccontrollers[i].controllerport;
+			ppsmc_pptable->I2cControllers[i].ThermalThrottler =
+				smc_dpm_table->i2ccontrollers[i].thermalthrottler;
+			ppsmc_pptable->I2cControllers[i].I2cProtocol =
+				smc_dpm_table->i2ccontrollers[i].i2cprotocol;
+			ppsmc_pptable->I2cControllers[i].I2cSpeed =
+				smc_dpm_table->i2ccontrollers[i].i2cspeed;
+		}
+	}
+
 	return 0;
 }
 
@@ -834,6 +812,8 @@ static int init_powerplay_table_information(
 
 	hwmgr->thermal_controller.ucType = powerplay_table->ucThermalControllerType;
 	pptable_information->uc_thermal_controller_type = powerplay_table->ucThermalControllerType;
+	hwmgr->thermal_controller.fanInfo.ulMinRPM = 0;
+	hwmgr->thermal_controller.fanInfo.ulMaxRPM = powerplay_table->smcPPTable.FanMaximumRpm;
 
 	set_hw_cap(hwmgr,
 		ATOM_VEGA20_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
@@ -842,34 +822,40 @@ static int init_powerplay_table_information(
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 
 	if (powerplay_table->OverDrive8Table.ucODTableRevision == 1) {
-		od_feature_count = (powerplay_table->OverDrive8Table.ODFeatureCount > ATOM_VEGA20_ODFEATURE_COUNT) ?
-				ATOM_VEGA20_ODFEATURE_COUNT : powerplay_table->OverDrive8Table.ODFeatureCount;
-		od_setting_count = (powerplay_table->OverDrive8Table.ODSettingCount > ATOM_VEGA20_ODSETTING_COUNT) ?
-				ATOM_VEGA20_ODSETTING_COUNT : powerplay_table->OverDrive8Table.ODSettingCount;
+		od_feature_count =
+			(le32_to_cpu(powerplay_table->OverDrive8Table.ODFeatureCount) >
+			 ATOM_VEGA20_ODFEATURE_COUNT) ?
+			ATOM_VEGA20_ODFEATURE_COUNT :
+			le32_to_cpu(powerplay_table->OverDrive8Table.ODFeatureCount);
+		od_setting_count =
+			(le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingCount) >
+			 ATOM_VEGA20_ODSETTING_COUNT) ?
+			ATOM_VEGA20_ODSETTING_COUNT :
+			le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingCount);
 
 		copy_overdrive_feature_capabilities_array(hwmgr,
 				&pptable_information->od_feature_capabilities,
 				powerplay_table->OverDrive8Table.ODFeatureCapabilities,
 				od_feature_count);
-		copy_overdrive_settings_limits_array(hwmgr,
+		phm_copy_overdrive_settings_limits_array(hwmgr,
 				&pptable_information->od_settings_max,
 				powerplay_table->OverDrive8Table.ODSettingsMax,
 				od_setting_count);
-		copy_overdrive_settings_limits_array(hwmgr,
+		phm_copy_overdrive_settings_limits_array(hwmgr,
 				&pptable_information->od_settings_min,
 				powerplay_table->OverDrive8Table.ODSettingsMin,
 				od_setting_count);
 	}
 
-	pptable_information->us_small_power_limit1 = powerplay_table->usSmallPowerLimit1;
-	pptable_information->us_small_power_limit2 = powerplay_table->usSmallPowerLimit2;
-	pptable_information->us_boost_power_limit = powerplay_table->usBoostPowerLimit;
-	pptable_information->us_od_turbo_power_limit = powerplay_table->usODTurboPowerLimit;
-	pptable_information->us_od_powersave_power_limit = powerplay_table->usODPowerSavePowerLimit;
+	pptable_information->us_small_power_limit1 = le16_to_cpu(powerplay_table->usSmallPowerLimit1);
+	pptable_information->us_small_power_limit2 = le16_to_cpu(powerplay_table->usSmallPowerLimit2);
+	pptable_information->us_boost_power_limit = le16_to_cpu(powerplay_table->usBoostPowerLimit);
+	pptable_information->us_od_turbo_power_limit = le16_to_cpu(powerplay_table->usODTurboPowerLimit);
+	pptable_information->us_od_powersave_power_limit = le16_to_cpu(powerplay_table->usODPowerSavePowerLimit);
 
-	pptable_information->us_software_shutdown_temp = powerplay_table->usSoftwareShutdownTemp;
+	pptable_information->us_software_shutdown_temp = le16_to_cpu(powerplay_table->usSoftwareShutdownTemp);
 
-	hwmgr->platform_descriptor.TDPODLimit = (uint16_t)powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE];
+	hwmgr->platform_descriptor.TDPODLimit = le32_to_cpu(powerplay_table->OverDrive8Table.ODSettingsMax[ATOM_VEGA20_ODSETTING_POWERPERCENTAGE]);
 
 	disable_power_control = 0;
 	if (!disable_power_control && hwmgr->platform_descriptor.TDPODLimit)
@@ -877,13 +863,16 @@ static int init_powerplay_table_information(
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PowerControl);
 
 	if (powerplay_table->PowerSavingClockTable.ucTableRevision == 1) {
-		power_saving_clock_count = (powerplay_table->PowerSavingClockTable.PowerSavingClockCount >= ATOM_VEGA20_PPCLOCK_COUNT) ?
-				ATOM_VEGA20_PPCLOCK_COUNT : powerplay_table->PowerSavingClockTable.PowerSavingClockCount;
-		copy_clock_limits_array(hwmgr,
+		power_saving_clock_count =
+			(le32_to_cpu(powerplay_table->PowerSavingClockTable.PowerSavingClockCount) >=
+			 ATOM_VEGA20_PPCLOCK_COUNT) ?
+			ATOM_VEGA20_PPCLOCK_COUNT :
+			le32_to_cpu(powerplay_table->PowerSavingClockTable.PowerSavingClockCount);
+		phm_copy_clock_limits_array(hwmgr,
 				&pptable_information->power_saving_clock_max,
 				powerplay_table->PowerSavingClockTable.PowerSavingClockMax,
 				power_saving_clock_count);
-		copy_clock_limits_array(hwmgr,
+		phm_copy_clock_limits_array(hwmgr,
 				&pptable_information->power_saving_clock_min,
 				powerplay_table->PowerSavingClockTable.PowerSavingClockMin,
 				power_saving_clock_count);
@@ -893,7 +882,15 @@ static int init_powerplay_table_information(
 	if (pptable_information->smc_pptable == NULL)
 		return -ENOMEM;
 
-	memcpy(pptable_information->smc_pptable, &(powerplay_table->smcPPTable), sizeof(PPTable_t));
+	if (powerplay_table->smcPPTable.Version <= 2)
+		memcpy(pptable_information->smc_pptable,
+				&(powerplay_table->smcPPTable),
+				sizeof(PPTable_t) -
+				sizeof(I2cControllerConfig_t) * I2C_CONTROLLER_NAME_COUNT);
+	else
+		memcpy(pptable_information->smc_pptable,
+				&(powerplay_table->smcPPTable),
+				sizeof(PPTable_t));
 
 	result = append_vbios_pptable(hwmgr, (pptable_information->smc_pptable));
 
