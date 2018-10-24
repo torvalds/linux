@@ -4167,6 +4167,12 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 
 	vmx->nested.vmcs02_initialized = false;
 	vmx->nested.vmxon = true;
+
+	if (pt_mode == PT_MODE_HOST_GUEST) {
+		vmx->pt_desc.guest.ctl = 0;
+		pt_update_intercept_for_msr(vmx);
+	}
+
 	return 0;
 
 out_shadow_vmcs:
