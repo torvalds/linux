@@ -32,7 +32,7 @@ The checksum is calculated against the FS UUID and the MMP structure.
 The MMP structure (``struct mmp_struct``) is as follows:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 12 20 40
    :header-rows: 1
 
    * - Offset

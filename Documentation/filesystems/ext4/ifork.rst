@@ -68,7 +68,7 @@ The extent tree header is recorded in ``struct ext4_extent_header``,
 which is 12 bytes long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -104,7 +104,7 @@ Internal nodes of the extent tree, also known as index nodes, are
 recorded as ``struct ext4_extent_idx``, and are 12 bytes long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -134,7 +134,7 @@ Leaf nodes of the extent tree are recorded as ``struct ext4_extent``,
 and are also 12 bytes long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -174,7 +174,7 @@ including) the checksum itself.
 ``struct ext4_extent_tail`` is 4 bytes long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset

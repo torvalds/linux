@@ -34,7 +34,7 @@ is at most 263 bytes long, though on disk you'll need to reference
 ``dirent.rec_len`` to know for sure.
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -66,7 +66,7 @@ tree traversal. This format is ``ext4_dir_entry_2``, which is at most
 ``dirent.rec_len`` to know for sure.
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -99,7 +99,7 @@ tree traversal. This format is ``ext4_dir_entry_2``, which is at most
 The directory file type is one of the following values:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -130,7 +130,7 @@ in the place where the name normally goes. The structure is
 ``struct ext4_dir_entry_tail``:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -212,7 +212,7 @@ The root of the htree is in ``struct dx_root``, which is the full length
 of a data block:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -305,7 +305,7 @@ of a data block:
 The directory hash is one of the following values:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -327,7 +327,7 @@ Interior nodes of an htree are recorded as ``struct dx_node``, which is
 also the full length of a data block:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -375,7 +375,7 @@ The hash maps that exist in both ``struct dx_root`` and
 long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -405,7 +405,7 @@ directory index (which will ensure that there's space for the checksum.
 The dx\_tail structure is 8 bytes long and looks like this:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset

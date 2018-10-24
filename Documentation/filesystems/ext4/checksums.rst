@@ -28,7 +28,7 @@ of checksum. The checksum function is whatever the superblock describes
 (crc32c as of October 2013) unless noted otherwise.
 
 .. list-table::
-   :widths: 1 1 4
+   :widths: 20 8 50
    :header-rows: 1
 
    * - Metadata

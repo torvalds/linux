@@ -19,7 +19,7 @@ The ext4 superblock is laid out as follows in
 ``struct ext4_super_block``:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -483,7 +483,7 @@ The ext4 superblock is laid out as follows in
 The superblock state is some combination of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value
@@ -500,7 +500,7 @@ The superblock state is some combination of the following:
 The superblock error policy is one of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value
@@ -517,7 +517,7 @@ The superblock error policy is one of the following:
 The filesystem creator is one of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value
@@ -538,7 +538,7 @@ The filesystem creator is one of the following:
 The superblock revision is one of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value
@@ -556,7 +556,7 @@ The superblock compatible features field is a combination of any of the
 following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -595,7 +595,7 @@ The superblock incompatible features field is a combination of any of the
 following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -647,7 +647,7 @@ The superblock read-only compatible features field is a combination of any of
 the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -702,7 +702,7 @@ the following:
 The ``s_def_hash_version`` field is one of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value
@@ -725,7 +725,7 @@ The ``s_def_hash_version`` field is one of the following:
 The ``s_default_mount_opts`` field is any combination of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value
@@ -767,7 +767,7 @@ The ``s_default_mount_opts`` field is any combination of the following:
 The ``s_flags`` field is any combination of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value
@@ -784,7 +784,7 @@ The ``s_flags`` field is any combination of the following:
 The ``s_encrypt_algos`` list can contain any of the following:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 8 72
    :header-rows: 1
 
    * - Value

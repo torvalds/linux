@@ -29,8 +29,9 @@ and the inode structure itself.
 The inode table entry is laid out in ``struct ext4_inode``.
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
+   :class: longtable
 
    * - Offset
      - Size
@@ -176,7 +177,7 @@ The inode table entry is laid out in ``struct ext4_inode``.
 The ``i_mode`` value is a combination of the following flags:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -227,7 +228,7 @@ The ``i_mode`` value is a combination of the following flags:
 The ``i_flags`` field is a combination of these values:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Value
@@ -314,7 +315,7 @@ The ``osd1`` field has multiple meanings depending on the creator:
 Linux:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -331,7 +332,7 @@ Linux:
 Hurd:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -346,7 +347,7 @@ Hurd:
 Masix:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -365,7 +366,7 @@ The ``osd2`` field has multiple meanings depending on the filesystem creator:
 Linux:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -402,7 +403,7 @@ Linux:
 Hurd:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -433,7 +434,7 @@ Hurd:
 Masix:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset

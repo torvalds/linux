@@ -30,7 +30,7 @@ Extended attributes, when stored after the inode, have a header
 ``ext4_xattr_ibody_header`` that is 4 bytes long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -47,7 +47,7 @@ The beginning of an extended attribute block is in
 ``struct ext4_xattr_header``, which is 32 bytes long:
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -92,7 +92,7 @@ entries must be stored in sorted order. The sort order is
 Attributes stored inside an inode do not need be stored in sorted order.
 
 .. list-table::
-   :widths: 1 1 1 77
+   :widths: 8 8 24 40
    :header-rows: 1
 
    * - Offset
@@ -157,7 +157,7 @@ attribute name index field is set, and matching string is removed from
 the key name. Here is a map of name index values to key prefixes:
 
 .. list-table::
-   :widths: 1 79
+   :widths: 16 64
    :header-rows: 1
 
    * - Name Index
