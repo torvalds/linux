@@ -190,18 +190,8 @@ static int device_process(struct vicodec_ctx *ctx,
 	}
 
 	dst_vb->sequence = q_dst->sequence++;
-	dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
-
-	if (src_vb->flags & V4L2_BUF_FLAG_TIMECODE)
-		dst_vb->timecode = src_vb->timecode;
-	dst_vb->field = src_vb->field;
 	dst_vb->flags &= ~V4L2_BUF_FLAG_LAST;
-	dst_vb->flags |= src_vb->flags &
-		(V4L2_BUF_FLAG_TIMECODE |
-		 V4L2_BUF_FLAG_KEYFRAME |
-		 V4L2_BUF_FLAG_PFRAME |
-		 V4L2_BUF_FLAG_BFRAME |
-		 V4L2_BUF_FLAG_TSTAMP_SRC_MASK);
+	v4l2_m2m_buf_copy_data(src_vb, dst_vb, !ctx->is_enc);
 
 	return 0;
 }
