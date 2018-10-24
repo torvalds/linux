@@ -4882,4 +4882,7 @@ static __init int smack_init(void)
  * Smack requires early initialization in order to label
  * all processes and objects when they are created.
  */
-security_initcall(smack_init);
+DEFINE_LSM(smack) = {
+	.name = "smack",
+	.init = smack_init,
+};
