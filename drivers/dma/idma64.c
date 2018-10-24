@@ -142,9 +142,8 @@ static void idma64_chan_irq(struct idma64 *idma64, unsigned short c,
 {
 	struct idma64_chan *idma64c = &idma64->chan[c];
 	struct idma64_desc *desc;
-	unsigned long flags;
 
-	spin_lock_irqsave(&idma64c->vchan.lock, flags);
+	spin_lock(&idma64c->vchan.lock);
 	desc = idma64c->desc;
 	if (desc) {
 		if (status_err & (1 << c)) {
@@ -161,7 +160,7 @@ static void idma64_chan_irq(struct idma64 *idma64, unsigned short c,
 		if (idma64c->desc == NULL || desc->status == DMA_ERROR)
 			idma64_stop_transfer(idma64c);
 	}
-	spin_unlock_irqrestore(&idma64c->vchan.lock, flags);
+	spin_unlock(&idma64c->vchan.lock);
 }
 
 static irqreturn_t idma64_irq(int irq, void *dev)
