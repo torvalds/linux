@@ -606,7 +606,6 @@ const u16 mt76x02_beacon_offsets[16] = {
 	0xc000,
 	0xc000,
 };
-EXPORT_SYMBOL_GPL(mt76x02_beacon_offsets);
 
 static void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
 {

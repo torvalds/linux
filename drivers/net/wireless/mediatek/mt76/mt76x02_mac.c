@@ -128,7 +128,6 @@ void mt76x02_mac_wcid_set_drop(struct mt76x02_dev *dev, u8 idx, bool drop)
 	if ((val & bit) != (bit * drop))
 		mt76_wr(dev, MT_WCID_DROP(idx), (val & ~bit) | (bit * drop));
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_wcid_set_drop);
 
 void mt76x02_txq_init(struct mt76x02_dev *dev, struct ieee80211_txq *txq)
 {
@@ -220,7 +219,6 @@ void mt76x02_mac_set_short_preamble(struct mt76x02_dev *dev, bool enable)
 	else
 		mt76_clear(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_PREAMB_SHORT);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_set_short_preamble);
 
 bool mt76x02_mac_load_tx_status(struct mt76x02_dev *dev,
 				struct mt76x02_tx_status *stat)
@@ -491,7 +489,7 @@ out:
 	rcu_read_unlock();
 }
 
-int
+static int
 mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate)
 {
 	u8 idx = FIELD_GET(MT_RXWI_RATE_INDEX, rate);
@@ -557,7 +555,6 @@ mt76x02_mac_process_rate(struct mt76_rx_status *status, u16 rate)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_process_rate);
 
 void mt76x02_mac_setaddr(struct mt76x02_dev *dev, u8 *addr)
 {
@@ -823,7 +820,6 @@ void mt76x02_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_work);
 
 void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 {
@@ -832,7 +828,6 @@ void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
 	mt76_rmw_field(dev, MT_MAC_APC_BSSID_H(idx), MT_MAC_APC_BSSID_H_ADDR,
 		       get_unaligned_le16(addr + 4));
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_set_bssid);
 
 static int
 mt76x02_write_beacon(struct mt76x02_dev *dev, int offset, struct sk_buff *skb)
@@ -914,7 +909,6 @@ int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 		       bcn_idx - 1);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon);
 
 void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 				   u8 vif_idx, bool val)
@@ -946,4 +940,3 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 	else
 		mt76x02_irq_disable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
 }
-EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon_enable);
