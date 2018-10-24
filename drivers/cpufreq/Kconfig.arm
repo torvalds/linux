@@ -28,7 +28,7 @@ config ARM_ARMADA_37XX_CPUFREQ
 # big LITTLE core layer and glue drivers
 config ARM_BIG_LITTLE_CPUFREQ
 	tristate "Generic ARM big LITTLE CPUfreq driver"
-	depends on (ARM_CPU_TOPOLOGY || ARM64) && HAVE_CLK
+	depends on ARM_CPU_TOPOLOGY && HAVE_CLK
 	# if CPU_THERMAL is on and THERMAL=m, ARM_BIT_LITTLE_CPUFREQ cannot be =y
 	depends on !CPU_THERMAL || THERMAL
 	select PM_OPP
