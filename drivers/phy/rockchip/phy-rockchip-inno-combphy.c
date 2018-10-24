@@ -348,9 +348,31 @@ static int rockchip_combphy_u3_cp_test(struct phy *phy)
 	return ret;
 }
 
+static int rockchip_combphy_set_mode(struct phy *phy, enum phy_mode mode)
+{
+	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
+	u32 reg;
+
+	if (priv->phy_type != PHY_TYPE_PCIE)
+		return -EINVAL;
+
+	reg = readl(priv->mmio + 0x21a8);
+
+	if (PHY_MODE_PCIE_EP == mode)
+		reg |= (0x1 << 2);
+	else if (PHY_MODE_PCIE_RC == mode)
+		reg &= ~(0x1 << 2);
+	else
+		return -EINVAL;
+
+	writel(reg, priv->mmio + 0x21a8);
+	return 0;
+}
+
 static const struct phy_ops rockchip_combphy_ops = {
 	.init		= rockchip_combphy_init,
 	.exit		= rockchip_combphy_exit,
+	.set_mode       = rockchip_combphy_set_mode,
 	.cp_test	= rockchip_combphy_u3_cp_test,
 	.owner		= THIS_MODULE,
 };
