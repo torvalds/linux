@@ -152,12 +152,13 @@ struct f2fs_mount_info {
 #define F2FS_FEATURE_VERITY		0x0400	/* reserved */
 #define F2FS_FEATURE_SB_CHKSUM		0x0800
 
-#define F2FS_HAS_FEATURE(sb, mask)					\
-	((F2FS_SB(sb)->raw_super->feature & cpu_to_le32(mask)) != 0)
-#define F2FS_SET_FEATURE(sb, mask)					\
-	(F2FS_SB(sb)->raw_super->feature |= cpu_to_le32(mask))
-#define F2FS_CLEAR_FEATURE(sb, mask)					\
-	(F2FS_SB(sb)->raw_super->feature &= ~cpu_to_le32(mask))
+#define __F2FS_HAS_FEATURE(raw_super, mask)				\
+	((raw_super->feature & cpu_to_le32(mask)) != 0)
+#define F2FS_HAS_FEATURE(sbi, mask)	__F2FS_HAS_FEATURE(sbi->raw_super, mask)
+#define F2FS_SET_FEATURE(sbi, mask)					\
+	(sbi->raw_super->feature |= cpu_to_le32(mask))
+#define F2FS_CLEAR_FEATURE(sbi, mask)					\
+	(sbi->raw_super->feature &= ~cpu_to_le32(mask))
 
 /*
  * Default values for user and/or group using reserved blocks
@@ -3458,9 +3459,9 @@ static inline bool f2fs_post_read_required(struct inode *inode)
 }
 
 #define F2FS_FEATURE_FUNCS(name, flagname) \
-static inline int f2fs_sb_has_##name(struct super_block *sb) \
+static inline int f2fs_sb_has_##name(struct f2fs_sb_info *sbi) \
 { \
-	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_##flagname); \
+	return F2FS_HAS_FEATURE(sbi, F2FS_FEATURE_##flagname); \
 }
 
 F2FS_FEATURE_FUNCS(encrypt, ENCRYPT);
@@ -3490,7 +3491,7 @@ static inline int get_blkz_type(struct f2fs_sb_info *sbi,
 
 static inline bool f2fs_hw_should_discard(struct f2fs_sb_info *sbi)
 {
-	return f2fs_sb_has_blkzoned(sbi->sb);
+	return f2fs_sb_has_blkzoned(sbi);
 }
 
 static inline bool f2fs_hw_support_discard(struct f2fs_sb_info *sbi)
@@ -3565,7 +3566,7 @@ static inline bool f2fs_force_buffered_io(struct inode *inode,
 	 * for blkzoned device, fallback direct IO to buffered IO, so
 	 * all IOs can be serialized by log-structured write.
 	 */
-	if (f2fs_sb_has_blkzoned(sbi->sb))
+	if (f2fs_sb_has_blkzoned(sbi))
 		return true;
 	if (test_opt(sbi, LFS) && (rw == WRITE) &&
 				block_unaligned_IO(inode, iocb, iter))
@@ -3588,7 +3589,7 @@ extern void f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned int rate,
 static inline bool is_journalled_quota(struct f2fs_sb_info *sbi)
 {
 #ifdef CONFIG_QUOTA
-	if (f2fs_sb_has_quota_ino(sbi->sb))
+	if (f2fs_sb_has_quota_ino(sbi))
 		return true;
 	if (F2FS_OPTION(sbi).s_qf_names[USRQUOTA] ||
 		F2FS_OPTION(sbi).s_qf_names[GRPQUOTA] ||
