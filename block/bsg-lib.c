@@ -21,7 +21,7 @@
  *
  */
 #include <linux/slab.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
 #include <linux/bsg-lib.h>
@@ -129,7 +129,7 @@ static void bsg_teardown_job(struct kref *kref)
 	kfree(job->request_payload.sg_list);
 	kfree(job->reply_payload.sg_list);
 
-	blk_end_request_all(rq, BLK_STS_OK);
+	blk_mq_end_request(rq, BLK_STS_OK);
 }
 
 void bsg_job_put(struct bsg_job *job)
@@ -157,15 +157,15 @@ void bsg_job_done(struct bsg_job *job, int result,
 {
 	job->result = result;
 	job->reply_payload_rcv_len = reply_payload_rcv_len;
-	blk_complete_request(blk_mq_rq_from_pdu(job));
+	blk_mq_complete_request(blk_mq_rq_from_pdu(job));
 }
 EXPORT_SYMBOL_GPL(bsg_job_done);
 
 /**
- * bsg_softirq_done - softirq done routine for destroying the bsg requests
+ * bsg_complete - softirq done routine for destroying the bsg requests
  * @rq: BSG request that holds the job to be destroyed
  */
-static void bsg_softirq_done(struct request *rq)
+static void bsg_complete(struct request *rq)
 {
 	struct bsg_job *job = blk_mq_rq_to_pdu(rq);
 
@@ -224,54 +224,46 @@ failjob_rls_job:
 }
 
 /**
- * bsg_request_fn - generic handler for bsg requests
- * @q: request queue to manage
+ * bsg_queue_rq - generic handler for bsg requests
+ * @hctx: hardware queue
+ * @bd: queue data
  *
  * On error the create_bsg_job function should return a -Exyz error value
  * that will be set to ->result.
  *
  * Drivers/subsys should pass this to the queue init function.
  */
-static void bsg_request_fn(struct request_queue *q)
-	__releases(q->queue_lock)
-	__acquires(q->queue_lock)
+static blk_status_t bsg_queue_rq(struct blk_mq_hw_ctx *hctx,
+				 const struct blk_mq_queue_data *bd)
 {
+	struct request_queue *q = hctx->queue;
 	struct device *dev = q->queuedata;
-	struct request *req;
+	struct request *req = bd->rq;
 	int ret;
 
+	blk_mq_start_request(req);
+
 	if (!get_device(dev))
-		return;
+		return BLK_STS_IOERR;
 
-	while (1) {
-		req = blk_fetch_request(q);
-		if (!req)
-			break;
-		spin_unlock_irq(q->queue_lock);
+	if (!bsg_prepare_job(dev, req))
+		return BLK_STS_IOERR;
 
-		if (!bsg_prepare_job(dev, req)) {
-			blk_end_request_all(req, BLK_STS_OK);
-			spin_lock_irq(q->queue_lock);
-			continue;
-		}
+	ret = q->bsg_job_fn(blk_mq_rq_to_pdu(req));
+	if (ret)
+		return BLK_STS_IOERR;
 
-		ret = q->bsg_job_fn(blk_mq_rq_to_pdu(req));
-		spin_lock_irq(q->queue_lock);
-		if (ret)
-			break;
-	}
-
-	spin_unlock_irq(q->queue_lock);
 	put_device(dev);
-	spin_lock_irq(q->queue_lock);
+	return BLK_STS_OK;
 }
 
 /* called right after the request is allocated for the request_queue */
-static int bsg_init_rq(struct request_queue *q, struct request *req, gfp_t gfp)
+static int bsg_init_rq(struct blk_mq_tag_set *set, struct request *req,
+		       unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 
-	job->reply = kzalloc(SCSI_SENSE_BUFFERSIZE, gfp);
+	job->reply = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
 	if (!job->reply)
 		return -ENOMEM;
 	return 0;
@@ -289,7 +281,8 @@ static void bsg_initialize_rq(struct request *req)
 	job->dd_data = job + 1;
 }
 
-static void bsg_exit_rq(struct request_queue *q, struct request *req)
+static void bsg_exit_rq(struct blk_mq_tag_set *set, struct request *req,
+		       unsigned int hctx_idx)
 {
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 
@@ -299,11 +292,35 @@ static void bsg_exit_rq(struct request_queue *q, struct request *req)
 void bsg_remove_queue(struct request_queue *q)
 {
 	if (q) {
+		struct blk_mq_tag_set *set = q->tag_set;
+
 		bsg_unregister_queue(q);
 		blk_cleanup_queue(q);
+		blk_mq_free_tag_set(set);
+		kfree(set);
 	}
 }
 EXPORT_SYMBOL_GPL(bsg_remove_queue);
+
+static enum blk_eh_timer_return bsg_timeout(struct request *rq, bool reserved)
+{
+	enum blk_eh_timer_return ret = BLK_EH_DONE;
+	struct request_queue *q = rq->q;
+
+	if (q->rq_timed_out_fn)
+		ret = q->rq_timed_out_fn(rq);
+
+	return ret;
+}
+
+static const struct blk_mq_ops bsg_mq_ops = {
+	.queue_rq		= bsg_queue_rq,
+	.init_request		= bsg_init_rq,
+	.exit_request		= bsg_exit_rq,
+	.initialize_rq_fn	= bsg_initialize_rq,
+	.complete		= bsg_complete,
+	.timeout		= bsg_timeout,
+};
 
 /**
  * bsg_setup_queue - Create and add the bsg hooks so we can receive requests
@@ -315,28 +332,34 @@ EXPORT_SYMBOL_GPL(bsg_remove_queue);
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 		bsg_job_fn *job_fn, rq_timed_out_fn *timeout, int dd_job_size)
 {
+	struct blk_mq_tag_set *set;
 	struct request_queue *q;
-	int ret;
+	int ret = -ENOMEM;
 
-	q = blk_alloc_queue(GFP_KERNEL);
-	if (!q)
+	set = kzalloc(sizeof(*set), GFP_KERNEL);
+	if (!set)
 		return ERR_PTR(-ENOMEM);
-	q->cmd_size = sizeof(struct bsg_job) + dd_job_size;
-	q->init_rq_fn = bsg_init_rq;
-	q->exit_rq_fn = bsg_exit_rq;
-	q->initialize_rq_fn = bsg_initialize_rq;
-	q->request_fn = bsg_request_fn;
 
-	ret = blk_init_allocated_queue(q);
-	if (ret)
-		goto out_cleanup_queue;
+	set->ops = &bsg_mq_ops,
+	set->nr_hw_queues = 1;
+	set->queue_depth = 128;
+	set->numa_node = NUMA_NO_NODE;
+	set->cmd_size = sizeof(struct bsg_job) + dd_job_size;
+	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING;
+	if (blk_mq_alloc_tag_set(set))
+		goto out_tag_set;
+
+	q = blk_mq_init_queue(set);
+	if (IS_ERR(q)) {
+		ret = PTR_ERR(q);
+		goto out_queue;
+	}
 
 	q->queuedata = dev;
 	q->bsg_job_fn = job_fn;
 	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
-	blk_queue_softirq_done(q, bsg_softirq_done);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
-	blk_queue_rq_timed_out(q, timeout);
+	q->rq_timed_out_fn = timeout;
 
 	ret = bsg_register_queue(q, dev, name, &bsg_transport_ops);
 	if (ret) {
@@ -348,6 +371,10 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	return q;
 out_cleanup_queue:
 	blk_cleanup_queue(q);
+out_queue:
+	blk_mq_free_tag_set(set);
+out_tag_set:
+	kfree(set);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(bsg_setup_queue);
