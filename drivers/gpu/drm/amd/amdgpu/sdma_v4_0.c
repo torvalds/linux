@@ -1453,7 +1453,8 @@ static int sdma_v4_0_early_init(void *handle)
 		adev->sdma.has_page_queue = false;
 	} else {
 		adev->sdma.num_instances = 2;
-		if (adev->asic_type != CHIP_VEGA20)
+		if (adev->asic_type != CHIP_VEGA20 &&
+				adev->asic_type != CHIP_VEGA12)
 			adev->sdma.has_page_queue = true;
 	}
 
