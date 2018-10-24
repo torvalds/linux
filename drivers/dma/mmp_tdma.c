@@ -548,9 +548,6 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 
 static int mmp_tdma_remove(struct platform_device *pdev)
 {
-	struct mmp_tdma_device *tdev = platform_get_drvdata(pdev);
-
-	dma_async_device_unregister(&tdev->device);
 	return 0;
 }
 
@@ -714,7 +711,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	platform_set_drvdata(pdev, tdev);
 
-	ret = dma_async_device_register(&tdev->device);
+	ret = dmaenginem_async_device_register(&tdev->device);
 	if (ret) {
 		dev_err(tdev->device.dev, "unable to register\n");
 		return ret;
@@ -726,7 +723,7 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(tdev->device.dev,
 				"failed to register controller\n");
-			dma_async_device_unregister(&tdev->device);
+			return ret;
 		}
 	}
 
