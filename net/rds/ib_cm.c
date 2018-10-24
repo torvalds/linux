@@ -786,7 +786,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 
 	/* RDS/IB is not currently netns aware, thus init_net */
 	conn = rds_conn_create(&init_net, daddr6, saddr6,
-			       &rds_ib_transport, GFP_KERNEL, ifindex);
+			       &rds_ib_transport, 0, GFP_KERNEL, ifindex);
 	if (IS_ERR(conn)) {
 		rdsdebug("rds_conn_create failed (%ld)\n", PTR_ERR(conn));
 		conn = NULL;

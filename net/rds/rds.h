@@ -158,6 +158,9 @@ struct rds_connection {
 	unsigned int		c_version;
 	possible_net_t		c_net;
 
+	/* TOS */
+	u8			c_tos;
+
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;
 
@@ -652,6 +655,7 @@ struct rds_sock {
 	u8			rs_rx_traces;
 	u8			rs_rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
 	struct rds_msg_zcopy_queue rs_zcookie_queue;
+	u8			rs_tos;
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)
@@ -760,13 +764,14 @@ void rds_conn_exit(void);
 struct rds_connection *rds_conn_create(struct net *net,
 				       const struct in6_addr *laddr,
 				       const struct in6_addr *faddr,
-				       struct rds_transport *trans, gfp_t gfp,
+				       struct rds_transport *trans,
+				       u8 tos, gfp_t gfp,
 				       int dev_if);
 struct rds_connection *rds_conn_create_outgoing(struct net *net,
 						const struct in6_addr *laddr,
 						const struct in6_addr *faddr,
 						struct rds_transport *trans,
-						gfp_t gfp, int dev_if);
+						u8 tos, gfp_t gfp, int dev_if);
 void rds_conn_shutdown(struct rds_conn_path *cpath);
 void rds_conn_destroy(struct rds_connection *conn);
 void rds_conn_drop(struct rds_connection *conn);

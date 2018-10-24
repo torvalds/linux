@@ -782,6 +782,7 @@ void rds_inc_info_copy(struct rds_incoming *inc,
 
 	minfo.seq = be64_to_cpu(inc->i_hdr.h_sequence);
 	minfo.len = be32_to_cpu(inc->i_hdr.h_len);
+	minfo.tos = inc->i_conn->c_tos;
 
 	if (flip) {
 		minfo.laddr = daddr;

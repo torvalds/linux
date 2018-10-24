@@ -254,7 +254,38 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 
 static int rds_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	return -ENOIOCTLCMD;
+	struct rds_sock *rs = rds_sk_to_rs(sock->sk);
+	rds_tos_t tos;
+
+	switch (cmd) {
+	case SIOCRDSSETTOS:
+		if (get_user(tos, (rds_tos_t __user *)arg))
+			return -EFAULT;
+
+		if (rs->rs_transport &&
+		    rs->rs_transport->t_type == RDS_TRANS_TCP)
+			tos = 0;
+
+		spin_lock_bh(&rds_sock_lock);
+		if (rs->rs_tos || rs->rs_conn) {
+			spin_unlock_bh(&rds_sock_lock);
+			return -EINVAL;
+		}
+		rs->rs_tos = tos;
+		spin_unlock_bh(&rds_sock_lock);
+		break;
+	case SIOCRDSGETTOS:
+		spin_lock_bh(&rds_sock_lock);
+		tos = rs->rs_tos;
+		spin_unlock_bh(&rds_sock_lock);
+		if (put_user(tos, (rds_tos_t __user *)arg))
+			return -EFAULT;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
 }
 
 static int rds_cancel_sent_to(struct rds_sock *rs, char __user *optval,
@@ -650,6 +681,8 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	spin_lock_init(&rs->rs_rdma_lock);
 	rs->rs_rdma_keys = RB_ROOT;
 	rs->rs_rx_traces = 0;
+	rs->rs_tos = 0;
+	rs->rs_conn = NULL;
 
 	spin_lock_bh(&rds_sock_lock);
 	list_add_tail(&rs->rs_item, &rds_sock_list);

@@ -301,6 +301,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 
 	iinfo->src_addr = conn->c_laddr.s6_addr32[3];
 	iinfo->dst_addr = conn->c_faddr.s6_addr32[3];
+	iinfo->tos = conn->c_tos;
 
 	memset(&iinfo->src_gid, 0, sizeof(iinfo->src_gid));
 	memset(&iinfo->dst_gid, 0, sizeof(iinfo->dst_gid));

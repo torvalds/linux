@@ -267,6 +267,7 @@ static void rds_tcp_tc_info(struct socket *rds_sock, unsigned int len,
 		tsinfo.last_sent_nxt = tc->t_last_sent_nxt;
 		tsinfo.last_expected_una = tc->t_last_expected_una;
 		tsinfo.last_seen_una = tc->t_last_seen_una;
+		tsinfo.tos = tc->t_cpath->cp_conn->c_tos;
 
 		rds_info_copy(iter, &tsinfo, sizeof(tsinfo));
 	}

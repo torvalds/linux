@@ -115,6 +115,7 @@ static int rds_rdma_cm_event_handler_cmn(struct rdma_cm_id *cm_id,
 			pr_warn("RDS/RDMA: conn <%pI6c, %pI6c> rejected, dropping connection\n",
 				&conn->c_laddr, &conn->c_faddr);
 			conn->c_proposed_version = RDS_PROTOCOL_COMPAT_VERSION;
+			conn->c_tos = 0;
 			rds_conn_drop(conn);
 		}
 		rdsdebug("Connection rejected: %s\n",
