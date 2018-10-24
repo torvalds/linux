@@ -259,6 +259,8 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
  * @offset: offset into the GPU's gart aperture
  * @pages: number of pages to bind
  * @dma_addr: DMA addresses of pages
+ * @flags: page table entry flags
+ * @dst: CPU address of the gart table
  *
  * Map the dma_addresses into GART entries (all asics).
  * Returns 0 for success, -EINVAL for failure.
