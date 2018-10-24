@@ -8,12 +8,6 @@ config FB_CMDLINE
 config FB_NOTIFY
 	bool
 
-config FB_CLPS711X_OLD
-	tristate
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-
 menuconfig FB
 	tristate "Support for frame buffer devices"
 	select FB_CMDLINE
@@ -338,7 +332,6 @@ config FB_ACORN
 config FB_CLPS711X
 	tristate "CLPS711X LCD support"
 	depends on FB && (ARCH_CLPS711X || COMPILE_TEST)
-	select FB_CLPS711X_OLD if ARCH_CLPS711X && !ARCH_MULTIPLATFORM
 	select BACKLIGHT_LCD_SUPPORT
 	select FB_MODE_HELPERS
 	select FB_SYS_FILLRECT
