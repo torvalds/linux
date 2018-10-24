@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: LGPL-2.1
 #include <uapi/linux/mman.h>
 
 static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
