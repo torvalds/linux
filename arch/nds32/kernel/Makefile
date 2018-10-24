@@ -16,7 +16,7 @@ obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_OF)		+= devtree.o
 obj-$(CONFIG_CACHE_L2)		+= atl2c.o
 obj-$(CONFIG_PERF_EVENTS) += perf_event_cpu.o
-
+obj-$(CONFIG_PM)		+= pm.o sleep.o
 extra-y := head.o vmlinux.lds
 
 obj-y				+= vdso/
