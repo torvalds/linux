@@ -646,13 +646,14 @@ config MMC_SDHI_SYS_DMAC
 
 config MMC_SDHI_INTERNAL_DMAC
 	tristate "DMA for SDHI SD/SDIO controllers using on-chip bus mastering"
-	depends on ARM64 || ARCH_R8A77470 || COMPILE_TEST
+	depends on ARM64 || ARCH_R7S9210 || ARCH_R8A77470 || COMPILE_TEST
 	depends on MMC_SDHI
-	default MMC_SDHI if (ARM64 || ARCH_R8A77470)
+	default MMC_SDHI if (ARM64 || ARCH_R7S9210 || ARCH_R8A77470)
 	help
 	  This provides DMA support for SDHI SD/SDIO controllers
 	  using on-chip bus mastering. This supports the controllers
-	  found in arm64 based SoCs.
+	  found in arm64 based SoCs. This controller is also found in
+	  some RZ family SoCs.
 
 config MMC_UNIPHIER
 	tristate "UniPhier SD/eMMC Host Controller support"
