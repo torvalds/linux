@@ -112,7 +112,6 @@ static int queue_pm_only_show(void *data, struct seq_file *m)
 
 #define QUEUE_FLAG_NAME(name) [QUEUE_FLAG_##name] = #name
 static const char *const blk_queue_flag_name[] = {
-	QUEUE_FLAG_NAME(QUEUED),
 	QUEUE_FLAG_NAME(STOPPED),
 	QUEUE_FLAG_NAME(DYING),
 	QUEUE_FLAG_NAME(BYPASS),
@@ -318,7 +317,6 @@ static const char *const cmd_flag_name[] = {
 static const char *const rqf_name[] = {
 	RQF_NAME(SORTED),
 	RQF_NAME(STARTED),
-	RQF_NAME(QUEUED),
 	RQF_NAME(SOFTBARRIER),
 	RQF_NAME(FLUSH_SEQ),
 	RQF_NAME(MIXED_MERGE),

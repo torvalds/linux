@@ -85,8 +85,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_SORTED		((__force req_flags_t)(1 << 0))
 /* drive already may have started this one */
 #define RQF_STARTED		((__force req_flags_t)(1 << 1))
-/* uses tagged queueing */
-#define RQF_QUEUED		((__force req_flags_t)(1 << 2))
 /* may not be passed by ioscheduler */
 #define RQF_SOFTBARRIER		((__force req_flags_t)(1 << 3))
 /* request for flush sequence */
@@ -336,15 +334,6 @@ enum blk_queue_state {
 	Queue_up,
 };
 
-struct blk_queue_tag {
-	struct request **tag_index;	/* map of busy tags */
-	unsigned long *tag_map;		/* bit map of free/busy tags */
-	int max_depth;			/* what we will send to device */
-	int real_max_depth;		/* what the array can hold */
-	atomic_t refcnt;		/* map can be shared */
-	int alloc_policy;		/* tag allocation policy */
-	int next_tag;			/* next tag */
-};
 #define BLK_TAG_ALLOC_FIFO 0 /* allocate starting from 0 */
 #define BLK_TAG_ALLOC_RR 1 /* allocate starting from last allocated tag */
 
@@ -568,8 +557,6 @@ struct request_queue {
 	unsigned int		dma_pad_mask;
 	unsigned int		dma_alignment;
 
-	struct blk_queue_tag	*queue_tags;
-
 	unsigned int		nr_sorted;
 	unsigned int		in_flight[2];
 
@@ -680,7 +667,6 @@ struct request_queue {
 	u64			write_hints[BLK_MAX_WRITE_HINTS];
 };
 
-#define QUEUE_FLAG_QUEUED	0	/* uses generic tag queueing */
 #define QUEUE_FLAG_STOPPED	1	/* queue is stopped */
 #define QUEUE_FLAG_DYING	2	/* queue being torn down */
 #define QUEUE_FLAG_BYPASS	3	/* act as dumb FIFO queue */
@@ -724,7 +710,6 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q);
 
-#define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
 #define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
 #define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
@@ -1357,26 +1342,6 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 		(!list_empty(&plug->list) ||
 		 !list_empty(&plug->mq_list) ||
 		 !list_empty(&plug->cb_list));
-}
-
-/*
- * tag stuff
- */
-extern int blk_queue_start_tag(struct request_queue *, struct request *);
-extern struct request *blk_queue_find_tag(struct request_queue *, int);
-extern void blk_queue_end_tag(struct request_queue *, struct request *);
-extern int blk_queue_init_tags(struct request_queue *, int, struct blk_queue_tag *, int);
-extern void blk_queue_free_tags(struct request_queue *);
-extern int blk_queue_resize_tags(struct request_queue *, int);
-extern struct blk_queue_tag *blk_init_tags(int, int);
-extern void blk_free_tags(struct blk_queue_tag *);
-
-static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
-						int tag)
-{
-	if (unlikely(bqt == NULL || tag >= bqt->real_max_depth))
-		return NULL;
-	return bqt->tag_index[tag];
 }
 
 extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *);

@@ -849,9 +849,6 @@ static void __blk_release_queue(struct work_struct *work)
 
 	blk_exit_rl(q, &q->root_rl);
 
-	if (q->queue_tags)
-		__blk_queue_free_tags(q);
-
 	blk_queue_free_zone_bitmaps(q);
 
 	if (!q->mq_ops) {
