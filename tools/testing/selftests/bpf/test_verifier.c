@@ -4892,7 +4892,7 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.result_unpriv = REJECT,
-		.errstr_unpriv = "R3 pointer comparison prohibited",
+		.errstr_unpriv = "invalid bpf_context access off=76 size=4",
 		.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
 	},
 	{
