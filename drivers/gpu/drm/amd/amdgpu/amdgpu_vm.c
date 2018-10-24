@@ -542,7 +542,8 @@ static void amdgpu_vm_pt_next_leaf(struct amdgpu_device *adev,
 				   struct amdgpu_vm_pt_cursor *cursor)
 {
 	amdgpu_vm_pt_next(adev, cursor);
-	while (amdgpu_vm_pt_descendant(adev, cursor));
+	if (cursor->pfn != ~0ll)
+		while (amdgpu_vm_pt_descendant(adev, cursor));
 }
 
 /**
