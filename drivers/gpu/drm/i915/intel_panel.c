@@ -763,7 +763,7 @@ static void pwm_disable_backlight(const struct drm_connector_state *old_conn_sta
 	struct intel_panel *panel = &connector->panel;
 
 	/* Disable the backlight */
-	pwm_config(panel->backlight.pwm, 0, CRC_PMIC_PWM_PERIOD_NS);
+	intel_panel_actually_set_backlight(old_conn_state, 0);
 	usleep_range(2000, 3000);
 	pwm_disable(panel->backlight.pwm);
 }
