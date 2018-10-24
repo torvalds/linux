@@ -1066,7 +1066,7 @@ static void set_need_watch(void *send_info, unsigned int watch_mask)
 	unsigned long flags;
 	int enable;
 
-	enable = !!(watch_mask & ~IPMI_WATCH_MASK_INTERNAL);
+	enable = !!watch_mask;
 
 	atomic_set(&smi_info->need_watch, enable);
 	spin_lock_irqsave(&smi_info->si_lock, flags);

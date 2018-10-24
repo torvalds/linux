@@ -1129,7 +1129,7 @@ static void ssif_set_need_watch(void *send_info, unsigned int watch_mask)
 
 	if (watch_mask & IPMI_WATCH_MASK_CHECK_MESSAGES)
 		timeout = SSIF_WATCH_MSG_TIMEOUT;
-	else if (watch_mask & ~IPMI_WATCH_MASK_INTERNAL)
+	else if (watch_mask)
 		timeout = SSIF_WATCH_WATCHDOG_TIMEOUT;
 
 	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
