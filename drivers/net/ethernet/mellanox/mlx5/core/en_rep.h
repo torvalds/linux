@@ -53,13 +53,20 @@ struct mlx5e_neigh_update_table {
 	unsigned long           min_interval; /* jiffies */
 };
 
+struct mlx5_rep_uplink_priv {
+	/* Filters DB - instantiated by the uplink representor and shared by
+	 * the uplink's VFs
+	 */
+	struct rhashtable  tc_ht;
+};
+
 struct mlx5e_rep_priv {
 	struct mlx5_eswitch_rep *rep;
 	struct mlx5e_neigh_update_table neigh_update;
 	struct net_device      *netdev;
 	struct mlx5_flow_handle *vport_rx_rule;
 	struct list_head       vport_sqs_list;
-	struct rhashtable      tc_ht; /* valid for uplink rep */
+	struct mlx5_rep_uplink_priv uplink_priv; /* valid for uplink rep */
 };
 
 static inline

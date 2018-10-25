@@ -3018,7 +3018,7 @@ static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv)
 
 	if (MLX5_VPORT_MANAGER(priv->mdev) && esw->mode == SRIOV_OFFLOADS) {
 		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
-		return &uplink_rpriv->tc_ht;
+		return &uplink_rpriv->uplink_priv.tc_ht;
 	} else
 		return &priv->fs.tc.ht;
 }
