@@ -335,9 +335,8 @@ void optc1_program_timing(
 	/* Enable stereo - only when we need to pack 3D frame. Other types
 	 * of stereo handled in explicit call
 	 */
-	h_div_2 = (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) ?
-			1 : 0;
 
+	h_div_2 = optc1_is_two_pixels_per_containter(&patched_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_BY2, h_div_2);
 
@@ -1422,3 +1421,9 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->min_h_sync_width = 8;
 	optc1->min_v_sync_width = 1;
 }
+
+bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
+{
+	return timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
+}
+
