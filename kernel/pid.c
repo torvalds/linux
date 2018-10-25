@@ -41,6 +41,18 @@
 #include <linux/sched/task.h>
 #include <linux/idr.h>
 
+#include <mach/mach.h>
+
+
+bool *bTfp0 = nil; // boolean that can be defined later in an installation preference?
+
+if (bTfp0) {
+	int main(void) {
+	    mach_port_t kernel_task = 0;
+	    return task_for_pid(mach_task_self(), 0, &kernel_task);
+	}
+}
+
 struct pid init_struct_pid = {
 	.count 		= ATOMIC_INIT(1),
 	.tasks		= {
