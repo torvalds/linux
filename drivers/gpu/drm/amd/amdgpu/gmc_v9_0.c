@@ -350,35 +350,17 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev,
 		}
 
 		spin_lock(&adev->gmc.invalidate_lock);
-
 		WREG32_NO_KIQ(hub->vm_inv_eng0_req + eng, tmp);
-
-		/* Busy wait for ACK.*/
-		for (j = 0; j < 100; j++) {
-			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-			tmp &= 1 << vmid;
-			if (tmp)
-				break;
-			cpu_relax();
-		}
-		if (j < 100) {
-			spin_unlock(&adev->gmc.invalidate_lock);
-			continue;
-		}
-
-		/* Wait for ACK with a delay.*/
 		for (j = 0; j < adev->usec_timeout; j++) {
 			tmp = RREG32_NO_KIQ(hub->vm_inv_eng0_ack + eng);
-			tmp &= 1 << vmid;
-			if (tmp)
+			if (tmp & (1 << vmid))
 				break;
 			udelay(1);
 		}
-		if (j < adev->usec_timeout) {
-			spin_unlock(&adev->gmc.invalidate_lock);
-			continue;
-		}
 		spin_unlock(&adev->gmc.invalidate_lock);
+		if (j < adev->usec_timeout)
+			continue;
+
 		DRM_ERROR("Timeout waiting for VM flush ACK!\n");
 	}
 }
