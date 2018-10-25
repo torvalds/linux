@@ -255,7 +255,8 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	u8 *pos, neighbors;
 	u8 meshconf_len = sizeof(struct ieee80211_meshconf_ie);
 	bool is_connected_to_gate = ifmsh->num_gates > 0 ||
-		ifmsh->mshcfg.dot11MeshGateAnnouncementProtocol;
+		ifmsh->mshcfg.dot11MeshGateAnnouncementProtocol ||
+		ifmsh->mshcfg.dot11MeshConnectedToMeshGate;
 
 	if (skb_tailroom(skb) < 2 + meshconf_len)
 		return -ENOMEM;

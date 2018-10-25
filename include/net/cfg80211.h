@@ -1562,6 +1562,10 @@ struct bss_parameters {
  * @plink_timeout: If no tx activity is seen from a STA we've established
  *	peering with for longer than this time (in seconds), then remove it
  *	from the STA's list of peers.  Default is 30 minutes.
+ * @dot11MeshConnectedToMeshGate: if set to true, advertise that this STA is
+ *      connected to a mesh gate in mesh formation info.  If false, the
+ *      value in mesh formation is determined by the presence of root paths
+ *      in the mesh path table
  */
 struct mesh_config {
 	u16 dot11MeshRetryTimeout;
@@ -1581,6 +1585,7 @@ struct mesh_config {
 	u16 dot11MeshHWMPperrMinInterval;
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
 	u8 dot11MeshHWMPRootMode;
+	bool dot11MeshConnectedToMeshGate;
 	u16 dot11MeshHWMPRannInterval;
 	bool dot11MeshGateAnnouncementProtocol;
 	bool dot11MeshForwarding;
