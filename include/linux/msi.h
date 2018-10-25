@@ -317,11 +317,18 @@ int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,
 int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 			     int virq, int nvec, msi_alloc_info_t *args);
 struct irq_domain *
-platform_msi_create_device_domain(struct device *dev,
-				  unsigned int nvec,
-				  irq_write_msi_msg_t write_msi_msg,
-				  const struct irq_domain_ops *ops,
-				  void *host_data);
+__platform_msi_create_device_domain(struct device *dev,
+				    unsigned int nvec,
+				    bool is_tree,
+				    irq_write_msi_msg_t write_msi_msg,
+				    const struct irq_domain_ops *ops,
+				    void *host_data);
+
+#define platform_msi_create_device_domain(dev, nvec, write, ops, data)	\
+	__platform_msi_create_device_domain(dev, nvec, false, write, ops, data)
+#define platform_msi_create_device_tree_domain(dev, nvec, write, ops, data) \
+	__platform_msi_create_device_domain(dev, nvec, true, write, ops, data)
+
 int platform_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 			      unsigned int nr_irqs);
 void platform_msi_domain_free(struct irq_domain *domain, unsigned int virq,
