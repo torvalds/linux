@@ -1656,7 +1656,7 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = dma_async_device_register(dd);
+	ret = dmaenginem_async_device_register(dd);
 	if (ret)
 		return ret;
 
@@ -1674,8 +1674,6 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 	return 0;
 
 err_unregister:
-	dma_async_device_unregister(dd);
-
 	return ret;
 }
 
