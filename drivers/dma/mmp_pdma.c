@@ -96,6 +96,7 @@ struct mmp_pdma_chan {
 	struct dma_async_tx_descriptor desc;
 	struct mmp_pdma_phy *phy;
 	enum dma_transfer_direction dir;
+	struct dma_slave_config slave_config;
 
 	struct mmp_pdma_desc_sw *cyclic_first;	/* first desc_sw if channel
 						 * is in cyclic mode */
@@ -139,6 +140,10 @@ struct mmp_pdma_device {
 	container_of(dchan, struct mmp_pdma_chan, chan)
 #define to_mmp_pdma_dev(dmadev)					\
 	container_of(dmadev, struct mmp_pdma_device, device)
+
+static int mmp_pdma_config_write(struct dma_chan *dchan,
+			   struct dma_slave_config *cfg,
+			   enum dma_transfer_direction direction);
 
 static void set_desc(struct mmp_pdma_phy *phy, dma_addr_t addr)
 {
@@ -537,6 +542,8 @@ mmp_pdma_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 
 	chan->byte_align = false;
 
+	mmp_pdma_config_write(dchan, &chan->slave_config, dir);
+
 	for_each_sg(sgl, sg, sg_len, i) {
 		addr = sg_dma_address(sg);
 		avail = sg_dma_len(sgl);
@@ -619,6 +626,7 @@ mmp_pdma_prep_dma_cyclic(struct dma_chan *dchan,
 		return NULL;
 
 	chan = to_mmp_pdma_chan(dchan);
+	mmp_pdma_config_write(dchan, &chan->slave_config, direction);
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
@@ -684,8 +692,9 @@ fail:
 	return NULL;
 }
 
-static int mmp_pdma_config(struct dma_chan *dchan,
-			   struct dma_slave_config *cfg)
+static int mmp_pdma_config_write(struct dma_chan *dchan,
+			   struct dma_slave_config *cfg,
+			   enum dma_transfer_direction direction)
 {
 	struct mmp_pdma_chan *chan = to_mmp_pdma_chan(dchan);
 	u32 maxburst = 0, addr = 0;
@@ -694,12 +703,12 @@ static int mmp_pdma_config(struct dma_chan *dchan,
 	if (!dchan)
 		return -EINVAL;
 
-	if (cfg->direction == DMA_DEV_TO_MEM) {
+	if (direction == DMA_DEV_TO_MEM) {
 		chan->dcmd = DCMD_INCTRGADDR | DCMD_FLOWSRC;
 		maxburst = cfg->src_maxburst;
 		width = cfg->src_addr_width;
 		addr = cfg->src_addr;
-	} else if (cfg->direction == DMA_MEM_TO_DEV) {
+	} else if (direction == DMA_MEM_TO_DEV) {
 		chan->dcmd = DCMD_INCSRCADDR | DCMD_FLOWTRG;
 		maxburst = cfg->dst_maxburst;
 		width = cfg->dst_addr_width;
@@ -720,7 +729,7 @@ static int mmp_pdma_config(struct dma_chan *dchan,
 	else if (maxburst == 32)
 		chan->dcmd |= DCMD_BURST32;
 
-	chan->dir = cfg->direction;
+	chan->dir = direction;
 	chan->dev_addr = addr;
 	/* FIXME: drivers should be ported over to use the filter
 	 * function. Once that's done, the following two lines can
@@ -729,6 +738,15 @@ static int mmp_pdma_config(struct dma_chan *dchan,
 	if (cfg->slave_id)
 		chan->drcmr = cfg->slave_id;
 
+	return 0;
+}
+
+static int mmp_pdma_config(struct dma_chan *dchan,
+			   struct dma_slave_config *cfg)
+{
+	struct mmp_pdma_chan *chan = to_mmp_pdma_chan(dchan);
+
+	memcpy(&chan->slave_config, cfg, sizeof(*cfg));
 	return 0;
 }
 
