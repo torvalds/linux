@@ -551,7 +551,7 @@ static int igt_mock_ppgtt_misaligned_dma(void *arg)
 			err = igt_check_page_sizes(vma);
 
 			if (vma->page_sizes.gtt != I915_GTT_PAGE_SIZE_4K) {
-				pr_err("page_sizes.gtt=%u, expected %lu\n",
+				pr_err("page_sizes.gtt=%u, expected %llu\n",
 				       vma->page_sizes.gtt, I915_GTT_PAGE_SIZE_4K);
 				err = -EINVAL;
 			}
