@@ -63,17 +63,16 @@ static int cmtp_sock_release(struct socket *sock)
 	return 0;
 }
 
-static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+static int do_cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, void __user *argp)
 {
 	struct cmtp_connadd_req ca;
 	struct cmtp_conndel_req cd;
 	struct cmtp_connlist_req cl;
 	struct cmtp_conninfo ci;
 	struct socket *nsock;
-	void __user *argp = (void __user *)arg;
 	int err;
 
-	BT_DBG("cmd %x arg %lx", cmd, arg);
+	BT_DBG("cmd %x arg %p", cmd, argp);
 
 	switch (cmd) {
 	case CMTPCONNADD:
@@ -137,16 +136,22 @@ static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	return -EINVAL;
 }
 
+static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	return do_cmtp_sock_ioctl(sock, cmd, (void __user *)arg);
+}
+
 #ifdef CONFIG_COMPAT
 static int cmtp_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
+	void __user *argp = compat_ptr(arg);
 	if (cmd == CMTPGETCONNLIST) {
 		struct cmtp_connlist_req cl;
+		u32 __user *p = argp;
 		u32 uci;
 		int err;
 
-		if (get_user(cl.cnum, (u32 __user *) arg) ||
-				get_user(uci, (u32 __user *) (arg + 4)))
+		if (get_user(cl.cnum, p) || get_user(uci, p + 1))
 			return -EFAULT;
 
 		cl.ci = compat_ptr(uci);
@@ -156,13 +161,13 @@ static int cmtp_sock_compat_ioctl(struct socket *sock, unsigned int cmd, unsigne
 
 		err = cmtp_get_connlist(&cl);
 
-		if (!err && put_user(cl.cnum, (u32 __user *) arg))
+		if (!err && put_user(cl.cnum, p))
 			err = -EFAULT;
 
 		return err;
 	}
 
-	return cmtp_sock_ioctl(sock, cmd, arg);
+	return do_cmtp_sock_ioctl(sock, cmd, argp);
 }
 #endif
 
