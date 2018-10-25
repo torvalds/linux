@@ -285,6 +285,7 @@ mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
 	spin_lock_init(&dev->cc_lock);
 	mutex_init(&dev->mutex);
 	init_waitqueue_head(&dev->tx_wait);
+	skb_queue_head_init(&dev->status_list);
 
 	return dev;
 }
@@ -326,6 +327,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	ieee80211_hw_set(hw, TX_FRAG_LIST);
 	ieee80211_hw_set(hw, MFP_CAPABLE);
 	ieee80211_hw_set(hw, AP_LINK_PS);
+	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
 
 	wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
@@ -357,6 +359,7 @@ void mt76_unregister_device(struct mt76_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->hw;
 
+	mt76_tx_status_flush(dev, NULL);
 	ieee80211_unregister_hw(hw);
 	mt76_tx_free(dev);
 }

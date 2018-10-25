@@ -195,6 +195,8 @@ struct mt76_wcid {
 	u8 tx_rate_nss;
 	s8 max_txpwr_adj;
 	bool sw_iv;
+
+	u8 packet_id;
 };
 
 struct mt76_txq {
@@ -231,6 +233,22 @@ struct mt76_rx_tid {
 	u8 started:1, stopped:1, timer_pending:1;
 
 	struct sk_buff *reorder_buf[];
+};
+
+#define MT_TX_CB_DMA_DONE		BIT(0)
+#define MT_TX_CB_TXS_DONE		BIT(1)
+#define MT_TX_CB_TXS_FAILED		BIT(2)
+
+#define MT_PACKET_ID_MASK		GENMASK(7, 0)
+#define MT_PACKET_ID_NO_ACK		MT_PACKET_ID_MASK
+
+#define MT_TX_STATUS_SKB_TIMEOUT	HZ
+
+struct mt76_tx_cb {
+	unsigned long jiffies;
+	u8 wcid;
+	u8 pktid;
+	u8 flags;
 };
 
 enum {
@@ -400,6 +418,7 @@ struct mt76_dev {
 	const struct mt76_queue_ops *queue_ops;
 
 	wait_queue_head_t tx_wait;
+	struct sk_buff_head status_list;
 
 	unsigned long wcid_mask[MT76_N_WCIDS / BITS_PER_LONG];
 
@@ -594,6 +613,13 @@ wcid_to_sta(struct mt76_wcid *wcid)
 	return container_of(ptr, struct ieee80211_sta, drv_priv);
 }
 
+static inline struct mt76_tx_cb *mt76_tx_skb_cb(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(struct mt76_tx_cb) >
+		     sizeof(IEEE80211_SKB_CB(skb)->status.status_driver_data));
+	return ((void *) IEEE80211_SKB_CB(skb)->status.status_driver_data);
+}
+
 int mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta);
@@ -624,6 +650,28 @@ void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid);
 
 void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			 struct ieee80211_key_conf *key);
+int mt76_tx_status_skb_add(struct mt76_dev *dev, struct mt76_wcid *wcid,
+			   struct sk_buff *skb);
+struct sk_buff *mt76_tx_status_skb_get(struct mt76_dev *dev,
+				       struct mt76_wcid *wcid, int pktid);
+void mt76_tx_status_skb_done(struct mt76_dev *dev, struct sk_buff *skb);
+void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb);
+
+static inline void
+mt76_tx_status_check(struct mt76_dev *dev)
+{
+	spin_lock_bh(&dev->status_list.lock);
+	mt76_tx_status_skb_get(dev, NULL, 0);
+	spin_unlock_bh(&dev->status_list.lock);
+}
+
+static inline void
+mt76_tx_status_flush(struct mt76_dev *dev, struct mt76_wcid *wcid)
+{
+	spin_lock_bh(&dev->status_list.lock);
+	mt76_tx_status_skb_get(dev, wcid, -1);
+	spin_unlock_bh(&dev->status_list.lock);
+}
 
 struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb);
 

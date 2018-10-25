@@ -324,8 +324,6 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 	else
 		txwi->wcid = 0xff;
 
-	txwi->pktid = 1;
-
 	if (wcid && wcid->sw_iv && key) {
 		u64 pn = atomic64_inc_return(&key->tx_pn);
 		ccmp_pn[0] = pn;
@@ -371,8 +369,6 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
-		txwi->pktid |= MT_TXWI_PKTID_PROBE;
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
 		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
 
@@ -425,9 +421,6 @@ mt76x02_mac_fill_tx_status(struct mt76x02_dev *dev,
 	info->status.ampdu_len = n_frames;
 	info->status.ampdu_ack_len = st->success ? n_frames : 0;
 
-	if (st->pktid & MT_TXWI_PKTID_PROBE)
-		info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
-
 	if (st->aggr)
 		info->flags |= IEEE80211_TX_CTL_AMPDU |
 			       IEEE80211_TX_STAT_AMPDU;
@@ -442,11 +435,19 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 			    struct mt76x02_tx_status *stat, u8 *update)
 {
 	struct ieee80211_tx_info info = {};
-	struct ieee80211_sta *sta = NULL;
+	struct ieee80211_tx_status status = {
+		.info = &info
+	};
 	struct mt76_wcid *wcid = NULL;
 	struct mt76x02_sta *msta = NULL;
+	struct mt76_dev *mdev = &dev->mt76;
+
+	if (stat->pktid == MT_PACKET_ID_NO_ACK)
+		return;
 
 	rcu_read_lock();
+	spin_lock_bh(&mdev->status_list.lock);
+
 	if (stat->wcid < ARRAY_SIZE(dev->mt76.wcid))
 		wcid = rcu_dereference(dev->mt76.wcid[stat->wcid]);
 
@@ -454,11 +455,19 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 		void *priv;
 
 		priv = msta = container_of(wcid, struct mt76x02_sta, wcid);
-		sta = container_of(priv, struct ieee80211_sta,
-				   drv_priv);
+		status.sta = container_of(priv, struct ieee80211_sta,
+					  drv_priv);
 	}
 
-	if (msta && stat->aggr) {
+	if (wcid) {
+		if (stat->pktid)
+			status.skb = mt76_tx_status_skb_get(mdev, wcid,
+							    stat->pktid);
+		if (status.skb)
+			status.info = IEEE80211_SKB_CB(status.skb);
+	}
+
+	if (msta && stat->aggr && !status.skb) {
 		u32 stat_val, stat_cache;
 
 		stat_val = stat->rate;
@@ -472,20 +481,24 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 			goto out;
 		}
 
-		mt76x02_mac_fill_tx_status(dev, &info, &msta->status,
+		mt76x02_mac_fill_tx_status(dev, status.info, &msta->status,
 					   msta->n_frames);
 
 		msta->status = *stat;
 		msta->n_frames = 1;
 		*update = 0;
 	} else {
-		mt76x02_mac_fill_tx_status(dev, &info, stat, 1);
+		mt76x02_mac_fill_tx_status(dev, status.info, stat, 1);
 		*update = 1;
 	}
 
-	ieee80211_tx_status_noskb(dev->mt76.hw, sta, &info);
+	if (status.skb)
+		mt76_tx_status_skb_done(mdev, status.skb);
+	else
+		ieee80211_tx_status_ext(mt76_hw(dev), &status);
 
 out:
+	spin_unlock_bh(&mdev->status_list.lock);
 	rcu_read_unlock();
 }
 
@@ -707,32 +720,23 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 	}
 }
 
-static void
-mt76x02_mac_queue_txdone(struct mt76x02_dev *dev, struct sk_buff *skb,
-			 void *txwi_ptr)
-{
-	struct mt76x02_tx_info *txi = mt76x02_skb_tx_info(skb);
-	struct mt76x02_txwi *txwi = txwi_ptr;
-
-	mt76x02_mac_poll_tx_status(dev, false);
-
-	txi->tries = 0;
-	txi->jiffies = jiffies;
-	txi->wcid = txwi->wcid;
-	txi->pktid = txwi->pktid;
-	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
-	mt76x02_tx_complete(&dev->mt76, skb);
-}
-
 void mt76x02_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue *q,
 			     struct mt76_queue_entry *e, bool flush)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
+	struct mt76x02_txwi *txwi;
 
-	if (e->txwi)
-		mt76x02_mac_queue_txdone(dev, e->skb, &e->txwi->txwi);
-	else
+	if (!e->txwi) {
 		dev_kfree_skb_any(e->skb);
+		return;
+	}
+
+	mt76x02_mac_poll_tx_status(dev, false);
+
+	txwi = (struct mt76x02_txwi *) &e->txwi->txwi;
+	trace_mac_txdone_add(dev, txwi->wcid, txwi->pktid);
+
+	mt76_tx_complete_skb(mdev, e->skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx_complete_skb);
 
@@ -816,6 +820,8 @@ void mt76x02_mac_work(struct work_struct *work)
 	/* XXX: check beacon stuck for ap mode */
 	if (!dev->beacon_mask)
 		mt76x02_check_mac_err(dev);
+
+	mt76_tx_status_check(&dev->mt76);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
 				     MT_CALIBRATE_INTERVAL);

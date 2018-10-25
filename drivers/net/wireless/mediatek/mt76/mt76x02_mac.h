@@ -42,15 +42,6 @@ struct mt76x02_vif {
 	struct mt76_wcid group_wcid;
 };
 
-struct mt76x02_tx_info {
-	unsigned long jiffies;
-	u8 tries;
-
-	u8 wcid;
-	u8 pktid;
-	u8 retry;
-};
-
 DECLARE_EWMA(signal, 10, 8);
 
 struct mt76x02_sta {
@@ -153,8 +144,6 @@ enum mt76x2_phy_bandwidth {
 #define MT_TXWI_ACK_CTL_NSEQ		BIT(1)
 #define MT_TXWI_ACK_CTL_BA_WINDOW	GENMASK(7, 2)
 
-#define MT_TXWI_PKTID_PROBE		BIT(7)
-
 struct mt76x02_txwi {
 	__le16 flags;
 	__le16 rate;
@@ -188,14 +177,6 @@ static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 		usleep_range(5000, 10000);
 	}
 	return false;
-}
-
-static inline struct mt76x02_tx_info *
-mt76x02_skb_tx_info(struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	return (void *)info->status.status_driver_data;
 }
 
 void mt76x02_txq_init(struct mt76x02_dev *dev, struct ieee80211_txq *txq);

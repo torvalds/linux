@@ -139,7 +139,6 @@ void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
 int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val);
 int mt76x02_insert_hdr_pad(struct sk_buff *skb);
 void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len);
-void mt76x02_tx_complete(struct mt76_dev *dev, struct sk_buff *skb);
 bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			  struct sk_buff *skb);
