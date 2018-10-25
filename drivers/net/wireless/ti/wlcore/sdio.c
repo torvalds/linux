@@ -285,7 +285,7 @@ static int wl1271_probe(struct sdio_func *func,
 	struct resource res[2];
 	mmc_pm_flag_t mmcflags;
 	int ret = -ENOMEM;
-	int irq, wakeirq;
+	int irq, wakeirq, num_irqs;
 	const char *chip_family;
 
 	/* We are only able to handle the wlan function */
@@ -353,12 +353,17 @@ static int wl1271_probe(struct sdio_func *func,
 		       irqd_get_trigger_type(irq_get_irq_data(irq));
 	res[0].name = "irq";
 
-	res[1].start = wakeirq;
-	res[1].flags = IORESOURCE_IRQ |
-		       irqd_get_trigger_type(irq_get_irq_data(wakeirq));
-	res[1].name = "wakeirq";
 
-	ret = platform_device_add_resources(glue->core, res, ARRAY_SIZE(res));
+	if (wakeirq > 0) {
+		res[1].start = wakeirq;
+		res[1].flags = IORESOURCE_IRQ |
+			       irqd_get_trigger_type(irq_get_irq_data(wakeirq));
+		res[1].name = "wakeirq";
+		num_irqs = 2;
+	} else {
+		num_irqs = 1;
+	}
+	ret = platform_device_add_resources(glue->core, res, num_irqs);
 	if (ret) {
 		dev_err(glue->dev, "can't add resources\n");
 		goto out_dev_put;
