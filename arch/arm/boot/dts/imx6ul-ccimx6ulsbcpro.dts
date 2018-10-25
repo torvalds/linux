@@ -24,6 +24,18 @@
 		status = "okay";
 	};
 
+	panel {
+		compatible = "auo,g101evn010", "simple-panel";
+		power-supply = <&ldo4_ext>;
+		backlight = <&lcd_backlight>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&display_out>;
+			};
+		};
+	};
+
 	reg_usb_otg1_vbus: regulator-usb-otg1 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg1_vbus";
@@ -112,6 +124,12 @@
 		     &pinctrl_lcdif_hvsync>;
 	lcd-supply = <&ldo4_ext>;       /* BU90T82 LVDS bridge power */
 	status = "okay";
+
+	port {
+		display_out: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
 };
 
 &ldo4_ext {
