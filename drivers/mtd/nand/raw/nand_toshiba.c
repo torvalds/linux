@@ -101,6 +101,9 @@ static void toshiba_nand_benand_init(struct nand_chip *chip)
 static void toshiba_nand_decode_id(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	nand_decode_ext_id(chip);
 
@@ -114,8 +117,10 @@ static void toshiba_nand_decode_id(struct nand_chip *chip)
 	 */
 	if (chip->id.len >= 6 && nand_is_slc(chip) &&
 	    (chip->id.data[5] & 0x7) == 0x6 /* 24nm */ &&
-	    !(chip->id.data[4] & 0x80) /* !BENAND */)
-		mtd->oobsize = 32 * mtd->writesize >> 9;
+	    !(chip->id.data[4] & 0x80) /* !BENAND */) {
+		memorg->oobsize = 32 * memorg->pagesize >> 9;
+		mtd->oobsize = memorg->oobsize;
+	}
 
 	/*
 	 * Extract ECC requirements from 6th id byte.

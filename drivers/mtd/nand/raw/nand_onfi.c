@@ -140,11 +140,14 @@ static void nand_bit_wise_majority(const void **srcbufs,
 int nand_onfi_detect(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
 	struct nand_onfi_params *p;
 	struct onfi_params *onfi;
 	int onfi_version = 0;
 	char id[4];
 	int i, ret, val;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	/* Try ONFI for unknown chip or LP */
 	ret = nand_readid_op(chip, 0x20, id, sizeof(id));
@@ -221,21 +224,31 @@ int nand_onfi_detect(struct nand_chip *chip)
 		goto free_onfi_param_page;
 	}
 
-	mtd->writesize = le32_to_cpu(p->byte_per_page);
+	memorg->pagesize = le32_to_cpu(p->byte_per_page);
+	mtd->writesize = memorg->pagesize;
 
 	/*
 	 * pages_per_block and blocks_per_lun may not be a power-of-2 size
 	 * (don't ask me who thought of this...). MTD assumes that these
 	 * dimensions will be power-of-2, so just truncate the remaining area.
 	 */
-	mtd->erasesize = 1 << (fls(le32_to_cpu(p->pages_per_block)) - 1);
-	mtd->erasesize *= mtd->writesize;
+	memorg->pages_per_eraseblock =
+			1 << (fls(le32_to_cpu(p->pages_per_block)) - 1);
+	mtd->erasesize = memorg->pages_per_eraseblock * memorg->pagesize;
 
-	mtd->oobsize = le16_to_cpu(p->spare_bytes_per_page);
+	memorg->oobsize = le16_to_cpu(p->spare_bytes_per_page);
+	mtd->oobsize = memorg->oobsize;
+
+	memorg->luns_per_target = p->lun_count;
+	memorg->planes_per_lun = 1 << p->interleaved_bits;
 
 	/* See erasesize comment */
-	chip->chipsize = 1 << (fls(le32_to_cpu(p->blocks_per_lun)) - 1);
+	memorg->eraseblocks_per_lun =
+		1 << (fls(le32_to_cpu(p->blocks_per_lun)) - 1);
+	memorg->max_bad_eraseblocks_per_lun = le32_to_cpu(p->blocks_per_lun);
+	chip->chipsize = memorg->eraseblocks_per_lun;
 	chip->chipsize *= (uint64_t)mtd->erasesize * p->lun_count;
+	memorg->bits_per_cell = p->bits_per_cell;
 	chip->bits_per_cell = p->bits_per_cell;
 
 	chip->max_bb_per_die = le16_to_cpu(p->bb_per_lun);

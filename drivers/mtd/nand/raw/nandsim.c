@@ -2304,6 +2304,10 @@ static int __init ns_init_module(void)
 
 	if (overridesize) {
 		uint64_t new_size = (uint64_t)nsmtd->erasesize << overridesize;
+		struct nand_memory_organization *memorg;
+
+		memorg = nanddev_get_memorg(&chip->base);
+
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
 			retval = -EINVAL;
@@ -2311,6 +2315,7 @@ static int __init ns_init_module(void)
 		}
 		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
 		nsmtd->size = new_size;
+		memorg->eraseblocks_per_lun = 1 << overridesize;
 		chip->chipsize = new_size;
 		chip->chip_shift = ffs(nsmtd->erasesize) + overridesize - 1;
 		chip->pagemask = (chip->chipsize >> chip->page_shift) - 1;

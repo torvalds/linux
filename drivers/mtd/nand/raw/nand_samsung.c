@@ -20,6 +20,9 @@
 static void samsung_nand_decode_id(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_memory_organization *memorg;
+
+	memorg = nanddev_get_memorg(&chip->base);
 
 	/* New Samsung (6 byte ID): Samsung K9GAG08U0F (p.44) */
 	if (chip->id.len == 6 && !nand_is_slc(chip) &&
@@ -27,29 +30,30 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 		u8 extid = chip->id.data[3];
 
 		/* Get pagesize */
-		mtd->writesize = 2048 << (extid & 0x03);
+		memorg->pagesize = 2048 << (extid & 0x03);
+		mtd->writesize = memorg->pagesize;
 
 		extid >>= 2;
 
 		/* Get oobsize */
 		switch (((extid >> 2) & 0x4) | (extid & 0x3)) {
 		case 1:
-			mtd->oobsize = 128;
+			memorg->oobsize = 128;
 			break;
 		case 2:
-			mtd->oobsize = 218;
+			memorg->oobsize = 218;
 			break;
 		case 3:
-			mtd->oobsize = 400;
+			memorg->oobsize = 400;
 			break;
 		case 4:
-			mtd->oobsize = 436;
+			memorg->oobsize = 436;
 			break;
 		case 5:
-			mtd->oobsize = 512;
+			memorg->oobsize = 512;
 			break;
 		case 6:
-			mtd->oobsize = 640;
+			memorg->oobsize = 640;
 			break;
 		default:
 			/*
@@ -62,8 +66,14 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 			break;
 		}
 
+		mtd->oobsize = memorg->oobsize;
+
 		/* Get blocksize */
 		extid >>= 2;
+		memorg->pages_per_eraseblock = (128 * 1024) <<
+					       (((extid >> 1) & 0x04) |
+						(extid & 0x03)) /
+					       memorg->pagesize;
 		mtd->erasesize = (128 * 1024) <<
 				 (((extid >> 1) & 0x04) | (extid & 0x03));
 
