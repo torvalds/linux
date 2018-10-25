@@ -2173,11 +2173,11 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
-		if (stream != NULL) {
-			for (i = 0; i < MAX_PIPES; i++) {
+		for (i = 0; i < MAX_PIPES; i++) {
+			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
-						pipe_ctx[i].stream
-						== stream)
+						pipe_ctx[i].stream->sink->link
+						== link)
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
