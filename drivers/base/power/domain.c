@@ -2338,7 +2338,7 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 					 unsigned int index)
 {
-	struct device *genpd_dev;
+	struct device *virt_dev;
 	int num_domains;
 	int ret;
 
@@ -2352,31 +2352,31 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 		return NULL;
 
 	/* Allocate and register device on the genpd bus. */
-	genpd_dev = kzalloc(sizeof(*genpd_dev), GFP_KERNEL);
-	if (!genpd_dev)
+	virt_dev = kzalloc(sizeof(*virt_dev), GFP_KERNEL);
+	if (!virt_dev)
 		return ERR_PTR(-ENOMEM);
 
-	dev_set_name(genpd_dev, "genpd:%u:%s", index, dev_name(dev));
-	genpd_dev->bus = &genpd_bus_type;
-	genpd_dev->release = genpd_release_dev;
+	dev_set_name(virt_dev, "genpd:%u:%s", index, dev_name(dev));
+	virt_dev->bus = &genpd_bus_type;
+	virt_dev->release = genpd_release_dev;
 
-	ret = device_register(genpd_dev);
+	ret = device_register(virt_dev);
 	if (ret) {
-		kfree(genpd_dev);
+		kfree(virt_dev);
 		return ERR_PTR(ret);
 	}
 
 	/* Try to attach the device to the PM domain at the specified index. */
-	ret = __genpd_dev_pm_attach(genpd_dev, dev->of_node, index, false);
+	ret = __genpd_dev_pm_attach(virt_dev, dev->of_node, index, false);
 	if (ret < 1) {
-		device_unregister(genpd_dev);
+		device_unregister(virt_dev);
 		return ret ? ERR_PTR(ret) : NULL;
 	}
 
-	pm_runtime_enable(genpd_dev);
-	genpd_queue_power_off_work(dev_to_genpd(genpd_dev));
+	pm_runtime_enable(virt_dev);
+	genpd_queue_power_off_work(dev_to_genpd(virt_dev));
 
-	return genpd_dev;
+	return virt_dev;
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
 
