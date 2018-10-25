@@ -94,6 +94,15 @@ enum iwl_location_subcmd_ids {
 	 */
 	TOF_RESPONDER_DYN_CONFIG_CMD = 0x5,
 	/**
+	 * @CSI_HEADER_NOTIFICATION: CSI header
+	 */
+	CSI_HEADER_NOTIFICATION = 0xFA,
+	/**
+	 * @CSI_CHUNKS_NOTIFICATION: CSI chunk,
+	 *	uses &struct iwl_csi_chunk_notification
+	 */
+	CSI_CHUNKS_NOTIFICATION = 0xFB,
+	/**
 	 * @TOF_LC_NOTIF: used for LCI/civic location, contains just
 	 *	the action frame
 	 */
@@ -687,5 +696,16 @@ struct iwl_ftm_responder_stats {
 	u8 rate;
 	__le16 reserved;
 } __packed; /* TOF_RESPONDER_STATISTICS_NTFY_S_VER_2 */
+
+#define IWL_CSI_CHUNK_CTL_NUM_MASK	0x3
+#define IWL_CSI_CHUNK_CTL_IDX_MASK	0xc
+
+struct iwl_csi_chunk_notification {
+	__le32 token;
+	__le16 seq;
+	__le16 ctl;
+	__le32 size;
+	u8 data[];
+} __packed; /* CSI_CHUNKS_HDR_NTFY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_location_h__ */

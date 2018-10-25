@@ -201,18 +201,10 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 
 	if (!(rx_status->flag & RX_FLAG_NO_PSDU) &&
-	    iwl_mvm_check_pn(mvm, skb, queue, sta)) {
+	    iwl_mvm_check_pn(mvm, skb, queue, sta))
 		kfree_skb(skb);
-	} else {
-		unsigned int radiotap_len = 0;
-
-		if (rx_status->flag & RX_FLAG_RADIOTAP_HE)
-			radiotap_len += sizeof(struct ieee80211_radiotap_he);
-		if (rx_status->flag & RX_FLAG_RADIOTAP_HE_MU)
-			radiotap_len += sizeof(struct ieee80211_radiotap_he_mu);
-		__skb_push(skb, radiotap_len);
+	else
 		ieee80211_rx_napi(mvm->hw, sta, skb, napi);
-	}
 }
 
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
@@ -1438,9 +1430,15 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		bool toggle_bit = phy_info & IWL_RX_MPDU_PHY_AMPDU_TOGGLE;
 
 		rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
-		/* toggle is switched whenever new aggregation starts */
+		/*
+		 * Toggle is switched whenever new aggregation starts. Make
+		 * sure ampdu_reference is never 0 so we can later use it to
+		 * see if the frame was really part of an A-MPDU or not.
+		 */
 		if (toggle_bit != mvm->ampdu_toggle) {
 			mvm->ampdu_ref++;
+			if (mvm->ampdu_ref == 0)
+				mvm->ampdu_ref++;
 			mvm->ampdu_toggle = toggle_bit;
 		}
 		rx_status->ampdu_reference = mvm->ampdu_ref;
