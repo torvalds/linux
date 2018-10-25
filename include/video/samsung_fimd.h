@@ -211,6 +211,7 @@
 #define WINCON0_BPPMODE_24BPP_888		(0xb << 2)
 
 #define WINCON1_LOCALSEL_CAMIF			(1 << 23)
+#define WINCON1_ALPHA_MUL			(1 << 7)
 #define WINCON1_BLD_PIX				(1 << 6)
 #define WINCON1_BPPMODE_MASK			(0xf << 2)
 #define WINCON1_BPPMODE_SHIFT			2
