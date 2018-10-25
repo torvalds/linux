@@ -781,8 +781,7 @@ struct iwl_mvm_geo_profile {
 struct iwl_mvm_txq {
 	struct list_head list;
 	u16 txq_id;
-	/* Protects TX path invocation from two places */
-	spinlock_t tx_path_lock;
+	atomic_t tx_request;
 	bool stopped;
 };
 

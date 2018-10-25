@@ -878,25 +878,45 @@ void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	struct iwl_mvm_txq *mvmtxq = iwl_mvm_txq_from_mac80211(txq);
 	struct sk_buff *skb = NULL;
 
-	spin_lock(&mvmtxq->tx_path_lock);
+	/*
+	 * No need for threads to be pending here, they can leave the first
+	 * taker all the work.
+	 *
+	 * mvmtxq->tx_request logic:
+	 *
+	 * If 0, no one is currently TXing, set to 1 to indicate current thread
+	 * will now start TX and other threads should quit.
+	 *
+	 * If 1, another thread is currently TXing, set to 2 to indicate to
+	 * that thread that there was another request. Since that request may
+	 * have raced with the check whether the queue is empty, the TXing
+	 * thread should check the queue's status one more time before leaving.
+	 * This check is done in order to not leave any TX hanging in the queue
+	 * until the next TX invocation (which may not even happen).
+	 *
+	 * If 2, another thread is currently TXing, and it will already double
+	 * check the queue, so do nothing.
+	 */
+	if (atomic_fetch_add_unless(&mvmtxq->tx_request, 1, 2))
+		return;
 
 	rcu_read_lock();
-	while (likely(!mvmtxq->stopped &&
-		      (mvm->trans->system_pm_mode ==
-		       IWL_PLAT_PM_MODE_DISABLED))) {
-		skb = ieee80211_tx_dequeue(hw, txq);
+	do {
+		while (likely(!mvmtxq->stopped &&
+			      (mvm->trans->system_pm_mode ==
+			       IWL_PLAT_PM_MODE_DISABLED))) {
+			skb = ieee80211_tx_dequeue(hw, txq);
 
-		if (!skb)
-			break;
+			if (!skb)
+				break;
 
-		if (!txq->sta)
-			iwl_mvm_tx_skb_non_sta(mvm, skb);
-		else
-			iwl_mvm_tx_skb(mvm, skb, txq->sta);
-	}
+			if (!txq->sta)
+				iwl_mvm_tx_skb_non_sta(mvm, skb);
+			else
+				iwl_mvm_tx_skb(mvm, skb, txq->sta);
+		}
+	} while (atomic_dec_return(&mvmtxq->tx_request));
 	rcu_read_unlock();
-
-	spin_unlock(&mvmtxq->tx_path_lock);
 }
 
 static void iwl_mvm_mac_wake_tx_queue(struct ieee80211_hw *hw,
