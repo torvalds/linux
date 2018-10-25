@@ -1704,6 +1704,7 @@ static int inet_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 
 			net = rtnl_get_net_ns_capable(sk, fillargs->netnsid);
 			if (IS_ERR(net)) {
+				fillargs->netnsid = -1;
 				NL_SET_ERR_MSG(extack, "ipv4: Invalid target network namespace id");
 				return PTR_ERR(net);
 			}

@@ -5058,6 +5058,7 @@ static int inet6_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 			fillargs->netnsid = nla_get_s32(tb[i]);
 			net = rtnl_get_net_ns_capable(sk, fillargs->netnsid);
 			if (IS_ERR(net)) {
+				fillargs->netnsid = -1;
 				NL_SET_ERR_MSG_MOD(extack, "Invalid target network namespace id");
 				return PTR_ERR(net);
 			}
