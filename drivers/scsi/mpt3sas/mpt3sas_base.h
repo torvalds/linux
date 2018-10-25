@@ -55,6 +55,7 @@
 #include "mpi/mpi2_tool.h"
 #include "mpi/mpi2_sas.h"
 #include "mpi/mpi2_pci.h"
+#include "mpi/mpi2_image.h"
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
