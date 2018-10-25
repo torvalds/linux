@@ -726,29 +726,8 @@ static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 	return reg & ATC_VMID0_PASID_MAPPING__PASID_MASK;
 }
 
-static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
-
-	/* Use legacy mode tlb invalidation.
-	 *
-	 * Currently on Raven the code below is broken for anything but
-	 * legacy mode due to a MMHUB power gating problem. A workaround
-	 * is for MMHUB to wait until the condition PER_VMID_INVALIDATE_REQ
-	 * == PER_VMID_INVALIDATE_ACK instead of simply waiting for the ack
-	 * bit.
-	 *
-	 * TODO 1: agree on the right set of invalidation registers for
-	 * KFD use. Use the last one for now. Invalidate both GC and
-	 * MMHUB.
-	 *
-	 * TODO 2: support range-based invalidation, requires kfg2kgd
-	 * interface change
-	 */
-	amdgpu_gmc_flush_gpu_tlb(adev, vmid, 0);
-}
-
-static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid)
+static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid,
+			uint32_t flush_type)
 {
 	signed long r;
 	uint32_t seq;
@@ -761,7 +740,7 @@ static int invalidate_tlbs_with_kiq(struct amdgpu_device *adev, uint16_t pasid)
 			PACKET3_INVALIDATE_TLBS_DST_SEL(1) |
 			PACKET3_INVALIDATE_TLBS_ALL_HUB(1) |
 			PACKET3_INVALIDATE_TLBS_PASID(pasid) |
-			PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(0)); /* legacy */
+			PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(flush_type));
 	amdgpu_fence_emit_polling(ring, &seq);
 	amdgpu_ring_commit(ring);
 	spin_unlock(&adev->gfx.kiq.ring_lock);
@@ -780,12 +759,16 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
 	int vmid;
 	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
+	uint32_t flush_type = 0;
 
 	if (adev->in_gpu_reset)
 		return -EIO;
+	if (adev->gmc.xgmi.num_physical_nodes &&
+		adev->asic_type == CHIP_VEGA20)
+		flush_type = 2;
 
 	if (ring->sched.ready)
-		return invalidate_tlbs_with_kiq(adev, pasid);
+		return invalidate_tlbs_with_kiq(adev, pasid, flush_type);
 
 	for (vmid = 0; vmid < 16; vmid++) {
 		if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid))
@@ -793,7 +776,8 @@ static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 		if (get_atc_vmid_pasid_mapping_valid(kgd, vmid)) {
 			if (get_atc_vmid_pasid_mapping_pasid(kgd, vmid)
 				== pasid) {
-				write_vmid_invalidate_request(kgd, vmid);
+				amdgpu_gmc_flush_gpu_tlb(adev, vmid,
+							 flush_type);
 				break;
 			}
 		}
@@ -811,7 +795,22 @@ static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 		return 0;
 	}
 
-	write_vmid_invalidate_request(kgd, vmid);
+	/* Use legacy mode tlb invalidation.
+	 *
+	 * Currently on Raven the code below is broken for anything but
+	 * legacy mode due to a MMHUB power gating problem. A workaround
+	 * is for MMHUB to wait until the condition PER_VMID_INVALIDATE_REQ
+	 * == PER_VMID_INVALIDATE_ACK instead of simply waiting for the ack
+	 * bit.
+	 *
+	 * TODO 1: agree on the right set of invalidation registers for
+	 * KFD use. Use the last one for now. Invalidate both GC and
+	 * MMHUB.
+	 *
+	 * TODO 2: support range-based invalidation, requires kfg2kgd
+	 * interface change
+	 */
+	amdgpu_gmc_flush_gpu_tlb(adev, vmid, 0);
 	return 0;
 }
 
