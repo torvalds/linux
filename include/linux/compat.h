@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/compat_time.h>
+#include <linux/time.h>
 
 #include <linux/stat.h>
 #include <linux/param.h>	/* for HZ */
@@ -113,19 +113,12 @@ typedef struct compat_sigaltstack {
 typedef __compat_uid32_t	compat_uid_t;
 typedef __compat_gid32_t	compat_gid_t;
 
-typedef	compat_ulong_t		compat_aio_context_t;
-
 struct compat_sel_arg_struct;
 struct rusage;
 
-struct compat_utimbuf {
-	compat_time_t		actime;
-	compat_time_t		modtime;
-};
-
 struct compat_itimerval {
-	struct compat_timeval	it_interval;
-	struct compat_timeval	it_value;
+	struct old_timeval32	it_interval;
+	struct old_timeval32	it_value;
 };
 
 struct itimerval;
@@ -149,7 +142,7 @@ struct compat_timex {
 	compat_long_t constant;
 	compat_long_t precision;
 	compat_long_t tolerance;
-	struct compat_timeval time;
+	struct old_timeval32 time;
 	compat_long_t tick;
 	compat_long_t ppsfreq;
 	compat_long_t jitter;
@@ -310,8 +303,8 @@ struct compat_rlimit {
 };
 
 struct compat_rusage {
-	struct compat_timeval ru_utime;
-	struct compat_timeval ru_stime;
+	struct old_timeval32 ru_utime;
+	struct old_timeval32 ru_stime;
 	compat_long_t	ru_maxrss;
 	compat_long_t	ru_ixrss;
 	compat_long_t	ru_idrss;
@@ -460,8 +453,8 @@ int copy_siginfo_to_user32(struct compat_siginfo __user *to, const kernel_siginf
 int get_compat_sigevent(struct sigevent *event,
 		const struct compat_sigevent __user *u_event);
 
-static inline int compat_timeval_compare(struct compat_timeval *lhs,
-					struct compat_timeval *rhs)
+static inline int old_timeval32_compare(struct old_timeval32 *lhs,
+					struct old_timeval32 *rhs)
 {
 	if (lhs->tv_sec < rhs->tv_sec)
 		return -1;
@@ -470,8 +463,8 @@ static inline int compat_timeval_compare(struct compat_timeval *lhs,
 	return lhs->tv_usec - rhs->tv_usec;
 }
 
-static inline int compat_timespec_compare(struct compat_timespec *lhs,
-					struct compat_timespec *rhs)
+static inline int old_timespec32_compare(struct old_timespec32 *lhs,
+					struct old_timespec32 *rhs)
 {
 	if (lhs->tv_sec < rhs->tv_sec)
 		return -1;
@@ -555,12 +548,12 @@ asmlinkage long compat_sys_io_getevents(compat_aio_context_t ctx_id,
 					compat_long_t min_nr,
 					compat_long_t nr,
 					struct io_event __user *events,
-					struct compat_timespec __user *timeout);
+					struct old_timespec32 __user *timeout);
 asmlinkage long compat_sys_io_pgetevents(compat_aio_context_t ctx_id,
 					compat_long_t min_nr,
 					compat_long_t nr,
 					struct io_event __user *events,
-					struct compat_timespec __user *timeout,
+					struct old_timespec32 __user *timeout,
 					const struct __compat_aio_sigset __user *usig);
 
 /* fs/cookies.c */
@@ -645,11 +638,11 @@ asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
 asmlinkage long compat_sys_pselect6(int n, compat_ulong_t __user *inp,
 				    compat_ulong_t __user *outp,
 				    compat_ulong_t __user *exp,
-				    struct compat_timespec __user *tsp,
+				    struct old_timespec32 __user *tsp,
 				    void __user *sig);
 asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 				 unsigned int nfds,
-				 struct compat_timespec __user *tsp,
+				 struct old_timespec32 __user *tsp,
 				 const compat_sigset_t __user *sigmask,
 				 compat_size_t sigsetsize);
 
@@ -674,15 +667,15 @@ asmlinkage long compat_sys_newfstat(unsigned int fd,
 
 /* fs/timerfd.c */
 asmlinkage long compat_sys_timerfd_gettime(int ufd,
-				   struct compat_itimerspec __user *otmr);
+				   struct old_itimerspec32 __user *otmr);
 asmlinkage long compat_sys_timerfd_settime(int ufd, int flags,
-				   const struct compat_itimerspec __user *utmr,
-				   struct compat_itimerspec __user *otmr);
+				   const struct old_itimerspec32 __user *utmr,
+				   struct old_itimerspec32 __user *otmr);
 
 /* fs/utimes.c */
 asmlinkage long compat_sys_utimensat(unsigned int dfd,
 				     const char __user *filename,
-				     struct compat_timespec __user *t,
+				     struct old_timespec32 __user *t,
 				     int flags);
 
 /* kernel/exit.c */
@@ -694,7 +687,7 @@ asmlinkage long compat_sys_waitid(int, compat_pid_t,
 
 /* kernel/futex.c */
 asmlinkage long compat_sys_futex(u32 __user *uaddr, int op, u32 val,
-		struct compat_timespec __user *utime, u32 __user *uaddr2,
+		struct old_timespec32 __user *utime, u32 __user *uaddr2,
 		u32 val3);
 asmlinkage long
 compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
@@ -704,8 +697,8 @@ compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 			   compat_size_t __user *len_ptr);
 
 /* kernel/hrtimer.c */
-asmlinkage long compat_sys_nanosleep(struct compat_timespec __user *rqtp,
-				     struct compat_timespec __user *rmtp);
+asmlinkage long compat_sys_nanosleep(struct old_timespec32 __user *rqtp,
+				     struct old_timespec32 __user *rmtp);
 
 /* kernel/itimer.c */
 asmlinkage long compat_sys_getitimer(int which,
@@ -725,19 +718,19 @@ asmlinkage long compat_sys_timer_create(clockid_t which_clock,
 			struct compat_sigevent __user *timer_event_spec,
 			timer_t __user *created_timer_id);
 asmlinkage long compat_sys_timer_gettime(timer_t timer_id,
-				 struct compat_itimerspec __user *setting);
+				 struct old_itimerspec32 __user *setting);
 asmlinkage long compat_sys_timer_settime(timer_t timer_id, int flags,
-					 struct compat_itimerspec __user *new,
-					 struct compat_itimerspec __user *old);
+					 struct old_itimerspec32 __user *new,
+					 struct old_itimerspec32 __user *old);
 asmlinkage long compat_sys_clock_settime(clockid_t which_clock,
-					 struct compat_timespec __user *tp);
+					 struct old_timespec32 __user *tp);
 asmlinkage long compat_sys_clock_gettime(clockid_t which_clock,
-					 struct compat_timespec __user *tp);
+					 struct old_timespec32 __user *tp);
 asmlinkage long compat_sys_clock_getres(clockid_t which_clock,
-					struct compat_timespec __user *tp);
+					struct old_timespec32 __user *tp);
 asmlinkage long compat_sys_clock_nanosleep(clockid_t which_clock, int flags,
-					   struct compat_timespec __user *rqtp,
-					   struct compat_timespec __user *rmtp);
+					   struct old_timespec32 __user *rqtp,
+					   struct old_timespec32 __user *rmtp);
 
 /* kernel/ptrace.c */
 asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
@@ -751,7 +744,7 @@ asmlinkage long compat_sys_sched_getaffinity(compat_pid_t pid,
 				     unsigned int len,
 				     compat_ulong_t __user *user_mask_ptr);
 asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
-						 struct compat_timespec __user *interval);
+						 struct old_timespec32 __user *interval);
 
 /* kernel/signal.c */
 asmlinkage long compat_sys_sigaltstack(const compat_stack_t __user *uss_ptr,
@@ -771,7 +764,7 @@ asmlinkage long compat_sys_rt_sigpending(compat_sigset_t __user *uset,
 					 compat_size_t sigsetsize);
 asmlinkage long compat_sys_rt_sigtimedwait(compat_sigset_t __user *uthese,
 		struct compat_siginfo __user *uinfo,
-		struct compat_timespec __user *uts, compat_size_t sigsetsize);
+		struct old_timespec32 __user *uts, compat_size_t sigsetsize);
 asmlinkage long compat_sys_rt_sigqueueinfo(compat_pid_t pid, int sig,
 				struct compat_siginfo __user *uinfo);
 /* No generic prototype for rt_sigreturn */
@@ -785,9 +778,9 @@ asmlinkage long compat_sys_setrlimit(unsigned int resource,
 asmlinkage long compat_sys_getrusage(int who, struct compat_rusage __user *ru);
 
 /* kernel/time.c */
-asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
+asmlinkage long compat_sys_gettimeofday(struct old_timeval32 __user *tv,
 		struct timezone __user *tz);
-asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
+asmlinkage long compat_sys_settimeofday(struct old_timeval32 __user *tv,
 		struct timezone __user *tz);
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
@@ -801,11 +794,11 @@ asmlinkage long compat_sys_mq_open(const char __user *u_name,
 asmlinkage long compat_sys_mq_timedsend(mqd_t mqdes,
 			const char __user *u_msg_ptr,
 			compat_size_t msg_len, unsigned int msg_prio,
-			const struct compat_timespec __user *u_abs_timeout);
+			const struct old_timespec32 __user *u_abs_timeout);
 asmlinkage ssize_t compat_sys_mq_timedreceive(mqd_t mqdes,
 			char __user *u_msg_ptr,
 			compat_size_t msg_len, unsigned int __user *u_msg_prio,
-			const struct compat_timespec __user *u_abs_timeout);
+			const struct old_timespec32 __user *u_abs_timeout);
 asmlinkage long compat_sys_mq_notify(mqd_t mqdes,
 			const struct compat_sigevent __user *u_notification);
 asmlinkage long compat_sys_mq_getsetattr(mqd_t mqdes,
@@ -822,7 +815,7 @@ asmlinkage long compat_sys_msgsnd(int msqid, compat_uptr_t msgp,
 /* ipc/sem.c */
 asmlinkage long compat_sys_semctl(int semid, int semnum, int cmd, int arg);
 asmlinkage long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
-		unsigned nsems, const struct compat_timespec __user *timeout);
+		unsigned nsems, const struct old_timespec32 __user *timeout);
 
 /* ipc/shm.c */
 asmlinkage long compat_sys_shmctl(int first, int second, void __user *uptr);
@@ -879,7 +872,7 @@ asmlinkage long compat_sys_rt_tgsigqueueinfo(compat_pid_t tgid,
 					struct compat_siginfo __user *uinfo);
 asmlinkage long compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,
 				    unsigned vlen, unsigned int flags,
-				    struct compat_timespec __user *timeout);
+				    struct old_timespec32 __user *timeout);
 asmlinkage long compat_sys_wait4(compat_pid_t pid,
 				 compat_uint_t __user *stat_addr, int options,
 				 struct compat_rusage __user *ru);
@@ -931,7 +924,7 @@ asmlinkage long compat_sys_pwritev64v2(unsigned long fd,
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
 				umode_t mode);
 asmlinkage long compat_sys_utimes(const char __user *filename,
-				  struct compat_timeval __user *t);
+				  struct old_timeval32 __user *t);
 
 /* __ARCH_WANT_SYSCALL_NO_FLAGS */
 asmlinkage long compat_sys_signalfd(int ufd,
@@ -945,15 +938,15 @@ asmlinkage long compat_sys_newlstat(const char __user *filename,
 				    struct compat_stat __user *statbuf);
 
 /* __ARCH_WANT_SYSCALL_DEPRECATED */
-asmlinkage long compat_sys_time(compat_time_t __user *tloc);
+asmlinkage long compat_sys_time(old_time32_t __user *tloc);
 asmlinkage long compat_sys_utime(const char __user *filename,
-				 struct compat_utimbuf __user *t);
+				 struct old_utimbuf32 __user *t);
 asmlinkage long compat_sys_futimesat(unsigned int dfd,
 				     const char __user *filename,
-				     struct compat_timeval __user *t);
+				     struct old_timeval32 __user *t);
 asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
-		struct compat_timeval __user *tvp);
+		struct old_timeval32 __user *tvp);
 asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u32);
 asmlinkage long compat_sys_recv(int fd, void __user *buf, compat_size_t len,
 				unsigned flags);
@@ -986,7 +979,7 @@ asmlinkage long compat_sys_sigaction(int sig,
 #endif
 
 /* obsolete: kernel/time/time.c */
-asmlinkage long compat_sys_stime(compat_time_t __user *tptr);
+asmlinkage long compat_sys_stime(old_time32_t __user *tptr);
 
 /* obsolete: net/socket.c */
 asmlinkage long compat_sys_socketcall(int call, u32 __user *args);
@@ -1005,15 +998,15 @@ static inline bool in_compat_syscall(void) { return is_compat_task(); }
 #endif
 
 /**
- * ns_to_compat_timeval - Compat version of ns_to_timeval
+ * ns_to_old_timeval32 - Compat version of ns_to_timeval
  * @nsec:	the nanoseconds value to be converted
  *
- * Returns the compat_timeval representation of the nsec parameter.
+ * Returns the old_timeval32 representation of the nsec parameter.
  */
-static inline struct compat_timeval ns_to_compat_timeval(s64 nsec)
+static inline struct old_timeval32 ns_to_old_timeval32(s64 nsec)
 {
 	struct timeval tv;
-	struct compat_timeval ctv;
+	struct old_timeval32 ctv;
 
 	tv = ns_to_timeval(nsec);
 	ctv.tv_sec = tv.tv_sec;

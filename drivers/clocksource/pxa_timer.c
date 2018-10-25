@@ -191,13 +191,13 @@ static int __init pxa_timer_dt_init(struct device_node *np)
 	/* timer registers are shared with watchdog timer */
 	timer_base = of_iomap(np, 0);
 	if (!timer_base) {
-		pr_err("%s: unable to map resource\n", np->name);
+		pr_err("%pOFn: unable to map resource\n", np);
 		return -ENXIO;
 	}
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
-		pr_crit("%s: unable to get clk\n", np->name);
+		pr_crit("%pOFn: unable to get clk\n", np);
 		return PTR_ERR(clk);
 	}
 
@@ -210,7 +210,7 @@ static int __init pxa_timer_dt_init(struct device_node *np)
 	/* we are only interested in OS-timer0 irq */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
-		pr_crit("%s: unable to parse OS-timer0 irq\n", np->name);
+		pr_crit("%pOFn: unable to parse OS-timer0 irq\n", np);
 		return -EINVAL;
 	}
 

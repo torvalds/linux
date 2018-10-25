@@ -535,7 +535,7 @@ static int __init ttc_timer_init(struct device_node *timer)
 	if (ret)
 		return ret;
 
-	pr_info("%s #0 at %p, irq=%d\n", timer->name, timer_baseaddr, irq);
+	pr_info("%pOFn #0 at %p, irq=%d\n", timer, timer_baseaddr, irq);
 
 	return 0;
 }

@@ -129,13 +129,13 @@ static int __init orion_timer_init(struct device_node *np)
 	/* timer registers are shared with watchdog timer */
 	timer_base = of_iomap(np, 0);
 	if (!timer_base) {
-		pr_err("%s: unable to map resource\n", np->name);
+		pr_err("%pOFn: unable to map resource\n", np);
 		return -ENXIO;
 	}
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
-		pr_err("%s: unable to get clk\n", np->name);
+		pr_err("%pOFn: unable to get clk\n", np);
 		return PTR_ERR(clk);
 	}
 
@@ -148,7 +148,7 @@ static int __init orion_timer_init(struct device_node *np)
 	/* we are only interested in timer1 irq */
 	irq = irq_of_parse_and_map(np, 1);
 	if (irq <= 0) {
-		pr_err("%s: unable to parse timer1 irq\n", np->name);
+		pr_err("%pOFn: unable to parse timer1 irq\n", np);
 		return -EINVAL;
 	}
 
@@ -174,7 +174,7 @@ static int __init orion_timer_init(struct device_node *np)
 	/* setup timer1 as clockevent timer */
 	ret = setup_irq(irq, &orion_clkevt_irq);
 	if (ret) {
-		pr_err("%s: unable to setup irq\n", np->name);
+		pr_err("%pOFn: unable to setup irq\n", np);
 		return ret;
 	}
 
