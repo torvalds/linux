@@ -861,6 +861,7 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 {
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	int is_5ghz = (chan->band == NL80211_BAND_5GHZ) ? 1 : 0;
 	u32 val, tx_alc, reg_val;
 
 	if (is_mt7630(dev))
@@ -889,7 +890,7 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 	reg_val = mt76_rr(dev, MT_BBP(IBI, 9));
 	mt76_wr(dev, MT_BBP(IBI, 9), 0xffffff7e);
 
-	if (chan->band == NL80211_BAND_5GHZ) {
+	if (is_5ghz) {
 		if (chan->hw_value < 100)
 			val = 0x701;
 		else if (chan->hw_value < 140)
@@ -902,7 +903,7 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 
 	mt76x02_mcu_calibrate(dev, MCU_CAL_FULL, val, false);
 	msleep(350);
-	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, 1, false);
+	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz, false);
 	usleep_range(15000, 20000);
 
 	mt76_wr(dev, MT_BBP(IBI, 9), reg_val);
