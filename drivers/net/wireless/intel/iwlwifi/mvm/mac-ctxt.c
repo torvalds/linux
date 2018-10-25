@@ -1539,42 +1539,58 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_channel_switch_noa_notif *notif = (void *)pkt->data;
-	struct ieee80211_vif *csa_vif;
+	struct ieee80211_vif *csa_vif, *vif;
 	struct iwl_mvm_vif *mvmvif;
 	int len = iwl_rx_packet_payload_len(pkt);
-	u32 id_n_color;
+	u32 id_n_color, csa_id, mac_id;
 
 	if (WARN_ON_ONCE(len < sizeof(*notif)))
 		return;
 
-	rcu_read_lock();
-
-	csa_vif = rcu_dereference(mvm->csa_vif);
-	if (WARN_ON(!csa_vif || !csa_vif->csa_active))
-		goto out_unlock;
-
 	id_n_color = le32_to_cpu(notif->id_and_color);
+	mac_id = id_n_color & FW_CTXT_ID_MSK;
 
-	mvmvif = iwl_mvm_vif_from_mac80211(csa_vif);
-	if (WARN(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color) != id_n_color,
-		 "channel switch noa notification on unexpected vif (csa_vif=%d, notif=%d)",
-		 FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color), id_n_color))
-		goto out_unlock;
+	if (WARN_ON_ONCE(mac_id >= NUM_MAC_INDEX_DRIVER))
+		return;
 
-	IWL_DEBUG_INFO(mvm, "Channel Switch Started Notification\n");
+	rcu_read_lock();
+	vif = rcu_dereference(mvm->vif_id_to_mac[mac_id]);
 
-	schedule_delayed_work(&mvm->cs_tx_unblock_dwork,
-			      msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
-					       csa_vif->bss_conf.beacon_int));
+	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+		csa_vif = rcu_dereference(mvm->csa_vif);
+		if (WARN_ON(!csa_vif || !csa_vif->csa_active ||
+			    csa_vif != vif))
+			goto out_unlock;
 
-	ieee80211_csa_finish(csa_vif);
+		mvmvif = iwl_mvm_vif_from_mac80211(csa_vif);
+		csa_id = FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color);
+		if (WARN(csa_id != id_n_color,
+			 "channel switch noa notification on unexpected vif (csa_vif=%d, notif=%d)",
+			 csa_id, id_n_color))
+			goto out_unlock;
 
-	rcu_read_unlock();
+		IWL_DEBUG_INFO(mvm, "Channel Switch Started Notification\n");
 
-	RCU_INIT_POINTER(mvm->csa_vif, NULL);
+		schedule_delayed_work(&mvm->cs_tx_unblock_dwork,
+				      msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
+						       csa_vif->bss_conf.beacon_int));
 
-	return;
+		ieee80211_csa_finish(csa_vif);
 
+		rcu_read_unlock();
+
+		RCU_INIT_POINTER(mvm->csa_vif, NULL);
+		return;
+	case NL80211_IFTYPE_STATION:
+		iwl_mvm_csa_client_absent(mvm, vif);
+		ieee80211_chswitch_done(vif, true);
+		break;
+	default:
+		/* should never happen */
+		WARN_ON_ONCE(1);
+		break;
+	}
 out_unlock:
 	rcu_read_unlock();
 }
