@@ -7,6 +7,8 @@ TEST_PROGS := ptrace-gpr ptrace-tm-gpr ptrace-tm-spd-gpr \
 top_srcdir = ../../../../..
 include ../../lib.mk
 
+all: $(TEST_PROGS)
+
 CFLAGS += -m64 -I../../../../../usr/include -I../tm -mhtm -fno-pie
 
 ptrace-pkey core-pkey: child.h
