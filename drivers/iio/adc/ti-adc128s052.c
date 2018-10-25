@@ -12,10 +12,12 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 struct adc128_configuration {
@@ -135,9 +137,14 @@ static const struct iio_info adc128_info = {
 static int adc128_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
+	unsigned int config;
 	struct adc128 *adc;
-	int config = spi_get_device_id(spi)->driver_data;
 	int ret;
+
+	if (dev_fwnode(&spi->dev))
+		config = (unsigned long) device_get_match_data(&spi->dev);
+	else
+		config = spi_get_device_id(spi)->driver_data;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
@@ -207,10 +214,19 @@ static const struct spi_device_id adc128_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, adc128_id);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id adc128_acpi_match[] = {
+	{ "AANT1280", 2 }, /* ADC124S021 compatible ACPI ID */
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, adc128_acpi_match);
+#endif
+
 static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
 		.of_match_table = of_match_ptr(adc128_of_match),
+		.acpi_match_table = ACPI_PTR(adc128_acpi_match),
 	},
 	.probe = adc128_probe,
 	.remove = adc128_remove,
