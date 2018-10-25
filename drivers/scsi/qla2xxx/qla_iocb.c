@@ -1526,12 +1526,6 @@ qla24xx_start_scsi(srb_t *sp)
 
 	/* Set chip new ring index. */
 	WRT_REG_DWORD(req->req_q_in, req->ring_index);
-	RD_REG_DWORD_RELAXED(&ha->iobase->isp24.hccr);
-
-	/* Manage unprocessed RIO/ZIO commands in response queue. */
-	if (vha->flags.process_response_queue &&
-		rsp->ring_ptr->signature != RESPONSE_PROCESSED)
-		qla24xx_process_response_queue(vha, rsp);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return QLA_SUCCESS;
@@ -1725,12 +1719,6 @@ qla24xx_dif_start_scsi(srb_t *sp)
 
 	/* Set chip new ring index. */
 	WRT_REG_DWORD(req->req_q_in, req->ring_index);
-	RD_REG_DWORD_RELAXED(&ha->iobase->isp24.hccr);
-
-	/* Manage unprocessed RIO/ZIO commands in response queue. */
-	if (vha->flags.process_response_queue &&
-	    rsp->ring_ptr->signature != RESPONSE_PROCESSED)
-		qla24xx_process_response_queue(vha, rsp);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -1879,11 +1867,6 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 
 	/* Set chip new ring index. */
 	WRT_REG_DWORD(req->req_q_in, req->ring_index);
-
-	/* Manage unprocessed RIO/ZIO commands in response queue. */
-	if (vha->flags.process_response_queue &&
-		rsp->ring_ptr->signature != RESPONSE_PROCESSED)
-		qla24xx_process_response_queue(vha, rsp);
 
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
 	return QLA_SUCCESS;
@@ -2287,8 +2270,7 @@ qla24xx_logout_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	logio->control_flags =
 	    cpu_to_le16(LCF_COMMAND_LOGO|LCF_IMPL_LOGO);
-	if (!sp->fcport->se_sess ||
-	    !sp->fcport->keep_nport_handle)
+	if (!sp->fcport->keep_nport_handle)
 		logio->control_flags |= cpu_to_le16(LCF_FREE_NPORT);
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	logio->port_id[0] = sp->fcport->d_id.b.al_pa;
@@ -2659,7 +2641,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	struct qla_hw_data *ha = vha->hw;
 	int rval = QLA_SUCCESS;
 	void	*ptr, *resp_ptr;
-	dma_addr_t ptr_dma;
 
 	/* Alloc SRB structure */
 	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
@@ -2691,7 +2672,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	ptr = elsio->u.els_plogi.els_plogi_pyld =
 	    dma_alloc_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
 		&elsio->u.els_plogi.els_plogi_pyld_dma, GFP_KERNEL);
-	ptr_dma = elsio->u.els_plogi.els_plogi_pyld_dma;
 
 	if (!elsio->u.els_plogi.els_plogi_pyld) {
 		rval = QLA_FUNCTION_FAILED;
@@ -3314,19 +3294,21 @@ qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 {
 	struct srb_iocb *aio = &sp->u.iocb_cmd;
 	scsi_qla_host_t *vha = sp->vha;
-	struct req_que *req = vha->req;
+	struct req_que *req = sp->qpair->req;
 
 	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
 	abt_iocb->entry_type = ABORT_IOCB_TYPE;
 	abt_iocb->entry_count = 1;
 	abt_iocb->handle = cpu_to_le32(MAKE_HANDLE(req->id, sp->handle));
-	abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	if (sp->fcport) {
+		abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+		abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+		abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
+		abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	}
 	abt_iocb->handle_to_abort =
 	    cpu_to_le32(MAKE_HANDLE(aio->u.abt.req_que_no,
 				    aio->u.abt.cmd_hndl));
-	abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
-	abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
-	abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
 	abt_iocb->vp_index = vha->vp_idx;
 	abt_iocb->req_que_no = cpu_to_le16(aio->u.abt.req_que_no);
 	/* Send the command to the firmware */
@@ -3455,12 +3437,13 @@ qla2x00_start_sp(srb_t *sp)
 	int rval;
 	scsi_qla_host_t *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
+	struct qla_qpair *qp = sp->qpair;
 	void *pkt;
 	unsigned long flags;
 
 	rval = QLA_FUNCTION_FAILED;
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	pkt = qla2x00_alloc_iocbs(vha, sp);
+	spin_lock_irqsave(qp->qp_lock_ptr, flags);
+	pkt = __qla2x00_alloc_iocbs(sp->qpair, sp);
 	if (!pkt) {
 		ql_log(ql_log_warn, vha, 0x700c,
 		    "qla2x00_alloc_iocbs failed.\n");
@@ -3538,9 +3521,9 @@ qla2x00_start_sp(srb_t *sp)
 	}
 
 	wmb();
-	qla2x00_start_iocbs(vha, ha->req_q_map[0]);
+	qla2x00_start_iocbs(vha, qp->req);
 done:
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	spin_unlock_irqrestore(qp->qp_lock_ptr, flags);
 	return rval;
 }
 

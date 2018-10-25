@@ -117,7 +117,7 @@
  * @raw_mbox		: raw mailbox pointer
  * @mbox		: mailbox
  * @mbox64		: extended mailbox
- * @mbox_dma_h		: maibox dma address
+ * @mbox_dma_h		: mailbox dma address
  * @sgl64		: 64-bit scatter-gather list
  * @sgl32		: 32-bit scatter-gather list
  * @sgl_dma_h		: dma handle for the scatter-gather list

@@ -1778,7 +1778,7 @@ EXPORT_SYMBOL(target_submit_tmr);
 void transport_generic_request_failure(struct se_cmd *cmd,
 		sense_reason_t sense_reason)
 {
-	int ret = 0, post_ret = 0;
+	int ret = 0;
 
 	pr_debug("-----[ Storage Engine Exception; sense_reason %d\n",
 		 sense_reason);
@@ -1789,13 +1789,8 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	 */
 	transport_complete_task_attr(cmd);
 
-	/*
-	 * Handle special case for COMPARE_AND_WRITE failure, where the
-	 * callback is expected to drop the per device ->caw_sem.
-	 */
-	if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
-	     cmd->transport_complete_callback)
-		cmd->transport_complete_callback(cmd, false, &post_ret);
+	if (cmd->transport_complete_callback)
+		cmd->transport_complete_callback(cmd, false, NULL);
 
 	if (transport_check_aborted_status(cmd, 1))
 		return;
@@ -2012,7 +2007,7 @@ void target_execute_cmd(struct se_cmd *cmd)
 	 * Determine if frontend context caller is requesting the stopping of
 	 * this command for frontend exceptions.
 	 *
-	 * If the received CDB has aleady been aborted stop processing it here.
+	 * If the received CDB has already been aborted stop processing it here.
 	 */
 	spin_lock_irq(&cmd->t_state_lock);
 	if (__transport_check_aborted_status(cmd, 1)) {
@@ -2516,7 +2511,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	}
 
 	/*
-	 * Determine is the TCM fabric module has already allocated physical
+	 * Determine if the TCM fabric module has already allocated physical
 	 * memory, and is directly calling transport_generic_map_mem_to_cmd()
 	 * beforehand.
 	 */
@@ -2754,7 +2749,7 @@ static void target_release_cmd_kref(struct kref *kref)
 	if (se_sess) {
 		spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 		list_del_init(&se_cmd->se_cmd_list);
-		if (list_empty(&se_sess->sess_cmd_list))
+		if (se_sess->sess_tearing_down && list_empty(&se_sess->sess_cmd_list))
 			wake_up(&se_sess->cmd_list_wq);
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 	}
@@ -2907,7 +2902,7 @@ void target_wait_for_sess_cmds(struct se_session *se_sess)
 
 	spin_lock_irq(&se_sess->sess_cmd_lock);
 	do {
-		ret = wait_event_interruptible_lock_irq_timeout(
+		ret = wait_event_lock_irq_timeout(
 				se_sess->cmd_list_wq,
 				list_empty(&se_sess->sess_cmd_list),
 				se_sess->sess_cmd_lock, 180 * HZ);
