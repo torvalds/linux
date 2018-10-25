@@ -1132,10 +1132,7 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 		}
 	}
 
-	/* Interrupt is disabled when i2c transfer is timeout */
-	if (timeout != 0)
-		rk3x_i2c_disable_irq(i2c);
-
+	rk3x_i2c_disable_irq(i2c);
 	rk3x_i2c_disable(i2c);
 
 	clk_disable(i2c->pclk);
