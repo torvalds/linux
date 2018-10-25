@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/hardirq.h>
 #include <linux/uaccess.h>
+#include <linux/perf_event.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -169,8 +170,6 @@ good_area:
 			mask = VM_EXEC;
 		else {
 			mask = VM_READ | VM_WRITE;
-			if (vma->vm_flags & VM_WRITE)
-				flags |= FAULT_FLAG_WRITE;
 		}
 	} else if (entry == ENTRY_TLB_MISC) {
 		switch (error_code & ITYPE_mskETYPE) {
@@ -231,11 +230,17 @@ good_area:
 	 * attempt. If we go through a retry, it is extremely likely that the
 	 * page will be found in page cache at that point.
 	 */
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR)
+		if (fault & VM_FAULT_MAJOR) {
 			tsk->maj_flt++;
-		else
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ,
+				      1, regs, addr);
+		} else {
 			tsk->min_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN,
+				      1, regs, addr);
+		}
 		if (fault & VM_FAULT_RETRY) {
 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
 			flags |= FAULT_FLAG_TRIED;
