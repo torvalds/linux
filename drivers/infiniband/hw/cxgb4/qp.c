@@ -99,7 +99,7 @@ static void dealloc_oc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 static void dealloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 {
 	dma_free_coherent(&(rdev->lldi.pdev->dev), sq->memsize, sq->queue,
-			  pci_unmap_addr(sq, mapping));
+			  dma_unmap_addr(sq, mapping));
 }
 
 static void dealloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
@@ -132,7 +132,7 @@ static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 	if (!sq->queue)
 		return -ENOMEM;
 	sq->phys_addr = virt_to_phys(sq->queue);
-	pci_unmap_addr_set(sq, mapping, sq->dma_addr);
+	dma_unmap_addr_set(sq, mapping, sq->dma_addr);
 	return 0;
 }
 
@@ -2521,7 +2521,7 @@ static void free_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 
 	dma_free_coherent(&rdev->lldi.pdev->dev,
 			  wq->memsize, wq->queue,
-			pci_unmap_addr(wq, mapping));
+			dma_unmap_addr(wq, mapping));
 	c4iw_rqtpool_free(rdev, wq->rqt_hwaddr, wq->rqt_size);
 	kfree(wq->sw_rq);
 	c4iw_put_qpid(rdev, wq->qid, uctx);
@@ -2570,7 +2570,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 		goto err_free_rqtpool;
 
 	memset(wq->queue, 0, wq->memsize);
-	pci_unmap_addr_set(wq, mapping, wq->dma_addr);
+	dma_unmap_addr_set(wq, mapping, wq->dma_addr);
 
 	wq->bar2_va = c4iw_bar2_addrs(rdev, wq->qid, T4_BAR2_QTYPE_EGRESS,
 				      &wq->bar2_qid,
@@ -2649,7 +2649,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 err_free_queue:
 	dma_free_coherent(&rdev->lldi.pdev->dev,
 			  wq->memsize, wq->queue,
-			pci_unmap_addr(wq, mapping));
+			dma_unmap_addr(wq, mapping));
 err_free_rqtpool:
 	c4iw_rqtpool_free(rdev, wq->rqt_hwaddr, wq->rqt_size);
 err_free_pending_wrs:

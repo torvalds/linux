@@ -30,7 +30,7 @@ available subsections can be seen below.
    input
    usb/index
    firewire
-   pci
+   pci/index
    spi
    i2c
    hsi

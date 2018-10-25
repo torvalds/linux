@@ -1258,7 +1258,6 @@ static pci_ers_result_t ioat_pcie_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t ioat_pcie_error_slot_reset(struct pci_dev *pdev)
 {
 	pci_ers_result_t result = PCI_ERS_RESULT_RECOVERED;
-	int err;
 
 	dev_dbg(&pdev->dev, "%s post reset handling\n", DRV_NAME);
 
@@ -1271,12 +1270,6 @@ static pci_ers_result_t ioat_pcie_error_slot_reset(struct pci_dev *pdev)
 		pci_restore_state(pdev);
 		pci_save_state(pdev);
 		pci_wake_from_d3(pdev, false);
-	}
-
-	err = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (err) {
-		dev_err(&pdev->dev,
-			"AER uncorrect error status clear failed: %#x\n", err);
 	}
 
 	return result;

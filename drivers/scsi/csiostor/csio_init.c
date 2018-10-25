@@ -1102,7 +1102,6 @@ csio_pci_slot_reset(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	/* Bring HW s/m to ready state.
 	 * but don't resume IOs.

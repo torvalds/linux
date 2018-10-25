@@ -14552,7 +14552,6 @@ static pci_ers_result_t i40e_pci_error_slot_reset(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 	pci_ers_result_t result;
-	int err;
 	u32 reg;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
@@ -14571,14 +14570,6 @@ static pci_ers_result_t i40e_pci_error_slot_reset(struct pci_dev *pdev)
 			result = PCI_ERS_RESULT_RECOVERED;
 		else
 			result = PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	err = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (err) {
-		dev_info(&pdev->dev,
-			 "pci_cleanup_aer_uncorrect_error_status failed 0x%0x\n",
-			 err);
-		/* non-fatal, continue */
 	}
 
 	return result;

@@ -650,7 +650,6 @@ pci_resume(struct pci_dev *pdev)
 	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
 
 	dd_dev_info(dd, "HFI1 resume function called\n");
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	/*
 	 * Running jobs will fail, since it's asynchronous
 	 * unlike sysfs-requested reset.   Better than

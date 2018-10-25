@@ -346,10 +346,16 @@ struct acpi_device_physical_node {
 	bool put_online:1;
 };
 
+struct acpi_device_properties {
+	const guid_t *guid;
+	const union acpi_object *properties;
+	struct list_head list;
+};
+
 /* ACPI Device Specific Data (_DSD) */
 struct acpi_device_data {
 	const union acpi_object *pointer;
-	const union acpi_object *properties;
+	struct list_head properties;
 	const union acpi_object *of_compatible;
 	struct list_head subnodes;
 };
