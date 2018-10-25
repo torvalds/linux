@@ -1,0 +1,16 @@
+ARCH=arm64
+BRANCH=android-4.4
+CLANG_TRIPLE=aarch64-linux-gnu-
+CROSS_COMPILE=aarch64-linux-androidkernel-
+DEFCONFIG=cuttlefish_defconfig
+EXTRA_CMDS=''
+KERNEL_DIR=common
+POST_DEFCONFIG_CMDS="check_defconfig"
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r328903/bin
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
+FILES="
+arch/arm64/boot/Image.gz
+vmlinux
+System.map
+"
+STOP_SHIP_TRACEPRINTK=1
