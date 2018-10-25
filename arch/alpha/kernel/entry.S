@@ -473,7 +473,7 @@ entSys:
 	bne     $3, strace
 	beq	$4, 1f
 	ldq	$27, 0($5)
-1:	jsr	$26, ($27), alpha_ni_syscall
+1:	jsr	$26, ($27), sys_ni_syscall
 	ldgp	$gp, 0($26)
 	blt	$0, $syscall_error	/* the call failed */
 	stq	$0, 0($sp)
@@ -587,7 +587,7 @@ strace:
 	/* get the system call pointer.. */
 	lda	$1, NR_SYSCALLS($31)
 	lda	$2, sys_call_table
-	lda	$27, alpha_ni_syscall
+	lda	$27, sys_ni_syscall
 	cmpult	$0, $1, $1
 	s8addq	$0, $2, $2
 	beq	$1, 1f
@@ -791,7 +791,7 @@ ret_from_kernel_thread:
 
 /*
  * Special system calls.  Most of these are special in that they either
- * have to play switch_stack games or in some way use the pt_regs struct.
+ * have to play switch_stack games.
  */
 
 .macro	fork_like name
@@ -812,46 +812,41 @@ fork_like fork
 fork_like vfork
 fork_like clone
 
+.macro	sigreturn_like name
 	.align	4
-	.globl	sys_sigreturn
-	.ent	sys_sigreturn
-sys_sigreturn:
+	.globl	sys_\name
+	.ent	sys_\name
+sys_\name:
 	.prologue 0
 	lda	$9, ret_from_straced
 	cmpult	$26, $9, $9
 	lda	$sp, -SWITCH_STACK_SIZE($sp)
-	jsr	$26, do_sigreturn
+	jsr	$26, do_\name
 	bne	$9, 1f
 	jsr	$26, syscall_trace_leave
 1:	br	$1, undo_switch_stack
 	br	ret_from_sys_call
-.end sys_sigreturn
+.end sys_\name
+.endm
+
+sigreturn_like sigreturn
+sigreturn_like rt_sigreturn
 
 	.align	4
-	.globl	sys_rt_sigreturn
-	.ent	sys_rt_sigreturn
-sys_rt_sigreturn:
+	.globl	alpha_syscall_zero
+	.ent	alpha_syscall_zero
+alpha_syscall_zero:
 	.prologue 0
-	lda	$9, ret_from_straced
-	cmpult	$26, $9, $9
-	lda	$sp, -SWITCH_STACK_SIZE($sp)
-	jsr	$26, do_rt_sigreturn
-	bne	$9, 1f
-	jsr	$26, syscall_trace_leave
-1:	br	$1, undo_switch_stack
-	br	ret_from_sys_call
-.end sys_rt_sigreturn
-
-	.align	4
-	.globl	alpha_ni_syscall
-	.ent	alpha_ni_syscall
-alpha_ni_syscall:
-	.prologue 0
-	/* Special because it also implements overflow handling via
-	   syscall number 0.  And if you recall, zero is a special
-	   trigger for "not an error".  Store large non-zero there.  */
+	/* Special because it needs to do something opposite to
+	   force_successful_syscall_return().  We use the saved
+	   syscall number for that, zero meaning "not an error".
+	   That works nicely, but for real syscall 0 we need to
+	   make sure that this logics doesn't get confused.
+	   Store a non-zero there - -ENOSYS we need in register
+	   for our return value will do just fine.
+	  */
 	lda	$0, -ENOSYS
 	unop
 	stq	$0, 0($sp)
 	ret
-.end alpha_ni_syscall
+.end alpha_syscall_zero
