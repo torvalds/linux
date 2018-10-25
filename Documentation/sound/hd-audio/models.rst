@@ -309,6 +309,8 @@ asus-nx50
     ASUS Nx50 fixups
 asus-nx51
     ASUS Nx51 fixups
+asus-g751
+    ASUS G751 fixups
 alc891-headset
     Headset mode support on ALC891
 alc891-headset-multi
