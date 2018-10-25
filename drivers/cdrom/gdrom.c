@@ -794,7 +794,7 @@ static int probe_gdrom(struct platform_device *devptr)
 	gd.gdrom_rq = blk_mq_init_sq_queue(&gd.tag_set, &gdrom_mq_ops, 1,
 				BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
 	if (IS_ERR(gd.gdrom_rq)) {
-		rc = PTR_ERR(gd.gdrom_rq);
+		err = PTR_ERR(gd.gdrom_rq);
 		gd.gdrom_rq = NULL;
 		goto probe_fail_requestq;
 	}
