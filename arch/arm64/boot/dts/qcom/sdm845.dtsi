@@ -1585,7 +1585,7 @@
 				reg = <0x88eb200 0x128>,
 				      <0x88eb400 0x1fc>,
 				      <0x88eb800 0x218>,
-				      <0x88e9600 0x70>;
+				      <0x88eb600 0x70>;
 				#phy-cells = <0>;
 				clocks = <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;
 				clock-names = "pipe0";
