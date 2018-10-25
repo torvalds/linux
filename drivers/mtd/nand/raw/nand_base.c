@@ -4457,7 +4457,6 @@ void nand_decode_ext_id(struct nand_chip *chip)
 
 	/* The 3rd id byte holds MLC / multichip data */
 	memorg->bits_per_cell = nand_get_bits_per_cell(id_data[2]);
-	chip->bits_per_cell = nand_get_bits_per_cell(id_data[2]);
 	/* The 4th id byte is the important one */
 	extid = id_data[3];
 
@@ -4501,7 +4500,6 @@ static void nand_decode_id(struct nand_chip *chip, struct nand_flash_dev *type)
 
 	/* All legacy ID NAND are small-page, SLC */
 	memorg->bits_per_cell = 1;
-	chip->bits_per_cell = 1;
 }
 
 /*
@@ -4544,7 +4542,6 @@ static bool find_full_id_nand(struct nand_chip *chip,
 		mtd->oobsize = memorg->oobsize;
 
 		memorg->bits_per_cell = nand_get_bits_per_cell(id_data[2]);
-		chip->bits_per_cell = nand_get_bits_per_cell(id_data[2]);
 		chip->chipsize = (uint64_t)type->chipsize << 20;
 		memorg->eraseblocks_per_lun =
 			DIV_ROUND_DOWN_ULL((u64)type->chipsize << 20,
@@ -4584,7 +4581,6 @@ static void nand_manufacturer_detect(struct nand_chip *chip)
 
 		/* The 3rd id byte holds MLC / multichip data */
 		memorg->bits_per_cell = nand_get_bits_per_cell(chip->id.data[2]);
-		chip->bits_per_cell = nand_get_bits_per_cell(chip->id.data[2]);
 		chip->manufacturer.desc->ops->detect(chip);
 	} else {
 		nand_decode_ext_id(chip);

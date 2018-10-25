@@ -385,7 +385,7 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	if (!chip->parameters.onfi)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
-	if (chip->bits_per_cell != 1)
+	if (nanddev_bits_per_cell(&chip->base) != 1)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	/*

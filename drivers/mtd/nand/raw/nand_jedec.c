@@ -104,7 +104,6 @@ int nand_jedec_detect(struct nand_chip *chip)
 	chip->chipsize = memorg->eraseblocks_per_lun;
 	chip->chipsize *= (uint64_t)mtd->erasesize * p->lun_count;
 	memorg->bits_per_cell = p->bits_per_cell;
-	chip->bits_per_cell = p->bits_per_cell;
 
 	if (le16_to_cpu(p->features) & JEDEC_FEATURE_16_BIT_BUS)
 		chip->options |= NAND_BUSWIDTH_16;

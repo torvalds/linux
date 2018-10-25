@@ -592,7 +592,7 @@ static void hynix_nand_extract_scrambling_requirements(struct nand_chip *chip,
 	u8 nand_tech;
 
 	/* We need scrambling on all TLC NANDs*/
-	if (chip->bits_per_cell > 2)
+	if (nanddev_bits_per_cell(&chip->base) > 2)
 		chip->options |= NAND_NEED_SCRAMBLING;
 
 	/* And on MLC NANDs with sub-3xnm process */
