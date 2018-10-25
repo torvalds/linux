@@ -24,6 +24,7 @@ struct strarray {
 }
 
 size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val);
+size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, unsigned long flags);
 
 struct trace;
 struct thread;

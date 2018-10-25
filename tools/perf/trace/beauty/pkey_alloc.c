@@ -9,36 +9,41 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 
-static size_t pkey_alloc__scnprintf_access_rights(int access_rights, char *bf, size_t size)
+size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, unsigned long flags)
 {
 	int i, printed = 0;
 
-#include "trace/beauty/generated/pkey_alloc_access_rights_array.c"
-	static DEFINE_STRARRAY(pkey_alloc_access_rights);
-
-	if (access_rights == 0) {
-		const char *s = strarray__pkey_alloc_access_rights.entries[0];
+	if (flags == 0) {
+		const char *s = sa->entries[0];
 		if (s)
 			return scnprintf(bf, size, "%s", s);
 		return scnprintf(bf, size, "%d", 0);
 	}
 
-	for (i = 1; i < strarray__pkey_alloc_access_rights.nr_entries; ++i) {
-		int bit = 1 << (i - 1);
+	for (i = 1; i < sa->nr_entries; ++i) {
+		unsigned long bit = 1UL << (i - 1);
 
-		if (!(access_rights & bit))
+		if (!(flags & bit))
 			continue;
 
 		if (printed != 0)
 			printed += scnprintf(bf + printed, size - printed, "|");
 
-		if (strarray__pkey_alloc_access_rights.entries[i] != NULL)
-			printed += scnprintf(bf + printed, size - printed, "%s", strarray__pkey_alloc_access_rights.entries[i]);
+		if (sa->entries[i] != NULL)
+			printed += scnprintf(bf + printed, size - printed, "%s", sa->entries[i]);
 		else
 			printed += scnprintf(bf + printed, size - printed, "0x%#", bit);
 	}
 
 	return printed;
+}
+
+static size_t pkey_alloc__scnprintf_access_rights(int access_rights, char *bf, size_t size)
+{
+#include "trace/beauty/generated/pkey_alloc_access_rights_array.c"
+	static DEFINE_STRARRAY(pkey_alloc_access_rights);
+
+	return strarray__scnprintf_flags(&strarray__pkey_alloc_access_rights, bf, size, access_rights);
 }
 
 size_t syscall_arg__scnprintf_pkey_alloc_access_rights(char *bf, size_t size, struct syscall_arg *arg)
