@@ -59,6 +59,7 @@ struct cpu_cf_events {
 };
 DECLARE_PER_CPU(struct cpu_cf_events, cpu_cf_events);
 
+bool kernel_cpumcf_avail(void);
 int __kernel_cpumcf_begin(void);
 unsigned long kernel_cpumcf_alert(int clear);
 void __kernel_cpumcf_end(void);

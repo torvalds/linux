@@ -33,6 +33,9 @@ DEFINE_PER_CPU(struct cpu_cf_events, cpu_cf_events) = {
 	.txn_flags = 0,
 };
 
+/* Indicator whether the CPU-Measurement Counter Facility Support is ready */
+static bool cpum_cf_initalized;
+
 static enum cpumf_ctr_set get_counter_set(u64 event)
 {
 	int set = CPUMF_CTR_SET_MAX;
@@ -232,6 +235,12 @@ static void setup_pmc_cpu(void *flags)
 	/* Disable CPU counter sets */
 	lcctl(0);
 }
+
+bool kernel_cpumcf_avail(void)
+{
+	return cpum_cf_initalized;
+}
+EXPORT_SYMBOL(kernel_cpumcf_avail);
 
 /* Reserve/release functions for sharing perf hardware */
 static DEFINE_SPINLOCK(cpumcf_owner_lock);
@@ -709,8 +718,13 @@ static int __init cpumf_pmu_init(void)
 					cpumf_measurement_alert);
 		return rc;
 	}
-	return cpuhp_setup_state(CPUHP_AP_PERF_S390_CF_ONLINE,
-				 "perf/s390/cf:online",
-				 s390_pmu_online_cpu, s390_pmu_offline_cpu);
+
+	rc = cpuhp_setup_state(CPUHP_AP_PERF_S390_CF_ONLINE,
+				"perf/s390/cf:online",
+				s390_pmu_online_cpu, s390_pmu_offline_cpu);
+	if (!rc)
+		cpum_cf_initalized = true;
+
+	return rc;
 }
 early_initcall(cpumf_pmu_init);
