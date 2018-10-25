@@ -812,6 +812,8 @@ enum mesh_config_capab_flags {
 	IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL	= 0x40,
 };
 
+#define IEEE80211_MESHCONF_FORM_CONNECTED_TO_GATE 0x1
+
 /**
  * mesh channel switch parameters element's flag indicator
  *

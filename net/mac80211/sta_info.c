@@ -2264,7 +2264,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 				 BIT_ULL(NL80211_STA_INFO_PLINK_STATE) |
 				 BIT_ULL(NL80211_STA_INFO_LOCAL_PM) |
 				 BIT_ULL(NL80211_STA_INFO_PEER_PM) |
-				 BIT_ULL(NL80211_STA_INFO_NONPEER_PM);
+				 BIT_ULL(NL80211_STA_INFO_NONPEER_PM) |
+				 BIT_ULL(NL80211_STA_INFO_CONNECTED_TO_GATE);
 
 		sinfo->llid = sta->mesh->llid;
 		sinfo->plid = sta->mesh->plid;
@@ -2276,6 +2277,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		sinfo->local_pm = sta->mesh->local_pm;
 		sinfo->peer_pm = sta->mesh->peer_pm;
 		sinfo->nonpeer_pm = sta->mesh->nonpeer_pm;
+		sinfo->connected_to_gate = sta->mesh->connected_to_gate;
 #endif
 	}
 
