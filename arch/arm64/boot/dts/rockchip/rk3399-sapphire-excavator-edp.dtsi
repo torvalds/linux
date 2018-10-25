@@ -1,0 +1,407 @@
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include "rk3399-excavator-sapphire.dtsi"
+#include "rk3399-android.dtsi"
+#include "rk3399-vop-clk-set.dtsi"
+
+/ {
+	vcc_lcd: vcc-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lcd";
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <20000>;
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	panel: panel {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc_lcd>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		prepare-delay-ms = <20>;
+		enable-delay-ms = <20>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <200000000>;
+				hactive = <1536>;
+				vactive = <2048>;
+				hfront-porch = <12>;
+				hsync-len = <16>;
+				hback-porch = <48>;
+				vfront-porch = <8>;
+				vsync-len = <4>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			panel_in: endpoint {
+				remote-endpoint = <&edp_out>;
+			};
+		};
+	};
+
+	test-power {
+		status = "okay";
+	};
+
+	rt5651-sound {
+		status = "disabled";
+	};
+
+	hdmiin-sound {
+		compatible = "rockchip,rockchip-rt5651-tc358749x-sound";
+		rockchip,cpu = <&i2s0>;
+		rockchip,codec = <&rt5651 &rt5651 &tc358749x>;
+		status = "okay";
+	};
+};
+
+&backlight {
+	status = "okay";
+	enable-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+};
+
+&edp {
+	status = "okay";
+	force-hpd;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&edp_in_vopl {
+	status = "disabled";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in_vopb {
+	status = "disabled";
+};
+
+&rt5651 {
+	status = "okay";
+};
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&fusb0>;
+	phys = <&tcphy0_dp>;
+};
+
+&hdmi_dp_sound {
+	status = "okay";
+};
+
+&dp_in_vopb {
+	status = "disabled";
+};
+
+&i2s2 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	gsl3673: gsl3673@40 {
+		compatible = "GSL,GSL3673";
+		reg = <0x40>;
+		screen_max_x = <1536>;
+		screen_max_y = <2048>;
+		irq_gpio_number = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
+		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+	};
+
+	tc358749x: tc358749x@0f {
+		compatible = "toshiba,tc358749x";
+		reg = <0x0f>;
+		power-gpios = <&gpio2 6 GPIO_ACTIVE_HIGH>;
+		power18-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+		power33-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		csi-ctl-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		stanby-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		int-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdmiin_gpios>;
+		status = "okay";
+	};
+
+	ov13850: ov13850@10 {
+		compatible = "ovti,ov13850";
+		status = "disabled";
+		reg = <0x10>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		/* reset-gpios = <>; */
+		reset-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>; // conflict with csi-ctl-gpios
+		pwdn-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+		port {
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				//remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	ov4689: ov4689@36 {
+		compatible = "ovti,ov4689";
+		status = "disabled";
+		reg = <0x36>;
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		/* reset-gpios = <>; */
+		pwdn-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>; // conflict with backlight
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+		port {
+			ucam_out1: endpoint {
+				//remote-endpoint = <&mipi_in_ucam0>;
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c6 {
+	cw2015@62 {
+		status = "disabled";
+		compatible = "cw201x";
+		reg = <0x62>;
+		bat_config_info = <0x15 0x42 0x60 0x59 0x52 0x58 0x4D 0x48
+				   0x48 0x44 0x44 0x46 0x49 0x48 0x32 0x24
+				   0x20 0x17 0x13 0x0F 0x19 0x3E 0x51 0x45
+				   0x08 0x76 0x0B 0x85 0x0E 0x1C 0x2E 0x3E
+				   0x4D 0x52 0x52 0x57 0x3D 0x1B 0x6A 0x2D
+				   0x25 0x43 0x52 0x87 0x8F 0x91 0x94 0x52
+				   0x82 0x8C 0x92 0x96 0xFF 0x7B 0xBB 0xCB
+				   0x2F 0x7D 0x72 0xA5 0xB5 0xC1 0x46 0xAE>;
+		monitor_sec = <5>;
+		virtual_power = <0>;
+	};
+};
+
+&isp0 {
+	status = "okay";
+};
+
+&isp1 {
+	status = "okay";
+};
+
+&isp0_mmu {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&mipi_dphy_rx0 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_mipi_in>;
+			};
+		};
+	};
+};
+
+&mipi_dphy_tx1rx1 {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out1>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_tx1rx1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp1_mipi_in>;
+			};
+		};
+	};
+};
+
+&vopb {
+	assigned-clocks = <&cru DCLK_VOP0_DIV>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
+};
+
+&vopl {
+	assigned-clocks = <&cru DCLK_VOP1_DIV>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
+};
+
+&pcie_phy {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&rkisp1_0 {
+	status = "disabled";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx0_out>;
+		};
+	};
+};
+
+&rkisp1_1 {
+	status = "disabled";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_tx1rx1_out>;
+		};
+	};
+};
+
+&route_edp {
+	status = "okay";
+};
+
+&pinctrl {
+	lcd-panel {
+		lcd_panel_reset: lcd-panel-reset {
+			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	hdmiin {
+		hdmiin_gpios: hdmiin_gpios {
+		rockchip,pins =
+				<2 5 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 6 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 7 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 8 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 9 RK_FUNC_GPIO &pcfg_pull_none>,
+				<2 12 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
