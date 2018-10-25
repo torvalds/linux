@@ -325,6 +325,62 @@
 			status = "disabled";
 		};
 
+		usb_dmac00: dma-controller@e65a0000 {
+			compatible = "renesas,r8a77470-usb-dmac",
+				     "renesas,usb-dmac";
+			reg = <0 0xe65a0000 0 0x100>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch0", "ch1";
+			clocks = <&cpg CPG_MOD 330>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+			resets = <&cpg 330>;
+			#dma-cells = <1>;
+			dma-channels = <2>;
+		};
+
+		usb_dmac10: dma-controller@e65b0000 {
+			compatible = "renesas,r8a77470-usb-dmac",
+				     "renesas,usb-dmac";
+			reg = <0 0xe65b0000 0 0x100>;
+			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch0", "ch1";
+			clocks = <&cpg CPG_MOD 331>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+			resets = <&cpg 331>;
+			#dma-cells = <1>;
+			dma-channels = <2>;
+		};
+
+		usb_dmac01: dma-controller@e65a8000 {
+			compatible = "renesas,r8a77470-usb-dmac",
+				     "renesas,usb-dmac";
+			reg = <0 0xe65a8000 0 0x100>;
+			interrupts = <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch0", "ch1";
+			clocks = <&cpg CPG_MOD 326>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+			resets = <&cpg 326>;
+			#dma-cells = <1>;
+			dma-channels = <2>;
+		};
+
+		usb_dmac11: dma-controller@e65b8000 {
+			compatible = "renesas,r8a77470-usb-dmac",
+				     "renesas,usb-dmac";
+			reg = <0 0xe65b8000 0 0x100>;
+			interrupts = <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch0", "ch1";
+			clocks = <&cpg CPG_MOD 327>;
+			power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+			resets = <&cpg 327>;
+			#dma-cells = <1>;
+			dma-channels = <2>;
+		};
+
 		dmac0: dma-controller@e6700000 {
 			compatible = "renesas,dmac-r8a77470",
 				     "renesas,rcar-dmac";
