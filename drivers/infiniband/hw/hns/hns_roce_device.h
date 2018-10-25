@@ -505,7 +505,6 @@ struct hns_roce_uar_table {
 
 struct hns_roce_qp_table {
 	struct hns_roce_bitmap		bitmap;
-	spinlock_t			lock;
 	struct hns_roce_hem_table	qp_table;
 	struct hns_roce_hem_table	irrl_table;
 	struct hns_roce_hem_table	trrl_table;
@@ -955,7 +954,7 @@ struct hns_roce_dev {
 	int			irq[HNS_ROCE_MAX_IRQ_NUM];
 	u8 __iomem		*reg_base;
 	struct hns_roce_caps	caps;
-	struct radix_tree_root  qp_table_tree;
+	struct xarray		qp_table_xa;
 
 	unsigned char	dev_addr[HNS_ROCE_MAX_PORTS][MAC_ADDR_OCTET_NUM];
 	u64			sys_image_guid;
@@ -1045,8 +1044,7 @@ static inline void hns_roce_write64_k(__le32 val[2], void __iomem *dest)
 static inline struct hns_roce_qp
 	*__hns_roce_qp_lookup(struct hns_roce_dev *hr_dev, u32 qpn)
 {
-	return radix_tree_lookup(&hr_dev->qp_table_tree,
-				 qpn & (hr_dev->caps.num_qps - 1));
+	return xa_load(&hr_dev->qp_table_xa, qpn & (hr_dev->caps.num_qps - 1));
 }
 
 static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf, int offset)
