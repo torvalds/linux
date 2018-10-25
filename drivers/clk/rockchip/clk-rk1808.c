@@ -415,8 +415,9 @@ static struct rockchip_clk_branch rk1808_clk_branches[] __initdata = {
 			RK1808_CLKGATE_CON(8), 5, GFLAGS),
 	GATE(0, "gpll_ddr", "gpll", CLK_IGNORE_UNUSED,
 			RK1808_CLKGATE_CON(8), 6, GFLAGS),
-	COMPOSITE_NOGATE(SCLK_DDRCLK, "sclk_ddrc", mux_ddr_p, 0,
-			RK1808_CLKSEL_CON(3), 7, 1, MFLAGS, 0, 5, DFLAGS),
+	COMPOSITE_DDRCLK(SCLK_DDRCLK, "sclk_ddrc", mux_ddr_p, CLK_IGNORE_UNUSED,
+			RK1808_CLKSEL_CON(3), 7, 1, 0, 5,
+			ROCKCHIP_DDRCLK_SIP_V2),
 	FACTOR(0, "clk_ddrphy1x_out", "sclk_ddrc", CLK_IGNORE_UNUSED, 1, 1),
 
 	COMPOSITE_NOMUX(PCLK_DDR, "pclk_ddr", "gpll", 0,
