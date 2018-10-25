@@ -7578,14 +7578,6 @@ S:	Supported
 F:	drivers/infiniband/hw/i40iw/
 F:	include/uapi/rdma/i40iw-abi.h
 
-INTEL SHA MULTIBUFFER DRIVER
-M:	Megha Dey <megha.dey@linux.intel.com>
-R:	Tim Chen <tim.c.chen@linux.intel.com>
-L:	linux-crypto@vger.kernel.org
-S:	Supported
-F:	arch/x86/crypto/sha*-mb/
-F:	crypto/mcryptd.c
-
 INTEL TELEMETRY DRIVER
 M:	Souvik Kumar Chakravarty <souvik.k.chakravarty@intel.com>
 L:	platform-driver-x86@vger.kernel.org

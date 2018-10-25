@@ -29,6 +29,7 @@
 #include <crypto/internal/rng.h>
 #include <crypto/akcipher.h>
 #include <crypto/kpp.h>
+#include <crypto/internal/cryptouser.h>
 
 #include "internal.h"
 
@@ -37,7 +38,7 @@
 static DEFINE_MUTEX(crypto_cfg_mutex);
 
 /* The crypto netlink socket */
-static struct sock *crypto_nlsk;
+struct sock *crypto_nlsk;
 
 struct crypto_dump_info {
 	struct sk_buff *in_skb;
@@ -46,7 +47,7 @@ struct crypto_dump_info {
 	u16 nlmsg_flags;
 };
 
-static struct crypto_alg *crypto_alg_match(struct crypto_user_alg *p, int exact)
+struct crypto_alg *crypto_alg_match(struct crypto_user_alg *p, int exact)
 {
 	struct crypto_alg *q, *alg = NULL;
 
@@ -461,6 +462,7 @@ static const int crypto_msg_min[CRYPTO_NR_MSGTYPES] = {
 	[CRYPTO_MSG_UPDATEALG	- CRYPTO_MSG_BASE] = MSGSIZE(crypto_user_alg),
 	[CRYPTO_MSG_GETALG	- CRYPTO_MSG_BASE] = MSGSIZE(crypto_user_alg),
 	[CRYPTO_MSG_DELRNG	- CRYPTO_MSG_BASE] = 0,
+	[CRYPTO_MSG_GETSTAT	- CRYPTO_MSG_BASE] = MSGSIZE(crypto_user_alg),
 };
 
 static const struct nla_policy crypto_policy[CRYPTOCFGA_MAX+1] = {
@@ -481,6 +483,9 @@ static const struct crypto_link {
 						       .dump = crypto_dump_report,
 						       .done = crypto_dump_report_done},
 	[CRYPTO_MSG_DELRNG	- CRYPTO_MSG_BASE] = { .doit = crypto_del_rng },
+	[CRYPTO_MSG_GETSTAT	- CRYPTO_MSG_BASE] = { .doit = crypto_reportstat,
+						       .dump = crypto_dump_reportstat,
+						       .done = crypto_dump_reportstat_done},
 };
 
 static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
