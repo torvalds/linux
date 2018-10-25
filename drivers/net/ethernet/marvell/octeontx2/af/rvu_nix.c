@@ -1294,7 +1294,7 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 		return 0;
 
 	/* Add a new one to the list, at the tail */
-	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+	mce = kzalloc(sizeof(*mce), GFP_ATOMIC);
 	if (!mce)
 		return -ENOMEM;
 	mce->idx = idx;
