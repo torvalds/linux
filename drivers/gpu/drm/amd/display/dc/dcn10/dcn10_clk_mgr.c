@@ -223,7 +223,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 			&dc->res_pool->pp_smu_req;
 	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
 	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
-	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
+	uint32_t requested_dcf_clock_in_khz = 0;
 	bool send_request_to_increase = false;
 	bool send_request_to_lower = false;
 	int display_count;
@@ -263,8 +263,6 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	// F Clock
 	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, clk_mgr->clks.fclk_khz)) {
 		clk_mgr->clks.fclk_khz = new_clocks->fclk_khz;
-		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_FCLK;
-		clock_voltage_req.clocks_in_khz = new_clocks->fclk_khz;
 		smu_req.hard_min_fclk_mhz = new_clocks->fclk_khz / 1000;
 
 		notify_hard_min_fclk_to_smu(pp_smu, new_clocks->fclk_khz);
@@ -293,10 +291,9 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	 */
 	if (send_request_to_increase) {
 		/*use dcfclk to request voltage*/
-		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
+		requested_dcf_clock_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
 
-		notify_hard_min_dcfclk_to_smu(pp_smu, clock_voltage_req.clocks_in_khz);
+		notify_hard_min_dcfclk_to_smu(pp_smu, requested_dcf_clock_in_khz);
 
 		if (pp_smu->set_display_requirement)
 			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
@@ -317,10 +314,9 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 
 	if (!send_request_to_increase && send_request_to_lower) {
 		/*use dcfclk to request voltage*/
-		clock_voltage_req.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock_voltage_req.clocks_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
+		requested_dcf_clock_in_khz = dcn_find_dcfclk_suits_all(dc, new_clocks);
 
-		notify_hard_min_dcfclk_to_smu(pp_smu, clock_voltage_req.clocks_in_khz);
+		notify_hard_min_dcfclk_to_smu(pp_smu, requested_dcf_clock_in_khz);
 
 		if (pp_smu->set_display_requirement)
 			pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
