@@ -614,6 +614,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 
 struct syscall_arg_fmt {
 	size_t	   (*scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
+	unsigned long (*mask_val)(struct syscall_arg *arg, unsigned long val);
 	void	   *parm;
 	const char *name;
 	bool	   show_zero;
@@ -1487,6 +1488,19 @@ static size_t syscall__scnprintf_name(struct syscall *sc, char *bf, size_t size,
 	return scnprintf(bf, size, "arg%d: ", arg->idx);
 }
 
+/*
+ * Check if the value is in fact zero, i.e. mask whatever needs masking, such
+ * as mount 'flags' argument that needs ignoring some magic flag, see comment
+ * in tools/perf/trace/beauty/mount_flags.c
+ */
+static unsigned long syscall__mask_val(struct syscall *sc, struct syscall_arg *arg, unsigned long val)
+{
+	if (sc->arg_fmt && sc->arg_fmt[arg->idx].mask_val)
+		return sc->arg_fmt[arg->idx].mask_val(arg, val);
+
+	return val;
+}
+
 static size_t syscall__scnprintf_val(struct syscall *sc, char *bf, size_t size,
 				     struct syscall_arg *arg, unsigned long val)
 {
@@ -1535,6 +1549,11 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 				continue;
 
 			val = syscall_arg__val(&arg, arg.idx);
+			/*
+			 * Some syscall args need some mask, most don't and
+			 * return val untouched.
+			 */
+			val = syscall__mask_val(sc, &arg, val);
 
 			/*
  			 * Suppress this argument if its value is zero and
