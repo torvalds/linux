@@ -1396,6 +1396,7 @@ static const struct panel_desc innolux_tv123wam = {
 		.height = 173,
 	},
 	.delay = {
+		.hpd_absent_delay = 200,
 		.unprepare = 500,
 	},
 };
