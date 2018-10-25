@@ -862,6 +862,18 @@ static struct syscall_fmt *syscall_fmt__find(const char *name)
 	return bsearch(name, syscall_fmts, nmemb, sizeof(struct syscall_fmt), syscall_fmt__cmp);
 }
 
+static struct syscall_fmt *syscall_fmt__find_by_alias(const char *alias)
+{
+	int i, nmemb = ARRAY_SIZE(syscall_fmts);
+
+	for (i = 0; i < nmemb; ++i) {
+		if (syscall_fmts[i].alias && strcmp(syscall_fmts[i].alias, alias) == 0)
+			return &syscall_fmts[i];
+	}
+
+	return NULL;
+}
+
 /*
  * is_exit: is this "exit" or "exit_group"?
  * is_open: is this "open" or "openat"? To associate the fd returned in sys_exit with the pathname in sys_enter.
@@ -3195,6 +3207,7 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 	int len = strlen(str) + 1, err = -1, list, idx;
 	char *strace_groups_dir = system_path(STRACE_GROUPS_DIR);
 	char group_name[PATH_MAX];
+	struct syscall_fmt *fmt;
 
 	if (strace_groups_dir == NULL)
 		return -1;
@@ -3212,12 +3225,19 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 		if (syscalltbl__id(trace->sctbl, s) >= 0 ||
 		    syscalltbl__strglobmatch_first(trace->sctbl, s, &idx) >= 0) {
 			list = 1;
+			goto do_concat;
+		}
+
+		fmt = syscall_fmt__find_by_alias(s);
+		if (fmt != NULL) {
+			list = 1;
+			s = fmt->name;
 		} else {
 			path__join(group_name, sizeof(group_name), strace_groups_dir, s);
 			if (access(group_name, R_OK) == 0)
 				list = 1;
 		}
-
+do_concat:
 		if (lists[list]) {
 			sprintf(lists[list] + strlen(lists[list]), ",%s", s);
 		} else {
