@@ -35,7 +35,6 @@
 #define _GVT_GTT_H_
 
 #define I915_GTT_PAGE_SHIFT         12
-#define I915_GTT_PAGE_MASK		(~(I915_GTT_PAGE_SIZE - 1))
 
 struct intel_vgpu_mm;
 
