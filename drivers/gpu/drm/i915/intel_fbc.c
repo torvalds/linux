@@ -84,7 +84,7 @@ static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
 	int lines;
 
 	intel_fbc_get_plane_source_size(cache, NULL, &lines);
-	if (INTEL_GEN(dev_priv) == 7)
+	if (IS_GEN7(dev_priv))
 		lines = min(lines, 2048);
 	else if (INTEL_GEN(dev_priv) >= 8)
 		lines = min(lines, 2560);

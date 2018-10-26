@@ -744,7 +744,7 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 	if (INTEL_GEN(dev_priv) >= 10) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_scalers[pipe] = 2;
-	} else if (INTEL_GEN(dev_priv) == 9) {
+	} else if (IS_GEN9(dev_priv)) {
 		info->num_scalers[PIPE_A] = 2;
 		info->num_scalers[PIPE_B] = 2;
 		info->num_scalers[PIPE_C] = 1;
@@ -847,9 +847,9 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
 		broadwell_sseu_info_init(dev_priv);
-	else if (INTEL_GEN(dev_priv) == 9)
+	else if (IS_GEN9(dev_priv))
 		gen9_sseu_info_init(dev_priv);
-	else if (INTEL_GEN(dev_priv) == 10)
+	else if (IS_GEN10(dev_priv))
 		gen10_sseu_info_init(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 11)
 		gen11_sseu_info_init(dev_priv);

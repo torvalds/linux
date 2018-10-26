@@ -4741,13 +4741,13 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 			selected_result = method2;
 		} else if (ddb_allocation >=
 			 fixed16_to_u32_round_up(wp->plane_blocks_per_line)) {
-			if (INTEL_GEN(dev_priv) == 9 &&
+			if (IS_GEN9(dev_priv) &&
 			    !IS_GEMINILAKE(dev_priv))
 				selected_result = min_fixed16(method1, method2);
 			else
 				selected_result = method2;
 		} else if (latency >= wp->linetime_us) {
-			if (INTEL_GEN(dev_priv) == 9 &&
+			if (IS_GEN9(dev_priv) &&
 			    !IS_GEMINILAKE(dev_priv))
 				selected_result = min_fixed16(method1, method2);
 			else

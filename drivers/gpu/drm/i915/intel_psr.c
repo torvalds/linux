@@ -574,7 +574,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (dev_priv->psr.psr2_enabled) {
 		u32 chicken = I915_READ(CHICKEN_TRANS(cpu_transcoder));
 
-		if (INTEL_GEN(dev_priv) == 9 && !IS_GEMINILAKE(dev_priv))
+		if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
 			chicken |= (PSR2_VSC_ENABLE_PROG_HEADER
 				   | PSR2_ADD_VERTICAL_LINE_COUNT);
 

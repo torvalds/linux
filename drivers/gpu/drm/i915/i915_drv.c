@@ -1330,7 +1330,7 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	/* Need to calculate bandwidth only for Gen9 */
 	if (IS_BROXTON(dev_priv))
 		ret = bxt_get_dram_info(dev_priv);
-	else if (INTEL_GEN(dev_priv) == 9)
+	else if (IS_GEN9(dev_priv))
 		ret = skl_get_dram_info(dev_priv);
 	else
 		ret = skl_dram_get_channels_info(dev_priv);
