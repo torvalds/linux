@@ -713,7 +713,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	hw->evb_veb = true;
 
-	/* Query the allocated resources for tx scheduler */
+	/* Query the allocated resources for Tx scheduler */
 	status = ice_sched_query_res_alloc(hw);
 	if (status) {
 		ice_debug(hw, ICE_DBG_SCHED,
@@ -956,7 +956,7 @@ enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req)
  * ice_copy_rxq_ctx_to_hw
  * @hw: pointer to the hardware structure
  * @ice_rxq_ctx: pointer to the rxq context
- * @rxq_index: the index of the rx queue
+ * @rxq_index: the index of the Rx queue
  *
  * Copies rxq context from dense structure to hw register space
  */
@@ -1012,7 +1012,7 @@ static const struct ice_ctx_ele ice_rlan_ctx_info[] = {
  * ice_write_rxq_ctx
  * @hw: pointer to the hardware structure
  * @rlan_ctx: pointer to the rxq context
- * @rxq_index: the index of the rx queue
+ * @rxq_index: the index of the Rx queue
  *
  * Converts rxq context from sparse to dense structure and then writes
  * it to hw register space

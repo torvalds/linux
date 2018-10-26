@@ -219,7 +219,7 @@ static bool ice_clean_tx_irq(struct ice_vsi *vsi, struct ice_ring *tx_ring,
 
 /**
  * ice_setup_tx_ring - Allocate the Tx descriptors
- * @tx_ring: the tx ring to set up
+ * @tx_ring: the Tx ring to set up
  *
  * Return 0 on success, negative on error
  */
@@ -324,7 +324,7 @@ void ice_free_rx_ring(struct ice_ring *rx_ring)
 
 /**
  * ice_setup_rx_ring - Allocate the Rx descriptors
- * @rx_ring: the rx ring to set up
+ * @rx_ring: the Rx ring to set up
  *
  * Return 0 on success, negative on error
  */
@@ -586,7 +586,7 @@ static bool ice_add_rx_frag(struct ice_rx_buf *rx_buf,
 
 /**
  * ice_reuse_rx_page - page flip buffer and store it back on the ring
- * @rx_ring: rx descriptor ring to store buffers on
+ * @rx_ring: Rx descriptor ring to store buffers on
  * @old_buf: donor buffer to have page reused
  *
  * Synchronizes page for reuse by the adapter
@@ -609,7 +609,7 @@ static void ice_reuse_rx_page(struct ice_ring *rx_ring,
 
 /**
  * ice_fetch_rx_buf - Allocate skb and populate it
- * @rx_ring: rx descriptor ring to transact packets on
+ * @rx_ring: Rx descriptor ring to transact packets on
  * @rx_desc: descriptor containing info written by hardware
  *
  * This function allocates an skb on the fly, and populates it with the page
@@ -904,7 +904,7 @@ checksum_fail:
 
 /**
  * ice_process_skb_fields - Populate skb header fields from Rx descriptor
- * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_ring: Rx descriptor ring packet is being transacted on
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being populated
  * @ptype: the packet type decoded by hardware
@@ -927,7 +927,7 @@ static void ice_process_skb_fields(struct ice_ring *rx_ring,
 
 /**
  * ice_receive_skb - Send a completed packet up the stack
- * @rx_ring: rx ring in play
+ * @rx_ring: Rx ring in play
  * @skb: packet to send up
  * @vlan_tag: vlan tag for packet
  *
@@ -946,7 +946,7 @@ static void ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb,
 
 /**
  * ice_clean_rx_irq - Clean completed descriptors from Rx ring - bounce buf
- * @rx_ring: rx descriptor ring to transact packets on
+ * @rx_ring: Rx descriptor ring to transact packets on
  * @budget: Total limit on number of packets to process
  *
  * This function provides a "bounce buffer" approach to Rx interrupt
@@ -1123,7 +1123,7 @@ build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
 }
 
 /**
- * __ice_maybe_stop_tx - 2nd level check for tx stop conditions
+ * __ice_maybe_stop_tx - 2nd level check for Tx stop conditions
  * @tx_ring: the ring to be checked
  * @size: the size buffer we want to assure is available
  *
@@ -1146,7 +1146,7 @@ static int __ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
 }
 
 /**
- * ice_maybe_stop_tx - 1st level check for tx stop conditions
+ * ice_maybe_stop_tx - 1st level check for Tx stop conditions
  * @tx_ring: the ring to be checked
  * @size:    the size buffer we want to assure is available
  *
@@ -1156,6 +1156,7 @@ static int ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
 {
 	if (likely(ICE_DESC_UNUSED(tx_ring) >= size))
 		return 0;
+
 	return __ice_maybe_stop_tx(tx_ring, size);
 }
 
@@ -1569,7 +1570,7 @@ static unsigned int ice_txd_use_count(unsigned int size)
 }
 
 /**
- * ice_xmit_desc_count - calculate number of tx descriptors needed
+ * ice_xmit_desc_count - calculate number of Tx descriptors needed
  * @skb: send buffer
  *
  * Returns number of data descriptors needed for this skb.

@@ -1786,7 +1786,7 @@ static void ice_determine_q_usage(struct ice_pf *pf)
 
 	pf->num_lan_tx = min_t(int, q_left_tx, num_online_cpus());
 
-	/* only 1 rx queue unless RSS is enabled */
+	/* only 1 Rx queue unless RSS is enabled */
 	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags))
 		pf->num_lan_rx = 1;
 	else

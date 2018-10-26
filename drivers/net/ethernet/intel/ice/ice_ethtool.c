@@ -260,10 +260,10 @@ static int ice_get_sset_count(struct net_device *netdev, int sset)
 		 * a private ethtool flag). This is due to the nature of the
 		 * ethtool stats API.
 		 *
-		 * User space programs such as ethtool must make 3 separate
+		 * Userspace programs such as ethtool must make 3 separate
 		 * ioctl requests, one for size, one for the strings, and
 		 * finally one for the stats. Since these cross into
-		 * user space, changes to the number or size could result in
+		 * userspace, changes to the number or size could result in
 		 * undefined memory access or incorrect string<->value
 		 * correlations for statistics.
 		 *
@@ -1441,7 +1441,7 @@ ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 /**
  * ice_set_pauseparam - Set Flow Control parameter
  * @netdev: network interface device structure
- * @pause: return tx/rx flow control status
+ * @pause: return Tx/Rx flow control status
  */
 static int
 ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
@@ -1543,7 +1543,7 @@ static u32 ice_get_rxfh_key_size(struct net_device __always_unused *netdev)
 }
 
 /**
- * ice_get_rxfh_indir_size - get the rx flow hash indirection table size
+ * ice_get_rxfh_indir_size - get the Rx flow hash indirection table size
  * @netdev: network interface device structure
  *
  * Returns the table size.
@@ -1556,7 +1556,7 @@ static u32 ice_get_rxfh_indir_size(struct net_device *netdev)
 }
 
 /**
- * ice_get_rxfh - get the rx flow hash indirection table
+ * ice_get_rxfh - get the Rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
  * @key: hash key
@@ -1603,7 +1603,7 @@ out:
 }
 
 /**
- * ice_set_rxfh - set the rx flow hash indirection table
+ * ice_set_rxfh - set the Rx flow hash indirection table
  * @netdev: network interface device structure
  * @indir: indirection table
  * @key: hash key

@@ -96,14 +96,14 @@ extern const char ice_drv_ver[];
 #define ice_for_each_vsi(pf, i) \
 	for ((i) = 0; (i) < (pf)->num_alloc_vsi; (i)++)
 
-/* Macros for each tx/rx ring in a VSI */
+/* Macros for each Tx/Rx ring in a VSI */
 #define ice_for_each_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_txq; (i)++)
 
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
 
-/* Macros for each allocated tx/rx ring whether used or not in a VSI */
+/* Macros for each allocated Tx/Rx ring whether used or not in a VSI */
 #define ice_for_each_alloc_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->alloc_txq; (i)++)
 
@@ -183,8 +183,8 @@ struct ice_vsi {
 	struct ice_sw *vsw;		 /* switch this VSI is on */
 	struct ice_pf *back;		 /* back pointer to PF */
 	struct ice_port_info *port_info; /* back pointer to port_info */
-	struct ice_ring **rx_rings;	 /* rx ring array */
-	struct ice_ring **tx_rings;	 /* tx ring array */
+	struct ice_ring **rx_rings;	 /* Rx ring array */
+	struct ice_ring **tx_rings;	 /* Tx ring array */
 	struct ice_q_vector **q_vectors; /* q_vector array */
 
 	irqreturn_t (*irq_handler)(int irq, void *data);
@@ -255,8 +255,8 @@ struct ice_q_vector {
 	struct ice_ring_container tx;
 	struct irq_affinity_notify affinity_notify;
 	u16 v_idx;			/* index in the vsi->q_vector array. */
-	u8 num_ring_tx;			/* total number of tx rings in vector */
-	u8 num_ring_rx;			/* total number of rx rings in vector */
+	u8 num_ring_tx;			/* total number of Tx rings in vector */
+	u8 num_ring_rx;			/* total number of Rx rings in vector */
 	char name[ICE_INT_NAME_STR_LEN];
 	/* in usecs, need to use ice_intrl_to_usecs_reg() before writing this
 	 * value to the device
@@ -308,10 +308,10 @@ struct ice_pf {
 	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
 	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
-	u16 num_lan_tx;		/* num lan tx queues setup */
-	u16 num_lan_rx;		/* num lan rx queues setup */
-	u16 q_left_tx;		/* remaining num tx queues left unclaimed */
-	u16 q_left_rx;		/* remaining num rx queues left unclaimed */
+	u16 num_lan_tx;		/* num lan Tx queues setup */
+	u16 num_lan_rx;		/* num lan Rx queues setup */
+	u16 q_left_tx;		/* remaining num Tx queues left unclaimed */
+	u16 q_left_rx;		/* remaining num Rx queues left unclaimed */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */
 	u16 num_alloc_vsi;
 	u16 corer_count;	/* Core reset count */

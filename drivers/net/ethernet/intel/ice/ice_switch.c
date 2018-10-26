@@ -827,7 +827,7 @@ ice_add_marker_act(struct ice_hw *hw, struct ice_fltr_mgmt_list_entry *m_ent,
 	/* Create two back-to-back switch rules and submit them to the HW using
 	 * one memory buffer:
 	 *    1. Large Action
-	 *    2. Look up tx rx
+	 *    2. Look up Tx Rx
 	 */
 	lg_act_size = (u16)ICE_SW_RULE_LG_ACT_SIZE(num_lg_acts);
 	rules_size = lg_act_size + ICE_SW_RULE_RX_TX_ETH_HDR_SIZE;
@@ -871,7 +871,7 @@ ice_add_marker_act(struct ice_hw *hw, struct ice_fltr_mgmt_list_entry *m_ent,
 
 	lg_act->pdata.lg_act.act[2] = cpu_to_le32(act);
 
-	/* call the fill switch rule to fill the lookup tx rx structure */
+	/* call the fill switch rule to fill the lookup Tx Rx structure */
 	ice_fill_sw_rule(hw, &m_ent->fltr_info, rx_tx,
 			 ice_aqc_opc_update_sw_rules);
 
@@ -1168,8 +1168,8 @@ enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw)
  * Call AQ command to add or update previously created VSI list with new VSI.
  *
  * Helper function to do book keeping associated with adding filter information
- * The algorithm to do the booking keeping is described below :
- * When a VSI needs to subscribe to a given filter( MAC/VLAN/Ethtype etc.)
+ * The algorithm to do the book keeping is described below :
+ * When a VSI needs to subscribe to a given filter (MAC/VLAN/Ethtype etc.)
  *	if only one VSI has been added till now
  *		Allocate a new VSI list and add two VSIs
  *		to this list using switch rule command
