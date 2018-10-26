@@ -3,9 +3,8 @@
 #define _ASM_IA64_HUGETLB_H
 
 #include <asm/page.h>
-#include <asm-generic/hugetlb.h>
 
-
+#define __HAVE_ARCH_HUGETLB_FREE_PGD_RANGE
 void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 			    unsigned long end, unsigned long floor,
 			    unsigned long ceiling);
@@ -69,5 +68,7 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
 static inline void arch_clear_hugepage_flags(struct page *page)
 {
 }
+
+#include <asm-generic/hugetlb.h>
 
 #endif /* _ASM_IA64_HUGETLB_H */

@@ -3,7 +3,6 @@
 #define _ASM_SPARC64_HUGETLB_H
 
 #include <asm/page.h>
-#include <asm-generic/hugetlb.h>
 
 #ifdef CONFIG_HUGETLB_PAGE
 struct pud_huge_patch_entry {
@@ -84,8 +83,11 @@ static inline void arch_clear_hugepage_flags(struct page *page)
 {
 }
 
+#define __HAVE_ARCH_HUGETLB_FREE_PGD_RANGE
 void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 			    unsigned long end, unsigned long floor,
 			    unsigned long ceiling);
+
+#include <asm-generic/hugetlb.h>
 
 #endif /* _ASM_SPARC64_HUGETLB_H */
