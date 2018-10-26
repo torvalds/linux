@@ -1669,6 +1669,8 @@ static enum oom_status mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int 
 	if (order > PAGE_ALLOC_COSTLY_ORDER)
 		return OOM_SKIPPED;
 
+	memcg_memory_event(memcg, MEMCG_OOM);
+
 	/*
 	 * We are in the middle of the charge context here, so we
 	 * don't want to block when potentially sitting on a callstack
@@ -2249,8 +2251,6 @@ retry:
 
 	if (fatal_signal_pending(current))
 		goto force;
-
-	memcg_memory_event(mem_over_limit, MEMCG_OOM);
 
 	/*
 	 * keep retrying as long as the memcg oom killer is able to make
