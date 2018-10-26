@@ -1387,6 +1387,27 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 }
 
 /**
+ * ice_get_guar_num_vsi - determine number of guar VSI for a PF
+ * @hw: pointer to the hw structure
+ *
+ * Determine the number of valid functions by going through the bitmap returned
+ * from parsing capabilities and use this to calculate the number of VSI per PF.
+ */
+static u32 ice_get_guar_num_vsi(struct ice_hw *hw)
+{
+	u8 funcs;
+
+#define ICE_CAPS_VALID_FUNCS_M	0xFF
+	funcs = hweight8(hw->dev_caps.common_cap.valid_functions &
+			 ICE_CAPS_VALID_FUNCS_M);
+
+	if (!funcs)
+		return 0;
+
+	return ICE_MAX_VSI / funcs;
+}
+
+/**
  * ice_parse_caps - parse function/device capabilities
  * @hw: pointer to the hw struct
  * @buf: pointer to a buffer containing function/device capability records
@@ -1428,6 +1449,12 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 		u16 cap = le16_to_cpu(cap_resp->cap);
 
 		switch (cap) {
+		case ICE_AQC_CAPS_VALID_FUNCTIONS:
+			caps->valid_functions = number;
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: Valid Functions = %d\n",
+				  caps->valid_functions);
+			break;
 		case ICE_AQC_CAPS_SRIOV:
 			caps->sr_iov_1_1 = (number == 1);
 			ice_debug(hw, ICE_DBG_INIT,
@@ -1457,10 +1484,10 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 					  "HW caps: Dev.VSI cnt = %d\n",
 					  dev_p->num_vsi_allocd_to_host);
 			} else if (func_p) {
-				func_p->guaranteed_num_vsi = number;
+				func_p->guar_num_vsi = ice_get_guar_num_vsi(hw);
 				ice_debug(hw, ICE_DBG_INIT,
 					  "HW caps: Func.VSI cnt = %d\n",
-					  func_p->guaranteed_num_vsi);
+					  number);
 			}
 			break;
 		case ICE_AQC_CAPS_RSS:

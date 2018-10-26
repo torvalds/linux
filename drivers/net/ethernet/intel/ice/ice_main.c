@@ -2091,8 +2091,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	ice_determine_q_usage(pf);
 
-	pf->num_alloc_vsi = min_t(u16, ICE_MAX_VSI_ALLOC,
-				  hw->func_caps.guaranteed_num_vsi);
+	pf->num_alloc_vsi = hw->func_caps.guar_num_vsi;
 	if (!pf->num_alloc_vsi) {
 		err = -EIO;
 		goto err_init_pf_unroll;

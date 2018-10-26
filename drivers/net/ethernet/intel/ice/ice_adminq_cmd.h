@@ -87,6 +87,7 @@ struct ice_aqc_list_caps {
 /* Device/Function buffer entry, repeated per reported capability */
 struct ice_aqc_list_caps_elem {
 	__le16 cap;
+#define ICE_AQC_CAPS_VALID_FUNCTIONS			0x0005
 #define ICE_AQC_CAPS_SRIOV				0x0012
 #define ICE_AQC_CAPS_VF					0x0013
 #define ICE_AQC_CAPS_VSI				0x0017
