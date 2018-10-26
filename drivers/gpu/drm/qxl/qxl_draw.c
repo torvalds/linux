@@ -342,7 +342,6 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	if (ret)
 		goto out_release_backoff;
 
-
 	ret = qxl_image_init(qdev, release, dimage, surface_base,
 			     left, top, width, height, depth, stride);
 	qxl_bo_kunmap(bo);

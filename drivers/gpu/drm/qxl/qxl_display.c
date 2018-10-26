@@ -960,7 +960,6 @@ static struct drm_encoder *qxl_best_encoder(struct drm_connector *connector)
 	return &qxl_output->enc;
 }
 
-
 static const struct drm_encoder_helper_funcs qxl_enc_helper_funcs = {
 };
 

@@ -34,7 +34,6 @@
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
-
 #if defined(CONFIG_DEBUG_FS)
 static int
 qxl_debugfs_irq_received(struct seq_file *m, void *data)

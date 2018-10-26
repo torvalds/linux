@@ -331,7 +331,6 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (ret)
 		return ret;
 
-
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		qxl_move_null(bo, new_mem);
 		return 0;
@@ -417,7 +416,6 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 	qxl_ttm_global_fini(qdev);
 	DRM_INFO("qxl: ttm finalized\n");
 }
-
 
 #define QXL_DEBUGFS_MEM_TYPES 2
 
