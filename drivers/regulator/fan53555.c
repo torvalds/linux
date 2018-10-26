@@ -31,10 +31,10 @@
 #define FAN53555_VSEL0		0x00
 #define FAN53555_VSEL1		0x01
 
-#define TCS4525_VSEL0		0x11
-#define TCS4525_VSEL1		0x10
-#define TCS4525_TIME		0x13
-#define TCS4525_COMMAND		0x14
+#define TCS452X_VSEL0		0x11
+#define TCS452X_VSEL1		0x10
+#define TCS452X_TIME		0x13
+#define TCS452X_COMMAND		0x14
 
 /* Control register */
 #define FAN53555_CONTROL	0x02
@@ -398,18 +398,18 @@ static int fan53555_voltages_setup_silergy(struct fan53555_device_info *di)
 static int fan53555_voltages_setup_tcs(struct fan53555_device_info *di)
 {
 	if (di->sleep_vsel_id) {
-		di->sleep_reg = TCS4525_VSEL1;
-		di->vol_reg = TCS4525_VSEL0;
+		di->sleep_reg = TCS452X_VSEL1;
+		di->vol_reg = TCS452X_VSEL0;
 		di->mode_mask = TCS_VSEL0_MODE;
 	} else {
-		di->sleep_reg = TCS4525_VSEL0;
-		di->vol_reg = TCS4525_VSEL1;
+		di->sleep_reg = TCS452X_VSEL0;
+		di->vol_reg = TCS452X_VSEL1;
 		di->mode_mask = TCS_VSEL1_MODE;
 	}
 
-	di->mode_reg = TCS4525_COMMAND;
+	di->mode_reg = TCS452X_COMMAND;
 	di->vol_mask = TCS_VSEL_NSEL_MASK;
-	di->slew_reg = TCS4525_TIME;
+	di->slew_reg = TCS452X_TIME;
 	di->slew_mask = TCS_SLEW_MASK;
 	di->slew_shift = TCS_SLEW_MASK;
 
@@ -539,7 +539,7 @@ static const struct of_device_id fan53555_dt_ids[] = {
 		.compatible = "silergy,syr828",
 		.data = (void *)FAN53555_VENDOR_SILERGY,
 	}, {
-		.compatible = "tcs,tcs4525",
+		.compatible = "tcs,tcs452x", /* tcs4525/4526 */
 		.data = (void *)FAN53555_VENDOR_TCS
 	},
 	{ }
@@ -646,7 +646,7 @@ static const struct i2c_device_id fan53555_id[] = {
 		.name = "syr828",
 		.driver_data = FAN53555_VENDOR_SILERGY
 	}, {
-		.name = "tcs4525",
+		.name = "tcs452x",
 		.driver_data = FAN53555_VENDOR_TCS
 	},
 	{ },
