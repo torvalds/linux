@@ -112,7 +112,9 @@ extern const char ice_drv_ver[];
 
 struct ice_tc_info {
 	u16 qoffset;
-	u16 qcount;
+	u16 qcount_tx;
+	u16 qcount_rx;
+	u8 netdev_tc;
 };
 
 struct ice_tc_cfg {

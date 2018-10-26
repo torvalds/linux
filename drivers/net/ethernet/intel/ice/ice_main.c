@@ -349,6 +349,9 @@ ice_prepare_for_reset(struct ice_pf *pf)
 	/* disable the VSIs and their queues that are not already DOWN */
 	ice_pf_dis_all_vsi(pf);
 
+	if (hw->port_info)
+		ice_sched_clear_port(hw->port_info);
+
 	ice_shutdown_all_ctrlq(hw);
 
 	set_bit(__ICE_PREPARED_FOR_RESET, pf->state);
@@ -2543,7 +2546,6 @@ static int ice_vsi_cfg(struct ice_vsi *vsi)
 		if (err)
 			return err;
 	}
-
 	err = ice_vsi_cfg_txqs(vsi);
 	if (!err)
 		err = ice_vsi_cfg_rxqs(vsi);

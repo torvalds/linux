@@ -630,7 +630,7 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
  *
  * Cleanup scheduling elements from SW DB
  */
-static void ice_sched_clear_port(struct ice_port_info *pi)
+void ice_sched_clear_port(struct ice_port_info *pi)
 {
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return;
