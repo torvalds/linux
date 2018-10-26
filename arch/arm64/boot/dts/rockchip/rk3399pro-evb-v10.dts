@@ -340,6 +340,10 @@
 	status = "okay";
 };
 
+&fiq_debugger {
+	pinctrl-0 = <&uart2a_xfer>;
+};
+
 &gmac {
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rgmii";
