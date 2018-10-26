@@ -49,6 +49,25 @@ static inline void ctr_set_stop(u64 *state, int ctr_set)
 	*state &= ~(cpumf_ctr_ctl[ctr_set] << CPUMF_LCCTL_ACTCTL_SHIFT);
 }
 
+static inline int ctr_stcctm(enum cpumf_ctr_set set, u64 range, u64 *dest)
+{
+	switch (set) {
+	case CPUMF_CTR_SET_BASIC:
+		return stcctm(BASIC, range, dest);
+	case CPUMF_CTR_SET_USER:
+		return stcctm(PROBLEM_STATE, range, dest);
+	case CPUMF_CTR_SET_CRYPTO:
+		return stcctm(CRYPTO_ACTIVITY, range, dest);
+	case CPUMF_CTR_SET_EXT:
+		return stcctm(EXTENDED, range, dest);
+	case CPUMF_CTR_SET_MT_DIAG:
+		return stcctm(MT_DIAG_CLEARING, range, dest);
+	case CPUMF_CTR_SET_MAX:
+		return 3;
+	}
+	return 3;
+}
+
 struct cpu_cf_events {
 	struct cpumf_ctr_info	info;
 	atomic_t		ctr_set[CPUMF_CTR_SET_MAX];
