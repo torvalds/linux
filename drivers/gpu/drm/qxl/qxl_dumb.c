@@ -52,7 +52,7 @@ int qxl_mode_dumb_create(struct drm_file *file_priv,
 	default:
 		return -EINVAL;
 	}
-	  
+
 	surf.width = args->width;
 	surf.height = args->height;
 	surf.stride = pitch;
