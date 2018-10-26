@@ -348,7 +348,7 @@ static int ice_vsi_set_pvid(struct ice_vsi *vsi, u16 vid)
 	struct ice_vsi_ctx ctxt = { 0 };
 	enum ice_status status;
 
-	ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_TAGGED |
+	ctxt.info.vlan_flags = ICE_AQ_VSI_VLAN_MODE_UNTAGGED |
 			       ICE_AQ_VSI_PVLAN_INSERT_PVID |
 			       ICE_AQ_VSI_VLAN_EMOD_STR;
 	ctxt.info.pvid = cpu_to_le16(vid);
