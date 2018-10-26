@@ -304,7 +304,7 @@ static void bsg_exit_rq(struct request_queue *q, struct request *req)
  * @dd_job_size: size of LLD data needed for each job
  */
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
-		bsg_job_fn *job_fn, int dd_job_size)
+		bsg_job_fn *job_fn, rq_timed_out_fn *timeout, int dd_job_size)
 {
 	struct request_queue *q;
 	int ret;
@@ -327,6 +327,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	blk_queue_softirq_done(q, bsg_softirq_done);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
+	blk_queue_rq_timed_out(q, timeout);
 
 	ret = bsg_register_queue(q, dev, name, &bsg_transport_ops);
 	if (ret) {
