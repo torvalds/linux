@@ -431,7 +431,8 @@ static void vgem_release(struct drm_device *dev)
 }
 
 static struct drm_driver vgem_driver = {
-	.driver_features		= DRIVER_GEM | DRIVER_PRIME,
+	.driver_features		= DRIVER_GEM | DRIVER_PRIME |
+					  DRIVER_RENDER;
 	.release			= vgem_release,
 	.open				= vgem_open,
 	.postclose			= vgem_postclose,
