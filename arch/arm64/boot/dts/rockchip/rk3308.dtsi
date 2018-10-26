@@ -1879,6 +1879,11 @@
 				rockchip,pins =
 					<2 RK_PA3 1 &pcfg_pull_none>;
 			};
+
+			uart0_rts_gpio: uart0-rts-gpio {
+				rockchip,pins =
+					<2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
 		};
 
 		uart1 {
