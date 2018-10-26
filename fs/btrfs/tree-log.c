@@ -4383,7 +4383,6 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	struct extent_map *em, *n;
 	struct list_head extents;
 	struct extent_map_tree *tree = &inode->extent_tree;
-	u64 logged_start, logged_end;
 	u64 test_gen;
 	int ret = 0;
 	int num = 0;
@@ -4392,8 +4391,6 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 
 	write_lock(&tree->lock);
 	test_gen = root->fs_info->last_trans_committed;
-	logged_start = start;
-	logged_end = end;
 
 	list_for_each_entry_safe(em, n, &tree->modified_extents, list) {
 		/*
@@ -4433,11 +4430,6 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags) &&
 		    em->start >= i_size_read(&inode->vfs_inode))
 			continue;
-
-		if (em->start < logged_start)
-			logged_start = em->start;
-		if ((em->start + em->len - 1) > logged_end)
-			logged_end = em->start + em->len - 1;
 
 		/* Need a ref to keep it from getting evicted from cache */
 		refcount_inc(&em->refs);
