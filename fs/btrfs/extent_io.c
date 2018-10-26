@@ -1599,6 +1599,7 @@ again:
 	/* step two, lock all the pages after the page that has start */
 	ret = lock_delalloc_pages(inode, locked_page,
 				  delalloc_start, delalloc_end);
+	ASSERT(!ret || ret == -EAGAIN);
 	if (ret == -EAGAIN) {
 		/* some of the pages are gone, lets avoid looping by
 		 * shortening the size of the delalloc range we're searching
@@ -1614,7 +1615,6 @@ again:
 			goto out_failed;
 		}
 	}
-	BUG_ON(ret); /* Only valid values are 0 and -EAGAIN */
 
 	/* step three, lock the state bits for the whole range */
 	lock_extent_bits(tree, delalloc_start, delalloc_end, &cached_state);
