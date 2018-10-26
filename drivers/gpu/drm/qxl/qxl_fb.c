@@ -134,9 +134,9 @@ out_unref:
  */
 static int qxlfb_framebuffer_dirty(struct drm_framebuffer *fb,
 				   struct drm_file *file_priv,
-				   unsigned flags, unsigned color,
+				   unsigned int flags, unsigned int color,
 				   struct drm_clip_rect *clips,
-				   unsigned num_clips)
+				   unsigned int num_clips)
 {
 	struct qxl_device *qdev = fb->dev->dev_private;
 	struct fb_info *info = qdev->fb_helper.fbdev;

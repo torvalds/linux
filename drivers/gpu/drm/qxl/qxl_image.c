@@ -163,7 +163,7 @@ qxl_image_init_helper(struct qxl_device *qdev,
 				page++;
 			}
 		} else {
-			unsigned page_base, page_offset, out_offset;
+			unsigned int page_base, page_offset, out_offset;
 
 			for (i = 0 ; i < height ; ++i) {
 				i_data = (void *)data + i * stride;

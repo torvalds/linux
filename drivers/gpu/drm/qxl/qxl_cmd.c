@@ -376,7 +376,7 @@ void qxl_io_destroy_primary(struct qxl_device *qdev)
 }
 
 void qxl_io_create_primary(struct qxl_device *qdev,
-			   unsigned offset, struct qxl_bo *bo)
+			   unsigned int offset, struct qxl_bo *bo)
 {
 	struct qxl_surface_create *create;
 

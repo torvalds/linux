@@ -82,7 +82,7 @@ struct qxl_bo {
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
-	unsigned			pin_count;
+	unsigned int pin_count;
 	void				*kptr;
 	int                             type;
 
@@ -189,12 +189,12 @@ struct qxl_draw_fill {
  */
 struct qxl_debugfs {
 	struct drm_info_list	*files;
-	unsigned		num_files;
+	unsigned int num_files;
 };
 
 int qxl_debugfs_add_files(struct qxl_device *rdev,
 			     struct drm_info_list *files,
-			     unsigned nfiles);
+			     unsigned int nfiles);
 int qxl_debugfs_fence_init(struct qxl_device *rdev);
 
 struct qxl_device;
@@ -252,7 +252,7 @@ struct qxl_device {
 	atomic_t irq_received_display;
 	atomic_t irq_received_cursor;
 	atomic_t irq_received_io_cmd;
-	unsigned irq_received_error;
+	unsigned int irq_received_error;
 	wait_queue_head_t display_event;
 	wait_queue_head_t cursor_event;
 	wait_queue_head_t io_cmd_event;
@@ -260,7 +260,7 @@ struct qxl_device {
 
 	/* debugfs */
 	struct qxl_debugfs	debugfs[QXL_DEBUGFS_MAX_COMPONENTS];
-	unsigned		debugfs_count;
+	unsigned int debugfs_count;
 
 	struct mutex		update_area_mutex;
 
@@ -395,7 +395,7 @@ void qxl_update_screen(struct qxl_device *qxl);
 /* qxl io operations (qxl_cmd.c) */
 
 void qxl_io_create_primary(struct qxl_device *qdev,
-			   unsigned offset,
+			   unsigned int offset,
 			   struct qxl_bo *bo);
 void qxl_io_destroy_primary(struct qxl_device *qdev);
 void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id);
@@ -446,9 +446,9 @@ void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
 void qxl_draw_dirty_fb(struct qxl_device *qdev,
 		       struct drm_framebuffer *fb,
 		       struct qxl_bo *bo,
-		       unsigned flags, unsigned color,
+		       unsigned int flags, unsigned int color,
 		       struct drm_clip_rect *clips,
-		       unsigned num_clips, int inc);
+		       unsigned int num_clips, int inc);
 
 void qxl_draw_fill(struct qxl_draw_fill *qxl_draw_fill_rec);
 
@@ -493,7 +493,7 @@ bool qxl_fbdev_qobj_is_fb(struct qxl_device *qdev, struct qxl_bo *qobj);
 
 int qxl_debugfs_add_files(struct qxl_device *qdev,
 			  struct drm_info_list *files,
-			  unsigned nfiles);
+			  unsigned int nfiles);
 
 int qxl_surface_id_alloc(struct qxl_device *qdev,
 			 struct qxl_bo *surf);
