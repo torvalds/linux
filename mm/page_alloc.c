@@ -5450,6 +5450,30 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
 #endif
 }
 
+/* If zone is ZONE_MOVABLE but memory is mirrored, it is an overlapped init */
+static bool __meminit
+overlap_memmap_init(unsigned long zone, unsigned long *pfn)
+{
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+	static struct memblock_region *r;
+
+	if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
+		if (!r || *pfn >= memblock_region_memory_end_pfn(r)) {
+			for_each_memblock(memory, r) {
+				if (*pfn < memblock_region_memory_end_pfn(r))
+					break;
+			}
+		}
+		if (*pfn >= memblock_region_memory_base_pfn(r) &&
+		    memblock_is_mirror(r)) {
+			*pfn = memblock_region_memory_end_pfn(r);
+			return true;
+		}
+	}
+#endif
+	return false;
+}
+
 /*
  * Initially all pages are reserved - free ones are freed
  * up by free_all_bootmem() once the early boot process is
@@ -5459,12 +5483,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		unsigned long start_pfn, enum memmap_context context,
 		struct vmem_altmap *altmap)
 {
-	unsigned long end_pfn = start_pfn + size;
-	unsigned long pfn;
+	unsigned long pfn, end_pfn = start_pfn + size;
 	struct page *page;
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-	struct memblock_region *r = NULL, *tmp;
-#endif
 
 	if (highest_memmap_pfn < end_pfn - 1)
 		highest_memmap_pfn = end_pfn - 1;
@@ -5492,39 +5512,17 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		 * There can be holes in boot-time mem_map[]s handed to this
 		 * function.  They do not exist on hotplugged memory.
 		 */
-		if (context != MEMMAP_EARLY)
-			goto not_early;
-
-		if (!early_pfn_valid(pfn))
-			continue;
-		if (!early_pfn_in_nid(pfn, nid))
-			continue;
-
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-		/*
-		 * Check given memblock attribute by firmware which can affect
-		 * kernel memory layout.  If zone==ZONE_MOVABLE but memory is
-		 * mirrored, it's an overlapped memmap init. skip it.
-		 */
-		if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
-			if (!r || pfn >= memblock_region_memory_end_pfn(r)) {
-				for_each_memblock(memory, tmp)
-					if (pfn < memblock_region_memory_end_pfn(tmp))
-						break;
-				r = tmp;
-			}
-			if (pfn >= memblock_region_memory_base_pfn(r) &&
-			    memblock_is_mirror(r)) {
-				/* already initialized as NORMAL */
-				pfn = memblock_region_memory_end_pfn(r);
+		if (context == MEMMAP_EARLY) {
+			if (!early_pfn_valid(pfn))
 				continue;
-			}
+			if (!early_pfn_in_nid(pfn, nid))
+				continue;
+			if (overlap_memmap_init(zone, &pfn))
+				continue;
+			if (defer_init(nid, pfn, end_pfn))
+				break;
 		}
-#endif
-		if (defer_init(nid, pfn, end_pfn))
-			break;
 
-not_early:
 		page = pfn_to_page(pfn);
 		__init_single_page(page, pfn, zone, nid);
 		if (context == MEMMAP_HOTPLUG)
@@ -5541,9 +5539,6 @@ not_early:
 		 * can be created for invalid pages (for alignment)
 		 * check here not to call set_pageblock_migratetype() against
 		 * pfn out of zone.
-		 *
-		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
-		 * because this is done early in sparse_add_one_section
 		 */
 		if (!(pfn & (pageblock_nr_pages - 1))) {
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
