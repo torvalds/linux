@@ -613,6 +613,8 @@ struct smb2_tree_disconnect_rsp {
 #define SVHDX_OPEN_DEVICE_CONTEX	0x9CCBCF9E04C1E643980E158DA1F6EC83
 #define SMB2_CREATE_TAG_POSIX		0x93AD25509CB411E7B42383DE968BCD7C
 
+/* Flag (SMB3 open response) values */
+#define SMB2_CREATE_FLAG_REPARSEPOINT 0x01
 
 /*
  * Maximum number of iovs we need for an open/create request.
@@ -650,7 +652,7 @@ struct smb2_create_rsp {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 89 */
 	__u8   OplockLevel;
-	__u8   Reserved;
+	__u8   Flag;  /* 0x01 if reparse point */
 	__le32 CreateAction;
 	__le64 CreationTime;
 	__le64 LastAccessTime;
@@ -1173,6 +1175,15 @@ struct smb2_query_info_rsp {
 	__le32 OutputBufferLength;
 	__u8   Buffer[1];
 } __packed;
+
+/*
+ * Maximum number of iovs we need for a set-info request.
+ * The largest one is rename/hardlink
+ * [0] : struct smb2_set_info_req + smb2_file_[rename|link]_info
+ * [1] : path
+ * [2] : compound padding
+ */
+#define SMB2_SET_INFO_IOV_SIZE 3
 
 struct smb2_set_info_req {
 	struct smb2_sync_hdr sync_hdr;

@@ -123,6 +123,8 @@ tconInfoAlloc(void)
 		ret_buf->crfid.fid = kzalloc(sizeof(struct cifs_fid),
 					     GFP_KERNEL);
 		spin_lock_init(&ret_buf->stat_lock);
+		atomic_set(&ret_buf->num_local_opens, 0);
+		atomic_set(&ret_buf->num_remote_opens, 0);
 	}
 	return ret_buf;
 }
