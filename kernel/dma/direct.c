@@ -14,8 +14,6 @@
 #include <linux/pfn.h>
 #include <linux/set_memory.h>
 
-#define DIRECT_MAPPING_ERROR		0
-
 /*
  * Most architectures use ZONE_DMA for the first 16 Megabytes, but
  * some use it for entirely different regions:
