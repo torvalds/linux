@@ -157,7 +157,7 @@ void ufs_bsg_remove(struct ufs_hba *hba)
 	if (!hba->bsg_queue)
 		return;
 
-	bsg_unregister_queue(hba->bsg_queue);
+	bsg_remove_queue(hba->bsg_queue);
 
 	device_del(bsg_dev);
 	put_device(bsg_dev);

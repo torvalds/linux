@@ -296,6 +296,15 @@ static void bsg_exit_rq(struct request_queue *q, struct request *req)
 	kfree(job->reply);
 }
 
+void bsg_remove_queue(struct request_queue *q)
+{
+	if (q) {
+		bsg_unregister_queue(q);
+		blk_cleanup_queue(q);
+	}
+}
+EXPORT_SYMBOL_GPL(bsg_remove_queue);
+
 /**
  * bsg_setup_queue - Create and add the bsg hooks so we can receive requests
  * @dev: device to attach bsg device to
