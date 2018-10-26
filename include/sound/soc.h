@@ -1192,7 +1192,7 @@ struct snd_soc_pcm_runtime {
 	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]); \
 	     (i)++)
 #define for_each_rtd_codec_dai_rollback(rtd, i, dai)		\
-	for (; ((i--) >= 0) && ((dai) = rtd->codec_dais[i]);)
+	for (; ((--i) >= 0) && ((dai) = rtd->codec_dais[i]);)
 
 
 /* mixer control */
