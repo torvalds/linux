@@ -906,6 +906,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		ks->base.speed = SPEED_100;
 		break;
 	default:
+		ks->base.speed = SPEED_UNKNOWN;
 		break;
 	}
 	ks->base.duplex = DUPLEX_FULL;
