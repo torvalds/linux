@@ -607,8 +607,6 @@
 			};
 
 			vcc5v0_usb: SWITCH_REG1 {
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-min-microvolt = <5000000>;
 				regulator-max-microvolt = <5000000>;
 
@@ -707,7 +705,7 @@
 		ti,otg-current = <500000>;
 		ti,input-current = <500000>;
 		pd-charge-only = <0>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
@@ -869,6 +867,10 @@
 	status = "okay";
 };
 
+&tcphy1 {
+	status = "okay";
+};
+
 &tsadc {
 	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
@@ -889,6 +891,19 @@
 	};
 };
 
+&u2phy1 {
+	status = "okay";
+
+	u2phy1_otg: otg-port {
+		status = "okay";
+	};
+
+	u2phy1_host: host-port {
+		phy-supply = <&vcc5v0_usb>;
+		status = "okay";
+	};
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_xfer &uart0_cts>;
@@ -899,7 +914,14 @@
 	status = "okay";
 };
 
+&usb_host1_ehci {
+	status = "okay";
+};
 &usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
 	status = "okay";
 };
 
@@ -908,7 +930,15 @@
 	status = "okay";
 };
 
+&usbdrd3_1 {
+	status = "okay";
+};
+
 &usbdrd_dwc3_0 {
+	status = "okay";
+};
+
+&usbdrd_dwc3_1 {
 	status = "okay";
 };
 
