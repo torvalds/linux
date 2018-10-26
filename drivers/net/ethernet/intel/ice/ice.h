@@ -191,7 +191,6 @@ struct ice_vsi {
 	u64 tx_linearize;
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	DECLARE_BITMAP(flags, ICE_VSI_FLAG_NBITS);
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	unsigned int current_netdev_flags;
 	u32 tx_restart;
 	u32 tx_busy;

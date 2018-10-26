@@ -1622,7 +1622,6 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
-	int ret;
 
 	if (vid >= VLAN_N_VID) {
 		netdev_err(netdev, "VLAN id requested %d is out of range %d\n",
@@ -1635,7 +1634,8 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 
 	/* Enable VLAN pruning when VLAN 0 is added */
 	if (unlikely(!vid)) {
-		ret = ice_cfg_vlan_pruning(vsi, true);
+		int ret = ice_cfg_vlan_pruning(vsi, true);
+
 		if (ret)
 			return ret;
 	}
@@ -1644,12 +1644,7 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
 	 * needed to continue allowing all untagged packets since VLAN prune
 	 * list is applied to all packets by the switch
 	 */
-	ret = ice_vsi_add_vlan(vsi, vid);
-
-	if (!ret)
-		set_bit(vid, vsi->active_vlans);
-
-	return ret;
+	return ice_vsi_add_vlan(vsi, vid);
 }
 
 /**
@@ -1676,8 +1671,6 @@ static int ice_vlan_rx_kill_vid(struct net_device *netdev,
 	status = ice_vsi_kill_vlan(vsi, vid);
 	if (status)
 		return status;
-
-	clear_bit(vid, vsi->active_vlans);
 
 	/* Disable VLAN pruning when VLAN 0 is removed */
 	if (unlikely(!vid))
@@ -2516,31 +2509,6 @@ static int ice_vsi_vlan_setup(struct ice_vsi *vsi)
 }
 
 /**
- * ice_restore_vlan - Reinstate VLANs when vsi/netdev comes back up
- * @vsi: the VSI being brought back up
- */
-static int ice_restore_vlan(struct ice_vsi *vsi)
-{
-	int err;
-	u16 vid;
-
-	if (!vsi->netdev)
-		return -EINVAL;
-
-	err = ice_vsi_vlan_setup(vsi);
-	if (err)
-		return err;
-
-	for_each_set_bit(vid, vsi->active_vlans, VLAN_N_VID) {
-		err = ice_vlan_rx_add_vid(vsi->netdev, htons(ETH_P_8021Q), vid);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-
-/**
  * ice_vsi_cfg - Setup the VSI
  * @vsi: the VSI being configured
  *
@@ -2552,7 +2520,9 @@ static int ice_vsi_cfg(struct ice_vsi *vsi)
 
 	if (vsi->netdev) {
 		ice_set_rx_mode(vsi->netdev);
-		err = ice_restore_vlan(vsi);
+
+		err = ice_vsi_vlan_setup(vsi);
+
 		if (err)
 			return err;
 	}

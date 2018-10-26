@@ -2171,7 +2171,6 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 
 			if (!ice_vsi_add_vlan(vsi, vid)) {
 				vf->num_vlan++;
-				set_bit(vid, vsi->active_vlans);
 
 				/* Enable VLAN pruning when VLAN 0 is added */
 				if (unlikely(!vid))
@@ -2190,7 +2189,6 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 			 */
 			if (!ice_vsi_kill_vlan(vsi, vid)) {
 				vf->num_vlan--;
-				clear_bit(vid, vsi->active_vlans);
 
 				/* Disable VLAN pruning when removing VLAN 0 */
 				if (unlikely(!vid))
