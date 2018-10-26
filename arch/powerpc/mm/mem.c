@@ -309,11 +309,11 @@ void __init paging_init(void)
 	unsigned long end = __fix_to_virt(FIX_HOLE);
 
 	for (; v < end; v += PAGE_SIZE)
-		map_kernel_page(v, 0, 0); /* XXX gross */
+		map_kernel_page(v, 0, __pgprot(0)); /* XXX gross */
 #endif
 
 #ifdef CONFIG_HIGHMEM
-	map_kernel_page(PKMAP_BASE, 0, 0);	/* XXX gross */
+	map_kernel_page(PKMAP_BASE, 0, __pgprot(0));	/* XXX gross */
 	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
 
 	kmap_pte = virt_to_kpte(__fix_to_virt(FIX_KMAP_BEGIN));
@@ -509,7 +509,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	 * We don't need to worry about _PAGE_PRESENT here because we are
 	 * called with either mm->page_table_lock held or ptl lock held
 	 */
-	unsigned long access, trap;
+	unsigned long trap;
+	bool is_exec;
 
 	if (radix_enabled()) {
 		prefetch((void *)address);
@@ -531,16 +532,16 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	trap = current->thread.regs ? TRAP(current->thread.regs) : 0UL;
 	switch (trap) {
 	case 0x300:
-		access = 0UL;
+		is_exec = false;
 		break;
 	case 0x400:
-		access = _PAGE_EXEC;
+		is_exec = true;
 		break;
 	default:
 		return;
 	}
 
-	hash_preload(vma->vm_mm, address, access, trap);
+	hash_preload(vma->vm_mm, address, is_exec, trap);
 #endif /* CONFIG_PPC_STD_MMU */
 #if (defined(CONFIG_PPC_BOOK3E_64) || defined(CONFIG_PPC_FSL_BOOK3E)) \
 	&& defined(CONFIG_HUGETLB_PAGE)

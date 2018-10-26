@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
-
 obj-$(CONFIG_FSL_ULI1575)	+= fsl_uli1575.o
 
 obj-$(CONFIG_PPC_PMAC)		+= powermac/

@@ -2,7 +2,6 @@
 config PPC_47x
 	bool "Support for 47x variant"
 	depends on 44x
-	default n
 	select MPIC
 	help
 	  This option enables support for the 47x family of processors and is
@@ -11,7 +10,6 @@ config PPC_47x
 config BAMBOO
 	bool "Bamboo"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 440EP
 	select PCI
@@ -21,7 +19,6 @@ config BAMBOO
 config BLUESTONE
 	bool "Bluestone"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select APM821xx
 	select PCI_MSI
@@ -44,7 +41,6 @@ config EBONY
 config SAM440EP
         bool "Sam440ep"
 	depends on 44x
-        default n
         select 440EP
         select PCI
         help
@@ -53,7 +49,6 @@ config SAM440EP
 config SEQUOIA
 	bool "Sequoia"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 440EPX
 	help
@@ -62,7 +57,6 @@ config SEQUOIA
 config TAISHAN
 	bool "Taishan"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 440GX
 	select PCI
@@ -73,7 +67,6 @@ config TAISHAN
 config KATMAI
 	bool "Katmai"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 440SPe
 	select PCI
@@ -86,7 +79,6 @@ config KATMAI
 config RAINIER
 	bool "Rainier"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 440GRX
 	select PCI
@@ -96,7 +88,6 @@ config RAINIER
 config WARP
 	bool "PIKA Warp"
 	depends on 44x
-	default n
 	select 440EP
 	help
 	  This option enables support for the PIKA Warp(tm) Appliance. The Warp
@@ -109,7 +100,6 @@ config WARP
 config ARCHES
 	bool "Arches"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 460EX # Odd since it uses 460GT but the effects are the same
 	select PCI
@@ -120,7 +110,6 @@ config ARCHES
 config CANYONLANDS
 	bool "Canyonlands"
 	depends on 44x
-	default n
 	select 460EX
 	select PCI
 	select PPC4xx_PCI_EXPRESS
@@ -134,7 +123,6 @@ config CANYONLANDS
 config GLACIER
 	bool "Glacier"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 460EX # Odd since it uses 460GT but the effects are the same
 	select PCI
@@ -147,7 +135,6 @@ config GLACIER
 config REDWOOD
 	bool "Redwood"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 460SX
 	select PCI
@@ -160,7 +147,6 @@ config REDWOOD
 config EIGER
 	bool "Eiger"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 460SX
 	select PCI
@@ -172,7 +158,6 @@ config EIGER
 config YOSEMITE
 	bool "Yosemite"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 440EP
 	select PCI
@@ -182,7 +167,6 @@ config YOSEMITE
 config ISS4xx
 	bool "ISS 4xx Simulator"
 	depends on (44x || 40x)
-	default n
 	select 405GP if 40x
 	select 440GP if 44x && !PPC_47x
 	select PPC_FPU
@@ -193,7 +177,6 @@ config ISS4xx
 config CURRITUCK
 	bool "IBM Currituck (476fpe) Support"
 	depends on PPC_47x
-	default n
 	select SWIOTLB
 	select 476FPE
 	select PPC4xx_PCI_EXPRESS
@@ -203,7 +186,6 @@ config CURRITUCK
 config FSP2
 	bool "IBM FSP2 (476fpe) Support"
 	depends on PPC_47x
-	default n
 	select 476FPE
 	select IBM_EMAC_EMAC4 if IBM_EMAC
 	select IBM_EMAC_RGMII if IBM_EMAC
@@ -215,7 +197,6 @@ config FSP2
 config AKEBONO
 	bool "IBM Akebono (476gtr) Support"
 	depends on PPC_47x
-	default n
 	select SWIOTLB
 	select 476FPE
 	select PPC4xx_PCI_EXPRESS
@@ -241,7 +222,6 @@ config AKEBONO
 config ICON
 	bool "Icon"
 	depends on 44x
-	default n
 	select PPC44x_SIMPLE
 	select 440SPe
 	select PCI
@@ -252,7 +232,6 @@ config ICON
 config XILINX_VIRTEX440_GENERIC_BOARD
 	bool "Generic Xilinx Virtex 5 FXT board support"
 	depends on 44x
-	default n
 	select XILINX_VIRTEX_5_FXT
 	select XILINX_INTC
 	help
@@ -280,7 +259,6 @@ config XILINX_ML510
 config PPC44x_SIMPLE
 	bool "Simple PowerPC 44x board support"
 	depends on 44x
-	default n
 	help
 	  This option enables the simple PowerPC 44x platform support.
 

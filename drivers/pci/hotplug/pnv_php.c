@@ -746,7 +746,7 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 		pe = edev ? edev->pe : NULL;
 		if (pe) {
 			eeh_serialize_lock(&flags);
-			eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
+			eeh_pe_mark_isolated(pe);
 			eeh_serialize_unlock(flags);
 			eeh_pe_set_option(pe, EEH_OPT_FREEZE_PE);
 		}
