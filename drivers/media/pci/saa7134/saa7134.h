@@ -123,7 +123,6 @@ struct saa7134_format {
 struct saa7134_card_ir {
 	struct rc_dev		*dev;
 
-	char                    name[32];
 	char                    phys[32];
 	unsigned                users;
 

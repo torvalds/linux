@@ -880,8 +880,6 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->raw_decode	 = raw_decode;
 
 	/* init input device */
-	snprintf(ir->name, sizeof(ir->name), "saa7134 IR (%s)",
-		 saa7134_boards[dev->board].name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
@@ -893,7 +891,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	}
 
-	rc->device_name = ir->name;
+	rc->device_name = saa7134_boards[dev->board].name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_PCI;
 	rc->input_id.version = 1;
