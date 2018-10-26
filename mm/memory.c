@@ -1693,13 +1693,19 @@ static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 	return insert_pfn(vma, addr, pfn, pgprot, mkwrite);
 }
 
-int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-			pfn_t pfn)
+vm_fault_t vmf_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+		pfn_t pfn)
 {
-	return __vm_insert_mixed(vma, addr, pfn, false);
+	int err = __vm_insert_mixed(vma, addr, pfn, false);
 
+	if (err == -ENOMEM)
+		return VM_FAULT_OOM;
+	if (err < 0 && err != -EBUSY)
+		return VM_FAULT_SIGBUS;
+
+	return VM_FAULT_NOPAGE;
 }
-EXPORT_SYMBOL(vm_insert_mixed);
+EXPORT_SYMBOL(vmf_insert_mixed);
 
 /*
  *  If the insertion of PTE failed because someone else already added a
