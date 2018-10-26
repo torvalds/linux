@@ -583,7 +583,7 @@ struct ib_cm_sidr_req_param {
 	struct sa_path_rec	*path;
 	const struct ib_gid_attr *sgid_attr;
 	__be64			service_id;
-	int			timeout_ms;
+	unsigned long		timeout_ms;
 	const void		*private_data;
 	u8			private_data_len;
 	u8			max_cm_retries;

@@ -874,6 +874,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		cq->private_flags |= MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD;
 	}
 
+	MLX5_SET(create_cq_in, *cqb, uid, to_mucontext(context)->devx_uid);
 	return 0;
 
 err_cqb:
@@ -1454,7 +1455,7 @@ ex:
 	return err;
 }
 
-int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq)
+int mlx5_ib_get_cqe_size(struct ib_cq *ibcq)
 {
 	struct mlx5_ib_cq *cq;
 

@@ -36,6 +36,8 @@
  * Description: QPLib resource manager
  */
 
+#define dev_fmt(fmt) "QPLIB: " fmt
+
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -68,8 +70,7 @@ static void __free_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 						  pbl->pg_map_arr[i]);
 			else
 				dev_warn(&pdev->dev,
-					 "QPLIB: PBL free pg_arr[%d] empty?!",
-					 i);
+					 "PBL free pg_arr[%d] empty?!\n", i);
 			pbl->pg_arr[i] = NULL;
 		}
 	}
@@ -537,7 +538,7 @@ static void bnxt_qplib_free_pkey_tbl(struct bnxt_qplib_res *res,
 				     struct bnxt_qplib_pkey_tbl *pkey_tbl)
 {
 	if (!pkey_tbl->tbl)
-		dev_dbg(&res->pdev->dev, "QPLIB: PKEY tbl not present");
+		dev_dbg(&res->pdev->dev, "PKEY tbl not present\n");
 	else
 		kfree(pkey_tbl->tbl);
 
@@ -578,7 +579,7 @@ int bnxt_qplib_dealloc_pd(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_pd *pd)
 {
 	if (test_and_set_bit(pd->id, pdt->tbl)) {
-		dev_warn(&res->pdev->dev, "Freeing an unused PD? pdn = %d",
+		dev_warn(&res->pdev->dev, "Freeing an unused PD? pdn = %d\n",
 			 pd->id);
 		return -EINVAL;
 	}
@@ -639,11 +640,11 @@ int bnxt_qplib_dealloc_dpi(struct bnxt_qplib_res *res,
 			   struct bnxt_qplib_dpi     *dpi)
 {
 	if (dpi->dpi >= dpit->max) {
-		dev_warn(&res->pdev->dev, "Invalid DPI? dpi = %d", dpi->dpi);
+		dev_warn(&res->pdev->dev, "Invalid DPI? dpi = %d\n", dpi->dpi);
 		return -EINVAL;
 	}
 	if (test_and_set_bit(dpi->dpi, dpit->tbl)) {
-		dev_warn(&res->pdev->dev, "Freeing an unused DPI? dpi = %d",
+		dev_warn(&res->pdev->dev, "Freeing an unused DPI? dpi = %d\n",
 			 dpi->dpi);
 		return -EINVAL;
 	}
@@ -673,22 +674,21 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res     *res,
 	u32 dbr_len, bytes;
 
 	if (dpit->dbr_bar_reg_iomem) {
-		dev_err(&res->pdev->dev,
-			"QPLIB: DBR BAR region %d already mapped", dbr_bar_reg);
+		dev_err(&res->pdev->dev, "DBR BAR region %d already mapped\n",
+			dbr_bar_reg);
 		return -EALREADY;
 	}
 
 	bar_reg_base = pci_resource_start(res->pdev, dbr_bar_reg);
 	if (!bar_reg_base) {
-		dev_err(&res->pdev->dev,
-			"QPLIB: BAR region %d resc start failed", dbr_bar_reg);
+		dev_err(&res->pdev->dev, "BAR region %d resc start failed\n",
+			dbr_bar_reg);
 		return -ENOMEM;
 	}
 
 	dbr_len = pci_resource_len(res->pdev, dbr_bar_reg) - dbr_offset;
 	if (!dbr_len || ((dbr_len & (PAGE_SIZE - 1)) != 0)) {
-		dev_err(&res->pdev->dev, "QPLIB: Invalid DBR length %d",
-			dbr_len);
+		dev_err(&res->pdev->dev, "Invalid DBR length %d\n", dbr_len);
 		return -ENOMEM;
 	}
 
@@ -696,8 +696,7 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res     *res,
 						  dbr_len);
 	if (!dpit->dbr_bar_reg_iomem) {
 		dev_err(&res->pdev->dev,
-			"QPLIB: FP: DBR BAR region %d mapping failed",
-			dbr_bar_reg);
+			"FP: DBR BAR region %d mapping failed\n", dbr_bar_reg);
 		return -ENOMEM;
 	}
 
@@ -767,7 +766,7 @@ static int bnxt_qplib_alloc_stats_ctx(struct pci_dev *pdev,
 	stats->dma = dma_alloc_coherent(&pdev->dev, stats->size,
 					&stats->dma_map, GFP_KERNEL);
 	if (!stats->dma) {
-		dev_err(&pdev->dev, "QPLIB: Stats DMA allocation failed");
+		dev_err(&pdev->dev, "Stats DMA allocation failed\n");
 		return -ENOMEM;
 	}
 	return 0;

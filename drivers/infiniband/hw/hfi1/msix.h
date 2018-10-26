@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
- * Copyright(c) 2016 - 2018 Intel Corporation.
+ * Copyright(c) 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -44,81 +45,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#ifndef _HFI1_MSIX_H
+#define _HFI1_MSIX_H
 
-#ifndef HFI1_VERBS_TXREQ_H
-#define HFI1_VERBS_TXREQ_H
+#include "hfi.h"
 
-#include <linux/types.h>
-#include <linux/slab.h>
+/* MSIx interface */
+int msix_initialize(struct hfi1_devdata *dd);
+int msix_request_irqs(struct hfi1_devdata *dd);
+void msix_clean_up_interrupts(struct hfi1_devdata *dd);
+int msix_request_rcd_irq(struct hfi1_ctxtdata *rcd);
+int msix_request_sdma_irq(struct sdma_engine *sde);
+void msix_free_irq(struct hfi1_devdata *dd, u8 msix_intr);
 
-#include "verbs.h"
-#include "sdma_txreq.h"
-#include "iowait.h"
+/* VNIC interface */
+void msix_vnic_synchronize_irq(struct hfi1_devdata *dd);
 
-struct verbs_txreq {
-	struct hfi1_sdma_header	phdr;
-	struct sdma_txreq       txreq;
-	struct rvt_qp           *qp;
-	struct rvt_swqe         *wqe;
-	struct rvt_mregion	*mr;
-	struct rvt_sge_state    *ss;
-	struct sdma_engine     *sde;
-	struct send_context     *psc;
-	u16                     hdr_dwords;
-	u16			s_cur_size;
-};
-
-struct hfi1_ibdev;
-struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
-				struct rvt_qp *qp);
-
-static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
-					    struct rvt_qp *qp)
-	__must_hold(&qp->slock)
-{
-	struct verbs_txreq *tx;
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	tx = kmem_cache_alloc(dev->verbs_txreq_cache, GFP_ATOMIC);
-	if (unlikely(!tx)) {
-		/* call slow path to get the lock */
-		tx = __get_txreq(dev, qp);
-		if (!tx)
-			return tx;
-	}
-	tx->qp = qp;
-	tx->mr = NULL;
-	tx->sde = priv->s_sde;
-	tx->psc = priv->s_sendcontext;
-	/* so that we can test if the sdma decriptors are there */
-	tx->txreq.num_desc = 0;
-	/* Set the header type */
-	tx->phdr.hdr.hdr_type = priv->hdr_type;
-	return tx;
-}
-
-static inline struct sdma_txreq *get_sdma_txreq(struct verbs_txreq *tx)
-{
-	return &tx->txreq;
-}
-
-static inline struct verbs_txreq *get_waiting_verbs_txreq(struct iowait_work *w)
-{
-	struct sdma_txreq *stx;
-
-	stx = iowait_get_txhead(w);
-	if (stx)
-		return container_of(stx, struct verbs_txreq, txreq);
-	return NULL;
-}
-
-static inline bool verbs_txreq_queued(struct iowait_work *w)
-{
-	return iowait_packet_queued(w);
-}
-
-void hfi1_put_txreq(struct verbs_txreq *tx);
-int verbs_txreq_init(struct hfi1_ibdev *dev);
-void verbs_txreq_exit(struct hfi1_ibdev *dev);
-
-#endif                         /* HFI1_VERBS_TXREQ_H */
+#endif

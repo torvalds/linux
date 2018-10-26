@@ -91,6 +91,24 @@ Description:
 		stacked (e.g: VLAN interfaces) but still have the same MAC
 		address as their parent device.
 
+What:		/sys/class/net/<iface>/dev_port
+Date:		February 2014
+KernelVersion:	3.15
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the port number of this network device, formatted
+		as a decimal value. Some NICs have multiple independent ports
+		on the same PCI bus, device and function. This attribute allows
+		userspace to distinguish the respective interfaces.
+
+		Note: some device drivers started to use 'dev_id' for this
+		purpose since long before 3.15 and have not adopted the new
+		attribute ever since. To query the port number, some tools look
+		exclusively at 'dev_port', while others only consult 'dev_id'.
+		If a network device has multiple client adapter ports as
+		described in the previous paragraph and does not set this
+		attribute to its port number, it's a kernel bug.
+
 What:		/sys/class/net/<iface>/dormant
 Date:		March 2006
 KernelVersion:	2.6.17

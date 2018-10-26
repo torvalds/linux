@@ -2135,10 +2135,10 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 }
 
 /**
- * i40iw_show_rev
+ * hw_rev_show
  */
-static ssize_t i40iw_show_rev(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t hw_rev_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct i40iw_ib_device *iwibdev = container_of(dev,
 						       struct i40iw_ib_device,
@@ -2147,34 +2147,37 @@ static ssize_t i40iw_show_rev(struct device *dev,
 
 	return sprintf(buf, "%x\n", hw_rev);
 }
+static DEVICE_ATTR_RO(hw_rev);
 
 /**
- * i40iw_show_hca
+ * hca_type_show
  */
-static ssize_t i40iw_show_hca(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t hca_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "I40IW\n");
 }
+static DEVICE_ATTR_RO(hca_type);
 
 /**
- * i40iw_show_board
+ * board_id_show
  */
-static ssize_t i40iw_show_board(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static ssize_t board_id_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%.*s\n", 32, "I40IW Board ID");
 }
+static DEVICE_ATTR_RO(board_id);
 
-static DEVICE_ATTR(hw_rev, S_IRUGO, i40iw_show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, i40iw_show_hca, NULL);
-static DEVICE_ATTR(board_id, S_IRUGO, i40iw_show_board, NULL);
+static struct attribute *i40iw_dev_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	&dev_attr_board_id.attr,
+	NULL
+};
 
-static struct device_attribute *i40iw_dev_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type,
-	&dev_attr_board_id
+static const struct attribute_group i40iw_attr_group = {
+	.attrs = i40iw_dev_attributes,
 };
 
 /**
@@ -2752,7 +2755,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 		i40iw_pr_err("iwdev == NULL\n");
 		return NULL;
 	}
-	strlcpy(iwibdev->ibdev.name, "i40iw%d", IB_DEVICE_NAME_MAX);
 	iwibdev->ibdev.owner = THIS_MODULE;
 	iwdev->iwibdev = iwibdev;
 	iwibdev->iwdev = iwdev;
@@ -2851,20 +2853,6 @@ void i40iw_port_ibevent(struct i40iw_device *iwdev)
 }
 
 /**
- * i40iw_unregister_rdma_device - unregister of iwarp from IB
- * @iwibdev: rdma device ptr
- */
-static void i40iw_unregister_rdma_device(struct i40iw_ib_device *iwibdev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(i40iw_dev_attributes); ++i)
-		device_remove_file(&iwibdev->ibdev.dev,
-				   i40iw_dev_attributes[i]);
-	ib_unregister_device(&iwibdev->ibdev);
-}
-
-/**
  * i40iw_destroy_rdma_device - destroy rdma device and free resources
  * @iwibdev: IB device ptr
  */
@@ -2873,7 +2861,7 @@ void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
 	if (!iwibdev)
 		return;
 
-	i40iw_unregister_rdma_device(iwibdev);
+	ib_unregister_device(&iwibdev->ibdev);
 	kfree(iwibdev->ibdev.iwcm);
 	iwibdev->ibdev.iwcm = NULL;
 	wait_event_timeout(iwibdev->iwdev->close_wq,
@@ -2888,32 +2876,19 @@ void i40iw_destroy_rdma_device(struct i40iw_ib_device *iwibdev)
  */
 int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 {
-	int i, ret;
+	int ret;
 	struct i40iw_ib_device *iwibdev;
 
 	iwdev->iwibdev = i40iw_init_rdma_device(iwdev);
 	if (!iwdev->iwibdev)
 		return -ENOMEM;
 	iwibdev = iwdev->iwibdev;
-
+	rdma_set_device_sysfs_group(&iwibdev->ibdev, &i40iw_attr_group);
 	iwibdev->ibdev.driver_id = RDMA_DRIVER_I40IW;
-	ret = ib_register_device(&iwibdev->ibdev, NULL);
+	ret = ib_register_device(&iwibdev->ibdev, "i40iw%d", NULL);
 	if (ret)
 		goto error;
 
-	for (i = 0; i < ARRAY_SIZE(i40iw_dev_attributes); ++i) {
-		ret =
-		    device_create_file(&iwibdev->ibdev.dev,
-				       i40iw_dev_attributes[i]);
-		if (ret) {
-			while (i > 0) {
-				i--;
-				device_remove_file(&iwibdev->ibdev.dev, i40iw_dev_attributes[i]);
-			}
-			ib_unregister_device(&iwibdev->ibdev);
-			goto error;
-		}
-	}
 	return 0;
 error:
 	kfree(iwdev->iwibdev->ibdev.iwcm);
