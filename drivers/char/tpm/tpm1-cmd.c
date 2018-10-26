@@ -334,11 +334,9 @@ static int tpm1_startup(struct tpm_chip *chip)
 
 	tpm_buf_append_u16(&buf, TPM_ST_CLEAR);
 
-	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 0, 0,
+	rc = tpm_transmit_cmd(chip, NULL, &buf, 0, 0,
 			      "attempting to start the TPM");
-
 	tpm_buf_destroy(&buf);
-
 	return rc;
 }
 
@@ -461,9 +459,7 @@ int tpm1_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, const u8 *hash,
 	tpm_buf_append_u32(&buf, pcr_idx);
 	tpm_buf_append(&buf, hash, TPM_DIGEST_SIZE);
 
-	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
-			      TPM_DIGEST_SIZE, 0, log_msg);
-
+	rc = tpm_transmit_cmd(chip, NULL, &buf, TPM_DIGEST_SIZE, 0, log_msg);
 	tpm_buf_destroy(&buf);
 	return rc;
 }
@@ -493,11 +489,9 @@ ssize_t tpm1_getcap(struct tpm_chip *chip, u32 subcap_id, cap_t *cap,
 		tpm_buf_append_u32(&buf, 4);
 		tpm_buf_append_u32(&buf, subcap_id);
 	}
-	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
-			      min_cap_length, 0, desc);
+	rc = tpm_transmit_cmd(chip, NULL, &buf, min_cap_length, 0, desc);
 	if (!rc)
 		*cap = *(cap_t *)&buf.data[TPM_HEADER_SIZE + 4];
-
 	tpm_buf_destroy(&buf);
 	return rc;
 }
@@ -536,7 +530,7 @@ int tpm1_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 	do {
 		tpm_buf_append_u32(&buf, num_bytes);
 
-		rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
+		rc = tpm_transmit_cmd(chip, NULL, &buf,
 				      sizeof(out->rng_data_len), 0,
 				      "attempting get random");
 		if (rc)
@@ -582,8 +576,7 @@ int tpm1_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf)
 
 	tpm_buf_append_u32(&buf, pcr_idx);
 
-	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
-			      TPM_DIGEST_SIZE, 0,
+	rc = tpm_transmit_cmd(chip, NULL, &buf, TPM_DIGEST_SIZE, 0,
 			      "attempting to read a pcr value");
 	if (rc)
 		goto out;
@@ -617,11 +610,8 @@ static int tpm1_continue_selftest(struct tpm_chip *chip)
 	if (rc)
 		return rc;
 
-	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
-			      0, 0, "continue selftest");
-
+	rc = tpm_transmit_cmd(chip, NULL, &buf, 0, 0, "continue selftest");
 	tpm_buf_destroy(&buf);
-
 	return rc;
 }
 
@@ -746,9 +736,7 @@ int tpm1_pm_suspend(struct tpm_chip *chip, u32 tpm_suspend_pcr)
 		return rc;
 	/* now do the actual savestate */
 	for (try = 0; try < TPM_RETRY; try++) {
-		rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE,
-				      0, 0, NULL);
-
+		rc = tpm_transmit_cmd(chip, NULL, &buf, 0, 0, NULL);
 		/*
 		 * If the TPM indicates that it is too busy to respond to
 		 * this command then retry before giving up.  It can take

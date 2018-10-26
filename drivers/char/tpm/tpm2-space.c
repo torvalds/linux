@@ -83,7 +83,7 @@ static int tpm2_load_context(struct tpm_chip *chip, u8 *buf,
 	body_size = sizeof(*ctx) + be16_to_cpu(ctx->blob_size);
 	tpm_buf_append(&tbuf, &buf[*offset], body_size);
 
-	rc = tpm_transmit_cmd(chip, NULL, tbuf.data, PAGE_SIZE, 4,
+	rc = tpm_transmit_cmd(chip, NULL, &tbuf, 4,
 			      TPM_TRANSMIT_NESTED, NULL);
 	if (rc < 0) {
 		dev_warn(&chip->dev, "%s: failed with a system error %d\n",
@@ -132,7 +132,7 @@ static int tpm2_save_context(struct tpm_chip *chip, u32 handle, u8 *buf,
 
 	tpm_buf_append_u32(&tbuf, handle);
 
-	rc = tpm_transmit_cmd(chip, NULL, tbuf.data, PAGE_SIZE, 0,
+	rc = tpm_transmit_cmd(chip, NULL, &tbuf, 0,
 			      TPM_TRANSMIT_NESTED, NULL);
 	if (rc < 0) {
 		dev_warn(&chip->dev, "%s: failed with a system error %d\n",

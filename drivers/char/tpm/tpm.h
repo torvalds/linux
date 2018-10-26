@@ -503,9 +503,8 @@ enum tpm_transmit_flags {
 ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		     u8 *buf, size_t bufsiz, unsigned int flags);
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
-			 void *buf, size_t bufsiz,
-			 size_t min_rsp_body_length, unsigned int flags,
-			 const char *desc);
+			 struct tpm_buf *buf, size_t min_rsp_body_length,
+			 unsigned int flags, const char *desc);
 int tpm_get_timeouts(struct tpm_chip *);
 int tpm_auto_startup(struct tpm_chip *chip);
 

@@ -307,23 +307,22 @@ out_locality:
 
 /**
  * tpm_transmit - Internal kernel interface to transmit TPM commands.
+ * @chip:	a TPM chip to use
+ * @space:	a TPM space
+ * @buf:	a TPM command buffer
+ * @bufsiz:	length of the TPM command buffer
+ * @flags:	TPM transmit flags
  *
- * @chip: TPM chip to use
- * @space: tpm space
- * @buf: TPM command buffer
- * @bufsiz: length of the TPM command buffer
- * @flags: tpm transmit flags - bitmap
+ * A wrapper around tpm_try_transmit() that handles TPM2_RC_RETRY returns from
+ * the TPM and retransmits the command after a delay up to a maximum wait of
+ * TPM2_DURATION_LONG.
  *
- * A wrapper around tpm_try_transmit that handles TPM2_RC_RETRY
- * returns from the TPM and retransmits the command after a delay up
- * to a maximum wait of TPM2_DURATION_LONG.
- *
- * Note: TPM1 never returns TPM2_RC_RETRY so the retry logic is TPM2
- * only
+ * Note that TPM 1.x never returns TPM2_RC_RETRY so the retry logic is TPM 2.0
+ * only.
  *
  * Return:
- *     the length of the return when the operation is successful.
- *     A negative number for system errors (errno).
+ * * The response length	- OK
+ * * -errno			- A system error
  */
 ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		     u8 *buf, size_t bufsiz, unsigned int flags)
@@ -374,33 +373,31 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	}
 	return ret;
 }
+
 /**
  * tpm_transmit_cmd - send a tpm command to the device
- *    The function extracts tpm out header return code
- *
- * @chip: TPM chip to use
- * @space: tpm space
- * @buf: TPM command buffer
- * @bufsiz: length of the buffer
- * @min_rsp_body_length: minimum expected length of response body
- * @flags: tpm transmit flags - bitmap
- * @desc: command description used in the error message
+ * @chip:			a TPM chip to use
+ * @space:			a TPM space
+ * @buf:			a TPM command buffer
+ * @min_rsp_body_length:	minimum expected length of response body
+ * @flags:			TPM transmit flags
+ * @desc:			command description used in the error message
  *
  * Return:
- *     0 when the operation is successful.
- *     A negative number for system errors (errno).
- *     A positive number for a TPM error.
+ * * 0		- OK
+ * * -errno	- A system error
+ * * TPM_RC	- A TPM error
  */
 ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
-			 void *buf, size_t bufsiz,
-			 size_t min_rsp_body_length, unsigned int flags,
-			 const char *desc)
+			 struct tpm_buf *buf, size_t min_rsp_body_length,
+			 unsigned int flags, const char *desc)
 {
-	const struct tpm_output_header *header = buf;
+	const struct tpm_output_header *header =
+		(struct tpm_output_header *)buf->data;
 	int err;
 	ssize_t len;
 
-	len = tpm_transmit(chip, space, buf, bufsiz, flags);
+	len = tpm_transmit(chip, space, buf->data, PAGE_SIZE, flags);
 	if (len <  0)
 		return len;
 
@@ -537,14 +534,22 @@ EXPORT_SYMBOL_GPL(tpm_pcr_extend);
  */
 int tpm_send(struct tpm_chip *chip, void *cmd, size_t buflen)
 {
+	struct tpm_buf buf;
 	int rc;
 
 	chip = tpm_find_get_ops(chip);
 	if (!chip)
 		return -ENODEV;
 
-	rc = tpm_transmit_cmd(chip, NULL, cmd, buflen, 0, 0,
+	rc = tpm_buf_init(&buf, 0, 0);
+	if (rc)
+		goto out;
+
+	memcpy(buf.data, cmd, buflen);
+	rc = tpm_transmit_cmd(chip, NULL, &buf, 0, 0,
 			      "attempting to a send a command");
+	tpm_buf_destroy(&buf);
+out:
 	tpm_put_ops(chip);
 	return rc;
 }
