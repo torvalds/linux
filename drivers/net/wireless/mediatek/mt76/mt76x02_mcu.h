@@ -103,8 +103,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			 int len, bool wait_resp);
 int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
 				u32 val);
-int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
-				bool wait_resp);
+int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on);
 void mt76x02_set_ethtool_fwver(struct mt76x02_dev *dev,
 			       const struct mt76x02_fw_header *h);
 

@@ -262,5 +262,5 @@ int mt76x2u_mcu_init(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
-	return mt76x02_mcu_set_radio_state(dev, true, false);
+	return mt76x02_mcu_set_radio_state(dev, true);
 }

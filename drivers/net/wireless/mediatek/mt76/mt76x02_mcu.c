@@ -151,8 +151,7 @@ int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_function_select);
 
-int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
-				bool wait_resp)
+int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on)
 {
 	struct {
 		__le32 mode;
@@ -162,8 +161,7 @@ int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
 		.level = cpu_to_le32(0),
 	};
 
-	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg),
-				 wait_resp);
+	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg), false);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 
