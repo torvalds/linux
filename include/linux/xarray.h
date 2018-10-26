@@ -427,6 +427,58 @@ static inline int __xa_insert(struct xarray *xa, unsigned long index,
 }
 
 /**
+ * xa_store_bh() - Store this entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_store() except it disables softirqs
+ * while holding the array lock.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.
+ * Return: The entry which used to be at this index.
+ */
+static inline void *xa_store_bh(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_bh(xa);
+	curr = __xa_store(xa, index, entry, gfp);
+	xa_unlock_bh(xa);
+
+	return curr;
+}
+
+/**
+ * xa_store_irq() - Erase this entry from the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @entry: New entry.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_store() except it disables interrupts
+ * while holding the array lock.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.
+ * Return: The entry which used to be at this index.
+ */
+static inline void *xa_store_irq(struct xarray *xa, unsigned long index,
+		void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_irq(xa);
+	curr = __xa_store(xa, index, entry, gfp);
+	xa_unlock_irq(xa);
+
+	return curr;
+}
+
+/**
  * xa_erase_bh() - Erase this entry from the XArray.
  * @xa: XArray.
  * @index: Index of entry.
