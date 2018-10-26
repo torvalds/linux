@@ -3296,7 +3296,7 @@ static void ice_rebuild(struct ice_pf *pf)
 	struct device *dev = &pf->pdev->dev;
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status ret;
-	int err;
+	int err, i;
 
 	if (test_bit(__ICE_DOWN, pf->state))
 		goto clear_recovery;
@@ -3370,6 +3370,22 @@ static void ice_rebuild(struct ice_pf *pf)
 	}
 
 	ice_reset_all_vfs(pf, true);
+
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		bool link_up;
+
+		if (!pf->vsi[i] || pf->vsi[i]->type != ICE_VSI_PF)
+			continue;
+		ice_get_link_status(pf->vsi[i]->port_info, &link_up);
+		if (link_up) {
+			netif_carrier_on(pf->vsi[i]->netdev);
+			netif_tx_wake_all_queues(pf->vsi[i]->netdev);
+		} else {
+			netif_carrier_off(pf->vsi[i]->netdev);
+			netif_tx_stop_all_queues(pf->vsi[i]->netdev);
+		}
+	}
+
 	/* if we get here, reset flow is successful */
 	clear_bit(__ICE_RESET_FAILED, pf->state);
 	return;
