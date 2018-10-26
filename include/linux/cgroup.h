@@ -569,20 +569,11 @@ static inline bool cgroup_is_descendant(struct cgroup *cgrp,
 static inline struct cgroup *cgroup_ancestor(struct cgroup *cgrp,
 					     int ancestor_level)
 {
-	struct cgroup *ptr;
-
 	if (cgrp->level < ancestor_level)
 		return NULL;
-
-	for (ptr = cgrp;
-	     ptr && ptr->level > ancestor_level;
-	     ptr = cgroup_parent(ptr))
-		;
-
-	if (ptr && ptr->level == ancestor_level)
-		return ptr;
-
-	return NULL;
+	while (cgrp && cgrp->level > ancestor_level)
+		cgrp = cgroup_parent(cgrp);
+	return cgrp;
 }
 
 /**
