@@ -92,6 +92,7 @@ void qxl_reinit_memslots(struct qxl_device *qdev)
 static void qxl_gc_work(struct work_struct *work)
 {
 	struct qxl_device *qdev = container_of(work, struct qxl_device, gc_work);
+
 	qxl_garbage_collect(qdev);
 }
 

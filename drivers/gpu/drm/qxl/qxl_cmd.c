@@ -84,6 +84,7 @@ static int qxl_check_header(struct qxl_ring *ring)
 	int ret;
 	struct qxl_ring_header *header = &(ring->ring->header);
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	ret = header->prod - header->cons < header->num_items;
 	if (ret == 0)
@@ -97,6 +98,7 @@ int qxl_check_idle(struct qxl_ring *ring)
 	int ret;
 	struct qxl_ring_header *header = &(ring->ring->header);
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	ret = header->prod == header->cons;
 	spin_unlock_irqrestore(&ring->lock, flags);
@@ -110,6 +112,7 @@ int qxl_ring_push(struct qxl_ring *ring,
 	uint8_t *elt;
 	int idx, ret;
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	if (header->prod - header->cons == header->num_items) {
 		header->notify_on_cons = header->cons + 1;
@@ -156,6 +159,7 @@ static bool qxl_ring_pop(struct qxl_ring *ring,
 	volatile uint8_t *ring_elt;
 	int idx;
 	unsigned long flags;
+
 	spin_lock_irqsave(&ring->lock, flags);
 	if (header->cons == header->prod) {
 		header->notify_on_prod = header->cons + 1;

@@ -168,6 +168,7 @@ void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
 	int ret;
 	struct qxl_drm_image *dimage;
 	struct qxl_bo *palette_bo = NULL;
+
 	if (stride == 0)
 		stride = depth * width / 8;
 
@@ -214,6 +215,7 @@ void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
 
 	if (depth == 1) {
 		void *ptr;
+
 		ret = qxl_palette_create_1bit(palette_bo, release, qxl_fb_image);
 
 		ptr = qxl_bo_kmap_atomic_page(qdev, dimage->bo, 0);

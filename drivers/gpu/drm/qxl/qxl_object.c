@@ -335,6 +335,7 @@ void qxl_bo_fini(struct qxl_device *qdev)
 int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 {
 	int ret;
+
 	if (bo->type == QXL_GEM_DOMAIN_SURFACE && bo->surface_id == 0) {
 		/* allocate a surface id for this surface now */
 		ret = qxl_surface_id_alloc(qdev, bo);

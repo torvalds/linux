@@ -259,6 +259,7 @@ static int qxl_add_common_modes(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode = NULL;
 	int i;
+
 	for (i = 0; i < ARRAY_SIZE(common_modes); i++) {
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h,
 				    60, false, false, false);
@@ -315,6 +316,7 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 	oldcount = qdev->monitors_config->count;
 	if (crtc->state->active) {
 		struct drm_display_mode *mode = &crtc->mode;
+
 		head.width = mode->hdisplay;
 		head.height = mode->vdisplay;
 		head.x = crtc->x;
