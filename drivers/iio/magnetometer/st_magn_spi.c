@@ -23,6 +23,8 @@
  * For new single-chip sensors use <device_name> as compatible string.
  * For old single-chip devices keep <device_name>-magn to maintain
  * compatibility
+ * For multi-chip devices, use <device_name>-magn to distinguish which
+ * capability is being used
  */
 static const struct of_device_id st_magn_of_match[] = {
 	{
