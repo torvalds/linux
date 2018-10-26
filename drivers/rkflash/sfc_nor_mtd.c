@@ -7,6 +7,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include "sfc_nor.h"
 #include "rkflash_blk.h"

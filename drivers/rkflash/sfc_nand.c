@@ -5,6 +5,7 @@
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 
 #include "flash_com.h"
 #include "rkflash_debug.h"
