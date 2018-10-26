@@ -3027,7 +3027,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		/* If there are pages to writeback, return */
 		if (filemap_range_has_page(inode->i_mapping, pos,
-					   pos + iov_iter_count(from)))
+					   pos + write_len))
 			return -EAGAIN;
 	} else {
 		written = filemap_write_and_wait_range(mapping, pos,
