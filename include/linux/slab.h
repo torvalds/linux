@@ -295,8 +295,13 @@ static inline void __check_heap_object(const void *ptr, unsigned long n,
 #define SLAB_OBJ_MIN_SIZE      (KMALLOC_MIN_SIZE < 16 ? \
                                (KMALLOC_MIN_SIZE) : 16)
 
+/*
+ * Whenever changing this, take care of that kmalloc_type() and
+ * create_kmalloc_caches() still work as intended.
+ */
 enum kmalloc_cache_type {
 	KMALLOC_NORMAL = 0,
+	KMALLOC_RECLAIM,
 #ifdef CONFIG_ZONE_DMA
 	KMALLOC_DMA,
 #endif
@@ -310,12 +315,21 @@ kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1];
 static __always_inline enum kmalloc_cache_type kmalloc_type(gfp_t flags)
 {
 	int is_dma = 0;
+	int type_dma = 0;
+	int is_reclaimable;
 
 #ifdef CONFIG_ZONE_DMA
 	is_dma = !!(flags & __GFP_DMA);
+	type_dma = is_dma * KMALLOC_DMA;
 #endif
 
-	return is_dma;
+	is_reclaimable = !!(flags & __GFP_RECLAIMABLE);
+
+	/*
+	 * If an allocation is both __GFP_DMA and __GFP_RECLAIMABLE, return
+	 * KMALLOC_DMA and effectively ignore __GFP_RECLAIMABLE
+	 */
+	return type_dma + (is_reclaimable & !is_dma) * KMALLOC_RECLAIM;
 }
 
 /*
