@@ -1633,10 +1633,6 @@ int ice_vsi_cfg_txqs(struct ice_vsi *vsi)
 	if (!qg_buf)
 		return -ENOMEM;
 
-	if (vsi->num_txq > ICE_MAX_TXQ_PER_TXQG) {
-		err = -EINVAL;
-		goto err_cfg_txqs;
-	}
 	qg_buf->num_txqs = 1;
 	num_q_grps = 1;
 
