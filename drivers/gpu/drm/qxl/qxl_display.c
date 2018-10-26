@@ -940,8 +940,8 @@ static enum drm_mode_status qxl_conn_mode_valid(struct drm_connector *connector,
 	/* TODO: is this called for user defined modes? (xrandr --add-mode)
 	 * TODO: check that the mode fits in the framebuffer */
 
-	if(qdev->monitors_config_width == mode->hdisplay &&
-	   qdev->monitors_config_height == mode->vdisplay)
+	if (qdev->monitors_config_width == mode->hdisplay &&
+	    qdev->monitors_config_height == mode->vdisplay)
 		return MODE_OK;
 
 	for (i = 0; i < ARRAY_SIZE(common_modes); i++) {
