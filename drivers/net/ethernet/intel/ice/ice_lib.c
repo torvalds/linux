@@ -1997,7 +1997,7 @@ int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
 	status = ice_update_vsi(&vsi->back->hw, vsi->idx, ctxt, NULL);
 	if (status) {
 		netdev_err(vsi->netdev, "%sabling VLAN pruning on VSI handle: %d, VSI HW ID: %d failed, err = %d, aq_err = %d\n",
-			   ena ? "Ena" : "Dis", vsi->idx, vsi->vsi_num, status,
+			   ena ? "En" : "Dis", vsi->idx, vsi->vsi_num, status,
 			   vsi->back->hw.adminq.sq_last_status);
 		goto err_out;
 	}
