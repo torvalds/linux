@@ -1024,7 +1024,6 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 	resource_size_t key, align_start, align_size, align_end;
 	struct device *device = devmem->device;
 	int ret, nid, is_ram;
-	unsigned long pfn;
 
 	align_start = devmem->resource->start & ~(PA_SECTION_SIZE - 1);
 	align_size = ALIGN(devmem->resource->start +
@@ -1109,11 +1108,14 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 				align_size >> PAGE_SHIFT, NULL);
 	mem_hotplug_done();
 
-	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {
-		struct page *page = pfn_to_page(pfn);
+	/*
+	 * Initialization of the pages has been deferred until now in order
+	 * to allow us to do the work while not holding the hotplug lock.
+	 */
+	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+				align_start >> PAGE_SHIFT,
+				align_size >> PAGE_SHIFT, &devmem->pagemap);
 
-		page->pgmap = &devmem->pagemap;
-	}
 	return 0;
 
 error_add_memory:

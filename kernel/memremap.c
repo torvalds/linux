@@ -175,10 +175,10 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	struct vmem_altmap *altmap = pgmap->altmap_valid ?
 			&pgmap->altmap : NULL;
 	struct resource *res = &pgmap->res;
-	unsigned long pfn, pgoff, order;
-	pgprot_t pgprot = PAGE_KERNEL;
-	int error, nid, is_ram;
 	struct dev_pagemap *conflict_pgmap;
+	pgprot_t pgprot = PAGE_KERNEL;
+	unsigned long pgoff, order;
+	int error, nid, is_ram;
 
 	align_start = res->start & ~(SECTION_SIZE - 1);
 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
@@ -256,19 +256,14 @@ void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	if (error)
 		goto err_add_memory;
 
-	for_each_device_pfn(pfn, pgmap) {
-		struct page *page = pfn_to_page(pfn);
-
-		/*
-		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
-		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
-		 * freed or placed on a driver-private list.  Seed the
-		 * storage with LIST_POISON* values.
-		 */
-		list_del(&page->lru);
-		page->pgmap = pgmap;
-		percpu_ref_get(pgmap->ref);
-	}
+	/*
+	 * Initialization of the pages has been deferred until now in order
+	 * to allow us to do the work while not holding the hotplug lock.
+	 */
+	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+				align_start >> PAGE_SHIFT,
+				align_size >> PAGE_SHIFT, pgmap);
+	percpu_ref_get_many(pgmap->ref, pfn_end(pgmap) - pfn_first(pgmap));
 
 	devm_add_action(dev, devm_memremap_pages_release, pgmap);
 
