@@ -2771,15 +2771,6 @@ static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 				munlock_vma_pages_all(tmp);
 			}
 
-			/*
-			 * Unmapping vmas, which have VM_HUGETLB or VM_PFNMAP,
-			 * need get done with write mmap_sem held since they may
-			 * update vm_flags.
-			 */
-			if (downgrade &&
-			    (tmp->vm_flags & VM_PFNMAP))
-				downgrade = false;
-
 			tmp = tmp->vm_next;
 		}
 	}
