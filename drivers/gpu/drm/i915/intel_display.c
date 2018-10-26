@@ -2205,6 +2205,11 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 	return new_offset;
 }
 
+static bool is_surface_linear(u64 modifier, int color_plane)
+{
+	return modifier == DRM_FORMAT_MOD_LINEAR;
+}
+
 static u32 intel_adjust_aligned_offset(int *x, int *y,
 				       const struct drm_framebuffer *fb,
 				       int color_plane,
@@ -2217,7 +2222,7 @@ static u32 intel_adjust_aligned_offset(int *x, int *y,
 
 	WARN_ON(new_offset > old_offset);
 
-	if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
+	if (!is_surface_linear(fb->modifier, color_plane)) {
 		unsigned int tile_size, tile_width, tile_height;
 		unsigned int pitch_tiles;
 
@@ -2281,14 +2286,13 @@ static u32 intel_compute_aligned_offset(struct drm_i915_private *dev_priv,
 					unsigned int rotation,
 					u32 alignment)
 {
-	uint64_t fb_modifier = fb->modifier;
 	unsigned int cpp = fb->format->cpp[color_plane];
 	u32 offset, offset_aligned;
 
 	if (alignment)
 		alignment--;
 
-	if (fb_modifier != DRM_FORMAT_MOD_LINEAR) {
+	if (!is_surface_linear(fb->modifier, color_plane)) {
 		unsigned int tile_size, tile_width, tile_height;
 		unsigned int tile_rows, tiles, pitch_tiles;
 
@@ -2525,7 +2529,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 						      tile_size);
 		offset /= tile_size;
 
-		if (fb->modifier != DRM_FORMAT_MOD_LINEAR) {
+		if (!is_surface_linear(fb->modifier, i)) {
 			unsigned int tile_width, tile_height;
 			unsigned int pitch_tiles;
 			struct drm_rect r;
