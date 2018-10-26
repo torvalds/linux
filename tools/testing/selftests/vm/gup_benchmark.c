@@ -32,11 +32,11 @@ int main(int argc, char **argv)
 	struct gup_benchmark gup;
 	unsigned long size = 128 * MB;
 	int i, fd, filed, opt, nr_pages = 1, thp = -1, repeats = 1, write = 0;
-	int cmd = GUP_FAST_BENCHMARK;
+	int cmd = GUP_FAST_BENCHMARK, flags = MAP_PRIVATE;
 	char *file = "/dev/zero";
 	char *p;
 
-	while ((opt = getopt(argc, argv, "m:r:n:f:tTLU")) != -1) {
+	while ((opt = getopt(argc, argv, "m:r:n:f:tTLUS")) != -1) {
 		switch (opt) {
 		case 'm':
 			size = atoi(optarg) * MB;
@@ -65,6 +65,10 @@ int main(int argc, char **argv)
 		case 'f':
 			file = optarg;
 			break;
+		case 'S':
+			flags &= ~MAP_PRIVATE;
+			flags |= MAP_SHARED;
+			break;
 		default:
 			return -1;
 		}
@@ -83,7 +87,7 @@ int main(int argc, char **argv)
 	if (fd == -1)
 		perror("open"), exit(1);
 
-	p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, filed, 0);
+	p = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, filed, 0);
 	if (p == MAP_FAILED)
 		perror("mmap"), exit(1);
 	gup.addr = (unsigned long)p;
