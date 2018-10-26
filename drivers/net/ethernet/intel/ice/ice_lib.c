@@ -2458,6 +2458,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	 * on this wq
 	 */
 	if (vsi->netdev && !ice_is_reset_in_progress(pf->state)) {
+		ice_napi_del(vsi);
 		unregister_netdev(vsi->netdev);
 		free_netdev(vsi->netdev);
 		vsi->netdev = NULL;

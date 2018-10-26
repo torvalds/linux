@@ -1465,7 +1465,7 @@ skip_req_irq:
  * ice_napi_del - Remove NAPI handler for the VSI
  * @vsi: VSI for which NAPI handler is to be removed
  */
-static void ice_napi_del(struct ice_vsi *vsi)
+void ice_napi_del(struct ice_vsi *vsi)
 {
 	int v_idx;
 
