@@ -3367,26 +3367,12 @@ try_this_zone:
 	return NULL;
 }
 
-/*
- * Large machines with many possible nodes should not always dump per-node
- * meminfo in irq context.
- */
-static inline bool should_suppress_show_mem(void)
-{
-	bool ret = false;
-
-#if NODES_SHIFT > 8
-	ret = in_interrupt();
-#endif
-	return ret;
-}
-
 static void warn_alloc_show_mem(gfp_t gfp_mask, nodemask_t *nodemask)
 {
 	unsigned int filter = SHOW_MEM_FILTER_NODES;
 	static DEFINE_RATELIMIT_STATE(show_mem_rs, HZ, 1);
 
-	if (should_suppress_show_mem() || !__ratelimit(&show_mem_rs))
+	if (!__ratelimit(&show_mem_rs))
 		return;
 
 	/*
