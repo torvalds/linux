@@ -435,7 +435,7 @@ EXPORT_SYMBOL(kvmalloc_node);
  * It is slightly more efficient to use kfree() or vfree() if you are certain
  * that you know which one to use.
  *
- * Context: Any context except NMI.
+ * Context: Either preemptible task context or not-NMI interrupt.
  */
 void kvfree(const void *addr)
 {
