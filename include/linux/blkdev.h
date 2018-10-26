@@ -396,16 +396,13 @@ struct queue_limits {
 
 #ifdef CONFIG_BLK_DEV_ZONED
 
-struct blk_zone_report_hdr {
-	unsigned int	nr_zones;
-	u8		padding[60];
-};
-
+extern unsigned int blkdev_nr_zones(struct block_device *bdev);
 extern int blkdev_report_zones(struct block_device *bdev,
 			       sector_t sector, struct blk_zone *zones,
 			       unsigned int *nr_zones, gfp_t gfp_mask);
 extern int blkdev_reset_zones(struct block_device *bdev, sector_t sectors,
 			      sector_t nr_sectors, gfp_t gfp_mask);
+extern int blk_revalidate_disk_zones(struct gendisk *disk);
 
 extern int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 				     unsigned int cmd, unsigned long arg);
@@ -413,6 +410,16 @@ extern int blkdev_reset_zones_ioctl(struct block_device *bdev, fmode_t mode,
 				    unsigned int cmd, unsigned long arg);
 
 #else /* CONFIG_BLK_DEV_ZONED */
+
+static inline unsigned int blkdev_nr_zones(struct block_device *bdev)
+{
+	return 0;
+}
+
+static inline int blk_revalidate_disk_zones(struct gendisk *disk)
+{
+	return 0;
+}
 
 static inline int blkdev_report_zones_ioctl(struct block_device *bdev,
 					    fmode_t mode, unsigned int cmd,
@@ -806,6 +813,11 @@ static inline unsigned int blk_queue_zone_sectors(struct request_queue *q)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
+static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
+{
+	return blk_queue_is_zoned(q) ? q->nr_zones : 0;
+}
+
 static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 					     sector_t sector)
 {
@@ -820,6 +832,11 @@ static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 	if (!blk_queue_is_zoned(q) || !q->seq_zones_bitmap)
 		return false;
 	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
+}
+#else /* CONFIG_BLK_DEV_ZONED */
+static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
+{
+	return 0;
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -1852,6 +1869,9 @@ struct block_device_operations {
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	/* this callback is with swap_lock and sometimes page table lock held */
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+	int (*report_zones)(struct gendisk *, sector_t sector,
+			    struct blk_zone *zones, unsigned int *nr_zones,
+			    gfp_t gfp_mask);
 	struct module *owner;
 	const struct pr_ops *pr_ops;
 };

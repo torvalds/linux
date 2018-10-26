@@ -1937,6 +1937,16 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 */
 	if (blk_queue_add_random(q) && dm_table_all_devices_attribute(t, device_is_not_random))
 		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
+
+	/*
+	 * For a zoned target, the number of zones should be updated for the
+	 * correct value to be exposed in sysfs queue/nr_zones. For a BIO based
+	 * target, this is all that is needed. For a request based target, the
+	 * queue zone bitmaps must also be updated.
+	 * Use blk_revalidate_disk_zones() to handle this.
+	 */
+	if (blk_queue_is_zoned(q))
+		blk_revalidate_disk_zones(t->md->disk);
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)
