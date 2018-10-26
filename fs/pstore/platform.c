@@ -258,20 +258,6 @@ static int pstore_compress(const void *in, void *out,
 	return outlen;
 }
 
-static int pstore_decompress(void *in, void *out,
-			     unsigned int inlen, unsigned int outlen)
-{
-	int ret;
-
-	ret = crypto_comp_decompress(tfm, in, inlen, out, &outlen);
-	if (ret) {
-		pr_err("crypto_comp_decompress failed, ret = %d!\n", ret);
-		return ret;
-	}
-
-	return outlen;
-}
-
 static void allocate_buf_for_compression(void)
 {
 	struct crypto_comp *ctx;
@@ -656,8 +642,9 @@ EXPORT_SYMBOL_GPL(pstore_unregister);
 
 static void decompress_record(struct pstore_record *record)
 {
+	int ret;
 	int unzipped_len;
-	char *decompressed;
+	char *unzipped, *workspace;
 
 	if (!record->compressed)
 		return;
@@ -668,35 +655,42 @@ static void decompress_record(struct pstore_record *record)
 		return;
 	}
 
-	/* No compression method has created the common buffer. */
+	/* Missing compression buffer means compression was not initialized. */
 	if (!big_oops_buf) {
-		pr_warn("no decompression buffer allocated\n");
+		pr_warn("no decompression method initialized!\n");
 		return;
 	}
 
-	unzipped_len = pstore_decompress(record->buf, big_oops_buf,
-					 record->size, big_oops_buf_sz);
-	if (unzipped_len <= 0) {
-		pr_err("decompression failed: %d\n", unzipped_len);
+	/* Allocate enough space to hold max decompression and ECC. */
+	unzipped_len = big_oops_buf_sz;
+	workspace = kmalloc(unzipped_len + record->ecc_notice_size,
+			    GFP_KERNEL);
+	if (!workspace)
 		return;
-	}
 
-	/* Build new buffer for decompressed contents. */
-	decompressed = kmalloc(unzipped_len + record->ecc_notice_size,
-			       GFP_KERNEL);
-	if (!decompressed) {
-		pr_err("decompression ran out of memory\n");
+	/* After decompression "unzipped_len" is almost certainly smaller. */
+	ret = crypto_comp_decompress(tfm, record->buf, record->size,
+					  workspace, &unzipped_len);
+	if (ret) {
+		pr_err("crypto_comp_decompress failed, ret = %d!\n", ret);
+		kfree(workspace);
 		return;
 	}
-	memcpy(decompressed, big_oops_buf, unzipped_len);
 
 	/* Append ECC notice to decompressed buffer. */
-	memcpy(decompressed + unzipped_len, record->buf + record->size,
+	memcpy(workspace + unzipped_len, record->buf + record->size,
 	       record->ecc_notice_size);
 
-	/* Swap out compresed contents with decompressed contents. */
+	/* Copy decompressed contents into an minimum-sized allocation. */
+	unzipped = kmemdup(workspace, unzipped_len + record->ecc_notice_size,
+			   GFP_KERNEL);
+	kfree(workspace);
+	if (!unzipped)
+		return;
+
+	/* Swap out compressed contents with decompressed contents. */
 	kfree(record->buf);
-	record->buf = decompressed;
+	record->buf = unzipped;
 	record->size = unzipped_len;
 	record->compressed = false;
 }
