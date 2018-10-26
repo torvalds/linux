@@ -2848,13 +2848,11 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 			mutex_unlock(&fs_info->chunk_mutex);
 		}
 
-		if (map->stripes[i].dev) {
-			ret = btrfs_update_device(trans, map->stripes[i].dev);
-			if (ret) {
-				mutex_unlock(&fs_devices->device_list_mutex);
-				btrfs_abort_transaction(trans, ret);
-				goto out;
-			}
+		ret = btrfs_update_device(trans, device);
+		if (ret) {
+			mutex_unlock(&fs_devices->device_list_mutex);
+			btrfs_abort_transaction(trans, ret);
+			goto out;
 		}
 	}
 	mutex_unlock(&fs_devices->device_list_mutex);
