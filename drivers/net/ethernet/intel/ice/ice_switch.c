@@ -92,8 +92,7 @@ ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
  * Allocate memory for the entire recipe table and initialize the structures/
  * entries corresponding to basic recipes.
  */
-enum ice_status
-ice_init_def_sw_recp(struct ice_hw *hw)
+enum ice_status ice_init_def_sw_recp(struct ice_hw *hw)
 {
 	struct ice_sw_recipe *recps;
 	u8 i;

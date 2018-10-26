@@ -1713,8 +1713,7 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
  * If no bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  * If more than one bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
  */
-static u16
-ice_get_link_speed_based_on_phy_type(u64 phy_type_low)
+static u16 ice_get_link_speed_based_on_phy_type(u64 phy_type_low)
 {
 	u16 speed_phy_type_low = ICE_AQ_LINK_SPEED_UNKNOWN;
 
