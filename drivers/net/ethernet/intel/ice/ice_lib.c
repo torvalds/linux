@@ -1012,7 +1012,7 @@ void ice_vsi_free_q_vectors(struct ice_vsi *vsi)
  * @vsi: the VSI being configured
  * @v_idx: index of the vector in the VSI struct
  *
- * We allocate one q_vector.  If allocation fails we return -ENOMEM.
+ * We allocate one q_vector. If allocation fails we return -ENOMEM.
  */
 static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, int v_idx)
 {
@@ -1051,7 +1051,7 @@ out:
  * ice_vsi_alloc_q_vectors - Allocate memory for interrupt vectors
  * @vsi: the VSI being configured
  *
- * We allocate one q_vector per queue interrupt.  If allocation fails we
+ * We allocate one q_vector per queue interrupt. If allocation fails we
  * return -ENOMEM.
  */
 static int ice_vsi_alloc_q_vectors(struct ice_vsi *vsi)
@@ -2136,9 +2136,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		pf->q_left_rx -= vsi->alloc_rxq;
 		break;
 	default:
-		/* if VSI type is not recognized, clean up the resources and
-		 * exit
-		 */
+		/* clean up the resources and exit */
 		goto unroll_vsi_init;
 	}
 

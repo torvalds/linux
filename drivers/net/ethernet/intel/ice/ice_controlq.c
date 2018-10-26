@@ -775,7 +775,7 @@ static bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  * @buf_size: size of buffer for indirect commands (or 0 for direct commands)
  * @cd: pointer to command details structure
  *
- * This is the main send command routine for the ATQ.  It runs the q,
+ * This is the main send command routine for the ATQ. It runs the queue,
  * cleans the queue, etc.
  */
 enum ice_status
@@ -969,7 +969,7 @@ void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode)
  * @pending: number of events that could be left to process
  *
  * This function cleans one Admin Receive Queue element and returns
- * the contents through e.  It can also return how many events are
+ * the contents through e. It can also return how many events are
  * left to process through 'pending'.
  */
 enum ice_status

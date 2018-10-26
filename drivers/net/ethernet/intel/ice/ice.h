@@ -150,10 +150,10 @@ enum ice_state {
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
 	/* When checking for the PF to be in a nominal operating state, the
 	 * bits that are grouped at the beginning of the list need to be
-	 * checked.  Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
-	 * be checked.  If you need to add a bit into consideration for nominal
+	 * checked. Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
+	 * be checked. If you need to add a bit into consideration for nominal
 	 * operating state, it must be added before
-	 * __ICE_STATE_NOMINAL_CHECK_BITS.  Do not move this entry's position
+	 * __ICE_STATE_NOMINAL_CHECK_BITS. Do not move this entry's position
 	 * without appropriate consideration.
 	 */
 	__ICE_STATE_NOMINAL_CHECK_BITS,
@@ -201,8 +201,8 @@ struct ice_vsi {
 	int sw_base_vector;		/* Irq base for OS reserved vectors */
 	int hw_base_vector;		/* HW (absolute) index of a vector */
 	enum ice_vsi_type type;
-	u16 vsi_num;			 /* HW (absolute) index of this VSI */
-	u16 idx;			 /* software index in pf->vsi[] */
+	u16 vsi_num;			/* HW (absolute) index of this VSI */
+	u16 idx;			/* software index in pf->vsi[] */
 
 	/* Interrupt thresholds */
 	u16 work_lmt;

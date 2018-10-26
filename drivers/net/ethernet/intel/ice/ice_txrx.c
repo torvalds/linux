@@ -377,7 +377,7 @@ static void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
 	rx_ring->next_to_alloc = val;
 
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
+	 * know there are new descriptors to fetch. (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64).
 	 */
@@ -686,7 +686,7 @@ static struct sk_buff *ice_fetch_rx_buf(struct ice_ring *rx_ring,
  * ice_pull_tail - ice specific version of skb_pull_tail
  * @skb: pointer to current skb being adjusted
  *
- * This function is an ice specific version of __pskb_pull_tail.  The
+ * This function is an ice specific version of __pskb_pull_tail. The
  * main difference between this version and the original function is that
  * this function can make several assumptions about the state of things
  * that allow for significant optimizations versus the standard function.
@@ -768,7 +768,7 @@ static bool ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc,
  * @rx_desc: Rx descriptor for current buffer
  * @skb: Current socket buffer containing buffer in progress
  *
- * This function updates next to clean.  If the buffer is an EOP buffer
+ * This function updates next to clean. If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
  * sk_buff in the next buffer to be chained and return true indicating
  * that this is in fact a non-EOP buffer.
@@ -950,7 +950,7 @@ static void ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb,
  * @budget: Total limit on number of packets to process
  *
  * This function provides a "bounce buffer" approach to Rx interrupt
- * processing.  The advantage to this is that on systems that have
+ * processing. The advantage to this is that on systems that have
  * expensive overhead for IOMMU access this provides a means of avoiding
  * it by maintaining the mapping of the page to the system.
  *
@@ -1553,7 +1553,7 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
  * Finally, we add one to round up. Because 256 isn't an exact multiple of
  * 3, we'll underestimate near each multiple of 12K. This is actually more
  * accurate as we have 4K - 1 of wiggle room that we can fit into the last
- * segment.  For our purposes this is accurate out to 1M which is orders of
+ * segment. For our purposes this is accurate out to 1M which is orders of
  * magnitude greater than our largest possible GSO size.
  *
  * This would then be implemented as:
@@ -1621,7 +1621,7 @@ static bool __ice_chk_linearize(struct sk_buff *skb)
 	nr_frags -= ICE_MAX_BUF_TXD - 2;
 	frag = &skb_shinfo(skb)->frags[0];
 
-	/* Initialize size to the negative value of gso_size minus 1.  We
+	/* Initialize size to the negative value of gso_size minus 1. We
 	 * use this as the worst case scenerio in which the frag ahead
 	 * of us only provides one byte which is why we are limited to 6
 	 * descriptors for a single transmit as the header and previous

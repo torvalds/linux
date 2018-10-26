@@ -129,7 +129,7 @@ enum ice_status ice_init_def_sw_recp(struct ice_hw *hw)
  *
  * NOTE: *req_desc is both an input/output parameter.
  * The caller of this function first calls this function with *request_desc set
- * to 0.  If the response from f/w has *req_desc set to 0, all the switch
+ * to 0. If the response from f/w has *req_desc set to 0, all the switch
  * configuration information has been returned; if non-zero (meaning not all
  * the information was returned), the caller should call this function again
  * with *req_desc set to the previous value returned by f/w to get the
@@ -1863,7 +1863,7 @@ ice_add_vlan_internal(struct ice_hw *hw, struct ice_fltr_list_entry *f_entry)
 		tmp_fltr.fwd_id.vsi_list_id = vsi_list_id;
 		tmp_fltr.fltr_act = ICE_FWD_TO_VSI_LIST;
 		/* Update the previous switch rule to a new VSI list which
-		 * includes current VSI thats requested
+		 * includes current VSI that is requested
 		 */
 		status = ice_update_pkt_fwd_rule(hw, &tmp_fltr);
 		if (status)
