@@ -195,7 +195,7 @@ EXPORT_SYMBOL(drm_lease_filter_crtcs);
  * make sure all of the desired objects can be leased, atomically
  * leasing them to the new drmmaster.
  *
- * 	ERR_PTR(-EACCESS)	some other master holds the title to any object
+ * 	ERR_PTR(-EACCES)	some other master holds the title to any object
  * 	ERR_PTR(-ENOENT)	some object is not a valid DRM object for this device
  * 	ERR_PTR(-EBUSY)		some other lessee holds title to this object
  *	ERR_PTR(-EEXIST)	same object specified more than once in the provided list
