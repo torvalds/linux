@@ -1995,6 +1995,22 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 }
 
 /**
+ * ice_verify_cacheline_size - verify driver's assumption of 64 Byte cache lines
+ * @pf: pointer to the PF structure
+ *
+ * There is no error returned here because the driver should be able to handle
+ * 128 Byte cache lines, so we only print a warning in case issues are seen,
+ * specifically with Tx.
+ */
+static void ice_verify_cacheline_size(struct ice_pf *pf)
+{
+	if (rd32(&pf->hw, GLPCI_CNF2) & GLPCI_CNF2_CACHELINE_SIZE_M)
+		dev_warn(&pf->pdev->dev,
+			 "%d Byte cache line assumption is invalid, driver may have Tx timeouts!\n",
+			 ICE_CACHE_LINE_BYTES);
+}
+
+/**
  * ice_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in ice_pci_tbl
@@ -2143,6 +2159,8 @@ static int ice_probe(struct pci_dev *pdev,
 
 	/* since everything is good, start the service timer */
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
+
+	ice_verify_cacheline_size(pf);
 
 	return 0;
 
