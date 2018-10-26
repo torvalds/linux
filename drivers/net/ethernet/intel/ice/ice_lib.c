@@ -1908,7 +1908,8 @@ int ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 	ice_for_each_txq(vsi, i) {
 		u16 v_idx;
 
-		if (!vsi->tx_rings || !vsi->tx_rings[i]) {
+		if (!vsi->tx_rings || !vsi->tx_rings[i] ||
+		    !vsi->tx_rings[i]->q_vector) {
 			err = -EINVAL;
 			goto err_out;
 		}
