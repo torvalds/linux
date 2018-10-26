@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308b-evb-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3308b evb analog mic v10 board";
+	compatible = "rockchip,rk3308b-evb-amic-v10", "rockchip,rk3308";
+
+	vad_acodec_sound: vad-acodec-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3308-vad";
+		rockchip,codec-hp-det;
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s_8ch_2>;
+		rockchip,codec = <&acodec>, <&vad>;
+	};
+};
+
+&acodec {
+	rockchip,en-always-grps = <1 2 3>;
+	rockchip,adc-grps-route = <1 2 3 0>;
+};
+
+&acodec_sound {
+	status = "disabled";
+};
+
+&bluetooth_sound {
+	status = "okay";
+};
+
+&i2s_8ch_0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_8ch_0_sclktx
+		     &i2s_8ch_0_lrcktx
+		     &i2s_8ch_0_sdi0
+		     &i2s_8ch_0_sdo2>;
+};
+
+&is31fl3236 {
+	reg = <0x3f>;
+};
+
+&vad {
+	status = "okay";
+	rockchip,audio-src = <&i2s_8ch_2>;
+	rockchip,det-channel = <0>;
+	rockchip,buffer-time-ms = <200>;
+	rockchip,mode = <1>;
+	#sound-dai-cells = <0>;
+};
