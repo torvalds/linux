@@ -477,9 +477,8 @@ static struct dentry *ovl_get_tmpfile(struct ovl_copy_up_ctx *c)
 	};
 
 	err = security_inode_copy_up(c->dentry, &new_creds);
-	temp = ERR_PTR(err);
 	if (err < 0)
-		goto out;
+		return ERR_PTR(err);
 
 	if (new_creds)
 		old_creds = override_creds(new_creds);
@@ -488,7 +487,7 @@ static struct dentry *ovl_get_tmpfile(struct ovl_copy_up_ctx *c)
 		temp = ovl_do_tmpfile(c->workdir, c->stat.mode);
 	else
 		temp = ovl_create_temp(c->workdir, &cattr);
-out:
+
 	if (new_creds) {
 		revert_creds(old_creds);
 		put_cred(new_creds);
