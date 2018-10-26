@@ -207,7 +207,6 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 	bool is_vmalloc;
 	spinlock_t *ptl;
 	int i, nr_pages;
-	pgd_t *pgd;
 
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return 0;
@@ -220,13 +219,6 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 
 	/* Check if the current mappings are sane */
 	sanity_check_ldt_mapping(mm);
-
-	/*
-	 * Did we already have the top level entry allocated?  We can't
-	 * use pgd_none() for this because it doens't do anything on
-	 * 4-level page table kernels.
-	 */
-	pgd = pgd_offset(mm, LDT_BASE_ADDR);
 
 	is_vmalloc = is_vmalloc_addr(ldt->entries);
 
