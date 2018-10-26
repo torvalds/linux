@@ -73,9 +73,6 @@ SECTIONS
 
 	.text		: { *(.text*) }			:text	=0x90909090,
 
-	.tick_patch 	  : { *(.tick_patch) }		:text
-	.tick_patch_insns : { *(.tick_patch_insns) }	:text
-
 	/DISCARD/ : {
 		*(.discard)
 		*(.discard.*)

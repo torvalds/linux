@@ -17,11 +17,9 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 	unsigned long mapping_size;
 	int i;
 	unsigned long j;
-	ELF(Shdr) *symtab_hdr = NULL, *strtab_hdr, *secstrings_hdr,
-		*patch_sec = NULL;
+	ELF(Shdr) *symtab_hdr = NULL, *strtab_hdr;
 	ELF(Ehdr) *hdr = (ELF(Ehdr) *)raw_addr;
 	ELF(Dyn) *dyn = 0, *dyn_end = 0;
-	const char *secstrings;
 	INT_BITS syms[NSYMS] = {};
 
 	ELF(Phdr) *pt = (ELF(Phdr) *)(raw_addr + GET_BE(&hdr->e_phoff));
@@ -64,18 +62,11 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 	}
 
 	/* Walk the section table */
-	secstrings_hdr = raw_addr + GET_BE(&hdr->e_shoff) +
-		GET_BE(&hdr->e_shentsize)*GET_BE(&hdr->e_shstrndx);
-	secstrings = raw_addr + GET_BE(&secstrings_hdr->sh_offset);
 	for (i = 0; i < GET_BE(&hdr->e_shnum); i++) {
 		ELF(Shdr) *sh = raw_addr + GET_BE(&hdr->e_shoff) +
 			GET_BE(&hdr->e_shentsize) * i;
 		if (GET_BE(&sh->sh_type) == SHT_SYMTAB)
 			symtab_hdr = sh;
-
-		if (!strcmp(secstrings + GET_BE(&sh->sh_name),
-			    ".tick_patch"))
-			patch_sec = sh;
 	}
 
 	if (!symtab_hdr)
@@ -142,12 +133,6 @@ static void BITSFUNC(go)(void *raw_addr, size_t raw_len,
 	fprintf(outfile, "const struct vdso_image %s_builtin = {\n", name);
 	fprintf(outfile, "\t.data = raw_data,\n");
 	fprintf(outfile, "\t.size = %lu,\n", mapping_size);
-	if (patch_sec) {
-		fprintf(outfile, "\t.tick_patch = %lu,\n",
-			(unsigned long)GET_BE(&patch_sec->sh_offset));
-		fprintf(outfile, "\t.tick_patch_len = %lu,\n",
-			(unsigned long)GET_BE(&patch_sec->sh_size));
-	}
 	for (i = 0; i < NSYMS; i++) {
 		if (required_syms[i].export && syms[i])
 			fprintf(outfile, "\t.sym_%s = %" PRIi64 ",\n",
