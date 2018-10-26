@@ -12,6 +12,7 @@
 struct ice_sched_agg_vsi_info {
 	struct list_head list_entry;
 	DECLARE_BITMAP(tc_bitmap, ICE_MAX_TRAFFIC_CLASS);
+	u16 vsi_handle;
 };
 
 struct ice_sched_agg_info {
@@ -39,4 +40,5 @@ ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 enum ice_status
 ice_sched_cfg_vsi(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 maxqs,
 		  u8 owner, bool enable);
+enum ice_status ice_rm_vsi_lan_cfg(struct ice_port_info *pi, u16 vsi_handle);
 #endif /* _ICE_SCHED_H_ */

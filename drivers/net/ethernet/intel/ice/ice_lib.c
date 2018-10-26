@@ -2492,6 +2492,7 @@ int ice_vsi_release(struct ice_vsi *vsi)
 	}
 
 	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
+	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
 	ice_vsi_delete(vsi);
 	ice_vsi_free_q_vectors(vsi);
 	ice_vsi_clear_rings(vsi);
