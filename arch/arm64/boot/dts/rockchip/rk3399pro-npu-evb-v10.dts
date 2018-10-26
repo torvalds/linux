@@ -47,8 +47,8 @@
 		regulator-name = "vdd_cpu";
 		regulator-always-on;
 		regulator-boot-on;
-		regulator-min-microvolt = <1000000>;
-		regulator-max-microvolt = <1000000>;
+		regulator-min-microvolt = <850000>;
+		regulator-max-microvolt = <850000>;
 	};
 
 	vcc5v0_sys: vcc5v0-sys {
