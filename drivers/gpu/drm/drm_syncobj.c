@@ -80,6 +80,23 @@ struct drm_syncobj_signal_pt {
 	struct list_head list;
 };
 
+static DEFINE_SPINLOCK(signaled_fence_lock);
+static struct dma_fence signaled_fence;
+
+static struct dma_fence *drm_syncobj_get_stub_fence(void)
+{
+	spin_lock(&signaled_fence_lock);
+	if (!signaled_fence.ops) {
+		dma_fence_init(&signaled_fence,
+			       &drm_syncobj_stub_fence_ops,
+			       &signaled_fence_lock,
+			       0, 0);
+		dma_fence_signal_locked(&signaled_fence);
+	}
+	spin_unlock(&signaled_fence_lock);
+
+	return dma_fence_get(&signaled_fence);
+}
 /**
  * drm_syncobj_find - lookup and reference a sync object.
  * @file_private: drm file private pointer
@@ -113,23 +130,8 @@ static struct dma_fence
 	struct drm_syncobj_signal_pt *signal_pt;
 
 	if ((syncobj->type == DRM_SYNCOBJ_TYPE_TIMELINE) &&
-	    (point <= syncobj->timeline)) {
-		struct drm_syncobj_stub_fence *fence =
-			kzalloc(sizeof(struct drm_syncobj_stub_fence),
-				GFP_KERNEL);
-
-		if (!fence)
-			return NULL;
-		spin_lock_init(&fence->lock);
-		dma_fence_init(&fence->base,
-			       &drm_syncobj_stub_fence_ops,
-			       &fence->lock,
-			       syncobj->timeline_context,
-			       point);
-
-		dma_fence_signal(&fence->base);
-		return &fence->base;
-	}
+	    (point <= syncobj->timeline))
+		return drm_syncobj_get_stub_fence();
 
 	list_for_each_entry(signal_pt, &syncobj->signal_pt_list, list) {
 		if (point > signal_pt->value)
