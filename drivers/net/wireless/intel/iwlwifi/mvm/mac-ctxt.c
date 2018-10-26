@@ -1345,7 +1345,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
 	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
 	IWL_DEBUG_RX(mvm,
-		     "beacon status %#x retries:%d tsf:0x%16llX gp2:0x%X rate:%d\n",
+		     "beacon status %#x retries:%d tsf:0x%016llX gp2:0x%X rate:%d\n",
 		     status, beacon_notify_hdr->failure_frame,
 		     le64_to_cpu(beacon->tsf),
 		     mvm->ap_last_beacon_gp2,

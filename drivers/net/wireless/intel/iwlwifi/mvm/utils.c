@@ -248,7 +248,7 @@ void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	IWL_ERR(mvm, "FW Error notification: seq 0x%04X service 0x%08X\n",
 		le16_to_cpu(err_resp->bad_cmd_seq_num),
 		le32_to_cpu(err_resp->error_service));
-	IWL_ERR(mvm, "FW Error notification: timestamp 0x%16llX\n",
+	IWL_ERR(mvm, "FW Error notification: timestamp 0x%016llX\n",
 		le64_to_cpu(err_resp->timestamp));
 }
 
