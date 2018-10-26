@@ -258,7 +258,7 @@ int mt76x2u_mcu_init(struct mt76x02_dev *dev)
 {
 	int err;
 
-	err = mt76x02_mcu_function_select(dev, Q_SELECT, 1, false);
+	err = mt76x02_mcu_function_select(dev, Q_SELECT, 1);
 	if (err < 0)
 		return err;
 

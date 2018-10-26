@@ -132,9 +132,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_msg_send);
 
-int mt76x02_mcu_function_select(struct mt76x02_dev *dev,
-				enum mcu_function func,
-				u32 val, bool wait_resp)
+int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
+				u32 val)
 {
 	struct {
 	    __le32 id;
@@ -143,9 +142,12 @@ int mt76x02_mcu_function_select(struct mt76x02_dev *dev,
 	    .id = cpu_to_le32(func),
 	    .value = cpu_to_le32(val),
 	};
+	bool wait = false;
 
-	return mt76_mcu_send_msg(dev, CMD_FUN_SET_OP, &msg, sizeof(msg),
-				 wait_resp);
+	if (func != Q_SELECT)
+		wait = true;
+
+	return mt76_mcu_send_msg(dev, CMD_FUN_SET_OP, &msg, sizeof(msg), wait);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_function_select);
 

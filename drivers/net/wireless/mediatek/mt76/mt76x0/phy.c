@@ -500,7 +500,7 @@ mt76x0_phy_bbp_set_bw(struct mt76x02_dev *dev, enum nl80211_chan_width width)
 		return ;
 	}
 
-	mt76x02_mcu_function_select(dev, BW_SETTING, bw, false);
+	mt76x02_mcu_function_select(dev, BW_SETTING, bw);
 }
 
 static void mt76x0_phy_tssi_dc_calibrate(struct mt76x02_dev *dev)

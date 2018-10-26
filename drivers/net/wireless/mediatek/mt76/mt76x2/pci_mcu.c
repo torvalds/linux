@@ -182,6 +182,6 @@ int mt76x2_mcu_init(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76x02_mcu_function_select(dev, Q_SELECT, 1, true);
+	mt76x02_mcu_function_select(dev, Q_SELECT, 1);
 	return 0;
 }
