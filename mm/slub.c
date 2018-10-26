@@ -1276,16 +1276,54 @@ out:
 
 __setup("slub_debug", setup_slub_debug);
 
+/*
+ * kmem_cache_flags - apply debugging options to the cache
+ * @object_size:	the size of an object without meta data
+ * @flags:		flags to set
+ * @name:		name of the cache
+ * @ctor:		constructor function
+ *
+ * Debug option(s) are applied to @flags. In addition to the debug
+ * option(s), if a slab name (or multiple) is specified i.e.
+ * slub_debug=<Debug-Options>,<slab name1>,<slab name2> ...
+ * then only the select slabs will receive the debug option(s).
+ */
 slab_flags_t kmem_cache_flags(unsigned int object_size,
 	slab_flags_t flags, const char *name,
 	void (*ctor)(void *))
 {
-	/*
-	 * Enable debugging if selected on the kernel commandline.
-	 */
-	if (slub_debug && (!slub_debug_slabs || (name &&
-		!strncmp(slub_debug_slabs, name, strlen(slub_debug_slabs)))))
-		flags |= slub_debug;
+	char *iter;
+	size_t len;
+
+	/* If slub_debug = 0, it folds into the if conditional. */
+	if (!slub_debug_slabs)
+		return flags | slub_debug;
+
+	len = strlen(name);
+	iter = slub_debug_slabs;
+	while (*iter) {
+		char *end, *glob;
+		size_t cmplen;
+
+		end = strchr(iter, ',');
+		if (!end)
+			end = iter + strlen(iter);
+
+		glob = strnchr(iter, end - iter, '*');
+		if (glob)
+			cmplen = glob - iter;
+		else
+			cmplen = max_t(size_t, len, (end - iter));
+
+		if (!strncmp(name, iter, cmplen)) {
+			flags |= slub_debug;
+			break;
+		}
+
+		if (!*end)
+			break;
+		iter = end + 1;
+	}
 
 	return flags;
 }
