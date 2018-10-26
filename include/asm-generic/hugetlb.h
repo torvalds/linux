@@ -73,4 +73,11 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 }
 #endif
 
+#ifndef __HAVE_ARCH_HUGE_PTE_NONE
+static inline int huge_pte_none(pte_t pte)
+{
+	return pte_none(pte);
+}
+#endif
+
 #endif /* _ASM_GENERIC_HUGETLB_H */

@@ -55,6 +55,7 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 	flush_tlb_page(vma, addr & huge_page_mask(hstate_vma(vma)));
 }
 
+#define __HAVE_ARCH_HUGE_PTE_NONE
 static inline int huge_pte_none(pte_t pte)
 {
 	unsigned long val = pte_val(pte) & ~_PAGE_GLOBAL;
