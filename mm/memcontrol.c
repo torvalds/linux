@@ -2460,7 +2460,7 @@ static void memcg_kmem_cache_create_func(struct work_struct *w)
 /*
  * Enqueue the creation of a per-memcg kmem_cache.
  */
-static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
+static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
 					       struct kmem_cache *cachep)
 {
 	struct memcg_kmem_cache_create_work *cw;
@@ -2476,25 +2476,6 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
 	INIT_WORK(&cw->work, memcg_kmem_cache_create_func);
 
 	queue_work(memcg_kmem_cache_wq, &cw->work);
-}
-
-static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
-					     struct kmem_cache *cachep)
-{
-	/*
-	 * We need to stop accounting when we kmalloc, because if the
-	 * corresponding kmalloc cache is not yet created, the first allocation
-	 * in __memcg_schedule_kmem_cache_create will recurse.
-	 *
-	 * However, it is better to enclose the whole function. Depending on
-	 * the debugging options enabled, INIT_WORK(), for instance, can
-	 * trigger an allocation. This too, will make us recurse. Because at
-	 * this point we can't allow ourselves back into memcg_kmem_get_cache,
-	 * the safest choice is to do it like this, wrapping the whole function.
-	 */
-	current->memcg_kmem_skip_account = 1;
-	__memcg_schedule_kmem_cache_create(memcg, cachep);
-	current->memcg_kmem_skip_account = 0;
 }
 
 static inline bool memcg_kmem_bypass(void)
@@ -2529,9 +2510,6 @@ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep)
 	VM_BUG_ON(!is_root_cache(cachep));
 
 	if (memcg_kmem_bypass())
-		return cachep;
-
-	if (current->memcg_kmem_skip_account)
 		return cachep;
 
 	memcg = get_mem_cgroup_from_current();
