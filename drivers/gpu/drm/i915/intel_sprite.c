@@ -414,9 +414,11 @@ skl_program_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
 	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id),
 		      (plane_state->color_plane[1].offset - surf_addr) | aux_stride);
-	I915_WRITE_FW(PLANE_AUX_OFFSET(pipe, plane_id),
-		      (plane_state->color_plane[1].y << 16) |
-		      plane_state->color_plane[1].x);
+
+	if (INTEL_GEN(dev_priv) < 11)
+		I915_WRITE_FW(PLANE_AUX_OFFSET(pipe, plane_id),
+			      (plane_state->color_plane[1].y << 16) |
+			       plane_state->color_plane[1].x);
 
 	if (icl_is_hdr_plane(plane)) {
 		u32 cus_ctl = 0;
