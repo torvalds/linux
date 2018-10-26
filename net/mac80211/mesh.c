@@ -1194,7 +1194,8 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		if (!sdata->u.mesh.user_mpm ||
 		    sdata->u.mesh.mshcfg.rssi_threshold == 0 ||
 		    sdata->u.mesh.mshcfg.rssi_threshold < rx_status->signal)
-			mesh_neighbour_update(sdata, mgmt->sa, &elems);
+			mesh_neighbour_update(sdata, mgmt->sa, &elems,
+					      rx_status);
 	}
 
 	if (ifmsh->sync_ops)
