@@ -2777,7 +2777,7 @@ static int __do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 			 * update vm_flags.
 			 */
 			if (downgrade &&
-			    (tmp->vm_flags & (VM_HUGETLB | VM_PFNMAP)))
+			    (tmp->vm_flags & VM_PFNMAP))
 				downgrade = false;
 
 			tmp = tmp->vm_next;
