@@ -216,7 +216,7 @@ static int iwl_pcie_gen2_set_tb(struct iwl_trans *trans,
 	int idx = iwl_pcie_gen2_get_num_tbs(trans, tfd);
 	struct iwl_tfh_tb *tb;
 
-	if (WARN_ON(idx >= IWL_NUM_OF_TBS))
+	if (WARN_ON(idx >= IWL_TFH_NUM_TBS))
 		return -EINVAL;
 	tb = &tfd->tbs[idx];
 
