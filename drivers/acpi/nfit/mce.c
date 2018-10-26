@@ -29,6 +29,10 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 	if (!mce_is_memory_error(mce) || mce_is_correctable(mce))
 		return NOTIFY_DONE;
 
+	/* Verify the address reported in the MCE is valid. */
+	if (!mce_usable_address(mce))
+		return NOTIFY_DONE;
+
 	/*
 	 * mce->addr contains the physical addr accessed that caused the
 	 * machine check. We need to walk through the list of NFITs, and see
