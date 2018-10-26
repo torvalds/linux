@@ -72,19 +72,21 @@
 &i2c1 {
 	status = "okay";
 
-	vdd_npu: syr837@40 {
-		compatible = "silergy,syr827";
-		reg = <0x40>;
+	vdd_npu: tcs452x@1c {
+		compatible = "tcs,tcs452x";
+		reg = <0x1c>;
 		vin-supply = <&vcc5v0_sys>;
 		regulator-compatible = "fan53555-reg";
 		pinctrl-0 = <&vsel_gpio>;
 		vsel-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vdd_npu";
-		regulator-min-microvolt = <850000>;
-		regulator-max-microvolt = <850000>;
-		regulator-ramp-delay = <1000>;
+		regulator-min-microvolt = <750000>;
+		regulator-max-microvolt = <800000>;
+		regulator-ramp-delay = <2300>;
 		fcs,suspend-voltage-selector = <0>;
+		regulator-always-on;
 		regulator-boot-on;
+		regulator-initial-state = <3>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
 		};
