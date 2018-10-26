@@ -1559,8 +1559,9 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 static noinline_for_stack u64 find_lock_delalloc_range(struct inode *inode,
 				    struct extent_io_tree *tree,
 				    struct page *locked_page, u64 *start,
-				    u64 *end, u64 max_bytes)
+				    u64 *end)
 {
+	u64 max_bytes = BTRFS_MAX_EXTENT_SIZE;
 	u64 delalloc_start;
 	u64 delalloc_end;
 	u64 found;
@@ -1640,10 +1641,9 @@ out_failed:
 u64 btrfs_find_lock_delalloc_range(struct inode *inode,
 				    struct extent_io_tree *tree,
 				    struct page *locked_page, u64 *start,
-				    u64 *end, u64 max_bytes)
+				    u64 *end)
 {
-	return find_lock_delalloc_range(inode, tree, locked_page, start, end,
-			max_bytes);
+	return find_lock_delalloc_range(inode, tree, locked_page, start, end);
 }
 #endif
 
@@ -3217,8 +3217,7 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 		nr_delalloc = find_lock_delalloc_range(inode, tree,
 					       page,
 					       &delalloc_start,
-					       &delalloc_end,
-					       BTRFS_MAX_EXTENT_SIZE);
+					       &delalloc_end);
 		if (nr_delalloc == 0) {
 			delalloc_start = delalloc_end + 1;
 			continue;
