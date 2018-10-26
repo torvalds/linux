@@ -273,7 +273,6 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 }
 
 static const struct mmu_notifier_ops intel_mmuops = {
-	.flags = MMU_INVALIDATE_DOES_NOT_BLOCK,
 	.release = intel_mm_release,
 	.change_pte = intel_change_pte,
 	.invalidate_range = intel_invalidate_range,
