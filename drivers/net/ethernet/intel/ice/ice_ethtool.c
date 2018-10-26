@@ -62,7 +62,7 @@ static const struct ice_stats ice_gstrings_vsi_stats[] = {
  * The PF_STATs are appended to the netdev stats only when ethtool -S
  * is queried on the base PF netdev.
  */
-static struct ice_stats ice_gstrings_pf_stats[] = {
+static const struct ice_stats ice_gstrings_pf_stats[] = {
 	ICE_PF_STAT("tx_bytes", stats.eth.tx_bytes),
 	ICE_PF_STAT("rx_bytes", stats.eth.rx_bytes),
 	ICE_PF_STAT("tx_unicast", stats.eth.tx_unicast),
@@ -104,7 +104,7 @@ static struct ice_stats ice_gstrings_pf_stats[] = {
 	ICE_PF_STAT("mac_remote_faults", stats.mac_remote_faults),
 };
 
-static u32 ice_regs_dump_list[] = {
+static const u32 ice_regs_dump_list[] = {
 	PFGEN_STATE,
 	PRTGEN_STATUS,
 	QRX_CTRL(0),
