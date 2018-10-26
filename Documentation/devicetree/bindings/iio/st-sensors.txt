@@ -67,6 +67,7 @@ Magnetometers:
 - st,lsm303dlm-magn
 - st,lis3mdl-magn
 - st,lis2mdl
+- st,lsm9ds1-magn
 
 Pressure sensors:
 - st,lps001wp-press
