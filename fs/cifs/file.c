@@ -1005,7 +1005,7 @@ cifs_lock_add(struct cifsFileInfo *cfile, struct cifsLockInfo *lock)
  * Set the byte-range lock (mandatory style). Returns:
  * 1) 0, if we set the lock and don't need to request to the server;
  * 2) 1, if no locks prevent us but we need to request to the server;
- * 3) -EACCESS, if there is a lock that prevents us and wait is false.
+ * 3) -EACCES, if there is a lock that prevents us and wait is false.
  */
 static int
 cifs_lock_add_if(struct cifsFileInfo *cfile, struct cifsLockInfo *lock,
