@@ -2748,9 +2748,9 @@ int generic_file_readonly_mmap(struct file *file, struct vm_area_struct *vma)
 	return generic_file_mmap(file, vma);
 }
 #else
-int filemap_page_mkwrite(struct vm_fault *vmf)
+vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
 {
-	return -ENOSYS;
+	return VM_FAULT_SIGBUS;
 }
 int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
