@@ -1,5 +1,5 @@
 /*
- * tools/testing/selftests/kvm/include/vmx.h
+ * tools/testing/selftests/kvm/include/x86_64/vmx.h
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -11,7 +11,7 @@
 #define SELFTEST_KVM_VMX_H
 
 #include <stdint.h>
-#include "x86.h"
+#include "processor.h"
 
 #define CPUID_VMX_BIT				5
 
@@ -339,6 +339,8 @@ struct vmx_msr_entry {
 	uint64_t value;
 } __attribute__ ((aligned(16)));
 
+#include "evmcs.h"
+
 static inline int vmxon(uint64_t phys)
 {
 	uint8_t ret;
@@ -372,6 +374,9 @@ static inline int vmptrld(uint64_t vmcs_pa)
 {
 	uint8_t ret;
 
+	if (enable_evmcs)
+		return -1;
+
 	__asm__ __volatile__ ("vmptrld %[pa]; setna %[ret]"
 		: [ret]"=rm"(ret)
 		: [pa]"m"(vmcs_pa)
@@ -384,6 +389,9 @@ static inline int vmptrst(uint64_t *value)
 {
 	uint64_t tmp;
 	uint8_t ret;
+
+	if (enable_evmcs)
+		return evmcs_vmptrst(value);
 
 	__asm__ __volatile__("vmptrst %[value]; setna %[ret]"
 		: [value]"=m"(tmp), [ret]"=rm"(ret)
@@ -410,6 +418,9 @@ static inline uint64_t vmptrstz(void)
 static inline int vmlaunch(void)
 {
 	int ret;
+
+	if (enable_evmcs)
+		return evmcs_vmlaunch();
 
 	__asm__ __volatile__("push %%rbp;"
 			     "push %%rcx;"
@@ -442,6 +453,9 @@ static inline int vmlaunch(void)
 static inline int vmresume(void)
 {
 	int ret;
+
+	if (enable_evmcs)
+		return evmcs_vmresume();
 
 	__asm__ __volatile__("push %%rbp;"
 			     "push %%rcx;"
@@ -482,6 +496,9 @@ static inline int vmread(uint64_t encoding, uint64_t *value)
 	uint64_t tmp;
 	uint8_t ret;
 
+	if (enable_evmcs)
+		return evmcs_vmread(encoding, value);
+
 	__asm__ __volatile__("vmread %[encoding], %[value]; setna %[ret]"
 		: [value]"=rm"(tmp), [ret]"=rm"(ret)
 		: [encoding]"r"(encoding)
@@ -505,6 +522,9 @@ static inline uint64_t vmreadz(uint64_t encoding)
 static inline int vmwrite(uint64_t encoding, uint64_t value)
 {
 	uint8_t ret;
+
+	if (enable_evmcs)
+		return evmcs_vmwrite(encoding, value);
 
 	__asm__ __volatile__ ("vmwrite %[value], %[encoding]; setna %[ret]"
 		: [ret]"=rm"(ret)
@@ -543,10 +563,19 @@ struct vmx_pages {
 	void *vmwrite_hva;
 	uint64_t vmwrite_gpa;
 	void *vmwrite;
+
+	void *vp_assist_hva;
+	uint64_t vp_assist_gpa;
+	void *vp_assist;
+
+	void *enlightened_vmcs_hva;
+	uint64_t enlightened_vmcs_gpa;
+	void *enlightened_vmcs;
 };
 
 struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);
 bool prepare_for_vmx_operation(struct vmx_pages *vmx);
 void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp);
+bool load_vmcs(struct vmx_pages *vmx);
 
-#endif /* !SELFTEST_KVM_VMX_H */
+#endif /* SELFTEST_KVM_VMX_H */

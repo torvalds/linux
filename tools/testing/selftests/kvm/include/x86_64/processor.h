@@ -1,5 +1,5 @@
 /*
- * tools/testing/selftests/kvm/include/x86.h
+ * tools/testing/selftests/kvm/include/x86_64/processor.h
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef SELFTEST_KVM_X86_H
-#define SELFTEST_KVM_X86_H
+#ifndef SELFTEST_KVM_PROCESSOR_H
+#define SELFTEST_KVM_PROCESSOR_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -305,7 +305,25 @@ static inline unsigned long get_xmm(int n)
 
 struct kvm_x86_state;
 struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *state);
+void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
+		     struct kvm_x86_state *state);
+
+struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
+void vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
+		    struct kvm_cpuid2 *cpuid);
+
+struct kvm_cpuid_entry2 *
+kvm_get_supported_cpuid_index(uint32_t function, uint32_t index);
+
+static inline struct kvm_cpuid_entry2 *
+kvm_get_supported_cpuid_entry(uint32_t function)
+{
+	return kvm_get_supported_cpuid_index(function, 0);
+}
+
+uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
+void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
+	  	  uint64_t msr_value);
 
 /*
  * Basic CPU control in CR0
@@ -1044,4 +1062,4 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 #define MSR_VM_IGNNE                    0xc0010115
 #define MSR_VM_HSAVE_PA                 0xc0010117
 
-#endif /* !SELFTEST_KVM_X86_H */
+#endif /* SELFTEST_KVM_PROCESSOR_H */

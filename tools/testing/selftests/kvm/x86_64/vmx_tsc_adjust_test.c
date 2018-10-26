@@ -1,5 +1,5 @@
 /*
- * gtests/tests/vmx_tsc_adjust_test.c
+ * vmx_tsc_adjust_test
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -22,13 +22,13 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 #include "vmx.h"
 
 #include <string.h>
 #include <sys/ioctl.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifndef MSR_IA32_TSC_ADJUST
 #define MSR_IA32_TSC_ADJUST 0x3b
@@ -94,6 +94,7 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	check_ia32_tsc_adjust(-1 * TSC_ADJUST_VALUE);
 
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
+	GUEST_ASSERT(load_vmcs(vmx_pages));
 
 	/* Prepare the VMCS for L2 execution. */
 	prepare_vmcs(vmx_pages, l2_guest_code,
@@ -146,26 +147,25 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
-		struct guest_args args;
+		struct ucall uc;
 
 		vcpu_run(vm, VCPU_ID);
-		guest_args_read(vm, VCPU_ID, &args);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 			    run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		switch (args.port) {
-		case GUEST_PORT_ABORT:
-			TEST_ASSERT(false, "%s", (const char *) args.arg0);
+		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		case UCALL_ABORT:
+			TEST_ASSERT(false, "%s", (const char *)uc.args[0]);
 			/* NOT REACHED */
-		case GUEST_PORT_SYNC:
-			report(args.arg1);
+		case UCALL_SYNC:
+			report(uc.args[1]);
 			break;
-		case GUEST_PORT_DONE:
+		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown port 0x%x.", args.port);
+			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
 		}
 	}
 

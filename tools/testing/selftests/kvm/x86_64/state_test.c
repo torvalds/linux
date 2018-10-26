@@ -17,7 +17,7 @@
 #include "test_util.h"
 
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 #include "vmx.h"
 
 #define VCPU_ID		5
@@ -26,20 +26,20 @@ static bool have_nested_state;
 
 void l2_guest_code(void)
 {
-	GUEST_SYNC(5);
+	GUEST_SYNC(6);
 
         /* Exit to L1 */
 	vmcall();
 
 	/* L1 has now set up a shadow VMCS for us.  */
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
-	GUEST_SYNC(9);
+	GUEST_SYNC(10);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
 	GUEST_ASSERT(!vmwrite(GUEST_RIP, 0xc0fffee));
-	GUEST_SYNC(10);
+	GUEST_SYNC(11);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0fffee);
 	GUEST_ASSERT(!vmwrite(GUEST_RIP, 0xc0ffffee));
-	GUEST_SYNC(11);
+	GUEST_SYNC(12);
 
 	/* Done, exit to L1 and never come back.  */
 	vmcall();
@@ -52,15 +52,17 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 
 	GUEST_ASSERT(vmx_pages->vmcs_gpa);
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
+	GUEST_SYNC(3);
+	GUEST_ASSERT(load_vmcs(vmx_pages));
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 
-	GUEST_SYNC(3);
+	GUEST_SYNC(4);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 
 	prepare_vmcs(vmx_pages, l2_guest_code,
 		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
-	GUEST_SYNC(4);
+	GUEST_SYNC(5);
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
 	GUEST_ASSERT(!vmlaunch());
 	GUEST_ASSERT(vmptrstz() == vmx_pages->vmcs_gpa);
@@ -72,7 +74,7 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 
-	GUEST_SYNC(6);
+	GUEST_SYNC(7);
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 
 	GUEST_ASSERT(!vmresume());
@@ -85,12 +87,12 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 
 	GUEST_ASSERT(!vmptrld(vmx_pages->shadow_vmcs_gpa));
 	GUEST_ASSERT(vmlaunch());
-	GUEST_SYNC(7);
+	GUEST_SYNC(8);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(vmresume());
 
 	vmwrite(GUEST_RIP, 0xc0ffee);
-	GUEST_SYNC(8);
+	GUEST_SYNC(9);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffee);
 
 	GUEST_ASSERT(!vmptrld(vmx_pages->vmcs_gpa));
@@ -101,7 +103,7 @@ void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffffee);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(vmresume());
-	GUEST_SYNC(12);
+	GUEST_SYNC(13);
 	GUEST_ASSERT(vmreadz(GUEST_RIP) == 0xc0ffffee);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(vmresume());
@@ -127,6 +129,7 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	struct kvm_x86_state *state;
+	struct ucall uc;
 	int stage;
 
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
@@ -155,23 +158,23 @@ int main(int argc, char *argv[])
 
 		memset(&regs1, 0, sizeof(regs1));
 		vcpu_regs_get(vm, VCPU_ID, &regs1);
-		switch (run->io.port) {
-		case GUEST_PORT_ABORT:
-			TEST_ASSERT(false, "%s at %s:%d", (const char *) regs1.rdi,
-				    __FILE__, regs1.rsi);
+		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		case UCALL_ABORT:
+			TEST_ASSERT(false, "%s at %s:%d", (const char *)uc.args[0],
+				    __FILE__, uc.args[1]);
 			/* NOT REACHED */
-		case GUEST_PORT_SYNC:
+		case UCALL_SYNC:
 			break;
-		case GUEST_PORT_DONE:
+		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown port 0x%x.", run->io.port);
+			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
 		}
 
-		/* PORT_SYNC is handled here.  */
-		TEST_ASSERT(!strcmp((const char *)regs1.rdi, "hello") &&
-			    regs1.rsi == stage, "Unexpected register values vmexit #%lx, got %lx",
-			    stage, (ulong) regs1.rsi);
+		/* UCALL_SYNC is handled here.  */
+		TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
+			    uc.args[1] == stage, "Unexpected register values vmexit #%lx, got %lx",
+			    stage, (ulong)uc.args[1]);
 
 		state = vcpu_save_state(vm, VCPU_ID);
 		kvm_vm_release(vm);

@@ -19,7 +19,7 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 
 #define VCPU_ID 0
 #define MSR_PLATFORM_INFO_MAX_TURBO_RATIO 0xff00
@@ -48,7 +48,7 @@ static void set_msr_platform_info_enabled(struct kvm_vm *vm, bool enable)
 static void test_msr_platform_info_enabled(struct kvm_vm *vm)
 {
 	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
-	struct guest_args args;
+	struct ucall uc;
 
 	set_msr_platform_info_enabled(vm, true);
 	vcpu_run(vm, VCPU_ID);
@@ -56,11 +56,11 @@ static void test_msr_platform_info_enabled(struct kvm_vm *vm)
 			"Exit_reason other than KVM_EXIT_IO: %u (%s),\n",
 			run->exit_reason,
 			exit_reason_str(run->exit_reason));
-	guest_args_read(vm, VCPU_ID, &args);
-	TEST_ASSERT(args.port == GUEST_PORT_SYNC,
-			"Received IO from port other than PORT_HOST_SYNC: %u\n",
-			run->io.port);
-	TEST_ASSERT((args.arg1 & MSR_PLATFORM_INFO_MAX_TURBO_RATIO) ==
+	get_ucall(vm, VCPU_ID, &uc);
+	TEST_ASSERT(uc.cmd == UCALL_SYNC,
+			"Received ucall other than UCALL_SYNC: %u\n",
+			ucall);
+	TEST_ASSERT((uc.args[1] & MSR_PLATFORM_INFO_MAX_TURBO_RATIO) ==
 		MSR_PLATFORM_INFO_MAX_TURBO_RATIO,
 		"Expected MSR_PLATFORM_INFO to have max turbo ratio mask: %i.",
 		MSR_PLATFORM_INFO_MAX_TURBO_RATIO);

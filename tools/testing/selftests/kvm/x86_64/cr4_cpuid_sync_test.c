@@ -17,7 +17,7 @@
 #include "test_util.h"
 
 #include "kvm_util.h"
-#include "x86.h"
+#include "processor.h"
 
 #define X86_FEATURE_XSAVE	(1<<26)
 #define X86_FEATURE_OSXSAVE	(1<<27)
@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	struct kvm_sregs sregs;
 	struct kvm_cpuid_entry2 *entry;
+	struct ucall uc;
 	int rc;
 
 	entry = kvm_get_supported_cpuid_entry(1);
@@ -87,21 +88,20 @@ int main(int argc, char *argv[])
 		rc = _vcpu_run(vm, VCPU_ID);
 
 		if (run->exit_reason == KVM_EXIT_IO) {
-			switch (run->io.port) {
-			case GUEST_PORT_SYNC:
+			switch (get_ucall(vm, VCPU_ID, &uc)) {
+			case UCALL_SYNC:
 				/* emulate hypervisor clearing CR4.OSXSAVE */
 				vcpu_sregs_get(vm, VCPU_ID, &sregs);
 				sregs.cr4 &= ~X86_CR4_OSXSAVE;
 				vcpu_sregs_set(vm, VCPU_ID, &sregs);
 				break;
-			case GUEST_PORT_ABORT:
+			case UCALL_ABORT:
 				TEST_ASSERT(false, "Guest CR4 bit (OSXSAVE) unsynchronized with CPUID bit.");
 				break;
-			case GUEST_PORT_DONE:
+			case UCALL_DONE:
 				goto done;
 			default:
-				TEST_ASSERT(false, "Unknown port 0x%x.",
-					    run->io.port);
+				TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
 			}
 		}
 	}

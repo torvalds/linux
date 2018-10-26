@@ -1,5 +1,5 @@
 /*
- * tools/testing/selftests/kvm/lib/x86.c
+ * tools/testing/selftests/kvm/lib/x86_64/processor.c
  *
  * Copyright (C) 2018, Google LLC.
  *
@@ -10,8 +10,8 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "kvm_util_internal.h"
-#include "x86.h"
+#include "../kvm_util_internal.h"
+#include "processor.h"
 
 /* Minimum physical address used for virtual translation tables. */
 #define KVM_GUEST_PAGE_TABLE_MIN_PADDR 0x180000
@@ -231,7 +231,7 @@ void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 {
 	int rc;
 
-	TEST_ASSERT(vm->mode == VM_MODE_FLAT48PG, "Attempt to use "
+	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	/* If needed, create page map l4 table. */
@@ -264,7 +264,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	uint16_t index[4];
 	struct pageMapL4Entry *pml4e;
 
-	TEST_ASSERT(vm->mode == VM_MODE_FLAT48PG, "Attempt to use "
+	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	TEST_ASSERT((vaddr % vm->page_size) == 0,
@@ -551,7 +551,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	struct pageTableEntry *pte;
 	void *hva;
 
-	TEST_ASSERT(vm->mode == VM_MODE_FLAT48PG, "Attempt to use "
+	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	index[0] = (gva >> 12) & 0x1ffu;
@@ -624,9 +624,9 @@ void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
 	kvm_setup_gdt(vm, &sregs.gdt, gdt_memslot, pgd_memslot);
 
 	switch (vm->mode) {
-	case VM_MODE_FLAT48PG:
+	case VM_MODE_P52V48_4K:
 		sregs.cr0 = X86_CR0_PE | X86_CR0_NE | X86_CR0_PG;
-		sregs.cr4 |= X86_CR4_PAE;
+		sregs.cr4 |= X86_CR4_PAE | X86_CR4_OSFXSR;
 		sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
 
 		kvm_seg_set_unusable(&sregs.ldt);
@@ -672,6 +672,102 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 	vcpu_set_mp_state(vm, vcpuid, &mp_state);
 }
 
+/* Allocate an instance of struct kvm_cpuid2
+ *
+ * Input Args: None
+ *
+ * Output Args: None
+ *
+ * Return: A pointer to the allocated struct. The caller is responsible
+ * for freeing this struct.
+ *
+ * Since kvm_cpuid2 uses a 0-length array to allow a the size of the
+ * array to be decided at allocation time, allocation is slightly
+ * complicated. This function uses a reasonable default length for
+ * the array and performs the appropriate allocation.
+ */
+static struct kvm_cpuid2 *allocate_kvm_cpuid2(void)
+{
+	struct kvm_cpuid2 *cpuid;
+	int nent = 100;
+	size_t size;
+
+	size = sizeof(*cpuid);
+	size += nent * sizeof(struct kvm_cpuid_entry2);
+	cpuid = malloc(size);
+	if (!cpuid) {
+		perror("malloc");
+		abort();
+	}
+
+	cpuid->nent = nent;
+
+	return cpuid;
+}
+
+/* KVM Supported CPUID Get
+ *
+ * Input Args: None
+ *
+ * Output Args:
+ *
+ * Return: The supported KVM CPUID
+ *
+ * Get the guest CPUID supported by KVM.
+ */
+struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
+{
+	static struct kvm_cpuid2 *cpuid;
+	int ret;
+	int kvm_fd;
+
+	if (cpuid)
+		return cpuid;
+
+	cpuid = allocate_kvm_cpuid2();
+	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
+
+	ret = ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
+	TEST_ASSERT(ret == 0, "KVM_GET_SUPPORTED_CPUID failed %d %d\n",
+		    ret, errno);
+
+	close(kvm_fd);
+	return cpuid;
+}
+
+/* Locate a cpuid entry.
+ *
+ * Input Args:
+ *   cpuid: The cpuid.
+ *   function: The function of the cpuid entry to find.
+ *
+ * Output Args: None
+ *
+ * Return: A pointer to the cpuid entry. Never returns NULL.
+ */
+struct kvm_cpuid_entry2 *
+kvm_get_supported_cpuid_index(uint32_t function, uint32_t index)
+{
+	struct kvm_cpuid2 *cpuid;
+	struct kvm_cpuid_entry2 *entry = NULL;
+	int i;
+
+	cpuid = kvm_get_supported_cpuid();
+	for (i = 0; i < cpuid->nent; i++) {
+		if (cpuid->entries[i].function == function &&
+		    cpuid->entries[i].index == index) {
+			entry = &cpuid->entries[i];
+			break;
+		}
+	}
+
+	TEST_ASSERT(entry, "Guest CPUID entry not found: (EAX=%x, ECX=%x).",
+		    function, index);
+	return entry;
+}
+
 /* VM VCPU CPUID Set
  *
  * Input Args:
@@ -698,6 +794,7 @@ void vcpu_set_cpuid(struct kvm_vm *vm,
 		    rc, errno);
 
 }
+
 /* Create a VM with reasonable defaults
  *
  * Input Args:
@@ -726,7 +823,7 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	uint64_t extra_pg_pages = extra_mem_pages / 512 * 2;
 
 	/* Create VM */
-	vm = vm_create(VM_MODE_FLAT48PG,
+	vm = vm_create(VM_MODE_P52V48_4K,
 		       DEFAULT_GUEST_PHY_PAGES + extra_pg_pages,
 		       O_RDWR);
 
@@ -740,6 +837,154 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	vm_vcpu_add_default(vm, vcpuid, guest_code);
 
 	return vm;
+}
+
+/* VCPU Get MSR
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   msr_index - Index of MSR
+ *
+ * Output Args: None
+ *
+ * Return: On success, value of the MSR. On failure a TEST_ASSERT is produced.
+ *
+ * Get value of MSR for VCPU.
+ */
+uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	struct {
+		struct kvm_msrs header;
+		struct kvm_msr_entry entry;
+	} buffer = {};
+	int r;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	buffer.header.nmsrs = 1;
+	buffer.entry.index = msr_index;
+	r = ioctl(vcpu->fd, KVM_GET_MSRS, &buffer.header);
+	TEST_ASSERT(r == 1, "KVM_GET_MSRS IOCTL failed,\n"
+		"  rc: %i errno: %i", r, errno);
+
+	return buffer.entry.data;
+}
+
+/* VCPU Set MSR
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   msr_index - Index of MSR
+ *   msr_value - New value of MSR
+ *
+ * Output Args: None
+ *
+ * Return: On success, nothing. On failure a TEST_ASSERT is produced.
+ *
+ * Set value of MSR for VCPU.
+ */
+void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
+	uint64_t msr_value)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	struct {
+		struct kvm_msrs header;
+		struct kvm_msr_entry entry;
+	} buffer = {};
+	int r;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	memset(&buffer, 0, sizeof(buffer));
+	buffer.header.nmsrs = 1;
+	buffer.entry.index = msr_index;
+	buffer.entry.data = msr_value;
+	r = ioctl(vcpu->fd, KVM_SET_MSRS, &buffer.header);
+	TEST_ASSERT(r == 1, "KVM_SET_MSRS IOCTL failed,\n"
+		"  rc: %i errno: %i", r, errno);
+}
+
+/* VM VCPU Args Set
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   num - number of arguments
+ *   ... - arguments, each of type uint64_t
+ *
+ * Output Args: None
+ *
+ * Return: None
+ *
+ * Sets the first num function input arguments to the values
+ * given as variable args.  Each of the variable args is expected to
+ * be of type uint64_t.
+ */
+void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
+{
+	va_list ap;
+	struct kvm_regs regs;
+
+	TEST_ASSERT(num >= 1 && num <= 6, "Unsupported number of args,\n"
+		    "  num: %u\n",
+		    num);
+
+	va_start(ap, num);
+	vcpu_regs_get(vm, vcpuid, &regs);
+
+	if (num >= 1)
+		regs.rdi = va_arg(ap, uint64_t);
+
+	if (num >= 2)
+		regs.rsi = va_arg(ap, uint64_t);
+
+	if (num >= 3)
+		regs.rdx = va_arg(ap, uint64_t);
+
+	if (num >= 4)
+		regs.rcx = va_arg(ap, uint64_t);
+
+	if (num >= 5)
+		regs.r8 = va_arg(ap, uint64_t);
+
+	if (num >= 6)
+		regs.r9 = va_arg(ap, uint64_t);
+
+	vcpu_regs_set(vm, vcpuid, &regs);
+	va_end(ap);
+}
+
+/*
+ * VM VCPU Dump
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *   indent - Left margin indent amount
+ *
+ * Output Args:
+ *   stream - Output FILE stream
+ *
+ * Return: None
+ *
+ * Dumps the current state of the VCPU specified by vcpuid, within the VM
+ * given by vm, to the FILE stream given by stream.
+ */
+void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
+{
+	struct kvm_regs regs;
+	struct kvm_sregs sregs;
+
+	fprintf(stream, "%*scpuid: %u\n", indent, "", vcpuid);
+
+	fprintf(stream, "%*sregs:\n", indent + 2, "");
+	vcpu_regs_get(vm, vcpuid, &regs);
+	regs_dump(stream, &regs, indent + 4);
+
+	fprintf(stream, "%*ssregs:\n", indent + 2, "");
+	vcpu_sregs_get(vm, vcpuid, &sregs);
+	sregs_dump(stream, &sregs, indent + 4);
 }
 
 struct kvm_x86_state {
