@@ -629,25 +629,36 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 /**
  * ice_fill_sw_info - Helper function to populate lb_en and lan_en
  * @hw: pointer to the hardware structure
- * @f_info: filter info structure to fill/update
+ * @fi: filter info structure to fill/update
  *
  * This helper function populates the lb_en and lan_en elements of the provided
  * ice_fltr_info struct using the switch's type and characteristics of the
  * switch rule being configured.
  */
-static void ice_fill_sw_info(struct ice_hw *hw, struct ice_fltr_info *f_info)
+static void ice_fill_sw_info(struct ice_hw *hw, struct ice_fltr_info *fi)
 {
-	f_info->lb_en = false;
-	f_info->lan_en = false;
-	if ((f_info->flag & ICE_FLTR_TX) &&
-	    (f_info->fltr_act == ICE_FWD_TO_VSI ||
-	     f_info->fltr_act == ICE_FWD_TO_VSI_LIST ||
-	     f_info->fltr_act == ICE_FWD_TO_Q ||
-	     f_info->fltr_act == ICE_FWD_TO_QGRP)) {
-		f_info->lb_en = true;
-		if (!(hw->evb_veb && f_info->lkup_type == ICE_SW_LKUP_MAC &&
-		      is_unicast_ether_addr(f_info->l_data.mac.mac_addr)))
-			f_info->lan_en = true;
+	fi->lb_en = false;
+	fi->lan_en = false;
+	if ((fi->flag & ICE_FLTR_TX) &&
+	    (fi->fltr_act == ICE_FWD_TO_VSI ||
+	     fi->fltr_act == ICE_FWD_TO_VSI_LIST ||
+	     fi->fltr_act == ICE_FWD_TO_Q ||
+	     fi->fltr_act == ICE_FWD_TO_QGRP)) {
+		fi->lb_en = true;
+		/* Do not set lan_en to TRUE if
+		 * 1. The switch is a VEB AND
+		 * 2
+		 * 2.1 The lookup is MAC with unicast addr for MAC, OR
+		 * 2.2 The lookup is MAC_VLAN with unicast addr for MAC
+		 *
+		 * In all other cases, the LAN enable has to be set to true.
+		 */
+		if (!(hw->evb_veb &&
+		      ((fi->lkup_type == ICE_SW_LKUP_MAC &&
+			is_unicast_ether_addr(fi->l_data.mac.mac_addr)) ||
+		       (fi->lkup_type == ICE_SW_LKUP_MAC_VLAN &&
+			is_unicast_ether_addr(fi->l_data.mac_vlan.mac_addr)))))
+			fi->lan_en = true;
 	}
 }
 
