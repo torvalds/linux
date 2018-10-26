@@ -29,6 +29,7 @@ static const struct snd_soc_dapm_widget rockchip_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Lineout", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
+	SND_SOC_DAPM_MIC("HDMIIN", NULL),
 };
 
 static const struct snd_soc_dapm_route rockchip_dapm_routes[] = {
@@ -36,6 +37,7 @@ static const struct snd_soc_dapm_route rockchip_dapm_routes[] = {
 	{"Headphones", NULL, "HPOR"},
 	{"Lineout", NULL, "LOUTL"},
 	{"Lineout", NULL, "LOUTR"},
+	{"AIF2 Playback", NULL, "HDMIIN"},
 };
 
 static const struct snd_kcontrol_new rockchip_controls[] = {
@@ -80,7 +82,10 @@ static int rockchip_rt5651_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk, SND_SOC_CLOCK_IN);
+	snd_soc_dai_set_pll(codec_dai, 0, RT5651_PLL1_S_MCLK, mclk, mclk * 2);
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5651_SCLK_S_PLL1, mclk * 2,
+				     SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		dev_err(codec_dai->dev, "Can't set codec clock in %d\n", ret);
 		return ret;
