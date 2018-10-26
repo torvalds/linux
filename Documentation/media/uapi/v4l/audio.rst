@@ -31,7 +31,7 @@ outputs applications can enumerate them with the
 :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` ioctl, respectively.
 The struct :c:type:`v4l2_audio` returned by the
 :ref:`VIDIOC_ENUMAUDIO` ioctl also contains signal
-:status information applicable when the current audio input is queried.
+status information applicable when the current audio input is queried.
 
 The :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` and
 :ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDOUT>` ioctls report the current

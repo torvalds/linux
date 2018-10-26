@@ -10,7 +10,7 @@ This interface was aimed at devices receiving and demodulating Teletext
 data [:ref:`ets300706`, :ref:`itu653`], evaluating the Teletext
 packages and storing formatted pages in cache memory. Such devices are
 usually implemented as microcontrollers with serial interface
-(I:sup:`2`\ C) and could be found on old TV cards, dedicated Teletext
+(I\ :sup:`2`\ C) and could be found on old TV cards, dedicated Teletext
 decoding cards and home-brew devices connected to the PC parallel port.
 
 The Teletext API was designed by Martin Buck. It was defined in the

@@ -12,7 +12,7 @@ Data Format Negotiation
 
 Different devices exchange different kinds of data with applications,
 for example video images, raw or sliced VBI data, RDS datagrams. Even
-within one kind many different formats are possible, in particular an
+within one kind many different formats are possible, in particular there is an
 abundance of image formats. Although drivers must provide a default and
 the selection persists across closing and reopening a device,
 applications should always negotiate a data format before engaging in

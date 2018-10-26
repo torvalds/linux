@@ -53,7 +53,7 @@ ranges. These ranges are listed in :ref:`devices`.
 
 The creation of character special files (with mknod) is a privileged
 operation and devices cannot be opened by major and minor number. That
-means applications cannot *reliable* scan for loaded or installed
+means applications cannot *reliably* scan for loaded or installed
 drivers. The user must enter a device name, or the application can try
 the conventional device names.
 

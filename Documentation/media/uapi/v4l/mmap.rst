@@ -231,17 +231,17 @@ up the output is started with :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`.
 In the write loop, when the application runs out of free buffers, it
 must wait until an empty buffer can be dequeued and reused.
 
-To enqueue and dequeue a buffer applications use the :ref:`VIDIOC_QBUF`
-and :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. The status of a buffer
-being mapped, enqueued, full or empty can be determined at any time
-using the :ref:`VIDIOC_QUERYBUF` ioctl. Two methods exist to suspend
-execution of the application until one or more buffers can be dequeued.
-By default :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` blocks when no buffer is
-in the outgoing queue. When the ``O_NONBLOCK`` flag was given to the
-:ref:`open() <func-open>` function, :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
-returns immediately with an ``EAGAIN`` error code when no buffer is
-available. The :ref:`select() <func-select>` or :ref:`poll()
-<func-poll>` functions are always available.
+To enqueue and dequeue a buffer applications use the
+:ref:`VIVIOC_QBUF <VIDIOC_QBUF>` and :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
+ioctl. The status of a buffer being mapped, enqueued, full or empty can
+be determined at any time using the :ref:`VIDIOC_QUERYBUF` ioctl. Two
+methods exist to suspend execution of the application until one or more
+buffers can be dequeued.  By default :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
+blocks when no buffer is in the outgoing queue. When the ``O_NONBLOCK``
+flag was given to the :ref:`open() <func-open>` function,
+:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
+error code when no buffer is available. The :ref:`select() <func-select>`
+or :ref:`poll() <func-poll>` functions are always available.
 
 To start and stop capturing or output applications call the
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and :ref:`VIDIOC_STREAMOFF

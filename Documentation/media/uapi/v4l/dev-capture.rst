@@ -99,6 +99,6 @@ requests and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_F
 Reading Images
 ==============
 
-A video capture device may support the ::ref:`read() function <func-read>`
+A video capture device may support the :ref:`read() function <func-read>`
 and/or streaming (:ref:`memory mapping <func-mmap>` or
 :ref:`user pointer <userp>`) I/O. See :ref:`io` for details.

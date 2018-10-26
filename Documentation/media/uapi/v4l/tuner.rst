@@ -31,7 +31,7 @@ current video or radio input is queried.
 .. note::
 
    :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` does not switch the
-   current tuner, when there is more than one at all. The tuner is solely
+   current tuner, when there is more than one. The tuner is solely
    determined by the current video input. Drivers must support both ioctls
    and set the ``V4L2_CAP_TUNER`` flag in the struct :c:type:`v4l2_capability`
    returned by the :ref:`VIDIOC_QUERYCAP` ioctl when the
@@ -41,7 +41,7 @@ current video or radio input is queried.
 Modulators
 ==========
 
-Video output devices can have one or more modulators, uh, modulating a
+Video output devices can have one or more modulators, that modulate a
 video signal for radiation or connection to the antenna input of a TV
 set or video recorder. Each modulator is associated with one or more
 video outputs, depending on the number of RF connectors on the

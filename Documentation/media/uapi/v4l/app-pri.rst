@@ -8,7 +8,7 @@ Application Priority
 
 When multiple applications share a device it may be desirable to assign
 them different priorities. Contrary to the traditional "rm -rf /" school
-of thought a video recording application could for example block other
+of thought, a video recording application could for example block other
 applications from changing video controls or switching the current TV
 channel. Another objective is to permit low priority applications
 working in background, which can be preempted by user controlled
