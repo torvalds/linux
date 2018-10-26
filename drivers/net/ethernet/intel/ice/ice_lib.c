@@ -2551,6 +2551,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		return -EINVAL;
 
 	pf = vsi->back;
+	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
 	ice_vsi_free_q_vectors(vsi);
 	ice_free_res(vsi->back->sw_irq_tracker, vsi->sw_base_vector, vsi->idx);
 	ice_free_res(vsi->back->hw_irq_tracker, vsi->hw_base_vector, vsi->idx);
