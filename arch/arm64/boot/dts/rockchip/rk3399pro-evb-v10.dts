@@ -313,6 +313,30 @@
 	phys = <&tcphy0_dp>;
 };
 
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l1 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l2 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l3 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_b>;
+};
+
+&cpu_b1 {
+	cpu-supply = <&vdd_cpu_b>;
+};
+
 &dp_in_vopb {
 	status = "disabled";
 };
@@ -387,7 +411,7 @@
 		compatible = "rockchip,rk809";
 		reg = <0x20>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <RK_PD0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PC2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
 		rockchip,system-power-controller;
@@ -411,7 +435,7 @@
 				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
-				regulator-initial-mode = <0x1>;
+				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_log";
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -424,6 +448,7 @@
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
+				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_cpu_l";
 				regulator-state-mem {
 					regulator-off-in-suspend;
@@ -434,7 +459,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc_ddr";
-				regulator-initial-mode = <0x1>;
+				regulator-initial-mode = <0x2>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -445,7 +470,7 @@
 				regulator-boot-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-initial-mode = <0x1>;
+				regulator-initial-mode = <0x2>;
 				regulator-name = "vcc3v3_sys";
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -457,7 +482,6 @@
 				regulator-boot-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-initial-mode = <0x1>;
 				regulator-name = "vcc_buck5";
 				regulator-state-mem {
 					regulator-on-in-suspend;
@@ -530,6 +554,8 @@
 			};
 
 			vcc_1v5: LDO_REG6 {
+				regulator-always-on;
+				regulator-boot-on;
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
 
@@ -633,6 +659,7 @@
 		regulator-ramp-delay = <1000>;
 		fcs,suspend-voltage-selector = <1>;
 		regulator-always-on;
+		regulator-boot-on;
 		regulator-initial-state = <3>;
 		regulator-state-mem {
 			regulator-off-in-suspend;
@@ -842,35 +869,6 @@
 		<&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
 };
 
-&cpu_l0 {
-	cpu-supply = <&vdd_cpu_l>;
-};
-
-&cpu_l1 {
-	cpu-supply = <&vdd_cpu_l>;
-};
-
-&cpu_l2 {
-	cpu-supply = <&vdd_cpu_l>;
-};
-
-&cpu_l3 {
-	cpu-supply = <&vdd_cpu_l>;
-};
-
-&cpu_b0 {
-	cpu-supply = <&vdd_cpu_b>;
-};
-
-&cpu_b1 {
-	cpu-supply = <&vdd_cpu_b>;
-};
-
-&gpu {
-	status = "okay";
-	mali-supply = <&vdd_gpu>;
-};
-
 &route_dsi {
 	status = "okay";
 	logo,mode = "center";
@@ -878,6 +876,7 @@
 
 &saradc {
 	status = "okay";
+	vref-supply = <&vcc_1v8>;
 };
 
 &spi1 {
@@ -1012,7 +1011,7 @@
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
-				<1 RK_PD0 0 &pcfg_pull_up>;
+				<1 RK_PC2 0 &pcfg_pull_up>;
 		};
 		vsel1_gpio: vsel1-gpio {
 			rockchip,pins =
