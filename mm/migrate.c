@@ -1976,7 +1976,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	struct page *new_page = NULL;
 	int page_lru = page_is_file_cache(page);
 	unsigned long start = address & HPAGE_PMD_MASK;
-	unsigned long end = start + HPAGE_PMD_SIZE;
 
 	new_page = alloc_pages_node(node,
 		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
@@ -1999,6 +1998,8 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	/* anon mapping, we can simply copy page->mapping to the new page: */
 	new_page->mapping = page->mapping;
 	new_page->index = page->index;
+	/* flush the cache before copying using the kernel virtual address */
+	flush_cache_range(vma, start, start + HPAGE_PMD_SIZE);
 	migrate_page_copy(new_page, page);
 	WARN_ON(PageLRU(new_page));
 
@@ -2036,7 +2037,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	 * new page and page_add_new_anon_rmap guarantee the copy is
 	 * visible before the pagetable update.
 	 */
-	flush_cache_range(vma, start, end);
 	page_add_anon_rmap(new_page, vma, start, true);
 	/*
 	 * At this point the pmd is numa/protnone (i.e. non present) and the TLB
