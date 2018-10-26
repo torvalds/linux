@@ -56,8 +56,6 @@ struct btrfs_ordered_sum {
 				       * the isize. */
 #define BTRFS_ORDERED_TRUNCATED 8 /* Set when we have to truncate an extent */
 
-#define BTRFS_ORDERED_PENDING 9 /* We are waiting for this ordered extent to
-				  * complete in the current transaction. */
 #define BTRFS_ORDERED_REGULAR 10 /* Regular IO for COW */
 
 struct btrfs_ordered_extent {

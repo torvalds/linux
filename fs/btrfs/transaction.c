@@ -233,14 +233,12 @@ loop:
 	extwriter_counter_init(cur_trans, type);
 	init_waitqueue_head(&cur_trans->writer_wait);
 	init_waitqueue_head(&cur_trans->commit_wait);
-	init_waitqueue_head(&cur_trans->pending_wait);
 	cur_trans->state = TRANS_STATE_RUNNING;
 	/*
 	 * One for this trans handle, one so it will live on until we
 	 * commit the transaction.
 	 */
 	refcount_set(&cur_trans->use_count, 2);
-	atomic_set(&cur_trans->pending_ordered, 0);
 	cur_trans->flags = 0;
 	cur_trans->start_time = ktime_get_seconds();
 
@@ -1911,13 +1909,6 @@ static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 		btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
 }
 
-static inline void
-btrfs_wait_pending_ordered(struct btrfs_transaction *cur_trans)
-{
-	wait_event(cur_trans->pending_wait,
-		   atomic_read(&cur_trans->pending_ordered) == 0);
-}
-
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -2051,8 +2042,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto cleanup_transaction;
 
 	btrfs_wait_delalloc_flush(fs_info);
-
-	btrfs_wait_pending_ordered(cur_trans);
 
 	btrfs_scrub_pause(fs_info);
 	/*

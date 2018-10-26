@@ -39,7 +39,6 @@ struct btrfs_transaction {
 	 */
 	atomic_t num_writers;
 	refcount_t use_count;
-	atomic_t pending_ordered;
 
 	unsigned long flags;
 
@@ -51,7 +50,6 @@ struct btrfs_transaction {
 	time64_t start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
-	wait_queue_head_t pending_wait;
 	struct list_head pending_snapshots;
 	struct list_head pending_chunks;
 	struct list_head switch_commits;
