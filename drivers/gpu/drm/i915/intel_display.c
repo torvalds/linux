@@ -14350,7 +14350,7 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 
 static
 u32 intel_fb_pitch_limit(struct drm_i915_private *dev_priv,
-			 uint64_t fb_modifier, uint32_t pixel_format)
+			 u32 pixel_format, u64 fb_modifier)
 {
 	struct intel_crtc *crtc;
 	struct intel_plane *plane;
@@ -14450,8 +14450,8 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		goto err;
 	}
 
-	pitch_limit = intel_fb_pitch_limit(dev_priv, mode_cmd->modifier[0],
-					   mode_cmd->pixel_format);
+	pitch_limit = intel_fb_pitch_limit(dev_priv, mode_cmd->pixel_format,
+					   mode_cmd->modifier[0]);
 	if (mode_cmd->pitches[0] > pitch_limit) {
 		DRM_DEBUG_KMS("%s pitch (%u) must be at most %d\n",
 			      mode_cmd->modifier[0] != DRM_FORMAT_MOD_LINEAR ?
