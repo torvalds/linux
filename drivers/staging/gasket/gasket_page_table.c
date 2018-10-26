@@ -1278,7 +1278,8 @@ int gasket_alloc_coherent_memory(struct gasket_dev *gasket_dev, u64 size,
 
 	/* allocate the physical memory block */
 	gasket_dev->page_table[index]->coherent_pages =
-		kcalloc(num_pages, sizeof(struct gasket_coherent_page_entry),
+		kcalloc(num_pages,
+			sizeof(*gasket_dev->page_table[index]->coherent_pages),
 			GFP_KERNEL);
 	if (!gasket_dev->page_table[index]->coherent_pages)
 		goto nomem;
