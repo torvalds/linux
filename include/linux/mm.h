@@ -2502,7 +2502,7 @@ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
 int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
 			unsigned long pfn, unsigned long size, pgprot_t);
 int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
-int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn);
 vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn, pgprot_t pgprot);
@@ -2516,19 +2516,6 @@ static inline vm_fault_t vmf_insert_page(struct vm_area_struct *vma,
 				unsigned long addr, struct page *page)
 {
 	int err = vm_insert_page(vma, addr, page);
-
-	if (err == -ENOMEM)
-		return VM_FAULT_OOM;
-	if (err < 0 && err != -EBUSY)
-		return VM_FAULT_SIGBUS;
-
-	return VM_FAULT_NOPAGE;
-}
-
-static inline vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma,
-			unsigned long addr, unsigned long pfn)
-{
-	int err = vm_insert_pfn(vma, addr, pfn);
 
 	if (err == -ENOMEM)
 		return VM_FAULT_OOM;
