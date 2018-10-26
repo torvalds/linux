@@ -12,7 +12,7 @@
  *
  */
 
-#define pr_fmt(fmt) "persistent_ram: " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>
 #include <linux/err.h>
@@ -443,7 +443,8 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size,
 	void *va;
 
 	if (!request_mem_region(start, size, label ?: "ramoops")) {
-		pr_err("request mem region (0x%llx@0x%llx) failed\n",
+		pr_err("request mem region (%s 0x%llx@0x%llx) failed\n",
+			label ?: "ramoops",
 			(unsigned long long)size, (unsigned long long)start);
 		return NULL;
 	}
