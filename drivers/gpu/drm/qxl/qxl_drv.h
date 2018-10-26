@@ -88,10 +88,10 @@ struct qxl_bo {
 
 	/* Constant after initialization */
 	struct drm_gem_object		gem_base;
-	bool is_primary; /* is this now a primary surface */
-	bool is_dumb;
+	unsigned int is_primary:1; /* is this now a primary surface */
+	unsigned int is_dumb:1;
 	struct qxl_bo *shadow;
-	bool hw_surf_alloc;
+	unsigned int hw_surf_alloc:1;
 	struct qxl_surface surf;
 	uint32_t surface_id;
 	struct qxl_release *surf_create;
@@ -128,7 +128,7 @@ struct qxl_output {
 struct qxl_mman {
 	struct ttm_bo_global_ref        bo_global_ref;
 	struct drm_global_reference	mem_global_ref;
-	bool				mem_global_referenced;
+	unsigned int mem_global_referenced:1;
 	struct ttm_bo_device		bdev;
 };
 
@@ -229,7 +229,7 @@ struct qxl_device {
 
 	struct qxl_ram_header *ram_header;
 
-	bool primary_created;
+	unsigned int primary_created:1;
 
 	struct qxl_memslot	*mem_slots;
 	uint8_t		n_mem_slots;
