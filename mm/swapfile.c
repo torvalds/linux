@@ -932,6 +932,7 @@ static void swap_free_cluster(struct swap_info_struct *si, unsigned long idx)
 	struct swap_cluster_info *ci;
 
 	ci = lock_cluster(si, offset);
+	memset(si->swap_map + offset, 0, SWAPFILE_CLUSTER);
 	cluster_set_count_flag(ci, 0, 0);
 	free_cluster(si, idx);
 	unlock_cluster(ci);
@@ -1250,9 +1251,6 @@ void put_swap_page(struct page *page, swp_entry_t entry)
 		if (free_entries == SWAPFILE_CLUSTER) {
 			unlock_cluster_or_swap_info(si, ci);
 			spin_lock(&si->lock);
-			ci = lock_cluster(si, offset);
-			memset(map, 0, SWAPFILE_CLUSTER);
-			unlock_cluster(ci);
 			mem_cgroup_uncharge_swap(entry, SWAPFILE_CLUSTER);
 			swap_free_cluster(si, idx);
 			spin_unlock(&si->lock);
