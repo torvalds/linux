@@ -80,4 +80,11 @@ static inline int huge_pte_none(pte_t pte)
 }
 #endif
 
+#ifndef __HAVE_ARCH_HUGE_PTE_WRPROTECT
+static inline pte_t huge_pte_wrprotect(pte_t pte)
+{
+	return pte_wrprotect(pte);
+}
+#endif
+
 #endif /* _ASM_GENERIC_HUGETLB_H */
