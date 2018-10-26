@@ -1668,20 +1668,21 @@ static bool vm_mixed_ok(struct vm_area_struct *vma, pfn_t pfn)
 	return false;
 }
 
-static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-			pfn_t pfn, bool mkwrite)
+static vm_fault_t __vm_insert_mixed(struct vm_area_struct *vma,
+		unsigned long addr, pfn_t pfn, bool mkwrite)
 {
 	pgprot_t pgprot = vma->vm_page_prot;
+	int err;
 
 	BUG_ON(!vm_mixed_ok(vma, pfn));
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
-		return -EFAULT;
+		return VM_FAULT_SIGBUS;
 
 	track_pfn_insert(vma, &pgprot, pfn);
 
 	if (!pfn_modify_allowed(pfn_t_to_pfn(pfn), pgprot))
-		return -EACCES;
+		return VM_FAULT_SIGBUS;
 
 	/*
 	 * If we don't have pte special, then we have to use the pfn_valid()
@@ -1700,15 +1701,10 @@ static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 		 * result in pfn_t_has_page() == false.
 		 */
 		page = pfn_to_page(pfn_t_to_pfn(pfn));
-		return insert_page(vma, addr, page, pgprot);
+		err = insert_page(vma, addr, page, pgprot);
+	} else {
+		err = insert_pfn(vma, addr, pfn, pgprot, mkwrite);
 	}
-	return insert_pfn(vma, addr, pfn, pgprot, mkwrite);
-}
-
-vm_fault_t vmf_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-		pfn_t pfn)
-{
-	int err = __vm_insert_mixed(vma, addr, pfn, false);
 
 	if (err == -ENOMEM)
 		return VM_FAULT_OOM;
@@ -1716,6 +1712,12 @@ vm_fault_t vmf_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 		return VM_FAULT_SIGBUS;
 
 	return VM_FAULT_NOPAGE;
+}
+
+vm_fault_t vmf_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+		pfn_t pfn)
+{
+	return __vm_insert_mixed(vma, addr, pfn, false);
 }
 EXPORT_SYMBOL(vmf_insert_mixed);
 
@@ -1724,18 +1726,10 @@ EXPORT_SYMBOL(vmf_insert_mixed);
  *  different entry in the mean time, we treat that as success as we assume
  *  the same entry was actually inserted.
  */
-
 vm_fault_t vmf_insert_mixed_mkwrite(struct vm_area_struct *vma,
 		unsigned long addr, pfn_t pfn)
 {
-	int err;
-
-	err =  __vm_insert_mixed(vma, addr, pfn, true);
-	if (err == -ENOMEM)
-		return VM_FAULT_OOM;
-	if (err < 0 && err != -EBUSY)
-		return VM_FAULT_SIGBUS;
-	return VM_FAULT_NOPAGE;
+	return __vm_insert_mixed(vma, addr, pfn, true);
 }
 EXPORT_SYMBOL(vmf_insert_mixed_mkwrite);
 
