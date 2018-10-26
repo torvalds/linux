@@ -316,6 +316,10 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 				},
 			},
 		},
+		.bdu = {
+			.addr = 0x24,
+			.mask = 0x40,
+		},
 		.drdy_irq = {
 			/* drdy line is routed drdy pin */
 			.stat_drdy = {
