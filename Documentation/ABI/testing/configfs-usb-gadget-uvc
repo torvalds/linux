@@ -12,6 +12,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Control descriptors
 
+		All attributes read only:
+		bInterfaceNumber	- USB interface number for this
+					  streaming interface
+
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/class
 Date:		Dec 2014
 KernelVersion:	4.0
@@ -109,6 +113,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Streaming descriptors
 
+		All attributes read only:
+		bInterfaceNumber	- USB interface number for this
+					  streaming interface
+
 What:		/config/usb-gadget/gadget/functions/uvc.name/streaming/class
 Date:		Dec 2014
 KernelVersion:	4.0
@@ -160,6 +168,10 @@ Description:	Specific MJPEG format descriptors
 
 		All attributes read only,
 		except bmaControls and bDefaultFrameIndex:
+		bFormatIndex		- unique id for this format descriptor;
+					only defined after parent header is
+					linked into the streaming class;
+					read-only
 		bmaControls		- this format's data for bmaControls in
 					the streaming header
 		bmInterfaceFlags	- specifies interlace information,
@@ -177,6 +189,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Specific MJPEG frame descriptors
 
+		bFrameIndex		- unique id for this framedescriptor;
+					only defined after parent format is
+					linked into the streaming header;
+					read-only
 		dwFrameInterval		- indicates how frame interval can be
 					programmed; a number of values
 					separated by newline can be specified
@@ -204,6 +220,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Specific uncompressed format descriptors
 
+		bFormatIndex		- unique id for this format descriptor;
+					only defined after parent header is
+					linked into the streaming class;
+					read-only
 		bmaControls		- this format's data for bmaControls in
 					the streaming header
 		bmInterfaceFlags	- specifies interlace information,
@@ -224,6 +244,10 @@ Date:		Dec 2014
 KernelVersion:	4.0
 Description:	Specific uncompressed frame descriptors
 
+		bFrameIndex		- unique id for this framedescriptor;
+					only defined after parent format is
+					linked into the streaming header;
+					read-only
 		dwFrameInterval		- indicates how frame interval can be
 					programmed; a number of values
 					separated by newline can be specified

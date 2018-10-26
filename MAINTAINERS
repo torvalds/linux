@@ -15443,6 +15443,12 @@ F:	Documentation/driver-api/usb/typec_bus.rst
 F:	drivers/usb/typec/altmodes/
 F:	include/linux/usb/typec_altmode.h
 
+USB TYPEC PORT CONTROLLER DRIVERS
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/typec/tcpm/
+
 USB UHCI DRIVER
 M:	Alan Stern <stern@rowland.harvard.edu>
 L:	linux-usb@vger.kernel.org

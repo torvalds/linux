@@ -42,17 +42,10 @@
 #define T_BC_LVL_DEBOUNCE_DELAY_MS 30
 
 enum toggling_mode {
-	TOGGLINE_MODE_OFF,
+	TOGGLING_MODE_OFF,
 	TOGGLING_MODE_DRP,
 	TOGGLING_MODE_SNK,
 	TOGGLING_MODE_SRC,
-};
-
-static const char * const toggling_mode_name[] = {
-	[TOGGLINE_MODE_OFF]	= "toggling_OFF",
-	[TOGGLING_MODE_DRP]	= "toggling_DRP",
-	[TOGGLING_MODE_SNK]	= "toggling_SNK",
-	[TOGGLING_MODE_SRC]	= "toggling_SRC",
 };
 
 enum src_current_status {
@@ -601,7 +594,7 @@ static int fusb302_set_toggling(struct fusb302_chip *chip,
 	chip->intr_comp_chng = false;
 	/* configure toggling mode: none/snk/src/drp */
 	switch (mode) {
-	case TOGGLINE_MODE_OFF:
+	case TOGGLING_MODE_OFF:
 		ret = fusb302_i2c_mask_write(chip, FUSB_REG_CONTROL2,
 					     FUSB_REG_CONTROL2_MODE_MASK,
 					     FUSB_REG_CONTROL2_MODE_NONE);
@@ -633,7 +626,7 @@ static int fusb302_set_toggling(struct fusb302_chip *chip,
 		break;
 	}
 
-	if (mode == TOGGLINE_MODE_OFF) {
+	if (mode == TOGGLING_MODE_OFF) {
 		/* mask TOGDONE interrupt */
 		ret = fusb302_i2c_set_bits(chip, FUSB_REG_MASKA,
 					   FUSB_REG_MASKA_TOGDONE);
@@ -686,6 +679,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 	int ret = 0;
 	bool pull_up, pull_down;
 	u8 rd_mda;
+	enum toggling_mode mode;
 
 	mutex_lock(&chip->lock);
 	switch (cc) {
@@ -709,7 +703,7 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		ret = -EINVAL;
 		goto done;
 	}
-	ret = fusb302_set_toggling(chip, TOGGLINE_MODE_OFF);
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
 		fusb302_log(chip, "cannot stop toggling, ret=%d", ret);
 		goto done;
@@ -771,6 +765,29 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		chip->intr_comp_chng = false;
 	}
 	fusb302_log(chip, "cc := %s", typec_cc_status_name[cc]);
+
+	/* Enable detection for fixed SNK or SRC only roles */
+	switch (cc) {
+	case TYPEC_CC_RD:
+		mode = TOGGLING_MODE_SNK;
+		break;
+	case TYPEC_CC_RP_DEF:
+	case TYPEC_CC_RP_1_5:
+	case TYPEC_CC_RP_3_0:
+		mode = TOGGLING_MODE_SRC;
+		break;
+	default:
+		mode = TOGGLING_MODE_OFF;
+		break;
+	}
+
+	if (mode != TOGGLING_MODE_OFF) {
+		ret = fusb302_set_toggling(chip, mode);
+		if (ret < 0)
+			fusb302_log(chip,
+				    "cannot set fixed role toggling mode, ret=%d",
+				    ret);
+	}
 done:
 	mutex_unlock(&chip->lock);
 
@@ -1178,10 +1195,6 @@ static const u32 src_pdo[] = {
 	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS),
 };
 
-static const u32 snk_pdo[] = {
-	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS),
-};
-
 static const struct tcpc_config fusb302_tcpc_config = {
 	.src_pdo = src_pdo,
 	.nr_src_pdo = ARRAY_SIZE(src_pdo),
@@ -1303,7 +1316,7 @@ static int fusb302_handle_togdone_snk(struct fusb302_chip *chip,
 		tcpm_cc_change(chip->tcpm_port);
 	}
 	/* turn off toggling */
-	ret = fusb302_set_toggling(chip, TOGGLINE_MODE_OFF);
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot set toggling mode off, ret=%d", ret);
@@ -1399,7 +1412,7 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 		tcpm_cc_change(chip->tcpm_port);
 	}
 	/* turn off toggling */
-	ret = fusb302_set_toggling(chip, TOGGLINE_MODE_OFF);
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot set toggling mode off, ret=%d", ret);
@@ -1730,11 +1743,13 @@ static int fusb302_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	chip->i2c_client = client;
-	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
 	chip->tcpc_config = fusb302_tcpc_config;
 	chip->tcpc_dev.config = &chip->tcpc_config;
 	mutex_init(&chip->lock);
+
+	chip->tcpc_dev.fwnode =
+		device_get_named_child_node(dev, "connector");
 
 	if (!device_property_read_u32(dev, "fcs,operating-sink-microwatt", &v))
 		chip->tcpc_config.operating_snk_mw = v / 1000;
@@ -1756,21 +1771,16 @@ static int fusb302_probe(struct i2c_client *client,
 			return -EPROBE_DEFER;
 	}
 
-	fusb302_debugfs_init(chip);
+	chip->vbus = devm_regulator_get(chip->dev, "vbus");
+	if (IS_ERR(chip->vbus))
+		return PTR_ERR(chip->vbus);
 
 	chip->wq = create_singlethread_workqueue(dev_name(chip->dev));
-	if (!chip->wq) {
-		ret = -ENOMEM;
-		goto clear_client_data;
-	}
+	if (!chip->wq)
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&chip->bc_lvl_handler, fusb302_bc_lvl_handler_work);
 	init_tcpc_dev(&chip->tcpc_dev);
-
-	chip->vbus = devm_regulator_get(chip->dev, "vbus");
-	if (IS_ERR(chip->vbus)) {
-		ret = PTR_ERR(chip->vbus);
-		goto destroy_workqueue;
-	}
 
 	if (client->irq) {
 		chip->gpio_int_n_irq = client->irq;
@@ -1797,15 +1807,15 @@ static int fusb302_probe(struct i2c_client *client,
 		goto tcpm_unregister_port;
 	}
 	enable_irq_wake(chip->gpio_int_n_irq);
+	fusb302_debugfs_init(chip);
+	i2c_set_clientdata(client, chip);
+
 	return ret;
 
 tcpm_unregister_port:
 	tcpm_unregister_port(chip->tcpm_port);
 destroy_workqueue:
 	destroy_workqueue(chip->wq);
-clear_client_data:
-	i2c_set_clientdata(client, NULL);
-	fusb302_debugfs_exit(chip);
 
 	return ret;
 }
@@ -1816,7 +1826,6 @@ static int fusb302_remove(struct i2c_client *client)
 
 	tcpm_unregister_port(chip->tcpm_port);
 	destroy_workqueue(chip->wq);
-	i2c_set_clientdata(client, NULL);
 	fusb302_debugfs_exit(chip);
 
 	return 0;

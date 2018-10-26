@@ -1430,8 +1430,8 @@ static enum pdo_err tcpm_caps_err(struct tcpm_port *port, const u32 *pdo,
 				if (pdo_apdo_type(pdo[i]) != APDO_TYPE_PPS)
 					break;
 
-				if (pdo_pps_apdo_max_current(pdo[i]) <
-				    pdo_pps_apdo_max_current(pdo[i - 1]))
+				if (pdo_pps_apdo_max_voltage(pdo[i]) <
+				    pdo_pps_apdo_max_voltage(pdo[i - 1]))
 					return PDO_ERR_PPS_APDO_NOT_SORTED;
 				else if (pdo_pps_apdo_min_voltage(pdo[i]) ==
 					  pdo_pps_apdo_min_voltage(pdo[i - 1]) &&
@@ -2209,7 +2209,7 @@ static unsigned int tcpm_pd_select_pps_apdo(struct tcpm_port *port)
 {
 	unsigned int i, j, max_mw = 0, max_mv = 0;
 	unsigned int min_src_mv, max_src_mv, src_ma, src_mw;
-	unsigned int min_snk_mv, max_snk_mv, snk_ma;
+	unsigned int min_snk_mv, max_snk_mv;
 	u32 pdo;
 	unsigned int src_pdo = 0, snk_pdo = 0;
 
@@ -2253,8 +2253,6 @@ static unsigned int tcpm_pd_select_pps_apdo(struct tcpm_port *port)
 						pdo_pps_apdo_min_voltage(pdo);
 					max_snk_mv =
 						pdo_pps_apdo_max_voltage(pdo);
-					snk_ma =
-						pdo_pps_apdo_max_current(pdo);
 					break;
 				default:
 					tcpm_log(port,
@@ -2402,7 +2400,7 @@ static int tcpm_pd_send_request(struct tcpm_port *port)
 
 static int tcpm_pd_build_pps_request(struct tcpm_port *port, u32 *rdo)
 {
-	unsigned int out_mv, op_ma, op_mw, min_mv, max_mv, max_ma, flags;
+	unsigned int out_mv, op_ma, op_mw, max_mv, max_ma, flags;
 	enum pd_pdo_type type;
 	unsigned int src_pdo_index;
 	u32 pdo;
@@ -2420,7 +2418,6 @@ static int tcpm_pd_build_pps_request(struct tcpm_port *port, u32 *rdo)
 			tcpm_log(port, "Invalid APDO selected!");
 			return -EINVAL;
 		}
-		min_mv = port->pps_data.min_volt;
 		max_mv = port->pps_data.max_volt;
 		max_ma = port->pps_data.max_curr;
 		out_mv = port->pps_data.out_volt;
@@ -4116,6 +4113,9 @@ static int tcpm_pps_set_op_curr(struct tcpm_port *port, u16 op_curr)
 		goto port_unlock;
 	}
 
+	/* Round down operating current to align with PPS valid steps */
+	op_curr = op_curr - (op_curr % RDO_PROG_CURR_MA_STEP);
+
 	reinit_completion(&port->pps_complete);
 	port->pps_data.op_curr = op_curr;
 	port->pps_status = 0;
@@ -4168,6 +4168,9 @@ static int tcpm_pps_set_out_volt(struct tcpm_port *port, u16 out_volt)
 		ret = -EINVAL;
 		goto port_unlock;
 	}
+
+	/* Round down output voltage to align with PPS valid steps */
+	out_volt = out_volt - (out_volt % RDO_PROG_VOLT_MV_STEP);
 
 	reinit_completion(&port->pps_complete);
 	port->pps_data.out_volt = out_volt;
