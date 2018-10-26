@@ -601,7 +601,7 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	struct usb_serial *serial;
 	__u16 Data;
 	unsigned char *data;
-	__u8 sp[5], st;
+	__u8 sp[5];
 	int i, rv = 0;
 	__u16 wval, wreg = 0;
 	int status = urb->status;
@@ -644,7 +644,6 @@ static void mos7840_interrupt_callback(struct urb *urb)
 	sp[1] = (__u8) data[1];
 	sp[2] = (__u8) data[2];
 	sp[3] = (__u8) data[3];
-	st = (__u8) data[4];
 
 	for (i = 0; i < serial->num_ports; i++) {
 		mos7840_port = mos7840_get_port_private(serial->port[i]);
@@ -1300,7 +1299,6 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 	struct urb *urb;
 	/* __u16 Data; */
 	const unsigned char *current_position = data;
-	unsigned char *data1;
 
 	if (mos7840_port_paranoia_check(port, __func__))
 		return -1;
@@ -1361,7 +1359,6 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 			mos7840_bulk_out_data_callback, mos7840_port);
 	}
 
-	data1 = urb->transfer_buffer;
 	dev_dbg(&port->dev, "bulkout endpoint is %d\n", port->bulk_out_endpointAddress);
 
 	if (mos7840_port->has_led)
@@ -1697,7 +1694,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 {
 	int baud;
 	unsigned cflag;
-	unsigned iflag;
 	__u8 lData;
 	__u8 lParity;
 	__u8 lStop;
@@ -1729,7 +1725,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	lParity = LCR_PAR_NONE;
 
 	cflag = tty->termios.c_cflag;
-	iflag = tty->termios.c_iflag;
 
 	/* Change the number of bits */
 	switch (cflag & CSIZE) {
