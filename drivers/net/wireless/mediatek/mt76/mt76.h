@@ -135,9 +135,8 @@ struct mt76_queue {
 };
 
 struct mt76_mcu_ops {
-	struct sk_buff *(*mcu_msg_alloc)(const void *data, int len);
-	int (*mcu_send_msg)(struct mt76_dev *dev, struct sk_buff *skb,
-			    int cmd, bool wait_resp);
+	int (*mcu_send_msg)(struct mt76_dev *dev, int cmd, const void *data,
+			    int len, bool wait_resp);
 	int (*mcu_wr_rp)(struct mt76_dev *dev, u32 base,
 			 const struct mt76_reg_pair *rp, int len);
 	int (*mcu_rd_rp)(struct mt76_dev *dev, u32 base,
@@ -503,7 +502,6 @@ struct mt76_rx_status {
 #define mt76_wr_rp(dev, ...)	(dev)->mt76.bus->wr_rp(&((dev)->mt76), __VA_ARGS__)
 #define mt76_rd_rp(dev, ...)	(dev)->mt76.bus->rd_rp(&((dev)->mt76), __VA_ARGS__)
 
-#define mt76_mcu_msg_alloc(dev, ...)	(dev)->mt76.mcu_ops->mcu_msg_alloc(__VA_ARGS__)
 #define mt76_mcu_send_msg(dev, ...)	(dev)->mt76.mcu_ops->mcu_send_msg(&((dev)->mt76), __VA_ARGS__)
 
 #define mt76_set(dev, offset, val)	mt76_rmw(dev, offset, 0, val)
