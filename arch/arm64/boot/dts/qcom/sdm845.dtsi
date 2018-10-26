@@ -14,6 +14,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/phy/phy-qcom-qusb2.h>
 #include <dt-bindings/reset/qcom,sdm845-aoss.h>
+#include <dt-bindings/reset/qcom,sdm845-pdc.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 #include <dt-bindings/clock/qcom,gcc-sdm845.h>
 
@@ -1900,6 +1901,12 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
+		};
+
+		pdc_reset: reset-controller@b2e0000 {
+			compatible = "qcom,sdm845-pdc-global";
+			reg = <0x0b2e0000 0x20000>;
+			#reset-cells = <1>;
 		};
 
 		tsens0: thermal-sensor@c263000 {
