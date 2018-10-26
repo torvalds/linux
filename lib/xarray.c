@@ -57,6 +57,11 @@ static inline bool xa_track_free(const struct xarray *xa)
 	return xa->xa_flags & XA_FLAGS_TRACK_FREE;
 }
 
+static inline bool xa_zero_busy(const struct xarray *xa)
+{
+	return xa->xa_flags & XA_FLAGS_ZERO_BUSY;
+}
+
 static inline void xa_mark_set(struct xarray *xa, xa_mark_t mark)
 {
 	if (!(xa->xa_flags & XA_FLAGS_MARK(mark)))
@@ -432,6 +437,8 @@ static void xas_shrink(struct xa_state *xas)
 			break;
 		if (!xa_is_node(entry) && node->shift)
 			break;
+		if (xa_is_zero(entry) && xa_zero_busy(xa))
+			entry = NULL;
 		xas->xa_node = XAS_BOUNDS;
 
 		RCU_INIT_POINTER(xa->xa_head, entry);
@@ -628,6 +635,8 @@ static void *xas_create(struct xa_state *xas, bool allow_root)
 	if (xas_top(node)) {
 		entry = xa_head_locked(xa);
 		xas->xa_node = NULL;
+		if (!entry && xa_zero_busy(xa))
+			entry = XA_ZERO_ENTRY;
 		shift = xas_expand(xas, entry);
 		if (shift < 0)
 			return NULL;
@@ -1942,6 +1951,8 @@ void xa_destroy(struct xarray *xa)
 	entry = xa_head_locked(xa);
 	RCU_INIT_POINTER(xa->xa_head, NULL);
 	xas_init_marks(&xas);
+	if (xa_zero_busy(xa))
+		xa_mark_clear(xa, XA_FREE_MARK);
 	/* lockdep checks we're still holding the lock in xas_free_nodes() */
 	if (xa_is_node(entry))
 		xas_free_nodes(&xas, xa_to_node(entry));

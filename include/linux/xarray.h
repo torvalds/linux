@@ -220,10 +220,13 @@ enum xa_lock_type {
 #define XA_FLAGS_LOCK_IRQ	((__force gfp_t)XA_LOCK_IRQ)
 #define XA_FLAGS_LOCK_BH	((__force gfp_t)XA_LOCK_BH)
 #define XA_FLAGS_TRACK_FREE	((__force gfp_t)4U)
+#define XA_FLAGS_ZERO_BUSY	((__force gfp_t)8U)
 #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
 						(__force unsigned)(mark)))
 
+/* ALLOC is for a normal 0-based alloc.  ALLOC1 is for an 1-based alloc */
 #define XA_FLAGS_ALLOC	(XA_FLAGS_TRACK_FREE | XA_FLAGS_MARK(XA_FREE_MARK))
+#define XA_FLAGS_ALLOC1	(XA_FLAGS_TRACK_FREE | XA_FLAGS_ZERO_BUSY)
 
 /**
  * struct xarray - The anchor of the XArray.
@@ -279,13 +282,22 @@ struct xarray {
 #define DEFINE_XARRAY(name) DEFINE_XARRAY_FLAGS(name, 0)
 
 /**
- * DEFINE_XARRAY_ALLOC() - Define an XArray which can allocate IDs.
+ * DEFINE_XARRAY_ALLOC() - Define an XArray which allocates IDs starting at 0.
  * @name: A string that names your XArray.
  *
  * This is intended for file scope definitions of allocating XArrays.
  * See also DEFINE_XARRAY().
  */
 #define DEFINE_XARRAY_ALLOC(name) DEFINE_XARRAY_FLAGS(name, XA_FLAGS_ALLOC)
+
+/**
+ * DEFINE_XARRAY_ALLOC1() - Define an XArray which allocates IDs starting at 1.
+ * @name: A string that names your XArray.
+ *
+ * This is intended for file scope definitions of allocating XArrays.
+ * See also DEFINE_XARRAY().
+ */
+#define DEFINE_XARRAY_ALLOC1(name) DEFINE_XARRAY_FLAGS(name, XA_FLAGS_ALLOC1)
 
 void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
