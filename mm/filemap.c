@@ -2596,9 +2596,7 @@ no_cached_page:
 	 * system is low on memory, or a problem occurs while trying
 	 * to schedule I/O.
 	 */
-	if (error == -ENOMEM)
-		return VM_FAULT_OOM;
-	return VM_FAULT_SIGBUS;
+	return vmf_error(error);
 
 page_not_uptodate:
 	/*
