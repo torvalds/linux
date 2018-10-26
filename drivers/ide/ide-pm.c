@@ -40,32 +40,20 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	return ret;
 }
 
-static void ide_end_sync_rq(struct request *rq, blk_status_t error)
-{
-	complete(rq->end_io_data);
-}
-
 static int ide_pm_execute_rq(struct request *rq)
 {
 	struct request_queue *q = rq->q;
-	DECLARE_COMPLETION_ONSTACK(wait);
-
-	rq->end_io_data = &wait;
-	rq->end_io = ide_end_sync_rq;
 
 	spin_lock_irq(q->queue_lock);
 	if (unlikely(blk_queue_dying(q))) {
 		rq->rq_flags |= RQF_QUIET;
 		scsi_req(rq)->result = -ENXIO;
-		__blk_end_request_all(rq, BLK_STS_OK);
 		spin_unlock_irq(q->queue_lock);
+		blk_mq_end_request(rq, BLK_STS_OK);
 		return -ENXIO;
 	}
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT);
-	__blk_run_queue_uncond(q);
 	spin_unlock_irq(q->queue_lock);
-
-	wait_for_completion_io(&wait);
+	blk_execute_rq(q, NULL, rq, true);
 
 	return scsi_req(rq)->result ? -EIO : 0;
 }
@@ -78,6 +66,8 @@ int generic_ide_resume(struct device *dev)
 	struct request *rq;
 	struct ide_pm_state rqpm;
 	int err;
+
+	blk_mq_start_stopped_hw_queues(drive->queue, true);
 
 	if (ide_port_acpi(hwif)) {
 		/* call ACPI _PS0 / _STM only once */
@@ -226,15 +216,14 @@ void ide_complete_pm_rq(ide_drive_t *drive, struct request *rq)
 #endif
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (ide_req(rq)->type == ATA_PRIV_PM_SUSPEND)
-		blk_stop_queue(q);
+		blk_mq_stop_hw_queues(q);
 	else
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	drive->hwif->rq = NULL;
 
-	if (blk_end_request(rq, BLK_STS_OK, 0))
-		BUG();
+	blk_mq_end_request(rq, BLK_STS_OK);
 }
 
 void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
@@ -260,7 +249,6 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		ide_hwif_t *hwif = drive->hwif;
 		const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 		struct request_queue *q = drive->queue;
-		unsigned long flags;
 		int rc;
 #ifdef DEBUG_PM
 		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
@@ -274,8 +262,6 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
 
-		spin_lock_irqsave(q->queue_lock, flags);
-		blk_start_queue(q);
-		spin_unlock_irqrestore(q->queue_lock, flags);
+		blk_mq_start_hw_queues(q);
 	}
 }

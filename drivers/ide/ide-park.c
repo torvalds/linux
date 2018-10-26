@@ -27,7 +27,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 		spin_unlock_irq(&hwif->lock);
 
 		if (start_queue)
-			blk_run_queue(q);
+			blk_mq_run_hw_queues(q, true);
 		return;
 	}
 	spin_unlock_irq(&hwif->lock);
@@ -54,7 +54,7 @@ static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 	scsi_req(rq)->cmd[0] = REQ_UNPARK_HEADS;
 	scsi_req(rq)->cmd_len = 1;
 	ide_req(rq)->type = ATA_PRIV_MISC;
-	elv_add_request(q, rq, ELEVATOR_INSERT_FRONT);
+	ide_insert_request_head(drive, rq);
 
 out:
 	return;

@@ -172,8 +172,8 @@ EXPORT_SYMBOL_GPL(ide_create_request_sense_cmd);
 void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 {
 	struct request_sense *sense = &drive->sense_data;
-	struct request *sense_rq = drive->sense_rq;
-	struct scsi_request *req = scsi_req(sense_rq);
+	struct request *sense_rq;
+	struct scsi_request *req;
 	unsigned int cmd_len, sense_len;
 	int err;
 
@@ -196,9 +196,16 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	if (ata_sense_request(rq) || drive->sense_rq_armed)
 		return;
 
+	sense_rq = drive->sense_rq;
+	if (!sense_rq) {
+		sense_rq = blk_mq_alloc_request(drive->queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+		drive->sense_rq = sense_rq;
+	}
+	req = scsi_req(sense_rq);
+
 	memset(sense, 0, sizeof(*sense));
 
-	blk_rq_init(rq->q, sense_rq);
 	scsi_req_init(req);
 
 	err = blk_rq_map_kern(drive->queue, sense_rq, sense, sense_len,
@@ -207,6 +214,8 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 		if (printk_ratelimit())
 			printk(KERN_WARNING PFX "%s: failed to map sense "
 					    "buffer\n", drive->name);
+		blk_mq_free_request(sense_rq);
+		drive->sense_rq = NULL;
 		return;
 	}
 
@@ -226,6 +235,8 @@ EXPORT_SYMBOL_GPL(ide_prep_sense);
 
 int ide_queue_sense_rq(ide_drive_t *drive, void *special)
 {
+	struct request *sense_rq = drive->sense_rq;
+
 	/* deferred failure from ide_prep_sense() */
 	if (!drive->sense_rq_armed) {
 		printk(KERN_WARNING PFX "%s: error queuing a sense request\n",
@@ -233,12 +244,12 @@ int ide_queue_sense_rq(ide_drive_t *drive, void *special)
 		return -ENOMEM;
 	}
 
-	drive->sense_rq->special = special;
+	sense_rq->special = special;
 	drive->sense_rq_armed = false;
 
 	drive->hwif->rq = NULL;
 
-	elv_add_request(drive->queue, drive->sense_rq, ELEVATOR_INSERT_FRONT);
+	ide_insert_request_head(drive, sense_rq);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
@@ -270,10 +281,8 @@ void ide_retry_pc(ide_drive_t *drive)
 	 */
 	drive->hwif->rq = NULL;
 	ide_requeue_and_plug(drive, failed_rq);
-	if (ide_queue_sense_rq(drive, pc)) {
-		blk_start_request(failed_rq);
+	if (ide_queue_sense_rq(drive, pc))
 		ide_complete_rq(drive, BLK_STS_IOERR, blk_rq_bytes(failed_rq));
-	}
 }
 EXPORT_SYMBOL_GPL(ide_retry_pc);
 

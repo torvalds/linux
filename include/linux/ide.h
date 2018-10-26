@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/ata.h>
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
@@ -529,6 +529,10 @@ struct ide_drive_s {
 
 	struct request_queue	*queue;	/* request queue */
 
+	int (*prep_rq)(struct ide_drive_s *, struct request *);
+
+	struct blk_mq_tag_set	tag_set;
+
 	struct request		*rq;	/* current request */
 	void		*driver_data;	/* extra driver data */
 	u16			*id;	/* identification info */
@@ -612,6 +616,10 @@ struct ide_drive_s {
 	bool sense_rq_armed;
 	struct request *sense_rq;
 	struct request_sense sense_data;
+
+	/* async sense insertion */
+	struct work_struct rq_work;
+	struct list_head rq_list;
 };
 
 typedef struct ide_drive_s ide_drive_t;
@@ -1089,6 +1097,7 @@ extern int ide_pci_clk;
 
 int ide_end_rq(ide_drive_t *, struct request *, blk_status_t, unsigned int);
 void ide_kill_rq(ide_drive_t *, struct request *);
+void ide_insert_request_head(ide_drive_t *, struct request *);
 
 void __ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
 void ide_set_handler(ide_drive_t *, ide_handler_t *, unsigned int);
@@ -1208,7 +1217,7 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
 extern void ide_timer_expiry(struct timer_list *t);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
-extern void do_ide_request(struct request_queue *);
+extern blk_status_t ide_queue_rq(struct blk_mq_hw_ctx *, const struct blk_mq_queue_data *);
 extern void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
