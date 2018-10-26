@@ -614,8 +614,8 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 
 	clk_disable(priv->clk);
 
-	mgr = fpga_mgr_create(dev, "Xilinx Zynq FPGA Manager",
-			      &zynq_fpga_ops, priv);
+	mgr = devm_fpga_mgr_create(dev, "Xilinx Zynq FPGA Manager",
+				   &zynq_fpga_ops, priv);
 	if (!mgr)
 		return -ENOMEM;
 
@@ -624,7 +624,6 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	err = fpga_mgr_register(mgr);
 	if (err) {
 		dev_err(dev, "unable to register FPGA manager\n");
-		fpga_mgr_free(mgr);
 		clk_unprepare(priv->clk);
 		return err;
 	}

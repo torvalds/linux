@@ -27,7 +27,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
