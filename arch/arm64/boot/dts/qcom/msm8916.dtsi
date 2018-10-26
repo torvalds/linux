@@ -827,6 +827,13 @@
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <17>;
 
+			// vfe:
+			iommu-ctx@3000 {
+				compatible = "qcom,msm-iommu-v1-sec";
+				reg = <0x3000 0x1000>;
+				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			// mdp_0:
 			iommu-ctx@4000 {
 				compatible = "qcom,msm-iommu-v1-ns";
