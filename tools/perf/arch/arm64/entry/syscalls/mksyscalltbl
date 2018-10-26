@@ -23,7 +23,7 @@ create_table_from_c()
 {
 	local sc nr last_sc
 
-	create_table_exe=`mktemp /tmp/create-table-XXXXXX`
+	create_table_exe=`mktemp ${TMPDIR:-/tmp}/create-table-XXXXXX`
 
 	{
 

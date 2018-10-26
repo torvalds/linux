@@ -383,6 +383,24 @@ include::itrace.txt[]
 	will be printed. Each entry has function name and file/line. Enabled by
 	default, disable with --no-inline.
 
+--insn-trace::
+	Show instruction stream for intel_pt traces. Combine with --xed to
+	show disassembly.
+
+--xed::
+	Run xed disassembler on output. Requires installing the xed disassembler.
+
+--call-trace::
+	Show call stream for intel_pt traces. The CPUs are interleaved, but
+	can be filtered with -C.
+
+--call-ret-trace::
+	Show call and return stream for intel_pt traces.
+
+--graph-function::
+	For itrace only show specified functions and their callees for
+	itrace. Multiple functions can be separated by comma.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],

@@ -42,6 +42,8 @@ struct thread {
 	void				*addr_space;
 	struct unwind_libunwind_ops	*unwind_libunwind_ops;
 #endif
+	bool			filter;
+	int			filter_entry_depth;
 };
 
 struct machine;
