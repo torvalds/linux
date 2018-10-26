@@ -1392,17 +1392,17 @@ static int ice_nway_reset(struct net_device *netdev)
 {
 	/* restart autonegotiation */
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_link_status *hw_link_info;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_port_info *pi;
 	enum ice_status status;
-	bool link_up;
 
 	pi = vsi->port_info;
-	hw_link_info = &pi->phy.link_info;
-	link_up = hw_link_info->link_info & ICE_AQ_LINK_UP;
+	/* If VSI state is up, then restart autoneg with link up */
+	if (!test_bit(__ICE_DOWN, vsi->back->state))
+		status = ice_aq_set_link_restart_an(pi, true, NULL);
+	else
+		status = ice_aq_set_link_restart_an(pi, false, NULL);
 
-	status = ice_aq_set_link_restart_an(pi, link_up, NULL);
 	if (status) {
 		netdev_info(netdev, "link restart failed, err %d aq_err %d\n",
 			    status, pi->hw->adminq.sq_last_status);
