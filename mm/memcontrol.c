@@ -4299,14 +4299,12 @@ static void mem_cgroup_id_remove(struct mem_cgroup *memcg)
 
 static void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n)
 {
-	VM_BUG_ON(atomic_read(&memcg->id.ref) <= 0);
-	atomic_add(n, &memcg->id.ref);
+	refcount_add(n, &memcg->id.ref);
 }
 
 static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
 {
-	VM_BUG_ON(atomic_read(&memcg->id.ref) < n);
-	if (atomic_sub_and_test(n, &memcg->id.ref)) {
+	if (refcount_sub_and_test(n, &memcg->id.ref)) {
 		mem_cgroup_id_remove(memcg);
 
 		/* Memcg ID pins CSS */
@@ -4523,7 +4521,7 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
 	}
 
 	/* Online state pins memcg ID, memcg ID pins CSS */
-	atomic_set(&memcg->id.ref, 1);
+	refcount_set(&memcg->id.ref, 1);
 	css_get(css);
 	return 0;
 }
@@ -6357,7 +6355,7 @@ subsys_initcall(mem_cgroup_init);
 #ifdef CONFIG_MEMCG_SWAP
 static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
 {
-	while (!atomic_inc_not_zero(&memcg->id.ref)) {
+	while (!refcount_inc_not_zero(&memcg->id.ref)) {
 		/*
 		 * The root cgroup cannot be destroyed, so it's refcount must
 		 * always be >= 1.
