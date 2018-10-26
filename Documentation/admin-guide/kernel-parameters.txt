@@ -1759,6 +1759,18 @@
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
+	iommu.strict=	[ARM64] Configure TLB invalidation behaviour
+			Format: { "0" | "1" }
+			0 - Lazy mode.
+			  Request that DMA unmap operations use deferred
+			  invalidation of hardware TLBs, for increased
+			  throughput at the cost of reduced device isolation.
+			  Will fall back to strict mode if not supported by
+			  the relevant IOMMU driver.
+			1 - Strict mode (default).
+			  DMA unmap operations invalidate IOMMU hardware TLBs
+			  synchronously.
+
 	iommu.passthrough=
 			[ARM64] Configure DMA to bypass the IOMMU by default.
 			Format: { "0" | "1" }
