@@ -1436,10 +1436,26 @@ static ssize_t __fuse_direct_read(struct fuse_io_priv *io,
 	return res;
 }
 
+static ssize_t fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter);
+
 static ssize_t fuse_direct_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
-	return __fuse_direct_read(&io, to, &iocb->ki_pos);
+	ssize_t res;
+
+	if (!is_sync_kiocb(iocb) && iocb->ki_flags & IOCB_DIRECT) {
+		struct file *file = iocb->ki_filp;
+
+		if (is_bad_inode(file_inode(file)))
+			return -EIO;
+
+		res = fuse_direct_IO(iocb, to);
+	} else {
+		struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
+
+		res = __fuse_direct_read(&io, to, &iocb->ki_pos);
+	}
+
+	return res;
 }
 
 static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
@@ -1454,8 +1470,14 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	/* Don't allow parallel writes to the same file */
 	inode_lock(inode);
 	res = generic_write_checks(iocb, from);
-	if (res > 0)
-		res = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
+	if (res > 0) {
+		if (!is_sync_kiocb(iocb) && iocb->ki_flags & IOCB_DIRECT) {
+			res = fuse_direct_IO(iocb, from);
+		} else {
+			res = fuse_direct_io(&io, from, &iocb->ki_pos,
+					     FUSE_DIO_WRITE);
+		}
+	}
 	fuse_invalidate_attr(inode);
 	if (res > 0)
 		fuse_write_update_size(inode, iocb->ki_pos);
