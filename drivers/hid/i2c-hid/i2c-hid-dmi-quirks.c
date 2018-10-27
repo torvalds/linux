@@ -337,7 +337,8 @@ static const struct dmi_system_id i2c_hid_dmi_desc_override_table[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "FlexBook edge11 - M-FBE11"),
 		},
 		.driver_data = (void *)&sipodev_desc
-	}
+	},
+	{ }	/* Terminate list */
 };
 
 
