@@ -598,7 +598,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
  *	true	dump packet directly
  *	false	enqueue packet
  */
-s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
+bool rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
 	s32 res;
 	struct xmit_buf *pxmitbuf = NULL;
