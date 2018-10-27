@@ -686,8 +686,7 @@ static void mt76x0_phy_temp_sensor(struct mt76x02_dev *dev)
 	mt76x0_rf_wr(dev, MT_RF(0, 67), 0x01);
 
 	mt76_wr(dev, MT_BBP(CORE, 34), 0x00080055);
-
-	if (!mt76_poll(dev, MT_BBP(CORE, 34), BIT(4), 0, 2000)) {
+	if (!mt76_poll_msec(dev, MT_BBP(CORE, 34), BIT(4), 0, 200)) {
 		mt76_clear(dev, MT_BBP(CORE, 34), BIT(4));
 		goto done;
 	}
