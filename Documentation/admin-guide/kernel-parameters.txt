@@ -4851,6 +4851,18 @@
 			This is actually a boot loader parameter; the value is
 			passed to the kernel using a special protocol.
 
+	vm_debug[=options]	[KNL] Available with CONFIG_DEBUG_VM=y.
+			May slow down system boot speed, especially when
+			enabled on systems with a large amount of memory.
+			All options are enabled by default, and this
+			interface is meant to allow for selectively
+			enabling or disabling specific virtual memory
+			debugging features.
+
+			Available options are:
+			  P	Enable page structure init time poisoning
+			  -	Disable all of the above options
+
 	vmalloc=nn[KMG]	[KNL,BOOT] Forces the vmalloc area to have an exact
 			size of <nn>. This can be used to increase the
 			minimum size (128MB on x86). It can also be used to
