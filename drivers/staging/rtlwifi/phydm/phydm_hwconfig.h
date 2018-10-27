@@ -216,8 +216,6 @@ odm_config_fw_with_header_file(struct phy_dm_struct *dm,
 
 u32 odm_get_hw_img_version(struct phy_dm_struct *dm);
 
-s32 odm_signal_scale_mapping(struct phy_dm_struct *dm, s32 curr_sig);
-
 /*For 8822B only!! need to move to FW finally */
 /*==============================================*/
 void phydm_rx_phy_status_new_type(struct phy_dm_struct *phydm, u8 *phy_status,

@@ -477,18 +477,6 @@ static u8 odm_query_rx_pwr_percentage(s8 ant_power)
 		return 100 + ant_power;
 }
 
-/*
- * 2012/01/12 MH MOve some signal strength smooth method to MP HAL layer.
- * IF other SW team do not support the feature, remove this section.??
- */
-
-s32 odm_signal_scale_mapping(struct phy_dm_struct *dm, s32 curr_sig)
-{
-	{
-		return curr_sig;
-	}
-}
-
 static u8 odm_sq_process_patch_rt_cid_819x_lenovo(struct phy_dm_struct *dm,
 						  u8 is_cck_rate, u8 pwdb_all,
 						  u8 path, u8 RSSI)
@@ -748,16 +736,10 @@ static void odm_rx_phy_status92c_series_parsing(
 	 * from 0~100.
 	 */
 	/* It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp(). */
-	if (is_cck_rate) {
-		phy_info->signal_strength = (u8)(
-			odm_signal_scale_mapping(dm, pwdb_all)); /*pwdb_all;*/
-	} else {
-		if (rf_rx_num != 0) {
-			phy_info->signal_strength =
-				(u8)(odm_signal_scale_mapping(dm, total_rssi /=
-								  rf_rx_num));
-		}
-	}
+	if (is_cck_rate)
+		phy_info->signal_strength = pwdb_all;
+	else if (rf_rx_num != 0)
+		phy_info->signal_strength = (total_rssi /= rf_rx_num);
 
 	/* For 92C/92D HW (Hybrid) Antenna Diversity */
 }
@@ -1051,21 +1033,19 @@ static void odm_rx_phy_status_jaguar_series_parsing(
 	 */
 	/*It is assigned to the BSS List in GetValueFromBeaconOrProbeRsp().*/
 	if (is_cck_rate) {
-		phy_info->signal_strength = (u8)(
-			odm_signal_scale_mapping(dm, pwdb_all)); /*pwdb_all;*/
-	} else {
-		if (rf_rx_num != 0) {
-			/* 2015/01 Sean, use the best two RSSI only,
-			 * suggested by Ynlin and ChenYu.
-			 */
-			if (rf_rx_num == 1)
-				avg_rssi = best_rssi;
-			else
-				avg_rssi = (best_rssi + second_rssi) / 2;
-			phy_info->signal_strength =
-				(u8)(odm_signal_scale_mapping(dm, avg_rssi));
-		}
+		phy_info->signal_strength = pwdb_all;
+	} else if (rf_rx_num != 0) {
+		/* 2015/01 Sean, use the best two RSSI only,
+		 * suggested by Ynlin and ChenYu.
+		 */
+		if (rf_rx_num == 1)
+			avg_rssi = best_rssi;
+		else
+			avg_rssi = (best_rssi + second_rssi) / 2;
+
+		phy_info->signal_strength = avg_rssi;
 	}
+
 	dm->rx_pwdb_ave = dm->rx_pwdb_ave + phy_info->rx_pwdb_all;
 
 	dm->dm_fat_table.antsel_rx_keep_0 = phy_sta_rpt->antidx_anta;
@@ -1874,8 +1854,7 @@ void phydm_rx_phy_status_new_type(struct phy_dm_struct *phydm, u8 *phy_status,
 	/* Update signal strength to UI, and phy_info->rx_pwdb_all is the
 	 * maximum RSSI of all path
 	 */
-	phy_info->signal_strength =
-		(u8)(odm_signal_scale_mapping(phydm, phy_info->rx_pwdb_all));
+	phy_info->signal_strength = phy_info->rx_pwdb_all;
 
 	/* Calculate average RSSI and smoothed RSSI */
 	phydm_process_rssi_for_dm_new_type(phydm, phy_info, pktinfo);
