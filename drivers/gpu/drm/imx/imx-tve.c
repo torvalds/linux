@@ -434,7 +434,7 @@ static int clk_tve_di_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static struct clk_ops clk_tve_di_ops = {
+static const struct clk_ops clk_tve_di_ops = {
 	.round_rate = clk_tve_di_round_rate,
 	.set_rate = clk_tve_di_set_rate,
 	.recalc_rate = clk_tve_di_recalc_rate,
