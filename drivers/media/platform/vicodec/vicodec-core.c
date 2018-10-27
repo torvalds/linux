@@ -1125,7 +1125,7 @@ static int vicodec_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-static struct v4l2_ctrl_ops vicodec_ctrl_ops = {
+static const struct v4l2_ctrl_ops vicodec_ctrl_ops = {
 	.s_ctrl = vicodec_s_ctrl,
 };
 
