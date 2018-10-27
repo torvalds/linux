@@ -886,7 +886,7 @@ static int ov5645_s_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static struct v4l2_ctrl_ops ov5645_ctrl_ops = {
+static const struct v4l2_ctrl_ops ov5645_ctrl_ops = {
 	.s_ctrl = ov5645_s_ctrl,
 };
 
