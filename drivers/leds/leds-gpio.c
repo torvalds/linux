@@ -163,6 +163,8 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 			return ERR_CAST(led.gpiod);
 		}
 
+		led_dat->gpiod = led.gpiod;
+
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led.default_trigger);
 
