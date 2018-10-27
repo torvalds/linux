@@ -191,10 +191,24 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 		return err;
 	}
 
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+		if (!wdev->netdev)
+			continue;
+		nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
+	}
+	nl80211_notify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
+
 	wiphy_net_set(&rdev->wiphy, net);
 
 	err = device_rename(&rdev->wiphy.dev, dev_name(&rdev->wiphy.dev));
 	WARN_ON(err);
+
+	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+		if (!wdev->netdev)
+			continue;
+		nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
+	}
 
 	return 0;
 }
