@@ -102,91 +102,6 @@
 		#clock-cells = <0>;
 	};
 
-	npu_vdd_0v8: vcc-buck5 {
-		compatible = "regulator-fixed";
-		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&npu_vdd_0v8_gpio>;
-		regulator-name = "npu_vdd_0v8";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <800000>;
-		regulator-always-on;
-		regulator-boot-on;
-		enable-active-high;
-	};
-
-	npu_vdd_log: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		gpio = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&npu_vdd_log_gpio>;
-		regulator-name = "npu_vdd_log";
-		regulator-min-microvolt = <1350000>;
-		regulator-max-microvolt = <1350000>;
-		regulator-always-on;
-		regulator-boot-on;
-		enable-active-high;
-	};
-
-	npu_vcc_1v8: vcc-buck5 {
-		compatible = "regulator-fixed";
-		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&npu_vcc_1v8_gpio>;
-		regulator-name = "npu_vcc_1v8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-always-on;
-		regulator-boot-on;
-		enable-active-high;
-	};
-
-	npu_vcc_ddr: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "npu_vcc_ddr";
-		regulator-min-microvolt = <1250000>;
-		regulator-max-microvolt = <1250000>;
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
-	npu_vdd_cpu: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&npu_vdd_cpu_gpio>;
-		regulator-name = "npu_vdd_cpu";
-		regulator-min-microvolt = <1350000>;
-		regulator-max-microvolt = <1350000>;
-		regulator-always-on;
-		regulator-boot-on;
-		enable-active-high;
-	};
-
-	npu_vccio_3v3: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&npu_vccio_3v3_gpio>;
-		regulator-name = "npu_vccio_3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		regulator-boot-on;
-		enable-active-high;
-	};
-
-	npu_vdd: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&npu_vdd_gpio>;
-		regulator-name = "npu_vdd";
-		regulator-always-on;
-		regulator-boot-on;
-		enable-active-high;
-	};
-
 	panel: panel {
 		compatible = "simple-panel";
 		backlight = <&backlight>;
@@ -718,7 +633,7 @@
 		status = "okay";
 		compatible = "invensense,mpu6500";
 		reg = <0x68>;
-		irq-gpio = <&gpio1 RK_PC6 IRQ_TYPE_EDGE_RISING>;
+		irq-gpio = <&gpio3 RK_PD2 IRQ_TYPE_EDGE_RISING>;
 		mpu-int_config = <0x10>;
 		mpu-level_shifter = <0>;
 		mpu-orientation = <0 1 0 1 0 0 0 0 1>;
@@ -953,6 +868,9 @@
 };
 
 &pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&npu_ref_clk>;
+
 	bq2570 {
 		charger_ok_int: charger-ok-int {
 			rockchip,pins =
@@ -981,31 +899,11 @@
 		};
 	};
 
-	npu_power {
-		npu_vdd_0v8_gpio: npu-vdd-0v8-gpio {
-			rockchip,pins =
-				<0 RK_PA4 0 &pcfg_pull_none>;
-		};
-		npu_vdd_log_gpio: npu-vdd-log-gpio {
-			rockchip,pins =
-				<0 RK_PB2 0 &pcfg_pull_none>;
-		};
-		npu_vcc_1v8_gpio: npu-vdd-1v8-gpio {
-			rockchip,pins =
-				<0 RK_PB3 0 &pcfg_pull_none>;
-		};
-		npu_vdd_cpu_gpio: npu-vdd-cpu-gpio {
-			rockchip,pins =
-				<1 RK_PC6 0 &pcfg_pull_none>;
-		};
-		npu_vccio_3v3_gpio: npu-vccio-3v3-gpio {
-			rockchip,pins =
-				<1 RK_PC7 0 &pcfg_pull_none>;
-		};
-		npu_vdd_gpio: npu-vdd-gpio {
-			rockchip,pins =
-				<1 RK_PD0 0 &pcfg_pull_none>;
-		};
+	npu_clk {
+		npu_ref_clk: npu-ref-clk {
+		     rockchip,pins =
+			     <0 RK_PA2 1 &pcfg_pull_none>;
+	     };
 	};
 
 	pmic {
