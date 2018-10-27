@@ -188,7 +188,6 @@ config HID_BIGBEN_FF
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
 	select INPUT_FF_MEMLESS
-	default !EXPERT
 	help
 	  Support for the "Kid-friendly Wired Controller" PS3OFMINIPAD
 	  gamepad made by BigBen Interactive, originally sold as a PS3
