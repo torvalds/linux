@@ -2364,7 +2364,7 @@ static bool neigh_master_filtered(struct net_device *dev, int master_idx)
 	if (!master_idx)
 		return false;
 
-	master = netdev_master_upper_dev_get(dev);
+	master = dev ? netdev_master_upper_dev_get(dev) : NULL;
 	if (!master || master->ifindex != master_idx)
 		return true;
 
@@ -2373,7 +2373,7 @@ static bool neigh_master_filtered(struct net_device *dev, int master_idx)
 
 static bool neigh_ifindex_filtered(struct net_device *dev, int filter_idx)
 {
-	if (filter_idx && dev->ifindex != filter_idx)
+	if (filter_idx && (!dev || dev->ifindex != filter_idx))
 		return true;
 
 	return false;

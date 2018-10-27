@@ -573,7 +573,7 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 				       sizeof(struct nix_cq_ctx_s));
 			else if (req->ctype == NIX_AQ_CTYPE_RSS)
 				memcpy(&rsp->rss, ctx,
-				       sizeof(struct nix_cq_ctx_s));
+				       sizeof(struct nix_rsse_s));
 			else if (req->ctype == NIX_AQ_CTYPE_MCE)
 				memcpy(&rsp->mce, ctx,
 				       sizeof(struct nix_rx_mce_s));
@@ -1294,7 +1294,7 @@ static int nix_update_mce_list(struct nix_mce_list *mce_list,
 		return 0;
 
 	/* Add a new one to the list, at the tail */
-	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+	mce = kzalloc(sizeof(*mce), GFP_ATOMIC);
 	if (!mce)
 		return -ENOMEM;
 	mce->idx = idx;

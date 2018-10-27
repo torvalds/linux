@@ -457,35 +457,6 @@ static void ice_reset_subtask(struct ice_pf *pf)
 }
 
 /**
- * ice_watchdog_subtask - periodic tasks not using event driven scheduling
- * @pf: board private structure
- */
-static void ice_watchdog_subtask(struct ice_pf *pf)
-{
-	int i;
-
-	/* if interface is down do nothing */
-	if (test_bit(__ICE_DOWN, pf->state) ||
-	    test_bit(__ICE_CFG_BUSY, pf->state))
-		return;
-
-	/* make sure we don't do these things too often */
-	if (time_before(jiffies,
-			pf->serv_tmr_prev + pf->serv_tmr_period))
-		return;
-
-	pf->serv_tmr_prev = jiffies;
-
-	/* Update the stats for active netdevs so the network stack
-	 * can look at updated numbers whenever it cares to
-	 */
-	ice_update_pf_stats(pf);
-	for (i = 0; i < pf->num_alloc_vsi; i++)
-		if (pf->vsi[i] && pf->vsi[i]->netdev)
-			ice_update_vsi_stats(pf->vsi[i]);
-}
-
-/**
  * ice_print_link_msg - print link up or down message
  * @vsi: the VSI whose link status is being queried
  * @isup: boolean for if the link is now up or down
@@ -552,36 +523,6 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 
 	netdev_info(vsi->netdev, "NIC Link is up %sbps, Flow Control: %s\n",
 		    speed, fc);
-}
-
-/**
- * ice_init_link_events - enable/initialize link events
- * @pi: pointer to the port_info instance
- *
- * Returns -EIO on failure, 0 on success
- */
-static int ice_init_link_events(struct ice_port_info *pi)
-{
-	u16 mask;
-
-	mask = ~((u16)(ICE_AQ_LINK_EVENT_UPDOWN | ICE_AQ_LINK_EVENT_MEDIA_NA |
-		       ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL));
-
-	if (ice_aq_set_event_mask(pi->hw, pi->lport, mask, NULL)) {
-		dev_dbg(ice_hw_to_dev(pi->hw),
-			"Failed to set link event mask for port %d\n",
-			pi->lport);
-		return -EIO;
-	}
-
-	if (ice_aq_get_link_info(pi, true, NULL, NULL)) {
-		dev_dbg(ice_hw_to_dev(pi->hw),
-			"Failed to enable link events for port %d\n",
-			pi->lport);
-		return -EIO;
-	}
-
-	return 0;
 }
 
 /**
@@ -671,27 +612,35 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi)
 }
 
 /**
- * ice_handle_link_event - handle link event via ARQ
- * @pf: pf that the link event is associated with
- *
- * Return -EINVAL if port_info is null
- * Return status on succes
+ * ice_watchdog_subtask - periodic tasks not using event driven scheduling
+ * @pf: board private structure
  */
-static int ice_handle_link_event(struct ice_pf *pf)
+static void ice_watchdog_subtask(struct ice_pf *pf)
 {
-	struct ice_port_info *port_info;
-	int status;
+	int i;
 
-	port_info = pf->hw.port_info;
-	if (!port_info)
-		return -EINVAL;
+	/* if interface is down do nothing */
+	if (test_bit(__ICE_DOWN, pf->state) ||
+	    test_bit(__ICE_CFG_BUSY, pf->state))
+		return;
 
-	status = ice_link_event(pf, port_info);
-	if (status)
-		dev_dbg(&pf->pdev->dev,
-			"Could not process link event, error %d\n", status);
+	/* make sure we don't do these things too often */
+	if (time_before(jiffies,
+			pf->serv_tmr_prev + pf->serv_tmr_period))
+		return;
 
-	return status;
+	pf->serv_tmr_prev = jiffies;
+
+	if (ice_link_event(pf, pf->hw.port_info))
+		dev_dbg(&pf->pdev->dev, "ice_link_event failed\n");
+
+	/* Update the stats for active netdevs so the network stack
+	 * can look at updated numbers whenever it cares to
+	 */
+	ice_update_pf_stats(pf);
+	for (i = 0; i < pf->num_alloc_vsi; i++)
+		if (pf->vsi[i] && pf->vsi[i]->netdev)
+			ice_update_vsi_stats(pf->vsi[i]);
 }
 
 /**
@@ -797,11 +746,6 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		opcode = le16_to_cpu(event.desc.opcode);
 
 		switch (opcode) {
-		case ice_aqc_opc_get_link_status:
-			if (ice_handle_link_event(pf))
-				dev_err(&pf->pdev->dev,
-					"Could not handle link event\n");
-			break;
 		case ice_mbx_opc_send_msg_to_pf:
 			ice_vc_process_vf_msg(pf, &event);
 			break;
@@ -2207,12 +2151,6 @@ static int ice_probe(struct pci_dev *pdev,
 	/* since everything is good, start the service timer */
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
 
-	err = ice_init_link_events(pf->hw.port_info);
-	if (err) {
-		dev_err(&pdev->dev, "ice_init_link_events failed: %d\n", err);
-		goto err_alloc_sw_unroll;
-	}
-
 	return 0;
 
 err_alloc_sw_unroll:
@@ -2271,9 +2209,9 @@ static void ice_remove(struct pci_dev *pdev)
  *   Class, Class Mask, private data (not used) }
  */
 static const struct pci_device_id ice_pci_tbl[] = {
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_BACKPLANE), 0 },
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_QSFP), 0 },
-	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_C810_SFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_BACKPLANE), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_QSFP), 0 },
+	{ PCI_VDEVICE(INTEL, ICE_DEV_ID_E810C_SFP), 0 },
 	/* required last entry */
 	{ 0, }
 };
