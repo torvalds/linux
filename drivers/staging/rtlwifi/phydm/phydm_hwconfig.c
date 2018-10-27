@@ -1848,38 +1848,3 @@ void phydm_rx_phy_status_new_type(struct phy_dm_struct *phydm, u8 *phy_status,
 	/* Calculate average RSSI and smoothed RSSI */
 	phydm_process_rssi_for_dm_new_type(phydm, phy_info, pktinfo);
 }
-
-u32 query_phydm_trx_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_stbc_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_ldpc_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_txbf_parameters(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}
-
-u32 query_phydm_txbf_capability(struct phy_dm_struct *dm)
-{
-	u32 value32 = 0xFFFFFFFF;
-
-	return value32;
-}

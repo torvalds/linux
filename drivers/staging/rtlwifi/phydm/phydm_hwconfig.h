@@ -484,14 +484,4 @@ struct phy_status_rpt_jaguar2_type2 {
 #endif
 };
 
-u32 query_phydm_trx_capability(struct phy_dm_struct *dm);
-
-u32 query_phydm_stbc_capability(struct phy_dm_struct *dm);
-
-u32 query_phydm_ldpc_capability(struct phy_dm_struct *dm);
-
-u32 query_phydm_txbf_parameters(struct phy_dm_struct *dm);
-
-u32 query_phydm_txbf_capability(struct phy_dm_struct *dm);
-
 #endif /*#ifndef	__HALHWOUTSRC_H__*/
