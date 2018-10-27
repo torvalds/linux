@@ -477,14 +477,6 @@ static u8 odm_query_rx_pwr_percentage(s8 ant_power)
 		return 100 + ant_power;
 }
 
-static u8 odm_sq_process_patch_rt_cid_819x_lenovo(struct phy_dm_struct *dm,
-						  u8 is_cck_rate, u8 pwdb_all,
-						  u8 path, u8 RSSI)
-{
-	u8 sq = 0;
-	return sq;
-}
-
 static u8 odm_evm_db_to_percentage(s8 value)
 {
 	/* -33dB~0dB to 0%~99% */
@@ -883,13 +875,10 @@ static void odm_rx_phy_status_jaguar_series_parsing(
 		phy_info->recv_signal_power = rx_pwr_all;
 		/*(3) Get Signal Quality (EVM)*/
 		{
-			u8 sq;
+			u8 sq = 0;
 
-			if ((dm->support_platform == ODM_WIN) &&
-			    (dm->patch_id == RT_CID_819X_LENOVO))
-				sq = odm_sq_process_patch_rt_cid_819x_lenovo(
-					dm, is_cck_rate, pwdb_all, 0, 0);
-			else
+			if (!(dm->support_platform == ODM_WIN &&
+			      dm->patch_id == RT_CID_819X_LENOVO))
 				sq = phydm_get_signal_quality_8812(phy_info, dm,
 								   phy_sta_rpt);
 
