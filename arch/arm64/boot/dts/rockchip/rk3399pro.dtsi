@@ -50,15 +50,15 @@
 };
 
 &pcie_phy {
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie0 {
-	ep-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+	ep-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 	num-lanes = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_clkreqn_cpm>;
-	status = "disabled";
+	status = "okay";
 };
 
 &sdhci {
@@ -98,7 +98,7 @@
 	cap-sd-highspeed;
 	disable-wp;
 	num-slots = <1>;
-	vqmmc-supply = <&vcc_sd>;
+	vqmmc-supply = <&vccio_sd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	status = "okay";
