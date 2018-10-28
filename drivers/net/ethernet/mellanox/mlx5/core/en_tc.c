@@ -2906,6 +2906,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			struct net_device *out_dev;
 
 			out_dev = tcf_mirred_dev(a);
+			if (!out_dev) {
+				/* out_dev is NULL when filters with
+				 * non-existing mirred device are replayed to
+				 * the driver.
+				 */
+				return -EINVAL;
+			}
 
 			if (attr->out_count >= MLX5_MAX_FLOW_FWD_VPORTS) {
 				NL_SET_ERR_MSG_MOD(extack,
@@ -2932,6 +2939,13 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 					  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				/* attr->out_rep is resolved when we handle encap */
+			} else if (parse_attr->filter_dev != priv->netdev) {
+				/* All mlx5 devices are called to configure
+				 * high level device filters. Therefore, the
+				 * *attempt* to  install a filter on invalid
+				 * eswitch should not trigger an explicit error
+				 */
+				return -EINVAL;
 			} else {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "devices are not on same switch HW, can't offload forwarding");

@@ -561,7 +561,27 @@ mlx5e_rep_indr_offload(struct net_device *netdev,
 		       struct tc_cls_flower_offload *flower,
 		       struct mlx5e_rep_indr_block_priv *indr_priv)
 {
-	return -EOPNOTSUPP;
+	int err = 0;
+	struct mlx5e_priv *priv = netdev_priv(indr_priv->rpriv->netdev);
+
+	switch (flower->command) {
+	case TC_CLSFLOWER_REPLACE:
+		err = mlx5e_configure_flower(netdev, priv,
+					     flower, MLX5E_TC_EGRESS);
+		break;
+	case TC_CLSFLOWER_DESTROY:
+		err = mlx5e_delete_flower(netdev, priv,
+					  flower, MLX5E_TC_EGRESS);
+		break;
+	case TC_CLSFLOWER_STATS:
+		err = mlx5e_stats_flower(netdev, priv,
+					 flower, MLX5E_TC_EGRESS);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
 }
 
 static int mlx5e_rep_indr_setup_block_cb(enum tc_setup_type type,
@@ -1015,19 +1035,6 @@ mlx5e_rep_setup_tc_cls_flower(struct mlx5e_priv *priv,
 	case TC_CLSFLOWER_STATS:
 		return mlx5e_stats_flower(priv->netdev, priv, cls_flower,
 					  flags);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int mlx5e_rep_setup_tc_cb_egdev(enum tc_setup_type type, void *type_data,
-				       void *cb_priv)
-{
-	struct mlx5e_priv *priv = cb_priv;
-
-	switch (type) {
-	case TC_SETUP_CLSFLOWER:
-		return mlx5e_rep_setup_tc_cls_flower(priv, type_data, MLX5E_TC_EGRESS);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1516,23 +1523,15 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 
 	uplink_rpriv = mlx5_eswitch_get_uplink_priv(dev->priv.eswitch, REP_ETH);
 	upriv = netdev_priv(uplink_rpriv->netdev);
-	err = tc_setup_cb_egdev_register(netdev, mlx5e_rep_setup_tc_cb_egdev,
-					 upriv);
-	if (err)
-		goto err_neigh_cleanup;
 
 	err = register_netdev(netdev);
 	if (err) {
 		pr_warn("Failed to register representor netdev for vport %d\n",
 			rep->vport);
-		goto err_egdev_cleanup;
+		goto err_neigh_cleanup;
 	}
 
 	return 0;
-
-err_egdev_cleanup:
-	tc_setup_cb_egdev_unregister(netdev, mlx5e_rep_setup_tc_cb_egdev,
-				     upriv);
 
 err_neigh_cleanup:
 	mlx5e_rep_neigh_cleanup(rpriv);
@@ -1560,8 +1559,6 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	uplink_rpriv = mlx5_eswitch_get_uplink_priv(priv->mdev->priv.eswitch,
 						    REP_ETH);
 	upriv = netdev_priv(uplink_rpriv->netdev);
-	tc_setup_cb_egdev_unregister(netdev, mlx5e_rep_setup_tc_cb_egdev,
-				     upriv);
 	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_detach_netdev(priv);
 	mlx5e_destroy_netdev(priv);
