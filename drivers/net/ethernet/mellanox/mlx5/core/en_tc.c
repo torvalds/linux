@@ -2704,6 +2704,16 @@ out:
 	return err;
 }
 
+bool mlx5e_tc_tun_device_to_offload(struct mlx5e_priv *priv,
+				    struct net_device *netdev)
+{
+	if (netif_is_vxlan(netdev) &&
+	    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap))
+		return true;
+
+	return false;
+}
+
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct ip_tunnel_info *tun_info,
 			      struct net_device *mirred_dev,
