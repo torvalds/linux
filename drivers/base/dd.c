@@ -223,7 +223,10 @@ DEFINE_SHOW_ATTRIBUTE(deferred_devs);
 static int deferred_probe_timeout = -1;
 static int __init deferred_probe_timeout_setup(char *str)
 {
-	deferred_probe_timeout = simple_strtol(str, NULL, 10);
+	int timeout;
+
+	if (!kstrtoint(str, 10, &timeout))
+		deferred_probe_timeout = timeout;
 	return 1;
 }
 __setup("deferred_probe_timeout=", deferred_probe_timeout_setup);
