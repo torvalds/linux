@@ -3178,7 +3178,7 @@ mlx5e_tc_add_flow(struct mlx5e_priv *priv,
 	return err;
 }
 
-int mlx5e_configure_flower(struct mlx5e_priv *priv,
+int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			   struct tc_cls_flower_offload *f, int flags)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
@@ -3224,7 +3224,7 @@ static bool same_flow_direction(struct mlx5e_tc_flow *flow, int flags)
 	return false;
 }
 
-int mlx5e_delete_flower(struct mlx5e_priv *priv,
+int mlx5e_delete_flower(struct net_device *dev, struct mlx5e_priv *priv,
 			struct tc_cls_flower_offload *f, int flags)
 {
 	struct rhashtable *tc_ht = get_tc_ht(priv);
@@ -3243,7 +3243,7 @@ int mlx5e_delete_flower(struct mlx5e_priv *priv,
 	return 0;
 }
 
-int mlx5e_stats_flower(struct mlx5e_priv *priv,
+int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		       struct tc_cls_flower_offload *f, int flags)
 {
 	struct rhashtable *tc_ht = get_tc_ht(priv);
