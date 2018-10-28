@@ -2301,7 +2301,7 @@ struct ib_device {
 	 *   index - Updated the single counter pointed to by index
 	 *   num_counters - Updated all counters (will reset the timestamp
 	 *     and prevent further calls for lifespan milliseconds)
-	 * Drivers are allowed to update all counters in leiu of just the
+	 * Drivers are allowed to update all counters in lieu of just the
 	 *   one given in index at their option
 	 */
 	int		           (*get_hw_stats)(struct ib_device *device,
