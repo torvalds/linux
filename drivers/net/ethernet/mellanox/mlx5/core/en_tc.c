@@ -1587,10 +1587,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 
 			/* the HW doesn't need L3 inline to match on frag=no */
 			if (!(key->flags & FLOW_DIS_IS_FRAGMENT))
-				*match_level = MLX5_INLINE_MODE_L2;
+				*match_level = MLX5_MATCH_L2;
 	/* ***  L2 attributes parsing up to here *** */
 			else
-				*match_level = MLX5_INLINE_MODE_IP;
+				*match_level = MLX5_MATCH_L3;
 		}
 	}
 
