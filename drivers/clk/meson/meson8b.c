@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/init.h>
+#include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
@@ -1114,16 +1115,21 @@ static void __init meson8b_clkc_init(struct device_node *np)
 	struct regmap *map;
 	int i, ret;
 
-	/* Generic clocks, PLLs and some of the reset-bits */
-	clk_base = of_iomap(np, 1);
-	if (!clk_base) {
-		pr_err("%s: Unable to map clk base\n", __func__);
-		return;
-	}
+	map = syscon_node_to_regmap(of_get_parent(np));
+	if (IS_ERR(map)) {
+		pr_info("failed to get HHI regmap - Trying obsolete regs\n");
 
-	map = regmap_init_mmio(NULL, clk_base, &clkc_regmap_config);
-	if (IS_ERR(map))
-		return;
+		/* Generic clocks, PLLs and some of the reset-bits */
+		clk_base = of_iomap(np, 1);
+		if (!clk_base) {
+			pr_err("%s: Unable to map clk base\n", __func__);
+			return;
+		}
+
+		map = regmap_init_mmio(NULL, clk_base, &clkc_regmap_config);
+		if (IS_ERR(map))
+			return;
+	}
 
 	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
 	if (!rstc)
