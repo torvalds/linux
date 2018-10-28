@@ -88,10 +88,8 @@ int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 
 	eth_proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
 	*speed = mlx5e_port_ptys2speed(eth_proto_oper);
-	if (!(*speed)) {
-		mlx5_core_warn(mdev, "cannot get port speed\n");
+	if (!(*speed))
 		err = -EINVAL;
-	}
 
 	return err;
 }
