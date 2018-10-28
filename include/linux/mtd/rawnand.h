@@ -1007,10 +1007,10 @@ struct nand_legacy {
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
  * @data_buf:		[INTERN] buffer for data, size is (page size + oobsize).
- * @pagebuf:		[INTERN] holds the pagenumber which is currently in
- *			data_buf.
- * @pagebuf_bitflips:	[INTERN] holds the bitflip count for the page which is
- *			currently in data_buf.
+ * @pagecache:		Structure containing page cache related fields
+ * @pagecache.bitflips:	Number of bitflips of the cached page
+ * @pagecache.page:	Page number currently in the cache. -1 means no page is
+ *			currently cached
  * @subpagesize:	[INTERN] holds the subpagesize
  * @id:			[INTERN] holds NAND ID
  * @parameters:		[INTERN] holds generic parameters under an easily
@@ -1060,8 +1060,12 @@ struct nand_chip {
 	uint64_t chipsize;
 	int pagemask;
 	u8 *data_buf;
-	int pagebuf;
-	unsigned int pagebuf_bitflips;
+
+	struct {
+		unsigned int bitflips;
+		int page;
+	} pagecache;
+
 	int subpagesize;
 	uint8_t bits_per_cell;
 	uint16_t ecc_strength_ds;
@@ -1366,7 +1370,7 @@ void nand_deselect_target(struct nand_chip *chip);
  */
 static inline void *nand_get_data_buf(struct nand_chip *chip)
 {
-	chip->pagebuf = -1;
+	chip->pagecache.page = -1;
 
 	return chip->data_buf;
 }
