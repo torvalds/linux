@@ -265,6 +265,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	the REDUCE_TX_POWER_CMD.
  * @IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF: This ucode supports the short
  *	version of the beacon notification.
+ * @IWL_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
+ *	BEACON_FILTER_CONFIG_API_S_VER_4.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -290,6 +292,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_FRAG_EBS		= (__force iwl_ucode_tlv_api_t)44,
 	IWL_UCODE_TLV_API_REDUCE_TX_POWER	= (__force iwl_ucode_tlv_api_t)45,
 	IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF	= (__force iwl_ucode_tlv_api_t)46,
+	IWL_UCODE_TLV_API_BEACON_FILTER_V4      = (__force iwl_ucode_tlv_api_t)47,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
