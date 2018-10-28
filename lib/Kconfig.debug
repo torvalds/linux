@@ -1813,6 +1813,9 @@ config TEST_BITFIELD
 config TEST_UUID
 	tristate "Test functions located in the uuid module at runtime"
 
+config TEST_XARRAY
+	tristate "Test the XArray code at runtime"
+
 config TEST_OVERFLOW
 	tristate "Test check_*_overflow() functions at runtime"
 

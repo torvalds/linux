@@ -323,7 +323,6 @@ ForEachMacros:
   - 'protocol_for_each_card'
   - 'protocol_for_each_dev'
   - 'queue_for_each_hw_ctx'
-  - 'radix_tree_for_each_contig'
   - 'radix_tree_for_each_slot'
   - 'radix_tree_for_each_tagged'
   - 'rbtree_postorder_for_each_entry_safe'
