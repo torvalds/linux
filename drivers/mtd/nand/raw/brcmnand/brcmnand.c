@@ -1676,11 +1676,8 @@ static int brcmstb_nand_verify_erased_page(struct mtd_info *mtd,
 	int page = addr >> chip->page_shift;
 	int ret;
 
-	if (!buf) {
-		buf = chip->data_buf;
-		/* Invalidate page cache */
-		chip->pagebuf = -1;
-	}
+	if (!buf)
+		buf = nand_get_data_buf(chip);
 
 	sas = mtd->oobsize / chip->ecc.steps;
 

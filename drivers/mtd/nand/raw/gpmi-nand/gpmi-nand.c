@@ -1602,7 +1602,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int search_area_size_in_strides;
 	unsigned int stride;
 	unsigned int page;
-	uint8_t *buffer = chip->data_buf;
+	u8 *buffer = nand_get_data_buf(chip);
 	int saved_chip_number;
 	int found_an_ncb_fingerprint = false;
 
@@ -1664,7 +1664,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int block;
 	unsigned int stride;
 	unsigned int page;
-	uint8_t      *buffer = chip->data_buf;
+	u8 *buffer = nand_get_data_buf(chip);
 	int saved_chip_number;
 	int status;
 

@@ -4004,10 +4004,9 @@ static int nand_do_write_ops(struct nand_chip *chip, loff_t to,
 					 __func__, buf);
 			if (part_pagewr)
 				bytes = min_t(int, bytes - column, writelen);
-			chip->pagebuf = -1;
-			memset(chip->data_buf, 0xff, mtd->writesize);
-			memcpy(&chip->data_buf[column], buf, bytes);
-			wbuf = chip->data_buf;
+			wbuf = nand_get_data_buf(chip);
+			memset(wbuf, 0xff, mtd->writesize);
+			memcpy(&wbuf[column], buf, bytes);
 		}
 
 		if (unlikely(oob)) {

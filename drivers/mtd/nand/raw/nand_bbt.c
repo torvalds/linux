@@ -901,7 +901,9 @@ static int write_bbt(struct nand_chip *this, uint8_t *buf,
 static inline int nand_memory_bbt(struct nand_chip *this,
 				  struct nand_bbt_descr *bd)
 {
-	return create_bbt(this, this->data_buf, bd, -1);
+	u8 *pagebuf = nand_get_data_buf(this);
+
+	return create_bbt(this, pagebuf, bd, -1);
 }
 
 /**

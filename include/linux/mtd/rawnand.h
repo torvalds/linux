@@ -1350,4 +1350,25 @@ int nand_gpio_waitrdy(struct nand_chip *chip, struct gpio_desc *gpiod,
 void nand_select_target(struct nand_chip *chip, unsigned int cs);
 void nand_deselect_target(struct nand_chip *chip);
 
+/**
+ * nand_get_data_buf() - Get the internal page buffer
+ * @chip: NAND chip object
+ *
+ * Returns the pre-allocated page buffer after invalidating the cache. This
+ * function should be used by drivers that do not want to allocate their own
+ * bounce buffer and still need such a buffer for specific operations (most
+ * commonly when reading OOB data only).
+ *
+ * Be careful to never call this function in the write/write_oob path, because
+ * the core may have placed the data to be written out in this buffer.
+ *
+ * Return: pointer to the page cache buffer
+ */
+static inline void *nand_get_data_buf(struct nand_chip *chip)
+{
+	chip->pagebuf = -1;
+
+	return chip->data_buf;
+}
+
 #endif /* __LINUX_MTD_RAWNAND_H */
