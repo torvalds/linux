@@ -656,8 +656,9 @@ static void XGI_UpdateXG21CRTC(unsigned short ModeNo,
 	    (XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC ==
 						      RES640x480x60))
 		index = 12;
-	else if (ModeNo == 0x2E && (XGI330_RefIndex[RefreshRateTableIndex].
-				Ext_CRT1CRTC == RES640x480x72))
+	else if (ModeNo == 0x2E &&
+		 (XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC ==
+								RES640x480x72))
 		index = 13;
 	else if (ModeNo == 0x2F)
 		index = 14;
