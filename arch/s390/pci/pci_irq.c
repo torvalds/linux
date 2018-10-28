@@ -56,7 +56,7 @@ static struct irq_chip zpci_irq_chip = {
 	.irq_mask = pci_msi_mask_irq,
 };
 
-static void zpci_irq_handler(struct airq_struct *airq)
+static void zpci_irq_handler(struct airq_struct *airq, bool floating)
 {
 	unsigned long si, ai;
 	struct airq_iv *aibv;

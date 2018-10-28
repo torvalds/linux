@@ -3194,7 +3194,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_s390_gisc_unregister);
 
-static void gib_alert_irq_handler(struct airq_struct *airq)
+static void gib_alert_irq_handler(struct airq_struct *airq, bool floating)
 {
 	inc_irq_stat(IRQIO_GAL);
 	process_gib_alert_list();
