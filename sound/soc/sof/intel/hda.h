@@ -268,9 +268,6 @@
 #define HDA_DSP_ADSPCS_CPA_SHIFT	24
 #define HDA_DSP_ADSPCS_CPA_MASK(cm)	((cm) << HDA_DSP_ADSPCS_CPA_SHIFT)
 
-#define HDA_DSP_ADSPIC_CL_DMA		0x2
-#define HDA_DSP_ADSPIS_CL_DMA		0x2
-
 /* Mask for a given core index, c = 0.. number of supported cores - 1 */
 #define HDA_DSP_CORE_MASK(c)		BIT(c)
 

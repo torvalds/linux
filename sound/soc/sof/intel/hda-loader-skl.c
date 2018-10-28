@@ -31,12 +31,6 @@
 #define HDA_SKL_WAIT_TIMEOUT		500	/* 500 msec */
 #define HDA_SKL_CLDMA_MAX_BUFFER_SIZE	(32 * PAGE_SIZE)
 
-/* Intel HD Audio SRAM Window 0*/
-#define HDA_SKL_ADSP_SRAM0_BASE		0x8000
-
-/* Firmware status window */
-#define HDA_SKL_ADSP_FW_STATUS		HDA_SKL_ADSP_SRAM0_BASE
-
 /* Stream Reset */
 #define HDA_CL_SD_CTL_SRST_SHIFT	0
 #define HDA_CL_SD_CTL_SRST(x)		(((x) & 0x1) << \
@@ -532,7 +526,7 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
 	}
 
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
-					HDA_SKL_ADSP_FW_STATUS,
+					HDA_DSP_SRAM_REG_ROM_STATUS_SKL,
 					HDA_DSP_ROM_STS_MASK,
 					HDA_DSP_ROM_FW_FW_LOADED,
 					HDA_DSP_BASEFW_TIMEOUT);
