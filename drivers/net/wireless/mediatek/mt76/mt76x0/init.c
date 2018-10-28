@@ -176,13 +176,6 @@ static int mt76x0_init_wcid_mem(struct mt76x02_dev *dev)
 	return 0;
 }
 
-static void mt76x0_init_key_mem(struct mt76x02_dev *dev)
-{
-	u32 vals[4] = {};
-
-	mt76_wr_copy(dev, MT_SKEY_MODE_BASE_0, vals, ARRAY_SIZE(vals));
-}
-
 static int mt76x0_init_wcid_attr_mem(struct mt76x02_dev *dev)
 {
 	u32 *vals;
@@ -260,7 +253,7 @@ EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 
 int mt76x0_init_hardware(struct mt76x02_dev *dev)
 {
-	int ret;
+	int ret, i, k;
 
 	if (!mt76x02_wait_for_wpdma(&dev->mt76, 1000))
 		return -EIO;
@@ -289,7 +282,9 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76x0_init_key_mem(dev);
+	for (i = 0; i < 16; i++)
+		for (k = 0; k < 4; k++)
+			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 
 	ret = mt76x0_init_wcid_attr_mem(dev);
 	if (ret)
