@@ -16,13 +16,9 @@ if [ ! -f set_ftrace_filter ]; then
 fi
 
 do_reset() {
-    reset_tracer
     if [ -e /proc/sys/kernel/stack_tracer_enabled ]; then
 	    echo 0 > /proc/sys/kernel/stack_tracer_enabled
     fi
-    enable_tracing
-    clear_trace
-    echo > set_ftrace_filter
 }
 
 fail() { # msg
