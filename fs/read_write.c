@@ -1717,13 +1717,12 @@ static int clone_verify_area(struct file *file, loff_t pos, u64 len, bool write)
  * Returns: 0 for "nothing to clone", 1 for "something to clone", or
  * the usual negative error code.
  */
-int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
-			       struct inode *inode_out, loff_t pos_out,
-			       u64 *len, bool is_dedupe)
+int vfs_clone_file_prep(struct file *file_in, loff_t pos_in,
+			struct file *file_out, loff_t pos_out,
+			u64 *len, bool is_dedupe)
 {
-	loff_t bs = inode_out->i_sb->s_blocksize;
-	loff_t blen;
-	loff_t isize;
+	struct inode *inode_in = file_inode(file_in);
+	struct inode *inode_out = file_inode(file_out);
 	bool same_inode = (inode_in == inode_out);
 	int ret;
 
@@ -1740,10 +1739,10 @@ int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
 	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
 		return -EINVAL;
 
-	isize = i_size_read(inode_in);
-
 	/* Zero length dedupe exits immediately; reflink goes to EOF. */
 	if (*len == 0) {
+		loff_t isize = i_size_read(inode_in);
+
 		if (is_dedupe || pos_in == isize)
 			return 0;
 		if (pos_in > isize)
@@ -1751,36 +1750,11 @@ int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
 		*len = isize - pos_in;
 	}
 
-	/* Ensure offsets don't wrap and the input is inside i_size */
-	if (pos_in + *len < pos_in || pos_out + *len < pos_out ||
-	    pos_in + *len > isize)
-		return -EINVAL;
-
-	/* Don't allow dedupe past EOF in the dest file */
-	if (is_dedupe) {
-		loff_t	disize;
-
-		disize = i_size_read(inode_out);
-		if (pos_out >= disize || pos_out + *len > disize)
-			return -EINVAL;
-	}
-
-	/* If we're linking to EOF, continue to the block boundary. */
-	if (pos_in + *len == isize)
-		blen = ALIGN(isize, bs) - pos_in;
-	else
-		blen = *len;
-
-	/* Only reflink if we're aligned to block boundaries */
-	if (!IS_ALIGNED(pos_in, bs) || !IS_ALIGNED(pos_in + blen, bs) ||
-	    !IS_ALIGNED(pos_out, bs) || !IS_ALIGNED(pos_out + blen, bs))
-		return -EINVAL;
-
-	/* Don't allow overlapped reflink within the same file */
-	if (same_inode) {
-		if (pos_out + blen > pos_in && pos_out < pos_in + blen)
-			return -EINVAL;
-	}
+	/* Check that we don't violate system file offset limits. */
+	ret = generic_remap_checks(file_in, pos_in, file_out, pos_out, len,
+			is_dedupe);
+	if (ret)
+		return ret;
 
 	/* Wait for the completion of any pending IOs on both files */
 	inode_dio_wait(inode_in);
@@ -1813,7 +1787,7 @@ int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
 
 	return 1;
 }
-EXPORT_SYMBOL(vfs_clone_file_prep_inodes);
+EXPORT_SYMBOL(vfs_clone_file_prep);
 
 int do_clone_file_range(struct file *file_in, loff_t pos_in,
 			struct file *file_out, loff_t pos_out, u64 len)
@@ -1850,9 +1824,6 @@ int do_clone_file_range(struct file *file_in, loff_t pos_in,
 	ret = clone_verify_area(file_out, pos_out, len, true);
 	if (ret)
 		return ret;
-
-	if (pos_in + len > i_size_read(inode_in))
-		return -EINVAL;
 
 	ret = file_in->f_op->clone_file_range(file_in, pos_in,
 			file_out, pos_out, len);
