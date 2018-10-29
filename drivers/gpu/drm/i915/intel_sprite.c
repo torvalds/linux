@@ -326,23 +326,31 @@ skl_program_scaler(struct intel_plane *plane,
 	uint32_t crtc_h = drm_rect_height(&plane_state->base.dst);
 	u16 y_hphase, uv_rgb_hphase;
 	u16 y_vphase, uv_rgb_vphase;
+	int hscale, vscale;
+
+	hscale = drm_rect_calc_hscale(&plane_state->base.src,
+				      &plane_state->base.dst,
+				      0, INT_MAX);
+	vscale = drm_rect_calc_vscale(&plane_state->base.src,
+				      &plane_state->base.dst,
+				      0, INT_MAX);
 
 	/* TODO: handle sub-pixel coordinates */
 	if (plane_state->base.fb->format->format == DRM_FORMAT_NV12 &&
 	    !icl_is_hdr_plane(plane)) {
-		y_hphase = skl_scaler_calc_phase(1, false);
-		y_vphase = skl_scaler_calc_phase(1, false);
+		y_hphase = skl_scaler_calc_phase(1, hscale, false);
+		y_vphase = skl_scaler_calc_phase(1, vscale, false);
 
 		/* MPEG2 chroma siting convention */
-		uv_rgb_hphase = skl_scaler_calc_phase(2, true);
-		uv_rgb_vphase = skl_scaler_calc_phase(2, false);
+		uv_rgb_hphase = skl_scaler_calc_phase(2, hscale, true);
+		uv_rgb_vphase = skl_scaler_calc_phase(2, vscale, false);
 	} else {
 		/* not used */
 		y_hphase = 0;
 		y_vphase = 0;
 
-		uv_rgb_hphase = skl_scaler_calc_phase(1, false);
-		uv_rgb_vphase = skl_scaler_calc_phase(1, false);
+		uv_rgb_hphase = skl_scaler_calc_phase(1, hscale, false);
+		uv_rgb_vphase = skl_scaler_calc_phase(1, vscale, false);
 	}
 
 	I915_WRITE_FW(SKL_PS_CTRL(pipe, scaler_id),
