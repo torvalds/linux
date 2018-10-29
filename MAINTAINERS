@@ -12548,6 +12548,12 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-rcar.c
 F:	drivers/i2c/busses/i2c-sh_mobile.c
 
+RENESAS RIIC DRIVER
+M:	Chris Brandt <chris.brandt@renesas.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/i2c/i2c-riic.txt
+F:	drivers/i2c/busses/i2c-riic.c
+
 RENESAS USB PHY DRIVER
 M:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 L:	linux-renesas-soc@vger.kernel.org

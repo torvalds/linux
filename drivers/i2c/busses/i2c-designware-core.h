@@ -212,7 +212,7 @@
  * @pm_qos: pm_qos_request used while holding a hardware lock on the bus
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
- * @pm_disabled: true if power-management should be disabled for this i2c-bus
+ * @shared_with_punit: true if this bus is shared with the SoCs PUNIT
  * @disable: function to disable the controller
  * @disable_int: function to disable all interrupts
  * @init: function to initialize the I2C hardware
@@ -225,6 +225,7 @@
 struct dw_i2c_dev {
 	struct device		*dev;
 	void __iomem		*base;
+	void __iomem		*ext;
 	struct completion	cmd_complete;
 	struct clk		*clk;
 	struct reset_control	*rst;
@@ -265,10 +266,11 @@ struct dw_i2c_dev {
 	struct pm_qos_request	pm_qos;
 	int			(*acquire_lock)(struct dw_i2c_dev *dev);
 	void			(*release_lock)(struct dw_i2c_dev *dev);
-	bool			pm_disabled;
+	bool			shared_with_punit;
 	void			(*disable)(struct dw_i2c_dev *dev);
 	void			(*disable_int)(struct dw_i2c_dev *dev);
 	int			(*init)(struct dw_i2c_dev *dev);
+	int			(*set_sda_hold_time)(struct dw_i2c_dev *dev);
 	int			mode;
 	struct i2c_bus_recovery_info rinfo;
 };
@@ -276,8 +278,11 @@ struct dw_i2c_dev {
 #define ACCESS_SWAP		0x00000001
 #define ACCESS_16BIT		0x00000002
 #define ACCESS_INTR_MASK	0x00000004
+#define ACCESS_NO_IRQ_SUSPEND	0x00000008
 
 #define MODEL_CHERRYTRAIL	0x00000100
+#define MODEL_MSCC_OCELOT	0x00000200
+#define MODEL_MASK		0x00000f00
 
 u32 dw_readl(struct dw_i2c_dev *dev, int offset);
 void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset);
