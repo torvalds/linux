@@ -75,14 +75,18 @@ static bool blk_mq_hctx_has_pending(struct blk_mq_hw_ctx *hctx)
 static void blk_mq_hctx_mark_pending(struct blk_mq_hw_ctx *hctx,
 				     struct blk_mq_ctx *ctx)
 {
-	if (!sbitmap_test_bit(&hctx->ctx_map, ctx->index_hw))
-		sbitmap_set_bit(&hctx->ctx_map, ctx->index_hw);
+	const int bit = ctx->index_hw[hctx->type];
+
+	if (!sbitmap_test_bit(&hctx->ctx_map, bit))
+		sbitmap_set_bit(&hctx->ctx_map, bit);
 }
 
 static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
 				      struct blk_mq_ctx *ctx)
 {
-	sbitmap_clear_bit(&hctx->ctx_map, ctx->index_hw);
+	const int bit = ctx->index_hw[hctx->type];
+
+	sbitmap_clear_bit(&hctx->ctx_map, bit);
 }
 
 struct mq_inflight {
@@ -955,7 +959,7 @@ static bool dispatch_rq_from_ctx(struct sbitmap *sb, unsigned int bitnr,
 struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
 					struct blk_mq_ctx *start)
 {
-	unsigned off = start ? start->index_hw : 0;
+	unsigned off = start ? start->index_hw[hctx->type] : 0;
 	struct dispatch_rq_data data = {
 		.hctx = hctx,
 		.rq   = NULL,
@@ -2343,10 +2347,16 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 
 		ctx = per_cpu_ptr(q->queue_ctx, i);
 		hctx = blk_mq_map_queue_type(q, 0, i);
-
+		hctx->type = 0;
 		cpumask_set_cpu(i, hctx->cpumask);
-		ctx->index_hw = hctx->nr_ctx;
+		ctx->index_hw[hctx->type] = hctx->nr_ctx;
 		hctx->ctxs[hctx->nr_ctx++] = ctx;
+
+		/*
+		 * If the nr_ctx type overflows, we have exceeded the
+		 * amount of sw queues we can support.
+		 */
+		BUG_ON(!hctx->nr_ctx);
 	}
 
 	mutex_unlock(&q->sysfs_lock);
