@@ -580,10 +580,9 @@ setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 	 * region, including any PTEs which happen to point to scratch.
 	 *
 	 * This is only relevant for the 48b PPGTT where we support
-	 * huge-gtt-pages, see also i915_vma_insert().
-	 *
-	 * TODO: we should really consider write-protecting the scratch-page and
-	 * sharing between ppgtt
+	 * huge-gtt-pages, see also i915_vma_insert(). However, as we share the
+	 * scratch (read-only) between all vm, we create one 64k scratch page
+	 * for all.
 	 */
 	size = I915_GTT_PAGE_SIZE_4K;
 	if (i915_vm_is_48bit(vm) &&
@@ -1209,6 +1208,26 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 {
 	int ret;
 
+	/*
+	 * If everybody agrees to not to write into the scratch page,
+	 * we can reuse it for all vm, keeping contexts and processes separate.
+	 */
+	if (vm->has_read_only &&
+	    vm->i915->kernel_context &&
+	    vm->i915->kernel_context->ppgtt) {
+		struct i915_address_space *clone =
+			&vm->i915->kernel_context->ppgtt->vm;
+
+		GEM_BUG_ON(!clone->has_read_only);
+
+		vm->scratch_page.order = clone->scratch_page.order;
+		vm->scratch_pte = clone->scratch_pte;
+		vm->scratch_pt  = clone->scratch_pt;
+		vm->scratch_pd  = clone->scratch_pd;
+		vm->scratch_pdp = clone->scratch_pdp;
+		return 0;
+	}
+
 	ret = setup_scratch_page(vm, __GFP_HIGHMEM);
 	if (ret)
 		return ret;
@@ -1289,6 +1308,9 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 
 static void gen8_free_scratch(struct i915_address_space *vm)
 {
+	if (!vm->scratch_page.daddr)
+		return;
+
 	if (use_4lvl(vm))
 		free_pdp(vm, vm->scratch_pdp);
 	free_pd(vm, vm->scratch_pd);
