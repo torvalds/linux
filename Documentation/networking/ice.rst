@@ -20,7 +20,7 @@ Enabling the driver
 The driver is enabled via the standard kernel configuration system,
 using the make command::
 
-  make oldconfig/silentoldconfig/menuconfig/etc.
+  make oldconfig/menuconfig/etc.
 
 The driver is located in the menu structure at:
 
