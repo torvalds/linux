@@ -79,8 +79,8 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 	int i, num_ports, ret;
 
 	if (!of_device_is_available(sd_np)) {
-		dev_dbg(imxmd->md.dev, "%s: %s not enabled\n", __func__,
-			sd_np->name);
+		dev_dbg(imxmd->md.dev, "%s: %pOFn not enabled\n", __func__,
+			sd_np);
 		/* unavailable is not an error */
 		return 0;
 	}

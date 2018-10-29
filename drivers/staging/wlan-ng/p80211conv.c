@@ -430,7 +430,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 			/* A bogus length ethfrm has been sent. */
 			/* Is someone trying an oflow attack? */
 			netdev_err(netdev, "DIXII frame too large (%ld > %d)\n",
-				   (long int)(payload_length -
+				   (long)(payload_length -
 				   sizeof(struct wlan_llc) -
 				   sizeof(struct wlan_snap)), netdev->mtu);
 			return 1;

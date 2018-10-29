@@ -501,6 +501,16 @@ config MCP3422
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3422.
 
+config MCP3911
+	tristate "Microchip Technology MCP3911 driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Microchip Technology's MCP3911
+	  analog to digital converter.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called mcp3911.
+
 config MEDIATEK_MT6577_AUXADC
         tristate "MediaTek AUXADC driver"
         depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -595,6 +605,26 @@ config QCOM_SPMI_VADC
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called qcom-spmi-vadc.
+
+config QCOM_SPMI_ADC5
+	tristate "Qualcomm Technologies Inc. SPMI PMIC5 ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	select QCOM_VADC_COMMON
+	help
+	  This is the IIO Voltage PMIC5 ADC driver for Qualcomm Technologies Inc.
+
+	  The driver supports multiple channels read. The ADC is a 16-bit
+	  sigma-delta ADC. The hardware supports calibrated results for
+	  conversion requests and clients include reading voltage phone
+	  power, on board system thermistors connected to the PMIC ADC,
+	  PMIC die temperature, charger temperature, battery current, USB voltage
+	  input, voltage signals connected to supported PMIC GPIO inputs. The
+	  hardware supports internal pull-up for thermistors and can choose between
+	  a 100k, 30k and 400k pull up using the ADC channels.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-adc5.
 
 config RCAR_GYRO_ADC
 	tristate "Renesas R-Car GyroADC driver"

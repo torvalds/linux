@@ -116,7 +116,7 @@ unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 {
 	pgoff_t first_index = 0;
 	void *batch[PAGEVEC_SIZE];
-	unsigned freed = 0;
+	unsigned int freed = 0;
 
 	int i, found;
 repeat:

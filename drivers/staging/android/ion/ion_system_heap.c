@@ -212,29 +212,6 @@ static struct ion_heap_ops system_heap_ops = {
 	.shrink = ion_system_heap_shrink,
 };
 
-static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
-				      void *unused)
-{
-	struct ion_system_heap *sys_heap = container_of(heap,
-							struct ion_system_heap,
-							heap);
-	int i;
-	struct ion_page_pool *pool;
-
-	for (i = 0; i < NUM_ORDERS; i++) {
-		pool = sys_heap->pools[i];
-
-		seq_printf(s, "%d order %u highmem pages %lu total\n",
-			   pool->high_count, pool->order,
-			   (PAGE_SIZE << pool->order) * pool->high_count);
-		seq_printf(s, "%d order %u lowmem pages %lu total\n",
-			   pool->low_count, pool->order,
-			   (PAGE_SIZE << pool->order) * pool->low_count);
-	}
-
-	return 0;
-}
-
 static void ion_system_heap_destroy_pools(struct ion_page_pool **pools)
 {
 	int i;
@@ -281,7 +258,6 @@ static struct ion_heap *__ion_system_heap_create(void)
 	if (ion_system_heap_create_pools(heap->pools))
 		goto free_heap;
 
-	heap->heap.debug_show = ion_system_heap_debug_show;
 	return &heap->heap;
 
 free_heap:
