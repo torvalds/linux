@@ -847,8 +847,8 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 	struct mt76_rate_power *t = &dev->mt76.rate_power;
 	u8 info[2];
 
-	mt76x0_get_power_info(dev, info);
 	mt76x0_get_tx_power_per_rate(dev);
+	mt76x0_get_power_info(dev, info);
 
 	mt76x02_add_rate_power_offset(t, info[0]);
 	mt76x02_limit_rate_power(t, dev->mt76.txpower_conf);
