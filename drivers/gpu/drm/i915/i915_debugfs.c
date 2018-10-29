@@ -4986,7 +4986,7 @@ static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	/* HDCP is supported by connector */
-	if (!intel_connector->hdcp_shim)
+	if (!intel_connector->hdcp.shim)
 		return -EINVAL;
 
 	seq_printf(m, "%s:%d HDCP version: ", connector->name,
