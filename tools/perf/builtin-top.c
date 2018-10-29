@@ -1257,7 +1257,14 @@ int cmd_top(int argc, const char **argv)
 				.uses_mmap   = true,
 			},
 			.proc_map_timeout    = 500,
-			.overwrite	= 1,
+			/*
+			 * FIXME: This will lose PERF_RECORD_MMAP and other metadata
+			 * when we pause, fix that and reenable. Probably using a
+			 * separate evlist with a dummy event, i.e. a non-overwrite
+			 * ring buffer just for metadata events, while PERF_RECORD_SAMPLE
+			 * stays in overwrite mode. -acme
+			 * */
+			.overwrite	= 0,
 		},
 		.max_stack	     = sysctl__max_stack(),
 		.annotation_opts     = annotation__default_options,
@@ -1373,7 +1380,7 @@ int cmd_top(int argc, const char **argv)
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
 	OPT_BOOLEAN(0, "overwrite", &top.record_opts.overwrite,
-		    "Use a backward ring buffer, default: yes"),
+		    "Use a backward ring buffer, default: no"),
 	OPT_BOOLEAN(0, "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_UINTEGER(0, "num-thread-synthesize", &top.nr_threads_synthesize,
 			"number of thread to run event synthesize"),
