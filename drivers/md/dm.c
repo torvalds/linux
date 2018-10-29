@@ -458,6 +458,57 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
+static int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
+			       struct blk_zone *zones, unsigned int *nr_zones,
+			       gfp_t gfp_mask)
+{
+#ifdef CONFIG_BLK_DEV_ZONED
+	struct mapped_device *md = disk->private_data;
+	struct dm_target *tgt;
+	struct dm_table *map;
+	int srcu_idx, ret;
+
+	if (dm_suspended_md(md))
+		return -EAGAIN;
+
+	map = dm_get_live_table(md, &srcu_idx);
+	if (!map)
+		return -EIO;
+
+	tgt = dm_table_find_target(map, sector);
+	if (!dm_target_is_valid(tgt)) {
+		ret = -EIO;
+		goto out;
+	}
+
+	/*
+	 * If we are executing this, we already know that the block device
+	 * is a zoned device and so each target should have support for that
+	 * type of drive. A missing report_zones method means that the target
+	 * driver has a problem.
+	 */
+	if (WARN_ON(!tgt->type->report_zones)) {
+		ret = -EIO;
+		goto out;
+	}
+
+	/*
+	 * blkdev_report_zones() will loop and call this again to cover all the
+	 * zones of the target, eventually moving on to the next target.
+	 * So there is no need to loop here trying to fill the entire array
+	 * of zones.
+	 */
+	ret = tgt->type->report_zones(tgt, sector, zones,
+				      nr_zones, gfp_mask);
+
+out:
+	dm_put_live_table(md, srcu_idx);
+	return ret;
+#else
+	return -ENOTSUPP;
+#endif
+}
+
 static int dm_prepare_ioctl(struct mapped_device *md, int *srcu_idx,
 			    struct block_device **bdev)
 	__acquires(md->io_barrier)
@@ -1155,93 +1206,49 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
 
 /*
- * The zone descriptors obtained with a zone report indicate zone positions
- * within the target backing device, regardless of that device is a partition
- * and regardless of the target mapping start sector on the device or partition.
- * The zone descriptors start sector and write pointer position must be adjusted
- * to match their relative position within the dm device.
- * A target may call dm_remap_zone_report() after completion of a
- * REQ_OP_ZONE_REPORT bio to remap the zone descriptors obtained from the
- * backing device.
+ * The zone descriptors obtained with a zone report indicate
+ * zone positions within the underlying device of the target. The zone
+ * descriptors must be remapped to match their position within the dm device.
+ * The caller target should obtain the zones information using
+ * blkdev_report_zones() to ensure that remapping for partition offset is
+ * already handled.
  */
-void dm_remap_zone_report(struct dm_target *ti, struct bio *bio, sector_t start)
+void dm_remap_zone_report(struct dm_target *ti, sector_t start,
+			  struct blk_zone *zones, unsigned int *nr_zones)
 {
 #ifdef CONFIG_BLK_DEV_ZONED
-	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
-	struct bio *report_bio = tio->io->orig_bio;
-	struct blk_zone_report_hdr *hdr = NULL;
 	struct blk_zone *zone;
-	unsigned int nr_rep = 0;
-	unsigned int ofst;
-	sector_t part_offset;
-	struct bio_vec bvec;
-	struct bvec_iter iter;
-	void *addr;
-
-	if (bio->bi_status)
-		return;
+	unsigned int nrz = *nr_zones;
+	int i;
 
 	/*
-	 * bio sector was incremented by the request size on completion. Taking
-	 * into account the original request sector, the target start offset on
-	 * the backing device and the target mapping offset (ti->begin), the
-	 * start sector of the backing device. The partition offset is always 0
-	 * if the target uses a whole device.
+	 * Remap the start sector and write pointer position of the zones in
+	 * the array. Since we may have obtained from the target underlying
+	 * device more zones that the target size, also adjust the number
+	 * of zones.
 	 */
-	part_offset = bio->bi_iter.bi_sector + ti->begin - (start + bio_end_sector(report_bio));
-
-	/*
-	 * Remap the start sector of the reported zones. For sequential zones,
-	 * also remap the write pointer position.
-	 */
-	bio_for_each_segment(bvec, report_bio, iter) {
-		addr = kmap_atomic(bvec.bv_page);
-
-		/* Remember the report header in the first page */
-		if (!hdr) {
-			hdr = addr;
-			ofst = sizeof(struct blk_zone_report_hdr);
-		} else
-			ofst = 0;
-
-		/* Set zones start sector */
-		while (hdr->nr_zones && ofst < bvec.bv_len) {
-			zone = addr + ofst;
-			zone->start -= part_offset;
-			if (zone->start >= start + ti->len) {
-				hdr->nr_zones = 0;
-				break;
-			}
-			zone->start = zone->start + ti->begin - start;
-			if (zone->type != BLK_ZONE_TYPE_CONVENTIONAL) {
-				if (zone->cond == BLK_ZONE_COND_FULL)
-					zone->wp = zone->start + zone->len;
-				else if (zone->cond == BLK_ZONE_COND_EMPTY)
-					zone->wp = zone->start;
-				else
-					zone->wp = zone->wp + ti->begin - start - part_offset;
-			}
-			ofst += sizeof(struct blk_zone);
-			hdr->nr_zones--;
-			nr_rep++;
+	for (i = 0; i < nrz; i++) {
+		zone = zones + i;
+		if (zone->start >= start + ti->len) {
+			memset(zone, 0, sizeof(struct blk_zone) * (nrz - i));
+			break;
 		}
 
-		if (addr != hdr)
-			kunmap_atomic(addr);
+		zone->start = zone->start + ti->begin - start;
+		if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+			continue;
 
-		if (!hdr->nr_zones)
-			break;
+		if (zone->cond == BLK_ZONE_COND_FULL)
+			zone->wp = zone->start + zone->len;
+		else if (zone->cond == BLK_ZONE_COND_EMPTY)
+			zone->wp = zone->start;
+		else
+			zone->wp = zone->wp + ti->begin - start;
 	}
 
-	if (hdr) {
-		hdr->nr_zones = nr_rep;
-		kunmap_atomic(hdr);
-	}
-
-	bio_advance(report_bio, report_bio->bi_iter.bi_size);
-
+	*nr_zones = i;
 #else /* !CONFIG_BLK_DEV_ZONED */
-	bio->bi_status = BLK_STS_NOTSUPP;
+	*nr_zones = 0;
 #endif
 }
 EXPORT_SYMBOL_GPL(dm_remap_zone_report);
@@ -1327,8 +1334,7 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 			return r;
 	}
 
-	if (bio_op(bio) != REQ_OP_ZONE_REPORT)
-		bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
+	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
 	clone->bi_iter.bi_size = to_bytes(len);
 
 	if (unlikely(bio_integrity(bio) != NULL))
@@ -1541,7 +1547,6 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
  */
 static int __split_and_process_non_flush(struct clone_info *ci)
 {
-	struct bio *bio = ci->bio;
 	struct dm_target *ti;
 	unsigned len;
 	int r;
@@ -1553,11 +1558,7 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	if (unlikely(__process_abnormal_io(ci, ti, &r)))
 		return r;
 
-	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
-		len = ci->sector_count;
-	else
-		len = min_t(sector_t, max_io_len(ci->sector, ti),
-			    ci->sector_count);
+	len = min_t(sector_t, max_io_len(ci->sector, ti), ci->sector_count);
 
 	r = __clone_and_map_data_bio(ci, ti, ci->sector, &len);
 	if (r < 0)
@@ -1616,9 +1617,6 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 				 * We take a clone of the original to store in
 				 * ci.io->orig_bio to be used by end_io_acct() and
 				 * for dec_pending to use for completion handling.
-				 * As this path is not used for REQ_OP_ZONE_REPORT,
-				 * the usage of io->orig_bio in dm_remap_zone_report()
-				 * won't be affected by this reassignment.
 				 */
 				struct bio *b = bio_split(bio, bio_sectors(bio) - ci.sector_count,
 							  GFP_NOIO, &md->queue->bio_split);
@@ -1666,7 +1664,7 @@ static blk_qc_t __process_bio(struct mapped_device *md,
 		 * Defend against IO still getting in during teardown
 		 * - as was seen for a time with nvme-fcloop
 		 */
-		if (unlikely(WARN_ON_ONCE(!ti || !dm_target_is_valid(ti)))) {
+		if (WARN_ON_ONCE(!ti || !dm_target_is_valid(ti))) {
 			error = -EIO;
 			goto out;
 		}
@@ -1808,8 +1806,6 @@ static void dm_wq_work(struct work_struct *work);
 
 static void dm_init_normal_md_queue(struct mapped_device *md)
 {
-	md->use_blk_mq = false;
-
 	/*
 	 * Initialize aspects of queue that aren't relevant for blk-mq
 	 */
@@ -1820,8 +1816,6 @@ static void cleanup_mapped_device(struct mapped_device *md)
 {
 	if (md->wq)
 		destroy_workqueue(md->wq);
-	if (md->kworker_task)
-		kthread_stop(md->kworker_task);
 	bioset_exit(&md->bs);
 	bioset_exit(&md->io_bs);
 
@@ -1888,7 +1882,6 @@ static struct mapped_device *alloc_dev(int minor)
 		goto bad_io_barrier;
 
 	md->numa_node_id = numa_node_id;
-	md->use_blk_mq = dm_use_blk_mq_default();
 	md->init_tio_pdu = false;
 	md->type = DM_TYPE_NONE;
 	mutex_init(&md->suspend_lock);
@@ -1919,7 +1912,6 @@ static struct mapped_device *alloc_dev(int minor)
 	INIT_WORK(&md->work, dm_wq_work);
 	init_waitqueue_head(&md->eventq);
 	init_completion(&md->kobj_holder.completion);
-	md->kworker_task = NULL;
 
 	md->disk->major = _major;
 	md->disk->first_minor = minor;
@@ -2219,14 +2211,6 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 
 	switch (type) {
 	case DM_TYPE_REQUEST_BASED:
-		dm_init_normal_md_queue(md);
-		r = dm_old_init_request_queue(md, t);
-		if (r) {
-			DMERR("Cannot initialize queue for request-based mapped device");
-			return r;
-		}
-		break;
-	case DM_TYPE_MQ_REQUEST_BASED:
 		r = dm_mq_init_request_queue(md, t);
 		if (r) {
 			DMERR("Cannot initialize queue for request-based dm-mq mapped device");
@@ -2330,9 +2314,6 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 	spin_unlock(&_minor_lock);
 
 	blk_set_queue_dying(md->queue);
-
-	if (dm_request_based(md) && md->kworker_task)
-		kthread_flush_worker(&md->kworker);
 
 	/*
 	 * Take suspend_lock so that presuspend and postsuspend methods
@@ -2586,11 +2567,8 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	 * Stop md->queue before flushing md->wq in case request-based
 	 * dm defers requests to md->wq from md->queue.
 	 */
-	if (dm_request_based(md)) {
+	if (dm_request_based(md))
 		dm_stop_queue(md->queue);
-		if (md->kworker_task)
-			kthread_flush_worker(&md->kworker);
-	}
 
 	flush_workqueue(md->wq);
 
@@ -2965,7 +2943,6 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 			goto out;
 		break;
 	case DM_TYPE_REQUEST_BASED:
-	case DM_TYPE_MQ_REQUEST_BASED:
 		pool_size = max(dm_get_reserved_rq_based_ios(), min_pool_size);
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
 		/* per_io_data_size is used for blk-mq pdu at queue allocation */
@@ -3167,6 +3144,7 @@ static const struct block_device_operations dm_blk_dops = {
 	.release = dm_blk_close,
 	.ioctl = dm_blk_ioctl,
 	.getgeo = dm_blk_getgeo,
+	.report_zones = dm_blk_report_zones,
 	.pr_ops = &dm_pr_ops,
 	.owner = THIS_MODULE
 };

@@ -2681,6 +2681,18 @@ static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 	pr_debug("raid456: error called\n");
 
 	spin_lock_irqsave(&conf->device_lock, flags);
+
+	if (test_bit(In_sync, &rdev->flags) &&
+	    mddev->degraded == conf->max_degraded) {
+		/*
+		 * Don't allow to achieve failed state
+		 * Don't try to recover this device
+		 */
+		conf->recovery_disabled = mddev->recovery_disabled;
+		spin_unlock_irqrestore(&conf->device_lock, flags);
+		return;
+	}
+
 	set_bit(Faulty, &rdev->flags);
 	clear_bit(In_sync, &rdev->flags);
 	mddev->degraded = raid5_calc_degraded(conf);

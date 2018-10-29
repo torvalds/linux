@@ -1,15 +1,10 @@
-/*
- * extcon-max77843.c - Maxim MAX77843 extcon driver to support
- *			MUIC(Micro USB Interface Controller)
- *
- * Copyright (C) 2015 Samsung Electronics
- * Author: Jaewon Kim <jaewon02.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// extcon-max77843.c - Maxim MAX77843 extcon driver to support
+//			MUIC(Micro USB Interface Controller)
+//
+// Copyright (C) 2015 Samsung Electronics
+// Author: Jaewon Kim <jaewon02.kim@samsung.com>
 
 #include <linux/extcon-provider.h>
 #include <linux/i2c.h>

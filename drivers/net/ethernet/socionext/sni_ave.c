@@ -461,16 +461,7 @@ static int ave_ethtool_set_pauseparam(struct net_device *ndev,
 	priv->pause_rx   = pause->rx_pause;
 	priv->pause_tx   = pause->tx_pause;
 
-	phydev->advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-	if (pause->rx_pause)
-		phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-	if (pause->tx_pause)
-		phydev->advertising ^= ADVERTISED_Asym_Pause;
-
-	if (pause->autoneg) {
-		if (netif_running(ndev))
-			phy_start_aneg(phydev);
-	}
+	phy_set_asym_pause(phydev, pause->rx_pause, pause->tx_pause);
 
 	return 0;
 }
@@ -904,11 +895,11 @@ static void ave_rxfifo_reset(struct net_device *ndev)
 
 	/* assert reset */
 	writel(AVE_GRR_RXFFR, priv->base + AVE_GRR);
-	usleep_range(40, 50);
+	udelay(50);
 
 	/* negate reset */
 	writel(0, priv->base + AVE_GRR);
-	usleep_range(10, 20);
+	udelay(20);
 
 	/* negate interrupt status */
 	writel(AVE_GI_RXOVF, priv->base + AVE_GISR);
@@ -1125,11 +1116,8 @@ static void ave_phy_adjust_link(struct net_device *ndev)
 			rmt_adv |= LPA_PAUSE_CAP;
 		if (phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
-		if (phydev->advertising & ADVERTISED_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_CAP;
-		if (phydev->advertising & ADVERTISED_Asym_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_ASYM;
 
+		lcl_adv = ethtool_adv_to_lcl_adv_t(phydev->advertising);
 		cap = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 		if (cap & FLOW_CTRL_TX)
 			txcr |= AVE_TXCR_FLOCTR;
@@ -1223,11 +1211,10 @@ static int ave_init(struct net_device *ndev)
 	phy_ethtool_get_wol(phydev, &wol);
 	device_set_wakeup_capable(&ndev->dev, !!wol.supported);
 
-	if (!phy_interface_is_rgmii(phydev)) {
-		phydev->supported &= ~PHY_GBIT_FEATURES;
-		phydev->supported |= PHY_BASIC_FEATURES;
-	}
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	if (!phy_interface_is_rgmii(phydev))
+		phy_set_max_speed(phydev, SPEED_100);
+
+	phy_support_asym_pause(phydev);
 
 	phy_attached_info(phydev);
 

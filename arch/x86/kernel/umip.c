@@ -271,19 +271,13 @@ static int emulate_umip_insn(struct insn *insn, int umip_inst,
  */
 static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
 {
-	siginfo_t info;
 	struct task_struct *tsk = current;
 
 	tsk->thread.cr2		= (unsigned long)addr;
 	tsk->thread.error_code	= X86_PF_USER | X86_PF_WRITE;
 	tsk->thread.trap_nr	= X86_TRAP_PF;
 
-	clear_siginfo(&info);
-	info.si_signo	= SIGSEGV;
-	info.si_errno	= 0;
-	info.si_code	= SEGV_MAPERR;
-	info.si_addr	= addr;
-	force_sig_info(SIGSEGV, &info, tsk);
+	force_sig_fault(SIGSEGV, SEGV_MAPERR, addr, tsk);
 
 	if (!(show_unhandled_signals && unhandled_signal(tsk, SIGSEGV)))
 		return;

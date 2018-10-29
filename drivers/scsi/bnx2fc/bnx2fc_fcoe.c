@@ -150,15 +150,11 @@ static void bnx2fc_clean_rx_queue(struct fc_lport *lp)
 	struct fcoe_rcv_info *fr;
 	struct sk_buff_head *list;
 	struct sk_buff *skb, *next;
-	struct sk_buff *head;
 
 	bg = &bnx2fc_global;
 	spin_lock_bh(&bg->fcoe_rx_list.lock);
 	list = &bg->fcoe_rx_list;
-	head = list->next;
-	for (skb = head; skb != (struct sk_buff *)list;
-	     skb = next) {
-		next = skb->next;
+	skb_queue_walk_safe(list, skb, next) {
 		fr = fcoe_dev_from_skb(skb);
 		if (fr->fr_dev == lp) {
 			__skb_unlink(skb, list);
@@ -436,7 +432,6 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct fcoe_rcv_info *fr;
 	struct fcoe_percpu_s *bg;
 	struct sk_buff *tmp_skb;
-	unsigned short oxid;
 
 	interface = container_of(ptype, struct bnx2fc_interface,
 				 fcoe_packet_type);
@@ -469,8 +464,6 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	skb_set_transport_header(skb, sizeof(struct fcoe_hdr));
 	fh = (struct fc_frame_header *) skb_transport_header(skb);
-
-	oxid = ntohs(fh->fh_ox_id);
 
 	fr = fcoe_dev_from_skb(skb);
 	fr->fr_dev = lport;

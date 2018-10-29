@@ -53,6 +53,7 @@ static const struct counter_desc sw_stats_desc[] = {
 
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_lro_packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_lro_bytes) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_ecn_mark) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_removed_vlan_packets) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_unnecessary) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_none) },
@@ -92,6 +93,7 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_busy) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_waive) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_congst_umr) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_arfs_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, ch_events) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, ch_poll) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, ch_arm) },
@@ -131,7 +133,7 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 
 	memset(s, 0, sizeof(*s));
 
-	for (i = 0; i < priv->profile->max_nch(priv->mdev); i++) {
+	for (i = 0; i < mlx5e_get_netdev_max_channels(priv->netdev); i++) {
 		struct mlx5e_channel_stats *channel_stats =
 			&priv->channel_stats[i];
 		struct mlx5e_xdpsq_stats *xdpsq_red_stats = &channel_stats->xdpsq;
@@ -144,6 +146,7 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 		s->rx_bytes	+= rq_stats->bytes;
 		s->rx_lro_packets += rq_stats->lro_packets;
 		s->rx_lro_bytes	+= rq_stats->lro_bytes;
+		s->rx_ecn_mark	+= rq_stats->ecn_mark;
 		s->rx_removed_vlan_packets += rq_stats->removed_vlan_packets;
 		s->rx_csum_none	+= rq_stats->csum_none;
 		s->rx_csum_complete += rq_stats->csum_complete;
@@ -168,6 +171,7 @@ void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 		s->rx_cache_busy  += rq_stats->cache_busy;
 		s->rx_cache_waive += rq_stats->cache_waive;
 		s->rx_congst_umr  += rq_stats->congst_umr;
+		s->rx_arfs_err    += rq_stats->arfs_err;
 		s->ch_events      += ch_stats->events;
 		s->ch_poll        += ch_stats->poll;
 		s->ch_arm         += ch_stats->arm;
@@ -610,46 +614,82 @@ static const struct counter_desc pport_phy_statistical_stats_desc[] = {
 	{ "rx_corrected_bits_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits) },
 };
 
-#define NUM_PPORT_PHY_STATISTICAL_COUNTERS ARRAY_SIZE(pport_phy_statistical_stats_desc)
+static const struct counter_desc
+pport_phy_statistical_err_lanes_stats_desc[] = {
+	{ "rx_err_lane_0_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits_lane0) },
+	{ "rx_err_lane_1_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits_lane1) },
+	{ "rx_err_lane_2_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits_lane2) },
+	{ "rx_err_lane_3_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits_lane3) },
+};
+
+#define NUM_PPORT_PHY_STATISTICAL_COUNTERS \
+	ARRAY_SIZE(pport_phy_statistical_stats_desc)
+#define NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS \
+	ARRAY_SIZE(pport_phy_statistical_err_lanes_stats_desc)
 
 static int mlx5e_grp_phy_get_num_stats(struct mlx5e_priv *priv)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int num_stats;
+
 	/* "1" for link_down_events special counter */
-	return MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group) ?
-		NUM_PPORT_PHY_STATISTICAL_COUNTERS + 1 : 1;
+	num_stats = 1;
+
+	num_stats += MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group) ?
+		     NUM_PPORT_PHY_STATISTICAL_COUNTERS : 0;
+
+	num_stats += MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters) ?
+		     NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS : 0;
+
+	return num_stats;
 }
 
 static int mlx5e_grp_phy_fill_strings(struct mlx5e_priv *priv, u8 *data,
 				      int idx)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	int i;
 
 	strcpy(data + (idx++) * ETH_GSTRING_LEN, "link_down_events_phy");
 
-	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
+	if (!MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
 		return idx;
 
 	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
 		       pport_phy_statistical_stats_desc[i].format);
+
+	if (MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters))
+		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS; i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       pport_phy_statistical_err_lanes_stats_desc[i].format);
+
 	return idx;
 }
 
 static int mlx5e_grp_phy_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	int i;
 
 	/* link_down_events_phy has special handling since it is not stored in __be64 format */
 	data[idx++] = MLX5_GET(ppcnt_reg, priv->stats.pport.phy_counters,
 			       counter_set.phys_layer_cntrs.link_down_events);
 
-	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
+	if (!MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
 		return idx;
 
 	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
 		data[idx++] =
 			MLX5E_READ_CTR64_BE(&priv->stats.pport.phy_statistical_counters,
 					    pport_phy_statistical_stats_desc, i);
+
+	if (MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters))
+		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS; i++)
+			data[idx++] =
+				MLX5E_READ_CTR64_BE(&priv->stats.pport.phy_statistical_counters,
+						    pport_phy_statistical_err_lanes_stats_desc,
+						    i);
 	return idx;
 }
 
@@ -1144,6 +1184,7 @@ static const struct counter_desc rq_stats_desc[] = {
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, xdp_redirect) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, lro_packets) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, lro_bytes) },
+	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, ecn_mark) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, removed_vlan_packets) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, wqe_err) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, mpwqe_filler_cqes) },
@@ -1158,6 +1199,7 @@ static const struct counter_desc rq_stats_desc[] = {
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_busy) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_waive) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, congst_umr) },
+	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, arfs_err) },
 };
 
 static const struct counter_desc sq_stats_desc[] = {
@@ -1211,7 +1253,7 @@ static const struct counter_desc ch_stats_desc[] = {
 
 static int mlx5e_grp_channels_get_num_stats(struct mlx5e_priv *priv)
 {
-	int max_nch = priv->profile->max_nch(priv->mdev);
+	int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 
 	return (NUM_RQ_STATS * max_nch) +
 	       (NUM_CH_STATS * max_nch) +
@@ -1223,7 +1265,7 @@ static int mlx5e_grp_channels_get_num_stats(struct mlx5e_priv *priv)
 static int mlx5e_grp_channels_fill_strings(struct mlx5e_priv *priv, u8 *data,
 					   int idx)
 {
-	int max_nch = priv->profile->max_nch(priv->mdev);
+	int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int i, j, tc;
 
 	for (i = 0; i < max_nch; i++)
@@ -1258,7 +1300,7 @@ static int mlx5e_grp_channels_fill_strings(struct mlx5e_priv *priv, u8 *data,
 static int mlx5e_grp_channels_fill_stats(struct mlx5e_priv *priv, u64 *data,
 					 int idx)
 {
-	int max_nch = priv->profile->max_nch(priv->mdev);
+	int max_nch = mlx5e_get_netdev_max_channels(priv->netdev);
 	int i, j, tc;
 
 	for (i = 0; i < max_nch; i++)

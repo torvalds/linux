@@ -133,6 +133,33 @@ static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+/* QEDR sysfs interface */
+static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
+			   char *buf)
+{
+	struct qedr_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->pdev->vendor);
+}
+static DEVICE_ATTR_RO(hw_rev);
+
+static ssize_t hca_type_show(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s\n", "HCA_TYPE_TO_SET");
+}
+static DEVICE_ATTR_RO(hca_type);
+
+static struct attribute *qedr_attributes[] = {
+	&dev_attr_hw_rev.attr,
+	&dev_attr_hca_type.attr,
+	NULL
+};
+
+static const struct attribute_group qedr_attr_group = {
+	.attrs = qedr_attributes,
+};
+
 static int qedr_iw_register_device(struct qedr_dev *dev)
 {
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
@@ -169,8 +196,6 @@ static void qedr_roce_register_device(struct qedr_dev *dev)
 static int qedr_register_device(struct qedr_dev *dev)
 {
 	int rc;
-
-	strlcpy(dev->ibdev.name, "qedr%d", IB_DEVICE_NAME_MAX);
 
 	dev->ibdev.node_guid = dev->attr.node_guid;
 	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
@@ -262,9 +287,9 @@ static int qedr_register_device(struct qedr_dev *dev)
 
 	dev->ibdev.get_link_layer = qedr_link_layer;
 	dev->ibdev.get_dev_fw_str = qedr_get_dev_fw_str;
-
+	rdma_set_device_sysfs_group(&dev->ibdev, &qedr_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
-	return ib_register_device(&dev->ibdev, NULL);
+	return ib_register_device(&dev->ibdev, "qedr%d", NULL);
 }
 
 /* This function allocates fast-path status block memory */
@@ -402,37 +427,6 @@ err2:
 err1:
 	kfree(dev->sgid_tbl);
 	return rc;
-}
-
-/* QEDR sysfs interface */
-static ssize_t show_rev(struct device *device, struct device_attribute *attr,
-			char *buf)
-{
-	struct qedr_dev *dev = dev_get_drvdata(device);
-
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->pdev->vendor);
-}
-
-static ssize_t show_hca_type(struct device *device,
-			     struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%s\n", "HCA_TYPE_TO_SET");
-}
-
-static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(hca_type, S_IRUGO, show_hca_type, NULL);
-
-static struct device_attribute *qedr_attributes[] = {
-	&dev_attr_hw_rev,
-	&dev_attr_hca_type
-};
-
-static void qedr_remove_sysfiles(struct qedr_dev *dev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(qedr_attributes); i++)
-		device_remove_file(&dev->ibdev.dev, qedr_attributes[i]);
 }
 
 static void qedr_pci_set_atomic(struct qedr_dev *dev, struct pci_dev *pdev)
@@ -855,7 +849,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 {
 	struct qed_dev_rdma_info dev_info;
 	struct qedr_dev *dev;
-	int rc = 0, i;
+	int rc = 0;
 
 	dev = (struct qedr_dev *)ib_alloc_device(sizeof(*dev));
 	if (!dev) {
@@ -914,18 +908,12 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 		goto reg_err;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(qedr_attributes); i++)
-		if (device_create_file(&dev->ibdev.dev, qedr_attributes[i]))
-			goto sysfs_err;
-
 	if (!test_and_set_bit(QEDR_ENET_STATE_BIT, &dev->enet_state))
 		qedr_ib_dispatch_event(dev, QEDR_PORT, IB_EVENT_PORT_ACTIVE);
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "qedr driver loaded successfully\n");
 	return dev;
 
-sysfs_err:
-	ib_unregister_device(&dev->ibdev);
 reg_err:
 	qedr_sync_free_irqs(dev);
 irq_err:
@@ -944,7 +932,6 @@ static void qedr_remove(struct qedr_dev *dev)
 	/* First unregister with stack to stop all the active traffic
 	 * of the registered clients.
 	 */
-	qedr_remove_sysfiles(dev);
 	ib_unregister_device(&dev->ibdev);
 
 	qedr_stop_hw(dev);

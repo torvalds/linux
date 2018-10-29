@@ -36,6 +36,8 @@
 #include <linux/cleancache.h>
 #include <linux/shmem_fs.h>
 #include <linux/rmap.h>
+#include <linux/delayacct.h>
+#include <linux/psi.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -915,12 +917,9 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 		 * data from the working set, only to cache data that will
 		 * get overwritten with something else, is a waste of memory.
 		 */
-		if (!(gfp_mask & __GFP_WRITE) &&
-		    shadow && workingset_refault(shadow)) {
-			SetPageActive(page);
-			workingset_activation(page);
-		} else
-			ClearPageActive(page);
+		WARN_ON_ONCE(PageActive(page));
+		if (!(gfp_mask & __GFP_WRITE) && shadow)
+			workingset_refault(page, shadow);
 		lru_cache_add(page);
 	}
 	return ret;
@@ -1076,7 +1075,17 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 {
 	struct wait_page_queue wait_page;
 	wait_queue_entry_t *wait = &wait_page.wait;
+	bool thrashing = false;
+	unsigned long pflags;
 	int ret = 0;
+
+	if (bit_nr == PG_locked &&
+	    !PageUptodate(page) && PageWorkingset(page)) {
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_start();
+		psi_memstall_enter(&pflags);
+		thrashing = true;
+	}
 
 	init_wait(wait);
 	wait->flags = lock ? WQ_FLAG_EXCLUSIVE : 0;
@@ -1115,6 +1124,12 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	}
 
 	finish_wait(q, wait);
+
+	if (thrashing) {
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_end();
+		psi_memstall_leave(&pflags);
+	}
 
 	/*
 	 * A signal could leave PageWaiters set. Clearing it here if
@@ -2581,9 +2596,7 @@ no_cached_page:
 	 * system is low on memory, or a problem occurs while trying
 	 * to schedule I/O.
 	 */
-	if (error == -ENOMEM)
-		return VM_FAULT_OOM;
-	return VM_FAULT_SIGBUS;
+	return vmf_error(error);
 
 page_not_uptodate:
 	/*
@@ -2748,9 +2761,9 @@ int generic_file_readonly_mmap(struct file *file, struct vm_area_struct *vma)
 	return generic_file_mmap(file, vma);
 }
 #else
-int filemap_page_mkwrite(struct vm_fault *vmf)
+vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
 {
-	return -ENOSYS;
+	return VM_FAULT_SIGBUS;
 }
 int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
@@ -3012,7 +3025,7 @@ generic_file_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		/* If there are pages to writeback, return */
 		if (filemap_range_has_page(inode->i_mapping, pos,
-					   pos + iov_iter_count(from)))
+					   pos + write_len))
 			return -EAGAIN;
 	} else {
 		written = filemap_write_and_wait_range(mapping, pos,

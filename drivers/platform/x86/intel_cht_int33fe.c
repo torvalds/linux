@@ -35,7 +35,7 @@ struct cht_int33fe_data {
 	struct i2c_client *fusb302;
 	struct i2c_client *pi3usb30532;
 	/* Contain a list-head must be per device */
-	struct device_connection connections[3];
+	struct device_connection connections[5];
 };
 
 /*
@@ -175,19 +175,20 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER; /* Wait for i2c-adapter to load */
 	}
 
-	data->connections[0].endpoint[0] = "i2c-fusb302";
+	data->connections[0].endpoint[0] = "port0";
 	data->connections[0].endpoint[1] = "i2c-pi3usb30532";
 	data->connections[0].id = "typec-switch";
-	data->connections[1].endpoint[0] = "i2c-fusb302";
+	data->connections[1].endpoint[0] = "port0";
 	data->connections[1].endpoint[1] = "i2c-pi3usb30532";
 	data->connections[1].id = "typec-mux";
-	data->connections[2].endpoint[0] = "i2c-fusb302";
-	data->connections[2].endpoint[1] = "intel_xhci_usb_sw-role-switch";
-	data->connections[2].id = "usb-role-switch";
+	data->connections[2].endpoint[0] = "port0";
+	data->connections[2].endpoint[1] = "i2c-pi3usb30532";
+	data->connections[2].id = "idff01m01";
+	data->connections[3].endpoint[0] = "i2c-fusb302";
+	data->connections[3].endpoint[1] = "intel_xhci_usb_sw-role-switch";
+	data->connections[3].id = "usb-role-switch";
 
-	device_connection_add(&data->connections[0]);
-	device_connection_add(&data->connections[1]);
-	device_connection_add(&data->connections[2]);
+	device_connections_add(data->connections);
 
 	memset(&board_info, 0, sizeof(board_info));
 	strlcpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
@@ -218,9 +219,7 @@ out_unregister_max17047:
 	if (data->max17047)
 		i2c_unregister_device(data->max17047);
 
-	device_connection_remove(&data->connections[2]);
-	device_connection_remove(&data->connections[1]);
-	device_connection_remove(&data->connections[0]);
+	device_connections_remove(data->connections);
 
 	return -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
 }
@@ -234,9 +233,7 @@ static int cht_int33fe_remove(struct platform_device *pdev)
 	if (data->max17047)
 		i2c_unregister_device(data->max17047);
 
-	device_connection_remove(&data->connections[2]);
-	device_connection_remove(&data->connections[1]);
-	device_connection_remove(&data->connections[0]);
+	device_connections_remove(data->connections);
 
 	return 0;
 }

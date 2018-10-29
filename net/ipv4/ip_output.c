@@ -278,7 +278,7 @@ static int ip_finish_output_gso(struct net *net, struct sock *sk,
 		struct sk_buff *nskb = segs->next;
 		int err;
 
-		segs->next = NULL;
+		skb_mark_not_on_list(segs);
 		err = ip_fragment(net, sk, segs, mtu, ip_finish_output2);
 
 		if (err && ret == 0)
@@ -684,7 +684,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 			skb = frag;
 			frag = skb->next;
-			skb->next = NULL;
+			skb_mark_not_on_list(skb);
 		}
 
 		if (err == 0) {

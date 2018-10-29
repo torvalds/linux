@@ -22,6 +22,7 @@ NVDIMM_SRC := $(DRIVERS)/nvdimm
 ACPI_SRC := $(DRIVERS)/acpi/nfit
 DAX_SRC := $(DRIVERS)/dax
 ccflags-y := -I$(src)/$(NVDIMM_SRC)/
+ccflags-y += -I$(src)/$(ACPI_SRC)/
 
 obj-$(CONFIG_LIBNVDIMM) += libnvdimm.o
 obj-$(CONFIG_BLK_DEV_PMEM) += nd_pmem.o

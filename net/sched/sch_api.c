@@ -27,7 +27,6 @@
 #include <linux/kmod.h>
 #include <linux/list.h>
 #include <linux/hrtimer.h>
-#include <linux/lockdep.h>
 #include <linux/slab.h>
 #include <linux/hashtable.h>
 
@@ -311,6 +310,24 @@ struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 		q = qdisc_match_from_root(
 			dev_ingress_queue(dev)->qdisc_sleeping,
 			handle);
+out:
+	return q;
+}
+
+struct Qdisc *qdisc_lookup_rcu(struct net_device *dev, u32 handle)
+{
+	struct netdev_queue *nq;
+	struct Qdisc *q;
+
+	if (!handle)
+		return NULL;
+	q = qdisc_match_from_root(dev->qdisc, handle);
+	if (q)
+		goto out;
+
+	nq = dev_ingress_queue_rcu(dev);
+	if (nq)
+		q = qdisc_match_from_root(nq->qdisc_sleeping, handle);
 out:
 	return q;
 }
@@ -921,7 +938,7 @@ static void notify_and_destroy(struct net *net, struct sk_buff *skb,
 		qdisc_notify(net, skb, n, clid, old, new);
 
 	if (old)
-		qdisc_destroy(old);
+		qdisc_put(old);
 }
 
 /* Graft qdisc "new" to class "classid" of qdisc "parent" or
@@ -974,7 +991,7 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 				qdisc_refcount_inc(new);
 
 			if (!ingress)
-				qdisc_destroy(old);
+				qdisc_put(old);
 		}
 
 skip:
@@ -1053,10 +1070,6 @@ static int qdisc_block_indexes_set(struct Qdisc *sch, struct nlattr **tca,
 	return 0;
 }
 
-/* lockdep annotation is needed for ingress; egress gets it only for name */
-static struct lock_class_key qdisc_tx_lock;
-static struct lock_class_key qdisc_rx_lock;
-
 /*
    Allocate and initialize new qdisc.
 
@@ -1121,7 +1134,6 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
 		handle = TC_H_MAKE(TC_H_INGRESS, 0);
-		lockdep_set_class(qdisc_lock(sch), &qdisc_rx_lock);
 	} else {
 		if (handle == 0) {
 			handle = qdisc_alloc_handle(dev);
@@ -1129,7 +1141,6 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 			if (handle == 0)
 				goto err_out3;
 		}
-		lockdep_set_class(qdisc_lock(sch), &qdisc_tx_lock);
 		if (!netif_is_multiqueue(dev))
 			sch->flags |= TCQ_F_ONETXQUEUE;
 	}
@@ -1309,7 +1320,6 @@ check_loop_fn(struct Qdisc *q, unsigned long cl, struct qdisc_walker *w)
 
 const struct nla_policy rtm_tca_policy[TCA_MAX + 1] = {
 	[TCA_KIND]		= { .type = NLA_STRING },
-	[TCA_OPTIONS]		= { .type = NLA_NESTED },
 	[TCA_RATE]		= { .type = NLA_BINARY,
 				    .len = sizeof(struct tc_estimator) },
 	[TCA_STAB]		= { .type = NLA_NESTED },
@@ -1582,7 +1592,7 @@ graft:
 	err = qdisc_graft(dev, p, skb, n, clid, q, NULL, extack);
 	if (err) {
 		if (q)
-			qdisc_destroy(q);
+			qdisc_put(q);
 		return err;
 	}
 
@@ -1660,7 +1670,7 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	ASSERT_RTNL();
 
 	err = nlmsg_parse(nlh, sizeof(struct tcmsg), tca, TCA_MAX,
-			  rtm_tca_policy, NULL);
+			  rtm_tca_policy, cb->extack);
 	if (err < 0)
 		return err;
 

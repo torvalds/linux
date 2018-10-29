@@ -68,8 +68,8 @@ do_compat_cache_op(unsigned long start, unsigned long end, int flags)
  */
 long compat_arm_syscall(struct pt_regs *regs)
 {
-	siginfo_t info;
 	unsigned int no = regs->regs[7];
+	void __user *addr;
 
 	switch (no) {
 	/*
@@ -112,13 +112,10 @@ long compat_arm_syscall(struct pt_regs *regs)
 		break;
 	}
 
-	clear_siginfo(&info);
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLTRP;
-	info.si_addr  = (void __user *)instruction_pointer(regs) -
-			 (compat_thumb_mode(regs) ? 2 : 4);
+	addr  = (void __user *)instruction_pointer(regs) -
+		(compat_thumb_mode(regs) ? 2 : 4);
 
-	arm64_notify_die("Oops - bad compat syscall(2)", regs, &info, no);
+	arm64_notify_die("Oops - bad compat syscall(2)", regs,
+			 SIGILL, ILL_ILLTRP, addr, no);
 	return 0;
 }

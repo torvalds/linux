@@ -597,7 +597,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			/* DDR3 has 8 I/O banks */
 			size = (rows * cols * banks * ranks) >> (20 - 3);
 
-			edac_dbg(0, "\tdimm %d %d Mb offset: %x, bank: %d, rank: %d, row: %#x, col: %#x\n",
+			edac_dbg(0, "\tdimm %d %d MiB offset: %x, bank: %d, rank: %d, row: %#x, col: %#x\n",
 				 j, size,
 				 RANKOFFSET(dimm_dod[j]),
 				 banks, ranks, rows, cols);
@@ -1711,6 +1711,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 	u32 errnum = find_first_bit(&error, 32);
 
 	if (uncorrected_error) {
+		core_err_cnt = 1;
 		if (ripv)
 			tp_event = HW_EVENT_ERR_FATAL;
 		else
@@ -1815,14 +1816,12 @@ static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
 	struct mce *mce = (struct mce *)data;
 	struct i7core_dev *i7_dev;
 	struct mem_ctl_info *mci;
-	struct i7core_pvt *pvt;
 
 	i7_dev = get_i7core_dev(mce->socketid);
 	if (!i7_dev)
 		return NOTIFY_DONE;
 
 	mci = i7_dev->mci;
-	pvt = mci->pvt_info;
 
 	/*
 	 * Just let mcelog handle it if the error is

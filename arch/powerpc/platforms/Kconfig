@@ -23,7 +23,6 @@ source "arch/powerpc/platforms/amigaone/Kconfig"
 
 config KVM_GUEST
 	bool "KVM Guest support"
-	default n
 	select EPAPR_PARAVIRT
 	---help---
 	  This option enables various optimizations for running under the KVM
@@ -34,7 +33,6 @@ config KVM_GUEST
 
 config EPAPR_PARAVIRT
 	bool "ePAPR para-virtualization support"
-	default n
 	help
 	  Enables ePAPR para-virtualization support for guests.
 
@@ -74,7 +72,6 @@ config PPC_DT_CPU_FTRS
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
 	depends on PPC_RTAS
-	default n
 
 config PPC_SMP_MUXED_IPI
 	bool
@@ -86,16 +83,13 @@ config PPC_SMP_MUXED_IPI
 
 config IPIC
 	bool
-	default n
 
 config MPIC
 	bool
-	default n
 
 config MPIC_TIMER
 	bool "MPIC Global Timer"
 	depends on MPIC && FSL_SOC
-	default n
 	help
 	  The MPIC global timer is a hardware timer inside the
 	  Freescale PIC complying with OpenPIC standard. When the
@@ -107,7 +101,6 @@ config MPIC_TIMER
 config FSL_MPIC_TIMER_WAKEUP
 	tristate "Freescale MPIC global timer wakeup driver"
 	depends on FSL_SOC &&  MPIC_TIMER && PM
-	default n
 	help
 	  The driver provides a way to wake up the system by MPIC
 	  timer.
@@ -115,43 +108,35 @@ config FSL_MPIC_TIMER_WAKEUP
 
 config PPC_EPAPR_HV_PIC
 	bool
-	default n
 	select EPAPR_PARAVIRT
 
 config MPIC_WEIRD
 	bool
-	default n
 
 config MPIC_MSGR
 	bool "MPIC message register support"
 	depends on MPIC
-	default n
 	help
 	  Enables support for the MPIC message registers.  These
 	  registers are used for inter-processor communication.
 
 config PPC_I8259
 	bool
-	default n
 
 config U3_DART
 	bool
 	depends on PPC64
-	default n
 
 config PPC_RTAS
 	bool
-	default n
 
 config RTAS_ERROR_LOGGING
 	bool
 	depends on PPC_RTAS
-	default n
 
 config PPC_RTAS_DAEMON
 	bool
 	depends on PPC_RTAS
-	default n
 
 config RTAS_PROC
 	bool "Proc interface to RTAS"
@@ -164,11 +149,9 @@ config RTAS_FLASH
 
 config MMIO_NVRAM
 	bool
-	default n
 
 config MPIC_U3_HT_IRQS
 	bool
-	default n
 
 config MPIC_BROKEN_REGREAD
 	bool
@@ -187,15 +170,12 @@ config EEH
 
 config PPC_MPC106
 	bool
-	default n
 
 config PPC_970_NAP
 	bool
-	default n
 
 config PPC_P7_NAP
 	bool
-	default n
 
 config PPC_INDIRECT_PIO
 	bool
@@ -295,7 +275,6 @@ config CPM2
 
 config FSL_ULI1575
 	bool
-	default n
 	select GENERIC_ISA_DMA
 	help
 	  Supports for the ULI1575 PCIe south bridge that exists on some

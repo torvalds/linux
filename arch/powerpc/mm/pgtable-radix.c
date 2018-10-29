@@ -241,9 +241,8 @@ void radix__mark_initmem_nx(void)
 }
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
-static inline void __meminit print_mapping(unsigned long start,
-					   unsigned long end,
-					   unsigned long size)
+static inline void __meminit
+print_mapping(unsigned long start, unsigned long end, unsigned long size, bool exec)
 {
 	char buf[10];
 
@@ -252,7 +251,17 @@ static inline void __meminit print_mapping(unsigned long start,
 
 	string_get_size(size, 1, STRING_UNITS_2, buf, sizeof(buf));
 
-	pr_info("Mapped 0x%016lx-0x%016lx with %s pages\n", start, end, buf);
+	pr_info("Mapped 0x%016lx-0x%016lx with %s pages%s\n", start, end, buf,
+		exec ? " (exec)" : "");
+}
+
+static unsigned long next_boundary(unsigned long addr, unsigned long end)
+{
+#ifdef CONFIG_STRICT_KERNEL_RWX
+	if (addr < __pa_symbol(__init_begin))
+		return __pa_symbol(__init_begin);
+#endif
+	return end;
 }
 
 static int __meminit create_physical_mapping(unsigned long start,
@@ -260,13 +269,8 @@ static int __meminit create_physical_mapping(unsigned long start,
 					     int nid)
 {
 	unsigned long vaddr, addr, mapping_size = 0;
+	bool prev_exec, exec = false;
 	pgprot_t prot;
-	unsigned long max_mapping_size;
-#ifdef CONFIG_STRICT_KERNEL_RWX
-	int split_text_mapping = 1;
-#else
-	int split_text_mapping = 0;
-#endif
 	int psize;
 
 	start = _ALIGN_UP(start, PAGE_SIZE);
@@ -274,14 +278,12 @@ static int __meminit create_physical_mapping(unsigned long start,
 		unsigned long gap, previous_size;
 		int rc;
 
-		gap = end - addr;
+		gap = next_boundary(addr, end) - addr;
 		previous_size = mapping_size;
-		max_mapping_size = PUD_SIZE;
+		prev_exec = exec;
 
-retry:
 		if (IS_ALIGNED(addr, PUD_SIZE) && gap >= PUD_SIZE &&
-		    mmu_psize_defs[MMU_PAGE_1G].shift &&
-		    PUD_SIZE <= max_mapping_size) {
+		    mmu_psize_defs[MMU_PAGE_1G].shift) {
 			mapping_size = PUD_SIZE;
 			psize = MMU_PAGE_1G;
 		} else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
@@ -293,32 +295,21 @@ retry:
 			psize = mmu_virtual_psize;
 		}
 
-		if (split_text_mapping && (mapping_size == PUD_SIZE) &&
-			(addr <= __pa_symbol(__init_begin)) &&
-			(addr + mapping_size) >= __pa_symbol(_stext)) {
-			max_mapping_size = PMD_SIZE;
-			goto retry;
-		}
-
-		if (split_text_mapping && (mapping_size == PMD_SIZE) &&
-		    (addr <= __pa_symbol(__init_begin)) &&
-		    (addr + mapping_size) >= __pa_symbol(_stext)) {
-			mapping_size = PAGE_SIZE;
-			psize = mmu_virtual_psize;
-		}
-
-		if (mapping_size != previous_size) {
-			print_mapping(start, addr, previous_size);
-			start = addr;
-		}
-
 		vaddr = (unsigned long)__va(addr);
 
 		if (overlaps_kernel_text(vaddr, vaddr + mapping_size) ||
-		    overlaps_interrupt_vector_text(vaddr, vaddr + mapping_size))
+		    overlaps_interrupt_vector_text(vaddr, vaddr + mapping_size)) {
 			prot = PAGE_KERNEL_X;
-		else
+			exec = true;
+		} else {
 			prot = PAGE_KERNEL;
+			exec = false;
+		}
+
+		if (mapping_size != previous_size || exec != prev_exec) {
+			print_mapping(start, addr, previous_size, prev_exec);
+			start = addr;
+		}
 
 		rc = __map_kernel_page(vaddr, addr, prot, mapping_size, nid, start, end);
 		if (rc)
@@ -327,7 +318,7 @@ retry:
 		update_page_count(psize, 1);
 	}
 
-	print_mapping(start, addr, mapping_size);
+	print_mapping(start, addr, mapping_size, exec);
 	return 0;
 }
 

@@ -325,7 +325,7 @@ struct thin_c {
 	 * Ensures the thin is not destroyed until the worker has finished
 	 * iterating the active_thins list.
 	 */
-	atomic_t refcount;
+	refcount_t refcount;
 	struct completion can_destroy;
 };
 
@@ -4044,12 +4044,12 @@ static struct target_type pool_target = {
  *--------------------------------------------------------------*/
 static void thin_get(struct thin_c *tc)
 {
-	atomic_inc(&tc->refcount);
+	refcount_inc(&tc->refcount);
 }
 
 static void thin_put(struct thin_c *tc)
 {
-	if (atomic_dec_and_test(&tc->refcount))
+	if (refcount_dec_and_test(&tc->refcount))
 		complete(&tc->can_destroy);
 }
 
@@ -4193,7 +4193,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		r = -EINVAL;
 		goto bad;
 	}
-	atomic_set(&tc->refcount, 1);
+	refcount_set(&tc->refcount, 1);
 	init_completion(&tc->can_destroy);
 	list_add_tail_rcu(&tc->list, &tc->pool->active_thins);
 	spin_unlock_irqrestore(&tc->pool->lock, flags);

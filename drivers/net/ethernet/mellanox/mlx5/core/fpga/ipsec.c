@@ -649,7 +649,7 @@ static bool mlx5_is_fpga_egress_ipsec_rule(struct mlx5_core_dev *dev,
 	    (match_criteria_enable &
 	     ~(MLX5_MATCH_OUTER_HEADERS | MLX5_MATCH_MISC_PARAMETERS)) ||
 	    (flow_act->action & ~(MLX5_FLOW_CONTEXT_ACTION_ENCRYPT | MLX5_FLOW_CONTEXT_ACTION_ALLOW)) ||
-	     flow_act->has_flow_tag)
+	     (flow_act->flags & FLOW_ACT_HAS_TAG))
 		return false;
 
 	return true;

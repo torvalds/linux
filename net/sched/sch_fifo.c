@@ -177,7 +177,7 @@ struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
 	if (q) {
 		err = fifo_set_limit(q, limit);
 		if (err < 0) {
-			qdisc_destroy(q);
+			qdisc_put(q);
 			q = NULL;
 		}
 	}

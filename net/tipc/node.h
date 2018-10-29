@@ -45,6 +45,7 @@
 /* Optional capabilities supported by this code version
  */
 enum {
+	TIPC_SYN_BIT          = (1),
 	TIPC_BCAST_SYNCH      = (1 << 1),
 	TIPC_BCAST_STATE_NACK = (1 << 2),
 	TIPC_BLOCK_FLOWCTL    = (1 << 3),
@@ -53,11 +54,12 @@ enum {
 	TIPC_LINK_PROTO_SEQNO = (1 << 6)
 };
 
-#define TIPC_NODE_CAPABILITIES (TIPC_BCAST_SYNCH       |  \
-				TIPC_BCAST_STATE_NACK  |  \
-				TIPC_BCAST_RCAST       |  \
-				TIPC_BLOCK_FLOWCTL     |  \
-				TIPC_NODE_ID128        |  \
+#define TIPC_NODE_CAPABILITIES (TIPC_SYN_BIT           |  \
+				TIPC_BCAST_SYNCH       |   \
+				TIPC_BCAST_STATE_NACK  |   \
+				TIPC_BCAST_RCAST       |   \
+				TIPC_BLOCK_FLOWCTL     |   \
+				TIPC_NODE_ID128        |   \
 				TIPC_LINK_PROTO_SEQNO)
 #define INVALID_BEARER_ID -1
 

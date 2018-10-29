@@ -57,6 +57,7 @@ static int pcm030_fabric_probe(struct platform_device *op)
 	struct device_node *platform_np;
 	struct snd_soc_card *card = &pcm030_card;
 	struct pcm030_audio_data *pdata;
+	struct snd_soc_dai_link *dai_link;
 	int ret;
 	int i;
 
@@ -78,8 +79,8 @@ static int pcm030_fabric_probe(struct platform_device *op)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < card->num_links; i++)
-		card->dai_link[i].platform_of_node = platform_np;
+	for_each_card_prelinks(card, i, dai_link)
+		dai_link->platform_of_node = platform_np;
 
 	ret = request_module("snd-soc-wm9712");
 	if (ret)

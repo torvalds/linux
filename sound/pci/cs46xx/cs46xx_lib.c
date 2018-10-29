@@ -1443,7 +1443,8 @@ static const struct snd_pcm_hardware snd_cs46xx_playback =
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED | 
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER /*|*/
-				 /*SNDRV_PCM_INFO_RESUME*/),
+				 /*SNDRV_PCM_INFO_RESUME*/ |
+				 SNDRV_PCM_INFO_SYNC_APPLPTR),
 	.formats =		(SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
 				 SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |
 				 SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE),
@@ -1465,7 +1466,8 @@ static const struct snd_pcm_hardware snd_cs46xx_capture =
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER /*|*/
-				 /*SNDRV_PCM_INFO_RESUME*/),
+				 /*SNDRV_PCM_INFO_RESUME*/ |
+				 SNDRV_PCM_INFO_SYNC_APPLPTR),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5500,

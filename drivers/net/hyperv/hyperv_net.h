@@ -185,7 +185,9 @@ struct rndis_device {
 
 /* Interface */
 struct rndis_message;
+struct ndis_offload_params;
 struct netvsc_device;
+struct netvsc_channel;
 struct net_device_context;
 
 extern u32 netvsc_ring_bytes;
@@ -203,10 +205,7 @@ void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp);
 int netvsc_recv_callback(struct net_device *net,
 			 struct netvsc_device *nvdev,
-			 struct vmbus_channel *channel,
-			 void  *data, u32 len,
-			 const struct ndis_tcp_ip_checksum_info *csum_info,
-			 const struct ndis_pkt_8021q_info *vlan);
+			 struct netvsc_channel *nvchan);
 void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
 
@@ -220,9 +219,12 @@ void rndis_filter_device_remove(struct hv_device *dev,
 				struct netvsc_device *nvdev);
 int rndis_filter_set_rss_param(struct rndis_device *rdev,
 			       const u8 *key);
+int rndis_filter_set_offload_params(struct net_device *ndev,
+				    struct netvsc_device *nvdev,
+				    struct ndis_offload_params *req_offloads);
 int rndis_filter_receive(struct net_device *ndev,
 			 struct netvsc_device *net_dev,
-			 struct vmbus_channel *channel,
+			 struct netvsc_channel *nvchan,
 			 void *data, u32 buflen);
 
 int rndis_filter_set_device_mac(struct netvsc_device *ndev,
@@ -524,6 +526,8 @@ struct nvsp_2_vsc_capability {
 			u64 ieee8021q:1;
 			u64 correlation_id:1;
 			u64 teaming:1;
+			u64 vsubnetid:1;
+			u64 rsc:1;
 		};
 	};
 } __packed;
@@ -826,7 +830,7 @@ struct nvsp_message {
 
 #define NETVSC_SUPPORTED_HW_FEATURES (NETIF_F_RXCSUM | NETIF_F_IP_CSUM | \
 				      NETIF_F_TSO | NETIF_F_IPV6_CSUM | \
-				      NETIF_F_TSO6)
+				      NETIF_F_TSO6 | NETIF_F_LRO)
 
 #define VRSS_SEND_TAB_SIZE 16  /* must be power of 2 */
 #define VRSS_CHANNEL_MAX 64
@@ -850,6 +854,18 @@ struct multi_recv_comp {
 	struct recv_comp_data *slots;
 	u32 first;	/* first data entry */
 	u32 next;	/* next entry for writing */
+};
+
+#define NVSP_RSC_MAX 562 /* Max #RSC frags in a vmbus xfer page pkt */
+
+struct nvsc_rsc {
+	const struct ndis_pkt_8021q_info *vlan;
+	const struct ndis_tcp_ip_checksum_info *csum_info;
+	u8 is_last; /* last RNDIS msg in a vmtransfer_page */
+	u32 cnt; /* #fragments in an RSC packet */
+	u32 pktlen; /* Full packet length */
+	void *data[NVSP_RSC_MAX];
+	u32 len[NVSP_RSC_MAX];
 };
 
 struct netvsc_stats {
@@ -955,6 +971,7 @@ struct netvsc_channel {
 	struct multi_send_data msd;
 	struct multi_recv_comp mrc;
 	atomic_t queue_sends;
+	struct nvsc_rsc rsc;
 
 	struct netvsc_stats tx_stats;
 	struct netvsc_stats rx_stats;
@@ -1136,7 +1153,8 @@ struct rndis_oobd {
 /* Packet extension field contents associated with a Data message. */
 struct rndis_per_packet_info {
 	u32 size;
-	u32 type;
+	u32 type:31;
+	u32 internal:1;
 	u32 ppi_offset;
 };
 
@@ -1155,6 +1173,25 @@ enum ndis_per_pkt_info_type {
 	CACHED_NET_BUFLIST,
 	SHORT_PKT_PADINFO,
 	MAX_PER_PKT_INFO
+};
+
+enum rndis_per_pkt_info_interal_type {
+	RNDIS_PKTINFO_ID = 1,
+	/* Add more memebers here */
+
+	RNDIS_PKTINFO_MAX
+};
+
+#define RNDIS_PKTINFO_SUBALLOC BIT(0)
+#define RNDIS_PKTINFO_1ST_FRAG BIT(1)
+#define RNDIS_PKTINFO_LAST_FRAG BIT(2)
+
+#define RNDIS_PKTINFO_ID_V1 1
+
+struct rndis_pktinfo_id {
+	u8 ver;
+	u8 flag;
+	u16 pkt_id;
 };
 
 struct ndis_pkt_8021q_info {

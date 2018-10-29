@@ -182,8 +182,7 @@ int
 xfs_reflink_trim_around_shared(
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*irec,
-	bool			*shared,
-	bool			*trimmed)
+	bool			*shared)
 {
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
@@ -209,7 +208,7 @@ xfs_reflink_trim_around_shared(
 	if (error)
 		return error;
 
-	*shared = *trimmed = false;
+	*shared = false;
 	if (fbno == NULLAGBLOCK) {
 		/* No shared blocks at all. */
 		return 0;
@@ -222,8 +221,6 @@ xfs_reflink_trim_around_shared(
 		 */
 		irec->br_blockcount = flen;
 		*shared = true;
-		if (flen != aglen)
-			*trimmed = true;
 		return 0;
 	} else {
 		/*
@@ -233,7 +230,6 @@ xfs_reflink_trim_around_shared(
 		 * start of the shared region.
 		 */
 		irec->br_blockcount = fbno - agbno;
-		*trimmed = true;
 		return 0;
 	}
 }
@@ -241,7 +237,7 @@ xfs_reflink_trim_around_shared(
 /*
  * Trim the passed in imap to the next shared/unshared extent boundary, and
  * if imap->br_startoff points to a shared extent reserve space for it in the
- * COW fork.  In this case *shared is set to true, else to false.
+ * COW fork.
  *
  * Note that imap will always contain the block numbers for the existing blocks
  * in the data fork, as the upper layers need them for read-modify-write
@@ -250,14 +246,14 @@ xfs_reflink_trim_around_shared(
 int
 xfs_reflink_reserve_cow(
 	struct xfs_inode	*ip,
-	struct xfs_bmbt_irec	*imap,
-	bool			*shared)
+	struct xfs_bmbt_irec	*imap)
 {
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	struct xfs_bmbt_irec	got;
 	int			error = 0;
-	bool			eof = false, trimmed;
+	bool			eof = false;
 	struct xfs_iext_cursor	icur;
+	bool			shared;
 
 	/*
 	 * Search the COW fork extent list first.  This serves two purposes:
@@ -273,18 +269,16 @@ xfs_reflink_reserve_cow(
 	if (!eof && got.br_startoff <= imap->br_startoff) {
 		trace_xfs_reflink_cow_found(ip, imap);
 		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
-
-		*shared = true;
 		return 0;
 	}
 
 	/* Trim the mapping to the nearest shared extent boundary. */
-	error = xfs_reflink_trim_around_shared(ip, imap, shared, &trimmed);
+	error = xfs_reflink_trim_around_shared(ip, imap, &shared);
 	if (error)
 		return error;
 
 	/* Not shared?  Just report the (potentially capped) extent. */
-	if (!*shared)
+	if (!shared)
 		return 0;
 
 	/*
@@ -368,7 +362,6 @@ xfs_find_trim_cow_extent(
 	xfs_filblks_t		count_fsb = imap->br_blockcount;
 	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_irec	got;
-	bool			trimmed;
 
 	*found = false;
 
@@ -376,9 +369,13 @@ xfs_find_trim_cow_extent(
 	 * If we don't find an overlapping extent, trim the range we need to
 	 * allocate to fit the hole we found.
 	 */
-	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got) ||
-	    got.br_startoff > offset_fsb)
-		return xfs_reflink_trim_around_shared(ip, imap, shared, &trimmed);
+	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got))
+		got.br_startoff = offset_fsb + count_fsb;
+	if (got.br_startoff > offset_fsb) {
+		xfs_trim_extent(imap, imap->br_startoff,
+				got.br_startoff - imap->br_startoff);
+		return xfs_reflink_trim_around_shared(ip, imap, shared);
+	}
 
 	*shared = true;
 	if (isnullstartblock(got.br_startblock)) {

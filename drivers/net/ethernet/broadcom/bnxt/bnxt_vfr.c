@@ -209,9 +209,7 @@ struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
 void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(skb->dev);
-	struct bnxt_vf_rep_stats *rx_stats;
 
-	rx_stats = &vf_rep->rx_stats;
 	vf_rep->rx_stats.bytes += skb->len;
 	vf_rep->rx_stats.packets++;
 
@@ -523,7 +521,8 @@ int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return 0;
 }
 
-int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
+int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
 	int rc = 0;

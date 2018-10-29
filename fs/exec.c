@@ -908,12 +908,12 @@ int kernel_read_file(struct file *file, void **buf, loff_t *size,
 		goto out;
 
 	i_size = i_size_read(file_inode(file));
-	if (max_size > 0 && i_size > max_size) {
-		ret = -EFBIG;
-		goto out;
-	}
 	if (i_size <= 0) {
 		ret = -EINVAL;
+		goto out;
+	}
+	if (i_size > SIZE_MAX || (max_size > 0 && i_size > max_size)) {
+		ret = -EFBIG;
 		goto out;
 	}
 

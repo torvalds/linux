@@ -15,11 +15,6 @@ config PPC_POWERNV
 	select PPC_SCOM
 	select ARCH_RANDOM
 	select CPU_FREQ
-	select CPU_FREQ_GOV_PERFORMANCE
-	select CPU_FREQ_GOV_POWERSAVE
-	select CPU_FREQ_GOV_USERSPACE
-	select CPU_FREQ_GOV_ONDEMAND
-	select CPU_FREQ_GOV_CONSERVATIVE
 	select PPC_DOORBELL
 	select MMU_NOTIFIER
 	select FORCE_SMP
@@ -35,7 +30,6 @@ config OPAL_PRD
 config PPC_MEMTRACE
 	bool "Enable removal of RAM from kernel mappings for tracing"
 	depends on PPC_POWERNV && MEMORY_HOTREMOVE
-	default n
 	help
 	  Enabling this option allows for the removal of memory (RAM)
 	  from the kernel mappings to be used for hardware tracing.

@@ -56,6 +56,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #ifdef __CHECKER__
 #define FDT_FORCE __attribute__((force))

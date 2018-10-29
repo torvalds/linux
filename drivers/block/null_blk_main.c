@@ -1129,33 +1129,11 @@ static void null_restart_queue_async(struct nullb *nullb)
 		blk_mq_start_stopped_hw_queues(q, true);
 }
 
-static bool cmd_report_zone(struct nullb *nullb, struct nullb_cmd *cmd)
-{
-	struct nullb_device *dev = cmd->nq->dev;
-
-	if (dev->queue_mode == NULL_Q_BIO) {
-		if (bio_op(cmd->bio) == REQ_OP_ZONE_REPORT) {
-			cmd->error = null_zone_report(nullb, cmd->bio);
-			return true;
-		}
-	} else {
-		if (req_op(cmd->rq) == REQ_OP_ZONE_REPORT) {
-			cmd->error = null_zone_report(nullb, cmd->rq->bio);
-			return true;
-		}
-	}
-
-	return false;
-}
-
 static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	struct nullb *nullb = dev->nullb;
 	int err = 0;
-
-	if (cmd_report_zone(nullb, cmd))
-		goto out;
 
 	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
 		struct request *rq = cmd->rq;
@@ -1443,6 +1421,7 @@ static const struct block_device_operations null_fops = {
 	.owner =	THIS_MODULE,
 	.open =		null_open,
 	.release =	null_release,
+	.report_zones =	null_zone_report,
 };
 
 static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
@@ -1548,6 +1527,13 @@ static int null_gendisk_register(struct nullb *nullb)
 	disk->private_data	= nullb;
 	disk->queue		= nullb->q;
 	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
+
+	if (nullb->dev->zoned) {
+		int ret = blk_revalidate_disk_zones(disk);
+
+		if (ret != 0)
+			return ret;
+	}
 
 	add_disk(disk);
 	return 0;

@@ -133,7 +133,7 @@ TRACE_EVENT(mlx5_fs_del_fg,
 	{MLX5_FLOW_CONTEXT_ACTION_DROP,		 "DROP"},\
 	{MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,	 "FWD"},\
 	{MLX5_FLOW_CONTEXT_ACTION_COUNT,	 "CNT"},\
-	{MLX5_FLOW_CONTEXT_ACTION_ENCAP,	 "ENCAP"},\
+	{MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT, "REFORMAT"},\
 	{MLX5_FLOW_CONTEXT_ACTION_DECAP,	 "DECAP"},\
 	{MLX5_FLOW_CONTEXT_ACTION_MOD_HDR,	 "MOD_HDR"},\
 	{MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH,	 "VLAN_PUSH"},\
@@ -252,10 +252,10 @@ TRACE_EVENT(mlx5_fs_add_rule,
 			   memcpy(__entry->destination,
 				  &rule->dest_attr,
 				  sizeof(__entry->destination));
-			   if (rule->dest_attr.type & MLX5_FLOW_DESTINATION_TYPE_COUNTER &&
-			       rule->dest_attr.counter)
+			   if (rule->dest_attr.type &
+			       MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 				__entry->counter_id =
-				rule->dest_attr.counter->id;
+					rule->dest_attr.counter_id;
 	    ),
 	    TP_printk("rule=%p fte=%p index=%u sw_action=<%s> [dst] %s\n",
 		      __entry->rule, __entry->fte, __entry->index,

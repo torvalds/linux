@@ -27,10 +27,13 @@ Core utilities
    errseq
    printk-formats
    circular-buffers
+   memory-allocation
    mm-api
    gfp_mask-from-fs-io
    timekeeping
    boot-time-mm
+   memory-hotplug
+
 
 Interfaces for kernel debugging
 ===============================

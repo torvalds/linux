@@ -202,7 +202,7 @@ static void __init get_special_pds(void)
 	const struct of_device_id *id;
 
 	/* PM domains containing CPUs */
-	for_each_node_by_type(np, "cpu")
+	for_each_of_cpu_node(np)
 		add_special_pd(np, PD_CPU);
 
 	/* PM domain containing console */

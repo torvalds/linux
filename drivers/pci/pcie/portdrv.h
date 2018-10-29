@@ -23,6 +23,30 @@
 
 #define PCIE_PORT_DEVICE_MAXSERVICES   4
 
+#ifdef CONFIG_PCIEAER
+int pcie_aer_init(void);
+#else
+static inline int pcie_aer_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_HOTPLUG_PCI_PCIE
+int pcie_hp_init(void);
+#else
+static inline int pcie_hp_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_PCIE_PME
+int pcie_pme_init(void);
+#else
+static inline int pcie_pme_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_PCIE_DPC
+int pcie_dpc_init(void);
+#else
+static inline int pcie_dpc_init(void) { return 0; }
+#endif
+
 /* Port Type */
 #define PCIE_ANY_PORT			(~0)
 
@@ -52,6 +76,8 @@ struct pcie_port_service_driver {
 	int (*suspend) (struct pcie_device *dev);
 	int (*resume_noirq) (struct pcie_device *dev);
 	int (*resume) (struct pcie_device *dev);
+	int (*runtime_suspend) (struct pcie_device *dev);
+	int (*runtime_resume) (struct pcie_device *dev);
 
 	/* Device driver may resume normal operations */
 	void (*error_resume)(struct pci_dev *dev);
@@ -85,6 +111,8 @@ int pcie_port_device_register(struct pci_dev *dev);
 int pcie_port_device_suspend(struct device *dev);
 int pcie_port_device_resume_noirq(struct device *dev);
 int pcie_port_device_resume(struct device *dev);
+int pcie_port_device_runtime_suspend(struct device *dev);
+int pcie_port_device_runtime_resume(struct device *dev);
 #endif
 void pcie_port_device_remove(struct pci_dev *dev);
 int __must_check pcie_port_bus_register(void);
@@ -121,10 +149,6 @@ static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
 		return pci_dev->__aer_firmware_first;
 	return 0;
 }
-#endif
-
-#ifdef CONFIG_PCIEAER
-irqreturn_t aer_irq(int irq, void *context);
 #endif
 
 struct pcie_port_service_driver *pcie_port_find_service(struct pci_dev *dev,

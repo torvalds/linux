@@ -189,7 +189,6 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 			      struct bnxt_tc_flow *flow)
 {
 	struct flow_dissector *dissector = tc_flow_cmd->dissector;
-	u16 addr_type = 0;
 
 	/* KEY_CONTROL and KEY_BASIC are needed for forming a meaningful key */
 	if ((dissector->used_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL)) == 0 ||
@@ -197,13 +196,6 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		netdev_info(bp->dev, "cannot form TC key: used_keys = 0x%x",
 			    dissector->used_keys);
 		return -EOPNOTSUPP;
-	}
-
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_CONTROL);
-
-		addr_type = key->addr_type;
 	}
 
 	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -299,13 +291,6 @@ static int bnxt_tc_parse_flow(struct bnxt *bp,
 		flow->l4_key.icmp.code = key->code;
 		flow->l4_mask.icmp.type = mask->type;
 		flow->l4_mask.icmp.code = mask->code;
-	}
-
-	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
-		struct flow_dissector_key_control *key =
-			GET_KEY(tc_flow_cmd, FLOW_DISSECTOR_KEY_ENC_CONTROL);
-
-		addr_type = key->addr_type;
 	}
 
 	if (dissector_uses_key(dissector, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {

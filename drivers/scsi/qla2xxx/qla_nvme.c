@@ -506,7 +506,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 		return -EBUSY;
 
 	/* Alloc SRB structure */
-	sp = qla2xxx_get_qpair_sp(qpair, fcport, GFP_ATOMIC);
+	sp = qla2xxx_get_qpair_sp(vha, qpair, fcport, GFP_ATOMIC);
 	if (!sp)
 		return -EBUSY;
 
@@ -607,7 +607,7 @@ void qla_nvme_abort(struct qla_hw_data *ha, struct srb *sp, int res)
 {
 	int rval;
 
-	if (!test_bit(ABORT_ISP_ACTIVE, &sp->vha->dpc_flags)) {
+	if (ha->flags.fw_started) {
 		rval = ha->isp_ops->abort_command(sp);
 		if (!rval && !qla_nvme_wait_on_command(sp))
 			ql_log(ql_log_warn, NULL, 0x2112,
@@ -660,9 +660,6 @@ void qla_nvme_delete(struct scsi_qla_host *vha)
 		    __func__, fcport);
 
 		nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
-		init_completion(&fcport->nvme_del_done);
-		nvme_fc_unregister_remoteport(fcport->nvme_remote_port);
-		wait_for_completion(&fcport->nvme_del_done);
 	}
 
 	if (vha->nvme_local_port) {

@@ -33,6 +33,7 @@
 #include <linux/serial_8250.h>
 #include <linux/percpu.h>
 #include <linux/memblock.h>
+#include <linux/bootmem.h>
 #include <linux/of_platform.h>
 #include <linux/hugetlb.h>
 #include <asm/debugfs.h>
@@ -965,6 +966,8 @@ void __init setup_arch(char **cmdline_p)
 	emergency_stack_init();
 
 	initmem_init();
+
+	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

@@ -189,7 +189,7 @@ static void aq_nic_polling_timer_cb(struct timer_list *t)
 		aq_vec_isr(i, (void *)aq_vec);
 
 	mod_timer(&self->polling_timer, jiffies +
-		AQ_CFG_POLLING_TIMER_INTERVAL);
+		  AQ_CFG_POLLING_TIMER_INTERVAL);
 }
 
 int aq_nic_ndev_register(struct aq_nic_s *self)
@@ -301,13 +301,13 @@ int aq_nic_start(struct aq_nic_s *self)
 	unsigned int i = 0U;
 
 	err = self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
-						    self->mc_list.ar,
-						    self->mc_list.count);
+						     self->mc_list.ar,
+						     self->mc_list.count);
 	if (err < 0)
 		goto err_exit;
 
 	err = self->aq_hw_ops->hw_packet_filter_set(self->aq_hw,
-						   self->packet_filter);
+						    self->packet_filter);
 	if (err < 0)
 		goto err_exit;
 
@@ -327,7 +327,7 @@ int aq_nic_start(struct aq_nic_s *self)
 		goto err_exit;
 	timer_setup(&self->service_timer, aq_nic_service_timer_cb, 0);
 	mod_timer(&self->service_timer, jiffies +
-			AQ_CFG_SERVICE_TIMER_INTERVAL);
+		  AQ_CFG_SERVICE_TIMER_INTERVAL);
 
 	if (self->aq_nic_cfg.is_polling) {
 		timer_setup(&self->polling_timer, aq_nic_polling_timer_cb, 0);
@@ -344,7 +344,7 @@ int aq_nic_start(struct aq_nic_s *self)
 		}
 
 		err = self->aq_hw_ops->hw_irq_enable(self->aq_hw,
-				    AQ_CFG_IRQ_MASK);
+						     AQ_CFG_IRQ_MASK);
 		if (err < 0)
 			goto err_exit;
 	}
@@ -889,11 +889,13 @@ void aq_nic_deinit(struct aq_nic_s *self)
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_deinit(aq_vec);
 
-	if (self->power_state == AQ_HW_POWER_STATE_D0) {
-		(void)self->aq_fw_ops->deinit(self->aq_hw);
-	} else {
-		(void)self->aq_hw_ops->hw_set_power(self->aq_hw,
-						   self->power_state);
+	self->aq_fw_ops->deinit(self->aq_hw);
+
+	if (self->power_state != AQ_HW_POWER_STATE_D0 ||
+	    self->aq_hw->aq_nic_cfg->wol) {
+		self->aq_fw_ops->set_power(self->aq_hw,
+					   self->power_state,
+					   self->ndev->dev_addr);
 	}
 
 err_exit:;

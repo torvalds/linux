@@ -1598,7 +1598,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 			phydev->dev_flags |= PHY_BRCM_EXT_IBND_RX_ENABLE;
 		if (tg3_flag(tp, RGMII_EXT_IBND_TX_EN))
 			phydev->dev_flags |= PHY_BRCM_EXT_IBND_TX_ENABLE;
-		/* fallthru */
+		/* fall through */
 	case PHY_ID_RTL8211C:
 		phydev->interface = PHY_INTERFACE_MODE_RGMII;
 		break;
@@ -2122,16 +2122,14 @@ static int tg3_phy_init(struct tg3 *tp)
 	case PHY_INTERFACE_MODE_GMII:
 	case PHY_INTERFACE_MODE_RGMII:
 		if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY)) {
-			phydev->supported &= (PHY_GBIT_FEATURES |
-					      SUPPORTED_Pause |
-					      SUPPORTED_Asym_Pause);
+			phy_set_max_speed(phydev, SPEED_1000);
+			phy_support_asym_pause(phydev);
 			break;
 		}
-		/* fallthru */
+		/* fall through */
 	case PHY_INTERFACE_MODE_MII:
-		phydev->supported &= (PHY_BASIC_FEATURES |
-				      SUPPORTED_Pause |
-				      SUPPORTED_Asym_Pause);
+		phy_set_max_speed(phydev, SPEED_100);
+		phy_support_asym_pause(phydev);
 		break;
 	default:
 		phy_disconnect(mdiobus_get_phy(tp->mdio_bus, tp->phy_addr));
@@ -2139,8 +2137,6 @@ static int tg3_phy_init(struct tg3 *tp)
 	}
 
 	tp->phy_flags |= TG3_PHYFLG_IS_CONNECTED;
-
-	phydev->advertising = phydev->supported;
 
 	phy_attached_info(phydev);
 
@@ -5215,7 +5211,7 @@ static int tg3_fiber_aneg_smachine(struct tg3 *tp,
 		if (ap->flags & (MR_AN_ENABLE | MR_RESTART_AN))
 			ap->state = ANEG_STATE_AN_ENABLE;
 
-		/* fallthru */
+		/* fall through */
 	case ANEG_STATE_AN_ENABLE:
 		ap->flags &= ~(MR_AN_COMPLETE | MR_PAGE_RX);
 		if (ap->flags & MR_AN_ENABLE) {
@@ -5245,7 +5241,7 @@ static int tg3_fiber_aneg_smachine(struct tg3 *tp,
 		ret = ANEG_TIMER_ENAB;
 		ap->state = ANEG_STATE_RESTART;
 
-		/* fallthru */
+		/* fall through */
 	case ANEG_STATE_RESTART:
 		delta = ap->cur_time - ap->link_time;
 		if (delta > ANEG_STATE_SETTLE_TIME)
@@ -5288,7 +5284,7 @@ static int tg3_fiber_aneg_smachine(struct tg3 *tp,
 
 		ap->state = ANEG_STATE_ACK_DETECT;
 
-		/* fallthru */
+		/* fall through */
 	case ANEG_STATE_ACK_DETECT:
 		if (ap->ack_match != 0) {
 			if ((ap->rxconfig & ~ANEG_CFG_ACK) ==
@@ -12496,31 +12492,24 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 		tg3_warn_mgmt_link_flap(tp);
 
 	if (tg3_flag(tp, USE_PHYLIB)) {
-		u32 newadv;
 		struct phy_device *phydev;
 
 		phydev = mdiobus_get_phy(tp->mdio_bus, tp->phy_addr);
 
-		if (!(phydev->supported & SUPPORTED_Pause) ||
-		    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
-		     (epause->rx_pause != epause->tx_pause)))
+		if (!phy_validate_pause(phydev, epause))
 			return -EINVAL;
 
 		tp->link_config.flowctrl = 0;
+		phy_set_asym_pause(phydev, epause->rx_pause, epause->tx_pause);
 		if (epause->rx_pause) {
 			tp->link_config.flowctrl |= FLOW_CTRL_RX;
 
 			if (epause->tx_pause) {
 				tp->link_config.flowctrl |= FLOW_CTRL_TX;
-				newadv = ADVERTISED_Pause;
-			} else
-				newadv = ADVERTISED_Pause |
-					 ADVERTISED_Asym_Pause;
+			}
 		} else if (epause->tx_pause) {
 			tp->link_config.flowctrl |= FLOW_CTRL_TX;
-			newadv = ADVERTISED_Asym_Pause;
-		} else
-			newadv = 0;
+		}
 
 		if (epause->autoneg)
 			tg3_flag_set(tp, PAUSE_AUTONEG);
@@ -12528,33 +12517,19 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 			tg3_flag_clear(tp, PAUSE_AUTONEG);
 
 		if (tp->phy_flags & TG3_PHYFLG_IS_CONNECTED) {
-			u32 oldadv = phydev->advertising &
-				     (ADVERTISED_Pause | ADVERTISED_Asym_Pause);
-			if (oldadv != newadv) {
-				phydev->advertising &=
-					~(ADVERTISED_Pause |
-					  ADVERTISED_Asym_Pause);
-				phydev->advertising |= newadv;
-				if (phydev->autoneg) {
-					/*
-					 * Always renegotiate the link to
-					 * inform our link partner of our
-					 * flow control settings, even if the
-					 * flow control is forced.  Let
-					 * tg3_adjust_link() do the final
-					 * flow control setup.
-					 */
-					return phy_start_aneg(phydev);
-				}
+			if (phydev->autoneg) {
+				/* phy_set_asym_pause() will
+				 * renegotiate the link to inform our
+				 * link partner of our flow control
+				 * settings, even if the flow control
+				 * is forced.  Let tg3_adjust_link()
+				 * do the final flow control setup.
+				 */
+				return 0;
 			}
 
 			if (!epause->autoneg)
 				tg3_setup_flow_control(tp, 0, 0);
-		} else {
-			tp->link_config.advertising &=
-					~(ADVERTISED_Pause |
-					  ADVERTISED_Asym_Pause);
-			tp->link_config.advertising |= newadv;
 		}
 	} else {
 		int irq_sync = 0;
@@ -14013,7 +13988,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIPHY:
 		data->phy_id = tp->phy_addr;
 
-		/* fallthru */
+		/* fall through */
 	case SIOCGMIIREG: {
 		u32 mii_regval;
 

@@ -2170,6 +2170,53 @@ static int virtnet_get_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
+static int virtnet_set_coalesce(struct net_device *dev,
+				struct ethtool_coalesce *ec)
+{
+	struct ethtool_coalesce ec_default = {
+		.cmd = ETHTOOL_SCOALESCE,
+		.rx_max_coalesced_frames = 1,
+	};
+	struct virtnet_info *vi = netdev_priv(dev);
+	int i, napi_weight;
+
+	if (ec->tx_max_coalesced_frames > 1)
+		return -EINVAL;
+
+	ec_default.tx_max_coalesced_frames = ec->tx_max_coalesced_frames;
+	napi_weight = ec->tx_max_coalesced_frames ? NAPI_POLL_WEIGHT : 0;
+
+	/* disallow changes to fields not explicitly tested above */
+	if (memcmp(ec, &ec_default, sizeof(ec_default)))
+		return -EINVAL;
+
+	if (napi_weight ^ vi->sq[0].napi.weight) {
+		if (dev->flags & IFF_UP)
+			return -EBUSY;
+		for (i = 0; i < vi->max_queue_pairs; i++)
+			vi->sq[i].napi.weight = napi_weight;
+	}
+
+	return 0;
+}
+
+static int virtnet_get_coalesce(struct net_device *dev,
+				struct ethtool_coalesce *ec)
+{
+	struct ethtool_coalesce ec_default = {
+		.cmd = ETHTOOL_GCOALESCE,
+		.rx_max_coalesced_frames = 1,
+	};
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	memcpy(ec, &ec_default, sizeof(ec_default));
+
+	if (vi->sq[0].napi.weight)
+		ec->tx_max_coalesced_frames = 1;
+
+	return 0;
+}
+
 static void virtnet_init_settings(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -2208,6 +2255,8 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.get_ts_info = ethtool_op_get_ts_info,
 	.get_link_ksettings = virtnet_get_link_ksettings,
 	.set_link_ksettings = virtnet_set_link_ksettings,
+	.set_coalesce = virtnet_set_coalesce,
+	.get_coalesce = virtnet_get_coalesce,
 };
 
 static void virtnet_freeze_down(struct virtio_device *vdev)

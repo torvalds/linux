@@ -835,13 +835,10 @@ static int init_phy(struct net_device *dev)
 	}
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII
-	 * Note: Checkpatch throws CHECKs for the camel case defines below,
-	 * it's ok to ignore.
 	 */
 	if ((priv->phy_iface == PHY_INTERFACE_MODE_MII) ||
 	    (priv->phy_iface == PHY_INTERFACE_MODE_RMII))
-		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
-					 SUPPORTED_1000baseT_Full);
+		phy_set_max_speed(phydev, SPEED_100);
 
 	/* Broken HW is sometimes missing the pull-up resistor on the
 	 * MDIO line, which results in reads to non-existent devices returning

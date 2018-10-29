@@ -2132,6 +2132,7 @@ struct ec_response_get_next_event_v1 {
 /* Switches */
 #define EC_MKBP_LID_OPEN	0
 #define EC_MKBP_TABLET_MODE	1
+#define EC_MKBP_BASE_ATTACHED	2
 
 /*****************************************************************************/
 /* Temperature sensor commands */
@@ -3100,6 +3101,16 @@ struct ec_response_usb_pd_power_info {
 
 struct ec_params_usb_pd_info_request {
 	uint8_t port;
+} __packed;
+
+/*
+ * This command will return the number of USB PD charge port + the number
+ * of dedicated port present.
+ * EC_CMD_USB_PD_PORTS does NOT include the dedicated ports
+ */
+#define EC_CMD_CHARGE_PORT_COUNT 0x0105
+struct ec_response_charge_port_count {
+	uint8_t port_count;
 } __packed;
 
 /* Read USB-PD Device discovery info */

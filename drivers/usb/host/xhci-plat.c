@@ -18,6 +18,7 @@
 #include <linux/usb/phy.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/usb/of.h>
 
 #include "xhci.h"
 #include "xhci-plat.h"
@@ -305,6 +306,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		hcd->skip_phy_initialization = 1;
 	}
 
+	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
+	xhci->shared_hcd->tpl_support = hcd->tpl_support;
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto disable_usb_phy;

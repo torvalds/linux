@@ -84,10 +84,11 @@ void mlx5i_dev_cleanup(struct net_device *dev);
 int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 /* Parent profile functions */
-void mlx5i_init(struct mlx5_core_dev *mdev,
-		struct net_device *netdev,
-		const struct mlx5e_profile *profile,
-		void *ppriv);
+int mlx5i_init(struct mlx5_core_dev *mdev,
+	       struct net_device *netdev,
+	       const struct mlx5e_profile *profile,
+	       void *ppriv);
+void mlx5i_cleanup(struct mlx5e_priv *priv);
 
 /* Get child interface nic profile */
 const struct mlx5e_profile *mlx5i_pkey_get_profile(void);
@@ -120,6 +121,7 @@ static inline void mlx5i_sq_fetch_wqe(struct mlx5e_txqsq *sq,
 netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey);
 void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
+void mlx5i_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
 #endif /* CONFIG_MLX5_CORE_IPOIB */
 #endif /* __MLX5E_IPOB_H__ */

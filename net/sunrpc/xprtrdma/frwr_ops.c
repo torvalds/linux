@@ -97,6 +97,44 @@ out_not_supported:
 	return false;
 }
 
+static void
+frwr_op_release_mr(struct rpcrdma_mr *mr)
+{
+	int rc;
+
+	rc = ib_dereg_mr(mr->frwr.fr_mr);
+	if (rc)
+		pr_err("rpcrdma: final ib_dereg_mr for %p returned %i\n",
+		       mr, rc);
+	kfree(mr->mr_sg);
+	kfree(mr);
+}
+
+/* MRs are dynamically allocated, so simply clean up and release the MR.
+ * A replacement MR will subsequently be allocated on demand.
+ */
+static void
+frwr_mr_recycle_worker(struct work_struct *work)
+{
+	struct rpcrdma_mr *mr = container_of(work, struct rpcrdma_mr, mr_recycle);
+	enum rpcrdma_frwr_state state = mr->frwr.fr_state;
+	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
+
+	trace_xprtrdma_mr_recycle(mr);
+
+	if (state != FRWR_FLUSHED_LI) {
+		trace_xprtrdma_mr_unmap(mr);
+		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+				mr->mr_sg, mr->mr_nents, mr->mr_dir);
+	}
+
+	spin_lock(&r_xprt->rx_buf.rb_mrlock);
+	list_del(&mr->mr_all);
+	r_xprt->rx_stats.mrs_recycled++;
+	spin_unlock(&r_xprt->rx_buf.rb_mrlock);
+	frwr_op_release_mr(mr);
+}
+
 static int
 frwr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 {
@@ -113,6 +151,7 @@ frwr_op_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 		goto out_list_err;
 
 	INIT_LIST_HEAD(&mr->mr_list);
+	INIT_WORK(&mr->mr_recycle, frwr_mr_recycle_worker);
 	sg_init_table(mr->mr_sg, depth);
 	init_completion(&frwr->fr_linv_done);
 	return 0;
@@ -129,79 +168,6 @@ out_list_err:
 		__func__);
 	ib_dereg_mr(frwr->fr_mr);
 	return rc;
-}
-
-static void
-frwr_op_release_mr(struct rpcrdma_mr *mr)
-{
-	int rc;
-
-	rc = ib_dereg_mr(mr->frwr.fr_mr);
-	if (rc)
-		pr_err("rpcrdma: final ib_dereg_mr for %p returned %i\n",
-		       mr, rc);
-	kfree(mr->mr_sg);
-	kfree(mr);
-}
-
-static int
-__frwr_mr_reset(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
-{
-	struct rpcrdma_frwr *frwr = &mr->frwr;
-	int rc;
-
-	rc = ib_dereg_mr(frwr->fr_mr);
-	if (rc) {
-		pr_warn("rpcrdma: ib_dereg_mr status %d, frwr %p orphaned\n",
-			rc, mr);
-		return rc;
-	}
-
-	frwr->fr_mr = ib_alloc_mr(ia->ri_pd, ia->ri_mrtype,
-				  ia->ri_max_frwr_depth);
-	if (IS_ERR(frwr->fr_mr)) {
-		pr_warn("rpcrdma: ib_alloc_mr status %ld, frwr %p orphaned\n",
-			PTR_ERR(frwr->fr_mr), mr);
-		return PTR_ERR(frwr->fr_mr);
-	}
-
-	dprintk("RPC:       %s: recovered FRWR %p\n", __func__, frwr);
-	frwr->fr_state = FRWR_IS_INVALID;
-	return 0;
-}
-
-/* Reset of a single FRWR. Generate a fresh rkey by replacing the MR.
- */
-static void
-frwr_op_recover_mr(struct rpcrdma_mr *mr)
-{
-	enum rpcrdma_frwr_state state = mr->frwr.fr_state;
-	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
-	int rc;
-
-	rc = __frwr_mr_reset(ia, mr);
-	if (state != FRWR_FLUSHED_LI) {
-		trace_xprtrdma_dma_unmap(mr);
-		ib_dma_unmap_sg(ia->ri_device,
-				mr->mr_sg, mr->mr_nents, mr->mr_dir);
-	}
-	if (rc)
-		goto out_release;
-
-	rpcrdma_mr_put(mr);
-	r_xprt->rx_stats.mrs_recovered++;
-	return;
-
-out_release:
-	pr_err("rpcrdma: FRWR reset failed %d, %p released\n", rc, mr);
-	r_xprt->rx_stats.mrs_orphaned++;
-
-	spin_lock(&r_xprt->rx_buf.rb_mrlock);
-	list_del(&mr->mr_all);
-	spin_unlock(&r_xprt->rx_buf.rb_mrlock);
-
-	frwr_op_release_mr(mr);
 }
 
 /* On success, sets:
@@ -276,6 +242,7 @@ frwr_op_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 
 	ia->ri_max_segs = max_t(unsigned int, 1, RPCRDMA_MAX_DATA_SEGS /
 				ia->ri_max_frwr_depth);
+	ia->ri_max_segs += 2;	/* segments for head and tail buffers */
 	return 0;
 }
 
@@ -384,7 +351,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	mr = NULL;
 	do {
 		if (mr)
-			rpcrdma_mr_defer_recovery(mr);
+			rpcrdma_mr_recycle(mr);
 		mr = rpcrdma_mr_get(r_xprt);
 		if (!mr)
 			return ERR_PTR(-EAGAIN);
@@ -417,7 +384,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	mr->mr_nents = ib_dma_map_sg(ia->ri_device, mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
-	trace_xprtrdma_dma_map(mr);
+	trace_xprtrdma_mr_map(mr);
 
 	ibmr = frwr->fr_mr;
 	n = ib_map_mr_sg(ibmr, mr->mr_sg, mr->mr_nents, NULL, PAGE_SIZE);
@@ -451,7 +418,7 @@ out_dmamap_err:
 out_mapmr_err:
 	pr_err("rpcrdma: failed to map mr %p (%d/%d)\n",
 	       frwr->fr_mr, n, mr->mr_nents);
-	rpcrdma_mr_defer_recovery(mr);
+	rpcrdma_mr_recycle(mr);
 	return ERR_PTR(-EIO);
 }
 
@@ -499,7 +466,7 @@ frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
 			list_del_init(&mr->mr_list);
-			trace_xprtrdma_remoteinv(mr);
+			trace_xprtrdma_mr_remoteinv(mr);
 			mr->frwr.fr_state = FRWR_IS_INVALID;
 			rpcrdma_mr_unmap_and_put(mr);
 			break;	/* only one invalidated MR per RPC */
@@ -536,7 +503,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 		mr->frwr.fr_state = FRWR_IS_INVALID;
 
 		frwr = &mr->frwr;
-		trace_xprtrdma_localinv(mr);
+		trace_xprtrdma_mr_localinv(mr);
 
 		frwr->fr_cqe.done = frwr_wc_localinv;
 		last = &frwr->fr_invwr;
@@ -570,7 +537,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 	if (bad_wr != first)
 		wait_for_completion(&frwr->fr_linv_done);
 	if (rc)
-		goto reset_mrs;
+		goto out_release;
 
 	/* ORDER: Now DMA unmap all of the MRs, and return
 	 * them to the free MR list.
@@ -582,22 +549,21 @@ unmap:
 	}
 	return;
 
-reset_mrs:
+out_release:
 	pr_err("rpcrdma: FRWR invalidate ib_post_send returned %i\n", rc);
 
-	/* Find and reset the MRs in the LOCAL_INV WRs that did not
+	/* Unmap and release the MRs in the LOCAL_INV WRs that did not
 	 * get posted.
 	 */
 	while (bad_wr) {
 		frwr = container_of(bad_wr, struct rpcrdma_frwr,
 				    fr_invwr);
 		mr = container_of(frwr, struct rpcrdma_mr, frwr);
-
-		__frwr_mr_reset(ia, mr);
-
 		bad_wr = bad_wr->next;
+
+		list_del(&mr->mr_list);
+		frwr_op_release_mr(mr);
 	}
-	goto unmap;
 }
 
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
@@ -605,7 +571,6 @@ const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_send			= frwr_op_send,
 	.ro_reminv			= frwr_op_reminv,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
-	.ro_recover_mr			= frwr_op_recover_mr,
 	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_init_mr			= frwr_op_init_mr,

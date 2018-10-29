@@ -4193,7 +4193,7 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
 	    new_state == NLP_STE_UNMAPPED_NODE) {
-		if (ndlp->nlp_fc4_type & NLP_FC4_FCP ||
+		if (ndlp->nlp_fc4_type ||
 		    ndlp->nlp_DID == Fabric_DID ||
 		    ndlp->nlp_DID == NameServer_DID ||
 		    ndlp->nlp_DID == FDMI_DID) {
@@ -5428,12 +5428,10 @@ static void
 lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
 	LIST_HEAD(completions);
-	struct lpfc_sli *psli;
 	IOCB_t     *icmd;
 	struct lpfc_iocbq    *iocb, *next_iocb;
 	struct lpfc_sli_ring *pring;
 
-	psli = &phba->sli;
 	pring = lpfc_phba_elsring(phba);
 	if (unlikely(!pring))
 		return;
@@ -5938,14 +5936,14 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 		}
 	}
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock_irqsave(&phba->port_list_lock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
 		if (vport->vpi == i) {
-			spin_unlock_irqrestore(&phba->hbalock, flags);
+			spin_unlock_irqrestore(&phba->port_list_lock, flags);
 			return vport;
 		}
 	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock_irqrestore(&phba->port_list_lock, flags);
 	return NULL;
 }
 

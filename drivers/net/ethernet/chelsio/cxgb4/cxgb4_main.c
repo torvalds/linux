@@ -62,7 +62,6 @@
 #include <net/netevent.h>
 #include <net/addrconf.h>
 #include <net/bonding.h>
-#include <net/addrconf.h>
 #include <linux/uaccess.h>
 #include <linux/crash_dump.h>
 #include <net/udp_tunnel.h>
@@ -2749,6 +2748,27 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 		return -EINVAL;
 	}
 
+	if (max_tx_rate == 0) {
+		/* unbind VF to to any Traffic Class */
+		fw_pfvf =
+		    (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+		     FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_SCHEDCLASS_ETH));
+		fw_class = 0xffffffff;
+		ret = t4_set_params(adap, adap->mbox, adap->pf, vf + 1, 1,
+				    &fw_pfvf, &fw_class);
+		if (ret) {
+			dev_err(adap->pdev_dev,
+				"Err %d in unbinding PF %d VF %d from TX Rate Limiting\n",
+				ret, adap->pf, vf);
+			return -EINVAL;
+		}
+		dev_info(adap->pdev_dev,
+			 "PF %d VF %d is unbound from TX Rate Limiting\n",
+			 adap->pf, vf);
+		adap->vfinfo[vf].tx_rate = 0;
+		return 0;
+	}
+
 	ret = t4_get_link_params(pi, &link_ok, &speed, &mtu);
 	if (ret != FW_SUCCESS) {
 		dev_err(adap->pdev_dev,
@@ -2798,8 +2818,8 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 			    &fw_class);
 	if (ret) {
 		dev_err(adap->pdev_dev,
-			"Err %d in binding VF %d to Traffic Class %d\n",
-			ret, vf, class_id);
+			"Err %d in binding PF %d VF %d to Traffic Class %d\n",
+			ret, adap->pf, vf, class_id);
 		return -EINVAL;
 	}
 	dev_info(adap->pdev_dev, "PF %d VF %d is bound to Class %d\n",
@@ -4747,7 +4767,6 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	if (t4_wait_dev_ready(adap->regs) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -5844,6 +5863,10 @@ fw_attach_fail:
 	if (!is_t4(adapter->params.chip))
 		cxgb4_ptp_init(adapter);
 
+	if (IS_ENABLED(CONFIG_THERMAL) &&
+	    !is_t4(adapter->params.chip) && (adapter->flags & FW_OK))
+		cxgb4_thermal_init(adapter);
+
 	print_adapter_info(adapter);
 	return 0;
 
@@ -5909,6 +5932,8 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (!is_t4(adapter->params.chip))
 			cxgb4_ptp_stop(adapter);
+		if (IS_ENABLED(CONFIG_THERMAL))
+			cxgb4_thermal_remove(adapter);
 
 		/* If we allocated filters, free up state associated with any
 		 * valid filters ...

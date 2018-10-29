@@ -459,7 +459,7 @@ static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ul
 			 * element in the queue, then count it towards
 			 * possible PD.
 			 */
-			if (pos == ulpq->reasm.next) {
+			if (skb_queue_is_first(&ulpq->reasm, pos)) {
 			    pd_first = pos;
 			    pd_last = pos;
 			    pd_len = pos->len;

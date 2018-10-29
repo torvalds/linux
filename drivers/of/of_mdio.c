@@ -97,8 +97,8 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 		return rc;
 	}
 
-	dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
-		child->name, addr);
+	dev_dbg(&mdio->dev, "registered phy %pOFn at address %i\n",
+		child, addr);
 	return 0;
 }
 
@@ -127,8 +127,8 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 		return rc;
 	}
 
-	dev_dbg(&mdio->dev, "registered mdio device %s at address %i\n",
-		child->name, addr);
+	dev_dbg(&mdio->dev, "registered mdio device %pOFn at address %i\n",
+		child, addr);
 	return 0;
 }
 
@@ -263,8 +263,8 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 				continue;
 
 			/* be noisy to encourage people to set reg property */
-			dev_info(&mdio->dev, "scan phy %s at address %i\n",
-				 child->name, addr);
+			dev_info(&mdio->dev, "scan phy %pOFn at address %i\n",
+				 child, addr);
 
 			if (of_mdiobus_child_is_phy(child)) {
 				rc = of_mdiobus_register_phy(mdio, child, addr);

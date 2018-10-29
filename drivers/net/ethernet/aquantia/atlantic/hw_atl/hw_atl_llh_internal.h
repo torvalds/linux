@@ -2387,4 +2387,17 @@
 #define HW_ATL_GLB_CPU_SCRATCH_SCP_ADR(scratch_scp) \
 	(0x00000300u + (scratch_scp) * 0x4)
 
+/* register address for bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_ADR 0x00000404
+/* bitmask for bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_MSK 0x00000002
+/* inverted bitmask for bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_MSKN 0xFFFFFFFD
+/* lower bit position of bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_SHIFT 1
+/* width of bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_WIDTH 1
+/* default value of bitfield uP Force Interrupt */
+#define HW_ATL_MCP_UP_FORCE_INTERRUPT_DEFAULT 0x0
+
 #endif /* HW_ATL_LLH_INTERNAL_H */

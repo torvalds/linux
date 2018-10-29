@@ -198,7 +198,7 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 
 	sec->name = name;
 
-	/* We want to export the raw partion with name ${name}_raw */
+	/* We want to export the raw partition with name ${name}_raw */
 	sec->raw_name = kasprintf(GFP_KERNEL, "%s_raw", name);
 	if (!sec->raw_name) {
 		err = -ENOMEM;

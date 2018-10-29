@@ -224,24 +224,19 @@ void die(const char *str, struct pt_regs *regs, int err)
 		do_exit(SIGSEGV);
 }
 
-static bool show_unhandled_signals_ratelimited(void)
+static void arm64_show_signal(int signo, const char *str)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
-	return show_unhandled_signals && __ratelimit(&rs);
-}
-
-void arm64_force_sig_info(struct siginfo *info, const char *str,
-			  struct task_struct *tsk)
-{
+	struct task_struct *tsk = current;
 	unsigned int esr = tsk->thread.fault_code;
 	struct pt_regs *regs = task_pt_regs(tsk);
 
-	if (!unhandled_signal(tsk, info->si_signo))
-		goto send_sig;
-
-	if (!show_unhandled_signals_ratelimited())
-		goto send_sig;
+	/* Leave if the signal won't be shown */
+	if (!show_unhandled_signals ||
+	    !unhandled_signal(tsk, signo) ||
+	    !__ratelimit(&rs))
+		return;
 
 	pr_info("%s[%d]: unhandled exception: ", tsk->comm, task_pid_nr(tsk));
 	if (esr)
@@ -251,19 +246,39 @@ void arm64_force_sig_info(struct siginfo *info, const char *str,
 	print_vma_addr(KERN_CONT " in ", regs->pc);
 	pr_cont("\n");
 	__show_regs(regs);
+}
 
-send_sig:
-	force_sig_info(info->si_signo, info, tsk);
+void arm64_force_sig_fault(int signo, int code, void __user *addr,
+			   const char *str)
+{
+	arm64_show_signal(signo, str);
+	force_sig_fault(signo, code, addr, current);
+}
+
+void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
+			    const char *str)
+{
+	arm64_show_signal(SIGBUS, str);
+	force_sig_mceerr(code, addr, lsb, current);
+}
+
+void arm64_force_sig_ptrace_errno_trap(int errno, void __user *addr,
+				       const char *str)
+{
+	arm64_show_signal(SIGTRAP, str);
+	force_sig_ptrace_errno_trap(errno, addr);
 }
 
 void arm64_notify_die(const char *str, struct pt_regs *regs,
-		      struct siginfo *info, int err)
+		      int signo, int sicode, void __user *addr,
+		      int err)
 {
 	if (user_mode(regs)) {
 		WARN_ON(regs != current_pt_regs());
 		current->thread.fault_address = 0;
 		current->thread.fault_code = err;
-		arm64_force_sig_info(info, str, current);
+
+		arm64_force_sig_fault(signo, sicode, addr, str);
 	} else {
 		die(str, regs, err);
 	}
@@ -350,14 +365,11 @@ exit:
 
 void force_signal_inject(int signal, int code, unsigned long address)
 {
-	siginfo_t info;
 	const char *desc;
 	struct pt_regs *regs = current_pt_regs();
 
 	if (WARN_ON(!user_mode(regs)))
 		return;
-
-	clear_siginfo(&info);
 
 	switch (signal) {
 	case SIGILL:
@@ -377,12 +389,7 @@ void force_signal_inject(int signal, int code, unsigned long address)
 		signal = SIGKILL;
 	}
 
-	info.si_signo = signal;
-	info.si_errno = 0;
-	info.si_code  = code;
-	info.si_addr  = (void __user *)address;
-
-	arm64_notify_die(desc, regs, &info, 0);
+	arm64_notify_die(desc, regs, signal, code, (void __user *)address, 0);
 }
 
 /*
@@ -799,19 +806,13 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
  */
 asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 {
-	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
-
-	clear_siginfo(&info);
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLOPC;
-	info.si_addr  = pc;
 
 	current->thread.fault_address = 0;
 	current->thread.fault_code = esr;
 
-	arm64_force_sig_info(&info, "Bad EL0 synchronous exception", current);
+	arm64_force_sig_fault(SIGILL, ILL_ILLOPC, pc,
+			      "Bad EL0 synchronous exception");
 }
 
 #ifdef CONFIG_VMAP_STACK

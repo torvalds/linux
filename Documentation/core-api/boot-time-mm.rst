@@ -76,7 +76,7 @@ These interfaces available only with bootmem, i.e when ``CONFIG_NO_BOOTMEM=n``
 
 .. kernel-doc:: include/linux/bootmem.h
 .. kernel-doc:: mm/bootmem.c
-   :nodocs:
+   :functions:
 
 Memblock specific API
 ---------------------
@@ -89,4 +89,4 @@ really happens under the hood.
 
 .. kernel-doc:: include/linux/memblock.h
 .. kernel-doc:: mm/memblock.c
-   :nodocs:
+   :functions:

@@ -254,7 +254,7 @@ struct asus_wmi {
 	int asus_hwmon_num_fans;
 	int asus_hwmon_pwm;
 
-	struct hotplug_slot *hotplug_slot;
+	struct hotplug_slot hotplug_slot;
 	struct mutex hotplug_lock;
 	struct mutex wmi_lock;
 	struct workqueue_struct *hotplug_workqueue;
@@ -753,7 +753,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 	if (asus->wlan.rfkill)
 		rfkill_set_sw_state(asus->wlan.rfkill, blocked);
 
-	if (asus->hotplug_slot) {
+	if (asus->hotplug_slot.ops) {
 		bus = pci_find_bus(0, 1);
 		if (!bus) {
 			pr_warn("Unable to find PCI bus 1?\n");
@@ -858,7 +858,8 @@ static void asus_unregister_rfkill_notifier(struct asus_wmi *asus, char *node)
 static int asus_get_adapter_status(struct hotplug_slot *hotplug_slot,
 				   u8 *value)
 {
-	struct asus_wmi *asus = hotplug_slot->private;
+	struct asus_wmi *asus = container_of(hotplug_slot,
+					     struct asus_wmi, hotplug_slot);
 	int result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_WLAN);
 
 	if (result < 0)
@@ -868,8 +869,7 @@ static int asus_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static struct hotplug_slot_ops asus_hotplug_slot_ops = {
-	.owner = THIS_MODULE,
+static const struct hotplug_slot_ops asus_hotplug_slot_ops = {
 	.get_adapter_status = asus_get_adapter_status,
 	.get_power_status = asus_get_adapter_status,
 };
@@ -899,21 +899,9 @@ static int asus_setup_pci_hotplug(struct asus_wmi *asus)
 
 	INIT_WORK(&asus->hotplug_work, asus_hotplug_work);
 
-	asus->hotplug_slot = kzalloc(sizeof(struct hotplug_slot), GFP_KERNEL);
-	if (!asus->hotplug_slot)
-		goto error_slot;
+	asus->hotplug_slot.ops = &asus_hotplug_slot_ops;
 
-	asus->hotplug_slot->info = kzalloc(sizeof(struct hotplug_slot_info),
-					   GFP_KERNEL);
-	if (!asus->hotplug_slot->info)
-		goto error_info;
-
-	asus->hotplug_slot->private = asus;
-	asus->hotplug_slot->ops = &asus_hotplug_slot_ops;
-	asus_get_adapter_status(asus->hotplug_slot,
-				&asus->hotplug_slot->info->adapter_status);
-
-	ret = pci_hp_register(asus->hotplug_slot, bus, 0, "asus-wifi");
+	ret = pci_hp_register(&asus->hotplug_slot, bus, 0, "asus-wifi");
 	if (ret) {
 		pr_err("Unable to register hotplug slot - %d\n", ret);
 		goto error_register;
@@ -922,11 +910,7 @@ static int asus_setup_pci_hotplug(struct asus_wmi *asus)
 	return 0;
 
 error_register:
-	kfree(asus->hotplug_slot->info);
-error_info:
-	kfree(asus->hotplug_slot);
-	asus->hotplug_slot = NULL;
-error_slot:
+	asus->hotplug_slot.ops = NULL;
 	destroy_workqueue(asus->hotplug_workqueue);
 error_workqueue:
 	return ret;
@@ -1054,11 +1038,8 @@ static void asus_wmi_rfkill_exit(struct asus_wmi *asus)
 	 * asus_unregister_rfkill_notifier()
 	 */
 	asus_rfkill_hotplug(asus);
-	if (asus->hotplug_slot) {
-		pci_hp_deregister(asus->hotplug_slot);
-		kfree(asus->hotplug_slot->info);
-		kfree(asus->hotplug_slot);
-	}
+	if (asus->hotplug_slot.ops)
+		pci_hp_deregister(&asus->hotplug_slot);
 	if (asus->hotplug_workqueue)
 		destroy_workqueue(asus->hotplug_workqueue);
 

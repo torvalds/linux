@@ -1,0 +1,30 @@
+Cadence MHDP DisplayPort SD0801 PHY binding
+===========================================
+
+This binding describes the Cadence SD0801 PHY hardware included with
+the Cadence MHDP DisplayPort controller.
+
+-------------------------------------------------------------------------------
+Required properties (controller (parent) node):
+- compatible	: Should be "cdns,dp-phy"
+- reg		: Defines the following sets of registers in the parent
+		  mhdp device:
+			- Offset of the DPTX PHY configuration registers
+			- Offset of the SD0801 PHY configuration registers
+- #phy-cells	: from the generic PHY bindings, must be 0.
+
+Optional properties:
+- num_lanes	: Number of DisplayPort lanes to use (1, 2 or 4)
+- max_bit_rate	: Maximum DisplayPort link bit rate to use, in Mbps (2160,
+		  2430, 2700, 3240, 4320, 5400 or 8100)
+-------------------------------------------------------------------------------
+
+Example:
+	dp_phy: phy@f0fb030a00 {
+		compatible = "cdns,dp-phy";
+		reg = <0xf0 0xfb030a00 0x0 0x00000040>,
+		      <0xf0 0xfb500000 0x0 0x00100000>;
+		num_lanes = <4>;
+		max_bit_rate = <8100>;
+		#phy-cells = <0>;
+	};

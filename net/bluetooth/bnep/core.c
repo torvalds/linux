@@ -489,9 +489,6 @@ static int bnep_session(void *arg)
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		/* Ensure session->terminate is updated */
-		smp_mb__before_atomic();
-
 		if (atomic_read(&s->terminate))
 			break;
 		/* RX */
@@ -512,6 +509,10 @@ static int bnep_session(void *arg)
 				break;
 		netif_wake_queue(dev);
 
+		/*
+		 * wait_woken() performs the necessary memory barriers
+		 * for us; see the header comment for this primitive.
+		 */
 		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 	}
 	remove_wait_queue(sk_sleep(sk), &wait);

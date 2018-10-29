@@ -3382,7 +3382,7 @@ static int qla4xxx_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	if (task->data_count) {
 		task_data->data_dma = dma_map_single(&ha->pdev->dev, task->data,
 						     task->data_count,
-						     PCI_DMA_TODEVICE);
+						     DMA_TO_DEVICE);
 	}
 
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: MaxRecvLen %u, iscsi hrd %d\n",
@@ -3437,7 +3437,7 @@ static void qla4xxx_task_cleanup(struct iscsi_task *task)
 
 	if (task->data_count) {
 		dma_unmap_single(&ha->pdev->dev, task_data->data_dma,
-				 task->data_count, PCI_DMA_TODEVICE);
+				 task->data_count, DMA_TO_DEVICE);
 	}
 
 	DEBUG2(ql4_printk(KERN_INFO, ha, "%s: MaxRecvLen %u, iscsi hrd %d\n",
@@ -9020,25 +9020,16 @@ static void qla4xxx_remove_adapter(struct pci_dev *pdev)
 /**
  * qla4xxx_config_dma_addressing() - Configure OS DMA addressing method.
  * @ha: HA context
- *
- * At exit, the @ha's flags.enable_64bit_addressing set to indicated
- * supported addressing method.
  */
 static void qla4xxx_config_dma_addressing(struct scsi_qla_host *ha)
 {
-	int retval;
-
 	/* Update our PCI device dma_mask for full 64 bit mask */
-	if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(64)) == 0) {
-		if (pci_set_consistent_dma_mask(ha->pdev, DMA_BIT_MASK(64))) {
-			dev_dbg(&ha->pdev->dev,
-				  "Failed to set 64 bit PCI consistent mask; "
-				   "using 32 bit.\n");
-			retval = pci_set_consistent_dma_mask(ha->pdev,
-							     DMA_BIT_MASK(32));
-		}
-	} else
-		retval = pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32));
+	if (dma_set_mask_and_coherent(&ha->pdev->dev, DMA_BIT_MASK(64))) {
+		dev_dbg(&ha->pdev->dev,
+			  "Failed to set 64 bit PCI consistent mask; "
+			   "using 32 bit.\n");
+		dma_set_mask_and_coherent(&ha->pdev->dev, DMA_BIT_MASK(32));
+	}
 }
 
 static int qla4xxx_slave_alloc(struct scsi_device *sdev)
@@ -9824,7 +9815,6 @@ qla4xxx_pci_resume(struct pci_dev *pdev)
 		     __func__);
 	}
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	clear_bit(AF_EEH_BUSY, &ha->flags);
 }
 

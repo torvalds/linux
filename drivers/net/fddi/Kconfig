@@ -15,6 +15,17 @@ config FDDI
 
 if FDDI
 
+config DEFZA
+	tristate "DEC FDDIcontroller 700/700-C (DEFZA-xx) support"
+	depends on FDDI && TC
+	help
+	  This is support for the DEC FDDIcontroller 700 (DEFZA-AA, fiber)
+	  and 700-C (DEFZA-CA, copper) TURBOchannel network cards which
+	  can connect you to a local FDDI network.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called defza.  If unsure, say N.
+
 config DEFXX
 	tristate "Digital DEFTA/DEFEA/DEFPA adapter support"
 	depends on FDDI && (PCI || EISA || TC)

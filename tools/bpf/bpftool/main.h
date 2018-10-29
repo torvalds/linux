@@ -74,7 +74,7 @@
 #define HELP_SPEC_PROGRAM						\
 	"PROG := { id PROG_ID | pinned FILE | tag PROG_TAG }"
 #define HELP_SPEC_OPTIONS						\
-	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} }"
+	"OPTIONS := { {-j|--json} [{-p|--pretty}] | {-f|--bpffs} | {-m|--mapcompat}"
 #define HELP_SPEC_MAP							\
 	"MAP := { id MAP_ID | pinned FILE }"
 
@@ -89,6 +89,7 @@ extern const char *bin_name;
 extern json_writer_t *json_wtr;
 extern bool json_output;
 extern bool show_pinned;
+extern int bpf_flags;
 extern struct pinned_obj_table prog_table;
 extern struct pinned_obj_table map_table;
 
@@ -136,19 +137,23 @@ int do_map(int argc, char **arg);
 int do_event_pipe(int argc, char **argv);
 int do_cgroup(int argc, char **arg);
 int do_perf(int argc, char **arg);
+int do_net(int argc, char **arg);
 
+int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);
 int map_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		       const char *arch);
+		       const char *arch, const char *disassembler_options);
 void print_data_json(uint8_t *data, size_t len);
 void print_hex_data_json(uint8_t *data, size_t len);
 
 unsigned int get_page_size(void);
 unsigned int get_possible_cpus(void);
-const char *ifindex_to_bfd_name_ns(__u32 ifindex, __u64 ns_dev, __u64 ns_ino);
+const char *
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+		      const char **opt);
 
 struct btf_dumper {
 	const struct btf *btf;
@@ -165,4 +170,11 @@ struct btf_dumper {
  */
 int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
 		    const void *data);
+
+struct nlattr;
+struct ifinfomsg;
+struct tcmsg;
+int do_xdp_dump(struct ifinfomsg *ifinfo, struct nlattr **tb);
+int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
+		   const char *devname, int ifindex);
 #endif

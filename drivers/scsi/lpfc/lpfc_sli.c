@@ -392,11 +392,7 @@ lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q)
 	struct lpfc_register doorbell;
 
 	doorbell.word0 = 0;
-	bf_set(lpfc_eqcq_doorbell_eqci, &doorbell, 1);
-	bf_set(lpfc_eqcq_doorbell_qt, &doorbell, LPFC_QUEUE_TYPE_EVENT);
-	bf_set(lpfc_eqcq_doorbell_eqid_hi, &doorbell,
-		(q->queue_id >> LPFC_EQID_HI_FIELD_SHIFT));
-	bf_set(lpfc_eqcq_doorbell_eqid_lo, &doorbell, q->queue_id);
+	bf_set(lpfc_if6_eq_doorbell_eqid, &doorbell, q->queue_id);
 	writel(doorbell.word0, q->phba->sli4_hba.EQDBregaddr);
 }
 
@@ -3797,6 +3793,7 @@ lpfc_sli_handle_slow_ring_event_s4(struct lpfc_hba *phba,
 	struct hbq_dmabuf *dmabuf;
 	struct lpfc_cq_event *cq_event;
 	unsigned long iflag;
+	int count = 0;
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	phba->hba_flag &= ~HBA_SP_QUEUE_EVT;
@@ -3818,16 +3815,22 @@ lpfc_sli_handle_slow_ring_event_s4(struct lpfc_hba *phba,
 			if (irspiocbq)
 				lpfc_sli_sp_handle_rspiocb(phba, pring,
 							   irspiocbq);
+			count++;
 			break;
 		case CQE_CODE_RECEIVE:
 		case CQE_CODE_RECEIVE_V1:
 			dmabuf = container_of(cq_event, struct hbq_dmabuf,
 					      cq_event);
 			lpfc_sli4_handle_received_buffer(phba, dmabuf);
+			count++;
 			break;
 		default:
 			break;
 		}
+
+		/* Limit the number of events to 64 to avoid soft lockups */
+		if (count == 64)
+			break;
 	}
 }
 
@@ -6143,6 +6146,271 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 	}
 
 	return;
+}
+
+/**
+ * lpfc_sli4_ras_dma_free - Free memory allocated for FW logging.
+ * @phba: Pointer to HBA context object.
+ *
+ * This function is called to free memory allocated for RAS FW logging
+ * support in the driver.
+ **/
+void
+lpfc_sli4_ras_dma_free(struct lpfc_hba *phba)
+{
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+	struct lpfc_dmabuf *dmabuf, *next;
+
+	if (!list_empty(&ras_fwlog->fwlog_buff_list)) {
+		list_for_each_entry_safe(dmabuf, next,
+				    &ras_fwlog->fwlog_buff_list,
+				    list) {
+			list_del(&dmabuf->list);
+			dma_free_coherent(&phba->pcidev->dev,
+					  LPFC_RAS_MAX_ENTRY_SIZE,
+					  dmabuf->virt, dmabuf->phys);
+			kfree(dmabuf);
+		}
+	}
+
+	if (ras_fwlog->lwpd.virt) {
+		dma_free_coherent(&phba->pcidev->dev,
+				  sizeof(uint32_t) * 2,
+				  ras_fwlog->lwpd.virt,
+				  ras_fwlog->lwpd.phys);
+		ras_fwlog->lwpd.virt = NULL;
+	}
+
+	ras_fwlog->ras_active = false;
+}
+
+/**
+ * lpfc_sli4_ras_dma_alloc: Allocate memory for FW support
+ * @phba: Pointer to HBA context object.
+ * @fwlog_buff_count: Count of buffers to be created.
+ *
+ * This routine DMA memory for Log Write Position Data[LPWD] and buffer
+ * to update FW log is posted to the adapter.
+ * Buffer count is calculated based on module param ras_fwlog_buffsize
+ * Size of each buffer posted to FW is 64K.
+ **/
+
+static int
+lpfc_sli4_ras_dma_alloc(struct lpfc_hba *phba,
+			uint32_t fwlog_buff_count)
+{
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+	struct lpfc_dmabuf *dmabuf;
+	int rc = 0, i = 0;
+
+	/* Initialize List */
+	INIT_LIST_HEAD(&ras_fwlog->fwlog_buff_list);
+
+	/* Allocate memory for the LWPD */
+	ras_fwlog->lwpd.virt = dma_alloc_coherent(&phba->pcidev->dev,
+					    sizeof(uint32_t) * 2,
+					    &ras_fwlog->lwpd.phys,
+					    GFP_KERNEL);
+	if (!ras_fwlog->lwpd.virt) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"6185 LWPD Memory Alloc Failed\n");
+
+		return -ENOMEM;
+	}
+
+	ras_fwlog->fw_buffcount = fwlog_buff_count;
+	for (i = 0; i < ras_fwlog->fw_buffcount; i++) {
+		dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
+				 GFP_KERNEL);
+		if (!dmabuf) {
+			rc = -ENOMEM;
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"6186 Memory Alloc failed FW logging");
+			goto free_mem;
+		}
+
+		dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,
+						  LPFC_RAS_MAX_ENTRY_SIZE,
+						  &dmabuf->phys,
+						  GFP_KERNEL);
+		if (!dmabuf->virt) {
+			kfree(dmabuf);
+			rc = -ENOMEM;
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"6187 DMA Alloc Failed FW logging");
+			goto free_mem;
+		}
+		memset(dmabuf->virt, 0, LPFC_RAS_MAX_ENTRY_SIZE);
+		dmabuf->buffer_tag = i;
+		list_add_tail(&dmabuf->list, &ras_fwlog->fwlog_buff_list);
+	}
+
+free_mem:
+	if (rc)
+		lpfc_sli4_ras_dma_free(phba);
+
+	return rc;
+}
+
+/**
+ * lpfc_sli4_ras_mbox_cmpl: Completion handler for RAS MBX command
+ * @phba: pointer to lpfc hba data structure.
+ * @pmboxq: pointer to the driver internal queue element for mailbox command.
+ *
+ * Completion handler for driver's RAS MBX command to the device.
+ **/
+static void
+lpfc_sli4_ras_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb;
+	union lpfc_sli4_cfg_shdr *shdr;
+	uint32_t shdr_status, shdr_add_status;
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+
+	mb = &pmb->u.mb;
+
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&pmb->u.mqe.un.ras_fwlog.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+
+	if (mb->mbxStatus != MBX_SUCCESS || shdr_status) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+				"6188 FW LOG mailbox "
+				"completed with status x%x add_status x%x,"
+				" mbx status x%x\n",
+				shdr_status, shdr_add_status, mb->mbxStatus);
+		goto disable_ras;
+	}
+
+	ras_fwlog->ras_active = true;
+	mempool_free(pmb, phba->mbox_mem_pool);
+
+	return;
+
+disable_ras:
+	/* Free RAS DMA memory */
+	lpfc_sli4_ras_dma_free(phba);
+	mempool_free(pmb, phba->mbox_mem_pool);
+}
+
+/**
+ * lpfc_sli4_ras_fwlog_init: Initialize memory and post RAS MBX command
+ * @phba: pointer to lpfc hba data structure.
+ * @fwlog_level: Logging verbosity level.
+ * @fwlog_enable: Enable/Disable logging.
+ *
+ * Initialize memory and post mailbox command to enable FW logging in host
+ * memory.
+ **/
+int
+lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba,
+			 uint32_t fwlog_level,
+			 uint32_t fwlog_enable)
+{
+	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
+	struct lpfc_mbx_set_ras_fwlog *mbx_fwlog = NULL;
+	struct lpfc_dmabuf *dmabuf;
+	LPFC_MBOXQ_t *mbox;
+	uint32_t len = 0, fwlog_buffsize, fwlog_entry_count;
+	int rc = 0;
+
+	fwlog_buffsize = (LPFC_RAS_MIN_BUFF_POST_SIZE *
+			  phba->cfg_ras_fwlog_buffsize);
+	fwlog_entry_count = (fwlog_buffsize/LPFC_RAS_MAX_ENTRY_SIZE);
+
+	/*
+	 * If re-enabling FW logging support use earlier allocated
+	 * DMA buffers while posting MBX command.
+	 **/
+	if (!ras_fwlog->lwpd.virt) {
+		rc = lpfc_sli4_ras_dma_alloc(phba, fwlog_entry_count);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"6189 RAS FW Log Support Not Enabled");
+			return rc;
+		}
+	}
+
+	/* Setup Mailbox command */
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"6190 RAS MBX Alloc Failed");
+		rc = -ENOMEM;
+		goto mem_free;
+	}
+
+	ras_fwlog->fw_loglevel = fwlog_level;
+	len = (sizeof(struct lpfc_mbx_set_ras_fwlog) -
+		sizeof(struct lpfc_sli4_cfg_mhdr));
+
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_LOWLEVEL,
+			 LPFC_MBOX_OPCODE_SET_DIAG_LOG_OPTION,
+			 len, LPFC_SLI4_MBX_EMBED);
+
+	mbx_fwlog = (struct lpfc_mbx_set_ras_fwlog *)&mbox->u.mqe.un.ras_fwlog;
+	bf_set(lpfc_fwlog_enable, &mbx_fwlog->u.request,
+	       fwlog_enable);
+	bf_set(lpfc_fwlog_loglvl, &mbx_fwlog->u.request,
+	       ras_fwlog->fw_loglevel);
+	bf_set(lpfc_fwlog_buffcnt, &mbx_fwlog->u.request,
+	       ras_fwlog->fw_buffcount);
+	bf_set(lpfc_fwlog_buffsz, &mbx_fwlog->u.request,
+	       LPFC_RAS_MAX_ENTRY_SIZE/SLI4_PAGE_SIZE);
+
+	/* Update DMA buffer address */
+	list_for_each_entry(dmabuf, &ras_fwlog->fwlog_buff_list, list) {
+		memset(dmabuf->virt, 0, LPFC_RAS_MAX_ENTRY_SIZE);
+
+		mbx_fwlog->u.request.buff_fwlog[dmabuf->buffer_tag].addr_lo =
+			putPaddrLow(dmabuf->phys);
+
+		mbx_fwlog->u.request.buff_fwlog[dmabuf->buffer_tag].addr_hi =
+			putPaddrHigh(dmabuf->phys);
+	}
+
+	/* Update LPWD address */
+	mbx_fwlog->u.request.lwpd.addr_lo = putPaddrLow(ras_fwlog->lwpd.phys);
+	mbx_fwlog->u.request.lwpd.addr_hi = putPaddrHigh(ras_fwlog->lwpd.phys);
+
+	mbox->vport = phba->pport;
+	mbox->mbox_cmpl = lpfc_sli4_ras_mbox_cmpl;
+
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+
+	if (rc == MBX_NOT_FINISHED) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"6191 RAS Mailbox failed. "
+				"status %d mbxStatus : x%x", rc,
+				bf_get(lpfc_mqe_status, &mbox->u.mqe));
+		mempool_free(mbox, phba->mbox_mem_pool);
+		rc = -EIO;
+		goto mem_free;
+	} else
+		rc = 0;
+mem_free:
+	if (rc)
+		lpfc_sli4_ras_dma_free(phba);
+
+	return rc;
+}
+
+/**
+ * lpfc_sli4_ras_setup - Check if RAS supported on the adapter
+ * @phba: Pointer to HBA context object.
+ *
+ * Check if RAS is supported on the adapter and initialize it.
+ **/
+void
+lpfc_sli4_ras_setup(struct lpfc_hba *phba)
+{
+	/* Check RAS FW Log needs to be enabled or not */
+	if (lpfc_check_fwlog_support(phba))
+		return;
+
+	lpfc_sli4_ras_fwlog_init(phba, phba->cfg_ras_fwlog_level,
+				 LPFC_RAS_ENABLE_LOGGING);
 }
 
 /**
@@ -10266,8 +10534,12 @@ lpfc_sli_mbox_sys_flush(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *pmb;
 	unsigned long iflag;
 
+	/* Disable softirqs, including timers from obtaining phba->hbalock */
+	local_bh_disable();
+
 	/* Flush all the mailbox commands in the mbox system */
 	spin_lock_irqsave(&phba->hbalock, iflag);
+
 	/* The pending mailbox command queue */
 	list_splice_init(&phba->sli.mboxq, &completions);
 	/* The outstanding active mailbox command */
@@ -10279,6 +10551,9 @@ lpfc_sli_mbox_sys_flush(struct lpfc_hba *phba)
 	/* The completed mailbox command queue */
 	list_splice_init(&phba->sli.mboxq_cmpl, &completions);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
+
+	/* Enable softirqs again, done with phba->hbalock */
+	local_bh_enable();
 
 	/* Return all flushed mailbox commands with MBX_NOT_FINISHED status */
 	while (!list_empty(&completions)) {
@@ -10419,6 +10694,9 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 
 	lpfc_hba_down_prep(phba);
 
+	/* Disable softirqs, including timers from obtaining phba->hbalock */
+	local_bh_disable();
+
 	lpfc_fabric_abort_hba(phba);
 
 	spin_lock_irqsave(&phba->hbalock, flags);
@@ -10471,6 +10749,9 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
 		kfree(buf_ptr);
 	}
+
+	/* Enable softirqs again, done with phba->hbalock */
+	local_bh_enable();
 
 	/* Return any active mbox cmds */
 	del_timer_sync(&psli->mbox_tmo);
@@ -11775,6 +12056,9 @@ lpfc_sli_mbox_sys_shutdown(struct lpfc_hba *phba, int mbx_action)
 	}
 	timeout = msecs_to_jiffies(LPFC_MBOX_TMO * 1000) + jiffies;
 
+	/* Disable softirqs, including timers from obtaining phba->hbalock */
+	local_bh_disable();
+
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag |= LPFC_SLI_ASYNC_MBX_BLK;
 
@@ -11788,6 +12072,9 @@ lpfc_sli_mbox_sys_shutdown(struct lpfc_hba *phba, int mbx_action)
 						1000) + jiffies;
 		spin_unlock_irq(&phba->hbalock);
 
+		/* Enable softirqs again, done with phba->hbalock */
+		local_bh_enable();
+
 		while (phba->sli.mbox_active) {
 			/* Check active mailbox complete status every 2ms */
 			msleep(2);
@@ -11797,8 +12084,12 @@ lpfc_sli_mbox_sys_shutdown(struct lpfc_hba *phba, int mbx_action)
 				 */
 				break;
 		}
-	} else
+	} else {
 		spin_unlock_irq(&phba->hbalock);
+
+		/* Enable softirqs again, done with phba->hbalock */
+		local_bh_enable();
+	}
 
 	lpfc_sli_mbox_sys_flush(phba);
 }
@@ -13136,7 +13427,6 @@ static bool
 lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 {
 	bool workposted = false;
-	struct fc_frame_header *fc_hdr;
 	struct lpfc_queue *hrq = phba->sli4_hba.hdr_rq;
 	struct lpfc_queue *drq = phba->sli4_hba.dat_rq;
 	struct lpfc_nvmet_tgtport *tgtp;
@@ -13172,9 +13462,6 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 		hrq->RQ_rcv_buf++;
 		hrq->RQ_buf_posted--;
 		memcpy(&dma_buf->cq_event.cqe.rcqe_cmpl, rcqe, sizeof(*rcqe));
-
-		/* If a NVME LS event (type 0x28), treat it as Fast path */
-		fc_hdr = (struct fc_frame_header *)dma_buf->hbuf.virt;
 
 		/* save off the frame for the word thread to process */
 		list_add_tail(&dma_buf->cq_event.list,
@@ -14558,13 +14845,10 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	int rc, length, status = 0;
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
-	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 
 	/* sanity check on queue memory */
 	if (!cq || !eq)
 		return -ENODEV;
-	if (!phba->sli4_hba.pc_sli4_params.supported)
-		hw_page_size = cq->page_size;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)

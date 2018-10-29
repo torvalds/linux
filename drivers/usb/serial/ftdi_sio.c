@@ -39,6 +39,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/serial.h>
+#include <linux/gpio/driver.h>
 #include <linux/usb/serial.h>
 #include "ftdi_sio.h"
 #include "ftdi_sio_ids.h"
@@ -72,6 +73,15 @@ struct ftdi_private {
 	unsigned int latency;		/* latency setting in use */
 	unsigned short max_packet_size;
 	struct mutex cfg_lock; /* Avoid mess by parallel calls of config ioctl() and change_speed() */
+#ifdef CONFIG_GPIOLIB
+	struct gpio_chip gc;
+	struct mutex gpio_lock;	/* protects GPIO state */
+	bool gpio_registered;	/* is the gpiochip in kernel registered */
+	bool gpio_used;		/* true if the user requested a gpio */
+	u8 gpio_altfunc;	/* which pins are in gpio mode */
+	u8 gpio_output;		/* pin directions cache */
+	u8 gpio_value;		/* pin value for outputs */
+#endif
 };
 
 /* struct ftdi_sio_quirk is used by devices requiring special attention. */
@@ -1055,6 +1065,10 @@ static int  ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
 static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
+static int get_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss);
+static int set_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
 static bool ftdi_tx_empty(struct usb_serial_port *port);
 static int ftdi_get_modem_status(struct usb_serial_port *port,
@@ -1091,6 +1105,8 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.tiocmiwait =		usb_serial_generic_tiocmiwait,
 	.get_icount =           usb_serial_generic_get_icount,
 	.ioctl =		ftdi_ioctl,
+	.get_serial =		get_serial_info,
+	.set_serial =		set_serial_info,
 	.set_termios =		ftdi_set_termios,
 	.break_ctl =		ftdi_break_ctl,
 	.tx_empty =		ftdi_tx_empty,
@@ -1443,30 +1459,24 @@ static int read_latency_timer(struct usb_serial_port *port)
 	return 0;
 }
 
-static int get_serial_info(struct usb_serial_port *port,
-				struct serial_struct __user *retinfo)
+static int get_serial_info(struct tty_struct *tty,
+				struct serial_struct *ss)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct serial_struct tmp;
 
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.flags = priv->flags;
-	tmp.baud_base = priv->baud_base;
-	tmp.custom_divisor = priv->custom_divisor;
-	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return -EFAULT;
+	ss->flags = priv->flags;
+	ss->baud_base = priv->baud_base;
+	ss->custom_divisor = priv->custom_divisor;
 	return 0;
 }
 
 static int set_serial_info(struct tty_struct *tty,
-	struct usb_serial_port *port, struct serial_struct __user *newinfo)
+	struct serial_struct *ss)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct serial_struct new_serial;
 	struct ftdi_private old_priv;
-
-	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
-		return -EFAULT;
 
 	mutex_lock(&priv->cfg_lock);
 	old_priv = *priv;
@@ -1474,17 +1484,17 @@ static int set_serial_info(struct tty_struct *tty,
 	/* Do error checking and permission checking */
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		if ((new_serial.flags ^ priv->flags) & ~ASYNC_USR_MASK) {
+		if ((ss->flags ^ priv->flags) & ~ASYNC_USR_MASK) {
 			mutex_unlock(&priv->cfg_lock);
 			return -EPERM;
 		}
 		priv->flags = ((priv->flags & ~ASYNC_USR_MASK) |
-			       (new_serial.flags & ASYNC_USR_MASK));
-		priv->custom_divisor = new_serial.custom_divisor;
+			       (ss->flags & ASYNC_USR_MASK));
+		priv->custom_divisor = ss->custom_divisor;
 		goto check_and_exit;
 	}
 
-	if (new_serial.baud_base != priv->baud_base) {
+	if (ss->baud_base != priv->baud_base) {
 		mutex_unlock(&priv->cfg_lock);
 		return -EINVAL;
 	}
@@ -1492,8 +1502,8 @@ static int set_serial_info(struct tty_struct *tty,
 	/* Make the changes - these are privileged changes! */
 
 	priv->flags = ((priv->flags & ~ASYNC_FLAGS) |
-					(new_serial.flags & ASYNC_FLAGS));
-	priv->custom_divisor = new_serial.custom_divisor;
+					(ss->flags & ASYNC_FLAGS));
+	priv->custom_divisor = ss->custom_divisor;
 
 check_and_exit:
 	write_latency_timer(port);
@@ -1507,10 +1517,8 @@ check_and_exit:
 			dev_warn_ratelimited(&port->dev, "use of SPD flags is deprecated\n");
 
 		change_speed(tty, port);
-		mutex_unlock(&priv->cfg_lock);
 	}
-	else
-		mutex_unlock(&priv->cfg_lock);
+	mutex_unlock(&priv->cfg_lock);
 	return 0;
 }
 
@@ -1766,6 +1774,375 @@ static void remove_sysfs_attrs(struct usb_serial_port *port)
 
 }
 
+#ifdef CONFIG_GPIOLIB
+
+static int ftdi_set_bitmode(struct usb_serial_port *port, u8 mode)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_serial *serial = port->serial;
+	int result;
+	u16 val;
+
+	val = (mode << 8) | (priv->gpio_output << 4) | priv->gpio_value;
+	result = usb_control_msg(serial->dev,
+				 usb_sndctrlpipe(serial->dev, 0),
+				 FTDI_SIO_SET_BITMODE_REQUEST,
+				 FTDI_SIO_SET_BITMODE_REQUEST_TYPE, val,
+				 priv->interface, NULL, 0, WDR_TIMEOUT);
+	if (result < 0) {
+		dev_err(&serial->interface->dev,
+			"bitmode request failed for value 0x%04x: %d\n",
+			val, result);
+	}
+
+	return result;
+}
+
+static int ftdi_set_cbus_pins(struct usb_serial_port *port)
+{
+	return ftdi_set_bitmode(port, FTDI_SIO_BITMODE_CBUS);
+}
+
+static int ftdi_exit_cbus_mode(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+
+	priv->gpio_output = 0;
+	priv->gpio_value = 0;
+	return ftdi_set_bitmode(port, FTDI_SIO_BITMODE_RESET);
+}
+
+static int ftdi_gpio_request(struct gpio_chip *gc, unsigned int offset)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	int result;
+
+	if (priv->gpio_altfunc & BIT(offset))
+		return -ENODEV;
+
+	mutex_lock(&priv->gpio_lock);
+	if (!priv->gpio_used) {
+		/* Set default pin states, as we cannot get them from device */
+		priv->gpio_output = 0x00;
+		priv->gpio_value = 0x00;
+		result = ftdi_set_cbus_pins(port);
+		if (result) {
+			mutex_unlock(&priv->gpio_lock);
+			return result;
+		}
+
+		priv->gpio_used = true;
+	}
+	mutex_unlock(&priv->gpio_lock);
+
+	return 0;
+}
+
+static int ftdi_read_cbus_pins(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_serial *serial = port->serial;
+	unsigned char *buf;
+	int result;
+
+	buf = kmalloc(1, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	result = usb_control_msg(serial->dev,
+				 usb_rcvctrlpipe(serial->dev, 0),
+				 FTDI_SIO_READ_PINS_REQUEST,
+				 FTDI_SIO_READ_PINS_REQUEST_TYPE, 0,
+				 priv->interface, buf, 1, WDR_TIMEOUT);
+	if (result < 1) {
+		if (result >= 0)
+			result = -EIO;
+	} else {
+		result = buf[0];
+	}
+
+	kfree(buf);
+
+	return result;
+}
+
+static int ftdi_gpio_get(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	int result;
+
+	result = ftdi_read_cbus_pins(port);
+	if (result < 0)
+		return result;
+
+	return !!(result & BIT(gpio));
+}
+
+static void ftdi_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+
+	mutex_lock(&priv->gpio_lock);
+
+	if (value)
+		priv->gpio_value |= BIT(gpio);
+	else
+		priv->gpio_value &= ~BIT(gpio);
+
+	ftdi_set_cbus_pins(port);
+
+	mutex_unlock(&priv->gpio_lock);
+}
+
+static int ftdi_gpio_get_multiple(struct gpio_chip *gc, unsigned long *mask,
+					unsigned long *bits)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	int result;
+
+	result = ftdi_read_cbus_pins(port);
+	if (result < 0)
+		return result;
+
+	*bits = result & *mask;
+
+	return 0;
+}
+
+static void ftdi_gpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+					unsigned long *bits)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+
+	mutex_lock(&priv->gpio_lock);
+
+	priv->gpio_value &= ~(*mask);
+	priv->gpio_value |= *bits & *mask;
+	ftdi_set_cbus_pins(port);
+
+	mutex_unlock(&priv->gpio_lock);
+}
+
+static int ftdi_gpio_direction_get(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+
+	return !(priv->gpio_output & BIT(gpio));
+}
+
+static int ftdi_gpio_direction_input(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	int result;
+
+	mutex_lock(&priv->gpio_lock);
+
+	priv->gpio_output &= ~BIT(gpio);
+	result = ftdi_set_cbus_pins(port);
+
+	mutex_unlock(&priv->gpio_lock);
+
+	return result;
+}
+
+static int ftdi_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio,
+					int value)
+{
+	struct usb_serial_port *port = gpiochip_get_data(gc);
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	int result;
+
+	mutex_lock(&priv->gpio_lock);
+
+	priv->gpio_output |= BIT(gpio);
+	if (value)
+		priv->gpio_value |= BIT(gpio);
+	else
+		priv->gpio_value &= ~BIT(gpio);
+
+	result = ftdi_set_cbus_pins(port);
+
+	mutex_unlock(&priv->gpio_lock);
+
+	return result;
+}
+
+static int ftdi_read_eeprom(struct usb_serial *serial, void *dst, u16 addr,
+				u16 nbytes)
+{
+	int read = 0;
+
+	if (addr % 2 != 0)
+		return -EINVAL;
+	if (nbytes % 2 != 0)
+		return -EINVAL;
+
+	/* Read EEPROM two bytes at a time */
+	while (read < nbytes) {
+		int rv;
+
+		rv = usb_control_msg(serial->dev,
+				     usb_rcvctrlpipe(serial->dev, 0),
+				     FTDI_SIO_READ_EEPROM_REQUEST,
+				     FTDI_SIO_READ_EEPROM_REQUEST_TYPE,
+				     0, (addr + read) / 2, dst + read, 2,
+				     WDR_TIMEOUT);
+		if (rv < 2) {
+			if (rv >= 0)
+				return -EIO;
+			else
+				return rv;
+		}
+
+		read += rv;
+	}
+
+	return 0;
+}
+
+static int ftdi_gpio_init_ft232r(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	u16 cbus_config;
+	u8 *buf;
+	int ret;
+	int i;
+
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = ftdi_read_eeprom(port->serial, buf, 0x14, 2);
+	if (ret < 0)
+		goto out_free;
+
+	cbus_config = le16_to_cpup((__le16 *)buf);
+	dev_dbg(&port->dev, "cbus_config = 0x%04x\n", cbus_config);
+
+	priv->gc.ngpio = 4;
+
+	priv->gpio_altfunc = 0xff;
+	for (i = 0; i < priv->gc.ngpio; ++i) {
+		if ((cbus_config & 0xf) == FTDI_FT232R_CBUS_MUX_GPIO)
+			priv->gpio_altfunc &= ~BIT(i);
+		cbus_config >>= 4;
+	}
+out_free:
+	kfree(buf);
+
+	return ret;
+}
+
+static int ftdi_gpio_init_ftx(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_serial *serial = port->serial;
+	const u16 cbus_cfg_addr = 0x1a;
+	const u16 cbus_cfg_size = 4;
+	u8 *cbus_cfg_buf;
+	int result;
+	u8 i;
+
+	cbus_cfg_buf = kmalloc(cbus_cfg_size, GFP_KERNEL);
+	if (!cbus_cfg_buf)
+		return -ENOMEM;
+
+	result = ftdi_read_eeprom(serial, cbus_cfg_buf,
+				  cbus_cfg_addr, cbus_cfg_size);
+	if (result < 0)
+		goto out_free;
+
+	/* FIXME: FT234XD alone has 1 GPIO, but how to recognize this IC? */
+	priv->gc.ngpio = 4;
+
+	/* Determine which pins are configured for CBUS bitbanging */
+	priv->gpio_altfunc = 0xff;
+	for (i = 0; i < priv->gc.ngpio; ++i) {
+		if (cbus_cfg_buf[i] == FTDI_FTX_CBUS_MUX_GPIO)
+			priv->gpio_altfunc &= ~BIT(i);
+	}
+
+out_free:
+	kfree(cbus_cfg_buf);
+
+	return result;
+}
+
+static int ftdi_gpio_init(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_serial *serial = port->serial;
+	int result;
+
+	switch (priv->chip_type) {
+	case FT232RL:
+		result = ftdi_gpio_init_ft232r(port);
+		break;
+	case FTX:
+		result = ftdi_gpio_init_ftx(port);
+		break;
+	default:
+		return 0;
+	}
+
+	if (result < 0)
+		return result;
+
+	mutex_init(&priv->gpio_lock);
+
+	priv->gc.label = "ftdi-cbus";
+	priv->gc.request = ftdi_gpio_request;
+	priv->gc.get_direction = ftdi_gpio_direction_get;
+	priv->gc.direction_input = ftdi_gpio_direction_input;
+	priv->gc.direction_output = ftdi_gpio_direction_output;
+	priv->gc.get = ftdi_gpio_get;
+	priv->gc.set = ftdi_gpio_set;
+	priv->gc.get_multiple = ftdi_gpio_get_multiple;
+	priv->gc.set_multiple = ftdi_gpio_set_multiple;
+	priv->gc.owner = THIS_MODULE;
+	priv->gc.parent = &serial->interface->dev;
+	priv->gc.base = -1;
+	priv->gc.can_sleep = true;
+
+	result = gpiochip_add_data(&priv->gc, port);
+	if (!result)
+		priv->gpio_registered = true;
+
+	return result;
+}
+
+static void ftdi_gpio_remove(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+
+	if (priv->gpio_registered) {
+		gpiochip_remove(&priv->gc);
+		priv->gpio_registered = false;
+	}
+
+	if (priv->gpio_used) {
+		/* Exiting CBUS-mode does not reset pin states. */
+		ftdi_exit_cbus_mode(port);
+		priv->gpio_used = false;
+	}
+}
+
+#else
+
+static int ftdi_gpio_init(struct usb_serial_port *port)
+{
+	return 0;
+}
+
+static void ftdi_gpio_remove(struct usb_serial_port *port) { }
+
+#endif	/* CONFIG_GPIOLIB */
+
 /*
  * ***************************************************************************
  * FTDI driver specific functions
@@ -1794,7 +2171,7 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv;
 	const struct ftdi_sio_quirk *quirk = usb_get_serial_data(port->serial);
-
+	int result;
 
 	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
 	if (!priv)
@@ -1813,6 +2190,14 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 		priv->latency = 16;
 	write_latency_timer(port);
 	create_sysfs_attrs(port);
+
+	result = ftdi_gpio_init(port);
+	if (result < 0) {
+		dev_err(&port->serial->interface->dev,
+			"GPIO initialisation failed: %d\n",
+			result);
+	}
+
 	return 0;
 }
 
@@ -1929,6 +2314,8 @@ static int ftdi_stmclite_probe(struct usb_serial *serial)
 static int ftdi_sio_port_remove(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
+
+	ftdi_gpio_remove(port);
 
 	remove_sysfs_attrs(port);
 
@@ -2452,10 +2839,6 @@ static int ftdi_ioctl(struct tty_struct *tty,
 	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
-	case TIOCGSERIAL:
-		return get_serial_info(port, argp);
-	case TIOCSSERIAL:
-		return set_serial_info(tty, port, argp);
 	case TIOCSERGETLSR:
 		return get_lsr_info(port, argp);
 	default:

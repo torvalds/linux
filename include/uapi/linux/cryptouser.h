@@ -29,6 +29,7 @@ enum {
 	CRYPTO_MSG_UPDATEALG,
 	CRYPTO_MSG_GETALG,
 	CRYPTO_MSG_DELRNG,
+	CRYPTO_MSG_GETSTAT,
 	__CRYPTO_MSG_MAX
 };
 #define CRYPTO_MSG_MAX (__CRYPTO_MSG_MAX - 1)
@@ -50,6 +51,16 @@ enum crypto_attr_type_t {
 	CRYPTOCFGA_REPORT_AKCIPHER,	/* struct crypto_report_akcipher */
 	CRYPTOCFGA_REPORT_KPP,		/* struct crypto_report_kpp */
 	CRYPTOCFGA_REPORT_ACOMP,	/* struct crypto_report_acomp */
+	CRYPTOCFGA_STAT_LARVAL,		/* struct crypto_stat */
+	CRYPTOCFGA_STAT_HASH,		/* struct crypto_stat */
+	CRYPTOCFGA_STAT_BLKCIPHER,	/* struct crypto_stat */
+	CRYPTOCFGA_STAT_AEAD,		/* struct crypto_stat */
+	CRYPTOCFGA_STAT_COMPRESS,	/* struct crypto_stat */
+	CRYPTOCFGA_STAT_RNG,		/* struct crypto_stat */
+	CRYPTOCFGA_STAT_CIPHER,		/* struct crypto_stat */
+	CRYPTOCFGA_STAT_AKCIPHER,	/* struct crypto_stat */
+	CRYPTOCFGA_STAT_KPP,		/* struct crypto_stat */
+	CRYPTOCFGA_STAT_ACOMP,		/* struct crypto_stat */
 	__CRYPTOCFGA_MAX
 
 #define CRYPTOCFGA_MAX (__CRYPTOCFGA_MAX - 1)
@@ -63,6 +74,47 @@ struct crypto_user_alg {
 	__u32 cru_mask;
 	__u32 cru_refcnt;
 	__u32 cru_flags;
+};
+
+struct crypto_stat {
+	char type[CRYPTO_MAX_NAME];
+	union {
+		__u32 stat_encrypt_cnt;
+		__u32 stat_compress_cnt;
+		__u32 stat_generate_cnt;
+		__u32 stat_hash_cnt;
+		__u32 stat_setsecret_cnt;
+	};
+	union {
+		__u64 stat_encrypt_tlen;
+		__u64 stat_compress_tlen;
+		__u64 stat_generate_tlen;
+		__u64 stat_hash_tlen;
+	};
+	union {
+		__u32 stat_akcipher_err_cnt;
+		__u32 stat_cipher_err_cnt;
+		__u32 stat_compress_err_cnt;
+		__u32 stat_aead_err_cnt;
+		__u32 stat_hash_err_cnt;
+		__u32 stat_rng_err_cnt;
+		__u32 stat_kpp_err_cnt;
+	};
+	union {
+		__u32 stat_decrypt_cnt;
+		__u32 stat_decompress_cnt;
+		__u32 stat_seed_cnt;
+		__u32 stat_generate_public_key_cnt;
+	};
+	union {
+		__u64 stat_decrypt_tlen;
+		__u64 stat_decompress_tlen;
+	};
+	union {
+		__u32 stat_verify_cnt;
+		__u32 stat_compute_shared_secret_cnt;
+	};
+	__u32 stat_sign_cnt;
 };
 
 struct crypto_report_larval {

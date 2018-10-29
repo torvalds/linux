@@ -550,7 +550,6 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 	struct lpfc_nodelist *ndlp;
 	unsigned char *statep;
 	struct nvme_fc_local_port *localport;
-	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_remote_port *nrport = NULL;
 	struct lpfc_nvme_rport *rport;
 
@@ -654,7 +653,6 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			"\nOutstanding IO x%x\n",  outio);
 
 	if (phba->nvmet_support && phba->targetport && (vport == phba->pport)) {
-		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 		len += snprintf(buf + len, size - len,
 				"\nNVME Targetport Entry ...\n");
 

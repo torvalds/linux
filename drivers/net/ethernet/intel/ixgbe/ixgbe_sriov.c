@@ -496,6 +496,7 @@ static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		case ixgbe_mbox_api_11:
 		case ixgbe_mbox_api_12:
 		case ixgbe_mbox_api_13:
+		case ixgbe_mbox_api_14:
 			/* Version 1.1 supports jumbo frames on VFs if PF has
 			 * jumbo frames enabled which means legacy VFs are
 			 * disabled
@@ -727,6 +728,9 @@ static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* reset multicast table array for vf */
 	adapter->vfinfo[vf].num_vf_mc_hashes = 0;
+
+	/* clear any ipsec table info */
+	ixgbe_ipsec_vf_clear(adapter, vf);
 
 	/* Flush and reset the mta with the new values */
 	ixgbe_set_rx_mode(adapter->netdev);
@@ -1000,6 +1004,7 @@ static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
 	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_14:
 		adapter->vfinfo[vf].vf_api = api;
 		return 0;
 	default:
@@ -1025,6 +1030,7 @@ static int ixgbe_get_vf_queues(struct ixgbe_adapter *adapter,
 	case ixgbe_mbox_api_11:
 	case ixgbe_mbox_api_12:
 	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_14:
 		break;
 	default:
 		return -1;
@@ -1065,6 +1071,7 @@ static int ixgbe_get_vf_reta(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 
 	/* verify the PF is supporting the correct API */
 	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_14:
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_12:
 		break;
@@ -1097,6 +1104,7 @@ static int ixgbe_get_vf_rss_key(struct ixgbe_adapter *adapter,
 
 	/* verify the PF is supporting the correct API */
 	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_14:
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_12:
 		break;
@@ -1122,8 +1130,9 @@ static int ixgbe_update_vf_xcast_mode(struct ixgbe_adapter *adapter,
 		/* promisc introduced in 1.3 version */
 		if (xcast_mode == IXGBEVF_XCAST_MODE_PROMISC)
 			return -EOPNOTSUPP;
-		/* Fall threw */
+		/* Fall through */
 	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_14:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1248,6 +1257,12 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		break;
 	case IXGBE_VF_UPDATE_XCAST_MODE:
 		retval = ixgbe_update_vf_xcast_mode(adapter, msgbuf, vf);
+		break;
+	case IXGBE_VF_IPSEC_ADD:
+		retval = ixgbe_ipsec_vf_add_sa(adapter, msgbuf, vf);
+		break;
+	case IXGBE_VF_IPSEC_DEL:
+		retval = ixgbe_ipsec_vf_del_sa(adapter, msgbuf, vf);
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);

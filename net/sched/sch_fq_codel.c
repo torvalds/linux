@@ -124,7 +124,7 @@ static inline struct sk_buff *dequeue_head(struct fq_codel_flow *flow)
 	struct sk_buff *skb = flow->head;
 
 	flow->head = skb->next;
-	skb->next = NULL;
+	skb_mark_not_on_list(skb);
 	return skb;
 }
 

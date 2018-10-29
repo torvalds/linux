@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg-fsm.h>
@@ -1965,6 +1966,10 @@ void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
 
 static int udc_id_switch_for_device(struct ci_hdrc *ci)
 {
+	if (ci->platdata->pins_device)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_device);
+
 	if (ci->is_otg)
 		/* Clear and enable BSV irq */
 		hw_write_otgsc(ci, OTGSC_BSVIS | OTGSC_BSVIE,
@@ -1983,6 +1988,10 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);
 
 	ci->vbus_active = 0;
+
+	if (ci->platdata->pins_device && ci->platdata->pins_default)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_default);
 }
 
 /**

@@ -145,7 +145,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		 */
 		if (end < fq->q.len ||
 		    ((fq->q.flags & INET_FRAG_LAST_IN) && end != fq->q.len))
-			goto err;
+			goto discard_fq;
 		fq->q.flags |= INET_FRAG_LAST_IN;
 		fq->q.len = end;
 	} else {
@@ -162,20 +162,20 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		if (end > fq->q.len) {
 			/* Some bits beyond end -> corruption. */
 			if (fq->q.flags & INET_FRAG_LAST_IN)
-				goto err;
+				goto discard_fq;
 			fq->q.len = end;
 		}
 	}
 
 	if (end == offset)
-		goto err;
+		goto discard_fq;
 
 	/* Point into the IP datagram 'data' part. */
 	if (!pskb_pull(skb, (u8 *) (fhdr + 1) - skb->data))
-		goto err;
+		goto discard_fq;
 
 	if (pskb_trim_rcsum(skb, end - offset))
-		goto err;
+		goto discard_fq;
 
 	/* Find out which fragments are in front and at the back of us
 	 * in the chain of fragments so far.  We must know where to put
@@ -388,7 +388,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	}
 	sub_frag_mem_limit(fq->q.net, sum_truesize);
 
-	head->next = NULL;
+	skb_mark_not_on_list(head);
 	head->dev = dev;
 	head->tstamp = fq->q.stamp;
 	ipv6_hdr(head)->payload_len = htons(payload_len);
@@ -418,6 +418,7 @@ out_fail:
 	rcu_read_lock();
 	__IP6_INC_STATS(net, __in6_dev_get(dev), IPSTATS_MIB_REASMFAILS);
 	rcu_read_unlock();
+	inet_frag_kill(&fq->q);
 	return -1;
 }
 
@@ -553,7 +554,6 @@ static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 
 		table[0].data = &net->ipv6.frags.high_thresh;
 		table[0].extra1 = &net->ipv6.frags.low_thresh;
-		table[0].extra2 = &init_net.ipv6.frags.high_thresh;
 		table[1].data = &net->ipv6.frags.low_thresh;
 		table[1].extra2 = &net->ipv6.frags.high_thresh;
 		table[2].data = &net->ipv6.frags.timeout;

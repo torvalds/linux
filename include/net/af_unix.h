@@ -52,7 +52,7 @@ struct unix_skb_parms {
 struct unix_sock {
 	/* WARNING: sk has to be the first member */
 	struct sock		sk;
-	struct unix_address     *addr;
+	struct unix_address	*addr;
 	struct path		path;
 	struct mutex		iolock, bindlock;
 	struct sock		*peer;
@@ -63,7 +63,7 @@ struct unix_sock {
 #define UNIX_GC_CANDIDATE	0
 #define UNIX_GC_MAYBE_CYCLE	1
 	struct socket_wq	peer_wq;
-	wait_queue_entry_t		peer_wake;
+	wait_queue_entry_t	peer_wake;
 };
 
 static inline struct unix_sock *unix_sk(const struct sock *sk)

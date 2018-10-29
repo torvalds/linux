@@ -622,3 +622,14 @@ in your dentry operations instead.
 	alloc_file_clone(file, flags, ops) does not affect any caller's references.
 	On success you get a new struct file sharing the mount/dentry with the
 	original, on failure - ERR_PTR().
+--
+[recommended]
+	->lookup() instances doing an equivalent of
+		if (IS_ERR(inode))
+			return ERR_CAST(inode);
+		return d_splice_alias(inode, dentry);
+	don't need to bother with the check - d_splice_alias() will do the
+	right thing when given ERR_PTR(...) as inode.  Moreover, passing NULL
+	inode to d_splice_alias() will also do the right thing (equivalent of
+	d_add(dentry, NULL); return NULL;), so that kind of special cases
+	also doesn't need a separate treatment.

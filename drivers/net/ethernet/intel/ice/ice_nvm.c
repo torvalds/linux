@@ -137,7 +137,7 @@ ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access)
 	if (hw->nvm.blank_nvm_mode)
 		return 0;
 
-	return ice_acquire_res(hw, ICE_NVM_RES_ID, access);
+	return ice_acquire_res(hw, ICE_NVM_RES_ID, access, ICE_NVM_TIMEOUT);
 }
 
 /**

@@ -784,6 +784,7 @@ void gssx_enc_accept_sec_context(struct rpc_rqst *req,
 	xdr_inline_pages(&req->rq_rcv_buf,
 		PAGE_SIZE/2 /* pretty arbitrary */,
 		arg->pages, 0 /* page base */, arg->npages * PAGE_SIZE);
+	req->rq_rcv_buf.flags |= XDRBUF_SPARSE_PAGES;
 done:
 	if (err)
 		dprintk("RPC:       gssx_enc_accept_sec_context: %d\n", err);

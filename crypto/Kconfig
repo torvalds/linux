@@ -213,20 +213,6 @@ config CRYPTO_CRYPTD
 	  converts an arbitrary synchronous software crypto algorithm
 	  into an asynchronous algorithm that executes in a kernel thread.
 
-config CRYPTO_MCRYPTD
-	tristate "Software async multi-buffer crypto daemon"
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_HASH
-	select CRYPTO_MANAGER
-	select CRYPTO_WORKQUEUE
-	help
-	  This is a generic software asynchronous crypto daemon that
-	  provides the kernel thread to assist multi-buffer crypto
-	  algorithms for submitting jobs and flushing jobs in multi-buffer
-	  crypto algorithms.  Multi-buffer crypto algorithms are executed
-	  in the context of this kernel thread and drivers can post
-	  their crypto request asynchronously to be processed by this daemon.
-
 config CRYPTO_AUTHENC
 	tristate "Authenc support"
 	select CRYPTO_AEAD
@@ -469,6 +455,18 @@ config CRYPTO_LRW
 	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
 	  The first 128, 192 or 256 bits in the key are used for AES and the
 	  rest is used to tie each cipher block to its logical position.
+
+config CRYPTO_OFB
+	tristate "OFB support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  OFB: the Output Feedback mode makes a block cipher into a synchronous
+	  stream cipher. It generates keystream blocks, which are then XORed
+	  with the plaintext blocks to get the ciphertext. Flipping a bit in the
+	  ciphertext produces a flipped bit in the plaintext at the same
+	  location. This property allows many error correcting codes to function
+	  normally even when applied before encryption.
 
 config CRYPTO_PCBC
 	tristate "PCBC support"
@@ -848,54 +846,6 @@ config CRYPTO_SHA1_PPC_SPE
 	  SHA-1 secure hash standard (DFIPS 180-4) implemented
 	  using powerpc SPE SIMD instruction set.
 
-config CRYPTO_SHA1_MB
-	tristate "SHA1 digest algorithm (x86_64 Multi-Buffer, Experimental)"
-	depends on X86 && 64BIT
-	select CRYPTO_SHA1
-	select CRYPTO_HASH
-	select CRYPTO_MCRYPTD
-	help
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
-	  using multi-buffer technique.  This algorithm computes on
-	  multiple data lanes concurrently with SIMD instructions for
-	  better throughput.  It should not be enabled by default but
-	  used when there is significant amount of work to keep the keep
-	  the data lanes filled to get performance benefit.  If the data
-	  lanes remain unfilled, a flush operation will be initiated to
-	  process the crypto jobs, adding a slight latency.
-
-config CRYPTO_SHA256_MB
-	tristate "SHA256 digest algorithm (x86_64 Multi-Buffer, Experimental)"
-	depends on X86 && 64BIT
-	select CRYPTO_SHA256
-	select CRYPTO_HASH
-	select CRYPTO_MCRYPTD
-	help
-	  SHA-256 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
-	  using multi-buffer technique.  This algorithm computes on
-	  multiple data lanes concurrently with SIMD instructions for
-	  better throughput.  It should not be enabled by default but
-	  used when there is significant amount of work to keep the keep
-	  the data lanes filled to get performance benefit.  If the data
-	  lanes remain unfilled, a flush operation will be initiated to
-	  process the crypto jobs, adding a slight latency.
-
-config CRYPTO_SHA512_MB
-        tristate "SHA512 digest algorithm (x86_64 Multi-Buffer, Experimental)"
-        depends on X86 && 64BIT
-        select CRYPTO_SHA512
-        select CRYPTO_HASH
-        select CRYPTO_MCRYPTD
-        help
-          SHA-512 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
-          using multi-buffer technique.  This algorithm computes on
-          multiple data lanes concurrently with SIMD instructions for
-          better throughput.  It should not be enabled by default but
-          used when there is significant amount of work to keep the keep
-          the data lanes filled to get performance benefit.  If the data
-          lanes remain unfilled, a flush operation will be initiated to
-          process the crypto jobs, adding a slight latency.
-
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
@@ -1133,7 +1083,7 @@ config CRYPTO_AES_NI_INTEL
 
 	  In addition to AES cipher algorithm support, the acceleration
 	  for some popular block cipher mode is supported too, including
-	  ECB, CBC, LRW, PCBC, XTS. The 64 bit version has additional
+	  ECB, CBC, LRW, XTS. The 64 bit version has additional
 	  acceleration for CTR.
 
 config CRYPTO_AES_SPARC64
@@ -1590,20 +1540,6 @@ config CRYPTO_SM4
 
 	  If unsure, say N.
 
-config CRYPTO_SPECK
-	tristate "Speck cipher algorithm"
-	select CRYPTO_ALGAPI
-	help
-	  Speck is a lightweight block cipher that is tuned for optimal
-	  performance in software (rather than hardware).
-
-	  Speck may not be as secure as AES, and should only be used on systems
-	  where AES is not fast enough.
-
-	  See also: <https://eprint.iacr.org/2013/404.pdf>
-
-	  If unsure, say N.
-
 config CRYPTO_TEA
 	tristate "TEA, XTEA and XETA cipher algorithms"
 	select CRYPTO_ALGAPI
@@ -1874,6 +1810,17 @@ config CRYPTO_USER_API_AEAD
 	help
 	  This option enables the user-spaces interface for AEAD
 	  cipher algorithms.
+
+config CRYPTO_STATS
+	bool "Crypto usage statistics for User-space"
+	help
+	  This option enables the gathering of crypto stats.
+	  This will collect:
+	  - encrypt/decrypt size and numbers of symmeric operations
+	  - compress/decompress size and numbers of compress operations
+	  - size and numbers of hash operations
+	  - encrypt/decrypt/sign/verify numbers for asymmetric operations
+	  - generate/seed numbers for rng operations
 
 config CRYPTO_HASH_INFO
 	bool

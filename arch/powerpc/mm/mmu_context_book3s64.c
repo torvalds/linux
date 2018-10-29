@@ -53,6 +53,8 @@ int hash__alloc_context_id(void)
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
 
+void slb_setup_new_exec(void);
+
 static int hash__init_new_context(struct mm_struct *mm)
 {
 	int index;
@@ -82,6 +84,13 @@ static int hash__init_new_context(struct mm_struct *mm)
 
 	pkey_mm_init(mm);
 	return index;
+}
+
+void hash__setup_new_exec(void)
+{
+	slice_setup_new_exec();
+
+	slb_setup_new_exec();
 }
 
 static int radix__init_new_context(struct mm_struct *mm)

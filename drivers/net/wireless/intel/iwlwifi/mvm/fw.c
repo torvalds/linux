@@ -19,11 +19,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -304,6 +299,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	enum iwl_ucode_type old_type = mvm->fwrt.cur_fw_img;
 	static const u16 alive_cmd[] = { MVM_ALIVE };
 
+	set_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &mvm->fwrt.status);
 	if (ucode_type == IWL_UCODE_REGULAR &&
 	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
 	    !(fw_has_capa(&mvm->fw->ucode_capa,
@@ -368,12 +364,20 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 
 	memset(&mvm->queue_info, 0, sizeof(mvm->queue_info));
-	mvm->queue_info[IWL_MVM_DQA_CMD_QUEUE].hw_queue_refcount = 1;
+	/*
+	 * Set a 'fake' TID for the command queue, since we use the
+	 * hweight() of the tid_bitmap as a refcount now. Not that
+	 * we ever even consider the command queue as one we might
+	 * want to reuse, but be safe nevertheless.
+	 */
+	mvm->queue_info[IWL_MVM_DQA_CMD_QUEUE].tid_bitmap =
+		BIT(IWL_MAX_TID_COUNT + 2);
 
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);
 
 	set_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+	clear_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &mvm->fwrt.status);
 
 	return 0;
 }
@@ -704,8 +708,12 @@ static int iwl_mvm_sar_get_ewrd_table(struct iwl_mvm *mvm)
 	enabled = !!(wifi_pkg->package.elements[1].integer.value);
 	n_profiles = wifi_pkg->package.elements[2].integer.value;
 
-	/* in case of BIOS bug */
-	if (n_profiles <= 0) {
+	/*
+	 * Check the validity of n_profiles.  The EWRD profiles start
+	 * from index 1, so the maximum value allowed here is
+	 * ACPI_SAR_PROFILES_NUM - 1.
+	 */
+	if (n_profiles <= 0 || n_profiles >= ACPI_SAR_PROFILE_NUM) {
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -773,19 +781,28 @@ out_free:
 
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
-	struct iwl_dev_tx_power_cmd cmd = {
-		.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
-	};
+	union {
+		struct iwl_dev_tx_power_cmd v5;
+		struct iwl_dev_tx_power_cmd_v4 v4;
+	} cmd;
 	int i, j, idx;
 	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
-	int len = sizeof(cmd);
+	int len;
 
 	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
 	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
 		     ACPI_SAR_TABLE_SIZE);
 
-	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
-		len = sizeof(cmd.v3);
+	cmd.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS);
+
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_REDUCE_TX_POWER))
+		len = sizeof(cmd.v5);
+	else if (fw_has_capa(&mvm->fw->ucode_capa,
+			     IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
+		len = sizeof(cmd.v4);
+	else
+		len = sizeof(cmd.v4.v3);
 
 	for (i = 0; i < ACPI_SAR_NUM_CHAIN_LIMITS; i++) {
 		struct iwl_mvm_sar_profile *prof;
@@ -812,7 +829,7 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
 		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
 			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
-			cmd.v3.per_chain_restriction[i][j] =
+			cmd.v5.v3.per_chain_restriction[i][j] =
 				cpu_to_le16(prof->table[idx]);
 			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
 					j, prof->table[idx]);
@@ -1018,7 +1035,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	mvm->fwrt.dump.conf = FW_DBG_INVALID;
 	/* if we have a destination, assume EARLY START */
-	if (mvm->fw->dbg_dest_tlv)
+	if (mvm->fw->dbg.dest_tlv)
 		mvm->fwrt.dump.conf = FW_DBG_START_FROM_ALIVE;
 	iwl_fw_start_dbg_conf(&mvm->fwrt, FW_DBG_START_FROM_ALIVE);
 

@@ -256,17 +256,18 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_nat *p = to_tcf_nat(a);
 	struct tc_nat opt = {
-		.old_addr = p->old_addr,
-		.new_addr = p->new_addr,
-		.mask     = p->mask,
-		.flags    = p->flags,
-
 		.index    = p->tcf_index,
-		.action   = p->tcf_action,
 		.refcnt   = refcount_read(&p->tcf_refcnt) - ref,
 		.bindcnt  = atomic_read(&p->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
+
+	spin_lock_bh(&p->tcf_lock);
+	opt.old_addr = p->old_addr;
+	opt.new_addr = p->new_addr;
+	opt.mask = p->mask;
+	opt.flags = p->flags;
+	opt.action = p->tcf_action;
 
 	if (nla_put(skb, TCA_NAT_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -274,10 +275,12 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &p->tcf_tm);
 	if (nla_put_64bit(skb, TCA_NAT_TM, sizeof(t), &t, TCA_NAT_PAD))
 		goto nla_put_failure;
+	spin_unlock_bh(&p->tcf_lock);
 
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&p->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -292,8 +295,7 @@ static int tcf_nat_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_nat_search(struct net *net, struct tc_action **a, u32 index,
-			  struct netlink_ext_ack *extack)
+static int tcf_nat_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, nat_net_id);
 

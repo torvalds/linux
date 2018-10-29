@@ -63,8 +63,8 @@
 #include "qed_sp.h"
 #include "qed_rdma.h"
 
-#define QED_LL2_RX_REGISTERED(ll2)	((ll2)->rx_queue.b_cb_registred)
-#define QED_LL2_TX_REGISTERED(ll2)	((ll2)->tx_queue.b_cb_registred)
+#define QED_LL2_RX_REGISTERED(ll2)	((ll2)->rx_queue.b_cb_registered)
+#define QED_LL2_TX_REGISTERED(ll2)	((ll2)->tx_queue.b_cb_registered)
 
 #define QED_LL2_TX_SIZE (256)
 #define QED_LL2_RX_SIZE (4096)
@@ -796,7 +796,18 @@ qed_ooo_submit_tx_buffers(struct qed_hwfn *p_hwfn,
 		tx_pkt.vlan = p_buffer->vlan;
 		tx_pkt.bd_flags = bd_flags;
 		tx_pkt.l4_hdr_offset_w = l4_hdr_offset_w;
-		tx_pkt.tx_dest = p_ll2_conn->tx_dest;
+		switch (p_ll2_conn->tx_dest) {
+		case CORE_TX_DEST_NW:
+			tx_pkt.tx_dest = QED_LL2_TX_DEST_NW;
+			break;
+		case CORE_TX_DEST_LB:
+			tx_pkt.tx_dest = QED_LL2_TX_DEST_LB;
+			break;
+		case CORE_TX_DEST_DROP:
+		default:
+			tx_pkt.tx_dest = QED_LL2_TX_DEST_DROP;
+			break;
+		}
 		tx_pkt.first_frag = first_frag;
 		tx_pkt.first_frag_len = p_buffer->packet_length;
 		tx_pkt.cookie = p_buffer;
@@ -1404,7 +1415,7 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 				    &p_hwfn->p_ll2_info[i],
 				    &p_ll2_info->rx_queue.rx_sb_index,
 				    &p_ll2_info->rx_queue.p_fw_cons);
-		p_ll2_info->rx_queue.b_cb_registred = true;
+		p_ll2_info->rx_queue.b_cb_registered = true;
 	}
 
 	if (data->input.tx_num_desc) {
@@ -1413,7 +1424,7 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 				    &p_hwfn->p_ll2_info[i],
 				    &p_ll2_info->tx_queue.tx_sb_index,
 				    &p_ll2_info->tx_queue.p_fw_cons);
-		p_ll2_info->tx_queue.b_cb_registred = true;
+		p_ll2_info->tx_queue.b_cb_registered = true;
 	}
 
 	*data->p_connection_handle = i;
@@ -1929,7 +1940,7 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 
 	/* Stop Tx & Rx of connection, if needed */
 	if (QED_LL2_TX_REGISTERED(p_ll2_conn)) {
-		p_ll2_conn->tx_queue.b_cb_registred = false;
+		p_ll2_conn->tx_queue.b_cb_registered = false;
 		smp_wmb(); /* Make sure this is seen by ll2_lb_rxq_completion */
 		rc = qed_sp_ll2_tx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)
@@ -1940,7 +1951,7 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle)
 	}
 
 	if (QED_LL2_RX_REGISTERED(p_ll2_conn)) {
-		p_ll2_conn->rx_queue.b_cb_registred = false;
+		p_ll2_conn->rx_queue.b_cb_registered = false;
 		smp_wmb(); /* Make sure this is seen by ll2_lb_rxq_completion */
 		rc = qed_sp_ll2_rx_queue_stop(p_hwfn, p_ll2_conn);
 		if (rc)

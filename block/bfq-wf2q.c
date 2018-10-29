@@ -792,24 +792,18 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 		 * queue, remove the entity from its old weight counter (if
 		 * there is a counter associated with the entity).
 		 */
-		if (prev_weight != new_weight) {
-			if (bfqq) {
-				root = &bfqd->queue_weights_tree;
-				__bfq_weights_tree_remove(bfqd, bfqq, root);
-			} else
-				bfqd->num_active_groups--;
+		if (prev_weight != new_weight && bfqq) {
+			root = &bfqd->queue_weights_tree;
+			__bfq_weights_tree_remove(bfqd, bfqq, root);
 		}
 		entity->weight = new_weight;
 		/*
 		 * Add the entity, if it is not a weight-raised queue,
 		 * to the counter associated with its new weight.
 		 */
-		if (prev_weight != new_weight) {
-			if (bfqq && bfqq->wr_coeff == 1) {
-				/* If we get here, root has been initialized. */
-				bfq_weights_tree_add(bfqd, bfqq, root);
-			} else
-				bfqd->num_active_groups++;
+		if (prev_weight != new_weight && bfqq && bfqq->wr_coeff == 1) {
+			/* If we get here, root has been initialized. */
+			bfq_weights_tree_add(bfqd, bfqq, root);
 		}
 
 		new_st->wsum += entity->weight;

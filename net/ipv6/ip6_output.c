@@ -725,7 +725,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 			skb = frag;
 			frag = skb->next;
-			skb->next = NULL;
+			skb_mark_not_on_list(skb);
 		}
 
 		kfree(tmp_hdr);

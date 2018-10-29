@@ -42,6 +42,9 @@ config SCSI_DMA
 	bool
 	default n
 
+config SCSI_ESP_PIO
+	bool
+
 config SCSI_NETLINK
 	bool
 	default	n
@@ -556,6 +559,36 @@ config SCSI_FLASHPOINT
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
 	  substantial, so users of MultiMaster Host Adapters may not
 	  wish to include it.
+
+config SCSI_MYRB
+	tristate "Mylex DAC960/DAC1100 PCI RAID Controller (Block Interface)"
+	depends on PCI
+	select RAID_ATTRS
+	help
+	  This driver adds support for the Mylex DAC960, AcceleRAID, and
+	  eXtremeRAID PCI RAID controllers. This driver supports the
+	  older, block based interface.
+	  This driver is a reimplementation of the original DAC960
+	  driver. If you have used the DAC960 driver you should enable
+	  this module.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called myrb.
+
+config SCSI_MYRS
+	tristate "Mylex DAC960/DAC1100 PCI RAID Controller (SCSI Interface)"
+	depends on PCI
+	select RAID_ATTRS
+	help
+	  This driver adds support for the Mylex DAC960, AcceleRAID, and
+	  eXtremeRAID PCI RAID controllers.  This driver supports the
+	  newer, SCSI-based interface only.
+	  This driver is a reimplementation of the original DAC960
+	  driver. If you have used the DAC960 driver you should enable
+	  this module.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called myrs.
 
 config VMWARE_PVSCSI
 	tristate "VMware PVSCSI driver support"
@@ -1332,6 +1365,7 @@ config SCSI_ZORRO_ESP
 	tristate "Zorro ESP SCSI support"
 	depends on ZORRO && SCSI
 	select SCSI_SPI_ATTRS
+	select SCSI_ESP_PIO
 	help
 	  Support for various NCR53C9x (ESP) based SCSI controllers on Zorro
 	  expansion boards for the Amiga.
@@ -1374,6 +1408,7 @@ config SCSI_MAC_ESP
 	tristate "Macintosh NCR53c9[46] SCSI"
 	depends on MAC && SCSI
 	select SCSI_SPI_ATTRS
+	select SCSI_ESP_PIO
 	help
 	  This is the NCR 53c9x SCSI controller found on most of the 68040
 	  based Macintoshes.

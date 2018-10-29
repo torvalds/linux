@@ -132,7 +132,7 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
 	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
 
-	seq_printf(m, "\t\tSpeed: %zu bps\n", iface->speed);
+	seq_printf(m, "\tSpeed: %zu bps\n", iface->speed);
 	seq_puts(m, "\t\tCapabilities: ");
 	if (iface->rdma_capable)
 		seq_puts(m, "rdma ");
@@ -285,7 +285,7 @@ skip_rdma:
 			if ((ses->serverDomain == NULL) ||
 				(ses->serverOS == NULL) ||
 				(ses->serverNOS == NULL)) {
-				seq_printf(m, "\n%d) Name: %s Uses: %d Capability: 0x%x\tSession Status: %d\t",
+				seq_printf(m, "\n%d) Name: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
 					i, ses->serverName, ses->ses_count,
 					ses->capabilities, ses->status);
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
@@ -296,16 +296,18 @@ skip_rdma:
 				seq_printf(m,
 				    "\n%d) Name: %s  Domain: %s Uses: %d OS:"
 				    " %s\n\tNOS: %s\tCapability: 0x%x\n\tSMB"
-				    " session status: %d\t",
+				    " session status: %d ",
 				i, ses->serverName, ses->serverDomain,
 				ses->ses_count, ses->serverOS, ses->serverNOS,
 				ses->capabilities, ses->status);
 			}
 			if (server->rdma)
 				seq_printf(m, "RDMA\n\t");
-			seq_printf(m, "TCP status: %d\n\tLocal Users To "
+			seq_printf(m, "TCP status: %d Instance: %d\n\tLocal Users To "
 				   "Server: %d SecMode: 0x%x Req On Wire: %d",
-				   server->tcpStatus, server->srv_count,
+				   server->tcpStatus,
+				   server->reconnect_instance,
+				   server->srv_count,
 				   server->sec_mode, in_flight(server));
 
 #ifdef CONFIG_CIFS_STATS2
@@ -352,7 +354,7 @@ skip_rdma:
 				seq_printf(m, "\n\tServer interfaces: %zu\n",
 					   ses->iface_count);
 			for (j = 0; j < ses->iface_count; j++) {
-				seq_printf(m, "\t%d)\n", j);
+				seq_printf(m, "\t%d)", j);
 				cifs_dump_iface(m, &ses->iface_list[j]);
 			}
 			spin_unlock(&ses->iface_lock);
@@ -383,6 +385,9 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 		atomic_set(&totBufAllocCount, 0);
 		atomic_set(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
+		atomic_set(&tcpSesReconnectCount, 0);
+		atomic_set(&tconInfoReconnectCount, 0);
+
 		spin_lock(&GlobalMid_Lock);
 		GlobalMaxActiveXid = 0;
 		GlobalCurrentXid = 0;

@@ -17,7 +17,6 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/syscalls.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>

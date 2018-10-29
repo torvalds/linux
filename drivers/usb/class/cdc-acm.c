@@ -884,37 +884,28 @@ static int acm_tty_tiocmset(struct tty_struct *tty,
 	return acm_set_control(acm, acm->ctrlout = newctrl);
 }
 
-static int get_serial_info(struct acm *acm, struct serial_struct __user *info)
+static int get_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
-	struct serial_struct tmp;
+	struct acm *acm = tty->driver_data;
 
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.xmit_fifo_size = acm->writesize;
-	tmp.baud_base = le32_to_cpu(acm->line.dwDTERate);
-	tmp.close_delay	= acm->port.close_delay / 10;
-	tmp.closing_wait = acm->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+	ss->xmit_fifo_size = acm->writesize;
+	ss->baud_base = le32_to_cpu(acm->line.dwDTERate);
+	ss->close_delay	= acm->port.close_delay / 10;
+	ss->closing_wait = acm->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
 				ASYNC_CLOSING_WAIT_NONE :
 				acm->port.closing_wait / 10;
-
-	if (copy_to_user(info, &tmp, sizeof(tmp)))
-		return -EFAULT;
-	else
-		return 0;
+	return 0;
 }
 
-static int set_serial_info(struct acm *acm,
-				struct serial_struct __user *newinfo)
+static int set_serial_info(struct tty_struct *tty, struct serial_struct *ss)
 {
-	struct serial_struct new_serial;
+	struct acm *acm = tty->driver_data;
 	unsigned int closing_wait, close_delay;
 	int retval = 0;
 
-	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
-		return -EFAULT;
-
-	close_delay = new_serial.close_delay * 10;
-	closing_wait = new_serial.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
-			ASYNC_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
+	close_delay = ss->close_delay * 10;
+	closing_wait = ss->closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+			ASYNC_CLOSING_WAIT_NONE : ss->closing_wait * 10;
 
 	mutex_lock(&acm->port.mutex);
 
@@ -999,12 +990,6 @@ static int acm_tty_ioctl(struct tty_struct *tty,
 	int rv = -ENOIOCTLCMD;
 
 	switch (cmd) {
-	case TIOCGSERIAL: /* gets serial port data */
-		rv = get_serial_info(acm, (struct serial_struct __user *) arg);
-		break;
-	case TIOCSSERIAL:
-		rv = set_serial_info(acm, (struct serial_struct __user *) arg);
-		break;
 	case TIOCMIWAIT:
 		rv = usb_autopm_get_interface(acm->control);
 		if (rv < 0) {
@@ -1931,6 +1916,8 @@ static const struct tty_operations acm_ops = {
 	.set_termios =		acm_tty_set_termios,
 	.tiocmget =		acm_tty_tiocmget,
 	.tiocmset =		acm_tty_tiocmset,
+	.get_serial =		get_serial_info,
+	.set_serial =		set_serial_info,
 	.get_icount =		acm_tty_get_icount,
 };
 
