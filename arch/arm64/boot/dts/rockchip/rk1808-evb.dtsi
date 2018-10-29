@@ -270,9 +270,9 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	vdd_npu: syr837@40 {
-		compatible = "silergy,syr827";
-		reg = <0x40>;
+	vdd_npu: tcs4525@1c {
+		compatible = "tcs,tcs452x";
+		reg = <0x1c>;
 		vin-supply = <&vcc5v0_sys>;
 		regulator-compatible = "fan53555-reg";
 		pinctrl-0 = <&vsel_gpio>;
@@ -280,7 +280,7 @@
 		regulator-name = "vdd_npu";
 		regulator-min-microvolt = <750000>;
 		regulator-max-microvolt = <950000>;
-		regulator-ramp-delay = <1000>;
+		regulator-ramp-delay = <2300>;
 		fcs,suspend-voltage-selector = <0>;
 		regulator-boot-on;
 		regulator-state-mem {
