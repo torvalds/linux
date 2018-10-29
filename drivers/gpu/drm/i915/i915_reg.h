@@ -9038,6 +9038,38 @@ enum skl_power_gate {
 #define  HDCP_STATUS_CIPHER		BIT(16)
 #define  HDCP_STATUS_FRAME_CNT(x)	(((x) >> 8) & 0xff)
 
+/* HDCP2.2 Registers */
+#define _PORTA_HDCP2_BASE		0x66800
+#define _PORTB_HDCP2_BASE		0x66500
+#define _PORTC_HDCP2_BASE		0x66600
+#define _PORTD_HDCP2_BASE		0x66700
+#define _PORTE_HDCP2_BASE		0x66A00
+#define _PORTF_HDCP2_BASE		0x66900
+#define _PORT_HDCP2_BASE(port, x)	_MMIO(_PICK((port), \
+					  _PORTA_HDCP2_BASE, \
+					  _PORTB_HDCP2_BASE, \
+					  _PORTC_HDCP2_BASE, \
+					  _PORTD_HDCP2_BASE, \
+					  _PORTE_HDCP2_BASE, \
+					  _PORTF_HDCP2_BASE) + (x))
+
+#define HDCP2_AUTH_DDI(port)		_PORT_HDCP2_BASE(port, 0x98)
+#define   AUTH_LINK_AUTHENTICATED	BIT(31)
+#define   AUTH_LINK_TYPE		BIT(30)
+#define   AUTH_FORCE_CLR_INPUTCTR	BIT(19)
+#define   AUTH_CLR_KEYS			BIT(18)
+
+#define HDCP2_CTL_DDI(port)		_PORT_HDCP2_BASE(port, 0xB0)
+#define   CTL_LINK_ENCRYPTION_REQ	BIT(31)
+
+#define HDCP2_STATUS_DDI(port)		_PORT_HDCP2_BASE(port, 0xB4)
+#define   STREAM_ENCRYPTION_STATUS_A	BIT(31)
+#define   STREAM_ENCRYPTION_STATUS_B	BIT(30)
+#define   STREAM_ENCRYPTION_STATUS_C	BIT(29)
+#define   LINK_TYPE_STATUS		BIT(22)
+#define   LINK_AUTH_STATUS		BIT(21)
+#define   LINK_ENCRYPTION_STATUS	BIT(20)
+
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400
 #define _TRANS_DDI_FUNC_CTL_B		0x61400
