@@ -73,6 +73,7 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 extern int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int);
 
 static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
+						     unsigned int flags,
 						     unsigned int cpu)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
@@ -84,7 +85,7 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *
 							  unsigned int hctx_type,
 							  unsigned int cpu)
 {
-	return blk_mq_map_queue(q, cpu);
+	return blk_mq_map_queue(q, hctx_type, cpu);
 }
 
 /*
@@ -135,6 +136,7 @@ struct blk_mq_alloc_data {
 	struct request_queue *q;
 	blk_mq_req_flags_t flags;
 	unsigned int shallow_depth;
+	unsigned int cmd_flags;
 
 	/* input & output parameter */
 	struct blk_mq_ctx *ctx;
@@ -209,7 +211,7 @@ static inline void blk_mq_put_driver_tag(struct request *rq)
 	if (rq->tag == -1 || rq->internal_tag == -1)
 		return;
 
-	hctx = blk_mq_map_queue(rq->q, rq->mq_ctx->cpu);
+	hctx = blk_mq_map_queue(rq->q, rq->cmd_flags, rq->mq_ctx->cpu);
 	__blk_mq_put_driver_tag(hctx, rq);
 }
 

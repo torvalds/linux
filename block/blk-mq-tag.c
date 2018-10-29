@@ -168,7 +168,8 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		io_schedule();
 
 		data->ctx = blk_mq_get_ctx(data->q);
-		data->hctx = blk_mq_map_queue(data->q, data->ctx->cpu);
+		data->hctx = blk_mq_map_queue(data->q, data->cmd_flags,
+						data->ctx->cpu);
 		tags = blk_mq_tags_from_data(data);
 		if (data->flags & BLK_MQ_REQ_RESERVED)
 			bt = &tags->breserved_tags;
@@ -530,7 +531,7 @@ u32 blk_mq_unique_tag(struct request *rq)
 	struct blk_mq_hw_ctx *hctx;
 	int hwq = 0;
 
-	hctx = blk_mq_map_queue(q, rq->mq_ctx->cpu);
+	hctx = blk_mq_map_queue(q, rq->cmd_flags, rq->mq_ctx->cpu);
 	hwq = hctx->queue_num;
 
 	return (hwq << BLK_MQ_UNIQUE_TAG_BITS) |

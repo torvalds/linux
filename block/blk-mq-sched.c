@@ -310,7 +310,7 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx->cpu);
 	bool ret = false;
 
 	if (e && e->type->ops.bio_merge) {
@@ -366,7 +366,9 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	struct blk_mq_hw_ctx *hctx;
+
+	hctx = blk_mq_map_queue(q, rq->cmd_flags, ctx->cpu);
 
 	/* flush rq in flush machinery need to be dispatched directly */
 	if (!(rq->rq_flags & RQF_FLUSH_SEQ) && op_is_flush(rq->cmd_flags)) {
@@ -399,9 +401,15 @@ void blk_mq_sched_insert_requests(struct request_queue *q,
 				  struct blk_mq_ctx *ctx,
 				  struct list_head *list, bool run_queue_async)
 {
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
-	struct elevator_queue *e = hctx->queue->elevator;
+	struct blk_mq_hw_ctx *hctx;
+	struct elevator_queue *e;
+	struct request *rq;
 
+	/* For list inserts, requests better be on the same hw queue */
+	rq = list_first_entry(list, struct request, queuelist);
+	hctx = blk_mq_map_queue(q, rq->cmd_flags, ctx->cpu);
+
+	e = hctx->queue->elevator;
 	if (e && e->type->ops.insert_requests)
 		e->type->ops.insert_requests(hctx, list, false);
 	else {
