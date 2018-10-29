@@ -354,7 +354,6 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 		}
 
 		/* Update size of the MTD. */
-		chip->numchips++;
 		memorg->ntargets++;
 		mtd->size += nanddev_target_size(&chip->base);
 	}

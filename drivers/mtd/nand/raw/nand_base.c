@@ -240,10 +240,10 @@ static int check_offs_len(struct nand_chip *chip, loff_t ofs, uint64_t len)
 void nand_select_target(struct nand_chip *chip, unsigned int cs)
 {
 	/*
-	 * cs should always lie between 0 and chip->numchips, when that's not
-	 * the case it's a bug and the caller should be fixed.
+	 * cs should always lie between 0 and nanddev_ntargets(), when that's
+	 * not the case it's a bug and the caller should be fixed.
 	 */
-	if (WARN_ON(cs > chip->numchips))
+	if (WARN_ON(cs > nanddev_ntargets(&chip->base)))
 		return;
 
 	chip->cur_cs = cs;
@@ -4999,12 +4999,6 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	if (!mtd->name && mtd->dev.parent)
 		mtd->name = dev_name(mtd->dev.parent);
 
-	/*
-	 * Start with chips->numchips = maxchips to let nand_select_target() do
-	 * its job. chip->numchips will be adjusted after.
-	 */
-	chip->numchips = maxchips;
-
 	/* Set the default functions */
 	nand_set_defaults(chip);
 
@@ -5052,7 +5046,6 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 
 	/* Store the number of chips and calc total size for mtd */
 	memorg->ntargets = i;
-	chip->numchips = i;
 	mtd->size = i * nanddev_target_size(&chip->base);
 
 	return 0;
@@ -5794,7 +5787,7 @@ static int nand_scan_tail(struct nand_chip *chip)
 		goto err_nanddev_cleanup;
 
 	/* Enter fastest possible mode on all dies. */
-	for (i = 0; i < chip->numchips; i++) {
+	for (i = 0; i < nanddev_ntargets(&chip->base); i++) {
 		ret = nand_setup_data_interface(chip, i);
 		if (ret)
 			goto err_nanddev_cleanup;

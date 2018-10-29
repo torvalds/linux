@@ -849,7 +849,7 @@ static int hisi_nfc_resume(struct device *dev)
 	struct hinfc_host *host = dev_get_drvdata(dev);
 	struct nand_chip *chip = &host->chip;
 
-	for (cs = 0; cs < chip->numchips; cs++)
+	for (cs = 0; cs < nanddev_ntargets(&chip->base); cs++)
 		hisi_nfc_send_cmd_reset(host, cs);
 	hinfc_write(host, SET_HINFC504_PWIDTH(HINFC504_W_LATCH,
 		    HINFC504_R_LATCH, HINFC504_RW_LATCH), HINFC504_PWIDTH);

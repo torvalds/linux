@@ -1002,7 +1002,6 @@ struct nand_legacy {
  *			      set to the actually used ONFI mode if the chip is
  *			      ONFI compliant or deduced from the datasheet if
  *			      the NAND chip is not ONFI compliant.
- * @numchips:		[INTERN] number of physical chips
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
  * @data_buf:		[INTERN] buffer for data, size is (page size + oobsize).
  * @pagecache:		Structure containing page cache related fields
@@ -1016,8 +1015,9 @@ struct nand_legacy {
  * @data_interface:	[INTERN] NAND interface timing information
  * @cur_cs:		currently selected target. -1 means no target selected,
  *			otherwise we should always have cur_cs >= 0 &&
- *			cur_cs < numchips. NAND Controller drivers should not
- *			modify this value, but they're allowed to read it.
+ *			cur_cs < nanddev_ntargets(). NAND Controller drivers
+ *			should not modify this value, but they're allowed to
+ *			read it.
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @lock:		lock protecting the suspended field. Also used to
  *			serialize accesses to the NAND device.
@@ -1051,7 +1051,6 @@ struct nand_chip {
 	int phys_erase_shift;
 	int bbt_erase_shift;
 	int chip_shift;
-	int numchips;
 	int pagemask;
 	u8 *data_buf;
 

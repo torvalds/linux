@@ -1291,7 +1291,7 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 	struct doc_priv *doc = nand_get_controller_data(this);
 	struct mtd_partition parts[5];
 
-	if (this->numchips > doc->chips_per_floor) {
+	if (nanddev_ntargets(&this->base) > doc->chips_per_floor) {
 		pr_err("Multi-floor INFTL devices not yet supported.\n");
 		return -EIO;
 	}
