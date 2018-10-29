@@ -222,4 +222,32 @@ struct hdcp2_dp_errata_stream_type {
 	u8	stream_type;
 } __packed;
 
+/* HDCP2.2 TIMEOUTs in mSec */
+#define HDCP_2_2_CERT_TIMEOUT_MS		100
+#define HDCP_2_2_HPRIME_NO_PAIRED_TIMEOUT_MS	1000
+#define HDCP_2_2_HPRIME_PAIRED_TIMEOUT_MS	200
+#define HDCP_2_2_PAIRING_TIMEOUT_MS		200
+#define	HDCP_2_2_HDMI_LPRIME_TIMEOUT_MS		20
+#define HDCP_2_2_DP_LPRIME_TIMEOUT_MS		7
+#define HDCP_2_2_RECVID_LIST_TIMEOUT_MS		3000
+#define HDCP_2_2_STREAM_READY_TIMEOUT_MS	100
+
+/* HDMI HDCP2.2 Register Offsets */
+#define HDCP_2_2_HDMI_REG_VER_OFFSET		0x50
+#define HDCP_2_2_HDMI_REG_WR_MSG_OFFSET		0x60
+#define HDCP_2_2_HDMI_REG_RXSTATUS_OFFSET	0x70
+#define HDCP_2_2_HDMI_REG_RD_MSG_OFFSET		0x80
+#define HDCP_2_2_HDMI_REG_DBG_OFFSET		0xC0
+
+#define HDCP_2_2_HDMI_SUPPORT_MASK		BIT(2)
+#define HDCP_2_2_RX_CAPS_VERSION_VAL		0x02
+#define HDCP_2_2_SEQ_NUM_MAX			0xFFFFFF
+#define	HDCP_2_2_DELAY_BEFORE_ENCRYPTION_EN	200
+
+/* Below macros take a byte at a time and mask the bit(s) */
+#define HDCP_2_2_HDMI_RXSTATUS_LEN		2
+#define HDCP_2_2_HDMI_RXSTATUS_MSG_SZ_HI(x)	((x) & 0x3)
+#define HDCP_2_2_HDMI_RXSTATUS_READY(x)		((x) & BIT(2))
+#define HDCP_2_2_HDMI_RXSTATUS_REAUTH_REQ(x)	((x) & BIT(3))
+
 #endif
