@@ -560,7 +560,9 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
-	if (IS_GEN9_LP(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 11)
+		mask |= DC_STATE_EN_UPTO_DC6 | DC_STATE_EN_DC9;
+	else if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
 	else
 		mask |= DC_STATE_EN_UPTO_DC6;
@@ -633,8 +635,13 @@ void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 	assert_can_enable_dc9(dev_priv);
 
 	DRM_DEBUG_KMS("Enabling DC9\n");
-
-	intel_power_sequencer_reset(dev_priv);
+	/*
+	 * Power sequencer reset is not needed on
+	 * platforms with South Display Engine on PCH,
+	 * because PPS registers are always on.
+	 */
+	if (!HAS_PCH_SPLIT(dev_priv))
+		intel_power_sequencer_reset(dev_priv);
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_DC9);
 }
 
@@ -716,7 +723,7 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 	assert_csr_loaded(dev_priv);
 }
 
-static void skl_enable_dc6(struct drm_i915_private *dev_priv)
+void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc6(dev_priv);
 
@@ -2978,16 +2985,19 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (IS_GEN9_BC(dev_priv) || INTEL_INFO(dev_priv)->gen >= 10) {
+	if (INTEL_GEN(dev_priv) >= 11) {
 		max_dc = 2;
-		mask = 0;
-	} else if (IS_GEN9_LP(dev_priv)) {
-		max_dc = 1;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,
 		 * not depending on the DMC firmware. It's needed by system
 		 * suspend/resume, so allow it unconditionally.
 		 */
+		mask = DC_STATE_EN_DC9;
+	} else if (IS_GEN10(dev_priv) || IS_GEN9_BC(dev_priv)) {
+		max_dc = 2;
+		mask = 0;
+	} else if (IS_GEN9_LP(dev_priv)) {
+		max_dc = 1;
 		mask = DC_STATE_EN_DC9;
 	} else {
 		max_dc = 0;
@@ -3539,8 +3549,8 @@ static void cnl_display_core_uninit(struct drm_i915_private *dev_priv)
 	I915_WRITE(CHICKEN_MISC_2, val);
 }
 
-static void icl_display_core_init(struct drm_i915_private *dev_priv,
-				  bool resume)
+void icl_display_core_init(struct drm_i915_private *dev_priv,
+			   bool resume)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;
@@ -3592,7 +3602,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		intel_csr_load_program(dev_priv);
 }
 
-static void icl_display_core_uninit(struct drm_i915_private *dev_priv)
+void icl_display_core_uninit(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	struct i915_power_well *well;

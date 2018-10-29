@@ -2152,7 +2152,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_resume_early(dev_priv);
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv)) {
 		gen9_sanitize_dc_state(dev_priv);
 		bxt_disable_dc9(dev_priv);
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
@@ -2919,7 +2919,10 @@ static int intel_runtime_suspend(struct device *kdev)
 	intel_uncore_suspend(dev_priv);
 
 	ret = 0;
-	if (IS_GEN9_LP(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		icl_display_core_uninit(dev_priv);
+		bxt_enable_dc9(dev_priv);
+	} else if (IS_GEN9_LP(dev_priv)) {
 		bxt_display_core_uninit(dev_priv);
 		bxt_enable_dc9(dev_priv);
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
@@ -3004,7 +3007,18 @@ static int intel_runtime_resume(struct device *kdev)
 	if (intel_uncore_unclaimed_mmio(dev_priv))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
-	if (IS_GEN9_LP(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11) {
+		bxt_disable_dc9(dev_priv);
+		icl_display_core_init(dev_priv, true);
+		if (dev_priv->csr.dmc_payload) {
+			if (dev_priv->csr.allowed_dc_mask &
+			    DC_STATE_EN_UPTO_DC6)
+				skl_enable_dc6(dev_priv);
+			else if (dev_priv->csr.allowed_dc_mask &
+				 DC_STATE_EN_UPTO_DC5)
+				gen9_enable_dc5(dev_priv);
+		}
+	} else if (IS_GEN9_LP(dev_priv)) {
 		bxt_disable_dc9(dev_priv);
 		bxt_display_core_init(dev_priv, true);
 		if (dev_priv->csr.dmc_payload &&
