@@ -43,6 +43,10 @@ struct cc_hw_data {
 
 /* Hardware revisions defs. */
 
+static const struct cc_hw_data cc713_hw = {
+	.name = "713", .rev = CC_HW_REV_713
+};
+
 static const struct cc_hw_data cc712_hw = {
 	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U
 };
@@ -56,6 +60,7 @@ static const struct cc_hw_data cc630p_hw = {
 };
 
 static const struct of_device_id arm_ccree_dev_of_match[] = {
+	{ .compatible = "arm,cryptocell-713-ree", .data = &cc713_hw },
 	{ .compatible = "arm,cryptocell-712-ree", .data = &cc712_hw },
 	{ .compatible = "arm,cryptocell-710-ree", .data = &cc710_hw },
 	{ .compatible = "arm,cryptocell-630p-ree", .data = &cc630p_hw },
@@ -297,15 +302,17 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		return rc;
 	}
 
-	/* Verify correct mapping */
-	signature_val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
-	if (signature_val != hw_rev->sig) {
-		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-			signature_val, hw_rev->sig);
-		rc = -EINVAL;
-		goto post_clk_err;
+	if (hw_rev->rev <= CC_HW_REV_712) {
+		/* Verify correct mapping */
+		signature_val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
+		if (signature_val != hw_rev->sig) {
+			dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
+				signature_val, hw_rev->sig);
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+		dev_dbg(dev, "CC SIGNATURE=0x%08X\n", signature_val);
 	}
-	dev_dbg(dev, "CC SIGNATURE=0x%08X\n", signature_val);
 
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",

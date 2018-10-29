@@ -765,7 +765,7 @@ config CRYPTO_DEV_CCREE
 	help
 	  Say 'Y' to enable a driver for the REE interface of the Arm
 	  TrustZone CryptoCell family of processors. Currently the
-	  CryptoCell 712, 710 and 630 are supported.
+	  CryptoCell 713, 712, 710 and 630 are supported.
 	  Choose this if you wish to use hardware acceleration of
 	  cryptographic operations on the system REE.
 	  If unsure say Y.

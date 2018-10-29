@@ -36,12 +36,13 @@
 extern bool cc_dump_desc;
 extern bool cc_dump_bytes;
 
-#define DRV_MODULE_VERSION "4.0"
+#define DRV_MODULE_VERSION "5.0"
 
 enum cc_hw_rev {
 	CC_HW_REV_630 = 630,
 	CC_HW_REV_710 = 710,
-	CC_HW_REV_712 = 712
+	CC_HW_REV_712 = 712,
+	CC_HW_REV_713 = 713
 };
 
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
