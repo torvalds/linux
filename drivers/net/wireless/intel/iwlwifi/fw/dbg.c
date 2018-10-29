@@ -1678,19 +1678,19 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt,
 			     struct iwl_fw_ini_allocation_tlv *alloc)
 {
 	struct iwl_trans *trans = fwrt->trans;
-	struct iwl_continuous_record_cmd cont_rec = {};
-	struct iwl_buffer_allocation_cmd *cmd = (void *)&cont_rec.pad[0];
+	struct iwl_ldbg_config_cmd ldbg_cmd = {
+		.type = cpu_to_le32(BUFFER_ALLOCATION),
+	};
+	struct iwl_buffer_allocation_cmd *cmd = &ldbg_cmd.buffer_allocation;
 	struct iwl_host_cmd hcmd = {
 		.id = LDBG_CONFIG_CMD,
 		.flags = CMD_ASYNC,
-		.data[0] = &cont_rec,
-		.len[0] = sizeof(cont_rec),
+		.data[0] = &ldbg_cmd,
+		.len[0] = sizeof(ldbg_cmd),
 	};
 	void *virtual_addr = NULL;
 	u32 size = le32_to_cpu(alloc->size);
 	dma_addr_t phys_addr;
-
-	cont_rec.record_mode.enable_recording = cpu_to_le16(BUFFER_ALLOCATION);
 
 	if (!trans->num_blocks &&
 	    le32_to_cpu(alloc->buffer_location) !=

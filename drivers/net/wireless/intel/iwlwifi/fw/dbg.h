@@ -271,17 +271,16 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 
 static int iwl_fw_dbg_start_stop_hcmd(struct iwl_fw_runtime *fwrt, bool start)
 {
-	struct iwl_continuous_record_cmd cont_rec = {};
+	struct iwl_ldbg_config_cmd cmd = {
+		.type = start ? cpu_to_le32(START_DEBUG_RECORDING) :
+				cpu_to_le32(STOP_DEBUG_RECORDING),
+	};
 	struct iwl_host_cmd hcmd = {
 		.id = LDBG_CONFIG_CMD,
 		.flags = CMD_ASYNC,
-		.data[0] = &cont_rec,
-		.len[0] = sizeof(cont_rec),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
 	};
-
-	cont_rec.record_mode.enable_recording = start ?
-		cpu_to_le16(START_DEBUG_RECORDING) :
-		cpu_to_le16(STOP_DEBUG_RECORDING);
 
 	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }

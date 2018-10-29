@@ -737,6 +737,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		trans_cfg.rx_buf_size = rb_size_default;
 	}
 
+	BUILD_BUG_ON(sizeof(struct iwl_ldbg_config_cmd) !=
+		     LDBG_CFG_COMMAND_SIZE);
+
 	trans->wide_cmd_header = true;
 	trans_cfg.bc_table_dword =
 		mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560;
