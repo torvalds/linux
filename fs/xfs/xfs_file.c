@@ -920,27 +920,19 @@ out_unlock:
 }
 
 STATIC int
-xfs_file_clone_range(
+xfs_file_remap_range(
 	struct file	*file_in,
 	loff_t		pos_in,
 	struct file	*file_out,
 	loff_t		pos_out,
-	u64		len)
+	u64		len,
+	unsigned int	remap_flags)
 {
-	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-				     len, false);
-}
+	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
+		return -EINVAL;
 
-STATIC int
-xfs_file_dedupe_range(
-	struct file	*file_in,
-	loff_t		pos_in,
-	struct file	*file_out,
-	loff_t		pos_out,
-	u64		len)
-{
 	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-				     len, true);
+			len, remap_flags & REMAP_FILE_DEDUP);
 }
 
 STATIC int
@@ -1175,8 +1167,7 @@ const struct file_operations xfs_file_operations = {
 	.fsync		= xfs_file_fsync,
 	.get_unmapped_area = thp_get_unmapped_area,
 	.fallocate	= xfs_file_fallocate,
-	.clone_file_range = xfs_file_clone_range,
-	.dedupe_file_range = xfs_file_dedupe_range,
+	.remap_file_range = xfs_file_remap_range,
 };
 
 const struct file_operations xfs_dir_file_operations = {

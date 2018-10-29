@@ -1588,9 +1588,9 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	 * Try cloning first, this is supported by more file systems, and
 	 * more efficient if both clone and copy are supported (e.g. NFS).
 	 */
-	if (file_in->f_op->clone_file_range) {
-		ret = file_in->f_op->clone_file_range(file_in, pos_in,
-				file_out, pos_out, len);
+	if (file_in->f_op->remap_file_range) {
+		ret = file_in->f_op->remap_file_range(file_in, pos_in,
+				file_out, pos_out, len, 0);
 		if (ret == 0) {
 			ret = len;
 			goto done;
@@ -1849,7 +1849,7 @@ int do_clone_file_range(struct file *file_in, loff_t pos_in,
 	    (file_out->f_flags & O_APPEND))
 		return -EBADF;
 
-	if (!file_in->f_op->clone_file_range)
+	if (!file_in->f_op->remap_file_range)
 		return -EOPNOTSUPP;
 
 	ret = remap_verify_area(file_in, pos_in, len, false);
@@ -1860,8 +1860,8 @@ int do_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (ret)
 		return ret;
 
-	ret = file_in->f_op->clone_file_range(file_in, pos_in,
-			file_out, pos_out, len);
+	ret = file_in->f_op->remap_file_range(file_in, pos_in,
+			file_out, pos_out, len, 0);
 	if (!ret) {
 		fsnotify_access(file_in);
 		fsnotify_modify(file_out);
@@ -2006,7 +2006,7 @@ int vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 		goto out_drop_write;
 
 	ret = -EINVAL;
-	if (!dst_file->f_op->dedupe_file_range)
+	if (!dst_file->f_op->remap_file_range)
 		goto out_drop_write;
 
 	if (len == 0) {
@@ -2014,8 +2014,8 @@ int vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 		goto out_drop_write;
 	}
 
-	ret = dst_file->f_op->dedupe_file_range(src_file, src_pos,
-						dst_file, dst_pos, len);
+	ret = dst_file->f_op->remap_file_range(src_file, src_pos, dst_file,
+			dst_pos, len, REMAP_FILE_DEDUP);
 out_drop_write:
 	mnt_drop_write_file(dst_file);
 
