@@ -146,7 +146,7 @@
 &ecspi4 {
 	status = "okay";
 
-	mcp251x0: mcp251x@1 {
+	mcp251x0: mcp251x@0 {
 		compatible = "microchip,mcp2515";
 		reg = <0>;
 		clocks = <&clk16m>;

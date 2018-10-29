@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// SPDX-License-Identifier: GPL-2.0 OR X11
 /*
  * Copyright (C) 2017 Engicam S.r.l.
  * Copyright (C) 2017 Amarula Solutions B.V.
@@ -8,10 +8,10 @@
 /dts-v1/;
 
 #include "imx6q.dtsi"
-#include "imx6qdl-icore.dtsi"
+#include "imx6qdl-icore-1.5.dtsi"
 
 / {
-	model = "Engicam i.CoreM6 Quad/Dual MIPI Starter Kit";
+	model = "Engicam i.CoreM6 1.5 Quad/Dual MIPI Starter Kit";
 	compatible = "engicam,imx6-icore", "fsl,imx6q";
 };
 

@@ -947,7 +947,7 @@
 			dma-requests = <48>;
 		};
 
-		qspi: qspi@58003000 {
+		qspi: spi@58003000 {
 			compatible = "st,stm32f469-qspi";
 			reg = <0x58003000 0x1000>, <0x70000000 0x10000000>;
 			reg-names = "qspi", "qspi_mm";

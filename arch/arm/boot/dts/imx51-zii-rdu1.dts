@@ -508,7 +508,7 @@
 	};
 
 	ds1341: rtc@68 {
-		compatible = "maxim,ds1341";
+		compatible = "dallas,ds1341";
 		reg = <0x68>;
 	};
 

@@ -16,7 +16,7 @@
 	compatible = "marvell,armada3720", "marvell,armada3710";
 
 	cpus {
-		cpu@1 {
+		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x1>;
