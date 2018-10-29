@@ -191,9 +191,6 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
-	mt76_wr(dev, MT_HEADER_TRANS_CTRL_REG, 0);
-	mt76_wr(dev, MT_TSO_CTRL, 0);
-
 	mt76x2u_init_dma(dev);
 
 	err = mt76x2u_mcu_init(dev);
