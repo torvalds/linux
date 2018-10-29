@@ -312,7 +312,7 @@ static int soc_camera_enum_input(struct file *file, void *priv,
 	/* default is camera */
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = icd->vdev->tvnorms;
-	strcpy(inp->name, "Camera");
+	strscpy(inp->name, "Camera", sizeof(inp->name));
 
 	return 0;
 }
@@ -874,7 +874,7 @@ static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 	format = icd->user_formats[f->index].host_fmt;
 
 	if (format->name)
-		strlcpy(f->description, format->name, sizeof(f->description));
+		strscpy(f->description, format->name, sizeof(f->description));
 	f->pixelformat = format->fourcc;
 	return 0;
 }
@@ -910,7 +910,7 @@ static int soc_camera_querycap(struct file *file, void  *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	strlcpy(cap->driver, ici->drv_name, sizeof(cap->driver));
+	strscpy(cap->driver, ici->drv_name, sizeof(cap->driver));
 	return ici->ops->querycap(ici, cap);
 }
 
@@ -1442,8 +1442,14 @@ static int scan_async_group(struct soc_camera_host *ici,
 		goto eaddpdev;
 	}
 
-	sasc->notifier.subdevs = asd;
-	sasc->notifier.num_subdevs = size;
+	v4l2_async_notifier_init(&sasc->notifier);
+
+	for (i = 0; i < size; i++) {
+		ret = v4l2_async_notifier_add_subdev(&sasc->notifier, asd[i]);
+		if (ret)
+			goto eaddasd;
+	}
+
 	sasc->notifier.ops = &soc_camera_async_ops;
 
 	icd->sasc = sasc;
@@ -1466,6 +1472,8 @@ static int scan_async_group(struct soc_camera_host *ici,
 	v4l2_clk_unregister(icd->clk);
 eclkreg:
 	icd->clk = NULL;
+eaddasd:
+	v4l2_async_notifier_cleanup(&sasc->notifier);
 	platform_device_del(sasc->pdev);
 eaddpdev:
 	platform_device_put(sasc->pdev);
@@ -1540,8 +1548,14 @@ static int soc_of_bind(struct soc_camera_host *ici,
 		goto eaddpdev;
 	}
 
-	sasc->notifier.subdevs = &info->subdev;
-	sasc->notifier.num_subdevs = 1;
+	v4l2_async_notifier_init(&sasc->notifier);
+
+	ret = v4l2_async_notifier_add_subdev(&sasc->notifier, info->subdev);
+	if (ret) {
+		of_node_put(remote);
+		goto eaddasd;
+	}
+
 	sasc->notifier.ops = &soc_camera_async_ops;
 
 	icd->sasc = sasc;
@@ -1568,6 +1582,8 @@ static int soc_of_bind(struct soc_camera_host *ici,
 	v4l2_clk_unregister(icd->clk);
 eclkreg:
 	icd->clk = NULL;
+eaddasd:
+	v4l2_async_notifier_cleanup(&sasc->notifier);
 	platform_device_del(sasc->pdev);
 eaddpdev:
 	platform_device_put(sasc->pdev);
@@ -1582,7 +1598,7 @@ static void scan_of_host(struct soc_camera_host *ici)
 {
 	struct device *dev = ici->v4l2_dev.dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *epn = NULL, *ren;
+	struct device_node *epn = NULL, *rem;
 	unsigned int i;
 
 	for (i = 0; ; i++) {
@@ -1590,17 +1606,15 @@ static void scan_of_host(struct soc_camera_host *ici)
 		if (!epn)
 			break;
 
-		ren = of_graph_get_remote_port(epn);
-		if (!ren) {
+		rem = of_graph_get_remote_port_parent(epn);
+		if (!rem) {
 			dev_notice(dev, "no remote for %pOF\n", epn);
 			continue;
 		}
 
 		/* so we now have a remote node to connect */
 		if (!i)
-			soc_of_bind(ici, epn, ren->parent);
-
-		of_node_put(ren);
+			soc_of_bind(ici, epn, rem);
 
 		if (i) {
 			dev_err(dev, "multiple subdevices aren't supported yet!\n");
@@ -1926,6 +1940,7 @@ void soc_camera_host_unregister(struct soc_camera_host *ici)
 	list_for_each_entry(sasc, &notifiers, list) {
 		/* Must call unlocked to avoid AB-BA dead-lock */
 		v4l2_async_notifier_unregister(&sasc->notifier);
+		v4l2_async_notifier_cleanup(&sasc->notifier);
 		put_device(&sasc->pdev->dev);
 	}
 
@@ -2026,7 +2041,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 	if (!vdev)
 		return -ENOMEM;
 
-	strlcpy(vdev->name, ici->drv_name, sizeof(vdev->name));
+	strscpy(vdev->name, ici->drv_name, sizeof(vdev->name));
 
 	vdev->v4l2_dev		= &ici->v4l2_dev;
 	vdev->fops		= &soc_camera_fops;

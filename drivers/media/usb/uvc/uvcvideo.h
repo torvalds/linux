@@ -234,7 +234,7 @@ struct uvc_control_mapping {
 	enum v4l2_ctrl_type v4l2_type;
 	u32 data_type;
 
-	struct uvc_menu_info *menu_info;
+	const struct uvc_menu_info *menu_info;
 	u32 menu_count;
 
 	u32 master_id;
@@ -572,14 +572,20 @@ struct uvc_streaming {
 	} clock;
 };
 
+struct uvc_device_info {
+	u32	quirks;
+	u32	meta_format;
+};
+
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
 	unsigned long warnings;
 	u32 quirks;
-	u32 meta_format;
 	int intfnum;
 	char name[32];
+
+	const struct uvc_device_info *info;
 
 	struct mutex lock;		/* Protects users */
 	unsigned int users;

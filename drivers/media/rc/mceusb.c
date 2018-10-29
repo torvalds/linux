@@ -1078,7 +1078,7 @@ static int mceusb_set_rx_carrier_report(struct rc_dev *dev, int enable)
  */
 static void mceusb_handle_command(struct mceusb_dev *ir, int index)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	u8 hi = ir->buf_in[index + 1] & 0xff;
 	u8 lo = ir->buf_in[index + 2] & 0xff;
 	u32 carrier_cycles;
@@ -1152,7 +1152,7 @@ static void mceusb_handle_command(struct mceusb_dev *ir, int index)
 
 static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	bool event = false;
 	int i = 0;
 
@@ -1175,7 +1175,6 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			break;
 		case PARSE_IRDATA:
 			ir->rem--;
-			init_ir_raw_event(&rawir);
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK);
 			if (unlikely(!rawir.duration)) {
@@ -1215,11 +1214,13 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			if (ir->rem) {
 				ir->parser_state = PARSE_IRDATA;
 			} else {
-				init_ir_raw_event(&rawir);
-				rawir.timeout = 1;
-				rawir.duration = ir->rc->timeout;
+				struct ir_raw_event ev = {
+					.timeout = 1,
+					.duration = ir->rc->timeout
+				};
+
 				if (ir_raw_event_store_with_filter(ir->rc,
-								   &rawir))
+								   &ev))
 					event = true;
 				ir->pulse_tunit = 0;
 				ir->pulse_count = 0;
@@ -1603,7 +1604,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 	if (dev->descriptor.iManufacturer
 	    && usb_string(dev, dev->descriptor.iManufacturer,
 			  buf, sizeof(buf)) > 0)
-		strlcpy(name, buf, sizeof(name));
+		strscpy(name, buf, sizeof(name));
 	if (dev->descriptor.iProduct
 	    && usb_string(dev, dev->descriptor.iProduct,
 			  buf, sizeof(buf)) > 0)

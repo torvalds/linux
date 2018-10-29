@@ -101,4 +101,4 @@ Compressed Formats
       - 'FWHT'
       - Video elementary stream using a codec based on the Fast Walsh Hadamard
         Transform. This codec is implemented by the vicodec ('Virtual Codec')
-	driver. See the vicodec-codec.h header for more details.
+	driver. See the codec-fwht.h header for more details.

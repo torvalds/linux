@@ -194,7 +194,7 @@ int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int nonblocking)
 	spin_lock_init(&ctx->slock);
 	INIT_LIST_HEAD(&ctx->dvb_q);
 
-	strlcpy(ctx->name, name, DVB_VB2_NAME_MAX);
+	strscpy(ctx->name, name, DVB_VB2_NAME_MAX);
 	ctx->nonblocking = nonblocking;
 	ctx->state = DVB_VB2_STATE_INIT;
 

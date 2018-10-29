@@ -219,12 +219,12 @@ static int cpia2_querycap(struct file *file, void *fh, struct v4l2_capability *v
 {
 	struct camera_data *cam = video_drvdata(file);
 
-	strcpy(vc->driver, "cpia2");
+	strscpy(vc->driver, "cpia2", sizeof(vc->driver));
 
 	if (cam->params.pnp_id.product == 0x151)
-		strcpy(vc->card, "QX5 Microscope");
+		strscpy(vc->card, "QX5 Microscope", sizeof(vc->card));
 	else
-		strcpy(vc->card, "CPiA2 Camera");
+		strscpy(vc->card, "CPiA2 Camera", sizeof(vc->card));
 	switch (cam->params.pnp_id.device_type) {
 	case DEVICE_STV_672:
 		strcat(vc->card, " (672/");
@@ -281,7 +281,7 @@ static int cpia2_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 {
 	if (i->index)
 		return -EINVAL;
-	strcpy(i->name, "Camera");
+	strscpy(i->name, "Camera", sizeof(i->name));
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	return 0;
 }
@@ -319,11 +319,11 @@ static int cpia2_enum_fmt_vid_cap(struct file *file, void *fh,
 	f->flags = V4L2_FMT_FLAG_COMPRESSED;
 	switch(index) {
 	case 0:
-		strcpy(f->description, "MJPEG");
+		strscpy(f->description, "MJPEG", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
 		break;
 	case 1:
-		strcpy(f->description, "JPEG");
+		strscpy(f->description, "JPEG", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_JPEG;
 		break;
 	default:

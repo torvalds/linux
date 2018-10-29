@@ -1041,8 +1041,8 @@ static int vidioc_querycap(struct file *file, void *fh,
 {
 	struct omap_vout_device *vout = fh;
 
-	strlcpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, vout->vfd->name, sizeof(cap->card));
+	strscpy(cap->driver, VOUT_NAME, sizeof(cap->driver));
+	strscpy(cap->card, vout->vfd->name, sizeof(cap->card));
 	cap->bus_info[0] = '\0';
 	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT |
 		V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
@@ -1060,8 +1060,8 @@ static int vidioc_enum_fmt_vid_out(struct file *file, void *fh,
 		return -EINVAL;
 
 	fmt->flags = omap_formats[index].flags;
-	strlcpy(fmt->description, omap_formats[index].description,
-			sizeof(fmt->description));
+	strscpy(fmt->description, omap_formats[index].description,
+		sizeof(fmt->description));
 	fmt->pixelformat = omap_formats[index].pixelformat;
 
 	return 0;
@@ -1868,7 +1868,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vfd->release = video_device_release;
 	vfd->ioctl_ops = &vout_ioctl_ops;
 
-	strlcpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
+	strscpy(vfd->name, VOUT_NAME, sizeof(vfd->name));
 
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;

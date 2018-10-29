@@ -1355,10 +1355,10 @@ static int adv7511_set_fmt(struct v4l2_subdev *sd,
 	state->xfer_func = format->format.xfer_func;
 
 	switch (format->format.colorspace) {
-	case V4L2_COLORSPACE_ADOBERGB:
+	case V4L2_COLORSPACE_OPRGB:
 		c = HDMI_COLORIMETRY_EXTENDED;
-		ec = y ? HDMI_EXTENDED_COLORIMETRY_ADOBE_YCC_601 :
-			 HDMI_EXTENDED_COLORIMETRY_ADOBE_RGB;
+		ec = y ? HDMI_EXTENDED_COLORIMETRY_OPYCC_601 :
+			 HDMI_EXTENDED_COLORIMETRY_OPRGB;
 		break;
 	case V4L2_COLORSPACE_SMPTE170M:
 		c = y ? HDMI_COLORIMETRY_ITU_601 : HDMI_COLORIMETRY_NONE;

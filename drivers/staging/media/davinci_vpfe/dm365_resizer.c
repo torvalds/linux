@@ -1903,7 +1903,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER CROP", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER CROP", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1927,7 +1927,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER A", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER A", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1949,7 +1949,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER B", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER B", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

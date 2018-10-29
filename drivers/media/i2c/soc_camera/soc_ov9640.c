@@ -554,7 +554,6 @@ static int ov9640_get_selection(struct v4l2_subdev *sd,
 	sel->r.top = 0;
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP:
 		sel->r.width = W_SXGA;
 		sel->r.height = H_SXGA;

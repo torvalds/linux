@@ -591,8 +591,8 @@ static int uvc_ioctl_querycap(struct file *file, void *fh,
 	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_streaming *stream = handle->stream;
 
-	strlcpy(cap->driver, "uvcvideo", sizeof(cap->driver));
-	strlcpy(cap->card, vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, "uvcvideo", sizeof(cap->driver));
+	strscpy(cap->card, vdev->name, sizeof(cap->card));
 	usb_make_path(stream->dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
 			  | chain->caps;
@@ -618,7 +618,7 @@ static int uvc_ioctl_enum_fmt(struct uvc_streaming *stream,
 	fmt->flags = 0;
 	if (format->flags & UVC_FMT_FLAG_COMPRESSED)
 		fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
-	strlcpy(fmt->description, format->name, sizeof(fmt->description));
+	strscpy(fmt->description, format->name, sizeof(fmt->description));
 	fmt->description[sizeof(fmt->description) - 1] = 0;
 	fmt->pixelformat = format->fcc;
 	return 0;
@@ -859,7 +859,7 @@ static int uvc_ioctl_enum_input(struct file *file, void *fh,
 
 	memset(input, 0, sizeof(*input));
 	input->index = index;
-	strlcpy(input->name, iterm->name, sizeof(input->name));
+	strscpy(input->name, iterm->name, sizeof(input->name));
 	if (UVC_ENTITY_TYPE(iterm) == UVC_ITT_CAMERA)
 		input->type = V4L2_INPUT_TYPE_CAMERA;
 
@@ -939,7 +939,7 @@ static int uvc_ioctl_query_ext_ctrl(struct file *file, void *fh,
 
 	qec->id = qc.id;
 	qec->type = qc.type;
-	strlcpy(qec->name, qc.name, sizeof(qec->name));
+	strscpy(qec->name, qc.name, sizeof(qec->name));
 	qec->minimum = qc.minimum;
 	qec->maximum = qc.maximum;
 	qec->step = qc.step;

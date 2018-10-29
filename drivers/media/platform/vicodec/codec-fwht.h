@@ -1,18 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: LGPL-2.1+ */
 /*
  * Copyright 2016 Tom aan de Wiel
  * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#ifndef VICODEC_RLC_H
-#define VICODEC_RLC_H
+#ifndef CODEC_FWHT_H
+#define CODEC_FWHT_H
 
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <asm/byteorder.h>
 
 /*
- * The compressed format consists of a cframe_hdr struct followed by the
+ * The compressed format consists of a fwht_cframe_hdr struct followed by the
  * compressed frame data. The header contains the size of that data.
  * Each Y, Cb and Cr plane is compressed separately. If the compressed
  * size of each plane becomes larger than the uncompressed size, then
@@ -35,7 +35,7 @@
  *
  * All 16 and 32 bit values are stored in big-endian (network) order.
  *
- * Each cframe_hdr starts with an 8 byte magic header that is
+ * Each fwht_cframe_hdr starts with an 8 byte magic header that is
  * guaranteed not to occur in the compressed frame data. This header
  * can be used to sync to the next frame.
  *
@@ -47,48 +47,36 @@
  */
 
 /*
- * Note: bit 0 of the header must always be 0. Otherwise it cannot
- * be guaranteed that the magic 8 byte sequence (see below) can
- * never occur in the rlc output.
- */
-#define PFRAME_BIT (1 << 15)
-#define DUPS_MASK 0x1ffe
-
-/*
  * This is a sequence of 8 bytes with the low 4 bits set to 0xf.
  *
  * This sequence cannot occur in the encoded data
+ *
+ * Note that these two magic values are symmetrical so endian issues here.
  */
-#define VICODEC_MAGIC1 0x4f4f4f4f
-#define VICODEC_MAGIC2 0xffffffff
+#define FWHT_MAGIC1 0x4f4f4f4f
+#define FWHT_MAGIC2 0xffffffff
 
-#define VICODEC_VERSION 1
-
-#define VICODEC_MAX_WIDTH 3840
-#define VICODEC_MAX_HEIGHT 2160
-#define VICODEC_MIN_WIDTH 640
-#define VICODEC_MIN_HEIGHT 480
-
-#define PBLOCK 0
-#define IBLOCK 1
+#define FWHT_VERSION 1
 
 /* Set if this is an interlaced format */
-#define VICODEC_FL_IS_INTERLACED	BIT(0)
+#define FWHT_FL_IS_INTERLACED		BIT(0)
 /* Set if this is a bottom-first (NTSC) interlaced format */
-#define VICODEC_FL_IS_BOTTOM_FIRST	BIT(1)
+#define FWHT_FL_IS_BOTTOM_FIRST		BIT(1)
 /* Set if each 'frame' contains just one field */
-#define VICODEC_FL_IS_ALTERNATE		BIT(2)
+#define FWHT_FL_IS_ALTERNATE		BIT(2)
 /*
- * If VICODEC_FL_IS_ALTERNATE was set, then this is set if this
+ * If FWHT_FL_IS_ALTERNATE was set, then this is set if this
  * 'frame' is the bottom field, else it is the top field.
  */
-#define VICODEC_FL_IS_BOTTOM_FIELD	BIT(3)
+#define FWHT_FL_IS_BOTTOM_FIELD		BIT(3)
 /* Set if this frame is uncompressed */
-#define VICODEC_FL_LUMA_IS_UNCOMPRESSED	BIT(4)
-#define VICODEC_FL_CB_IS_UNCOMPRESSED	BIT(5)
-#define VICODEC_FL_CR_IS_UNCOMPRESSED	BIT(6)
+#define FWHT_FL_LUMA_IS_UNCOMPRESSED	BIT(4)
+#define FWHT_FL_CB_IS_UNCOMPRESSED	BIT(5)
+#define FWHT_FL_CR_IS_UNCOMPRESSED	BIT(6)
+#define FWHT_FL_CHROMA_FULL_HEIGHT	BIT(7)
+#define FWHT_FL_CHROMA_FULL_WIDTH	BIT(8)
 
-struct cframe_hdr {
+struct fwht_cframe_hdr {
 	u32 magic1;
 	u32 magic2;
 	__be32 version;
@@ -101,8 +89,10 @@ struct cframe_hdr {
 	__be32 size;
 };
 
-struct cframe {
+struct fwht_cframe {
 	unsigned int width, height;
+	u16 i_frame_qp;
+	u16 p_frame_qp;
 	__be16 *rlc_data;
 	s16 coeffs[8 * 8];
 	s16 de_coeffs[8 * 8];
@@ -110,20 +100,26 @@ struct cframe {
 	u32 size;
 };
 
-struct raw_frame {
+struct fwht_raw_frame {
 	unsigned int width, height;
+	unsigned int width_div;
+	unsigned int height_div;
+	unsigned int luma_step;
 	unsigned int chroma_step;
 	u8 *luma, *cb, *cr;
 };
 
-#define FRAME_PCODED	BIT(0)
-#define FRAME_UNENCODED	BIT(1)
-#define LUMA_UNENCODED	BIT(2)
-#define CB_UNENCODED	BIT(3)
-#define CR_UNENCODED	BIT(4)
+#define FWHT_FRAME_PCODED	BIT(0)
+#define FWHT_FRAME_UNENCODED	BIT(1)
+#define FWHT_LUMA_UNENCODED	BIT(2)
+#define FWHT_CB_UNENCODED	BIT(3)
+#define FWHT_CR_UNENCODED	BIT(4)
 
-u32 encode_frame(struct raw_frame *frm, struct raw_frame *ref_frm,
-		 struct cframe *cf, bool is_intra, bool next_is_intra);
-void decode_frame(struct cframe *cf, struct raw_frame *ref, u32 hdr_flags);
+u32 fwht_encode_frame(struct fwht_raw_frame *frm,
+		      struct fwht_raw_frame *ref_frm,
+		      struct fwht_cframe *cf,
+		      bool is_intra, bool next_is_intra);
+void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
+		       u32 hdr_flags);
 
 #endif

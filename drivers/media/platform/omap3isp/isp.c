@@ -1677,7 +1677,7 @@ static int isp_register_entities(struct isp_device *isp)
 	int ret;
 
 	isp->media_dev.dev = isp->dev;
-	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
+	strscpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
 	isp->media_dev.hw_revision = isp->revision;
 	isp->media_dev.ops = &isp_media_ops;
@@ -2054,7 +2054,7 @@ static int isp_fwnode_parse(struct device *dev,
 			dev_dbg(dev, "CSI-1/CCP-2 configuration\n");
 			csi1 = true;
 			break;
-		case V4L2_MBUS_CSI2:
+		case V4L2_MBUS_CSI2_DPHY:
 			dev_dbg(dev, "CSI-2 configuration\n");
 			csi1 = false;
 			break;
@@ -2220,6 +2220,7 @@ static int isp_probe(struct platform_device *pdev)
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);
+	v4l2_async_notifier_init(&isp->notifier);
 
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(
 		&pdev->dev, &isp->notifier, sizeof(struct isp_async_subdev),

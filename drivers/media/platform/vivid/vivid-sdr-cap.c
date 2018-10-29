@@ -396,7 +396,7 @@ int vivid_sdr_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 {
 	switch (vt->index) {
 	case 0:
-		strlcpy(vt->name, "ADC", sizeof(vt->name));
+		strscpy(vt->name, "ADC", sizeof(vt->name));
 		vt->type = V4L2_TUNER_ADC;
 		vt->capability =
 			V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
@@ -404,7 +404,7 @@ int vivid_sdr_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 		vt->rangehigh = bands_adc[2].rangehigh;
 		return 0;
 	case 1:
-		strlcpy(vt->name, "RF", sizeof(vt->name));
+		strscpy(vt->name, "RF", sizeof(vt->name));
 		vt->type = V4L2_TUNER_RF;
 		vt->capability =
 			V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;

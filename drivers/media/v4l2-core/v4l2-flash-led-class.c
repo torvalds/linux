@@ -640,7 +640,7 @@ static struct v4l2_flash *__v4l2_flash_init(
 	v4l2_subdev_init(sd, &v4l2_flash_subdev_ops);
 	sd->internal_ops = &v4l2_flash_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strlcpy(sd->name, config->dev_name, sizeof(sd->name));
+	strscpy(sd->name, config->dev_name, sizeof(sd->name));
 
 	ret = media_entity_pads_init(&sd->entity, 0, NULL);
 	if (ret < 0)

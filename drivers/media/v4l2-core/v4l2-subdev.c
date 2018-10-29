@@ -273,7 +273,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			p->flags |= V4L2_CHIP_FL_WRITABLE;
 		if (sd->ops->core && sd->ops->core->g_register)
 			p->flags |= V4L2_CHIP_FL_READABLE;
-		strlcpy(p->name, sd->name, sizeof(p->name));
+		strscpy(p->name, sd->name, sizeof(p->name));
 		return 0;
 	}
 #endif

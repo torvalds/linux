@@ -243,7 +243,6 @@ static int mt9m001_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.left = MT9M001_COLUMN_SKIP;
 		sel->r.top = MT9M001_ROW_SKIP;
 		sel->r.width = MT9M001_MAX_WIDTH;

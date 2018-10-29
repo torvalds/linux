@@ -730,8 +730,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	struct s2255_vc *vc = video_drvdata(file);
 	struct s2255_dev *dev = vc->dev;
 
-	strlcpy(cap->driver, "s2255", sizeof(cap->driver));
-	strlcpy(cap->card, "s2255", sizeof(cap->card));
+	strscpy(cap->driver, "s2255", sizeof(cap->driver));
+	strscpy(cap->card, "s2255", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 		V4L2_CAP_READWRITE;
@@ -749,7 +749,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
 			(formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
 		return -EINVAL;
-	strlcpy(f->description, formats[index].name, sizeof(f->description));
+	strscpy(f->description, formats[index].name, sizeof(f->description));
 	f->pixelformat = formats[index].fourcc;
 	return 0;
 }
@@ -1195,10 +1195,10 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	switch (dev->pid) {
 	case 0x2255:
 	default:
-		strlcpy(inp->name, "Composite", sizeof(inp->name));
+		strscpy(inp->name, "Composite", sizeof(inp->name));
 		break;
 	case 0x2257:
-		strlcpy(inp->name, (vc->idx < 2) ? "Composite" : "S-Video",
+		strscpy(inp->name, (vc->idx < 2) ? "Composite" : "S-Video",
 			sizeof(inp->name));
 		break;
 	}

@@ -4546,13 +4546,15 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/i2c/dw9714.c
+F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9714.txt
 
 DONGWOON DW9807 LENS VOICE COIL DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
-F:	drivers/media/i2c/dw9807.c
+F:	drivers/media/i2c/dw9807-vcm.c
+F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9807-vcm.txt
 
 DOUBLETALK DRIVER
 M:	"James R. Van Zandt" <jrv@vanzandt.mv.com>
@@ -9086,11 +9088,10 @@ F:	drivers/media/dvb-frontends/cxd2880/*
 F:	drivers/media/spi/cxd2880*
 
 MEDIA DRIVERS FOR DIGITAL DEVICES PCIE DEVICES
-M:	Daniel Scheller <d.scheller.oss@gmail.com>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Orphan
 F:	drivers/media/pci/ddbridge/*
 
 MEDIA DRIVERS FOR FREESCALE IMX
@@ -9104,6 +9105,13 @@ F:	Documentation/media/v4l-drivers/imx.rst
 F:	drivers/staging/media/imx/
 F:	include/linux/imx-media.h
 F:	include/media/imx.h
+
+MEDIA DRIVER FOR FREESCALE IMX PXP
+M:	Philipp Zabel <p.zabel@pengutronix.de>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/platform/imx-pxp.[ch]
 
 MEDIA DRIVERS FOR HELENE
 M:	Abylay Ospan <aospan@netup.ru>
@@ -9135,11 +9143,10 @@ S:	Supported
 F:	drivers/media/dvb-frontends/lnbh25*
 
 MEDIA DRIVERS FOR MXL5XX TUNER DEMODULATORS
-M:	Daniel Scheller <d.scheller.oss@gmail.com>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Orphan
 F:	drivers/media/dvb-frontends/mxl5xx*
 
 MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
@@ -9182,7 +9189,7 @@ F:	drivers/media/platform/rcar-fcp.c
 F:	include/media/rcar-fcp.h
 
 MEDIA DRIVERS FOR RENESAS - FDP1
-M:	Kieran Bingham <kieran@bingham.xyz>
+M:	Kieran Bingham <kieran.bingham+renesas@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
@@ -9202,6 +9209,7 @@ F:	drivers/media/platform/rcar-vin/
 
 MEDIA DRIVERS FOR RENESAS - VSP1
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+M:	Kieran Bingham <kieran.bingham+renesas@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
@@ -9210,19 +9218,17 @@ F:	Documentation/devicetree/bindings/media/renesas,vsp1.txt
 F:	drivers/media/platform/vsp1/
 
 MEDIA DRIVERS FOR ST STV0910 DEMODULATOR ICs
-M:	Daniel Scheller <d.scheller.oss@gmail.com>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Orphan
 F:	drivers/media/dvb-frontends/stv0910*
 
 MEDIA DRIVERS FOR ST STV6111 TUNER ICs
-M:	Daniel Scheller <d.scheller.oss@gmail.com>
 L:	linux-media@vger.kernel.org
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Orphan
 F:	drivers/media/dvb-frontends/stv6111*
 
 MEDIA DRIVERS FOR STM32 - DCMI
@@ -13719,6 +13725,20 @@ S:	Maintained
 F:	drivers/media/i2c/imx274.c
 F:	Documentation/devicetree/bindings/media/i2c/imx274.txt
 
+SONY IMX319 SENSOR DRIVER
+M:	Bingbu Cao <bingbu.cao@intel.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/imx319.c
+
+SONY IMX355 SENSOR DRIVER
+M:	Tianshu Qiu <tian.shu.qiu@intel.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/imx355.c
+
 SONY MEMORYSTICK CARD SUPPORT
 M:	Alex Dubov <oakad@yahoo.com>
 W:	http://tifmxx.berlios.de/
@@ -14038,7 +14058,7 @@ F:	sound/soc/sti/
 STI CEC DRIVER
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
 S:	Maintained
-F:	drivers/staging/media/st-cec/
+F:	drivers/media/platform/sti/cec/
 F:	Documentation/devicetree/bindings/media/stih-cec.txt
 
 STK1160 USB VIDEO CAPTURE DRIVER
@@ -15697,7 +15717,7 @@ M:	Marek Szyprowski <m.szyprowski@samsung.com>
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	drivers/media/v4l2-core/videobuf2-*
+F:	drivers/media/common/videobuf2/*
 F:	include/media/videobuf2-*
 
 VIMC VIRTUAL MEDIA CONTROLLER DRIVER

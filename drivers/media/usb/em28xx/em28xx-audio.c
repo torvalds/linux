@@ -843,11 +843,11 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 
 	dev->adev.transfer_buffer = kcalloc(num_urb,
 					    sizeof(*dev->adev.transfer_buffer),
-					    GFP_ATOMIC);
+					    GFP_KERNEL);
 	if (!dev->adev.transfer_buffer)
 		return -ENOMEM;
 
-	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_ATOMIC);
+	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_KERNEL);
 	if (!dev->adev.urb) {
 		kfree(dev->adev.transfer_buffer);
 		return -ENOMEM;
@@ -860,14 +860,14 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 		int j, k;
 		void *buf;
 
-		urb = usb_alloc_urb(npackets, GFP_ATOMIC);
+		urb = usb_alloc_urb(npackets, GFP_KERNEL);
 		if (!urb) {
 			em28xx_audio_free_urb(dev);
 			return -ENOMEM;
 		}
 		dev->adev.urb[i] = urb;
 
-		buf = usb_alloc_coherent(udev, npackets * ep_size, GFP_ATOMIC,
+		buf = usb_alloc_coherent(udev, npackets * ep_size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			dev_err(&dev->intf->dev,
@@ -939,11 +939,11 @@ static int em28xx_audio_init(struct em28xx *dev)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_em28xx_pcm_capture);
 	pcm->info_flags = 0;
 	pcm->private_data = dev;
-	strcpy(pcm->name, "Empia 28xx Capture");
+	strscpy(pcm->name, "Empia 28xx Capture", sizeof(pcm->name));
 
-	strcpy(card->driver, "Em28xx-Audio");
-	strcpy(card->shortname, "Em28xx Audio");
-	strcpy(card->longname, "Empia Em28xx Audio");
+	strscpy(card->driver, "Em28xx-Audio", sizeof(card->driver));
+	strscpy(card->shortname, "Em28xx Audio", sizeof(card->shortname));
+	strscpy(card->longname, "Empia Em28xx Audio", sizeof(card->longname));
 
 	INIT_WORK(&adev->wq_trigger, audio_trigger);
 

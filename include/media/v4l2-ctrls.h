@@ -729,6 +729,22 @@ struct v4l2_ctrl *v4l2_ctrl_find(struct v4l2_ctrl_handler *hdl, u32 id);
 void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
 
 /**
+ * __v4l2_ctrl_grab() - Unlocked variant of v4l2_ctrl_grab.
+ *
+ * @ctrl:	The control to (de)activate.
+ * @grabbed:	True if the control should become grabbed.
+ *
+ * This sets or clears the V4L2_CTRL_FLAG_GRABBED flag atomically.
+ * Does nothing if @ctrl == NULL.
+ * The V4L2_EVENT_CTRL event will be generated afterwards.
+ * This will usually be called when starting or stopping streaming in the
+ * driver.
+ *
+ * This function assumes that the control handler is locked by the caller.
+ */
+void __v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
+
+/**
  * v4l2_ctrl_grab() - Mark the control as grabbed or not grabbed.
  *
  * @ctrl:	The control to (de)activate.
@@ -743,7 +759,15 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
  * This function assumes that the control handler is not locked and will
  * take the lock itself.
  */
-void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
+static inline void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
+{
+	if (!ctrl)
+		return;
+
+	v4l2_ctrl_lock(ctrl);
+	__v4l2_ctrl_grab(ctrl, grabbed);
+	v4l2_ctrl_unlock(ctrl);
+}
 
 /**
  *__v4l2_ctrl_modify_range() - Unlocked variant of v4l2_ctrl_modify_range()

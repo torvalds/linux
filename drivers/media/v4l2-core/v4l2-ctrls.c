@@ -2511,20 +2511,15 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active)
 }
 EXPORT_SYMBOL(v4l2_ctrl_activate);
 
-/* Grab/ungrab a control.
-   Typically used when streaming starts and you want to grab controls,
-   preventing the user from changing them.
-
-   Just call this and the framework will block any attempts to change
-   these controls. */
-void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
+void __v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
 {
 	bool old;
 
 	if (ctrl == NULL)
 		return;
 
-	v4l2_ctrl_lock(ctrl);
+	lockdep_assert_held(ctrl->handler->lock);
+
 	if (grabbed)
 		/* set V4L2_CTRL_FLAG_GRABBED */
 		old = test_and_set_bit(1, &ctrl->flags);
@@ -2533,9 +2528,8 @@ void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
 		old = test_and_clear_bit(1, &ctrl->flags);
 	if (old != grabbed)
 		send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_FLAGS);
-	v4l2_ctrl_unlock(ctrl);
 }
-EXPORT_SYMBOL(v4l2_ctrl_grab);
+EXPORT_SYMBOL(__v4l2_ctrl_grab);
 
 /* Log the control name and value */
 static void log_ctrl(const struct v4l2_ctrl *ctrl,
@@ -2722,7 +2716,7 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 		qc->id = id;
 	else
 		qc->id = ctrl->id;
-	strlcpy(qc->name, ctrl->name, sizeof(qc->name));
+	strscpy(qc->name, ctrl->name, sizeof(qc->name));
 	qc->flags = user_flags(ctrl);
 	qc->type = ctrl->type;
 	qc->elem_size = ctrl->elem_size;
@@ -2754,7 +2748,7 @@ int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc)
 	qc->id = qec.id;
 	qc->type = qec.type;
 	qc->flags = qec.flags;
-	strlcpy(qc->name, qec.name, sizeof(qc->name));
+	strscpy(qc->name, qec.name, sizeof(qc->name));
 	switch (qc->type) {
 	case V4L2_CTRL_TYPE_INTEGER:
 	case V4L2_CTRL_TYPE_BOOLEAN:
@@ -2813,7 +2807,7 @@ int v4l2_querymenu(struct v4l2_ctrl_handler *hdl, struct v4l2_querymenu *qm)
 	if (ctrl->type == V4L2_CTRL_TYPE_MENU) {
 		if (ctrl->qmenu[i] == NULL || ctrl->qmenu[i][0] == '\0')
 			return -EINVAL;
-		strlcpy(qm->name, ctrl->qmenu[i], sizeof(qm->name));
+		strscpy(qm->name, ctrl->qmenu[i], sizeof(qm->name));
 	} else {
 		qm->value = ctrl->qmenu_int[i];
 	}
@@ -3442,7 +3436,7 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s)
 
 	/* It's a driver bug if this happens. */
 	WARN_ON(ctrl->type != V4L2_CTRL_TYPE_STRING);
-	strlcpy(ctrl->p_new.p_char, s, ctrl->maximum + 1);
+	strscpy(ctrl->p_new.p_char, s, ctrl->maximum + 1);
 	return set_ctrl(NULL, ctrl, 0);
 }
 EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_string);

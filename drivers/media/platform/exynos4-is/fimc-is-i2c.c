@@ -57,7 +57,7 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 	i2c_adap = &isp_i2c->adapter;
 	i2c_adap->dev.of_node = node;
 	i2c_adap->dev.parent = &pdev->dev;
-	strlcpy(i2c_adap->name, "exynos4x12-isp-i2c", sizeof(i2c_adap->name));
+	strscpy(i2c_adap->name, "exynos4x12-isp-i2c", sizeof(i2c_adap->name));
 	i2c_adap->owner = THIS_MODULE;
 	i2c_adap->algo = &fimc_is_i2c_algorithm;
 	i2c_adap->class = I2C_CLASS_SPD;

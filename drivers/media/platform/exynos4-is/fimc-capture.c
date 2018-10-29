@@ -1087,7 +1087,7 @@ static int fimc_cap_enum_input(struct file *file, void *priv,
 	fimc_md_graph_unlock(ve);
 
 	if (sd)
-		strlcpy(i->name, sd->name, sizeof(i->name));
+		strscpy(i->name, sd->name, sizeof(i->name));
 
 	return 0;
 }

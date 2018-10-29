@@ -245,7 +245,7 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 		}
 
 		video_set_drvdata(vdev, sd);
-		strlcpy(vdev->name, sd->name, sizeof(vdev->name));
+		strscpy(vdev->name, sd->name, sizeof(vdev->name));
 		vdev->v4l2_dev = v4l2_dev;
 		vdev->fops = &v4l2_subdev_fops;
 		vdev->release = v4l2_device_release_subdev_node;

@@ -870,8 +870,8 @@ static int rcar_drif_querycap(struct file *file, void *fh,
 {
 	struct rcar_drif_sdr *sdr = video_drvdata(file);
 
-	strlcpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
-	strlcpy(cap->card, sdr->vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->card, sdr->vdev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 sdr->vdev->name);
 
@@ -1213,18 +1213,15 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 {
 	struct v4l2_async_notifier *notifier = &sdr->notifier;
 	struct fwnode_handle *fwnode, *ep;
+	int ret;
 
-	notifier->subdevs = devm_kzalloc(sdr->dev, sizeof(*notifier->subdevs),
-					 GFP_KERNEL);
-	if (!notifier->subdevs)
-		return -ENOMEM;
+	v4l2_async_notifier_init(notifier);
 
 	ep = fwnode_graph_get_next_endpoint(of_fwnode_handle(sdr->dev->of_node),
 					    NULL);
 	if (!ep)
 		return 0;
 
-	notifier->subdevs[notifier->num_subdevs] = &sdr->ep.asd;
 	fwnode = fwnode_graph_get_remote_port_parent(ep);
 	if (!fwnode) {
 		dev_warn(sdr->dev, "bad remote port parent\n");
@@ -1234,7 +1231,11 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 
 	sdr->ep.asd.match.fwnode = fwnode;
 	sdr->ep.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	notifier->num_subdevs++;
+	ret = v4l2_async_notifier_add_subdev(notifier, &sdr->ep.asd);
+	if (ret) {
+		fwnode_handle_put(fwnode);
+		return ret;
+	}
 
 	/* Get the endpoint properties */
 	rcar_drif_get_ep_properties(sdr, ep);
@@ -1356,11 +1357,13 @@ static int rcar_drif_sdr_probe(struct rcar_drif_sdr *sdr)
 	ret = v4l2_async_notifier_register(&sdr->v4l2_dev, &sdr->notifier);
 	if (ret < 0) {
 		dev_err(sdr->dev, "failed: notifier register ret %d\n", ret);
-		goto error;
+		goto cleanup;
 	}
 
 	return ret;
 
+cleanup:
+	v4l2_async_notifier_cleanup(&sdr->notifier);
 error:
 	v4l2_device_unregister(&sdr->v4l2_dev);
 
@@ -1371,6 +1374,7 @@ error:
 static void rcar_drif_sdr_remove(struct rcar_drif_sdr *sdr)
 {
 	v4l2_async_notifier_unregister(&sdr->notifier);
+	v4l2_async_notifier_cleanup(&sdr->notifier);
 	v4l2_device_unregister(&sdr->v4l2_dev);
 }
 

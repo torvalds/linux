@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: LGPL-2.1+
 /*
  * Copyright 2016 Tom aan de Wiel
  * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
@@ -10,10 +10,20 @@
  */
 
 #include <linux/string.h>
-#include "vicodec-codec.h"
+#include "codec-fwht.h"
+
+/*
+ * Note: bit 0 of the header must always be 0. Otherwise it cannot
+ * be guaranteed that the magic 8 byte sequence (see below) can
+ * never occur in the rlc output.
+ */
+#define PFRAME_BIT BIT(15)
+#define DUPS_MASK 0x1ffe
+
+#define PBLOCK 0
+#define IBLOCK 1
 
 #define ALL_ZEROS 15
-#define DEADZONE_WIDTH 20
 
 static const uint8_t zigzag[64] = {
 	0,
@@ -164,7 +174,7 @@ static const int quant_table_p[] = {
 	3, 3, 3, 6, 6, 9,  9,  10,
 };
 
-static void quantize_intra(s16 *coeff, s16 *de_coeff)
+static void quantize_intra(s16 *coeff, s16 *de_coeff, u16 qp)
 {
 	const int *quant = quant_table;
 	int i, j;
@@ -172,8 +182,7 @@ static void quantize_intra(s16 *coeff, s16 *de_coeff)
 	for (j = 0; j < 8; j++) {
 		for (i = 0; i < 8; i++, quant++, coeff++, de_coeff++) {
 			*coeff >>= *quant;
-			if (*coeff >= -DEADZONE_WIDTH &&
-			    *coeff <= DEADZONE_WIDTH)
+			if (*coeff >= -qp && *coeff <= qp)
 				*coeff = *de_coeff = 0;
 			else
 				*de_coeff = *coeff << *quant;
@@ -191,7 +200,7 @@ static void dequantize_intra(s16 *coeff)
 			*coeff <<= *quant;
 }
 
-static void quantize_inter(s16 *coeff, s16 *de_coeff)
+static void quantize_inter(s16 *coeff, s16 *de_coeff, u16 qp)
 {
 	const int *quant = quant_table_p;
 	int i, j;
@@ -199,8 +208,7 @@ static void quantize_inter(s16 *coeff, s16 *de_coeff)
 	for (j = 0; j < 8; j++) {
 		for (i = 0; i < 8; i++, quant++, coeff++, de_coeff++) {
 			*coeff >>= *quant;
-			if (*coeff >= -DEADZONE_WIDTH &&
-			    *coeff <= DEADZONE_WIDTH)
+			if (*coeff >= -qp && *coeff <= qp)
 				*coeff = *de_coeff = 0;
 			else
 				*de_coeff = *coeff << *quant;
@@ -232,7 +240,8 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
 	stride *= input_step;
 
 	for (i = 0; i < 8; i++, tmp += stride, out += 8) {
-		if (input_step == 1) {
+		switch (input_step) {
+		case 1:
 			workspace1[0]  = tmp[0] + tmp[1] - add;
 			workspace1[1]  = tmp[0] - tmp[1];
 
@@ -244,7 +253,8 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
 
 			workspace1[6]  = tmp[6] + tmp[7] - add;
 			workspace1[7]  = tmp[6] - tmp[7];
-		} else {
+			break;
+		case 2:
 			workspace1[0]  = tmp[0] + tmp[2] - add;
 			workspace1[1]  = tmp[0] - tmp[2];
 
@@ -256,6 +266,33 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
 
 			workspace1[6]  = tmp[12] + tmp[14] - add;
 			workspace1[7]  = tmp[12] - tmp[14];
+			break;
+		case 3:
+			workspace1[0]  = tmp[0] + tmp[3] - add;
+			workspace1[1]  = tmp[0] - tmp[3];
+
+			workspace1[2]  = tmp[6] + tmp[9] - add;
+			workspace1[3]  = tmp[6] - tmp[9];
+
+			workspace1[4]  = tmp[12] + tmp[15] - add;
+			workspace1[5]  = tmp[12] - tmp[15];
+
+			workspace1[6]  = tmp[18] + tmp[21] - add;
+			workspace1[7]  = tmp[18] - tmp[21];
+			break;
+		default:
+			workspace1[0]  = tmp[0] + tmp[4] - add;
+			workspace1[1]  = tmp[0] - tmp[4];
+
+			workspace1[2]  = tmp[8] + tmp[12] - add;
+			workspace1[3]  = tmp[8] - tmp[12];
+
+			workspace1[4]  = tmp[16] + tmp[20] - add;
+			workspace1[5]  = tmp[16] - tmp[20];
+
+			workspace1[6]  = tmp[24] + tmp[28] - add;
+			workspace1[7]  = tmp[24] - tmp[28];
+			break;
 		}
 
 		/* stage 2 */
@@ -588,8 +625,14 @@ static void fill_decoder_block(u8 *dst, const s16 *input, int stride)
 	int i, j;
 
 	for (i = 0; i < 8; i++) {
-		for (j = 0; j < 8; j++)
-			*dst++ = *input++;
+		for (j = 0; j < 8; j++, input++, dst++) {
+			if (*input < 0)
+				*dst = 0;
+			else if (*input > 255)
+				*dst = 255;
+			else
+				*dst = *input;
+		}
 		dst += stride - 8;
 	}
 }
@@ -616,7 +659,7 @@ static void add_deltas(s16 *deltas, const u8 *ref, int stride)
 }
 
 static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
-			struct cframe *cf, u32 height, u32 width,
+			struct fwht_cframe *cf, u32 height, u32 width,
 			unsigned int input_step,
 			bool is_intra, bool next_is_intra)
 {
@@ -637,15 +680,16 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 			if (!is_intra)
 				blocktype = decide_blocktype(input, refp,
 					deltablock, width, input_step);
-			if (is_intra || blocktype == IBLOCK) {
+			if (blocktype == IBLOCK) {
 				fwht(input, cf->coeffs, width, input_step, 1);
-				quantize_intra(cf->coeffs, cf->de_coeffs);
-				blocktype = IBLOCK;
+				quantize_intra(cf->coeffs, cf->de_coeffs,
+					       cf->i_frame_qp);
 			} else {
 				/* inter code */
-				encoding |= FRAME_PCODED;
+				encoding |= FWHT_FRAME_PCODED;
 				fwht16(deltablock, cf->coeffs, 8, 0);
-				quantize_inter(cf->coeffs, cf->de_coeffs);
+				quantize_inter(cf->coeffs, cf->de_coeffs,
+					       cf->p_frame_qp);
 			}
 			if (!next_is_intra) {
 				ifwht(cf->de_coeffs, cf->de_fwht, blocktype);
@@ -657,9 +701,6 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 
 			input += 8 * input_step;
 			refp += 8 * 8;
-
-			if (encoding & FRAME_UNENCODED)
-				continue;
 
 			size = rlc(cf->coeffs, *rlco, blocktype);
 			if (last_size == size &&
@@ -675,13 +716,17 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 			} else {
 				*rlco += size;
 			}
-			if (*rlco >= rlco_max)
-				encoding |= FRAME_UNENCODED;
+			if (*rlco >= rlco_max) {
+				encoding |= FWHT_FRAME_UNENCODED;
+				goto exit_loop;
+			}
 			last_size = size;
 		}
 		input += width * 7 * input_step;
 	}
-	if (encoding & FRAME_UNENCODED) {
+
+exit_loop:
+	if (encoding & FWHT_FRAME_UNENCODED) {
 		u8 *out = (u8 *)rlco_start;
 
 		input = input_start;
@@ -694,44 +739,50 @@ static u32 encode_plane(u8 *input, u8 *refp, __be16 **rlco, __be16 *rlco_max,
 		for (i = 0; i < height * width; i++, input += input_step)
 			*out++ = (*input == 0xff) ? 0xfe : *input;
 		*rlco = (__be16 *)out;
+		encoding &= ~FWHT_FRAME_PCODED;
 	}
 	return encoding;
 }
 
-u32 encode_frame(struct raw_frame *frm, struct raw_frame *ref_frm,
-		 struct cframe *cf, bool is_intra, bool next_is_intra)
+u32 fwht_encode_frame(struct fwht_raw_frame *frm,
+		      struct fwht_raw_frame *ref_frm,
+		      struct fwht_cframe *cf,
+		      bool is_intra, bool next_is_intra)
 {
 	unsigned int size = frm->height * frm->width;
 	__be16 *rlco = cf->rlc_data;
 	__be16 *rlco_max;
 	u32 encoding;
+	u32 chroma_h = frm->height / frm->height_div;
+	u32 chroma_w = frm->width / frm->width_div;
+	unsigned int chroma_size = chroma_h * chroma_w;
 
 	rlco_max = rlco + size / 2 - 256;
 	encoding = encode_plane(frm->luma, ref_frm->luma, &rlco, rlco_max, cf,
-				  frm->height, frm->width,
-				  1, is_intra, next_is_intra);
-	if (encoding & FRAME_UNENCODED)
-		encoding |= LUMA_UNENCODED;
-	encoding &= ~FRAME_UNENCODED;
-	rlco_max = rlco + size / 8 - 256;
+				frm->height, frm->width,
+				frm->luma_step, is_intra, next_is_intra);
+	if (encoding & FWHT_FRAME_UNENCODED)
+		encoding |= FWHT_LUMA_UNENCODED;
+	encoding &= ~FWHT_FRAME_UNENCODED;
+	rlco_max = rlco + chroma_size / 2 - 256;
 	encoding |= encode_plane(frm->cb, ref_frm->cb, &rlco, rlco_max, cf,
-				   frm->height / 2, frm->width / 2,
-				   frm->chroma_step, is_intra, next_is_intra);
-	if (encoding & FRAME_UNENCODED)
-		encoding |= CB_UNENCODED;
-	encoding &= ~FRAME_UNENCODED;
-	rlco_max = rlco + size / 8 - 256;
+				 chroma_h, chroma_w,
+				 frm->chroma_step, is_intra, next_is_intra);
+	if (encoding & FWHT_FRAME_UNENCODED)
+		encoding |= FWHT_CB_UNENCODED;
+	encoding &= ~FWHT_FRAME_UNENCODED;
+	rlco_max = rlco + chroma_size / 2 - 256;
 	encoding |= encode_plane(frm->cr, ref_frm->cr, &rlco, rlco_max, cf,
-				   frm->height / 2, frm->width / 2,
-				   frm->chroma_step, is_intra, next_is_intra);
-	if (encoding & FRAME_UNENCODED)
-		encoding |= CR_UNENCODED;
-	encoding &= ~FRAME_UNENCODED;
+				 chroma_h, chroma_w,
+				 frm->chroma_step, is_intra, next_is_intra);
+	if (encoding & FWHT_FRAME_UNENCODED)
+		encoding |= FWHT_CR_UNENCODED;
+	encoding &= ~FWHT_FRAME_UNENCODED;
 	cf->size = (rlco - cf->rlc_data) * sizeof(*rlco);
 	return encoding;
 }
 
-static void decode_plane(struct cframe *cf, const __be16 **rlco, u8 *ref,
+static void decode_plane(struct fwht_cframe *cf, const __be16 **rlco, u8 *ref,
 			 u32 height, u32 width, bool uncompressed)
 {
 	unsigned int copies = 0;
@@ -784,14 +835,21 @@ static void decode_plane(struct cframe *cf, const __be16 **rlco, u8 *ref,
 	}
 }
 
-void decode_frame(struct cframe *cf, struct raw_frame *ref, u32 hdr_flags)
+void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
+		       u32 hdr_flags)
 {
 	const __be16 *rlco = cf->rlc_data;
+	u32 h = cf->height / 2;
+	u32 w = cf->width / 2;
 
+	if (hdr_flags & FWHT_FL_CHROMA_FULL_HEIGHT)
+		h *= 2;
+	if (hdr_flags & FWHT_FL_CHROMA_FULL_WIDTH)
+		w *= 2;
 	decode_plane(cf, &rlco, ref->luma, cf->height, cf->width,
-		     hdr_flags & VICODEC_FL_LUMA_IS_UNCOMPRESSED);
-	decode_plane(cf, &rlco, ref->cb, cf->height / 2, cf->width / 2,
-		     hdr_flags & VICODEC_FL_CB_IS_UNCOMPRESSED);
-	decode_plane(cf, &rlco, ref->cr, cf->height / 2, cf->width / 2,
-		     hdr_flags & VICODEC_FL_CR_IS_UNCOMPRESSED);
+		     hdr_flags & FWHT_FL_LUMA_IS_UNCOMPRESSED);
+	decode_plane(cf, &rlco, ref->cb, h, w,
+		     hdr_flags & FWHT_FL_CB_IS_UNCOMPRESSED);
+	decode_plane(cf, &rlco, ref->cr, h, w,
+		     hdr_flags & FWHT_FL_CR_IS_UNCOMPRESSED);
 }

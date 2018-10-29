@@ -260,7 +260,7 @@ int stk1160_i2c_register(struct stk1160 *dev)
 
 	dev->i2c_adap = adap_template;
 	dev->i2c_adap.dev.parent = dev->dev;
-	strcpy(dev->i2c_adap.name, "stk1160");
+	strscpy(dev->i2c_adap.name, "stk1160", sizeof(dev->i2c_adap.name));
 	dev->i2c_adap.algo_data = dev;
 
 	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
