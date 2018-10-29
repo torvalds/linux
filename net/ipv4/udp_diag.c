@@ -42,6 +42,7 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 
 	rcu_read_lock();
 	if (req->sdiag_family == AF_INET)
+		/* src and dst are swapped for historical reasons */
 		sk = __udp4_lib_lookup(net,
 				req->id.idiag_src[0], req->id.idiag_sport,
 				req->id.idiag_dst[0], req->id.idiag_dport,
