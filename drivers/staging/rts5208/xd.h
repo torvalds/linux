@@ -90,7 +90,7 @@
 #define	NO_OFFSET			0x0
 #define	WITH_OFFSET			0x1
 
-#define	Sect_Per_Page			4
+#define	SECT_PER_PAGE			4
 #define	XD_ADDR_MODE_2C			XD_ADDR_MODE_2A
 
 #define ZONE0_BAD_BLOCK			23
