@@ -327,31 +327,24 @@ static int uvd_v6_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r;
 
 	r = uvd_v6_0_enc_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = uvd_v6_0_enc_get_destroy_msg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
+
 error:
 	dma_fence_put(fence);
 	return r;
 }
+
 static int uvd_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;

@@ -1113,27 +1113,19 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		return 0;
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = amdgpu_vce_get_destroy_msg(ring, 1, true, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
+
 error:
 	dma_fence_put(fence);
 	return r;

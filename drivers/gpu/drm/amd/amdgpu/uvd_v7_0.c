@@ -334,27 +334,19 @@ static int uvd_v7_0_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r;
 
 	r = uvd_v7_0_enc_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: (%d)failed to get create msg (%ld).\n", ring->me, r);
+	if (r)
 		goto error;
-	}
 
 	r = uvd_v7_0_enc_get_destroy_msg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: (%d)failed to get destroy ib (%ld).\n", ring->me, r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: (%d)IB test timed out.\n", ring->me);
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: (%d)fence wait failed (%ld).\n", ring->me, r);
-	} else {
-		DRM_DEBUG("ib test on (%d)ring %d succeeded\n", ring->me, ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
+
 error:
 	dma_fence_put(fence);
 	return r;

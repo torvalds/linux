@@ -563,30 +563,20 @@ int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r;
 
 	r = amdgpu_vcn_dec_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = amdgpu_vcn_dec_get_destroy_msg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n",  ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
 
 	dma_fence_put(fence);
-
 error:
 	return r;
 }
@@ -727,27 +717,19 @@ int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r;
 
 	r = amdgpu_vcn_enc_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = amdgpu_vcn_enc_get_destroy_msg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
+
 error:
 	dma_fence_put(fence);
 	return r;
@@ -832,21 +814,18 @@ int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r = 0;
 
 	r = amdgpu_vcn_jpeg_set_reg(ring, 1, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to set jpeg register (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
 	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
 		r = -ETIMEDOUT;
 		goto error;
 	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 		goto error;
-	} else
+	} else {
 		r = 0;
+	}
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
@@ -855,15 +834,10 @@ int amdgpu_vcn_jpeg_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout)
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
-	else {
-		DRM_ERROR("ib test failed (0x%08X)\n", tmp);
-		r = -EINVAL;
-	}
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
 
 	dma_fence_put(fence);
-
 error:
 	return r;
 }
