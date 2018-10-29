@@ -166,11 +166,7 @@ static void mt76x2u_init_beacon_offsets(struct mt76x02_dev *dev)
 
 int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 {
-	const struct mt76_wcid_addr addr = {
-		.macaddr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
-		.ba_mask = 0,
-	};
-	int i, err;
+	int i, k, err;
 
 	mt76x2_reset_wlan(dev, true);
 	mt76x2u_power_on(dev);
@@ -210,15 +206,14 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 		return -ETIMEDOUT;
 
 	/* reset wcid table */
-	for (i = 0; i < 254; i++)
-		mt76_wr_copy(dev, MT_WCID_ADDR(i), &addr,
-			     sizeof(struct mt76_wcid_addr));
+	for (i = 0; i < 256; i++)
+		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
 
 	/* reset shared key table and pairwise key table */
-	for (i = 0; i < 4; i++)
-		mt76_wr(dev, MT_SKEY_MODE_BASE_0 + 4 * i, 0);
-	for (i = 0; i < 256; i++)
-		mt76_wr(dev, MT_WCID_ATTR(i), 1);
+	for (i = 0; i < 16; i++) {
+		for (k = 0; k < 4; k++)
+			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
+	}
 
 	mt76_clear(dev, MT_BEACON_TIME_CFG,
 		   MT_BEACON_TIME_CFG_TIMER_EN |
