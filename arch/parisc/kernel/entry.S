@@ -394,6 +394,7 @@
 	*/
 	.macro		space_check	spc,tmp,fault
 	mfsp		%sr7,\tmp
+	/* check against %r0 which is same value as LINUX_GATEWAY_SPACE */
 	or,COND(<>)	%r0,\spc,%r0	/* user may execute gateway page
 					 * as kernel, so defeat the space
 					 * check if it is */
@@ -910,9 +911,9 @@ intr_check_sig:
 	 * Only do signals if we are returning to user space
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
-	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
 	LDREG	PT_IASQ1(%r16), %r20
-	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
 
 	/* NOTE: We need to enable interrupts if we have to deliver
 	 * signals. We used to do this earlier but it caused kernel
