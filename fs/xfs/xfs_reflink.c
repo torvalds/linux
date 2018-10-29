@@ -916,7 +916,7 @@ out_error:
 /*
  * Update destination inode size & cowextsize hint, if necessary.
  */
-STATIC int
+int
 xfs_reflink_update_dest(
 	struct xfs_inode	*dest,
 	xfs_off_t		newlen,
@@ -1116,7 +1116,7 @@ out:
 /*
  * Iteratively remap one file's extents (and holes) to another's.
  */
-STATIC int
+int
 xfs_reflink_remap_blocks(
 	struct xfs_inode	*src,
 	loff_t			pos_in,
@@ -1232,7 +1232,7 @@ retry:
 }
 
 /* Unlock both inodes after they've been prepped for a range clone. */
-STATIC void
+void
 xfs_reflink_remap_unlock(
 	struct file		*file_in,
 	struct file		*file_out)
@@ -1300,7 +1300,7 @@ xfs_reflink_zero_posteof(
  * stale data in the destination file. Hence we reject these clone attempts with
  * -EINVAL in this case.
  */
-STATIC int
+int
 xfs_reflink_remap_prep(
 	struct file		*file_in,
 	loff_t			pos_in,
@@ -1368,68 +1368,6 @@ xfs_reflink_remap_prep(
 out_unlock:
 	xfs_reflink_remap_unlock(file_in, file_out);
 	return ret;
-}
-
-/*
- * Link a range of blocks from one file to another.
- */
-loff_t
-xfs_reflink_remap_range(
-	struct file		*file_in,
-	loff_t			pos_in,
-	struct file		*file_out,
-	loff_t			pos_out,
-	loff_t			len,
-	unsigned int		remap_flags)
-{
-	struct inode		*inode_in = file_inode(file_in);
-	struct xfs_inode	*src = XFS_I(inode_in);
-	struct inode		*inode_out = file_inode(file_out);
-	struct xfs_inode	*dest = XFS_I(inode_out);
-	struct xfs_mount	*mp = src->i_mount;
-	loff_t			remapped = 0;
-	xfs_extlen_t		cowextsize;
-	int			ret;
-
-	if (!xfs_sb_version_hasreflink(&mp->m_sb))
-		return -EOPNOTSUPP;
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
-
-	/* Prepare and then clone file data. */
-	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out,
-			&len, remap_flags);
-	if (ret < 0 || len == 0)
-		return ret;
-
-	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
-
-	ret = xfs_reflink_remap_blocks(src, pos_in, dest, pos_out, len,
-			&remapped);
-	if (ret)
-		goto out_unlock;
-
-	/*
-	 * Carry the cowextsize hint from src to dest if we're sharing the
-	 * entire source file to the entire destination file, the source file
-	 * has a cowextsize hint, and the destination file does not.
-	 */
-	cowextsize = 0;
-	if (pos_in == 0 && len == i_size_read(inode_in) &&
-	    (src->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) &&
-	    pos_out == 0 && len >= i_size_read(inode_out) &&
-	    !(dest->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE))
-		cowextsize = src->i_d.di_cowextsize;
-
-	ret = xfs_reflink_update_dest(dest, pos_out + len, cowextsize,
-			remap_flags);
-
-out_unlock:
-	xfs_reflink_remap_unlock(file_in, file_out);
-	if (ret)
-		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
-	return remapped > 0 ? remapped : ret;
 }
 
 /*
