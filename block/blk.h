@@ -329,6 +329,16 @@ static inline unsigned long blk_rq_deadline(struct request *rq)
 }
 
 /*
+ * The max size one bio can handle is UINT_MAX becasue bvec_iter.bi_size
+ * is defined as 'unsigned int', meantime it has to aligned to with logical
+ * block size which is the minimum accepted unit by hardware.
+ */
+static inline unsigned int bio_allowed_max_sectors(struct request_queue *q)
+{
+	return round_down(UINT_MAX, queue_logical_block_size(q)) >> 9;
+}
+
+/*
  * Internal io_context interface
  */
 void get_io_context(struct io_context *ioc);
