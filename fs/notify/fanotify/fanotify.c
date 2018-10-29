@@ -25,7 +25,7 @@ static bool should_merge(struct fsnotify_event *old_fsn,
 	old = FANOTIFY_E(old_fsn);
 	new = FANOTIFY_E(new_fsn);
 
-	if (old_fsn->inode == new_fsn->inode && old->tgid == new->tgid &&
+	if (old_fsn->inode == new_fsn->inode && old->pid == new->pid &&
 	    old->path.mnt == new->path.mnt &&
 	    old->path.dentry == new->path.dentry)
 		return true;
@@ -131,8 +131,8 @@ static bool fanotify_should_send_event(struct fsnotify_iter_info *iter_info,
 	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
 		return false;
 
-	if (event_mask & FAN_ALL_OUTGOING_EVENTS & marks_mask &
-				 ~marks_ignored_mask)
+	if (event_mask & FANOTIFY_OUTGOING_EVENTS &
+	    marks_mask & ~marks_ignored_mask)
 		return true;
 
 	return false;
@@ -171,7 +171,10 @@ struct fanotify_event_info *fanotify_alloc_event(struct fsnotify_group *group,
 		goto out;
 init: __maybe_unused
 	fsnotify_init_event(&event->fse, inode, mask);
-	event->tgid = get_pid(task_tgid(current));
+	if (FAN_GROUP_FLAG(group, FAN_REPORT_TID))
+		event->pid = get_pid(task_pid(current));
+	else
+		event->pid = get_pid(task_tgid(current));
 	if (path) {
 		event->path = *path;
 		path_get(&event->path);
@@ -205,6 +208,8 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
 	BUILD_BUG_ON(FAN_ONDIR != FS_ISDIR);
 
+	BUILD_BUG_ON(HWEIGHT32(ALL_FANOTIFY_EVENT_BITS) != 10);
+
 	if (!fanotify_should_send_event(iter_info, mask, data, data_type))
 		return 0;
 
@@ -236,7 +241,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
 	if (ret) {
 		/* Permission events shouldn't be merged */
-		BUG_ON(ret == 1 && mask & FAN_ALL_PERM_EVENTS);
+		BUG_ON(ret == 1 && mask & FANOTIFY_PERM_EVENTS);
 		/* Our event wasn't used in the end. Free it. */
 		fsnotify_destroy_event(group, fsn_event);
 
@@ -268,7 +273,7 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 
 	event = FANOTIFY_E(fsn_event);
 	path_put(&event->path);
-	put_pid(event->tgid);
+	put_pid(event->pid);
 	if (fanotify_is_perm_event(fsn_event->mask)) {
 		kmem_cache_free(fanotify_perm_event_cachep,
 				FANOTIFY_PE(fsn_event));
