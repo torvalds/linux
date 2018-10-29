@@ -295,6 +295,18 @@ nanddev_eraseblocks_per_lun(const struct nand_device *nand)
 }
 
 /**
+ * nanddev_eraseblocks_per_target() - Get the number of eraseblocks per target
+ * @nand: NAND device
+ *
+ * Return: the number of eraseblocks per target.
+ */
+static inline unsigned int
+nanddev_eraseblocks_per_target(const struct nand_device *nand)
+{
+	return nand->memorg.eraseblocks_per_lun * nand->memorg.luns_per_target;
+}
+
+/**
  * nanddev_target_size() - Get the total size provided by a single target/die
  * @nand: NAND device
  *
