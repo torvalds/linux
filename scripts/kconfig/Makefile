@@ -68,14 +68,7 @@ PHONY += $(simple-targets)
 $(simple-targets): $(obj)/conf
 	$< $(silent) --$@ $(Kconfig)
 
-PHONY += oldnoconfig silentoldconfig savedefconfig defconfig
-
-# oldnoconfig is an alias of olddefconfig, because people already are dependent
-# on its behavior (sets new symbols to their default value but not 'n') with the
-# counter-intuitive name.
-oldnoconfig: olddefconfig
-	@echo "  WARNING: \"oldnoconfig\" target will be removed after Linux 4.19"
-	@echo "            Please use \"olddefconfig\" instead, which is an alias."
+PHONY += silentoldconfig savedefconfig defconfig
 
 # We do not expect manual invokcation of "silentoldcofig" (or "syncconfig").
 silentoldconfig: syncconfig
