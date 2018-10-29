@@ -14582,7 +14582,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	     fb->height < SKL_MIN_YUV_420_SRC_H ||
 	     (fb->width % 4) != 0 || (fb->height % 4) != 0)) {
 		DRM_DEBUG_KMS("src dimensions not correct for NV12\n");
-		return -EINVAL;
+		goto err;
 	}
 
 	for (i = 0; i < fb->format->num_planes; i++) {
