@@ -180,8 +180,8 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t 
 	return nfs42_proc_allocate(filep, offset, len);
 }
 
-static int nfs42_remap_file_range(struct file *src_file, loff_t src_off,
-		struct file *dst_file, loff_t dst_off, u64 count,
+static loff_t nfs42_remap_file_range(struct file *src_file, loff_t src_off,
+		struct file *dst_file, loff_t dst_off, loff_t count,
 		unsigned int remap_flags)
 {
 	struct inode *dst_inode = file_inode(dst_file);
@@ -244,7 +244,7 @@ out_unlock:
 		inode_unlock(src_inode);
 	}
 out:
-	return ret;
+	return ret < 0 ? ret : count;
 }
 #endif /* CONFIG_NFS_V4_2 */
 

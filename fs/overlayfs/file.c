@@ -434,14 +434,14 @@ enum ovl_copyop {
 	OVL_DEDUPE,
 };
 
-static ssize_t ovl_copyfile(struct file *file_in, loff_t pos_in,
+static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 			    struct file *file_out, loff_t pos_out,
-			    u64 len, unsigned int flags, enum ovl_copyop op)
+			    loff_t len, unsigned int flags, enum ovl_copyop op)
 {
 	struct inode *inode_out = file_inode(file_out);
 	struct fd real_in, real_out;
 	const struct cred *old_cred;
-	ssize_t ret;
+	loff_t ret;
 
 	ret = ovl_real_fdget(file_out, &real_out);
 	if (ret)
@@ -489,9 +489,9 @@ static ssize_t ovl_copy_file_range(struct file *file_in, loff_t pos_in,
 			    OVL_COPY);
 }
 
-static int ovl_remap_file_range(struct file *file_in, loff_t pos_in,
-				struct file *file_out, loff_t pos_out,
-				u64 len, unsigned int remap_flags)
+static loff_t ovl_remap_file_range(struct file *file_in, loff_t pos_in,
+				   struct file *file_out, loff_t pos_out,
+				   loff_t len, unsigned int remap_flags)
 {
 	enum ovl_copyop op;
 

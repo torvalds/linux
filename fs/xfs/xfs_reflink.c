@@ -1296,7 +1296,7 @@ xfs_reflink_remap_prep(
 	loff_t			pos_in,
 	struct file		*file_out,
 	loff_t			pos_out,
-	u64			*len,
+	loff_t			*len,
 	unsigned int		remap_flags)
 {
 	struct inode		*inode_in = file_inode(file_in);
@@ -1387,7 +1387,7 @@ xfs_reflink_remap_range(
 	loff_t			pos_in,
 	struct file		*file_out,
 	loff_t			pos_out,
-	u64			len,
+	loff_t			len,
 	unsigned int		remap_flags)
 {
 	struct inode		*inode_in = file_inode(file_in);

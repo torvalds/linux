@@ -883,9 +883,9 @@ struct file_operations {
 	unsigned (*mmap_capabilities)(struct file *);
 #endif
 	ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
-	int (*remap_file_range)(struct file *file_in, loff_t pos_in,
-				struct file *file_out, loff_t pos_out,
-				u64 len, unsigned int remap_flags);
+	loff_t (*remap_file_range)(struct file *file_in, loff_t pos_in,
+				   struct file *file_out, loff_t pos_out,
+				   loff_t len, unsigned int remap_flags);
 	int (*fadvise)(struct file *, loff_t, loff_t, int);
 };
 
@@ -966,8 +966,8 @@ otherwise noted.
 	implementation should remap len bytes at pos_in of the source file into
 	the dest file at pos_out.  Implementations must handle callers passing
 	in len == 0; this means "remap to the end of the source file".  The
-	return value should be zero if all bytes were remapped, or the usual
-	negative error code if the remapping did not succeed completely.
+	return value should the number of bytes remapped, or the usual
+	negative error code if errors occurred before any bytes were remapped.
 	The remap_flags parameter accepts REMAP_FILE_* flags.  If
 	REMAP_FILE_DEDUP is set then the implementation must only remap if the
 	requested file ranges have identical contents.

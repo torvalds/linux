@@ -2527,18 +2527,18 @@ out:
 	return offset;
 }
 
-static int ocfs2_remap_file_range(struct file *file_in,
-				  loff_t pos_in,
-				  struct file *file_out,
-				  loff_t pos_out,
-				  u64 len,
-				  unsigned int remap_flags)
+static loff_t ocfs2_remap_file_range(struct file *file_in, loff_t pos_in,
+				     struct file *file_out, loff_t pos_out,
+				     loff_t len, unsigned int remap_flags)
 {
+	int ret;
+
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
-	return ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-					 len, remap_flags);
+	ret = ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+					len, remap_flags);
+	return ret < 0 ? ret : len;
 }
 
 const struct inode_operations ocfs2_file_iops = {

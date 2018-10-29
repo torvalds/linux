@@ -975,8 +975,8 @@ const struct inode_operations cifs_symlink_inode_ops = {
 	.listxattr = cifs_listxattr,
 };
 
-static int cifs_remap_file_range(struct file *src_file, loff_t off,
-		struct file *dst_file, loff_t destoff, u64 len,
+static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
+		struct file *dst_file, loff_t destoff, loff_t len,
 		unsigned int remap_flags)
 {
 	struct inode *src_inode = file_inode(src_file);
@@ -1029,7 +1029,7 @@ static int cifs_remap_file_range(struct file *src_file, loff_t off,
 	unlock_two_nondirectories(src_inode, target_inode);
 out:
 	free_xid(xid);
-	return rc;
+	return rc < 0 ? rc : len;
 }
 
 ssize_t cifs_file_copychunk_range(unsigned int xid,

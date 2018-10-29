@@ -4328,10 +4328,12 @@ out_unlock:
 	return ret;
 }
 
-int btrfs_remap_file_range(struct file *src_file, loff_t off,
-		struct file *dst_file, loff_t destoff, u64 len,
+loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
+		struct file *dst_file, loff_t destoff, loff_t len,
 		unsigned int remap_flags)
 {
+	int ret;
+
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
@@ -4349,10 +4351,11 @@ int btrfs_remap_file_range(struct file *src_file, loff_t off,
 			return -EINVAL;
 		}
 
-		return btrfs_extent_same(src, off, len, dst, destoff);
+		ret = btrfs_extent_same(src, off, len, dst, destoff);
+	} else {
+		ret = btrfs_clone_files(dst_file, src_file, off, len, destoff);
 	}
-
-	return btrfs_clone_files(dst_file, src_file, off, len, destoff);
+	return ret < 0 ? ret : len;
 }
 
 static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)

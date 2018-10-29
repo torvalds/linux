@@ -919,20 +919,23 @@ out_unlock:
 	return error;
 }
 
-STATIC int
+STATIC loff_t
 xfs_file_remap_range(
 	struct file	*file_in,
 	loff_t		pos_in,
 	struct file	*file_out,
 	loff_t		pos_out,
-	u64		len,
+	loff_t		len,
 	unsigned int	remap_flags)
 {
+	int		ret;
+
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
-	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+	ret = xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
 			len, remap_flags);
+	return ret < 0 ? ret : len;
 }
 
 STATIC int
