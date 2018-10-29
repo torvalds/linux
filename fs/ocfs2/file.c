@@ -2538,7 +2538,7 @@ static int ocfs2_remap_file_range(struct file *file_in,
 		return -EINVAL;
 
 	return ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-					 len, remap_flags & REMAP_FILE_DEDUP);
+					 len, remap_flags);
 }
 
 const struct inode_operations ocfs2_file_iops = {

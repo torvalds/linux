@@ -932,7 +932,7 @@ xfs_file_remap_range(
 		return -EINVAL;
 
 	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-			len, remap_flags & REMAP_FILE_DEDUP);
+			len, remap_flags);
 }
 
 STATIC int
