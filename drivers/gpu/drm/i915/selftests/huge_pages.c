@@ -1135,7 +1135,8 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 	n = 0;
 	for_each_engine(engine, i915, id) {
 		if (!intel_engine_can_store_dword(engine)) {
-			pr_info("store-dword-imm not supported on engine=%u\n", id);
+			pr_info("store-dword-imm not supported on engine=%u\n",
+				id);
 			continue;
 		}
 		engines[n++] = engine;
@@ -1167,17 +1168,30 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 		engine = engines[order[i] % n];
 		i = (i + 1) % (n * I915_NUM_ENGINES);
 
-		err = __igt_write_huge(ctx, engine, obj, size, offset_low, dword, num + 1);
+		/*
+		 * In order to utilize 64K pages we need to both pad the vma
+		 * size and ensure the vma offset is at the start of the pt
+		 * boundary, however to improve coverage we opt for testing both
+		 * aligned and unaligned offsets.
+		 */
+		if (obj->mm.page_sizes.sg & I915_GTT_PAGE_SIZE_64K)
+			offset_low = round_down(offset_low,
+						I915_GTT_PAGE_SIZE_2M);
+
+		err = __igt_write_huge(ctx, engine, obj, size, offset_low,
+				       dword, num + 1);
 		if (err)
 			break;
 
-		err = __igt_write_huge(ctx, engine, obj, size, offset_high, dword, num + 1);
+		err = __igt_write_huge(ctx, engine, obj, size, offset_high,
+				       dword, num + 1);
 		if (err)
 			break;
 
 		if (igt_timeout(end_time,
 				"%s timed out on engine=%u, offset_low=%llx offset_high=%llx, max_page_size=%x\n",
-				__func__, engine->id, offset_low, offset_high, max_page_size))
+				__func__, engine->id, offset_low, offset_high,
+				max_page_size))
 			break;
 	}
 
