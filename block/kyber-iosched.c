@@ -1032,7 +1032,6 @@ static struct elevator_type kyber_sched = {
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,
 	},
-	.uses_mq = true,
 #ifdef CONFIG_BLK_DEBUG_FS
 	.queue_debugfs_attrs = kyber_queue_debugfs_attrs,
 	.hctx_debugfs_attrs = kyber_hctx_debugfs_attrs,

@@ -68,7 +68,7 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	unsigned long nr;
 	int ret, err;
 
-	if (!q->request_fn && !q->mq_ops)
+	if (!q->mq_ops)
 		return -EINVAL;
 
 	ret = queue_var_store(&nr, page, count);
@@ -78,11 +78,7 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 	if (nr < BLKDEV_MIN_RQ)
 		nr = BLKDEV_MIN_RQ;
 
-	if (q->request_fn)
-		err = blk_update_nr_requests(q, nr);
-	else
-		err = blk_mq_update_nr_requests(q, nr);
-
+	err = blk_mq_update_nr_requests(q, nr);
 	if (err)
 		return err;
 
@@ -463,20 +459,14 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	 * ends up either enabling or disabling wbt completely. We can't
 	 * have IO inflight if that happens.
 	 */
-	if (q->mq_ops) {
-		blk_mq_freeze_queue(q);
-		blk_mq_quiesce_queue(q);
-	} else
-		blk_queue_bypass_start(q);
+	blk_mq_freeze_queue(q);
+	blk_mq_quiesce_queue(q);
 
 	wbt_set_min_lat(q, val);
 	wbt_update_limits(q);
 
-	if (q->mq_ops) {
-		blk_mq_unquiesce_queue(q);
-		blk_mq_unfreeze_queue(q);
-	} else
-		blk_queue_bypass_end(q);
+	blk_mq_unquiesce_queue(q);
+	blk_mq_unfreeze_queue(q);
 
 	return count;
 }
@@ -847,17 +837,10 @@ static void __blk_release_queue(struct work_struct *work)
 
 	blk_free_queue_stats(q->stats);
 
-	blk_exit_rl(q, &q->root_rl);
-
 	blk_queue_free_zone_bitmaps(q);
 
-	if (!q->mq_ops) {
-		if (q->exit_rq_fn)
-			q->exit_rq_fn(q, q->fq->flush_rq);
-		blk_free_flush_queue(q->fq);
-	} else {
+	if (q->mq_ops)
 		blk_mq_release(q);
-	}
 
 	blk_trace_shutdown(q);
 
@@ -920,7 +903,6 @@ int blk_register_queue(struct gendisk *disk)
 	if (!blk_queue_init_done(q)) {
 		queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
 		percpu_ref_switch_to_percpu(&q->q_usage_counter);
-		blk_queue_bypass_end(q);
 	}
 
 	ret = blk_trace_init_sysfs(dev);
@@ -947,7 +929,7 @@ int blk_register_queue(struct gendisk *disk)
 
 	blk_throtl_register_queue(q);
 
-	if (q->request_fn || (q->mq_ops && q->elevator)) {
+	if ((q->mq_ops && q->elevator)) {
 		ret = elv_register_queue(q);
 		if (ret) {
 			mutex_unlock(&q->sysfs_lock);
@@ -1005,7 +987,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	blk_trace_remove_sysfs(disk_to_dev(disk));
 
 	mutex_lock(&q->sysfs_lock);
-	if (q->request_fn || (q->mq_ops && q->elevator))
+	if (q->mq_ops && q->elevator)
 		elv_unregister_queue(q);
 	mutex_unlock(&q->sysfs_lock);
 

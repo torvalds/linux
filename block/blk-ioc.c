@@ -48,10 +48,8 @@ static void ioc_exit_icq(struct io_cq *icq)
 	if (icq->flags & ICQ_EXITED)
 		return;
 
-	if (et->uses_mq && et->ops.mq.exit_icq)
+	if (et->ops.mq.exit_icq)
 		et->ops.mq.exit_icq(icq);
-	else if (!et->uses_mq && et->ops.sq.elevator_exit_icq_fn)
-		et->ops.sq.elevator_exit_icq_fn(icq);
 
 	icq->flags |= ICQ_EXITED;
 }
@@ -187,25 +185,13 @@ void put_io_context_active(struct io_context *ioc)
 	 * reverse double locking.  Read comment in ioc_release_fn() for
 	 * explanation on the nested locking annotation.
 	 */
-retry:
 	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
 	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node) {
 		if (icq->flags & ICQ_EXITED)
 			continue;
 
 		et = icq->q->elevator->type;
-		if (et->uses_mq) {
-			ioc_exit_icq(icq);
-		} else {
-			if (spin_trylock(icq->q->queue_lock)) {
-				ioc_exit_icq(icq);
-				spin_unlock(icq->q->queue_lock);
-			} else {
-				spin_unlock_irqrestore(&ioc->lock, flags);
-				cpu_relax();
-				goto retry;
-			}
-		}
+		ioc_exit_icq(icq);
 	}
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
@@ -232,7 +218,7 @@ static void __ioc_clear_queue(struct list_head *icq_list)
 
 	while (!list_empty(icq_list)) {
 		struct io_cq *icq = list_entry(icq_list->next,
-					       struct io_cq, q_node);
+						struct io_cq, q_node);
 		struct io_context *ioc = icq->ioc;
 
 		spin_lock_irqsave(&ioc->lock, flags);
@@ -253,14 +239,9 @@ void ioc_clear_queue(struct request_queue *q)
 
 	spin_lock_irq(q->queue_lock);
 	list_splice_init(&q->icq_list, &icq_list);
+	spin_unlock_irq(q->queue_lock);
 
-	if (q->mq_ops) {
-		spin_unlock_irq(q->queue_lock);
-		__ioc_clear_queue(&icq_list);
-	} else {
-		__ioc_clear_queue(&icq_list);
-		spin_unlock_irq(q->queue_lock);
-	}
+	__ioc_clear_queue(&icq_list);
 }
 
 int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
@@ -415,10 +396,8 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
 		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
 		list_add(&icq->q_node, &q->icq_list);
-		if (et->uses_mq && et->ops.mq.init_icq)
+		if (et->ops.mq.init_icq)
 			et->ops.mq.init_icq(icq);
-		else if (!et->uses_mq && et->ops.sq.elevator_init_icq_fn)
-			et->ops.sq.elevator_init_icq_fn(icq);
 	} else {
 		kmem_cache_free(et->icq_cache, icq);
 		icq = ioc_lookup_icq(ioc, q);
