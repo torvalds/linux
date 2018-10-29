@@ -636,6 +636,29 @@ static int __setplane_check(struct drm_plane *plane,
 	return 0;
 }
 
+/**
+ * drm_any_plane_has_format - Check whether any plane supports this format and modifier combination
+ * @dev: DRM device
+ * @format: pixel format (DRM_FORMAT_*)
+ * @modifier: data layout modifier
+ *
+ * Returns:
+ * Whether at least one plane supports the specified format and modifier combination.
+ */
+bool drm_any_plane_has_format(struct drm_device *dev,
+			      u32 format, u64 modifier)
+{
+	struct drm_plane *plane;
+
+	drm_for_each_plane(plane, dev) {
+		if (drm_plane_check_pixel_format(plane, format, modifier) == 0)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_any_plane_has_format);
+
 /*
  * __setplane_internal - setplane handler for internal callers
  *
