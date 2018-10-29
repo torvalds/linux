@@ -1003,7 +1003,6 @@ struct nand_legacy {
  *			      ONFI compliant or deduced from the datasheet if
  *			      the NAND chip is not ONFI compliant.
  * @numchips:		[INTERN] number of physical chips
- * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
  * @data_buf:		[INTERN] buffer for data, size is (page size + oobsize).
  * @pagecache:		Structure containing page cache related fields
@@ -1053,7 +1052,6 @@ struct nand_chip {
 	int bbt_erase_shift;
 	int chip_shift;
 	int numchips;
-	uint64_t chipsize;
 	int pagemask;
 	u8 *data_buf;
 

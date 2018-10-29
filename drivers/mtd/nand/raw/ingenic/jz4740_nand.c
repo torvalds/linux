@@ -356,7 +356,7 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 		/* Update size of the MTD. */
 		chip->numchips++;
 		memorg->ntargets++;
-		mtd->size += chip->chipsize;
+		mtd->size += nanddev_target_size(&chip->base);
 	}
 
 	dev_info(&pdev->dev, "Found chip %zu on bank %i\n", chipnr, bank);

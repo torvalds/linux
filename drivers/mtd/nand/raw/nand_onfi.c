@@ -246,8 +246,6 @@ int nand_onfi_detect(struct nand_chip *chip)
 	memorg->eraseblocks_per_lun =
 		1 << (fls(le32_to_cpu(p->blocks_per_lun)) - 1);
 	memorg->max_bad_eraseblocks_per_lun = le32_to_cpu(p->blocks_per_lun);
-	chip->chipsize = memorg->eraseblocks_per_lun;
-	chip->chipsize *= (uint64_t)mtd->erasesize * p->lun_count;
 	memorg->bits_per_cell = p->bits_per_cell;
 
 	if (le16_to_cpu(p->features) & ONFI_FEATURE_16_BIT_BUS)

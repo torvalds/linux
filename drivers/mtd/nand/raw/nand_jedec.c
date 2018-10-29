@@ -101,8 +101,6 @@ int nand_jedec_detect(struct nand_chip *chip)
 	/* Please reference to the comment for nand_flash_detect_onfi. */
 	memorg->eraseblocks_per_lun =
 		1 << (fls(le32_to_cpu(p->blocks_per_lun)) - 1);
-	chip->chipsize = memorg->eraseblocks_per_lun;
-	chip->chipsize *= (uint64_t)mtd->erasesize * p->lun_count;
 	memorg->bits_per_cell = p->bits_per_cell;
 
 	if (le16_to_cpu(p->features) & JEDEC_FEATURE_16_BIT_BUS)

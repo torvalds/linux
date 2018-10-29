@@ -1753,7 +1753,7 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 	dev_dbg(dev, "Transcribing bad block marks...\n");
 
 	/* Compute the number of blocks in the entire medium. */
-	block_count = chip->chipsize >> chip->phys_erase_shift;
+	block_count = nanddev_eraseblocks_per_target(&chip->base);
 
 	/*
 	 * Loop over all the blocks in the medium, transcribing block marks as

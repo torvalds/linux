@@ -724,7 +724,7 @@ static int fsl_ifc_attach_chip(struct nand_chip *chip)
 	dev_dbg(priv->dev, "%s: nand->numchips = %d\n", __func__,
 							chip->numchips);
 	dev_dbg(priv->dev, "%s: nand->chipsize = %lld\n", __func__,
-							chip->chipsize);
+	        nanddev_target_size(&chip->base));
 	dev_dbg(priv->dev, "%s: nand->pagemask = %8x\n", __func__,
 							chip->pagemask);
 	dev_dbg(priv->dev, "%s: nand->legacy.chip_delay = %d\n", __func__,

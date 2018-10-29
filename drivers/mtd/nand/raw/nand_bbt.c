@@ -264,6 +264,7 @@ static int read_abs_bbt(struct nand_chip *this, uint8_t *buf,
 			struct nand_bbt_descr *td, int chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(this);
+	u64 targetsize = nanddev_target_size(&this->base);
 	int res = 0, i;
 
 	if (td->options & NAND_BBT_PERCHIP) {
@@ -271,11 +272,11 @@ static int read_abs_bbt(struct nand_chip *this, uint8_t *buf,
 		for (i = 0; i < this->numchips; i++) {
 			if (chip == -1 || chip == i)
 				res = read_bbt(this, buf, td->pages[i],
-					this->chipsize >> this->bbt_erase_shift,
+					targetsize >> this->bbt_erase_shift,
 					td, offs);
 			if (res)
 				return res;
-			offs += this->chipsize >> this->bbt_erase_shift;
+			offs += targetsize >> this->bbt_erase_shift;
 		}
 	} else {
 		res = read_bbt(this, buf, td->pages[0],
@@ -459,6 +460,7 @@ static int scan_block_fast(struct nand_chip *this, struct nand_bbt_descr *bd,
 static int create_bbt(struct nand_chip *this, uint8_t *buf,
 		      struct nand_bbt_descr *bd, int chip)
 {
+	u64 targetsize = nanddev_target_size(&this->base);
 	struct mtd_info *mtd = nand_to_mtd(this);
 	int i, numblocks, numpages;
 	int startblock;
@@ -481,7 +483,7 @@ static int create_bbt(struct nand_chip *this, uint8_t *buf,
 			       chip + 1, this->numchips);
 			return -EINVAL;
 		}
-		numblocks = this->chipsize >> this->bbt_erase_shift;
+		numblocks = targetsize >> this->bbt_erase_shift;
 		startblock = chip * numblocks;
 		numblocks += startblock;
 		from = (loff_t)startblock << this->bbt_erase_shift;
@@ -529,6 +531,7 @@ static int create_bbt(struct nand_chip *this, uint8_t *buf,
 static int search_bbt(struct nand_chip *this, uint8_t *buf,
 		      struct nand_bbt_descr *td)
 {
+	u64 targetsize = nanddev_target_size(&this->base);
 	struct mtd_info *mtd = nand_to_mtd(this);
 	int i, chips;
 	int startblock, block, dir;
@@ -548,7 +551,7 @@ static int search_bbt(struct nand_chip *this, uint8_t *buf,
 	/* Do we have a bbt per chip? */
 	if (td->options & NAND_BBT_PERCHIP) {
 		chips = this->numchips;
-		bbtblocks = this->chipsize >> this->bbt_erase_shift;
+		bbtblocks = targetsize >> this->bbt_erase_shift;
 		startblock &= bbtblocks - 1;
 	} else {
 		chips = 1;
@@ -576,7 +579,7 @@ static int search_bbt(struct nand_chip *this, uint8_t *buf,
 				break;
 			}
 		}
-		startblock += this->chipsize >> this->bbt_erase_shift;
+		startblock += targetsize >> this->bbt_erase_shift;
 	}
 	/* Check, if we found a bbt for each requested chip */
 	for (i = 0; i < chips; i++) {
@@ -626,6 +629,7 @@ static void search_read_bbts(struct nand_chip *this, uint8_t *buf,
 static int get_bbt_block(struct nand_chip *this, struct nand_bbt_descr *td,
 			 struct nand_bbt_descr *md, int chip)
 {
+	u64 targetsize = nanddev_target_size(&this->base);
 	int startblock, dir, page, numblocks, i;
 
 	/*
@@ -637,7 +641,7 @@ static int get_bbt_block(struct nand_chip *this, struct nand_bbt_descr *td,
 		return td->pages[chip] >>
 				(this->bbt_erase_shift - this->page_shift);
 
-	numblocks = (int)(this->chipsize >> this->bbt_erase_shift);
+	numblocks = (int)(targetsize >> this->bbt_erase_shift);
 	if (!(td->options & NAND_BBT_PERCHIP))
 		numblocks *= this->numchips;
 
@@ -717,6 +721,7 @@ static int write_bbt(struct nand_chip *this, uint8_t *buf,
 		     struct nand_bbt_descr *td, struct nand_bbt_descr *md,
 		     int chipsel)
 {
+	u64 targetsize = nanddev_target_size(&this->base);
 	struct mtd_info *mtd = nand_to_mtd(this);
 	struct erase_info einfo;
 	int i, res, chip = 0;
@@ -737,7 +742,7 @@ static int write_bbt(struct nand_chip *this, uint8_t *buf,
 		rcode = 0xff;
 	/* Write bad block table per chip rather than per device? */
 	if (td->options & NAND_BBT_PERCHIP) {
-		numblocks = (int)(this->chipsize >> this->bbt_erase_shift);
+		numblocks = (int)(targetsize >> this->bbt_erase_shift);
 		/* Full device write or specific chip? */
 		if (chipsel == -1) {
 			nrchips = this->numchips;
@@ -1099,6 +1104,7 @@ static int nand_update_bbt(struct nand_chip *this, loff_t offs)
  */
 static void mark_bbt_region(struct nand_chip *this, struct nand_bbt_descr *td)
 {
+	u64 targetsize = nanddev_target_size(&this->base);
 	struct mtd_info *mtd = nand_to_mtd(this);
 	int i, j, chips, block, nrblocks, update;
 	uint8_t oldval;
@@ -1106,7 +1112,7 @@ static void mark_bbt_region(struct nand_chip *this, struct nand_bbt_descr *td)
 	/* Do we have a bbt per chip? */
 	if (td->options & NAND_BBT_PERCHIP) {
 		chips = this->numchips;
-		nrblocks = (int)(this->chipsize >> this->bbt_erase_shift);
+		nrblocks = (int)(targetsize >> this->bbt_erase_shift);
 	} else {
 		chips = 1;
 		nrblocks = (int)(mtd->size >> this->bbt_erase_shift);
@@ -1159,6 +1165,7 @@ static void mark_bbt_region(struct nand_chip *this, struct nand_bbt_descr *td)
  */
 static void verify_bbt_descr(struct nand_chip *this, struct nand_bbt_descr *bd)
 {
+	u64 targetsize = nanddev_target_size(&this->base);
 	struct mtd_info *mtd = nand_to_mtd(this);
 	u32 pattern_len;
 	u32 bits;
@@ -1187,7 +1194,7 @@ static void verify_bbt_descr(struct nand_chip *this, struct nand_bbt_descr *bd)
 	}
 
 	if (bd->options & NAND_BBT_PERCHIP)
-		table_size = this->chipsize >> this->bbt_erase_shift;
+		table_size = targetsize >> this->bbt_erase_shift;
 	else
 		table_size = mtd->size >> this->bbt_erase_shift;
 	table_size >>= 3;
