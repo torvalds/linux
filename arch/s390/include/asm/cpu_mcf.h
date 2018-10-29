@@ -49,6 +49,26 @@ static inline void ctr_set_stop(u64 *state, int ctr_set)
 	*state &= ~(cpumf_ctr_ctl[ctr_set] << CPUMF_LCCTL_ACTCTL_SHIFT);
 }
 
+static inline void ctr_set_multiple_enable(u64 *state, u64 ctrsets)
+{
+	*state |= ctrsets << CPUMF_LCCTL_ENABLE_SHIFT;
+}
+
+static inline void ctr_set_multiple_disable(u64 *state, u64 ctrsets)
+{
+	*state &= ~(ctrsets << CPUMF_LCCTL_ENABLE_SHIFT);
+}
+
+static inline void ctr_set_multiple_start(u64 *state, u64 ctrsets)
+{
+	*state |= ctrsets << CPUMF_LCCTL_ACTCTL_SHIFT;
+}
+
+static inline void ctr_set_multiple_stop(u64 *state, u64 ctrsets)
+{
+	*state &= ~(ctrsets << CPUMF_LCCTL_ACTCTL_SHIFT);
+}
+
 static inline int ctr_stcctm(enum cpumf_ctr_set set, u64 range, u64 *dest)
 {
 	switch (set) {
@@ -95,6 +115,12 @@ static inline void kernel_cpumcf_end(void)
 {
 	__kernel_cpumcf_end();
 	preempt_enable();
+}
+
+/* Return true if store counter set multiple instruction is available */
+static inline int stccm_avail(void)
+{
+	return test_facility(142);
 }
 
 #endif /* _ASM_S390_CPU_MCF_H */
