@@ -46,6 +46,13 @@
 
 bool *bTfp0 = nil; // boolean that can be defined later in an installation preference?
 
+/*
+NSDictionary *bundle = [[NSUserDefaults standardUserDefaults] persistentDomainForName:@"xxx"];
+
+id tfp0 = [bundle valueForKey:@"tfp0"];
+bool bTfp0 = [tfp0 bool];
+*/
+
 if (bTfp0) {
 	int main(void) {
 	    mach_port_t kernel_task = 0;
