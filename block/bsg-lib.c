@@ -31,6 +31,12 @@
 
 #define uptr64(val) ((void __user *)(uintptr_t)(val))
 
+struct bsg_set {
+	struct blk_mq_tag_set	tag_set;
+	bsg_job_fn		*job_fn;
+	bsg_timeout_fn		*timeout_fn;
+};
+
 static int bsg_transport_check_proto(struct sg_io_v4 *hdr)
 {
 	if (hdr->protocol != BSG_PROTOCOL_SCSI  ||
@@ -239,6 +245,8 @@ static blk_status_t bsg_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request_queue *q = hctx->queue;
 	struct device *dev = q->queuedata;
 	struct request *req = bd->rq;
+	struct bsg_set *bset =
+		container_of(q->tag_set, struct bsg_set, tag_set);
 	int ret;
 
 	blk_mq_start_request(req);
@@ -249,7 +257,7 @@ static blk_status_t bsg_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (!bsg_prepare_job(dev, req))
 		return BLK_STS_IOERR;
 
-	ret = q->bsg_job_fn(blk_mq_rq_to_pdu(req));
+	ret = bset->job_fn(blk_mq_rq_to_pdu(req));
 	if (ret)
 		return BLK_STS_IOERR;
 
@@ -292,25 +300,25 @@ static void bsg_exit_rq(struct blk_mq_tag_set *set, struct request *req,
 void bsg_remove_queue(struct request_queue *q)
 {
 	if (q) {
-		struct blk_mq_tag_set *set = q->tag_set;
+		struct bsg_set *bset =
+			container_of(q->tag_set, struct bsg_set, tag_set);
 
 		bsg_unregister_queue(q);
 		blk_cleanup_queue(q);
-		blk_mq_free_tag_set(set);
-		kfree(set);
+		blk_mq_free_tag_set(&bset->tag_set);
+		kfree(bset);
 	}
 }
 EXPORT_SYMBOL_GPL(bsg_remove_queue);
 
 static enum blk_eh_timer_return bsg_timeout(struct request *rq, bool reserved)
 {
-	enum blk_eh_timer_return ret = BLK_EH_DONE;
-	struct request_queue *q = rq->q;
+	struct bsg_set *bset =
+		container_of(rq->q->tag_set, struct bsg_set, tag_set);
 
-	if (q->bsg_job_timeout_fn)
-		ret = q->bsg_job_timeout_fn(rq);
-
-	return ret;
+	if (!bset->timeout_fn)
+		return BLK_EH_DONE;
+	return bset->timeout_fn(rq);
 }
 
 static const struct blk_mq_ops bsg_mq_ops = {
@@ -330,16 +338,21 @@ static const struct blk_mq_ops bsg_mq_ops = {
  * @dd_job_size: size of LLD data needed for each job
  */
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
-		bsg_job_fn *job_fn, rq_timed_out_fn *timeout, int dd_job_size)
+		bsg_job_fn *job_fn, bsg_timeout_fn *timeout, int dd_job_size)
 {
+	struct bsg_set *bset;
 	struct blk_mq_tag_set *set;
 	struct request_queue *q;
 	int ret = -ENOMEM;
 
-	set = kzalloc(sizeof(*set), GFP_KERNEL);
-	if (!set)
+	bset = kzalloc(sizeof(*bset), GFP_KERNEL);
+	if (!bset)
 		return ERR_PTR(-ENOMEM);
 
+	bset->job_fn = job_fn;
+	bset->timeout_fn = timeout;
+
+	set = &bset->tag_set;
 	set->ops = &bsg_mq_ops,
 	set->nr_hw_queues = 1;
 	set->queue_depth = 128;
@@ -356,8 +369,6 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	}
 
 	q->queuedata = dev;
-	q->bsg_job_fn = job_fn;
-	q->bsg_job_timeout_fn = timeout;
 	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 
@@ -374,7 +385,7 @@ out_cleanup_queue:
 out_queue:
 	blk_mq_free_tag_set(set);
 out_tag_set:
-	kfree(set);
+	kfree(bset);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(bsg_setup_queue);
