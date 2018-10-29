@@ -837,7 +837,14 @@ static ssize_t bus_uevent_store(struct bus_type *bus,
 	rc = kobject_synth_uevent(&bus->p->subsys.kobj, buf, count);
 	return rc ? rc : count;
 }
-static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
+/*
+ * "open code" the old BUS_ATTR() macro here.  We want to use BUS_ATTR_WO()
+ * here, but can not use it as earlier in the file we have
+ * DEVICE_ATTR_WO(uevent), which would cause a clash with the with the store
+ * function name.
+ */
+static struct bus_attribute bus_attr_uevent = __ATTR(uevent, S_IWUSR, NULL,
+						     bus_uevent_store);
 
 /**
  * bus_register - register a driver-core subsystem
