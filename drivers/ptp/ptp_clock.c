@@ -232,12 +232,8 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	init_waitqueue_head(&ptp->tsev_wq);
 
 	if (ptp->info->do_aux_work) {
-		char *worker_name = kasprintf(GFP_KERNEL, "ptp%d", ptp->index);
-
 		kthread_init_delayed_work(&ptp->aux_work, ptp_aux_kworker);
-		ptp->kworker = kthread_create_worker(0, worker_name ?
-						     worker_name : info->name);
-		kfree(worker_name);
+		ptp->kworker = kthread_create_worker(0, "ptp%d", ptp->index);
 		if (IS_ERR(ptp->kworker)) {
 			err = PTR_ERR(ptp->kworker);
 			pr_err("failed to create ptp aux_worker %d\n", err);
