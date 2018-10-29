@@ -339,8 +339,7 @@ static inline const char *kretprobed(const char *name)
 #endif /* CONFIG_KRETPROBES */
 
 static void
-seq_print_sym(struct trace_seq *s, const char *fmt, unsigned long address,
-	      bool offset)
+seq_print_sym(struct trace_seq *s, unsigned long address, bool offset)
 {
 	char str[KSYM_SYMBOL_LEN];
 #ifdef CONFIG_KALLSYMS
@@ -353,12 +352,12 @@ seq_print_sym(struct trace_seq *s, const char *fmt, unsigned long address,
 	name = kretprobed(str);
 
 	if (name && strlen(name)) {
-		trace_seq_printf(s, fmt, name);
+		trace_seq_printf(s, "%s", name);
 		return;
 	}
 #endif
 	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
-	trace_seq_printf(s, fmt, str);
+	trace_seq_printf(s, "%s", str);
 }
 
 #ifndef CONFIG_64BIT
@@ -407,7 +406,7 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 		goto out;
 	}
 
-	seq_print_sym(s, "%s", ip, sym_flags & TRACE_ITER_SYM_OFFSET);
+	seq_print_sym(s, ip, sym_flags & TRACE_ITER_SYM_OFFSET);
 
 	if (sym_flags & TRACE_ITER_SYM_ADDR)
 		trace_seq_printf(s, " <" IP_FMT ">", ip);
