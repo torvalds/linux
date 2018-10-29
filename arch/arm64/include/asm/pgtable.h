@@ -22,6 +22,7 @@
 #include <asm/memory.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable-prot.h>
+#include <asm/tlbflush.h>
 
 /*
  * VMALLOC range.
@@ -683,6 +684,27 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    pte_t *ptep)
 {
 	return __ptep_test_and_clear_young(ptep);
+}
+
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
+					 unsigned long address, pte_t *ptep)
+{
+	int young = ptep_test_and_clear_young(vma, address, ptep);
+
+	if (young) {
+		/*
+		 * We can elide the trailing DSB here since the worst that can
+		 * happen is that a CPU continues to use the young entry in its
+		 * TLB and we mistakenly reclaim the associated page. The
+		 * window for such an event is bounded by the next
+		 * context-switch, which provides a DSB to complete the TLB
+		 * invalidation.
+		 */
+		flush_tlb_page_nosync(vma, address);
+	}
+
+	return young;
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

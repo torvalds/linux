@@ -21,6 +21,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/mm_types.h>
 #include <linux/sched.h>
 #include <asm/cputype.h>
 #include <asm/mmu.h>
@@ -164,14 +165,20 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 	dsb(ish);
 }
 
-static inline void flush_tlb_page(struct vm_area_struct *vma,
-				  unsigned long uaddr)
+static inline void flush_tlb_page_nosync(struct vm_area_struct *vma,
+					 unsigned long uaddr)
 {
 	unsigned long addr = __TLBI_VADDR(uaddr, ASID(vma->vm_mm));
 
 	dsb(ishst);
 	__tlbi(vale1is, addr);
 	__tlbi_user(vale1is, addr);
+}
+
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long uaddr)
+{
+	flush_tlb_page_nosync(vma, uaddr);
 	dsb(ish);
 }
 
