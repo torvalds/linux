@@ -272,6 +272,20 @@ nanddev_pages_per_eraseblock(const struct nand_device *nand)
 }
 
 /**
+ * nanddev_pages_per_target() - Get the number of pages per target
+ * @nand: NAND device
+ *
+ * Return: the number of pages per target.
+ */
+static inline unsigned int
+nanddev_pages_per_target(const struct nand_device *nand)
+{
+	return nand->memorg.pages_per_eraseblock *
+	       nand->memorg.eraseblocks_per_lun *
+	       nand->memorg.luns_per_target;
+}
+
+/**
  * nanddev_per_page_oobsize() - Get NAND erase block size
  * @nand: NAND device
  *
