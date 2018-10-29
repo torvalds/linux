@@ -1382,35 +1382,47 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 	}
 }
 
-static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
-					 struct ieee80211_vif *vif)
+void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
+				     struct iwl_rx_cmd_buffer *rxb)
 {
-	struct iwl_missed_beacons_notif *missed_beacons = _data;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_missed_beacons_notif *mb = (void *)pkt->data;
 	struct iwl_fw_dbg_trigger_missed_bcon *bcon_trig;
 	struct iwl_fw_dbg_trigger_tlv *trigger;
 	u32 stop_trig_missed_bcon, stop_trig_missed_bcon_since_rx;
 	u32 rx_missed_bcon, rx_missed_bcon_since_rx;
+	struct ieee80211_vif *vif;
+	u32 id = le32_to_cpu(mb->mac_id);
 
-	if (mvmvif->id != (u16)le32_to_cpu(missed_beacons->mac_id))
-		return;
+	IWL_DEBUG_INFO(mvm,
+		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
+		       le32_to_cpu(mb->mac_id),
+		       le32_to_cpu(mb->consec_missed_beacons),
+		       le32_to_cpu(mb->consec_missed_beacons_since_last_rx),
+		       le32_to_cpu(mb->num_recvd_beacons),
+		       le32_to_cpu(mb->num_expected_beacons));
 
-	rx_missed_bcon = le32_to_cpu(missed_beacons->consec_missed_beacons);
+	rcu_read_lock();
+
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
+	if (!vif)
+		goto out;
+
+	rx_missed_bcon = le32_to_cpu(mb->consec_missed_beacons);
 	rx_missed_bcon_since_rx =
-		le32_to_cpu(missed_beacons->consec_missed_beacons_since_last_rx);
+		le32_to_cpu(mb->consec_missed_beacons_since_last_rx);
 	/*
 	 * TODO: the threshold should be adjusted based on latency conditions,
 	 * and/or in case of a CS flow on one of the other AP vifs.
 	 */
-	if (le32_to_cpu(missed_beacons->consec_missed_beacons_since_last_rx) >
+	if (le32_to_cpu(mb->consec_missed_beacons_since_last_rx) >
 	     IWL_MVM_MISSED_BEACONS_THRESHOLD)
 		ieee80211_beacon_loss(vif);
 
 	trigger = iwl_fw_dbg_trigger_on(&mvm->fwrt, ieee80211_vif_to_wdev(vif),
 					FW_DBG_TRIGGER_MISSED_BEACONS);
 	if (!trigger)
-		return;
+		goto out;
 
 	bcon_trig = (void *)trigger->data;
 	stop_trig_missed_bcon = le32_to_cpu(bcon_trig->stop_consec_missed_bcon);
@@ -1422,28 +1434,11 @@ static void iwl_mvm_beacon_loss_iterator(void *_data, u8 *mac,
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)
 		iwl_fw_dbg_collect_trig(&mvm->fwrt, trigger, NULL);
-}
-
-void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
-				     struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_missed_beacons_notif *mb = (void *)pkt->data;
-
-	IWL_DEBUG_INFO(mvm,
-		       "missed bcn mac_id=%u, consecutive=%u (%u, %u, %u)\n",
-		       le32_to_cpu(mb->mac_id),
-		       le32_to_cpu(mb->consec_missed_beacons),
-		       le32_to_cpu(mb->consec_missed_beacons_since_last_rx),
-		       le32_to_cpu(mb->num_recvd_beacons),
-		       le32_to_cpu(mb->num_expected_beacons));
-
-	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
-						   iwl_mvm_beacon_loss_iterator,
-						   mb);
 
 	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_MISSED_BEACONS);
+
+out:
+	rcu_read_unlock();
 }
 
 void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
@@ -1485,15 +1480,28 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	ieee80211_rx_napi(mvm->hw, NULL, skb, NULL);
 }
 
-static void iwl_mvm_probe_resp_data_iter(void *_data, u8 *mac,
-					 struct ieee80211_vif *vif)
+void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
+				   struct iwl_rx_cmd_buffer *rxb)
 {
-	struct iwl_probe_resp_data_notif *notif = _data;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_probe_resp_data_notif *notif = (void *)pkt->data;
 	struct iwl_probe_resp_data *old_data, *new_data;
+	int len = iwl_rx_packet_payload_len(pkt);
+	u32 id = le32_to_cpu(notif->mac_id);
+	struct ieee80211_vif *vif;
+	struct iwl_mvm_vif *mvmvif;
 
-	if (mvmvif->id != (u16)le32_to_cpu(notif->mac_id))
+	if (WARN_ON_ONCE(len < sizeof(*notif)))
 		return;
+
+	IWL_DEBUG_INFO(mvm, "Probe response data notif: noa %d, csa %d\n",
+		       notif->noa_active, notif->csa_counter);
+
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, false);
+	if (!vif)
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	new_data = kzalloc(sizeof(*new_data), GFP_KERNEL);
 	if (!new_data)
@@ -1523,25 +1531,6 @@ static void iwl_mvm_probe_resp_data_iter(void *_data, u8 *mac,
 	if (notif->csa_counter != IWL_PROBE_RESP_DATA_NO_CSA &&
 	    notif->csa_counter >= 1)
 		ieee80211_csa_set_counter(vif, notif->csa_counter);
-}
-
-void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
-				   struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_probe_resp_data_notif *notif = (void *)pkt->data;
-	int len = iwl_rx_packet_payload_len(pkt);
-
-	if (WARN_ON_ONCE(len < sizeof(*notif)))
-		return;
-
-	IWL_DEBUG_INFO(mvm, "Probe response data notif: noa %d, csa %d\n",
-		       notif->noa_active, notif->csa_counter);
-
-	ieee80211_iterate_active_interfaces(mvm->hw,
-					    IEEE80211_IFACE_ITER_ACTIVE,
-					    iwl_mvm_probe_resp_data_iter,
-					    notif);
 }
 
 void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,

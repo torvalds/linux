@@ -989,6 +989,7 @@ struct iwl_mvm {
 	u8 refs[IWL_MVM_REF_COUNT];
 
 	u8 vif_count;
+	struct ieee80211_vif __rcu *vif_id_to_mac[NUM_MAC_INDEX_DRIVER];
 
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 fw_restart;
@@ -1239,6 +1240,19 @@ iwl_mvm_sta_from_staid_protected(struct iwl_mvm *mvm, u8 sta_id)
 		return NULL;
 
 	return iwl_mvm_sta_from_mac80211(sta);
+}
+
+static inline struct ieee80211_vif *
+iwl_mvm_rcu_dereference_vif_id(struct iwl_mvm *mvm, u8 vif_id, bool rcu)
+{
+	if (WARN_ON(vif_id >= ARRAY_SIZE(mvm->vif_id_to_mac)))
+		return NULL;
+
+	if (rcu)
+		return rcu_dereference(mvm->vif_id_to_mac[vif_id]);
+
+	return rcu_dereference_protected(mvm->vif_id_to_mac[vif_id],
+					 lockdep_is_held(&mvm->mutex));
 }
 
 static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
