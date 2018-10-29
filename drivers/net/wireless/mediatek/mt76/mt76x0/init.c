@@ -157,42 +157,6 @@ static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 	mt76_rmw(dev, MT_WMM_CTRL, 0x3ff, 0x201);
 }
 
-static int mt76x0_init_wcid_mem(struct mt76x02_dev *dev)
-{
-	u32 *vals;
-	int i;
-
-	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
-	if (!vals)
-		return -ENOMEM;
-
-	for (i = 0; i < MT76_N_WCIDS; i++)  {
-		vals[i * 2] = 0xffffffff;
-		vals[i * 2 + 1] = 0x00ffffff;
-	}
-
-	mt76_wr_copy(dev, MT_WCID_ADDR_BASE, vals, MT76_N_WCIDS * 2);
-	kfree(vals);
-	return 0;
-}
-
-static int mt76x0_init_wcid_attr_mem(struct mt76x02_dev *dev)
-{
-	u32 *vals;
-	int i;
-
-	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
-	if (!vals)
-		return -ENOMEM;
-
-	for (i = 0; i < MT76_N_WCIDS * 2; i++)
-		vals[i] = 1;
-
-	mt76_wr_copy(dev, MT_WCID_ATTR_BASE, vals, MT76_N_WCIDS * 2);
-	kfree(vals);
-	return 0;
-}
-
 static void mt76x0_reset_counters(struct mt76x02_dev *dev)
 {
 	mt76_rr(dev, MT_RX_STAT_0);
@@ -278,17 +242,12 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
-	ret = mt76x0_init_wcid_mem(dev);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < 16; i++)
 		for (k = 0; k < 4; k++)
 			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 
-	ret = mt76x0_init_wcid_attr_mem(dev);
-	if (ret)
-		return ret;
+	for (i = 0; i < 256; i++)
+		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
 
 	mt76x0_reset_counters(dev);
 
