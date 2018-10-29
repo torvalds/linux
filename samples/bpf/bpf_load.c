@@ -284,8 +284,8 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 							numa_node);
 		}
 		if (map_fd[i] < 0) {
-			printf("failed to create a map: %d %s\n",
-			       errno, strerror(errno));
+			printf("failed to create map %d (%s): %d %s\n",
+			       i, maps[i].name, errno, strerror(errno));
 			return 1;
 		}
 		maps[i].fd = map_fd[i];
