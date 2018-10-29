@@ -7,6 +7,7 @@
 #include <crypto/internal/skcipher.h>
 #include <crypto/des.h>
 #include <crypto/xts.h>
+#include <crypto/sm4.h>
 #include <crypto/scatterwalk.h>
 
 #include "cc_driver.h"
@@ -83,6 +84,9 @@ static int validate_keys_sizes(struct cc_cipher_ctx *ctx_p, u32 size)
 		if (size == DES3_EDE_KEY_SIZE || size == DES_KEY_SIZE)
 			return 0;
 		break;
+	case S_DIN_to_SM4:
+		if (size == SM4_KEY_SIZE)
+			return 0;
 	default:
 		break;
 	}
@@ -122,6 +126,17 @@ static int validate_data_size(struct cc_cipher_ctx *ctx_p,
 		if (IS_ALIGNED(size, DES_BLOCK_SIZE))
 			return 0;
 		break;
+	case S_DIN_to_SM4:
+		switch (ctx_p->cipher_mode) {
+		case DRV_CIPHER_CTR:
+			return 0;
+		case DRV_CIPHER_ECB:
+		case DRV_CIPHER_CBC:
+			if (IS_ALIGNED(size, SM4_BLOCK_SIZE))
+				return 0;
+		default:
+			break;
+		}
 	default:
 		break;
 	}
@@ -521,6 +536,9 @@ static void cc_setup_cipher_data(struct crypto_tfm *tfm,
 		break;
 	case S_DIN_to_DES:
 		flow_mode = DIN_DES_DOUT;
+		break;
+	case S_DIN_to_SM4:
+		flow_mode = DIN_SM4_DOUT;
 		break;
 	default:
 		dev_err(dev, "invalid flow mode, flow_mode = %d\n", flow_mode);
@@ -1323,6 +1341,54 @@ static const struct cc_alg_template skcipher_algs[] = {
 		.cipher_mode = DRV_CIPHER_ECB,
 		.flow_mode = S_DIN_to_DES,
 		.min_hw_rev = CC_HW_REV_630,
+	},
+	{
+		.name = "cbc(sm4)",
+		.driver_name = "cbc-sm4-ccree",
+		.blocksize = SM4_BLOCK_SIZE,
+		.template_skcipher = {
+			.setkey = cc_cipher_setkey,
+			.encrypt = cc_cipher_encrypt,
+			.decrypt = cc_cipher_decrypt,
+			.min_keysize = SM4_KEY_SIZE,
+			.max_keysize = SM4_KEY_SIZE,
+			.ivsize = SM4_BLOCK_SIZE,
+			},
+		.cipher_mode = DRV_CIPHER_CBC,
+		.flow_mode = S_DIN_to_SM4,
+		.min_hw_rev = CC_HW_REV_713,
+	},
+	{
+		.name = "ecb(sm4)",
+		.driver_name = "ecb-sm4-ccree",
+		.blocksize = SM4_BLOCK_SIZE,
+		.template_skcipher = {
+			.setkey = cc_cipher_setkey,
+			.encrypt = cc_cipher_encrypt,
+			.decrypt = cc_cipher_decrypt,
+			.min_keysize = SM4_KEY_SIZE,
+			.max_keysize = SM4_KEY_SIZE,
+			.ivsize = 0,
+			},
+		.cipher_mode = DRV_CIPHER_ECB,
+		.flow_mode = S_DIN_to_SM4,
+		.min_hw_rev = CC_HW_REV_713,
+	},
+	{
+		.name = "ctr(sm4)",
+		.driver_name = "ctr-sm4-ccree",
+		.blocksize = SM4_BLOCK_SIZE,
+		.template_skcipher = {
+			.setkey = cc_cipher_setkey,
+			.encrypt = cc_cipher_encrypt,
+			.decrypt = cc_cipher_decrypt,
+			.min_keysize = SM4_KEY_SIZE,
+			.max_keysize = SM4_KEY_SIZE,
+			.ivsize = SM4_BLOCK_SIZE,
+			},
+		.cipher_mode = DRV_CIPHER_CTR,
+		.flow_mode = S_DIN_to_SM4,
+		.min_hw_rev = CC_HW_REV_713,
 	},
 };
 
