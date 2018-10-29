@@ -483,5 +483,5 @@ NOKPROBE_SYMBOL(native_set_debugreg);
 NOKPROBE_SYMBOL(native_load_idt);
 #endif
 
-EXPORT_SYMBOL_GPL(pv_ops);
+EXPORT_SYMBOL(pv_ops);
 EXPORT_SYMBOL_GPL(pv_info);
