@@ -1727,8 +1727,10 @@ struct block_device_operations;
  * See Documentation/filesystems/vfs.txt for more details about this call.
  *
  * REMAP_FILE_DEDUP: only remap if contents identical (i.e. deduplicate)
+ * REMAP_FILE_CAN_SHORTEN: caller can handle a shortened request
  */
 #define REMAP_FILE_DEDUP		(1 << 0)
+#define REMAP_FILE_CAN_SHORTEN		(1 << 1)
 
 /*
  * These flags signal that the caller is ok with altering various aspects of
@@ -1736,9 +1738,8 @@ struct block_device_operations;
  * implementation; the vfs remap helper functions can take advantage of them.
  * Flags in this category exist to preserve the quirky behavior of the hoisted
  * btrfs clone/dedupe ioctls.
- * There are no flags yet, but subsequent commits will add some.
  */
-#define REMAP_FILE_ADVISORY		(0)
+#define REMAP_FILE_ADVISORY		(REMAP_FILE_CAN_SHORTEN)
 
 struct iov_iter;
 
