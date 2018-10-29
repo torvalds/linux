@@ -511,6 +511,12 @@
 			input-schmitt-enable;
 		};
 
+		pcfg_pull_none_2ma_smt: pcfg-pull-none-2ma-smt {
+			bias-disable;
+			drive-strength = <2>;
+			input-schmitt-enable;
+		};
+
 		pcfg_output_high: pcfg-output-high {
 			output-high;
 		};
@@ -524,9 +530,9 @@
 			i2c0_xfer: i2c0-xfer {
 				rockchip,pins =
 					/* i2c0_sda */
-					<0 RK_PB1 1 &pcfg_pull_none_smt>,
+					<0 RK_PB1 1 &pcfg_pull_none_2ma_smt>,
 					/* i2c0_scl */
-					<0 RK_PB0 1 &pcfg_pull_none_smt>;
+					<0 RK_PB0 1 &pcfg_pull_none_2ma_smt>;
 			};
 		};
 
@@ -534,9 +540,9 @@
 			i2c1_xfer: i2c1-xfer {
 				rockchip,pins =
 					/* i2c1_sda */
-					<0 RK_PC1 1 &pcfg_pull_none_smt>,
+					<0 RK_PC1 1 &pcfg_pull_none_2ma_smt>,
 					/* i2c1_scl */
-					<0 RK_PC0 1 &pcfg_pull_none_smt>;
+					<0 RK_PC0 1 &pcfg_pull_none_2ma_smt>;
 			};
 		};
 
