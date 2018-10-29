@@ -1,8 +1,11 @@
 Arm TrustZone CryptoCell cryptographic engine
 
 Required properties:
-- compatible: Should be one of: "arm,cryptocell-712-ree",
-  "arm,cryptocell-710-ree" or "arm,cryptocell-630p-ree".
+- compatible: Should be one of -
+   "arm,cryptocell-713-ree"
+   "arm,cryptocell-712-ree"
+   "arm,cryptocell-710-ree"
+   "arm,cryptocell-630p-ree"
 - reg: Base physical address of the engine and length of memory mapped region.
 - interrupts: Interrupt number for the device.
 
