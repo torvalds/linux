@@ -6934,11 +6934,12 @@ static int qla2xxx_map_queues(struct Scsi_Host *shost)
 {
 	int rc;
 	scsi_qla_host_t *vha = (scsi_qla_host_t *)shost->hostdata;
+	struct blk_mq_queue_map *qmap = &shost->tag_set.map[0];
 
 	if (USER_CTRL_IRQ(vha->hw))
-		rc = blk_mq_map_queues(&shost->tag_set);
+		rc = blk_mq_map_queues(qmap);
 	else
-		rc = blk_mq_pci_map_queues(&shost->tag_set, vha->hw->pdev, 0);
+		rc = blk_mq_pci_map_queues(qmap, vha->hw->pdev, 0);
 	return rc;
 }
 

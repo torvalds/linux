@@ -70,14 +70,14 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 /*
  * CPU -> queue mappings
  */
-extern int blk_mq_hw_queue_to_node(unsigned int *map, unsigned int);
+extern int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int);
 
 static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 		int cpu)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 
-	return q->queue_hw_ctx[set->mq_map[cpu]];
+	return q->queue_hw_ctx[set->map[0].mq_map[cpu]];
 }
 
 /*
@@ -206,12 +206,12 @@ static inline void blk_mq_put_driver_tag(struct request *rq)
 	__blk_mq_put_driver_tag(hctx, rq);
 }
 
-static inline void blk_mq_clear_mq_map(struct blk_mq_tag_set *set)
+static inline void blk_mq_clear_mq_map(struct blk_mq_queue_map *qmap)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		set->mq_map[cpu] = 0;
+		qmap->mq_map[cpu] = 0;
 }
 
 #endif

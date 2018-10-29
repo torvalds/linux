@@ -30,10 +30,10 @@ static int get_first_sibling(unsigned int cpu)
 	return cpu;
 }
 
-int blk_mq_map_queues(struct blk_mq_tag_set *set)
+int blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 {
-	unsigned int *map = set->mq_map;
-	unsigned int nr_queues = set->nr_hw_queues;
+	unsigned int *map = qmap->mq_map;
+	unsigned int nr_queues = qmap->nr_queues;
 	unsigned int cpu, first_sibling;
 
 	for_each_possible_cpu(cpu) {
@@ -62,12 +62,12 @@ EXPORT_SYMBOL_GPL(blk_mq_map_queues);
  * We have no quick way of doing reverse lookups. This is only used at
  * queue init time, so runtime isn't important.
  */
-int blk_mq_hw_queue_to_node(unsigned int *mq_map, unsigned int index)
+int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int index)
 {
 	int i;
 
 	for_each_possible_cpu(i) {
-		if (index == mq_map[i])
+		if (index == qmap->mq_map[i])
 			return local_memory_node(cpu_to_node(i));
 	}
 

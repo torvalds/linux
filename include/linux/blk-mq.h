@@ -74,10 +74,19 @@ struct blk_mq_hw_ctx {
 	struct srcu_struct	srcu[0];
 };
 
+struct blk_mq_queue_map {
+	unsigned int *mq_map;
+	unsigned int nr_queues;
+};
+
+enum {
+	HCTX_MAX_TYPES = 1,
+};
+
 struct blk_mq_tag_set {
-	unsigned int		*mq_map;
+	struct blk_mq_queue_map	map[HCTX_MAX_TYPES];
 	const struct blk_mq_ops	*ops;
-	unsigned int		nr_hw_queues;
+	unsigned int		nr_hw_queues;	/* nr hw queues across maps */
 	unsigned int		queue_depth;	/* max hw supported */
 	unsigned int		reserved_tags;
 	unsigned int		cmd_size;	/* per-request extra data */
@@ -295,7 +304,7 @@ void blk_mq_freeze_queue_wait(struct request_queue *q);
 int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
 				     unsigned long timeout);
 
-int blk_mq_map_queues(struct blk_mq_tag_set *set);
+int blk_mq_map_queues(struct blk_mq_queue_map *qmap);
 void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues);
 
 void blk_mq_quiesce_queue_nowait(struct request_queue *q);

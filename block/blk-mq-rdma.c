@@ -41,12 +41,12 @@ int blk_mq_rdma_map_queues(struct blk_mq_tag_set *set,
 			goto fallback;
 
 		for_each_cpu(cpu, mask)
-			set->mq_map[cpu] = queue;
+			set->map[0].mq_map[cpu] = queue;
 	}
 
 	return 0;
 
 fallback:
-	return blk_mq_map_queues(set);
+	return blk_mq_map_queues(&set->map[0]);
 }
 EXPORT_SYMBOL_GPL(blk_mq_rdma_map_queues);
