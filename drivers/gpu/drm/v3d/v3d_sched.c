@@ -35,6 +35,8 @@ v3d_job_free(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 
+	drm_sched_job_cleanup(sched_job);
+
 	v3d_exec_put(job->exec);
 }
 

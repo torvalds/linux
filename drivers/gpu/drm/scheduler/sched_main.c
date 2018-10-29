@@ -233,7 +233,6 @@ static void drm_sched_job_finish(struct work_struct *work)
 	drm_sched_start_timeout(sched);
 	spin_unlock(&sched->job_list_lock);
 
-	dma_fence_put(&s_job->s_fence->finished);
 	sched->ops->free_job(s_job);
 }
 
@@ -439,6 +438,18 @@ int drm_sched_job_init(struct drm_sched_job *job,
 	return 0;
 }
 EXPORT_SYMBOL(drm_sched_job_init);
+
+/**
+ * drm_sched_job_cleanup - clean up scheduler job resources
+ *
+ * @job: scheduler job to clean up
+ */
+void drm_sched_job_cleanup(struct drm_sched_job *job)
+{
+	dma_fence_put(&job->s_fence->finished);
+	job->s_fence = NULL;
+}
+EXPORT_SYMBOL(drm_sched_job_cleanup);
 
 /**
  * drm_sched_ready - is the scheduler ready

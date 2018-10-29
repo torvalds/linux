@@ -211,7 +211,6 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 
 	drm_sched_fence_finished(job->s_fence);
 	WARN_ON(job->s_fence->parent);
-	dma_fence_put(&job->s_fence->finished);
 	job->sched->ops->free_job(job);
 }
 

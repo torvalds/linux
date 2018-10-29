@@ -1260,8 +1260,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	return 0;
 
 error_abort:
-	dma_fence_put(&job->base.s_fence->finished);
-	job->base.s_fence = NULL;
+	drm_sched_job_cleanup(&job->base);
 	amdgpu_mn_unlock(p->mn);
 
 error_unlock:
