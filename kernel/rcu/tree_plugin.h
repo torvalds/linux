@@ -397,6 +397,11 @@ static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp)
 	return rnp->gp_tasks != NULL;
 }
 
+/* Bias and limit values for ->rcu_read_lock_nesting. */
+#define RCU_NEST_BIAS INT_MAX
+#define RCU_NEST_NMAX (-INT_MAX / 2)
+#define RCU_NEST_PMAX (INT_MAX / 2)
+
 /*
  * Preemptible RCU implementation for rcu_read_lock().
  * Just increment ->rcu_read_lock_nesting, shared state will be updated
@@ -405,6 +410,8 @@ static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp)
 void __rcu_read_lock(void)
 {
 	current->rcu_read_lock_nesting++;
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING))
+		WARN_ON_ONCE(current->rcu_read_lock_nesting > RCU_NEST_PMAX);
 	barrier();  /* critical section after entry code. */
 }
 EXPORT_SYMBOL_GPL(__rcu_read_lock);
@@ -424,20 +431,18 @@ void __rcu_read_unlock(void)
 		--t->rcu_read_lock_nesting;
 	} else {
 		barrier();  /* critical section before exit code. */
-		t->rcu_read_lock_nesting = INT_MIN;
+		t->rcu_read_lock_nesting = -RCU_NEST_BIAS;
 		barrier();  /* assign before ->rcu_read_unlock_special load */
 		if (unlikely(READ_ONCE(t->rcu_read_unlock_special.s)))
 			rcu_read_unlock_special(t);
 		barrier();  /* ->rcu_read_unlock_special load before assign */
 		t->rcu_read_lock_nesting = 0;
 	}
-#ifdef CONFIG_PROVE_LOCKING
-	{
-		int rrln = READ_ONCE(t->rcu_read_lock_nesting);
+	if (IS_ENABLED(CONFIG_PROVE_LOCKING)) {
+		int rrln = t->rcu_read_lock_nesting;
 
-		WARN_ON_ONCE(rrln < 0 && rrln > INT_MIN / 2);
+		WARN_ON_ONCE(rrln < 0 && rrln > RCU_NEST_NMAX);
 	}
-#endif /* #ifdef CONFIG_PROVE_LOCKING */
 }
 EXPORT_SYMBOL_GPL(__rcu_read_unlock);
 
@@ -617,11 +622,11 @@ static void rcu_preempt_deferred_qs(struct task_struct *t)
 	if (!rcu_preempt_need_deferred_qs(t))
 		return;
 	if (couldrecurse)
-		t->rcu_read_lock_nesting -= INT_MIN;
+		t->rcu_read_lock_nesting -= RCU_NEST_BIAS;
 	local_irq_save(flags);
 	rcu_preempt_deferred_qs_irqrestore(t, flags);
 	if (couldrecurse)
-		t->rcu_read_lock_nesting += INT_MIN;
+		t->rcu_read_lock_nesting += RCU_NEST_BIAS;
 }
 
 /*
