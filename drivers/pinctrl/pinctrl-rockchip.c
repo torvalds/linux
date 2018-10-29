@@ -4413,13 +4413,6 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 
 	info->dev = dev;
 
-	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
-	if (!ctrl) {
-		dev_err(dev, "driver data not available\n");
-		return -EINVAL;
-	}
-	info->ctrl = ctrl;
-
 	node = of_parse_phandle(np, "rockchip,grf", 0);
 	if (node) {
 		info->regmap_base = syscon_node_to_regmap(node);
@@ -4462,6 +4455,13 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 		if (IS_ERR(info->regmap_pmu))
 			return PTR_ERR(info->regmap_pmu);
 	}
+
+	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
+	if (!ctrl) {
+		dev_err(dev, "driver data not available\n");
+		return -EINVAL;
+	}
+	info->ctrl = ctrl;
 
 	ret = rockchip_gpiolib_register(pdev, info);
 	if (ret)
