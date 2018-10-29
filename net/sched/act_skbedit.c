@@ -99,7 +99,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 			    struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
-	struct tcf_skbedit_params *params_old, *params_new;
+	struct tcf_skbedit_params *params_new;
 	struct nlattr *tb[TCA_SKBEDIT_MAX + 1];
 	struct tc_skbedit *parm;
 	struct tcf_skbedit *d;
@@ -187,8 +187,6 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		}
 	}
 
-	ASSERT_RTNL();
-
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
 		if (ret == ACT_P_CREATED)
@@ -210,11 +208,13 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	if (flags & SKBEDIT_F_MASK)
 		params_new->mask = *mask;
 
+	spin_lock_bh(&d->tcf_lock);
 	d->tcf_action = parm->action;
-	params_old = rtnl_dereference(d->params);
-	rcu_assign_pointer(d->params, params_new);
-	if (params_old)
-		kfree_rcu(params_old, rcu);
+	rcu_swap_protected(d->params, params_new,
+			   lockdep_is_held(&d->tcf_lock));
+	spin_unlock_bh(&d->tcf_lock);
+	if (params_new)
+		kfree_rcu(params_new, rcu);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
@@ -231,12 +231,14 @@ static int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
 		.index   = d->tcf_index,
 		.refcnt  = refcount_read(&d->tcf_refcnt) - ref,
 		.bindcnt = atomic_read(&d->tcf_bindcnt) - bind,
-		.action  = d->tcf_action,
 	};
 	u64 pure_flags = 0;
 	struct tcf_t t;
 
-	params = rtnl_dereference(d->params);
+	spin_lock_bh(&d->tcf_lock);
+	params = rcu_dereference_protected(d->params,
+					   lockdep_is_held(&d->tcf_lock));
+	opt.action = d->tcf_action;
 
 	if (nla_put(skb, TCA_SKBEDIT_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -264,9 +266,12 @@ static int tcf_skbedit_dump(struct sk_buff *skb, struct tc_action *a,
 	tcf_tm_dump(&t, &d->tcf_tm);
 	if (nla_put_64bit(skb, TCA_SKBEDIT_TM, sizeof(t), &t, TCA_SKBEDIT_PAD))
 		goto nla_put_failure;
+	spin_unlock_bh(&d->tcf_lock);
+
 	return skb->len;
 
 nla_put_failure:
+	spin_unlock_bh(&d->tcf_lock);
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -291,8 +296,7 @@ static int tcf_skbedit_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static int tcf_skbedit_search(struct net *net, struct tc_action **a, u32 index,
-			      struct netlink_ext_ack *extack)
+static int tcf_skbedit_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, skbedit_net_id);
 

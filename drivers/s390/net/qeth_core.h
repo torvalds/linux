@@ -26,6 +26,7 @@
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
 #include <net/addrconf.h>
+#include <net/tcp.h>
 
 #include <asm/debug.h>
 #include <asm/qdio.h>
@@ -389,8 +390,9 @@ enum qeth_layer2_frame_flags {
 enum qeth_header_ids {
 	QETH_HEADER_TYPE_LAYER3 = 0x01,
 	QETH_HEADER_TYPE_LAYER2 = 0x02,
-	QETH_HEADER_TYPE_TSO	= 0x03,
+	QETH_HEADER_TYPE_L3_TSO	= 0x03,
 	QETH_HEADER_TYPE_OSN    = 0x04,
+	QETH_HEADER_TYPE_L2_TSO	= 0x06,
 };
 /* flags for qeth_hdr.ext_flags */
 #define QETH_HDR_EXT_VLAN_FRAME       0x01
@@ -581,7 +583,8 @@ struct qeth_cmd_buffer {
 	struct qeth_channel *channel;
 	unsigned char *data;
 	int rc;
-	void (*callback) (struct qeth_channel *, struct qeth_cmd_buffer *);
+	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
+			 struct qeth_cmd_buffer *iob);
 };
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
@@ -638,7 +641,6 @@ struct qeth_reply {
 	atomic_t received;
 	int rc;
 	void *param;
-	struct qeth_card *card;
 	refcount_t refcnt;
 };
 
@@ -671,6 +673,12 @@ struct qeth_card_info {
 	__u32 hwtrap;
 };
 
+enum qeth_discipline_id {
+	QETH_DISCIPLINE_UNDETERMINED = -1,
+	QETH_DISCIPLINE_LAYER3 = 0,
+	QETH_DISCIPLINE_LAYER2 = 1,
+};
+
 struct qeth_card_options {
 	struct qeth_routing_info route4;
 	struct qeth_ipa_info ipa4;
@@ -680,7 +688,7 @@ struct qeth_card_options {
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
 	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
-	int layer2;
+	enum qeth_discipline_id layer;
 	int performance_stats;
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
@@ -689,6 +697,9 @@ struct qeth_card_options {
 	enum qeth_cq cq;
 	char hsuid[9];
 };
+
+#define	IS_LAYER2(card)	((card)->options.layer == QETH_DISCIPLINE_LAYER2)
+#define	IS_LAYER3(card)	((card)->options.layer == QETH_DISCIPLINE_LAYER3)
 
 /*
  * thread bits for qeth_card thread masks
@@ -700,12 +711,6 @@ enum qeth_threads {
 struct qeth_osn_info {
 	int (*assist_cb)(struct net_device *dev, void *data);
 	int (*data_cb)(struct sk_buff *skb);
-};
-
-enum qeth_discipline_id {
-	QETH_DISCIPLINE_UNDETERMINED = -1,
-	QETH_DISCIPLINE_LAYER3 = 0,
-	QETH_DISCIPLINE_LAYER2 = 1,
 };
 
 struct qeth_discipline {
@@ -759,7 +764,6 @@ struct qeth_switch_info {
 struct qeth_card {
 	struct list_head list;
 	enum qeth_card_states state;
-	int lan_online;
 	spinlock_t lock;
 	struct ccwgroup_device *gdev;
 	struct qeth_channel read;
@@ -892,11 +896,6 @@ static inline void qeth_tx_csum(struct sk_buff *skb, u8 *flags, int ipv)
 	if ((ipv == 4 && ip_hdr(skb)->protocol == IPPROTO_UDP) ||
 	    (ipv == 6 && ipv6_hdr(skb)->nexthdr == IPPROTO_UDP))
 		*flags |= QETH_HDR_EXT_UDP;
-	if (ipv == 4) {
-		/* some HW requires combined L3+L4 csum offload: */
-		*flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
-		ip_hdr(skb)->check = 0;
-	}
 }
 
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
@@ -1007,9 +1006,7 @@ int qeth_query_switch_attributes(struct qeth_card *card,
 int qeth_send_control_data(struct qeth_card *, int, struct qeth_cmd_buffer *,
 	int (*reply_cb)(struct qeth_card *, struct qeth_reply*, unsigned long),
 	void *reply_param);
-int qeth_get_elements_no(struct qeth_card *card, struct sk_buff *skb,
-			 int extra_elems, int data_offset);
-int qeth_get_elements_for_frags(struct sk_buff *);
+unsigned int qeth_count_elements(struct sk_buff *skb, unsigned int data_offset);
 int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue, struct sk_buff *skb,
 			     struct qeth_hdr *hdr, unsigned int offset,
 			     unsigned int hd_len);
@@ -1027,7 +1024,6 @@ void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_core_ethtool_get_link_ksettings(struct net_device *netdev,
 					 struct ethtool_link_ksettings *cmd);
 int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback);
-int qeth_hdr_chk_and_bounce(struct sk_buff *, struct qeth_hdr **, int);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 void qeth_trace_features(struct qeth_card *);
@@ -1052,6 +1048,13 @@ int qeth_vm_request_mac(struct qeth_card *card);
 int qeth_add_hw_header(struct qeth_card *card, struct sk_buff *skb,
 		       struct qeth_hdr **hdr, unsigned int hdr_len,
 		       unsigned int proto_len, unsigned int *elements);
+void qeth_fill_tso_ext(struct qeth_hdr_tso *hdr, unsigned int payload_len,
+		       struct sk_buff *skb, unsigned int proto_len);
+int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
+	      struct qeth_qdio_out_q *queue, int ipv, int cast_type,
+	      void (*fill_header)(struct qeth_card *card, struct qeth_hdr *hdr,
+				  struct sk_buff *skb, int ipv, int cast_type,
+				  unsigned int data_len));
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

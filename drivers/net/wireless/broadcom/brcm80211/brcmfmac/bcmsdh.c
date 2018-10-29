@@ -576,7 +576,7 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 
 	if (pktq->qlen == 1)
 		err = brcmf_sdiod_skbuff_read(sdiodev, sdiodev->func2, addr,
-					      pktq->next);
+					      __skb_peek(pktq));
 	else if (!sdiodev->sg_support) {
 		glom_skb = brcmu_pkt_buf_get_skb(totlen);
 		if (!glom_skb)

@@ -1594,12 +1594,17 @@ static const struct pci_error_handlers mlx5_err_handler = {
 
 static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 {
-	int ret;
+	bool fast_teardown = false, force_teardown = false;
+	int ret = 1;
 
-	if (!MLX5_CAP_GEN(dev, force_teardown)) {
-		mlx5_core_dbg(dev, "force teardown is not supported in the firmware\n");
+	fast_teardown = MLX5_CAP_GEN(dev, fast_teardown);
+	force_teardown = MLX5_CAP_GEN(dev, force_teardown);
+
+	mlx5_core_dbg(dev, "force teardown firmware support=%d\n", force_teardown);
+	mlx5_core_dbg(dev, "fast teardown firmware support=%d\n", fast_teardown);
+
+	if (!fast_teardown && !force_teardown)
 		return -EOPNOTSUPP;
-	}
 
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		mlx5_core_dbg(dev, "Device in internal error state, giving up\n");
@@ -1612,13 +1617,19 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 	mlx5_drain_health_wq(dev);
 	mlx5_stop_health_poll(dev, false);
 
-	ret = mlx5_cmd_force_teardown_hca(dev);
-	if (ret) {
-		mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", ret);
-		mlx5_start_health_poll(dev);
-		return ret;
-	}
+	ret = mlx5_cmd_fast_teardown_hca(dev);
+	if (!ret)
+		goto succeed;
 
+	ret = mlx5_cmd_force_teardown_hca(dev);
+	if (!ret)
+		goto succeed;
+
+	mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", ret);
+	mlx5_start_health_poll(dev);
+	return ret;
+
+succeed:
 	mlx5_enter_error_state(dev, true);
 
 	/* Some platforms requiring freeing the IRQ's in the shutdown

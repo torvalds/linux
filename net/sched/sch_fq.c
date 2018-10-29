@@ -92,8 +92,8 @@ struct fq_sched_data {
 	u32		quantum;
 	u32		initial_quantum;
 	u32		flow_refill_delay;
-	u32		flow_max_rate;	/* optional max rate per flow */
 	u32		flow_plimit;	/* max packets per flow */
+	unsigned long	flow_max_rate;	/* optional max rate per flow */
 	u32		orphan_mask;	/* mask for orphaned skb */
 	u32		low_rate_threshold;
 	struct rb_root	*fq_root;
@@ -106,7 +106,6 @@ struct fq_sched_data {
 
 	u64		stat_gc_flows;
 	u64		stat_internal_packets;
-	u64		stat_tcp_retrans;
 	u64		stat_throttled;
 	u64		stat_flows_plimit;
 	u64		stat_pkts_too_long;
@@ -319,7 +318,7 @@ static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
 
 	if (skb) {
 		flow->head = skb->next;
-		skb->next = NULL;
+		skb_mark_not_on_list(skb);
 		flow->qlen--;
 		qdisc_qstats_backlog_dec(sch, skb);
 		sch->q.qlen--;
@@ -327,62 +326,17 @@ static struct sk_buff *fq_dequeue_head(struct Qdisc *sch, struct fq_flow *flow)
 	return skb;
 }
 
-/* We might add in the future detection of retransmits
- * For the time being, just return false
- */
-static bool skb_is_retransmit(struct sk_buff *skb)
-{
-	return false;
-}
-
-/* add skb to flow queue
- * flow queue is a linked list, kind of FIFO, except for TCP retransmits
- * We special case tcp retransmits to be transmitted before other packets.
- * We rely on fact that TCP retransmits are unlikely, so we do not waste
- * a separate queue or a pointer.
- * head->  [retrans pkt 1]
- *         [retrans pkt 2]
- *         [ normal pkt 1]
- *         [ normal pkt 2]
- *         [ normal pkt 3]
- * tail->  [ normal pkt 4]
- */
 static void flow_queue_add(struct fq_flow *flow, struct sk_buff *skb)
 {
-	struct sk_buff *prev, *head = flow->head;
+	struct sk_buff *head = flow->head;
 
 	skb->next = NULL;
-	if (!head) {
+	if (!head)
 		flow->head = skb;
-		flow->tail = skb;
-		return;
-	}
-	if (likely(!skb_is_retransmit(skb))) {
+	else
 		flow->tail->next = skb;
-		flow->tail = skb;
-		return;
-	}
 
-	/* This skb is a tcp retransmit,
-	 * find the last retrans packet in the queue
-	 */
-	prev = NULL;
-	while (skb_is_retransmit(head)) {
-		prev = head;
-		head = head->next;
-		if (!head)
-			break;
-	}
-	if (!prev) { /* no rtx packet in queue, become the new head */
-		skb->next = flow->head;
-		flow->head = skb;
-	} else {
-		if (prev == flow->tail)
-			flow->tail = skb;
-		else
-			skb->next = prev->next;
-		prev->next = skb;
-	}
+	flow->tail = skb;
 }
 
 static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
@@ -401,8 +355,6 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	}
 
 	f->qlen++;
-	if (skb_is_retransmit(skb))
-		q->stat_tcp_retrans++;
 	qdisc_qstats_backlog_inc(sch, skb);
 	if (fq_flow_is_detached(f)) {
 		struct sock *sk = skb->sk;
@@ -464,7 +416,8 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 	struct fq_flow_head *head;
 	struct sk_buff *skb;
 	struct fq_flow *f;
-	u32 rate, plen;
+	unsigned long rate;
+	u32 plen;
 
 	skb = fq_dequeue_head(sch, &q->internal);
 	if (skb)
@@ -491,11 +444,16 @@ begin:
 	}
 
 	skb = f->head;
-	if (unlikely(skb && now < f->time_next_packet &&
-		     !skb_is_tcp_pure_ack(skb))) {
-		head->first = f->next;
-		fq_flow_set_throttled(q, f);
-		goto begin;
+	if (skb) {
+		u64 time_next_packet = max_t(u64, ktime_to_ns(skb->tstamp),
+					     f->time_next_packet);
+
+		if (now < time_next_packet) {
+			head->first = f->next;
+			f->time_next_packet = time_next_packet;
+			fq_flow_set_throttled(q, f);
+			goto begin;
+		}
 	}
 
 	skb = fq_dequeue_head(sch, f);
@@ -513,11 +471,7 @@ begin:
 	prefetch(&skb->end);
 	f->credit -= qdisc_pkt_len(skb);
 
-	if (!q->rate_enable)
-		goto out;
-
-	/* Do not pace locally generated ack packets */
-	if (skb_is_tcp_pure_ack(skb))
+	if (ktime_to_ns(skb->tstamp) || !q->rate_enable)
 		goto out;
 
 	rate = q->flow_max_rate;
@@ -532,11 +486,11 @@ begin:
 		if (f->credit > 0)
 			goto out;
 	}
-	if (rate != ~0U) {
+	if (rate != ~0UL) {
 		u64 len = (u64)plen * NSEC_PER_SEC;
 
 		if (likely(rate))
-			do_div(len, rate);
+			len = div64_ul(len, rate);
 		/* Since socket rate can change later,
 		 * clamp the delay to 1 second.
 		 * Really, providers of too big packets should be fixed !
@@ -748,9 +702,11 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 		pr_warn_ratelimited("sch_fq: defrate %u ignored.\n",
 				    nla_get_u32(tb[TCA_FQ_FLOW_DEFAULT_RATE]));
 
-	if (tb[TCA_FQ_FLOW_MAX_RATE])
-		q->flow_max_rate = nla_get_u32(tb[TCA_FQ_FLOW_MAX_RATE]);
+	if (tb[TCA_FQ_FLOW_MAX_RATE]) {
+		u32 rate = nla_get_u32(tb[TCA_FQ_FLOW_MAX_RATE]);
 
+		q->flow_max_rate = (rate == ~0U) ? ~0UL : rate;
+	}
 	if (tb[TCA_FQ_LOW_RATE_THRESHOLD])
 		q->low_rate_threshold =
 			nla_get_u32(tb[TCA_FQ_LOW_RATE_THRESHOLD]);
@@ -813,7 +769,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->quantum		= 2 * psched_mtu(qdisc_dev(sch));
 	q->initial_quantum	= 10 * psched_mtu(qdisc_dev(sch));
 	q->flow_refill_delay	= msecs_to_jiffies(40);
-	q->flow_max_rate	= ~0U;
+	q->flow_max_rate	= ~0UL;
 	q->time_next_delayed_flow = ~0ULL;
 	q->rate_enable		= 1;
 	q->new_flows.first	= NULL;
@@ -823,7 +779,7 @@ static int fq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->fq_trees_log		= ilog2(1024);
 	q->orphan_mask		= 1024 - 1;
 	q->low_rate_threshold	= 550000 / 8;
-	qdisc_watchdog_init(&q->watchdog, sch);
+	qdisc_watchdog_init_clockid(&q->watchdog, sch, CLOCK_MONOTONIC);
 
 	if (opt)
 		err = fq_change(sch, opt, extack);
@@ -849,7 +805,8 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_FQ_QUANTUM, q->quantum) ||
 	    nla_put_u32(skb, TCA_FQ_INITIAL_QUANTUM, q->initial_quantum) ||
 	    nla_put_u32(skb, TCA_FQ_RATE_ENABLE, q->rate_enable) ||
-	    nla_put_u32(skb, TCA_FQ_FLOW_MAX_RATE, q->flow_max_rate) ||
+	    nla_put_u32(skb, TCA_FQ_FLOW_MAX_RATE,
+			min_t(unsigned long, q->flow_max_rate, ~0U)) ||
 	    nla_put_u32(skb, TCA_FQ_FLOW_REFILL_DELAY,
 			jiffies_to_usecs(q->flow_refill_delay)) ||
 	    nla_put_u32(skb, TCA_FQ_ORPHAN_MASK, q->orphan_mask) ||
@@ -873,7 +830,7 @@ static int fq_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 
 	st.gc_flows		  = q->stat_gc_flows;
 	st.highprio_packets	  = q->stat_internal_packets;
-	st.tcp_retrans		  = q->stat_tcp_retrans;
+	st.tcp_retrans		  = 0;
 	st.throttled		  = q->stat_throttled;
 	st.flows_plimit		  = q->stat_flows_plimit;
 	st.pkts_too_long	  = q->stat_pkts_too_long;

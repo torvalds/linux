@@ -57,6 +57,7 @@ struct bundle_priv {
 	struct ib_uverbs_attr *uattrs;
 
 	DECLARE_BITMAP(uobj_finalize, UVERBS_API_ATTR_BKEY_LEN);
+	DECLARE_BITMAP(spec_finalize, UVERBS_API_ATTR_BKEY_LEN);
 
 	/*
 	 * Must be last. bundle ends in a flex array which overlaps
@@ -141,6 +142,86 @@ static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 
 	return !memchr_inv((const void *)&uattr->data + len,
 			   0, uattr->len - len);
+}
+
+static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
+				     const struct uverbs_api_attr *attr_uapi,
+				     struct uverbs_objs_arr_attr *attr,
+				     struct ib_uverbs_attr *uattr,
+				     u32 attr_bkey)
+{
+	const struct uverbs_attr_spec *spec = &attr_uapi->spec;
+	size_t array_len;
+	u32 *idr_vals;
+	int ret = 0;
+	size_t i;
+
+	if (uattr->attr_data.reserved)
+		return -EINVAL;
+
+	if (uattr->len % sizeof(u32))
+		return -EINVAL;
+
+	array_len = uattr->len / sizeof(u32);
+	if (array_len < spec->u2.objs_arr.min_len ||
+	    array_len > spec->u2.objs_arr.max_len)
+		return -EINVAL;
+
+	attr->uobjects =
+		uverbs_alloc(&pbundle->bundle,
+			     array_size(array_len, sizeof(*attr->uobjects)));
+	if (IS_ERR(attr->uobjects))
+		return PTR_ERR(attr->uobjects);
+
+	/*
+	 * Since idr is 4B and *uobjects is >= 4B, we can use attr->uobjects
+	 * to store idrs array and avoid additional memory allocation. The
+	 * idrs array is offset to the end of the uobjects array so we will be
+	 * able to read idr and replace with a pointer.
+	 */
+	idr_vals = (u32 *)(attr->uobjects + array_len) - array_len;
+
+	if (uattr->len > sizeof(uattr->data)) {
+		ret = copy_from_user(idr_vals, u64_to_user_ptr(uattr->data),
+				     uattr->len);
+		if (ret)
+			return -EFAULT;
+	} else {
+		memcpy(idr_vals, &uattr->data, uattr->len);
+	}
+
+	for (i = 0; i != array_len; i++) {
+		attr->uobjects[i] = uverbs_get_uobject_from_file(
+			spec->u2.objs_arr.obj_type, pbundle->bundle.ufile,
+			spec->u2.objs_arr.access, idr_vals[i]);
+		if (IS_ERR(attr->uobjects[i])) {
+			ret = PTR_ERR(attr->uobjects[i]);
+			break;
+		}
+	}
+
+	attr->len = i;
+	__set_bit(attr_bkey, pbundle->spec_finalize);
+	return ret;
+}
+
+static int uverbs_free_idrs_array(const struct uverbs_api_attr *attr_uapi,
+				  struct uverbs_objs_arr_attr *attr,
+				  bool commit)
+{
+	const struct uverbs_attr_spec *spec = &attr_uapi->spec;
+	int current_ret;
+	int ret = 0;
+	size_t i;
+
+	for (i = 0; i != attr->len; i++) {
+		current_ret = uverbs_finalize_object(
+			attr->uobjects[i], spec->u2.objs_arr.access, commit);
+		if (!ret)
+			ret = current_ret;
+	}
+
+	return ret;
 }
 
 static int uverbs_process_attr(struct bundle_priv *pbundle,
@@ -246,6 +327,11 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		}
 
 		break;
+
+	case UVERBS_ATTR_TYPE_IDRS_ARRAY:
+		return uverbs_process_idrs_array(pbundle, attr_uapi,
+						 &e->objs_arr_attr, uattr,
+						 attr_bkey);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -300,8 +386,7 @@ static int uverbs_set_attr(struct bundle_priv *pbundle,
 			return -EPROTONOSUPPORT;
 		return 0;
 	}
-	attr = srcu_dereference(
-		*slot, &pbundle->bundle.ufile->device->disassociate_srcu);
+	attr = rcu_dereference_protected(*slot, true);
 
 	/* Reject duplicate attributes from user-space */
 	if (test_bit(attr_bkey, pbundle->bundle.attr_present))
@@ -384,6 +469,7 @@ static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 	unsigned int i;
 	int ret = 0;
 
+	/* fast path for simple uobjects */
 	i = -1;
 	while ((i = find_next_bit(pbundle->uobj_finalize, key_bitmap_len,
 				  i + 1)) < key_bitmap_len) {
@@ -395,6 +481,30 @@ static int bundle_destroy(struct bundle_priv *pbundle, bool commit)
 			attr->obj_attr.attr_elm->spec.u.obj.access, commit);
 		if (!ret)
 			ret = current_ret;
+	}
+
+	i = -1;
+	while ((i = find_next_bit(pbundle->spec_finalize, key_bitmap_len,
+				  i + 1)) < key_bitmap_len) {
+		struct uverbs_attr *attr = &pbundle->bundle.attrs[i];
+		const struct uverbs_api_attr *attr_uapi;
+		void __rcu **slot;
+		int current_ret;
+
+		slot = uapi_get_attr_for_method(
+			pbundle,
+			pbundle->method_key | uapi_bkey_to_key_attr(i));
+		if (WARN_ON(!slot))
+			continue;
+
+		attr_uapi = rcu_dereference_protected(*slot, true);
+
+		if (attr_uapi->spec.type == UVERBS_ATTR_TYPE_IDRS_ARRAY) {
+			current_ret = uverbs_free_idrs_array(
+				attr_uapi, &attr->objs_arr_attr, commit);
+			if (!ret)
+				ret = current_ret;
+		}
 	}
 
 	for (memblock = pbundle->allocated_mem; memblock;) {
@@ -429,7 +539,7 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 			uapi_key_ioctl_method(hdr->method_id));
 	if (unlikely(!slot))
 		return -EPROTONOSUPPORT;
-	method_elm = srcu_dereference(*slot, &ufile->device->disassociate_srcu);
+	method_elm = rcu_dereference_protected(*slot, true);
 
 	if (!method_elm->use_stack) {
 		pbundle = kmalloc(method_elm->bundle_size, GFP_KERNEL);
@@ -461,6 +571,7 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 	memset(pbundle->bundle.attr_present, 0,
 	       sizeof(pbundle->bundle.attr_present));
 	memset(pbundle->uobj_finalize, 0, sizeof(pbundle->uobj_finalize));
+	memset(pbundle->spec_finalize, 0, sizeof(pbundle->spec_finalize));
 
 	ret = ib_uverbs_run_method(pbundle, hdr->num_attrs);
 	destroy_ret = bundle_destroy(pbundle, ret == 0);
@@ -611,3 +722,26 @@ int uverbs_copy_to(const struct uverbs_attr_bundle *bundle, size_t idx,
 	return 0;
 }
 EXPORT_SYMBOL(uverbs_copy_to);
+
+int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
+		      size_t idx, s64 lower_bound, u64 upper_bound,
+		      s64  *def_val)
+{
+	const struct uverbs_attr *attr;
+
+	attr = uverbs_attr_get(attrs_bundle, idx);
+	if (IS_ERR(attr)) {
+		if ((PTR_ERR(attr) != -ENOENT) || !def_val)
+			return PTR_ERR(attr);
+
+		*to = *def_val;
+	} else {
+		*to = attr->ptr_attr.data;
+	}
+
+	if (*to < lower_bound || (*to > 0 && (u64)*to > upper_bound))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(_uverbs_get_const);

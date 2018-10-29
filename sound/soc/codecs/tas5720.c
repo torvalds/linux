@@ -152,6 +152,7 @@ static int tas5720_set_dai_tdm_slot(struct snd_soc_dai *dai,
 				    int slots, int slot_width)
 {
 	struct snd_soc_component *component = dai->component;
+	struct tas5720_data *tas5720 = snd_soc_component_get_drvdata(component);
 	unsigned int first_slot;
 	int ret;
 
@@ -184,6 +185,20 @@ static int tas5720_set_dai_tdm_slot(struct snd_soc_dai *dai,
 				  TAS5720_TDM_SLOT_SEL_MASK, first_slot);
 	if (ret < 0)
 		goto error_snd_soc_component_update_bits;
+
+	/* Configure TDM slot width. This is only applicable to TAS5722. */
+	switch (tas5720->devtype) {
+	case TAS5722:
+		ret = snd_soc_component_update_bits(component, TAS5722_DIGITAL_CTRL2_REG,
+						    TAS5722_TDM_SLOT_16B,
+						    slot_width == 16 ?
+						    TAS5722_TDM_SLOT_16B : 0);
+		if (ret < 0)
+			goto error_snd_soc_component_update_bits;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 
@@ -485,15 +500,56 @@ static const DECLARE_TLV_DB_RANGE(dac_analog_tlv,
 );
 
 /*
- * DAC digital volumes. From -103.5 to 24 dB in 0.5 dB steps. Note that
- * setting the gain below -100 dB (register value <0x7) is effectively a MUTE
- * as per device datasheet.
+ * DAC digital volumes. From -103.5 to 24 dB in 0.5 dB or 0.25 dB steps
+ * depending on the device. Note that setting the gain below -100 dB
+ * (register value <0x7) is effectively a MUTE as per device datasheet.
+ *
+ * Note that for the TAS5722 the digital volume controls are actually split
+ * over two registers, so we need custom getters/setters for access.
  */
-static DECLARE_TLV_DB_SCALE(dac_tlv, -10350, 50, 0);
+static DECLARE_TLV_DB_SCALE(tas5720_dac_tlv, -10350, 50, 0);
+static DECLARE_TLV_DB_SCALE(tas5722_dac_tlv, -10350, 25, 0);
+
+static int tas5722_volume_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	unsigned int val;
+
+	snd_soc_component_read(component, TAS5720_VOLUME_CTRL_REG, &val);
+	ucontrol->value.integer.value[0] = val << 1;
+
+	snd_soc_component_read(component, TAS5722_DIGITAL_CTRL2_REG, &val);
+	ucontrol->value.integer.value[0] |= val & TAS5722_VOL_CONTROL_LSB;
+
+	return 0;
+}
+
+static int tas5722_volume_set(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	unsigned int sel = ucontrol->value.integer.value[0];
+
+	snd_soc_component_write(component, TAS5720_VOLUME_CTRL_REG, sel >> 1);
+	snd_soc_component_update_bits(component, TAS5722_DIGITAL_CTRL2_REG,
+				      TAS5722_VOL_CONTROL_LSB, sel);
+
+	return 0;
+}
 
 static const struct snd_kcontrol_new tas5720_snd_controls[] = {
 	SOC_SINGLE_TLV("Speaker Driver Playback Volume",
-		       TAS5720_VOLUME_CTRL_REG, 0, 0xff, 0, dac_tlv),
+		       TAS5720_VOLUME_CTRL_REG, 0, 0xff, 0, tas5720_dac_tlv),
+	SOC_SINGLE_TLV("Speaker Driver Analog Gain", TAS5720_ANALOG_CTRL_REG,
+		       TAS5720_ANALOG_GAIN_SHIFT, 3, 0, dac_analog_tlv),
+};
+
+static const struct snd_kcontrol_new tas5722_snd_controls[] = {
+	SOC_SINGLE_EXT_TLV("Speaker Driver Playback Volume",
+			   0, 0, 511, 0,
+			   tas5722_volume_get, tas5722_volume_set,
+			   tas5722_dac_tlv),
 	SOC_SINGLE_TLV("Speaker Driver Analog Gain", TAS5720_ANALOG_CTRL_REG,
 		       TAS5720_ANALOG_GAIN_SHIFT, 3, 0, dac_analog_tlv),
 };
@@ -521,6 +577,23 @@ static const struct snd_soc_component_driver soc_component_dev_tas5720 = {
 	.num_dapm_widgets	= ARRAY_SIZE(tas5720_dapm_widgets),
 	.dapm_routes		= tas5720_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(tas5720_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
+};
+
+static const struct snd_soc_component_driver soc_component_dev_tas5722 = {
+	.probe = tas5720_codec_probe,
+	.remove = tas5720_codec_remove,
+	.suspend = tas5720_suspend,
+	.resume = tas5720_resume,
+	.controls = tas5722_snd_controls,
+	.num_controls = ARRAY_SIZE(tas5722_snd_controls),
+	.dapm_widgets = tas5720_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(tas5720_dapm_widgets),
+	.dapm_routes = tas5720_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(tas5720_audio_map),
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
@@ -613,9 +686,23 @@ static int tas5720_probe(struct i2c_client *client,
 
 	dev_set_drvdata(dev, data);
 
-	ret = devm_snd_soc_register_component(&client->dev,
-				     &soc_component_dev_tas5720,
-				     tas5720_dai, ARRAY_SIZE(tas5720_dai));
+	switch (id->driver_data) {
+	case TAS5720:
+		ret = devm_snd_soc_register_component(&client->dev,
+					&soc_component_dev_tas5720,
+					tas5720_dai,
+					ARRAY_SIZE(tas5720_dai));
+		break;
+	case TAS5722:
+		ret = devm_snd_soc_register_component(&client->dev,
+					&soc_component_dev_tas5722,
+					tas5720_dai,
+					ARRAY_SIZE(tas5720_dai));
+		break;
+	default:
+		dev_err(dev, "unexpected private driver data\n");
+		return -EINVAL;
+	}
 	if (ret < 0) {
 		dev_err(dev, "failed to register component: %d\n", ret);
 		return ret;

@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/b53.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
@@ -502,7 +503,13 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 {
 	struct b53_device *dev = ds->priv;
 	unsigned int cpu_port = ds->ports[port].cpu_dp->index;
+	int ret = 0;
 	u16 pvlan;
+
+	if (dev->ops->irq_enable)
+		ret = dev->ops->irq_enable(dev, port);
+	if (ret)
+		return ret;
 
 	/* Clear the Rx and Tx disable bits and set to no spanning tree */
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), 0);
@@ -536,6 +543,9 @@ void b53_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy)
 	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), &reg);
 	reg |= PORT_CTRL_RX_DISABLE | PORT_CTRL_TX_DISABLE;
 	b53_write8(dev, B53_CTRL_PAGE, B53_PORT_CTRL(port), reg);
+
+	if (dev->ops->irq_disable)
+		dev->ops->irq_disable(dev, port);
 }
 EXPORT_SYMBOL(b53_disable_port);
 
@@ -755,6 +765,8 @@ static int b53_reset_switch(struct b53_device *priv)
 	memset(priv->vlans, 0, sizeof(*priv->vlans) * priv->num_vlans);
 	memset(priv->ports, 0, sizeof(*priv->ports) * priv->num_ports);
 
+	priv->serdes_lane = B53_INVALID_LANE;
+
 	return b53_switch_reset(priv);
 }
 
@@ -938,33 +950,50 @@ static int b53_setup(struct dsa_switch *ds)
 	return ret;
 }
 
-static void b53_adjust_link(struct dsa_switch *ds, int port,
-			    struct phy_device *phydev)
+static void b53_force_link(struct b53_device *dev, int port, int link)
 {
-	struct b53_device *dev = ds->priv;
-	struct ethtool_eee *p = &dev->ports[port].eee;
-	u8 rgmii_ctrl = 0, reg = 0, off;
-
-	if (!phy_is_pseudo_fixed_link(phydev))
-		return;
+	u8 reg, val, off;
 
 	/* Override the port settings */
 	if (port == dev->cpu_port) {
 		off = B53_PORT_OVERRIDE_CTRL;
-		reg = PORT_OVERRIDE_EN;
+		val = PORT_OVERRIDE_EN;
 	} else {
 		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
-		reg = GMII_PO_EN;
+		val = GMII_PO_EN;
 	}
 
-	/* Set the link UP */
-	if (phydev->link)
+	b53_read8(dev, B53_CTRL_PAGE, off, &reg);
+	reg |= val;
+	if (link)
 		reg |= PORT_OVERRIDE_LINK;
+	else
+		reg &= ~PORT_OVERRIDE_LINK;
+	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+}
 
-	if (phydev->duplex == DUPLEX_FULL)
+static void b53_force_port_config(struct b53_device *dev, int port,
+				  int speed, int duplex, int pause)
+{
+	u8 reg, val, off;
+
+	/* Override the port settings */
+	if (port == dev->cpu_port) {
+		off = B53_PORT_OVERRIDE_CTRL;
+		val = PORT_OVERRIDE_EN;
+	} else {
+		off = B53_GMII_PORT_OVERRIDE_CTRL(port);
+		val = GMII_PO_EN;
+	}
+
+	b53_read8(dev, B53_CTRL_PAGE, off, &reg);
+	reg |= val;
+	if (duplex == DUPLEX_FULL)
 		reg |= PORT_OVERRIDE_FULL_DUPLEX;
+	else
+		reg &= ~PORT_OVERRIDE_FULL_DUPLEX;
 
-	switch (phydev->speed) {
+	switch (speed) {
 	case 2000:
 		reg |= PORT_OVERRIDE_SPEED_2000M;
 		/* fallthrough */
@@ -978,21 +1007,41 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		reg |= PORT_OVERRIDE_SPEED_10M;
 		break;
 	default:
-		dev_err(ds->dev, "unknown speed: %d\n", phydev->speed);
+		dev_err(dev->dev, "unknown speed: %d\n", speed);
 		return;
 	}
 
+	if (pause & MLO_PAUSE_RX)
+		reg |= PORT_OVERRIDE_RX_FLOW;
+	if (pause & MLO_PAUSE_TX)
+		reg |= PORT_OVERRIDE_TX_FLOW;
+
+	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+}
+
+static void b53_adjust_link(struct dsa_switch *ds, int port,
+			    struct phy_device *phydev)
+{
+	struct b53_device *dev = ds->priv;
+	struct ethtool_eee *p = &dev->ports[port].eee;
+	u8 rgmii_ctrl = 0, reg = 0, off;
+	int pause = 0;
+
+	if (!phy_is_pseudo_fixed_link(phydev))
+		return;
+
 	/* Enable flow control on BCM5301x's CPU port */
 	if (is5301x(dev) && port == dev->cpu_port)
-		reg |= PORT_OVERRIDE_RX_FLOW | PORT_OVERRIDE_TX_FLOW;
+		pause = MLO_PAUSE_TXRX_MASK;
 
 	if (phydev->pause) {
 		if (phydev->asym_pause)
-			reg |= PORT_OVERRIDE_TX_FLOW;
-		reg |= PORT_OVERRIDE_RX_FLOW;
+			pause |= MLO_PAUSE_TX;
+		pause |= MLO_PAUSE_RX;
 	}
 
-	b53_write8(dev, B53_CTRL_PAGE, off, reg);
+	b53_force_port_config(dev, port, phydev->speed, phydev->duplex, pause);
+	b53_force_link(dev, port, phydev->link);
 
 	if (is531x5(dev) && phy_interface_is_rgmii(phydev)) {
 		if (port == 8)
@@ -1052,22 +1101,157 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		}
 	} else if (is5301x(dev)) {
 		if (port != dev->cpu_port) {
-			u8 po_reg = B53_GMII_PORT_OVERRIDE_CTRL(dev->cpu_port);
-			u8 gmii_po;
-
-			b53_read8(dev, B53_CTRL_PAGE, po_reg, &gmii_po);
-			gmii_po |= GMII_PO_LINK |
-				   GMII_PO_RX_FLOW |
-				   GMII_PO_TX_FLOW |
-				   GMII_PO_EN |
-				   GMII_PO_SPEED_2000M;
-			b53_write8(dev, B53_CTRL_PAGE, po_reg, gmii_po);
+			b53_force_port_config(dev, dev->cpu_port, 2000,
+					      DUPLEX_FULL, MLO_PAUSE_TXRX_MASK);
+			b53_force_link(dev, dev->cpu_port, 1);
 		}
 	}
 
 	/* Re-negotiate EEE if it was enabled already */
 	p->eee_enabled = b53_eee_init(ds, port, phydev);
 }
+
+void b53_port_event(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+	bool link;
+	u16 sts;
+
+	b53_read16(dev, B53_STAT_PAGE, B53_LINK_STAT, &sts);
+	link = !!(sts & BIT(port));
+	dsa_port_phylink_mac_change(ds, port, link);
+}
+EXPORT_SYMBOL(b53_port_event);
+
+void b53_phylink_validate(struct dsa_switch *ds, int port,
+			  unsigned long *supported,
+			  struct phylink_link_state *state)
+{
+	struct b53_device *dev = ds->priv;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
+	if (dev->ops->serdes_phylink_validate)
+		dev->ops->serdes_phylink_validate(dev, port, mask, state);
+
+	/* Allow all the expected bits */
+	phylink_set(mask, Autoneg);
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
+
+	/* With the exclusion of 5325/5365, MII, Reverse MII and 802.3z, we
+	 * support Gigabit, including Half duplex.
+	 */
+	if (state->interface != PHY_INTERFACE_MODE_MII &&
+	    state->interface != PHY_INTERFACE_MODE_REVMII &&
+	    !phy_interface_mode_is_8023z(state->interface) &&
+	    !(is5325(dev) || is5365(dev))) {
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseT_Half);
+	}
+
+	if (!phy_interface_mode_is_8023z(state->interface)) {
+		phylink_set(mask, 10baseT_Half);
+		phylink_set(mask, 10baseT_Full);
+		phylink_set(mask, 100baseT_Half);
+		phylink_set(mask, 100baseT_Full);
+	}
+
+	bitmap_and(supported, supported, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	phylink_helper_basex_speed(state);
+}
+EXPORT_SYMBOL(b53_phylink_validate);
+
+int b53_phylink_mac_link_state(struct dsa_switch *ds, int port,
+			       struct phylink_link_state *state)
+{
+	struct b53_device *dev = ds->priv;
+	int ret = -EOPNOTSUPP;
+
+	if ((phy_interface_mode_is_8023z(state->interface) ||
+	     state->interface == PHY_INTERFACE_MODE_SGMII) &&
+	     dev->ops->serdes_link_state)
+		ret = dev->ops->serdes_link_state(dev, port, state);
+
+	return ret;
+}
+EXPORT_SYMBOL(b53_phylink_mac_link_state);
+
+void b53_phylink_mac_config(struct dsa_switch *ds, int port,
+			    unsigned int mode,
+			    const struct phylink_link_state *state)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (mode == MLO_AN_PHY)
+		return;
+
+	if (mode == MLO_AN_FIXED) {
+		b53_force_port_config(dev, port, state->speed,
+				      state->duplex, state->pause);
+		return;
+	}
+
+	if ((phy_interface_mode_is_8023z(state->interface) ||
+	     state->interface == PHY_INTERFACE_MODE_SGMII) &&
+	     dev->ops->serdes_config)
+		dev->ops->serdes_config(dev, port, mode, state);
+}
+EXPORT_SYMBOL(b53_phylink_mac_config);
+
+void b53_phylink_mac_an_restart(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (dev->ops->serdes_an_restart)
+		dev->ops->serdes_an_restart(dev, port);
+}
+EXPORT_SYMBOL(b53_phylink_mac_an_restart);
+
+void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
+			       unsigned int mode,
+			       phy_interface_t interface)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (mode == MLO_AN_PHY)
+		return;
+
+	if (mode == MLO_AN_FIXED) {
+		b53_force_link(dev, port, false);
+		return;
+	}
+
+	if (phy_interface_mode_is_8023z(interface) &&
+	    dev->ops->serdes_link_set)
+		dev->ops->serdes_link_set(dev, port, mode, interface, false);
+}
+EXPORT_SYMBOL(b53_phylink_mac_link_down);
+
+void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
+			     unsigned int mode,
+			     phy_interface_t interface,
+			     struct phy_device *phydev)
+{
+	struct b53_device *dev = ds->priv;
+
+	if (mode == MLO_AN_PHY)
+		return;
+
+	if (mode == MLO_AN_FIXED) {
+		b53_force_link(dev, port, true);
+		return;
+	}
+
+	if (phy_interface_mode_is_8023z(interface) &&
+	    dev->ops->serdes_link_set)
+		dev->ops->serdes_link_set(dev, port, mode, interface, true);
+}
+EXPORT_SYMBOL(b53_phylink_mac_link_up);
 
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 {
@@ -1710,6 +1894,12 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.phy_read		= b53_phy_read16,
 	.phy_write		= b53_phy_write16,
 	.adjust_link		= b53_adjust_link,
+	.phylink_validate	= b53_phylink_validate,
+	.phylink_mac_link_state	= b53_phylink_mac_link_state,
+	.phylink_mac_config	= b53_phylink_mac_config,
+	.phylink_mac_an_restart	= b53_phylink_mac_an_restart,
+	.phylink_mac_link_down	= b53_phylink_mac_link_down,
+	.phylink_mac_link_up	= b53_phylink_mac_link_up,
 	.port_enable		= b53_enable_port,
 	.port_disable		= b53_disable_port,
 	.get_mac_eee		= b53_get_mac_eee,

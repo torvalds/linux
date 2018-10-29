@@ -378,7 +378,7 @@ static int cypress_serial_control(struct tty_struct *tty,
 			retval = -ENOTTY;
 			goto out;
 		}
-		dev_dbg(dev, "%s - retreiving serial line settings\n", __func__);
+		dev_dbg(dev, "%s - retrieving serial line settings\n", __func__);
 		do {
 			retval = usb_control_msg(port->serial->dev,
 					usb_rcvctrlpipe(port->serial->dev, 0),
@@ -769,7 +769,7 @@ send:
 
 	usb_fill_int_urb(port->interrupt_out_urb, port->serial->dev,
 		usb_sndintpipe(port->serial->dev, port->interrupt_out_endpointAddress),
-		port->interrupt_out_buffer, port->interrupt_out_size,
+		port->interrupt_out_buffer, actual_size,
 		cypress_write_int_callback, port, priv->write_urb_interval);
 	result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
 	if (result) {
@@ -863,7 +863,7 @@ static void cypress_set_termios(struct tty_struct *tty,
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &port->dev;
 	int data_bits, stop_bits, parity_type, parity_enable;
-	unsigned cflag, iflag;
+	unsigned int cflag;
 	unsigned long flags;
 	__u8 oldlines;
 	int linechange = 0;
@@ -899,7 +899,6 @@ static void cypress_set_termios(struct tty_struct *tty,
 	tty->termios.c_cflag &= ~(CMSPAR|CRTSCTS);
 
 	cflag = tty->termios.c_cflag;
-	iflag = tty->termios.c_iflag;
 
 	/* check if there are new settings */
 	if (old_termios) {

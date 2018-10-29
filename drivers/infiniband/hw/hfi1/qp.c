@@ -66,7 +66,7 @@ MODULE_PARM_DESC(qp_table_size, "QP table size");
 static void flush_tx_list(struct rvt_qp *qp);
 static int iowait_sleep(
 	struct sdma_engine *sde,
-	struct iowait *wait,
+	struct iowait_work *wait,
 	struct sdma_txreq *stx,
 	unsigned int seq,
 	bool pkts_sent);
@@ -134,21 +134,27 @@ const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 
 };
 
-static void flush_tx_list(struct rvt_qp *qp)
+static void flush_list_head(struct list_head *l)
 {
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	while (!list_empty(&priv->s_iowait.tx_head)) {
+	while (!list_empty(l)) {
 		struct sdma_txreq *tx;
 
 		tx = list_first_entry(
-			&priv->s_iowait.tx_head,
+			l,
 			struct sdma_txreq,
 			list);
 		list_del_init(&tx->list);
 		hfi1_put_txreq(
 			container_of(tx, struct verbs_txreq, txreq));
 	}
+}
+
+static void flush_tx_list(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	flush_list_head(&iowait_get_ib_work(&priv->s_iowait)->tx_head);
+	flush_list_head(&iowait_get_tid_work(&priv->s_iowait)->tx_head);
 }
 
 static void flush_iowait(struct rvt_qp *qp)
@@ -282,33 +288,46 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 }
 
 /**
- * hfi1_check_send_wqe - validate wqe
+ * hfi1_setup_wqe - set up the wqe
  * @qp - The qp
  * @wqe - The built wqe
+ * @call_send - Determine if the send should be posted or scheduled.
  *
- * validate wqe.  This is called
- * prior to inserting the wqe into
- * the ring but after the wqe has been
- * setup.
+ * Perform setup of the wqe.  This is called
+ * prior to inserting the wqe into the ring but after
+ * the wqe has been setup by RDMAVT. This function
+ * allows the driver the opportunity to perform
+ * validation and additional setup of the wqe.
  *
  * Returns 0 on success, -EINVAL on failure
  *
  */
-int hfi1_check_send_wqe(struct rvt_qp *qp,
-			struct rvt_swqe *wqe)
+int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct rvt_ah *ah;
+	struct hfi1_pportdata *ppd;
+	struct hfi1_devdata *dd;
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
 	case IB_QPT_UC:
 		if (wqe->length > 0x80000000U)
 			return -EINVAL;
+		if (wqe->length > qp->pmtu)
+			*call_send = false;
 		break;
 	case IB_QPT_SMI:
-		ah = ibah_to_rvtah(wqe->ud_wr.ah);
-		if (wqe->length > (1 << ah->log_pmtu))
+		/*
+		 * SM packets should exclusively use VL15 and their SL is
+		 * ignored (IBTA v1.3, Section 3.5.8.2). Therefore, when ah
+		 * is created, SL is 0 in most cases and as a result some
+		 * fields (vl and pmtu) in ah may not be set correctly,
+		 * depending on the SL2SC and SC2VL tables at the time.
+		 */
+		ppd = ppd_from_ibp(ibp);
+		dd = dd_from_ppd(ppd);
+		if (wqe->length > dd->vld[15].mtu)
 			return -EINVAL;
 		break;
 	case IB_QPT_GSI:
@@ -321,7 +340,7 @@ int hfi1_check_send_wqe(struct rvt_qp *qp,
 	default:
 		break;
 	}
-	return wqe->length <= piothreshold;
+	return 0;
 }
 
 /**
@@ -333,7 +352,7 @@ int hfi1_check_send_wqe(struct rvt_qp *qp,
  * It is only used in the post send, which doesn't hold
  * the s_lock.
  */
-void _hfi1_schedule_send(struct rvt_qp *qp)
+bool _hfi1_schedule_send(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibport *ibp =
@@ -341,10 +360,10 @@ void _hfi1_schedule_send(struct rvt_qp *qp)
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 
-	iowait_schedule(&priv->s_iowait, ppd->hfi1_wq,
-			priv->s_sde ?
-			priv->s_sde->cpu :
-			cpumask_first(cpumask_of_node(dd->node)));
+	return iowait_schedule(&priv->s_iowait, ppd->hfi1_wq,
+			       priv->s_sde ?
+			       priv->s_sde->cpu :
+			       cpumask_first(cpumask_of_node(dd->node)));
 }
 
 static void qp_pio_drain(struct rvt_qp *qp)
@@ -372,12 +391,32 @@ static void qp_pio_drain(struct rvt_qp *qp)
  *
  * This schedules qp progress and caller should hold
  * the s_lock.
+ * @return true if the first leg is scheduled;
+ * false if the first leg is not scheduled.
  */
-void hfi1_schedule_send(struct rvt_qp *qp)
+bool hfi1_schedule_send(struct rvt_qp *qp)
 {
 	lockdep_assert_held(&qp->s_lock);
-	if (hfi1_send_ok(qp))
+	if (hfi1_send_ok(qp)) {
 		_hfi1_schedule_send(qp);
+		return true;
+	}
+	if (qp->s_flags & HFI1_S_ANY_WAIT_IO)
+		iowait_set_flag(&((struct hfi1_qp_priv *)qp->priv)->s_iowait,
+				IOWAIT_PENDING_IB);
+	return false;
+}
+
+static void hfi1_qp_schedule(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	bool ret;
+
+	if (iowait_flag_set(&priv->s_iowait, IOWAIT_PENDING_IB)) {
+		ret = hfi1_schedule_send(qp);
+		if (ret)
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_IB);
+	}
 }
 
 void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
@@ -388,16 +427,22 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
 	if (qp->s_flags & flag) {
 		qp->s_flags &= ~flag;
 		trace_hfi1_qpwakeup(qp, flag);
-		hfi1_schedule_send(qp);
+		hfi1_qp_schedule(qp);
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	/* Notify hfi1_destroy_qp() if it is waiting. */
 	rvt_put_qp(qp);
 }
 
+void hfi1_qp_unbusy(struct rvt_qp *qp, struct iowait_work *wait)
+{
+	if (iowait_set_work_flag(wait) == IOWAIT_IB_SE)
+		qp->s_flags &= ~RVT_S_BUSY;
+}
+
 static int iowait_sleep(
 	struct sdma_engine *sde,
-	struct iowait *wait,
+	struct iowait_work *wait,
 	struct sdma_txreq *stx,
 	uint seq,
 	bool pkts_sent)
@@ -438,7 +483,7 @@ static int iowait_sleep(
 			rvt_get_qp(qp);
 		}
 		write_sequnlock(&dev->iowait_lock);
-		qp->s_flags &= ~RVT_S_BUSY;
+		hfi1_qp_unbusy(qp, wait);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		ret = -EBUSY;
 	} else {
@@ -637,6 +682,7 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 		&priv->s_iowait,
 		1,
 		_hfi1_do_send,
+		NULL,
 		iowait_sleep,
 		iowait_wakeup,
 		iowait_sdma_drained);
@@ -686,7 +732,7 @@ void stop_send_queue(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	cancel_work_sync(&priv->s_iowait.iowork);
+	iowait_cancel_work(&priv->s_iowait);
 }
 
 void quiesce_qp(struct rvt_qp *qp)

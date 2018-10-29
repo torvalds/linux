@@ -102,9 +102,6 @@ asmlinkage void aesni_cbc_enc(struct crypto_aes_ctx *ctx, u8 *out,
 asmlinkage void aesni_cbc_dec(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
 
-int crypto_fpu_init(void);
-void crypto_fpu_exit(void);
-
 #define AVX_GEN2_OPTSIZE 640
 #define AVX_GEN4_OPTSIZE 4096
 
@@ -817,7 +814,7 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 	/* Linearize assoc, if not already linear */
 	if (req->src->length >= assoclen && req->src->length &&
 		(!PageHighMem(sg_page(req->src)) ||
-			req->src->offset + req->src->length < PAGE_SIZE)) {
+			req->src->offset + req->src->length <= PAGE_SIZE)) {
 		scatterwalk_start(&assoc_sg_walk, req->src);
 		assoc = scatterwalk_map(&assoc_sg_walk);
 	} else {
@@ -1253,22 +1250,6 @@ static struct skcipher_alg aesni_skciphers[] = {
 static
 struct simd_skcipher_alg *aesni_simd_skciphers[ARRAY_SIZE(aesni_skciphers)];
 
-static struct {
-	const char *algname;
-	const char *drvname;
-	const char *basename;
-	struct simd_skcipher_alg *simd;
-} aesni_simd_skciphers2[] = {
-#if (defined(MODULE) && IS_ENABLED(CONFIG_CRYPTO_PCBC)) || \
-    IS_BUILTIN(CONFIG_CRYPTO_PCBC)
-	{
-		.algname	= "pcbc(aes)",
-		.drvname	= "pcbc-aes-aesni",
-		.basename	= "fpu(pcbc(__aes-aesni))",
-	},
-#endif
-};
-
 #ifdef CONFIG_X86_64
 static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
 				  unsigned int key_len)
@@ -1422,10 +1403,6 @@ static void aesni_free_simds(void)
 	for (i = 0; i < ARRAY_SIZE(aesni_simd_skciphers) &&
 		    aesni_simd_skciphers[i]; i++)
 		simd_skcipher_free(aesni_simd_skciphers[i]);
-
-	for (i = 0; i < ARRAY_SIZE(aesni_simd_skciphers2); i++)
-		if (aesni_simd_skciphers2[i].simd)
-			simd_skcipher_free(aesni_simd_skciphers2[i].simd);
 }
 
 static int __init aesni_init(void)
@@ -1469,13 +1446,9 @@ static int __init aesni_init(void)
 #endif
 #endif
 
-	err = crypto_fpu_init();
-	if (err)
-		return err;
-
 	err = crypto_register_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
 	if (err)
-		goto fpu_exit;
+		return err;
 
 	err = crypto_register_skciphers(aesni_skciphers,
 					ARRAY_SIZE(aesni_skciphers));
@@ -1499,18 +1472,6 @@ static int __init aesni_init(void)
 		aesni_simd_skciphers[i] = simd;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(aesni_simd_skciphers2); i++) {
-		algname = aesni_simd_skciphers2[i].algname;
-		drvname = aesni_simd_skciphers2[i].drvname;
-		basename = aesni_simd_skciphers2[i].basename;
-		simd = simd_skcipher_create_compat(algname, drvname, basename);
-		err = PTR_ERR(simd);
-		if (IS_ERR(simd))
-			continue;
-
-		aesni_simd_skciphers2[i].simd = simd;
-	}
-
 	return 0;
 
 unregister_simds:
@@ -1521,8 +1482,6 @@ unregister_skciphers:
 				    ARRAY_SIZE(aesni_skciphers));
 unregister_algs:
 	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
-fpu_exit:
-	crypto_fpu_exit();
 	return err;
 }
 
@@ -1533,8 +1492,6 @@ static void __exit aesni_exit(void)
 	crypto_unregister_skciphers(aesni_skciphers,
 				    ARRAY_SIZE(aesni_skciphers));
 	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
-
-	crypto_fpu_exit();
 }
 
 late_initcall(aesni_init);

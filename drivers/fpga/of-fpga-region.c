@@ -410,7 +410,7 @@ static int of_fpga_region_probe(struct platform_device *pdev)
 	if (IS_ERR(mgr))
 		return -EPROBE_DEFER;
 
-	region = fpga_region_create(dev, mgr, of_fpga_region_get_bridges);
+	region = devm_fpga_region_create(dev, mgr, of_fpga_region_get_bridges);
 	if (!region) {
 		ret = -ENOMEM;
 		goto eprobe_mgr_put;
@@ -418,7 +418,7 @@ static int of_fpga_region_probe(struct platform_device *pdev)
 
 	ret = fpga_region_register(region);
 	if (ret)
-		goto eprobe_free;
+		goto eprobe_mgr_put;
 
 	of_platform_populate(np, fpga_region_of_match, NULL, &region->dev);
 	dev_set_drvdata(dev, region);
@@ -427,8 +427,6 @@ static int of_fpga_region_probe(struct platform_device *pdev)
 
 	return 0;
 
-eprobe_free:
-	fpga_region_free(region);
 eprobe_mgr_put:
 	fpga_mgr_put(mgr);
 	return ret;

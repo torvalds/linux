@@ -1146,8 +1146,8 @@ static int if_spi_probe(struct spi_device *spi)
 	 * This will call alloc_etherdev.
 	 */
 	priv = lbs_add_card(card, &spi->dev);
-	if (!priv) {
-		err = -ENOMEM;
+	if (IS_ERR(priv)) {
+		err = PTR_ERR(priv);
 		goto free_card;
 	}
 	card->priv = priv;

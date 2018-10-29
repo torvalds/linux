@@ -274,7 +274,7 @@ static const struct rpc_authops generic_auth_ops = {
 
 static struct rpc_auth generic_auth = {
 	.au_ops = &generic_auth_ops,
-	.au_count = ATOMIC_INIT(0),
+	.au_count = REFCOUNT_INIT(1),
 };
 
 static bool generic_key_to_expire(struct rpc_cred *cred)

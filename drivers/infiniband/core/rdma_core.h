@@ -160,5 +160,6 @@ void uverbs_disassociate_api(struct uverbs_api *uapi);
 void uverbs_destroy_api(struct uverbs_api *uapi);
 void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
 			      unsigned int num_attrs);
+void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile);
 
 #endif /* RDMA_CORE_H */

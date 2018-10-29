@@ -535,7 +535,7 @@ static int opal_recover_mce(struct pt_regs *regs,
 	return recovered;
 }
 
-void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
+void __noreturn pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
 {
 	panic_flush_kmsg_start();
 

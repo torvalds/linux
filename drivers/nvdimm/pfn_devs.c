@@ -361,6 +361,65 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 	return dev;
 }
 
+/*
+ * nd_pfn_clear_memmap_errors() clears any errors in the volatile memmap
+ * space associated with the namespace. If the memmap is set to DRAM, then
+ * this is a no-op. Since the memmap area is freshly initialized during
+ * probe, we have an opportunity to clear any badblocks in this area.
+ */
+static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
+{
+	struct nd_region *nd_region = to_nd_region(nd_pfn->dev.parent);
+	struct nd_namespace_common *ndns = nd_pfn->ndns;
+	void *zero_page = page_address(ZERO_PAGE(0));
+	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
+	int num_bad, meta_num, rc, bb_present;
+	sector_t first_bad, meta_start;
+	struct nd_namespace_io *nsio;
+
+	if (nd_pfn->mode != PFN_MODE_PMEM)
+		return 0;
+
+	nsio = to_nd_namespace_io(&ndns->dev);
+	meta_start = (SZ_4K + sizeof(*pfn_sb)) >> 9;
+	meta_num = (le64_to_cpu(pfn_sb->dataoff) >> 9) - meta_start;
+
+	do {
+		unsigned long zero_len;
+		u64 nsoff;
+
+		bb_present = badblocks_check(&nd_region->bb, meta_start,
+				meta_num, &first_bad, &num_bad);
+		if (bb_present) {
+			dev_dbg(&nd_pfn->dev, "meta: %x badblocks at %lx\n",
+					num_bad, first_bad);
+			nsoff = ALIGN_DOWN((nd_region->ndr_start
+					+ (first_bad << 9)) - nsio->res.start,
+					PAGE_SIZE);
+			zero_len = ALIGN(num_bad << 9, PAGE_SIZE);
+			while (zero_len) {
+				unsigned long chunk = min(zero_len, PAGE_SIZE);
+
+				rc = nvdimm_write_bytes(ndns, nsoff, zero_page,
+							chunk, 0);
+				if (rc)
+					break;
+
+				zero_len -= chunk;
+				nsoff += chunk;
+			}
+			if (rc) {
+				dev_err(&nd_pfn->dev,
+					"error clearing %x badblocks at %lx\n",
+					num_bad, first_bad);
+				return rc;
+			}
+		}
+	} while (bb_present);
+
+	return 0;
+}
+
 int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 {
 	u64 checksum, offset;
@@ -477,7 +536,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 		return -ENXIO;
 	}
 
-	return 0;
+	return nd_pfn_clear_memmap_errors(nd_pfn);
 }
 EXPORT_SYMBOL(nd_pfn_validate);
 

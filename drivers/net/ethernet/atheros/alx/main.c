@@ -1964,8 +1964,6 @@ static pci_ers_result_t alx_pci_error_slot_reset(struct pci_dev *pdev)
 	if (!alx_reset_mac(hw))
 		rc = PCI_ERS_RESULT_RECOVERED;
 out:
-	pci_cleanup_aer_uncorrect_error_status(pdev);
-
 	rtnl_unlock();
 
 	return rc;

@@ -267,7 +267,8 @@ queue spinlock. Any such concurrent calls to complete() or complete_all()
 probably are a design bug.
 
 Signaling completion from IRQ context is fine as it will appropriately
-lock with spin_lock_irqsave()/spin_unlock_irqrestore() and it will never sleep.
+lock with spin_lock_irqsave()/spin_unlock_irqrestore() and it will never
+sleep. 
 
 
 try_wait_for_completion()/completion_done():

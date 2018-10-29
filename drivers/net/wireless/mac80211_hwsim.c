@@ -3,6 +3,7 @@
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -494,7 +495,6 @@ static const struct ieee80211_iface_combination hwsim_if_comb_p2p_dev[] = {
 
 static spinlock_t hwsim_radio_lock;
 static LIST_HEAD(hwsim_radios);
-static struct workqueue_struct *hwsim_wq;
 static struct rhashtable hwsim_radios_rht;
 static int hwsim_radio_idx;
 static int hwsim_radios_generation = 1;
@@ -2528,23 +2528,20 @@ static const struct ieee80211_sband_iftype_data he_capa_2ghz = {
 				IEEE80211_HE_MAC_CAP0_HTC_HE,
 			.mac_cap_info[1] =
 				IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US |
-				IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_8,
+				IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_RX_QOS_8,
 			.mac_cap_info[2] =
 				IEEE80211_HE_MAC_CAP2_BSR |
 				IEEE80211_HE_MAC_CAP2_MU_CASCADING |
 				IEEE80211_HE_MAC_CAP2_ACK_EN,
 			.mac_cap_info[3] =
-				IEEE80211_HE_MAC_CAP3_GRP_ADDR_MULTI_STA_BA_DL_MU |
 				IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
-				IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_VHT_2,
+				IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2,
 			.mac_cap_info[4] = IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU,
-			.phy_cap_info[0] =
-				IEEE80211_HE_PHY_CAP0_DUAL_BAND,
 			.phy_cap_info[1] =
 				IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_MASK |
 				IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A |
 				IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD |
-				IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_MAX_NSTS,
+				IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS,
 			.phy_cap_info[2] =
 				IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US |
 				IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ |
@@ -2578,18 +2575,16 @@ static const struct ieee80211_sband_iftype_data he_capa_5ghz = {
 				IEEE80211_HE_MAC_CAP0_HTC_HE,
 			.mac_cap_info[1] =
 				IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US |
-				IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_QOS_8,
+				IEEE80211_HE_MAC_CAP1_MULTI_TID_AGG_RX_QOS_8,
 			.mac_cap_info[2] =
 				IEEE80211_HE_MAC_CAP2_BSR |
 				IEEE80211_HE_MAC_CAP2_MU_CASCADING |
 				IEEE80211_HE_MAC_CAP2_ACK_EN,
 			.mac_cap_info[3] =
-				IEEE80211_HE_MAC_CAP3_GRP_ADDR_MULTI_STA_BA_DL_MU |
 				IEEE80211_HE_MAC_CAP3_OMI_CONTROL |
-				IEEE80211_HE_MAC_CAP3_MAX_A_AMPDU_LEN_EXP_VHT_2,
+				IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_VHT_2,
 			.mac_cap_info[4] = IEEE80211_HE_MAC_CAP4_AMDSU_IN_AMPDU,
 			.phy_cap_info[0] =
-				IEEE80211_HE_PHY_CAP0_DUAL_BAND |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
 				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G,
@@ -2597,7 +2592,7 @@ static const struct ieee80211_sband_iftype_data he_capa_5ghz = {
 				IEEE80211_HE_PHY_CAP1_PREAMBLE_PUNC_RX_MASK |
 				IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A |
 				IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD |
-				IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_MAX_NSTS,
+				IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS,
 			.phy_cap_info[2] =
 				IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US |
 				IEEE80211_HE_PHY_CAP2_STBC_TX_UNDER_80MHZ |
@@ -3696,13 +3691,9 @@ static int __init init_mac80211_hwsim(void)
 
 	spin_lock_init(&hwsim_radio_lock);
 
-	hwsim_wq = alloc_workqueue("hwsim_wq", 0, 0);
-	if (!hwsim_wq)
-		return -ENOMEM;
-
 	err = rhashtable_init(&hwsim_radios_rht, &hwsim_rht_params);
 	if (err)
-		goto out_free_wq;
+		return err;
 
 	err = register_pernet_device(&hwsim_net_ops);
 	if (err)
@@ -3833,8 +3824,6 @@ out_unregister_pernet:
 	unregister_pernet_device(&hwsim_net_ops);
 out_free_rht:
 	rhashtable_destroy(&hwsim_radios_rht);
-out_free_wq:
-	destroy_workqueue(hwsim_wq);
 	return err;
 }
 module_init(init_mac80211_hwsim);
@@ -3846,12 +3835,10 @@ static void __exit exit_mac80211_hwsim(void)
 	hwsim_exit_netlink();
 
 	mac80211_hwsim_free();
-	flush_workqueue(hwsim_wq);
 
 	rhashtable_destroy(&hwsim_radios_rht);
 	unregister_netdev(hwsim_mon);
 	platform_driver_unregister(&mac80211_hwsim_driver);
 	unregister_pernet_device(&hwsim_net_ops);
-	destroy_workqueue(hwsim_wq);
 }
 module_exit(exit_mac80211_hwsim);

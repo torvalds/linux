@@ -17,6 +17,11 @@
 
 	.arch		armv8-a+crypto
 
+	xtsmask		.req	v16
+
+	.macro		xts_reload_mask, tmp
+	.endm
+
 	/* preload all round keys */
 	.macro		load_round_keys, rounds, rk
 	cmp		\rounds, #12

@@ -121,7 +121,7 @@ static void pm8001_phy_init(struct pm8001_hba_info *pm8001_ha, int phy_id)
 {
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	phy->phy_state = 0;
+	phy->phy_state = PHY_LINK_DISABLE;
 	phy->pm8001_ha = pm8001_ha;
 	sas_phy->enabled = (phy_id < pm8001_ha->chip->n_phy) ? 1 : 0;
 	sas_phy->class = SAS;
@@ -152,7 +152,7 @@ static void pm8001_free(struct pm8001_hba_info *pm8001_ha)
 
 	for (i = 0; i < USI_MAX_MEMCNT; i++) {
 		if (pm8001_ha->memoryMap.region[i].virt_ptr != NULL) {
-			pci_free_consistent(pm8001_ha->pdev,
+			dma_free_coherent(&pm8001_ha->pdev->dev,
 				(pm8001_ha->memoryMap.region[i].total_len +
 				pm8001_ha->memoryMap.region[i].alignment),
 				pm8001_ha->memoryMap.region[i].virt_ptr,
@@ -501,30 +501,12 @@ static int pci_go_44(struct pci_dev *pdev)
 {
 	int rc;
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(44))) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(44));
-		if (rc) {
-			rc = pci_set_consistent_dma_mask(pdev,
-				DMA_BIT_MASK(32));
-			if (rc) {
-				dev_printk(KERN_ERR, &pdev->dev,
-					"44-bit DMA enable failed\n");
-				return rc;
-			}
-		}
-	} else {
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(44));
+	if (rc) {
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (rc)
 			dev_printk(KERN_ERR, &pdev->dev,
 				"32-bit DMA enable failed\n");
-			return rc;
-		}
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_printk(KERN_ERR, &pdev->dev,
-				"32-bit consistent DMA enable failed\n");
-			return rc;
-		}
 	}
 	return rc;
 }
@@ -1067,6 +1049,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	if (rc)
 		goto err_out_shost;
 	scsi_scan_host(pm8001_ha->shost);
+	pm8001_ha->flags = PM8001F_RUN_TIME;
 	return 0;
 
 err_out_shost:

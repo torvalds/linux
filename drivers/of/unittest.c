@@ -212,8 +212,8 @@ static int __init of_unittest_check_node_linkage(struct device_node *np)
 
 	for_each_child_of_node(np, child) {
 		if (child->parent != np) {
-			pr_err("Child node %s links to wrong parent %s\n",
-				 child->name, np->name);
+			pr_err("Child node %pOFn links to wrong parent %pOFn\n",
+				 child, np);
 			rc = -EINVAL;
 			goto put_child;
 		}
@@ -299,6 +299,10 @@ static void __init of_unittest_printf(void)
 
 	of_unittest_printf_one(np, "%pOF",  full_name);
 	of_unittest_printf_one(np, "%pOFf", full_name);
+	of_unittest_printf_one(np, "%pOFn", "dev");
+	of_unittest_printf_one(np, "%2pOFn", "dev");
+	of_unittest_printf_one(np, "%5pOFn", "  dev");
+	of_unittest_printf_one(np, "%pOFnc", "dev:test-sub-device");
 	of_unittest_printf_one(np, "%pOFp", phandle_str);
 	of_unittest_printf_one(np, "%pOFP", "dev@100");
 	of_unittest_printf_one(np, "ABC %pOFP ABC", "ABC dev@100 ABC");
@@ -1046,16 +1050,16 @@ static void __init of_unittest_platform_populate(void)
 	for_each_child_of_node(np, child) {
 		for_each_child_of_node(child, grandchild)
 			unittest(of_find_device_by_node(grandchild),
-				 "Could not create device for node '%s'\n",
-				 grandchild->name);
+				 "Could not create device for node '%pOFn'\n",
+				 grandchild);
 	}
 
 	of_platform_depopulate(&test_bus->dev);
 	for_each_child_of_node(np, child) {
 		for_each_child_of_node(child, grandchild)
 			unittest(!of_find_device_by_node(grandchild),
-				 "device didn't get destroyed '%s'\n",
-				 grandchild->name);
+				 "device didn't get destroyed '%pOFn'\n",
+				 grandchild);
 	}
 
 	platform_device_unregister(test_bus);
@@ -2357,11 +2361,14 @@ static __init void of_unittest_overlay_high_level(void)
 		}
 	}
 
-	for (np = overlay_base_root->child; np; np = np->sibling) {
-		if (of_get_child_by_name(of_root, np->name)) {
-			unittest(0, "illegal node name in overlay_base %s",
-				np->name);
-			return;
+	for_each_child_of_node(overlay_base_root, np) {
+		struct device_node *base_child;
+		for_each_child_of_node(of_root, base_child) {
+			if (!strcmp(np->full_name, base_child->full_name)) {
+				unittest(0, "illegal node name in overlay_base %pOFn",
+					 np);
+				return;
+			}
 		}
 	}
 

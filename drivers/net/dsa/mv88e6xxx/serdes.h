@@ -18,6 +18,19 @@
 
 #define MV88E6352_ADDR_SERDES		0x0f
 #define MV88E6352_SERDES_PAGE_FIBER	0x01
+#define MV88E6352_SERDES_IRQ		0x0b
+#define MV88E6352_SERDES_INT_ENABLE	0x12
+#define MV88E6352_SERDES_INT_SPEED_CHANGE	BIT(14)
+#define MV88E6352_SERDES_INT_DUPLEX_CHANGE	BIT(13)
+#define MV88E6352_SERDES_INT_PAGE_RX		BIT(12)
+#define MV88E6352_SERDES_INT_AN_COMPLETE	BIT(11)
+#define MV88E6352_SERDES_INT_LINK_CHANGE	BIT(10)
+#define MV88E6352_SERDES_INT_SYMBOL_ERROR	BIT(9)
+#define MV88E6352_SERDES_INT_FALSE_CARRIER	BIT(8)
+#define MV88E6352_SERDES_INT_FIFO_OVER_UNDER	BIT(7)
+#define MV88E6352_SERDES_INT_FIBRE_ENERGY	BIT(4)
+#define MV88E6352_SERDES_INT_STATUS	0x13
+
 
 #define MV88E6341_ADDR_SERDES		0x15
 
@@ -73,5 +86,8 @@ int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
 				int lane);
 int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
 				 int lane);
+int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port);
+void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port);
+
 
 #endif

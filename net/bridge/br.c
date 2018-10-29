@@ -151,7 +151,7 @@ static int br_switchdev_event(struct notifier_block *unused,
 			break;
 		}
 		br_fdb_offloaded_set(br, p, fdb_info->addr,
-				     fdb_info->vid);
+				     fdb_info->vid, true);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
 		fdb_info = ptr;
@@ -163,7 +163,7 @@ static int br_switchdev_event(struct notifier_block *unused,
 	case SWITCHDEV_FDB_OFFLOADED:
 		fdb_info = ptr;
 		br_fdb_offloaded_set(br, p, fdb_info->addr,
-				     fdb_info->vid);
+				     fdb_info->vid, fdb_info->offloaded);
 		break;
 	}
 
@@ -174,6 +174,22 @@ out:
 static struct notifier_block br_switchdev_notifier = {
 	.notifier_call = br_switchdev_event,
 };
+
+void br_opt_toggle(struct net_bridge *br, enum net_bridge_opts opt, bool on)
+{
+	bool cur = !!br_opt_get(br, opt);
+
+	br_debug(br, "toggle option: %d state: %d -> %d\n",
+		 opt, cur, on);
+
+	if (cur == on)
+		return;
+
+	if (on)
+		set_bit(opt, &br->options);
+	else
+		clear_bit(opt, &br->options);
+}
 
 static void __net_exit br_net_exit(struct net *net)
 {

@@ -47,6 +47,7 @@
 #include <linux/wait.h>
 #include <uapi/linux/batadv_packet.h>
 
+#include "debugfs.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
@@ -73,6 +74,8 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
+
+	batadv_debugfs_deprecated(file, "");
 
 	nonseekable_open(inode, file);
 

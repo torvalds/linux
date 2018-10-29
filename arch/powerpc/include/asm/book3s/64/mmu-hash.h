@@ -30,7 +30,7 @@
  * SLB
  */
 
-#define SLB_NUM_BOLTED		3
+#define SLB_NUM_BOLTED		2
 #define SLB_CACHE_ENTRIES	8
 #define SLB_MIN_SIZE		32
 
@@ -201,6 +201,18 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
 	BUG();
+}
+
+static inline unsigned int ap_to_shift(unsigned long ap)
+{
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; psize++) {
+		if (mmu_psize_defs[psize].ap == ap)
+			return mmu_psize_defs[psize].shift;
+	}
+
+	return -1;
 }
 
 static inline unsigned long get_sllp_encoding(int psize)
@@ -487,6 +499,8 @@ int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 extern void pseries_add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
+extern void hash__setup_new_exec(void);
+
 #ifdef CONFIG_PPC_PSERIES
 void hpte_init_pseries(void);
 #else
@@ -495,11 +509,18 @@ static inline void hpte_init_pseries(void) { }
 
 extern void hpte_init_native(void);
 
+struct slb_entry {
+	u64	esid;
+	u64	vsid;
+};
+
 extern void slb_initialize(void);
-extern void slb_flush_and_rebolt(void);
+void slb_flush_and_restore_bolted(void);
 void slb_flush_all_realmode(void);
 void __slb_restore_bolted_realmode(void);
 void slb_restore_bolted_realmode(void);
+void slb_save_contents(struct slb_entry *slb_ptr);
+void slb_dump_contents(struct slb_entry *slb_ptr);
 
 extern void slb_vmalloc_update(void);
 extern void slb_set_size(u16 size);
@@ -512,13 +533,9 @@ extern void slb_set_size(u16 size);
  * from mmu context id and effective segment id of the address.
  *
  * For user processes max context id is limited to MAX_USER_CONTEXT.
-
- * For kernel space, we use context ids 1-4 to map addresses as below:
- * NOTE: each context only support 64TB now.
- * 0x00001 -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
- * 0x00002 -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
- * 0x00003 -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
- * 0x00004 -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
+ * more details in get_user_context
+ *
+ * For kernel space get_kernel_context
  *
  * The proto-VSIDs are then scrambled into real VSIDs with the
  * multiplicative hash:
@@ -559,6 +576,21 @@ extern void slb_set_size(u16 size);
 #define ESID_BITS_1T_MASK	((1 << ESID_BITS_1T) - 1)
 
 /*
+ * Now certain config support MAX_PHYSMEM more than 512TB. Hence we will need
+ * to use more than one context for linear mapping the kernel.
+ * For vmalloc and memmap, we use just one context with 512TB. With 64 byte
+ * struct page size, we need ony 32 TB in memmap for 2PB (51 bits (MAX_PHYSMEM_BITS)).
+ */
+#if (MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
+#define MAX_KERNEL_CTX_CNT	(1UL << (MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
+#else
+#define MAX_KERNEL_CTX_CNT	1
+#endif
+
+#define MAX_VMALLOC_CTX_CNT	1
+#define MAX_MEMMAP_CTX_CNT	1
+
+/*
  * 256MB segment
  * The proto-VSID space has 2^(CONTEX_BITS + ESID_BITS) - 1 segments
  * available for user + kernel mapping. VSID 0 is reserved as invalid, contexts
@@ -568,12 +600,13 @@ extern void slb_set_size(u16 size);
  * We also need to avoid the last segment of the last context, because that
  * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
  * because of the modulo operation in vsid scramble.
+ *
+ * We add one extra context to MIN_USER_CONTEXT so that we can map kernel
+ * context easily. The +1 is to map the unused 0xe region mapping.
  */
 #define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
-#define MIN_USER_CONTEXT	(5)
-
-/* Would be nice to use KERNEL_REGION_ID here */
-#define KERNEL_REGION_CONTEXT_OFFSET	(0xc - 1)
+#define MIN_USER_CONTEXT	(MAX_KERNEL_CTX_CNT + MAX_VMALLOC_CTX_CNT + \
+				 MAX_MEMMAP_CTX_CNT + 2)
 
 /*
  * For platforms that support on 65bit VA we limit the context bits
@@ -734,6 +767,39 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 }
 
 /*
+ * For kernel space, we use context ids as below
+ * below. Range is 512TB per context.
+ *
+ * 0x00001 -  [ 0xc000000000000000 - 0xc001ffffffffffff]
+ * 0x00002 -  [ 0xc002000000000000 - 0xc003ffffffffffff]
+ * 0x00003 -  [ 0xc004000000000000 - 0xc005ffffffffffff]
+ * 0x00004 -  [ 0xc006000000000000 - 0xc007ffffffffffff]
+
+ * 0x00005 -  [ 0xd000000000000000 - 0xd001ffffffffffff ]
+ * 0x00006 -  Not used - Can map 0xe000000000000000 range.
+ * 0x00007 -  [ 0xf000000000000000 - 0xf001ffffffffffff ]
+ *
+ * So we can compute the context from the region (top nibble) by
+ * subtracting 11, or 0xc - 1.
+ */
+static inline unsigned long get_kernel_context(unsigned long ea)
+{
+	unsigned long region_id = REGION_ID(ea);
+	unsigned long ctx;
+	/*
+	 * For linear mapping we do support multiple context
+	 */
+	if (region_id == KERNEL_REGION_ID) {
+		/*
+		 * We already verified ea to be not beyond the addr limit.
+		 */
+		ctx =  1 + ((ea & ~REGION_MASK) >> MAX_EA_BITS_PER_CONTEXT);
+	} else
+		ctx = (region_id - 0xc) + MAX_KERNEL_CTX_CNT;
+	return ctx;
+}
+
+/*
  * This is only valid for addresses >= PAGE_OFFSET
  */
 static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
@@ -743,20 +809,7 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 	if (!is_kernel_addr(ea))
 		return 0;
 
-	/*
-	 * For kernel space, we use context ids 1-4 to map the address space as
-	 * below:
-	 *
-	 * 0x00001 -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
-	 * 0x00002 -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
-	 * 0x00003 -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
-	 * 0x00004 -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
-	 *
-	 * So we can compute the context from the region (top nibble) by
-	 * subtracting 11, or 0xc - 1.
-	 */
-	context = (ea >> 60) - KERNEL_REGION_CONTEXT_OFFSET;
-
+	context = get_kernel_context(ea);
 	return get_vsid(context, ea, ssize);
 }
 

@@ -68,8 +68,6 @@ struct idletimer_tg *__idletimer_tg_find_by_label(const char *label)
 {
 	struct idletimer_tg *entry;
 
-	BUG_ON(!label);
-
 	list_for_each_entry(entry, &idletimer_tg_list, entry) {
 		if (!strcmp(label, entry->attr.attr.name))
 			return entry;
@@ -171,8 +169,6 @@ static unsigned int idletimer_tg_target(struct sk_buff *skb,
 
 	pr_debug("resetting timer %s, timeout period %u\n",
 		 info->label, info->timeout);
-
-	BUG_ON(!info->timer);
 
 	mod_timer(&info->timer->timer,
 		  msecs_to_jiffies(info->timeout * 1000) + jiffies);

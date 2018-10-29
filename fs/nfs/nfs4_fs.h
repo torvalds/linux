@@ -188,9 +188,10 @@ struct nfs4_state {
 	unsigned int n_wronly;		/* Number of write-only references */
 	unsigned int n_rdwr;		/* Number of read/write references */
 	fmode_t state;			/* State on the server (R,W, or RW) */
-	atomic_t count;
+	refcount_t count;
 
 	wait_queue_head_t waitq;
+	struct rcu_head rcu_head;
 };
 
 

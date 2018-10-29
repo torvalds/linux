@@ -242,7 +242,7 @@ static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
 
 static void prrn_update_node(__be32 phandle)
 {
-	struct pseries_hp_errorlog *hp_elog;
+	struct pseries_hp_errorlog hp_elog;
 	struct device_node *dn;
 
 	/*
@@ -255,18 +255,12 @@ static void prrn_update_node(__be32 phandle)
 		return;
 	}
 
-	hp_elog = kzalloc(sizeof(*hp_elog), GFP_KERNEL);
-	if(!hp_elog)
-		return;
+	hp_elog.resource = PSERIES_HP_ELOG_RESOURCE_MEM;
+	hp_elog.action = PSERIES_HP_ELOG_ACTION_READD;
+	hp_elog.id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
+	hp_elog._drc_u.drc_index = phandle;
 
-	hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_MEM;
-	hp_elog->action = PSERIES_HP_ELOG_ACTION_READD;
-	hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
-	hp_elog->_drc_u.drc_index = phandle;
-
-	queue_hotplug_event(hp_elog, NULL, NULL);
-
-	kfree(hp_elog);
+	handle_dlpar_errorlog(&hp_elog);
 }
 
 int pseries_devicetree_update(s32 scope)
@@ -366,6 +360,8 @@ static ssize_t migration_store(struct class *class,
 	if (rc)
 		return rc;
 
+	stop_topology_update();
+
 	do {
 		rc = rtas_ibm_suspend_me(streamid);
 		if (rc == -EAGAIN)
@@ -376,6 +372,9 @@ static ssize_t migration_store(struct class *class,
 		return rc;
 
 	post_mobility_fixup();
+
+	start_topology_update();
+
 	return count;
 }
 

@@ -76,7 +76,7 @@ Deprecated properties:
 Also see child specific device properties:
   Regulator - ../regulator/arizona-regulator.txt
   Extcon    - ../extcon/extcon-arizona.txt
-  Sound     - ../sound/arizona.txt
+  Sound     - ../sound/wlf,arizona.txt
 
 Example:
 

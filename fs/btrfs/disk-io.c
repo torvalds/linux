@@ -125,8 +125,8 @@ struct async_submit_bio {
  * Different roots are used for different purposes and may nest inside each
  * other and they require separate keysets.  As lockdep keys should be
  * static, assign keysets according to the purpose of the root as indicated
- * by btrfs_root->objectid.  This ensures that all special purpose roots
- * have separate keysets.
+ * by btrfs_root->root_key.objectid.  This ensures that all special purpose
+ * roots have separate keysets.
  *
  * Lock-nesting across peer nodes is always done with the immediate parent
  * node locked thus preventing deadlock.  As lockdep doesn't know this, use
@@ -1148,7 +1148,6 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	root->state = 0;
 	root->orphan_cleanup_state = 0;
 
-	root->objectid = objectid;
 	root->last_trans = 0;
 	root->highest_objectid = 0;
 	root->nr_delalloc_inodes = 0;
@@ -2156,9 +2155,8 @@ static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
 {
 	mutex_init(&fs_info->dev_replace.lock_finishing_cancel_unmount);
 	rwlock_init(&fs_info->dev_replace.lock);
-	atomic_set(&fs_info->dev_replace.read_locks, 0);
 	atomic_set(&fs_info->dev_replace.blocking_readers, 0);
-	init_waitqueue_head(&fs_info->replace_wait);
+	init_waitqueue_head(&fs_info->dev_replace.replace_wait);
 	init_waitqueue_head(&fs_info->dev_replace.read_lock_wq);
 }
 
@@ -2648,7 +2646,8 @@ int open_ctree(struct super_block *sb,
 		goto fail_dirty_metadata_bytes;
 	}
 
-	ret = percpu_counter_init(&fs_info->bio_counter, 0, GFP_KERNEL);
+	ret = percpu_counter_init(&fs_info->dev_replace.bio_counter, 0,
+			GFP_KERNEL);
 	if (ret) {
 		err = ret;
 		goto fail_delalloc_bytes;
@@ -3309,7 +3308,7 @@ fail_iput:
 
 	iput(fs_info->btree_inode);
 fail_bio_counter:
-	percpu_counter_destroy(&fs_info->bio_counter);
+	percpu_counter_destroy(&fs_info->dev_replace.bio_counter);
 fail_delalloc_bytes:
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
 fail_dirty_metadata_bytes:
@@ -3977,6 +3976,7 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 	kthread_stop(fs_info->transaction_kthread);
 	kthread_stop(fs_info->cleaner_kthread);
 
+	ASSERT(list_empty(&fs_info->delayed_iputs));
 	set_bit(BTRFS_FS_CLOSING_DONE, &fs_info->flags);
 
 	btrfs_free_qgroup_config(fs_info);
@@ -4018,7 +4018,7 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
-	percpu_counter_destroy(&fs_info->bio_counter);
+	percpu_counter_destroy(&fs_info->dev_replace.bio_counter);
 	cleanup_srcu_struct(&fs_info->subvol_srcu);
 
 	btrfs_free_stripe_hash_table(fs_info);
@@ -4204,7 +4204,7 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		return ret;
 	}
 
-	while ((node = rb_first(&delayed_refs->href_root)) != NULL) {
+	while ((node = rb_first_cached(&delayed_refs->href_root)) != NULL) {
 		struct btrfs_delayed_ref_head *head;
 		struct rb_node *n;
 		bool pin_bytes = false;
@@ -4222,11 +4222,11 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 			continue;
 		}
 		spin_lock(&head->lock);
-		while ((n = rb_first(&head->ref_tree)) != NULL) {
+		while ((n = rb_first_cached(&head->ref_tree)) != NULL) {
 			ref = rb_entry(n, struct btrfs_delayed_ref_node,
 				       ref_node);
 			ref->in_tree = 0;
-			rb_erase(&ref->ref_node, &head->ref_tree);
+			rb_erase_cached(&ref->ref_node, &head->ref_tree);
 			RB_CLEAR_NODE(&ref->ref_node);
 			if (!list_empty(&ref->add_list))
 				list_del(&ref->add_list);
@@ -4240,7 +4240,7 @@ static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		if (head->processing == 0)
 			delayed_refs->num_heads_ready--;
 		atomic_dec(&delayed_refs->num_entries);
-		rb_erase(&head->href_node, &delayed_refs->href_root);
+		rb_erase_cached(&head->href_node, &delayed_refs->href_root);
 		RB_CLEAR_NODE(&head->href_node);
 		spin_unlock(&head->lock);
 		spin_unlock(&delayed_refs->lock);

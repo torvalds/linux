@@ -558,6 +558,9 @@ EXPORT_SYMBOL_GPL(fpga_mgr_unlock);
  * @mops:	pointer to structure of fpga manager ops
  * @priv:	fpga manager private data
  *
+ * The caller of this function is responsible for freeing the struct with
+ * fpga_mgr_free().  Using devm_fpga_mgr_create() instead is recommended.
+ *
  * Return: pointer to struct fpga_manager or NULL
  */
 struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
@@ -618,8 +621,8 @@ error_kfree:
 EXPORT_SYMBOL_GPL(fpga_mgr_create);
 
 /**
- * fpga_mgr_free - deallocate a FPGA manager
- * @mgr:	fpga manager struct created by fpga_mgr_create
+ * fpga_mgr_free - free a FPGA manager created with fpga_mgr_create()
+ * @mgr:	fpga manager struct
  */
 void fpga_mgr_free(struct fpga_manager *mgr)
 {
@@ -628,9 +631,55 @@ void fpga_mgr_free(struct fpga_manager *mgr)
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_free);
 
+static void devm_fpga_mgr_release(struct device *dev, void *res)
+{
+	struct fpga_manager *mgr = *(struct fpga_manager **)res;
+
+	fpga_mgr_free(mgr);
+}
+
+/**
+ * devm_fpga_mgr_create - create and initialize a managed FPGA manager struct
+ * @dev:	fpga manager device from pdev
+ * @name:	fpga manager name
+ * @mops:	pointer to structure of fpga manager ops
+ * @priv:	fpga manager private data
+ *
+ * This function is intended for use in a FPGA manager driver's probe function.
+ * After the manager driver creates the manager struct with
+ * devm_fpga_mgr_create(), it should register it with fpga_mgr_register().  The
+ * manager driver's remove function should call fpga_mgr_unregister().  The
+ * manager struct allocated with this function will be freed automatically on
+ * driver detach.  This includes the case of a probe function returning error
+ * before calling fpga_mgr_register(), the struct will still get cleaned up.
+ *
+ * Return: pointer to struct fpga_manager or NULL
+ */
+struct fpga_manager *devm_fpga_mgr_create(struct device *dev, const char *name,
+					  const struct fpga_manager_ops *mops,
+					  void *priv)
+{
+	struct fpga_manager **ptr, *mgr;
+
+	ptr = devres_alloc(devm_fpga_mgr_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	mgr = fpga_mgr_create(dev, name, mops, priv);
+	if (!mgr) {
+		devres_free(ptr);
+	} else {
+		*ptr = mgr;
+		devres_add(dev, ptr);
+	}
+
+	return mgr;
+}
+EXPORT_SYMBOL_GPL(devm_fpga_mgr_create);
+
 /**
  * fpga_mgr_register - register a FPGA manager
- * @mgr:	fpga manager struct created by fpga_mgr_create
+ * @mgr: fpga manager struct
  *
  * Return: 0 on success, negative error code otherwise.
  */
@@ -661,8 +710,10 @@ error_device:
 EXPORT_SYMBOL_GPL(fpga_mgr_register);
 
 /**
- * fpga_mgr_unregister - unregister and free a FPGA manager
- * @mgr:	fpga manager struct
+ * fpga_mgr_unregister - unregister a FPGA manager
+ * @mgr: fpga manager struct
+ *
+ * This function is intended for use in a FPGA manager driver's remove function.
  */
 void fpga_mgr_unregister(struct fpga_manager *mgr)
 {
@@ -681,9 +732,6 @@ EXPORT_SYMBOL_GPL(fpga_mgr_unregister);
 
 static void fpga_mgr_dev_release(struct device *dev)
 {
-	struct fpga_manager *mgr = to_fpga_manager(dev);
-
-	fpga_mgr_free(mgr);
 }
 
 static int __init fpga_mgr_class_init(void)

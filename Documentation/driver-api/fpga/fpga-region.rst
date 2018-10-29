@@ -34,41 +34,6 @@ fpga_image_info including:
  * flags indicating specifics such as whether the image is for partial
    reconfiguration.
 
-How to program an FPGA using a region
--------------------------------------
-
-First, allocate the info struct::
-
-	info = fpga_image_info_alloc(dev);
-	if (!info)
-		return -ENOMEM;
-
-Set flags as needed, i.e.::
-
-	info->flags |= FPGA_MGR_PARTIAL_RECONFIG;
-
-Point to your FPGA image, such as::
-
-	info->sgt = &sgt;
-
-Add info to region and do the programming::
-
-	region->info = info;
-	ret = fpga_region_program_fpga(region);
-
-:c:func:`fpga_region_program_fpga()` operates on info passed in the
-fpga_image_info (region->info).  This function will attempt to:
-
- * lock the region's mutex
- * lock the region's FPGA manager
- * build a list of FPGA bridges if a method has been specified to do so
- * disable the bridges
- * program the FPGA
- * re-enable the bridges
- * release the locks
-
-Then you will want to enumerate whatever hardware has appeared in the FPGA.
-
 How to add a new FPGA region
 ----------------------------
 
@@ -77,26 +42,62 @@ An example of usage can be seen in the probe function of [#f2]_.
 .. [#f1] ../devicetree/bindings/fpga/fpga-region.txt
 .. [#f2] ../../drivers/fpga/of-fpga-region.c
 
-API to program an FPGA
-----------------------
-
-.. kernel-doc:: drivers/fpga/fpga-region.c
-   :functions: fpga_region_program_fpga
-
 API to add a new FPGA region
 ----------------------------
+
+* struct :c:type:`fpga_region` — The FPGA region struct
+* :c:func:`devm_fpga_region_create` — Allocate and init a region struct
+* :c:func:`fpga_region_register` —  Register an FPGA region
+* :c:func:`fpga_region_unregister` —  Unregister an FPGA region
+
+The FPGA region's probe function will need to get a reference to the FPGA
+Manager it will be using to do the programming.  This usually would happen
+during the region's probe function.
+
+* :c:func:`fpga_mgr_get` — Get a reference to an FPGA manager, raise ref count
+* :c:func:`of_fpga_mgr_get` —  Get a reference to an FPGA manager, raise ref count,
+  given a device node.
+* :c:func:`fpga_mgr_put` — Put an FPGA manager
+
+The FPGA region will need to specify which bridges to control while programming
+the FPGA.  The region driver can build a list of bridges during probe time
+(:c:member:`fpga_region->bridge_list`) or it can have a function that creates
+the list of bridges to program just before programming
+(:c:member:`fpga_region->get_bridges`).  The FPGA bridge framework supplies the
+following APIs to handle building or tearing down that list.
+
+* :c:func:`fpga_bridge_get_to_list` — Get a ref of an FPGA bridge, add it to a
+  list
+* :c:func:`of_fpga_bridge_get_to_list` — Get a ref of an FPGA bridge, add it to a
+  list, given a device node
+* :c:func:`fpga_bridges_put` — Given a list of bridges, put them
 
 .. kernel-doc:: include/linux/fpga/fpga-region.h
    :functions: fpga_region
 
 .. kernel-doc:: drivers/fpga/fpga-region.c
-   :functions: fpga_region_create
-
-.. kernel-doc:: drivers/fpga/fpga-region.c
-   :functions: fpga_region_free
+   :functions: devm_fpga_region_create
 
 .. kernel-doc:: drivers/fpga/fpga-region.c
    :functions: fpga_region_register
 
 .. kernel-doc:: drivers/fpga/fpga-region.c
    :functions: fpga_region_unregister
+
+.. kernel-doc:: drivers/fpga/fpga-mgr.c
+   :functions: fpga_mgr_get
+
+.. kernel-doc:: drivers/fpga/fpga-mgr.c
+   :functions: of_fpga_mgr_get
+
+.. kernel-doc:: drivers/fpga/fpga-mgr.c
+   :functions: fpga_mgr_put
+
+.. kernel-doc:: drivers/fpga/fpga-bridge.c
+   :functions: fpga_bridge_get_to_list
+
+.. kernel-doc:: drivers/fpga/fpga-bridge.c
+   :functions: of_fpga_bridge_get_to_list
+
+.. kernel-doc:: drivers/fpga/fpga-bridge.c
+   :functions: fpga_bridges_put

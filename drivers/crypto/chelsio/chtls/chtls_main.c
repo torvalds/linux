@@ -272,8 +272,7 @@ static void chtls_free_uld(struct chtls_dev *cdev)
 	for (i = 0; i < (1 << RSPQ_HASH_BITS); i++)
 		kfree_skb(cdev->rspq_skb_cache[i]);
 	kfree(cdev->lldi);
-	if (cdev->askb)
-		kfree_skb(cdev->askb);
+	kfree_skb(cdev->askb);
 	kfree(cdev);
 }
 

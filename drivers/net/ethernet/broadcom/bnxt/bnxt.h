@@ -12,11 +12,11 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.9.2"
+#define DRV_MODULE_VERSION	"1.10.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	9
-#define DRV_VER_UPD	2
+#define DRV_VER_MIN	10
+#define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
 #include <linux/rhashtable.h>
@@ -403,6 +403,19 @@ struct rx_tpa_end_cmp_ext {
 	((rx_tpa_end_ext)->rx_tpa_end_cmp_errors_v2 &			\
 	 cpu_to_le32(RX_TPA_END_CMP_ERRORS))
 
+struct nqe_cn {
+	__le16	type;
+	#define NQ_CN_TYPE_MASK           0x3fUL
+	#define NQ_CN_TYPE_SFT            0
+	#define NQ_CN_TYPE_CQ_NOTIFICATION  0x30UL
+	#define NQ_CN_TYPE_LAST            NQ_CN_TYPE_CQ_NOTIFICATION
+	__le16	reserved16;
+	__le32	cq_handle_low;
+	__le32	v;
+	#define NQ_CN_V     0x1UL
+	__le32	cq_handle_high;
+};
+
 #define DB_IDX_MASK						0xffffff
 #define DB_IDX_VALID						(0x1 << 26)
 #define DB_IRQ_DIS						(0x1 << 27)
@@ -415,6 +428,25 @@ struct rx_tpa_end_cmp_ext {
 
 #define BNXT_MIN_ROCE_CP_RINGS	2
 #define BNXT_MIN_ROCE_STAT_CTXS	1
+
+/* 64-bit doorbell */
+#define DBR_INDEX_MASK					0x0000000000ffffffULL
+#define DBR_XID_MASK					0x000fffff00000000ULL
+#define DBR_XID_SFT					32
+#define DBR_PATH_L2					(0x1ULL << 56)
+#define DBR_TYPE_SQ					(0x0ULL << 60)
+#define DBR_TYPE_RQ					(0x1ULL << 60)
+#define DBR_TYPE_SRQ					(0x2ULL << 60)
+#define DBR_TYPE_SRQ_ARM				(0x3ULL << 60)
+#define DBR_TYPE_CQ					(0x4ULL << 60)
+#define DBR_TYPE_CQ_ARMSE				(0x5ULL << 60)
+#define DBR_TYPE_CQ_ARMALL				(0x6ULL << 60)
+#define DBR_TYPE_CQ_ARMENA				(0x7ULL << 60)
+#define DBR_TYPE_SRQ_ARMENA				(0x8ULL << 60)
+#define DBR_TYPE_CQ_CUTOFF_ACK				(0x9ULL << 60)
+#define DBR_TYPE_NQ					(0xaULL << 60)
+#define DBR_TYPE_NQ_ARM					(0xbULL << 60)
+#define DBR_TYPE_NULL					(0xfULL << 60)
 
 #define INVALID_HW_RING_ID	((u16)-1)
 
@@ -505,6 +537,9 @@ struct rx_tpa_end_cmp_ext {
 	(!!((agg)->rx_agg_cmp_v & cpu_to_le32(RX_AGG_CMP_V)) ==	\
 	 !((raw_cons) & bp->cp_bit))
 
+#define NQ_CMP_VALID(nqcmp, raw_cons)				\
+	(!!((nqcmp)->v & cpu_to_le32(NQ_CN_V)) == !((raw_cons) & bp->cp_bit))
+
 #define TX_CMP_TYPE(txcmp)					\
 	(le32_to_cpu((txcmp)->tx_cmp_flags_type) & CMP_TYPE)
 
@@ -577,9 +612,13 @@ struct bnxt_sw_rx_agg_bd {
 	dma_addr_t		mapping;
 };
 
-struct bnxt_ring_struct {
+struct bnxt_ring_mem_info {
 	int			nr_pages;
 	int			page_size;
+	u32			flags;
+#define BNXT_RMEM_VALID_PTE_FLAG	1
+#define BNXT_RMEM_RING_PTE_FLAG		2
+
 	void			**pg_arr;
 	dma_addr_t		*dma_arr;
 
@@ -588,12 +627,17 @@ struct bnxt_ring_struct {
 
 	int			vmem_size;
 	void			**vmem;
+};
+
+struct bnxt_ring_struct {
+	struct bnxt_ring_mem_info	ring_mem;
 
 	u16			fw_ring_id; /* Ring id filled by Chimp FW */
 	union {
 		u16		grp_idx;
 		u16		map_idx; /* Used by cmpl rings */
 	};
+	u32			handle;
 	u8			queue_id;
 };
 
@@ -609,12 +653,20 @@ struct tx_push_buffer {
 	u32			data[25];
 };
 
+struct bnxt_db_info {
+	void __iomem		*doorbell;
+	union {
+		u64		db_key64;
+		u32		db_key32;
+	};
+};
+
 struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
 	u16			tx_prod;
 	u16			tx_cons;
 	u16			txq_index;
-	void __iomem		*tx_doorbell;
+	struct bnxt_db_info	tx_db;
 
 	struct tx_bd		*tx_desc_ring[MAX_TX_PAGES];
 	struct bnxt_sw_tx_bd	*tx_buf_ring;
@@ -629,6 +681,42 @@ struct bnxt_tx_ring_info {
 	u32			dev_state;
 
 	struct bnxt_ring_struct	tx_ring_struct;
+};
+
+#define BNXT_LEGACY_COAL_CMPL_PARAMS					\
+	(RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_INT_LAT_TMR_MIN |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_INT_LAT_TMR_MAX |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_TIMER_RESET |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_RING_IDLE |			\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_NUM_CMPL_DMA_AGGR |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_NUM_CMPL_DMA_AGGR_DURING_INT | \
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_CMPL_AGGR_DMA_TMR |		\
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_CMPL_AGGR_DMA_TMR_DURING_INT | \
+	 RING_AGGINT_QCAPS_RESP_CMPL_PARAMS_NUM_CMPL_AGGR_INT)
+
+#define BNXT_COAL_CMPL_ENABLES						\
+	(RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_NUM_CMPL_DMA_AGGR | \
+	 RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_CMPL_AGGR_DMA_TMR | \
+	 RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_INT_LAT_TMR_MAX | \
+	 RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_NUM_CMPL_AGGR_INT)
+
+#define BNXT_COAL_CMPL_MIN_TMR_ENABLE					\
+	RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_INT_LAT_TMR_MIN
+
+#define BNXT_COAL_CMPL_AGGR_TMR_DURING_INT_ENABLE			\
+	RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_ENABLES_NUM_CMPL_DMA_AGGR_DURING_INT
+
+struct bnxt_coal_cap {
+	u32			cmpl_params;
+	u32			nq_params;
+	u16			num_cmpl_dma_aggr_max;
+	u16			num_cmpl_dma_aggr_during_int_max;
+	u16			cmpl_aggr_dma_tmr_max;
+	u16			cmpl_aggr_dma_tmr_during_int_max;
+	u16			int_lat_tmr_min_max;
+	u16			int_lat_tmr_max_max;
+	u16			num_cmpl_aggr_int_max;
+	u16			timer_units;
 };
 
 struct bnxt_coal {
@@ -675,8 +763,8 @@ struct bnxt_rx_ring_info {
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
 	u16			rx_next_cons;
-	void __iomem		*rx_doorbell;
-	void __iomem		*rx_agg_doorbell;
+	struct bnxt_db_info	rx_db;
+	struct bnxt_db_info	rx_agg_db;
 
 	struct bpf_prog		*xdp_prog;
 
@@ -703,8 +791,12 @@ struct bnxt_rx_ring_info {
 };
 
 struct bnxt_cp_ring_info {
+	struct bnxt_napi	*bnapi;
 	u32			cp_raw_cons;
-	void __iomem		*cp_doorbell;
+	struct bnxt_db_info	cp_db;
+
+	u8			had_work_done:1;
+	u8			has_more_work:1;
 
 	struct bnxt_coal	rx_ring_coal;
 	u64			rx_packets;
@@ -713,7 +805,10 @@ struct bnxt_cp_ring_info {
 
 	struct net_dim		dim;
 
-	struct tx_cmp		*cp_desc_ring[MAX_CP_PAGES];
+	union {
+		struct tx_cmp	*cp_desc_ring[MAX_CP_PAGES];
+		struct nqe_cn	*nq_desc_ring[MAX_CP_PAGES];
+	};
 
 	dma_addr_t		cp_desc_mapping[MAX_CP_PAGES];
 
@@ -723,6 +818,10 @@ struct bnxt_cp_ring_info {
 	u64			rx_l4_csum_errors;
 
 	struct bnxt_ring_struct	cp_ring_struct;
+
+	struct bnxt_cp_ring_info *cp_ring_arr[2];
+#define BNXT_RX_HDL	0
+#define BNXT_TX_HDL	1
 };
 
 struct bnxt_napi {
@@ -736,6 +835,9 @@ struct bnxt_napi {
 
 	void			(*tx_int)(struct bnxt *, struct bnxt_napi *,
 					  int);
+	int			tx_pkts;
+	u8			events;
+
 	u32			flags;
 #define BNXT_NAPI_FLAG_XDP	0x1
 
@@ -755,6 +857,7 @@ struct bnxt_irq {
 #define HWRM_RING_ALLOC_RX	0x2
 #define HWRM_RING_ALLOC_AGG	0x4
 #define HWRM_RING_ALLOC_CMPL	0x8
+#define HWRM_RING_ALLOC_NQ	0x10
 
 #define INVALID_STATS_CTX_ID	-1
 
@@ -768,7 +871,7 @@ struct bnxt_ring_grp_info {
 
 struct bnxt_vnic_info {
 	u16		fw_vnic_id; /* returned by Chimp during alloc */
-#define BNXT_MAX_CTX_PER_VNIC	2
+#define BNXT_MAX_CTX_PER_VNIC	8
 	u16		fw_rss_cos_lb_ctx[BNXT_MAX_CTX_PER_VNIC];
 	u16		fw_l2_ctx_id;
 #define BNXT_MAX_UC_ADDRS	4
@@ -1069,6 +1172,55 @@ struct bnxt_vf_rep {
 	struct bnxt_vf_rep_stats	tx_stats;
 };
 
+#define PTU_PTE_VALID             0x1UL
+#define PTU_PTE_LAST              0x2UL
+#define PTU_PTE_NEXT_TO_LAST      0x4UL
+
+#define MAX_CTX_PAGES	(BNXT_PAGE_SIZE / 8)
+
+struct bnxt_ctx_pg_info {
+	u32		entries;
+	void		*ctx_pg_arr[MAX_CTX_PAGES];
+	dma_addr_t	ctx_dma_arr[MAX_CTX_PAGES];
+	struct bnxt_ring_mem_info ring_mem;
+};
+
+struct bnxt_ctx_mem_info {
+	u32	qp_max_entries;
+	u16	qp_min_qp1_entries;
+	u16	qp_max_l2_entries;
+	u16	qp_entry_size;
+	u16	srq_max_l2_entries;
+	u32	srq_max_entries;
+	u16	srq_entry_size;
+	u16	cq_max_l2_entries;
+	u32	cq_max_entries;
+	u16	cq_entry_size;
+	u16	vnic_max_vnic_entries;
+	u16	vnic_max_ring_table_entries;
+	u16	vnic_entry_size;
+	u32	stat_max_entries;
+	u16	stat_entry_size;
+	u16	tqm_entry_size;
+	u32	tqm_min_entries_per_ring;
+	u32	tqm_max_entries_per_ring;
+	u32	mrav_max_entries;
+	u16	mrav_entry_size;
+	u16	tim_entry_size;
+	u32	tim_max_entries;
+	u8	tqm_entries_multiple;
+
+	u32	flags;
+	#define BNXT_CTX_FLAG_INITED	0x01
+
+	struct bnxt_ctx_pg_info qp_mem;
+	struct bnxt_ctx_pg_info srq_mem;
+	struct bnxt_ctx_pg_info cq_mem;
+	struct bnxt_ctx_pg_info vnic_mem;
+	struct bnxt_ctx_pg_info stat_mem;
+	struct bnxt_ctx_pg_info *tqm_mem[9];
+};
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -1097,6 +1249,8 @@ struct bnxt {
 #define CHIP_NUM_57414L		0x16db
 
 #define CHIP_NUM_5745X		0xd730
+
+#define CHIP_NUM_57500		0x1750
 
 #define CHIP_NUM_58802		0xd802
 #define CHIP_NUM_58804		0xd804
@@ -1144,6 +1298,7 @@ struct bnxt {
 	atomic_t		intr_sem;
 
 	u32			flags;
+	#define BNXT_FLAG_CHIP_P5	0x1
 	#define BNXT_FLAG_VF		0x2
 	#define BNXT_FLAG_LRO		0x4
 #ifdef CONFIG_INET
@@ -1190,14 +1345,23 @@ struct bnxt {
 #define BNXT_SINGLE_PF(bp)	(BNXT_PF(bp) && !BNXT_NPAR(bp) && !BNXT_MH(bp))
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
+#define BNXT_SUPPORTS_TPA(bp)	(!BNXT_CHIP_TYPE_NITRO_A0(bp) &&	\
+				 !(bp->flags & BNXT_FLAG_CHIP_P5))
 
-/* Chip class phase 4 and later */
-#define BNXT_CHIP_P4_PLUS(bp)			\
+/* Chip class phase 5 */
+#define BNXT_CHIP_P5(bp)			\
+	((bp)->chip_num == CHIP_NUM_57500)
+
+/* Chip class phase 4.x */
+#define BNXT_CHIP_P4(bp)			\
 	(BNXT_CHIP_NUM_57X1X((bp)->chip_num) ||	\
 	 BNXT_CHIP_NUM_5745X((bp)->chip_num) ||	\
 	 BNXT_CHIP_NUM_588XX((bp)->chip_num) ||	\
 	 (BNXT_CHIP_NUM_58700((bp)->chip_num) &&	\
 	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
+
+#define BNXT_CHIP_P4_PLUS(bp)			\
+	(BNXT_CHIP_P4(bp) || BNXT_CHIP_P5(bp))
 
 	struct bnxt_en_dev	*edev;
 	struct bnxt_en_dev *	(*ulp_probe)(struct net_device *);
@@ -1261,6 +1425,8 @@ struct bnxt {
 	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
 	u8			tc_to_qidx[BNXT_MAX_QUEUE];
+	u8			q_ids[BNXT_MAX_QUEUE];
+	u8			max_q;
 
 	unsigned int		current_interval;
 #define BNXT_TIMER_INTERVAL	HZ
@@ -1305,12 +1471,17 @@ struct bnxt {
 	struct rx_port_stats	*hw_rx_port_stats;
 	struct tx_port_stats	*hw_tx_port_stats;
 	struct rx_port_stats_ext	*hw_rx_port_stats_ext;
+	struct tx_port_stats_ext	*hw_tx_port_stats_ext;
 	dma_addr_t		hw_rx_port_stats_map;
 	dma_addr_t		hw_tx_port_stats_map;
 	dma_addr_t		hw_rx_port_stats_ext_map;
+	dma_addr_t		hw_tx_port_stats_ext_map;
 	int			hw_port_stats_size;
+	u16			fw_rx_stats_ext_size;
+	u16			fw_tx_stats_ext_size;
 
 	u16			hwrm_max_req_len;
+	u16			hwrm_max_ext_req_len;
 	int			hwrm_cmd_timeout;
 	struct mutex		hwrm_cmd_lock;	/* serialize hwrm messages */
 	struct hwrm_ver_get_output	ver_resp;
@@ -1328,10 +1499,9 @@ struct bnxt {
 	u8			port_count;
 	u16			br_mode;
 
+	struct bnxt_coal_cap	coal_cap;
 	struct bnxt_coal	rx_coal;
 	struct bnxt_coal	tx_coal;
-
-#define BNXT_USEC_TO_COAL_TIMER(x)	((x) * 25 / 2)
 
 	u32			stats_coal_ticks;
 #define BNXT_DEF_STATS_COAL_TICKS	 1000000
@@ -1360,6 +1530,7 @@ struct bnxt {
 
 	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;
+	struct bnxt_ctx_mem_info	*ctx;
 #ifdef CONFIG_BNXT_SRIOV
 	int			nr_vfs;
 	struct bnxt_vf_info	vf;
@@ -1372,6 +1543,11 @@ struct bnxt {
 	 * devlink ->eswitch_mode_set()
 	 */
 	struct mutex		sriov_lock;
+#endif
+
+#if BITS_PER_LONG == 32
+	/* ensure atomic 64-bit doorbell writes on 32-bit systems. */
+	spinlock_t		db_lock;
 #endif
 
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
@@ -1425,6 +1601,9 @@ struct bnxt {
 #define BNXT_RX_STATS_EXT_OFFSET(counter)		\
 	(offsetof(struct rx_port_stats_ext, counter) / 8)
 
+#define BNXT_TX_STATS_EXT_OFFSET(counter)		\
+	(offsetof(struct tx_port_stats_ext, counter) / 8)
+
 #define I2C_DEV_ADDR_A0				0xa0
 #define I2C_DEV_ADDR_A2				0xa2
 #define SFF_DIAG_SUPPORT_OFFSET			0x5c
@@ -1443,21 +1622,46 @@ static inline u32 bnxt_tx_avail(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
 		((txr->tx_prod - txr->tx_cons) & bp->tx_ring_mask);
 }
 
+#if BITS_PER_LONG == 32
+#define writeq(val64, db)			\
+do {						\
+	spin_lock(&bp->db_lock);		\
+	writel((val64) & 0xffffffff, db);	\
+	writel((val64) >> 32, (db) + 4);	\
+	spin_unlock(&bp->db_lock);		\
+} while (0)
+
+#define writeq_relaxed writeq
+#endif
+
 /* For TX and RX ring doorbells with no ordering guarantee*/
-static inline void bnxt_db_write_relaxed(struct bnxt *bp, void __iomem *db,
-					 u32 val)
+static inline void bnxt_db_write_relaxed(struct bnxt *bp,
+					 struct bnxt_db_info *db, u32 idx)
 {
-	writel_relaxed(val, db);
-	if (bp->flags & BNXT_FLAG_DOUBLE_DB)
-		writel_relaxed(val, db);
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		writeq_relaxed(db->db_key64 | idx, db->doorbell);
+	} else {
+		u32 db_val = db->db_key32 | idx;
+
+		writel_relaxed(db_val, db->doorbell);
+		if (bp->flags & BNXT_FLAG_DOUBLE_DB)
+			writel_relaxed(db_val, db->doorbell);
+	}
 }
 
 /* For TX and RX ring doorbells */
-static inline void bnxt_db_write(struct bnxt *bp, void __iomem *db, u32 val)
+static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
+				 u32 idx)
 {
-	writel(val, db);
-	if (bp->flags & BNXT_FLAG_DOUBLE_DB)
-		writel(val, db);
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		writeq(db->db_key64 | idx, db->doorbell);
+	} else {
+		u32 db_val = db->db_key32 | idx;
+
+		writel(db_val, db->doorbell);
+		if (bp->flags & BNXT_FLAG_DOUBLE_DB)
+			writel(db_val, db->doorbell);
+	}
 }
 
 extern const u16 bnxt_lhint_arr[];

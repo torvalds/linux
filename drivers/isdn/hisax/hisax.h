@@ -703,7 +703,7 @@ struct hfcPCI_hw {
 	unsigned char nt_mode;
 	int nt_timer;
 	struct pci_dev *dev;
-	unsigned char *pci_io; /* start of PCI IO memory */
+	void __iomem *pci_io; /* start of PCI IO memory */
 	dma_addr_t dma; /* dma handle for Fifos */
 	void *fifos; /* FIFO memory */
 	int last_bfifo_cnt[2]; /* marker saving last b-fifo frame count */

@@ -15,11 +15,14 @@ obj-$(CONFIG_ARCH_RENESAS)		+= renesas/
 obj-$(CONFIG_ARCH_ROCKCHIP)		+= rockchip/
 obj-$(CONFIG_ARCH_TEGRA)		+= tegra/
 obj-y					+= broadcom/	\
+					   cadence/	\
 					   hisilicon/	\
 					   marvell/	\
 					   motorola/	\
+					   mscc/	\
 					   qualcomm/	\
 					   ralink/	\
 					   samsung/	\
+					   socionext/	\
 					   st/		\
 					   ti/

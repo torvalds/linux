@@ -2733,17 +2733,17 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 
 	memset(&res, 0, sizeof(res));
 	if (of_irq_to_resource(pnp, 0, &res) <= 0) {
-		dev_err(&pdev->dev, "missing interrupt on %s\n", pnp->name);
+		dev_err(&pdev->dev, "missing interrupt on %pOFn\n", pnp);
 		return -EINVAL;
 	}
 
 	if (of_property_read_u32(pnp, "reg", &ppd.port_number)) {
-		dev_err(&pdev->dev, "missing reg property on %s\n", pnp->name);
+		dev_err(&pdev->dev, "missing reg property on %pOFn\n", pnp);
 		return -EINVAL;
 	}
 
 	if (ppd.port_number >= 3) {
-		dev_err(&pdev->dev, "invalid reg property on %s\n", pnp->name);
+		dev_err(&pdev->dev, "invalid reg property on %pOFn\n", pnp);
 		return -EINVAL;
 	}
 

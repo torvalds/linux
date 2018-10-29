@@ -10,16 +10,20 @@ Required properties:
 	       "qcom,msm8996-qmp-pcie-phy" for 14nm PCIe phy on msm8996,
 	       "qcom,msm8996-qmp-usb3-phy" for 14nm USB3 phy on msm8996,
 	       "qcom,sdm845-qmp-usb3-phy" for USB3 QMP V3 phy on sdm845,
-	       "qcom,sdm845-qmp-usb3-uni-phy" for USB3 QMP V3 UNI phy on sdm845.
+	       "qcom,sdm845-qmp-usb3-uni-phy" for USB3 QMP V3 UNI phy on sdm845,
+	       "qcom,sdm845-qmp-ufs-phy" for UFS QMP phy on sdm845.
 
- - reg:
-   - For "qcom,sdm845-qmp-usb3-phy":
-     - index 0: address and length of register set for PHY's common serdes
-       block.
-     - named register "dp_com" (using reg-names): address and length of the
-       DP_COM control block.
-   - For all others:
-     - offset and length of register set for PHY's common serdes block.
+- reg:
+  - index 0: address and length of register set for PHY's common
+             serdes block.
+  - index 1: address and length of the DP_COM control block (for
+             "qcom,sdm845-qmp-usb3-phy" only).
+
+- reg-names:
+  - For "qcom,sdm845-qmp-usb3-phy":
+    - Should be: "reg-base", "dp_com"
+  - For all others:
+    - The reg-names property shouldn't be defined.
 
  - #clock-cells: must be 1
     - Phy pll outputs a bunch of clocks for Tx, Rx and Pipe
@@ -35,6 +39,7 @@ Required properties:
 		"aux" for phy aux clock,
 		"ref" for 19.2 MHz ref clk,
 		"com_aux" for phy common block aux clock,
+		"ref_aux" for phy reference aux clock,
 		For "qcom,msm8996-qmp-pcie-phy" must contain:
 			"aux", "cfg_ahb", "ref".
 		For "qcom,msm8996-qmp-usb3-phy" must contain:

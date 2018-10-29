@@ -185,6 +185,7 @@ static inline void queue_tail_inc(struct be_queue_info *q)
 
 struct be_eq_obj {
 	struct be_queue_info q;
+	char desc[32];
 
 	struct be_adapter *adapter;
 	struct napi_struct napi;

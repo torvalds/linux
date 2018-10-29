@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
+#include <linux/bvec.h>
 
 /*
  * XDR functions for basic NFS types
@@ -127,6 +128,39 @@ xdr_terminate_string(struct xdr_buf *buf, const u32 len)
 	kunmap_atomic(kaddr);
 }
 EXPORT_SYMBOL_GPL(xdr_terminate_string);
+
+size_t
+xdr_buf_pagecount(struct xdr_buf *buf)
+{
+	if (!buf->page_len)
+		return 0;
+	return (buf->page_base + buf->page_len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+}
+
+int
+xdr_alloc_bvec(struct xdr_buf *buf, gfp_t gfp)
+{
+	size_t i, n = xdr_buf_pagecount(buf);
+
+	if (n != 0 && buf->bvec == NULL) {
+		buf->bvec = kmalloc_array(n, sizeof(buf->bvec[0]), gfp);
+		if (!buf->bvec)
+			return -ENOMEM;
+		for (i = 0; i < n; i++) {
+			buf->bvec[i].bv_page = buf->pages[i];
+			buf->bvec[i].bv_len = PAGE_SIZE;
+			buf->bvec[i].bv_offset = 0;
+		}
+	}
+	return 0;
+}
+
+void
+xdr_free_bvec(struct xdr_buf *buf)
+{
+	kfree(buf->bvec);
+	buf->bvec = NULL;
+}
 
 void
 xdr_inline_pages(struct xdr_buf *xdr, unsigned int offset,

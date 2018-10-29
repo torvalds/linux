@@ -519,9 +519,9 @@ static inline int qedr_gsi_build_packet(struct qedr_dev *dev,
 	}
 
 	if (ether_addr_equal(udh.eth.smac_h, udh.eth.dmac_h))
-		packet->tx_dest = QED_ROCE_LL2_TX_DEST_LB;
+		packet->tx_dest = QED_LL2_TX_DEST_LB;
 	else
-		packet->tx_dest = QED_ROCE_LL2_TX_DEST_NW;
+		packet->tx_dest = QED_LL2_TX_DEST_NW;
 
 	packet->roce_mode = roce_mode;
 	memcpy(packet->header.vaddr, ud_header_buffer, header_size);

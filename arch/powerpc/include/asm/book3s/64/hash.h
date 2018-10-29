@@ -18,6 +18,11 @@
 #include <asm/book3s/64/hash-4k.h>
 #endif
 
+/* Bits to set in a PMD/PUD/PGD entry valid bit*/
+#define HASH_PMD_VAL_BITS		(0x8000000000000000UL)
+#define HASH_PUD_VAL_BITS		(0x8000000000000000UL)
+#define HASH_PGD_VAL_BITS		(0x8000000000000000UL)
+
 /*
  * Size of EA range mapped by our pagetables.
  */
@@ -196,8 +201,7 @@ static inline void hpte_do_hugepage_flush(struct mm_struct *mm,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 
-extern int hash__map_kernel_page(unsigned long ea, unsigned long pa,
-			     unsigned long flags);
+int hash__map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot);
 extern int __meminit hash__vmemmap_create_mapping(unsigned long start,
 					      unsigned long page_size,
 					      unsigned long phys);

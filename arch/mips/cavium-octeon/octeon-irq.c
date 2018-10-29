@@ -1180,8 +1180,8 @@ static int octeon_irq_gpio_xlat(struct irq_domain *d,
 		type = IRQ_TYPE_LEVEL_LOW;
 		break;
 	default:
-		pr_err("Error: (%s) Invalid irq trigger specification: %x\n",
-		       node->name,
+		pr_err("Error: (%pOFn) Invalid irq trigger specification: %x\n",
+		       node,
 		       trigger);
 		type = IRQ_TYPE_LEVEL_LOW;
 		break;
@@ -2271,8 +2271,8 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 
 	parent_irq = irq_of_parse_and_map(ciu_node, 0);
 	if (!parent_irq) {
-		pr_err("ERROR: Couldn't acquire parent_irq for %s\n",
-			ciu_node->name);
+		pr_err("ERROR: Couldn't acquire parent_irq for %pOFn\n",
+			ciu_node);
 		return -EINVAL;
 	}
 
@@ -2283,7 +2283,7 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 
 	addr = of_get_address(ciu_node, 0, NULL, NULL);
 	if (!addr) {
-		pr_err("ERROR: Couldn't acquire reg(0) %s\n", ciu_node->name);
+		pr_err("ERROR: Couldn't acquire reg(0) %pOFn\n", ciu_node);
 		return -EINVAL;
 	}
 	host_data->raw_reg = (u64)phys_to_virt(
@@ -2291,7 +2291,7 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 
 	addr = of_get_address(ciu_node, 1, NULL, NULL);
 	if (!addr) {
-		pr_err("ERROR: Couldn't acquire reg(1) %s\n", ciu_node->name);
+		pr_err("ERROR: Couldn't acquire reg(1) %pOFn\n", ciu_node);
 		return -EINVAL;
 	}
 	host_data->en_reg = (u64)phys_to_virt(
@@ -2299,8 +2299,8 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 
 	r = of_property_read_u32(ciu_node, "cavium,max-bits", &val);
 	if (r) {
-		pr_err("ERROR: Couldn't read cavium,max-bits from %s\n",
-			ciu_node->name);
+		pr_err("ERROR: Couldn't read cavium,max-bits from %pOFn\n",
+			ciu_node);
 		return r;
 	}
 	host_data->max_bits = val;

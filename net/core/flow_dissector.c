@@ -25,6 +25,9 @@
 #include <net/flow_dissector.h>
 #include <scsi/fc/fc_fcoe.h>
 #include <uapi/linux/batadv_packet.h>
+#include <linux/bpf.h>
+
+static DEFINE_MUTEX(flow_dissector_mutex);
 
 static void dissector_set_key(struct flow_dissector *flow_dissector,
 			      enum flow_dissector_key_id key_id)
@@ -62,6 +65,44 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 }
 EXPORT_SYMBOL(skb_flow_dissector_init);
 
+int skb_flow_dissector_bpf_prog_attach(const union bpf_attr *attr,
+				       struct bpf_prog *prog)
+{
+	struct bpf_prog *attached;
+	struct net *net;
+
+	net = current->nsproxy->net_ns;
+	mutex_lock(&flow_dissector_mutex);
+	attached = rcu_dereference_protected(net->flow_dissector_prog,
+					     lockdep_is_held(&flow_dissector_mutex));
+	if (attached) {
+		/* Only one BPF program can be attached at a time */
+		mutex_unlock(&flow_dissector_mutex);
+		return -EEXIST;
+	}
+	rcu_assign_pointer(net->flow_dissector_prog, prog);
+	mutex_unlock(&flow_dissector_mutex);
+	return 0;
+}
+
+int skb_flow_dissector_bpf_prog_detach(const union bpf_attr *attr)
+{
+	struct bpf_prog *attached;
+	struct net *net;
+
+	net = current->nsproxy->net_ns;
+	mutex_lock(&flow_dissector_mutex);
+	attached = rcu_dereference_protected(net->flow_dissector_prog,
+					     lockdep_is_held(&flow_dissector_mutex));
+	if (!attached) {
+		mutex_unlock(&flow_dissector_mutex);
+		return -ENOENT;
+	}
+	bpf_prog_put(attached);
+	RCU_INIT_POINTER(net->flow_dissector_prog, NULL);
+	mutex_unlock(&flow_dissector_mutex);
+	return 0;
+}
 /**
  * skb_flow_get_be16 - extract be16 entity
  * @skb: sk_buff to extract from
@@ -382,8 +423,8 @@ __skb_flow_dissect_gre(const struct sk_buff *skb,
 	offset += sizeof(struct gre_base_hdr);
 
 	if (hdr->flags & GRE_CSUM)
-		offset += sizeof(((struct gre_full_hdr *) 0)->csum) +
-			  sizeof(((struct gre_full_hdr *) 0)->reserved1);
+		offset += FIELD_SIZEOF(struct gre_full_hdr, csum) +
+			  FIELD_SIZEOF(struct gre_full_hdr, reserved1);
 
 	if (hdr->flags & GRE_KEY) {
 		const __be32 *keyid;
@@ -405,11 +446,11 @@ __skb_flow_dissect_gre(const struct sk_buff *skb,
 			else
 				key_keyid->keyid = *keyid & GRE_PPTP_KEY_MASK;
 		}
-		offset += sizeof(((struct gre_full_hdr *) 0)->key);
+		offset += FIELD_SIZEOF(struct gre_full_hdr, key);
 	}
 
 	if (hdr->flags & GRE_SEQ)
-		offset += sizeof(((struct pptp_gre_header *) 0)->seq);
+		offset += FIELD_SIZEOF(struct pptp_gre_header, seq);
 
 	if (gre_ver == 0) {
 		if (*p_proto == htons(ETH_P_TEB)) {
@@ -436,7 +477,7 @@ __skb_flow_dissect_gre(const struct sk_buff *skb,
 		u8 *ppp_hdr;
 
 		if (hdr->flags & GRE_ACK)
-			offset += sizeof(((struct pptp_gre_header *) 0)->ack);
+			offset += FIELD_SIZEOF(struct pptp_gre_header, ack);
 
 		ppp_hdr = __skb_header_pointer(skb, *p_nhoff + offset,
 					       sizeof(_ppp_hdr),
@@ -588,6 +629,60 @@ static bool skb_flow_dissect_allowed(int *num_hdrs)
 	return (*num_hdrs <= MAX_FLOW_DISSECT_HDRS);
 }
 
+static void __skb_flow_bpf_to_target(const struct bpf_flow_keys *flow_keys,
+				     struct flow_dissector *flow_dissector,
+				     void *target_container)
+{
+	struct flow_dissector_key_control *key_control;
+	struct flow_dissector_key_basic *key_basic;
+	struct flow_dissector_key_addrs *key_addrs;
+	struct flow_dissector_key_ports *key_ports;
+
+	key_control = skb_flow_dissector_target(flow_dissector,
+						FLOW_DISSECTOR_KEY_CONTROL,
+						target_container);
+	key_control->thoff = flow_keys->thoff;
+	if (flow_keys->is_frag)
+		key_control->flags |= FLOW_DIS_IS_FRAGMENT;
+	if (flow_keys->is_first_frag)
+		key_control->flags |= FLOW_DIS_FIRST_FRAG;
+	if (flow_keys->is_encap)
+		key_control->flags |= FLOW_DIS_ENCAPSULATION;
+
+	key_basic = skb_flow_dissector_target(flow_dissector,
+					      FLOW_DISSECTOR_KEY_BASIC,
+					      target_container);
+	key_basic->n_proto = flow_keys->n_proto;
+	key_basic->ip_proto = flow_keys->ip_proto;
+
+	if (flow_keys->addr_proto == ETH_P_IP &&
+	    dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		key_addrs = skb_flow_dissector_target(flow_dissector,
+						      FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+						      target_container);
+		key_addrs->v4addrs.src = flow_keys->ipv4_src;
+		key_addrs->v4addrs.dst = flow_keys->ipv4_dst;
+		key_control->addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+	} else if (flow_keys->addr_proto == ETH_P_IPV6 &&
+		   dissector_uses_key(flow_dissector,
+				      FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		key_addrs = skb_flow_dissector_target(flow_dissector,
+						      FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+						      target_container);
+		memcpy(&key_addrs->v6addrs, &flow_keys->ipv6_src,
+		       sizeof(key_addrs->v6addrs));
+		key_control->addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+	}
+
+	if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_PORTS)) {
+		key_ports = skb_flow_dissector_target(flow_dissector,
+						      FLOW_DISSECTOR_KEY_PORTS,
+						      target_container);
+		key_ports->src = flow_keys->sport;
+		key_ports->dst = flow_keys->dport;
+	}
+}
+
 /**
  * __skb_flow_dissect - extract the flow_keys struct and return it
  * @skb: sk_buff to extract the flow from, can be NULL if the rest are specified
@@ -619,6 +714,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_vlan *key_vlan;
 	enum flow_dissect_ret fdret;
 	enum flow_dissector_key_id dissector_vlan = FLOW_DISSECTOR_KEY_MAX;
+	struct bpf_prog *attached = NULL;
 	int num_hdrs = 0;
 	u8 ip_proto = 0;
 	bool ret;
@@ -657,6 +753,50 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	key_basic = skb_flow_dissector_target(flow_dissector,
 					      FLOW_DISSECTOR_KEY_BASIC,
 					      target_container);
+
+	rcu_read_lock();
+	if (skb) {
+		if (skb->dev)
+			attached = rcu_dereference(dev_net(skb->dev)->flow_dissector_prog);
+		else if (skb->sk)
+			attached = rcu_dereference(sock_net(skb->sk)->flow_dissector_prog);
+		else
+			WARN_ON_ONCE(1);
+	}
+	if (attached) {
+		/* Note that even though the const qualifier is discarded
+		 * throughout the execution of the BPF program, all changes(the
+		 * control block) are reverted after the BPF program returns.
+		 * Therefore, __skb_flow_dissect does not alter the skb.
+		 */
+		struct bpf_flow_keys flow_keys = {};
+		struct bpf_skb_data_end cb_saved;
+		struct bpf_skb_data_end *cb;
+		u32 result;
+
+		cb = (struct bpf_skb_data_end *)skb->cb;
+
+		/* Save Control Block */
+		memcpy(&cb_saved, cb, sizeof(cb_saved));
+		memset(cb, 0, sizeof(cb_saved));
+
+		/* Pass parameters to the BPF program */
+		cb->qdisc_cb.flow_keys = &flow_keys;
+		flow_keys.nhoff = nhoff;
+
+		bpf_compute_data_pointers((struct sk_buff *)skb);
+		result = BPF_PROG_RUN(attached, skb);
+
+		/* Restore state */
+		memcpy(cb, &cb_saved, sizeof(cb_saved));
+
+		__skb_flow_bpf_to_target(&flow_keys, flow_dissector,
+					 target_container);
+		key_control->thoff = min_t(u16, key_control->thoff, skb->len);
+		rcu_read_unlock();
+		return result == BPF_OK;
+	}
+	rcu_read_unlock();
 
 	if (dissector_uses_key(flow_dissector,
 			       FLOW_DISSECTOR_KEY_ETH_ADDRS)) {

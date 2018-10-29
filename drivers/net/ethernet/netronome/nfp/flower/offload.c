@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/skbuff.h>
 #include <net/devlink.h>
@@ -428,8 +398,6 @@ nfp_flower_allocate_new(struct nfp_fl_key_ls *key_layer, bool egress)
 
 	flow_pay->nfp_tun_ipv4_addr = 0;
 	flow_pay->meta.flags = 0;
-	spin_lock_init(&flow_pay->lock);
-
 	flow_pay->ingress_offload = !egress;
 
 	return flow_pay;
@@ -513,9 +481,12 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (err)
 		goto err_destroy_flow;
 
-	INIT_HLIST_NODE(&flow_pay->link);
 	flow_pay->tc_flower_cookie = flow->cookie;
-	hash_add_rcu(priv->flow_table, &flow_pay->link, flow->cookie);
+	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_node,
+				     nfp_flower_table_params);
+	if (err)
+		goto err_destroy_flow;
+
 	port->tc_offload_cnt++;
 
 	/* Deallocate flow payload when flower rule has been destroyed. */
@@ -550,6 +521,7 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct tc_cls_flower_offload *flow, bool egress)
 {
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *nfp_flow;
 	struct net_device *ingr_dev;
 	int err;
@@ -573,11 +545,13 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_flow;
 
 err_free_flow:
-	hash_del_rcu(&nfp_flow->link);
 	port->tc_offload_cnt--;
 	kfree(nfp_flow->action_data);
 	kfree(nfp_flow->mask_data);
 	kfree(nfp_flow->unmasked_data);
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
+					    &nfp_flow->fl_node,
+					    nfp_flower_table_params));
 	kfree_rcu(nfp_flow, rcu);
 	return err;
 }
@@ -598,8 +572,10 @@ static int
 nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		     struct tc_cls_flower_offload *flow, bool egress)
 {
+	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *nfp_flow;
 	struct net_device *ingr_dev;
+	u32 ctx_id;
 
 	ingr_dev = egress ? NULL : netdev;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, ingr_dev,
@@ -610,13 +586,16 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	if (nfp_flow->ingress_offload && egress)
 		return 0;
 
-	spin_lock_bh(&nfp_flow->lock);
-	tcf_exts_stats_update(flow->exts, nfp_flow->stats.bytes,
-			      nfp_flow->stats.pkts, nfp_flow->stats.used);
+	ctx_id = be32_to_cpu(nfp_flow->meta.host_ctx_id);
 
-	nfp_flow->stats.pkts = 0;
-	nfp_flow->stats.bytes = 0;
-	spin_unlock_bh(&nfp_flow->lock);
+	spin_lock_bh(&priv->stats_lock);
+	tcf_exts_stats_update(flow->exts, priv->stats[ctx_id].bytes,
+			      priv->stats[ctx_id].pkts,
+			      priv->stats[ctx_id].used);
+
+	priv->stats[ctx_id].pkts = 0;
+	priv->stats[ctx_id].bytes = 0;
+	spin_unlock_bh(&priv->stats_lock);
 
 	return 0;
 }

@@ -70,6 +70,10 @@ void octeon_update_tx_completion_counters(void *buf, int reqtype,
 void octeon_report_tx_completion_to_bql(void *txq, unsigned int pkts_compl,
 					unsigned int bytes_compl);
 void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac);
+
+void octeon_schedule_rxq_oom_work(struct octeon_device *oct,
+				  struct octeon_droq *droq);
+
 /** Swap 8B blocks */
 static inline void octeon_swap_8B_data(u64 *data, u32 blocks)
 {
@@ -146,46 +150,70 @@ err_release_region:
 	return 1;
 }
 
+/* input parameter:
+ * sc: pointer to a soft request
+ * timeout: milli sec which an application wants to wait for the
+	    response of the request.
+ *          0: the request will wait until its response gets back
+ *	       from the firmware within LIO_SC_MAX_TMO_MS milli sec.
+ *	       It the response does not return within
+ *	       LIO_SC_MAX_TMO_MS milli sec, lio_process_ordered_list()
+ *	       will move the request to zombie response list.
+ *
+ * return value:
+ * 0: got the response from firmware for the sc request.
+ * errno -EINTR: user abort the command.
+ * errno -ETIME: user spefified timeout value has been expired.
+ * errno -EBUSY: the response of the request does not return in
+ *               resonable time (LIO_SC_MAX_TMO_MS).
+ *               the sc wll be move to zombie response list by
+ *               lio_process_ordered_list()
+ *
+ * A request with non-zero return value, the sc->caller_is_done
+ *  will be marked 1.
+ * When getting a request with zero return value, the requestor
+ *  should mark sc->caller_is_done with 1 after examing the
+ *  response of sc.
+ * lio_process_ordered_list() will free the soft command on behalf
+ * of the soft command requestor.
+ * This is to fix the possible race condition of both timeout process
+ * and lio_process_ordered_list()/callback function to free a
+ * sc strucutre.
+ */
 static inline int
-sleep_cond(wait_queue_head_t *wait_queue, int *condition)
+wait_for_sc_completion_timeout(struct octeon_device *oct_dev,
+			       struct octeon_soft_command *sc,
+			       unsigned long timeout)
 {
 	int errno = 0;
-	wait_queue_entry_t we;
+	long timeout_jiff;
 
-	init_waitqueue_entry(&we, current);
-	add_wait_queue(wait_queue, &we);
-	while (!(READ_ONCE(*condition))) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (signal_pending(current)) {
-			errno = -EINTR;
-			goto out;
-		}
-		schedule();
+	if (timeout)
+		timeout_jiff = msecs_to_jiffies(timeout);
+	else
+		timeout_jiff = MAX_SCHEDULE_TIMEOUT;
+
+	timeout_jiff =
+		wait_for_completion_interruptible_timeout(&sc->complete,
+							  timeout_jiff);
+	if (timeout_jiff == 0) {
+		dev_err(&oct_dev->pci_dev->dev, "%s: sc is timeout\n",
+			__func__);
+		WRITE_ONCE(sc->caller_is_done, true);
+		errno = -ETIME;
+	} else if (timeout_jiff == -ERESTARTSYS) {
+		dev_err(&oct_dev->pci_dev->dev, "%s: sc is interrupted\n",
+			__func__);
+		WRITE_ONCE(sc->caller_is_done, true);
+		errno = -EINTR;
+	} else  if (sc->sc_status == OCTEON_REQUEST_TIMEOUT) {
+		dev_err(&oct_dev->pci_dev->dev, "%s: sc has fatal timeout\n",
+			__func__);
+		WRITE_ONCE(sc->caller_is_done, true);
+		errno = -EBUSY;
 	}
-out:
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(wait_queue, &we);
+
 	return errno;
-}
-
-/* Gives up the CPU for a timeout period.
- * Check that the condition is not true before we go to sleep for a
- * timeout period.
- */
-static inline void
-sleep_timeout_cond(wait_queue_head_t *wait_queue,
-		   int *condition,
-		   int timeout)
-{
-	wait_queue_entry_t we;
-
-	init_waitqueue_entry(&we, current);
-	add_wait_queue(wait_queue, &we);
-	set_current_state(TASK_INTERRUPTIBLE);
-	if (!(*condition))
-		schedule_timeout(timeout);
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(wait_queue, &we);
 }
 
 #ifndef ROUNDUP4

@@ -51,7 +51,8 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 
 	(*entry)->template_desc = template_desc;
 	for (i = 0; i < template_desc->num_fields; i++) {
-		struct ima_template_field *field = template_desc->fields[i];
+		const struct ima_template_field *field =
+			template_desc->fields[i];
 		u32 len;
 
 		result = field->field_init(event_data,

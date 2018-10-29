@@ -1392,7 +1392,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 	if (ret)
 		goto err_free_cpuhp_mem;
 
-	pr_info("%s performance monitor hardware support registered\n",
+	pr_debug("%s performance monitor hardware support registered\n",
 							pmu_ptr->pmu.name);
 
 	return 0;
