@@ -24,13 +24,6 @@
 #ifndef __AMDGPU_GDS_H__
 #define __AMDGPU_GDS_H__
 
-/* Because TTM request that alloacted buffer should be PAGE_SIZE aligned,
- * we should report GDS/GWS/OA size as PAGE_SIZE aligned
- * */
-#define AMDGPU_GDS_SHIFT	2
-#define AMDGPU_GWS_SHIFT	PAGE_SHIFT
-#define AMDGPU_OA_SHIFT		PAGE_SHIFT
-
 struct amdgpu_ring;
 struct amdgpu_bo;
 

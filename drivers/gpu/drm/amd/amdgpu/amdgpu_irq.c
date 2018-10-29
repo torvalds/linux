@@ -51,6 +51,7 @@
 #include "atom.h"
 #include "amdgpu_connectors.h"
 #include "amdgpu_trace.h"
+#include "amdgpu_amdkfd.h"
 
 #include <linux/pm_runtime.h>
 
@@ -105,8 +106,8 @@ static void amdgpu_irq_reset_work_func(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
 						  reset_work);
 
-	if (!amdgpu_sriov_vf(adev))
-		amdgpu_device_gpu_recover(adev, NULL, false);
+	if (!amdgpu_sriov_vf(adev) && amdgpu_device_should_recover_gpu(adev))
+		amdgpu_device_gpu_recover(adev, NULL);
 }
 
 /**
@@ -123,7 +124,7 @@ void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 	int r;
 
 	spin_lock_irqsave(&adev->irq.lock, irqflags);
-	for (i = 0; i < AMDGPU_IH_CLIENTID_MAX; ++i) {
+	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
 		if (!adev->irq.client[i].sources)
 			continue;
 
@@ -147,6 +148,34 @@ void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_irq_callback - callback from the IH ring
+ *
+ * @adev: amdgpu device pointer
+ * @ih: amdgpu ih ring
+ *
+ * Callback from IH ring processing to handle the entry at the current position
+ * and advance the read pointer.
+ */
+static void amdgpu_irq_callback(struct amdgpu_device *adev,
+				struct amdgpu_ih_ring *ih)
+{
+	u32 ring_index = ih->rptr >> 2;
+	struct amdgpu_iv_entry entry;
+
+	/* Prescreening of high-frequency interrupts */
+	if (!amdgpu_ih_prescreen_iv(adev))
+		return;
+
+	/* Before dispatching irq to IP blocks, send it to amdkfd */
+	amdgpu_amdkfd_interrupt(adev, (const void *) &ih->ring[ring_index]);
+
+	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
+	amdgpu_ih_decode_iv(adev, &entry);
+
+	amdgpu_irq_dispatch(adev, &entry);
+}
+
+/**
  * amdgpu_irq_handler - IRQ handler
  *
  * @irq: IRQ number (unused)
@@ -163,7 +192,7 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	struct amdgpu_device *adev = dev->dev_private;
 	irqreturn_t ret;
 
-	ret = amdgpu_ih_process(adev);
+	ret = amdgpu_ih_process(adev, &adev->irq.ih, amdgpu_irq_callback);
 	if (ret == IRQ_HANDLED)
 		pm_runtime_mark_last_busy(dev->dev);
 	return ret;
@@ -273,7 +302,7 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 		cancel_work_sync(&adev->reset_work);
 	}
 
-	for (i = 0; i < AMDGPU_IH_CLIENTID_MAX; ++i) {
+	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
 		if (!adev->irq.client[i].sources)
 			continue;
 
@@ -313,7 +342,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 		      unsigned client_id, unsigned src_id,
 		      struct amdgpu_irq_src *source)
 {
-	if (client_id >= AMDGPU_IH_CLIENTID_MAX)
+	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX)
 		return -EINVAL;
 
 	if (src_id >= AMDGPU_MAX_IRQ_SRC_ID)
@@ -367,7 +396,7 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 
 	trace_amdgpu_iv(entry);
 
-	if (client_id >= AMDGPU_IH_CLIENTID_MAX) {
+	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX) {
 		DRM_DEBUG("Invalid client_id in IV: %d\n", client_id);
 		return;
 	}
@@ -440,7 +469,7 @@ void amdgpu_irq_gpu_reset_resume_helper(struct amdgpu_device *adev)
 {
 	int i, j, k;
 
-	for (i = 0; i < AMDGPU_IH_CLIENTID_MAX; ++i) {
+	for (i = 0; i < AMDGPU_IRQ_CLIENTID_MAX; ++i) {
 		if (!adev->irq.client[i].sources)
 			continue;
 

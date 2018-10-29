@@ -186,12 +186,8 @@ void mod_stats_destroy(struct mod_stats *mod_stats)
 	if (mod_stats != NULL) {
 		struct core_stats *core_stats = MOD_STATS_TO_CORE(mod_stats);
 
-		if (core_stats->time != NULL)
-			kfree(core_stats->time);
-
-		if (core_stats->events != NULL)
-			kfree(core_stats->events);
-
+		kfree(core_stats->time);
+		kfree(core_stats->events);
 		kfree(core_stats);
 	}
 }

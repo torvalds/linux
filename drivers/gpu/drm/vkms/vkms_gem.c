@@ -37,20 +37,22 @@ void vkms_gem_free_object(struct drm_gem_object *obj)
 	struct vkms_gem_object *gem = container_of(obj, struct vkms_gem_object,
 						   gem);
 
-	kvfree(gem->pages);
+	WARN_ON(gem->pages);
+	WARN_ON(gem->vaddr);
+
 	mutex_destroy(&gem->pages_lock);
 	drm_gem_object_release(obj);
 	kfree(gem);
 }
 
-int vkms_gem_fault(struct vm_fault *vmf)
+vm_fault_t vkms_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct vkms_gem_object *obj = vma->vm_private_data;
 	unsigned long vaddr = vmf->address;
 	pgoff_t page_offset;
 	loff_t num_pages;
-	int ret;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
 
 	page_offset = (vaddr - vma->vm_start) >> PAGE_SHIFT;
 	num_pages = DIV_ROUND_UP(obj->gem.size, PAGE_SIZE);
@@ -58,7 +60,6 @@ int vkms_gem_fault(struct vm_fault *vmf)
 	if (page_offset > num_pages)
 		return VM_FAULT_SIGBUS;
 
-	ret = -ENOENT;
 	mutex_lock(&obj->pages_lock);
 	if (obj->pages) {
 		get_page(obj->pages[page_offset]);
@@ -175,5 +176,79 @@ int vkms_dumb_map(struct drm_file *file, struct drm_device *dev,
 unref:
 	drm_gem_object_put_unlocked(obj);
 
+	return ret;
+}
+
+static struct page **_get_pages(struct vkms_gem_object *vkms_obj)
+{
+	struct drm_gem_object *gem_obj = &vkms_obj->gem;
+
+	if (!vkms_obj->pages) {
+		struct page **pages = drm_gem_get_pages(gem_obj);
+
+		if (IS_ERR(pages))
+			return pages;
+
+		if (cmpxchg(&vkms_obj->pages, NULL, pages))
+			drm_gem_put_pages(gem_obj, pages, false, true);
+	}
+
+	return vkms_obj->pages;
+}
+
+void vkms_gem_vunmap(struct drm_gem_object *obj)
+{
+	struct vkms_gem_object *vkms_obj = drm_gem_to_vkms_gem(obj);
+
+	mutex_lock(&vkms_obj->pages_lock);
+	if (vkms_obj->vmap_count < 1) {
+		WARN_ON(vkms_obj->vaddr);
+		WARN_ON(vkms_obj->pages);
+		mutex_unlock(&vkms_obj->pages_lock);
+		return;
+	}
+
+	vkms_obj->vmap_count--;
+
+	if (vkms_obj->vmap_count == 0) {
+		vunmap(vkms_obj->vaddr);
+		vkms_obj->vaddr = NULL;
+		drm_gem_put_pages(obj, vkms_obj->pages, false, true);
+		vkms_obj->pages = NULL;
+	}
+
+	mutex_unlock(&vkms_obj->pages_lock);
+}
+
+int vkms_gem_vmap(struct drm_gem_object *obj)
+{
+	struct vkms_gem_object *vkms_obj = drm_gem_to_vkms_gem(obj);
+	int ret = 0;
+
+	mutex_lock(&vkms_obj->pages_lock);
+
+	if (!vkms_obj->vaddr) {
+		unsigned int n_pages = obj->size >> PAGE_SHIFT;
+		struct page **pages = _get_pages(vkms_obj);
+
+		if (IS_ERR(pages)) {
+			ret = PTR_ERR(pages);
+			goto out;
+		}
+
+		vkms_obj->vaddr = vmap(pages, n_pages, VM_MAP, PAGE_KERNEL);
+		if (!vkms_obj->vaddr)
+			goto err_vmap;
+	}
+
+	vkms_obj->vmap_count++;
+	goto out;
+
+err_vmap:
+	ret = -ENOMEM;
+	drm_gem_put_pages(obj, vkms_obj->pages, false, true);
+	vkms_obj->pages = NULL;
+out:
+	mutex_unlock(&vkms_obj->pages_lock);
 	return ret;
 }

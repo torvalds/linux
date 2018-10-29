@@ -331,7 +331,7 @@ static const struct dev_pm_ops host1x_device_pm_ops = {
 struct bus_type host1x_bus_type = {
 	.name = "host1x",
 	.match = host1x_device_match,
-	.dma_configure	= host1x_dma_configure,
+	.dma_configure = host1x_dma_configure,
 	.pm = &host1x_device_pm_ops,
 };
 

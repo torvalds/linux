@@ -61,22 +61,6 @@ static struct drm_driver sun4i_drv_driver = {
 	/* Frame Buffer Operations */
 };
 
-static void sun4i_remove_framebuffers(void)
-{
-	struct apertures_struct *ap;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return;
-
-	/* The framebuffer can be located anywhere in RAM */
-	ap->ranges[0].base = 0;
-	ap->ranges[0].size = ~0;
-
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "sun4i-drm-fb", false);
-	kfree(ap);
-}
-
 static int sun4i_drv_bind(struct device *dev)
 {
 	struct drm_device *drm;
@@ -119,7 +103,7 @@ static int sun4i_drv_bind(struct device *dev)
 	drm->irq_enabled = true;
 
 	/* Remove early framebuffers (ie. simplefb) */
-	sun4i_remove_framebuffers();
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sun4i-drm-fb", false);
 
 	/* Create our framebuffer */
 	ret = sun4i_framebuffer_init(drm);
@@ -418,8 +402,10 @@ static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun8i-a33-display-engine" },
 	{ .compatible = "allwinner,sun8i-a83t-display-engine" },
 	{ .compatible = "allwinner,sun8i-h3-display-engine" },
+	{ .compatible = "allwinner,sun8i-r40-display-engine" },
 	{ .compatible = "allwinner,sun8i-v3s-display-engine" },
 	{ .compatible = "allwinner,sun9i-a80-display-engine" },
+	{ .compatible = "allwinner,sun50i-a64-display-engine" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);

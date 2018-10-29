@@ -1287,12 +1287,13 @@ static int power_well_ctl_mmio_write(struct intel_vgpu *vgpu,
 {
 	write_vreg(vgpu, offset, p_data, bytes);
 
-	if (vgpu_vreg(vgpu, offset) & HSW_PWR_WELL_CTL_REQ(HSW_DISP_PW_GLOBAL))
+	if (vgpu_vreg(vgpu, offset) &
+	    HSW_PWR_WELL_CTL_REQ(HSW_PW_CTL_IDX_GLOBAL))
 		vgpu_vreg(vgpu, offset) |=
-			HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
+			HSW_PWR_WELL_CTL_STATE(HSW_PW_CTL_IDX_GLOBAL);
 	else
 		vgpu_vreg(vgpu, offset) &=
-			~HSW_PWR_WELL_CTL_STATE(HSW_DISP_PW_GLOBAL);
+			~HSW_PWR_WELL_CTL_STATE(HSW_PW_CTL_IDX_GLOBAL);
 	return 0;
 }
 
@@ -2137,7 +2138,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_F(PCH_GMBUS0, 4 * 4, 0, 0, 0, D_ALL, gmbus_mmio_read,
 		gmbus_mmio_write);
-	MMIO_F(PCH_GPIOA, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
+	MMIO_F(PCH_GPIO_BASE, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
 	MMIO_F(_MMIO(0xe4f00), 0x28, 0, 0, 0, D_ALL, NULL, NULL);
 
 	MMIO_F(_MMIO(_PCH_DPB_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
@@ -2462,17 +2463,10 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN6_RC6p_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_RC6pp_THRESHOLD, D_ALL);
 	MMIO_D(GEN6_PMINTRMSK, D_ALL);
-	/*
-	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
-	 * register.
-	 */
-	MMIO_DH(HSW_PWR_WELL_CTL_BIOS(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_KVMR, D_BDW, NULL, power_well_ctl_mmio_write);
-	MMIO_DH(HSW_PWR_WELL_CTL_DEBUG(HSW_DISP_PW_GLOBAL), D_BDW, NULL,
-		power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL1, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL2, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL3, D_BDW, NULL, power_well_ctl_mmio_write);
+	MMIO_DH(HSW_PWR_WELL_CTL4, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL5, D_BDW, NULL, power_well_ctl_mmio_write);
 	MMIO_DH(HSW_PWR_WELL_CTL6, D_BDW, NULL, power_well_ctl_mmio_write);
 
@@ -2823,13 +2817,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_MMIO(_DPD_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_SKL_PLUS, NULL,
 						dp_aux_ch_ctl_mmio_write);
 
-	/*
-	 * Use an arbitrary power well controlled by the PWR_WELL_CTL
-	 * register.
-	 */
-	MMIO_D(HSW_PWR_WELL_CTL_BIOS(SKL_DISP_PW_MISC_IO), D_SKL_PLUS);
-	MMIO_DH(HSW_PWR_WELL_CTL_DRIVER(SKL_DISP_PW_MISC_IO), D_SKL_PLUS, NULL,
-		skl_power_well_ctl_write);
+	MMIO_D(HSW_PWR_WELL_CTL1, D_SKL_PLUS);
+	MMIO_DH(HSW_PWR_WELL_CTL2, D_SKL_PLUS, NULL, skl_power_well_ctl_write);
 
 	MMIO_DH(DBUF_CTL, D_SKL_PLUS, NULL, gen9_dbuf_ctl_mmio_write);
 
@@ -3456,6 +3445,7 @@ bool intel_gvt_in_force_nonpriv_whitelist(struct intel_gvt *gvt,
  * @offset: register offset
  * @pdata: data buffer
  * @bytes: data length
+ * @is_read: read or write
  *
  * Returns:
  * Zero on success, negative error code if failed.

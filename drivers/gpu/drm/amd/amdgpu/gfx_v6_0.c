@@ -1552,7 +1552,7 @@ static void gfx_v6_0_config_init(struct amdgpu_device *adev)
 	adev->gfx.config.double_offchip_lds_buf = 0;
 }
 
-static void gfx_v6_0_gpu_init(struct amdgpu_device *adev)
+static void gfx_v6_0_constants_init(struct amdgpu_device *adev)
 {
 	u32 gb_addr_config = 0;
 	u32 mc_shared_chmap, mc_arb_ramcfg;
@@ -3094,15 +3094,15 @@ static int gfx_v6_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i, r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 184, &adev->gfx.priv_reg_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 184, &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 185, &adev->gfx.priv_inst_irq);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 185, &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;
 
@@ -3175,7 +3175,7 @@ static int gfx_v6_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gfx_v6_0_gpu_init(adev);
+	gfx_v6_0_constants_init(adev);
 
 	r = gfx_v6_0_rlc_resume(adev);
 	if (r)

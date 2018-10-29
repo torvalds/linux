@@ -541,11 +541,6 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(execlists->preempt_complete_status !=
 		   upper_32_bits(ce->lrc_desc));
-	GEM_BUG_ON((ce->lrc_reg_state[CTX_CONTEXT_CONTROL + 1] &
-		    _MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-				       CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT)) !=
-		   _MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-				      CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT));
 
 	/*
 	 * Switch to our empty preempt context so
@@ -1277,6 +1272,8 @@ static void execlists_context_destroy(struct intel_context *ce)
 
 static void execlists_context_unpin(struct intel_context *ce)
 {
+	i915_gem_context_unpin_hw_id(ce->gem_context);
+
 	intel_ring_unpin(ce->ring);
 
 	ce->state->obj->pin_global--;
@@ -1297,16 +1294,15 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 	 * on an active context (which by nature is already on the GPU).
 	 */
 	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		err = i915_gem_object_set_to_gtt_domain(vma->obj, true);
+		err = i915_gem_object_set_to_wc_domain(vma->obj, true);
 		if (err)
 			return err;
 	}
 
 	flags = PIN_GLOBAL | PIN_HIGH;
-	if (ctx->ggtt_offset_bias)
-		flags |= PIN_OFFSET_BIAS | ctx->ggtt_offset_bias;
+	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
-	return i915_vma_pin(vma, 0, GEN8_LR_CONTEXT_ALIGN, flags);
+	return i915_vma_pin(vma, 0, 0, flags);
 }
 
 static struct intel_context *
@@ -1326,28 +1322,38 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	if (ret)
 		goto err;
 
-	vaddr = i915_gem_object_pin_map(ce->state->obj, I915_MAP_WB);
+	vaddr = i915_gem_object_pin_map(ce->state->obj,
+					i915_coherent_map_type(ctx->i915) |
+					I915_MAP_OVERRIDE);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
 		goto unpin_vma;
 	}
 
-	ret = intel_ring_pin(ce->ring, ctx->i915, ctx->ggtt_offset_bias);
+	ret = intel_ring_pin(ce->ring);
 	if (ret)
 		goto unpin_map;
 
+	ret = i915_gem_context_pin_hw_id(ctx);
+	if (ret)
+		goto unpin_ring;
+
 	intel_lr_context_descriptor_update(ctx, engine, ce);
+
+	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
 
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
 	ce->lrc_reg_state[CTX_RING_BUFFER_START+1] =
 		i915_ggtt_offset(ce->ring->vma);
-	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
-	ce->lrc_reg_state[CTX_RING_HEAD+1] = ce->ring->head;
+	ce->lrc_reg_state[CTX_RING_HEAD + 1] = ce->ring->head;
+	ce->lrc_reg_state[CTX_RING_TAIL + 1] = ce->ring->tail;
 
 	ce->state->obj->pin_global++;
 	i915_gem_context_get(ctx);
 	return ce;
 
+unpin_ring:
+	intel_ring_unpin(ce->ring);
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
 unpin_vma:
@@ -1643,7 +1649,7 @@ static int lrc_setup_wa_ctx(struct intel_engine_cs *engine)
 		goto err;
 	}
 
-	err = i915_vma_pin(vma, 0, PAGE_SIZE, PIN_GLOBAL | PIN_HIGH);
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
 		goto err;
 
@@ -1657,7 +1663,7 @@ err:
 
 static void lrc_destroy_wa_ctx(struct intel_engine_cs *engine)
 {
-	i915_vma_unpin_and_release(&engine->wa_ctx.vma);
+	i915_vma_unpin_and_release(&engine->wa_ctx.vma, 0);
 }
 
 typedef u32 *(*wa_bb_func_t)(struct intel_engine_cs *engine, u32 *batch);
@@ -1775,11 +1781,7 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
-	int ret;
-
-	ret = intel_mocs_init_engine(engine);
-	if (ret)
-		return ret;
+	intel_mocs_init_engine(engine);
 
 	intel_engine_reset_breadcrumbs(engine);
 
@@ -1838,7 +1840,8 @@ execlists_reset_prepare(struct intel_engine_cs *engine)
 	struct i915_request *request, *active;
 	unsigned long flags;
 
-	GEM_TRACE("%s\n", engine->name);
+	GEM_TRACE("%s: depth<-%d\n", engine->name,
+		  atomic_read(&execlists->tasklet.count));
 
 	/*
 	 * Prevent request submission to the hardware until we have
@@ -1971,22 +1974,18 @@ static void execlists_reset_finish(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 
-	/* After a GPU reset, we may have requests to replay */
-	if (!RB_EMPTY_ROOT(&execlists->queue.rb_root))
-		tasklet_schedule(&execlists->tasklet);
-
 	/*
-	 * Flush the tasklet while we still have the forcewake to be sure
-	 * that it is not allowed to sleep before we restart and reload a
-	 * context.
+	 * After a GPU reset, we may have requests to replay. Do so now while
+	 * we still have the forcewake to be sure that the GPU is not allowed
+	 * to sleep before we restart and reload a context.
 	 *
-	 * As before (with execlists_reset_prepare) we rely on the caller
-	 * serialising multiple attempts to reset so that we know that we
-	 * are the only one manipulating tasklet state.
 	 */
-	__tasklet_enable_sync_once(&execlists->tasklet);
+	if (!RB_EMPTY_ROOT(&execlists->queue.rb_root))
+		execlists->tasklet.func(execlists->tasklet.data);
 
-	GEM_TRACE("%s\n", engine->name);
+	tasklet_enable(&execlists->tasklet);
+	GEM_TRACE("%s: depth->%d\n", engine->name,
+		  atomic_read(&execlists->tasklet.count));
 }
 
 static int intel_logical_ring_emit_pdps(struct i915_request *rq)
@@ -2066,8 +2065,7 @@ static int gen8_emit_bb_start(struct i915_request *rq,
 
 	/* FIXME(BDW): Address space and security selectors. */
 	*cs++ = MI_BATCH_BUFFER_START_GEN8 |
-		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8)) |
-		(flags & I915_DISPATCH_RS ? MI_BATCH_RESOURCE_STREAMER : 0);
+		(flags & I915_DISPATCH_SECURE ? 0 : BIT(8));
 	*cs++ = lower_32_bits(offset);
 	*cs++ = upper_32_bits(offset);
 
@@ -2398,7 +2396,7 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 
 	ret = intel_engine_init_common(engine);
 	if (ret)
-		goto error;
+		return ret;
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
 		execlists->submit_reg = i915->regs +
@@ -2440,10 +2438,6 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	reset_csb_pointers(execlists);
 
 	return 0;
-
-error:
-	intel_logical_ring_cleanup(engine);
-	return ret;
 }
 
 int logical_render_ring_init(struct intel_engine_cs *engine)
@@ -2466,9 +2460,13 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	engine->emit_breadcrumb = gen8_emit_breadcrumb_rcs;
 	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_rcs_sz;
 
-	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
+	ret = logical_ring_init(engine);
 	if (ret)
 		return ret;
+
+	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
+	if (ret)
+		goto err_cleanup_common;
 
 	ret = intel_init_workaround_bb(engine);
 	if (ret) {
@@ -2481,7 +2479,11 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 			  ret);
 	}
 
-	return logical_ring_init(engine);
+	return 0;
+
+err_cleanup_common:
+	intel_engine_cleanup_common(engine);
+	return ret;
 }
 
 int logical_xcs_ring_init(struct intel_engine_cs *engine)
@@ -2494,6 +2496,9 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine)
 static u32
 make_rpcs(struct drm_i915_private *dev_priv)
 {
+	bool subslice_pg = INTEL_INFO(dev_priv)->sseu.has_subslice_pg;
+	u8 slices = hweight8(INTEL_INFO(dev_priv)->sseu.slice_mask);
+	u8 subslices = hweight8(INTEL_INFO(dev_priv)->sseu.subslice_mask[0]);
 	u32 rpcs = 0;
 
 	/*
@@ -2504,30 +2509,88 @@ make_rpcs(struct drm_i915_private *dev_priv)
 		return 0;
 
 	/*
+	 * Since the SScount bitfield in GEN8_R_PWR_CLK_STATE is only three bits
+	 * wide and Icelake has up to eight subslices, specfial programming is
+	 * needed in order to correctly enable all subslices.
+	 *
+	 * According to documentation software must consider the configuration
+	 * as 2x4x8 and hardware will translate this to 1x8x8.
+	 *
+	 * Furthemore, even though SScount is three bits, maximum documented
+	 * value for it is four. From this some rules/restrictions follow:
+	 *
+	 * 1.
+	 * If enabled subslice count is greater than four, two whole slices must
+	 * be enabled instead.
+	 *
+	 * 2.
+	 * When more than one slice is enabled, hardware ignores the subslice
+	 * count altogether.
+	 *
+	 * From these restrictions it follows that it is not possible to enable
+	 * a count of subslices between the SScount maximum of four restriction,
+	 * and the maximum available number on a particular SKU. Either all
+	 * subslices are enabled, or a count between one and four on the first
+	 * slice.
+	 */
+	if (IS_GEN11(dev_priv) && slices == 1 && subslices >= 4) {
+		GEM_BUG_ON(subslices & 1);
+
+		subslice_pg = false;
+		slices *= 2;
+	}
+
+	/*
 	 * Starting in Gen9, render power gating can leave
 	 * slice/subslice/EU in a partially enabled state. We
 	 * must make an explicit request through RPCS for full
 	 * enablement.
 	*/
 	if (INTEL_INFO(dev_priv)->sseu.has_slice_pg) {
-		rpcs |= GEN8_RPCS_S_CNT_ENABLE;
-		rpcs |= hweight8(INTEL_INFO(dev_priv)->sseu.slice_mask) <<
-			GEN8_RPCS_S_CNT_SHIFT;
-		rpcs |= GEN8_RPCS_ENABLE;
+		u32 mask, val = slices;
+
+		if (INTEL_GEN(dev_priv) >= 11) {
+			mask = GEN11_RPCS_S_CNT_MASK;
+			val <<= GEN11_RPCS_S_CNT_SHIFT;
+		} else {
+			mask = GEN8_RPCS_S_CNT_MASK;
+			val <<= GEN8_RPCS_S_CNT_SHIFT;
+		}
+
+		GEM_BUG_ON(val & ~mask);
+		val &= mask;
+
+		rpcs |= GEN8_RPCS_ENABLE | GEN8_RPCS_S_CNT_ENABLE | val;
 	}
 
-	if (INTEL_INFO(dev_priv)->sseu.has_subslice_pg) {
-		rpcs |= GEN8_RPCS_SS_CNT_ENABLE;
-		rpcs |= hweight8(INTEL_INFO(dev_priv)->sseu.subslice_mask[0]) <<
-			GEN8_RPCS_SS_CNT_SHIFT;
-		rpcs |= GEN8_RPCS_ENABLE;
+	if (subslice_pg) {
+		u32 val = subslices;
+
+		val <<= GEN8_RPCS_SS_CNT_SHIFT;
+
+		GEM_BUG_ON(val & ~GEN8_RPCS_SS_CNT_MASK);
+		val &= GEN8_RPCS_SS_CNT_MASK;
+
+		rpcs |= GEN8_RPCS_ENABLE | GEN8_RPCS_SS_CNT_ENABLE | val;
 	}
 
 	if (INTEL_INFO(dev_priv)->sseu.has_eu_pg) {
-		rpcs |= INTEL_INFO(dev_priv)->sseu.eu_per_subslice <<
-			GEN8_RPCS_EU_MIN_SHIFT;
-		rpcs |= INTEL_INFO(dev_priv)->sseu.eu_per_subslice <<
-			GEN8_RPCS_EU_MAX_SHIFT;
+		u32 val;
+
+		val = INTEL_INFO(dev_priv)->sseu.eu_per_subslice <<
+		      GEN8_RPCS_EU_MIN_SHIFT;
+		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MIN_MASK);
+		val &= GEN8_RPCS_EU_MIN_MASK;
+
+		rpcs |= val;
+
+		val = INTEL_INFO(dev_priv)->sseu.eu_per_subslice <<
+		      GEN8_RPCS_EU_MAX_SHIFT;
+		GEM_BUG_ON(val & ~GEN8_RPCS_EU_MAX_MASK);
+		val &= GEN8_RPCS_EU_MAX_MASK;
+
+		rpcs |= val;
+
 		rpcs |= GEN8_RPCS_ENABLE;
 	}
 
@@ -2584,11 +2647,13 @@ static void execlists_init_reg_state(u32 *regs,
 				 MI_LRI_FORCE_POSTED;
 
 	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(engine),
-		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-				    CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT) |
-		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
-				   (HAS_RESOURCE_STREAMER(dev_priv) ?
-				   CTX_CTRL_RS_CTX_ENABLE : 0)));
+		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
+		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH));
+	if (INTEL_GEN(dev_priv) < 11) {
+		regs[CTX_CONTEXT_CONTROL + 1] |=
+			_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
+					    CTX_CTRL_RS_CTX_ENABLE);
+	}
 	CTX_REG(regs, CTX_RING_HEAD, RING_HEAD(base), 0);
 	CTX_REG(regs, CTX_RING_TAIL, RING_TAIL(base), 0);
 	CTX_REG(regs, CTX_RING_BUFFER_START, RING_START(base), 0);
@@ -2654,6 +2719,10 @@ static void execlists_init_reg_state(u32 *regs,
 
 		i915_oa_init_reg_state(engine, ctx, regs);
 	}
+
+	regs[CTX_END] = MI_BATCH_BUFFER_END;
+	if (INTEL_GEN(dev_priv) >= 10)
+		regs[CTX_END] |= BIT(0);
 }
 
 static int
@@ -2780,13 +2849,14 @@ error_deref_obj:
 	return ret;
 }
 
-void intel_lr_context_resume(struct drm_i915_private *dev_priv)
+void intel_lr_context_resume(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
 
-	/* Because we emit WA_TAIL_DWORDS there may be a disparity
+	/*
+	 * Because we emit WA_TAIL_DWORDS there may be a disparity
 	 * between our bookkeeping in ce->ring->head and ce->ring->tail and
 	 * that stored in context. As we only write new commands from
 	 * ce->ring->tail onwards, everything before that is junk. If the GPU
@@ -2796,28 +2866,22 @@ void intel_lr_context_resume(struct drm_i915_private *dev_priv)
 	 * So to avoid that we reset the context images upon resume. For
 	 * simplicity, we just zero everything out.
 	 */
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		for_each_engine(engine, dev_priv, id) {
+	list_for_each_entry(ctx, &i915->contexts.list, link) {
+		for_each_engine(engine, i915, id) {
 			struct intel_context *ce =
 				to_intel_context(ctx, engine);
-			u32 *reg;
 
 			if (!ce->state)
 				continue;
 
-			reg = i915_gem_object_pin_map(ce->state->obj,
-						      I915_MAP_WB);
-			if (WARN_ON(IS_ERR(reg)))
-				continue;
-
-			reg += LRC_STATE_PN * PAGE_SIZE / sizeof(*reg);
-			reg[CTX_RING_HEAD+1] = 0;
-			reg[CTX_RING_TAIL+1] = 0;
-
-			ce->state->obj->mm.dirty = true;
-			i915_gem_object_unpin_map(ce->state->obj);
-
 			intel_ring_reset(ce->ring, 0);
+
+			if (ce->pin_count) { /* otherwise done in context_pin */
+				u32 *regs = ce->lrc_reg_state;
+
+				regs[CTX_RING_HEAD + 1] = ce->ring->head;
+				regs[CTX_RING_TAIL + 1] = ce->ring->tail;
+			}
 		}
 	}
 }

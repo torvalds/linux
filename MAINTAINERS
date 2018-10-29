@@ -4756,8 +4756,11 @@ F:	drivers/gpu/drm/tdfx/
 
 DRM DRIVER FOR USB DISPLAYLINK VIDEO ADAPTERS
 M:	Dave Airlie <airlied@redhat.com>
+R:	Sean Paul <sean@poorly.run>
+L:	dri-devel@lists.freedesktop.org
 S:	Odd Fixes
 F:	drivers/gpu/drm/udl/
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVER FOR VMWARE VIRTUAL GPU
 M:	"VMware Graphics" <linux-graphics-maintainer@vmware.com>
@@ -4787,8 +4790,8 @@ F:	include/uapi/drm/
 F:	include/linux/vga*
 
 DRM DRIVERS AND MISC GPU PATCHES
-M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>
+M:	Maxime Ripard <maxime.ripard@bootlin.com>
 M:	Sean Paul <sean@poorly.run>
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 S:	Maintained
@@ -4857,6 +4860,7 @@ F:	drivers/gpu/drm/fsl-dcu/
 F:	Documentation/devicetree/bindings/display/fsl,dcu.txt
 F:	Documentation/devicetree/bindings/display/fsl,tcon.txt
 F:	Documentation/devicetree/bindings/display/panel/nec,nl4827hc19-05b.txt
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR FREESCALE IMX
 M:	Philipp Zabel <p.zabel@pengutronix.de>
@@ -4906,9 +4910,10 @@ F:	Documentation/devicetree/bindings/display/tegra/nvidia,tegra20-host1x.txt
 
 DRM DRIVERS FOR RENESAS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+M:	Kieran Bingham <kieran.bingham+renesas@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 L:	linux-renesas-soc@vger.kernel.org
-T:	git git://linuxtv.org/pinchartl/fbdev
+T:	git git://linuxtv.org/pinchartl/media drm/du/next
 S:	Supported
 F:	drivers/gpu/drm/rcar-du/
 F:	drivers/gpu/drm/shmobile/
@@ -10001,9 +10006,12 @@ F:	drivers/media/tuners/mxl5007t.*
 
 MXSFB DRM DRIVER
 M:	Marek Vasut <marex@denx.de>
+M:	Stefan Agner <stefan@agner.ch>
+L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/mxsfb/
 F:	Documentation/devicetree/bindings/display/mxsfb.txt
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 MYLEX DAC960 PCI RAID Controller
 M:	Hannes Reinecke <hare@kernel.org>
@@ -15529,6 +15537,14 @@ M:	Alexander Viro <viro@zeniv.linux.org.uk>
 S:	Maintained
 F:	lib/iov_iter.c
 F:	include/linux/uio.h
+
+USERSPACE DMA BUFFER DRIVER
+M:	Gerd Hoffmann <kraxel@redhat.com>
+S:	Maintained
+L:	dri-devel@lists.freedesktop.org
+F:	drivers/dma-buf/udmabuf.c
+F:	include/uapi/linux/udmabuf.h
+T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 USERSPACE I/O (UIO)
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>

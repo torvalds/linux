@@ -942,10 +942,7 @@ static void atmel_hlcdc_plane_reset(struct drm_plane *p)
 				"Failed to allocate initial plane state\n");
 			return;
 		}
-
-		p->state = &state->base;
-		p->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
-		p->state->plane = p;
+		__drm_atomic_helper_plane_reset(p, &state->base);
 	}
 }
 

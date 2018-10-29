@@ -30,7 +30,7 @@
 
 #include <drm/drmP.h>
 #include "vmwgfx_drv.h"
-#include "drm/ttm/ttm_object.h"
+#include "ttm_object.h"
 
 
 /**
@@ -441,7 +441,8 @@ static size_t vmw_bo_acc_size(struct vmw_private *dev_priv, size_t size,
 		struct_size = backend_size +
 			ttm_round_pot(sizeof(struct vmw_buffer_object));
 		user_struct_size = backend_size +
-			ttm_round_pot(sizeof(struct vmw_user_buffer_object));
+		  ttm_round_pot(sizeof(struct vmw_user_buffer_object)) +
+				      TTM_OBJ_EXTRA_SIZE;
 	}
 
 	if (dev_priv->map_mode == vmw_dma_alloc_coherent)
@@ -631,7 +632,7 @@ int vmw_user_bo_alloc(struct vmw_private *dev_priv,
 		*p_base = &user_bo->prime.base;
 		kref_get(&(*p_base)->refcount);
 	}
-	*handle = user_bo->prime.base.hash.key;
+	*handle = user_bo->prime.base.handle;
 
 out_no_base_object:
 	return ret;
@@ -920,6 +921,47 @@ int vmw_user_bo_lookup(struct ttm_object_file *tfile,
 	return 0;
 }
 
+/**
+ * vmw_user_bo_noref_lookup - Look up a vmw user buffer object without reference
+ * @tfile: The TTM object file the handle is registered with.
+ * @handle: The user buffer object handle.
+ *
+ * This function looks up a struct vmw_user_bo and returns a pointer to the
+ * struct vmw_buffer_object it derives from without refcounting the pointer.
+ * The returned pointer is only valid until vmw_user_bo_noref_release() is
+ * called, and the object pointed to by the returned pointer may be doomed.
+ * Any persistent usage of the object requires a refcount to be taken using
+ * ttm_bo_reference_unless_doomed(). Iff this function returns successfully it
+ * needs to be paired with vmw_user_bo_noref_release() and no sleeping-
+ * or scheduling functions may be called inbetween these function calls.
+ *
+ * Return: A struct vmw_buffer_object pointer if successful or negative
+ * error pointer on failure.
+ */
+struct vmw_buffer_object *
+vmw_user_bo_noref_lookup(struct ttm_object_file *tfile, u32 handle)
+{
+	struct vmw_user_buffer_object *vmw_user_bo;
+	struct ttm_base_object *base;
+
+	base = ttm_base_object_noref_lookup(tfile, handle);
+	if (!base) {
+		DRM_ERROR("Invalid buffer object handle 0x%08lx.\n",
+			  (unsigned long)handle);
+		return ERR_PTR(-ESRCH);
+	}
+
+	if (unlikely(ttm_base_object_type(base) != ttm_buffer_type)) {
+		ttm_base_object_noref_release();
+		DRM_ERROR("Invalid buffer object handle 0x%08lx.\n",
+			  (unsigned long)handle);
+		return ERR_PTR(-EINVAL);
+	}
+
+	vmw_user_bo = container_of(base, struct vmw_user_buffer_object,
+				   prime.base);
+	return &vmw_user_bo->vbo;
+}
 
 /**
  * vmw_user_bo_reference - Open a handle to a vmw user buffer object.
@@ -940,7 +982,7 @@ int vmw_user_bo_reference(struct ttm_object_file *tfile,
 
 	user_bo = container_of(vbo, struct vmw_user_buffer_object, vbo);
 
-	*handle = user_bo->prime.base.hash.key;
+	*handle = user_bo->prime.base.handle;
 	return ttm_ref_object_add(tfile, &user_bo->prime.base,
 				  TTM_REF_USAGE, NULL, false);
 }

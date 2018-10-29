@@ -205,8 +205,6 @@ bool dc_stream_set_cursor_attributes(
 
 		if (pipe_ctx->stream != stream)
 			continue;
-		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
-			continue;
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;

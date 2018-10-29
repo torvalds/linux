@@ -2449,6 +2449,8 @@
 #define mmCP_ECC_FIRSTOCCURRENCE_RING2_BASE_IDX                                                        0
 #define mmGB_EDC_MODE                                                                                  0x107e
 #define mmGB_EDC_MODE_BASE_IDX                                                                         0
+#define mmCP_DEBUG                                                                                     0x107f
+#define mmCP_DEBUG_BASE_IDX                                                                            0
 #define mmCP_CPF_DEBUG                                                                                 0x1080
 #define mmCP_PQ_WPTR_POLL_CNTL                                                                         0x1083
 #define mmCP_PQ_WPTR_POLL_CNTL_BASE_IDX                                                                0

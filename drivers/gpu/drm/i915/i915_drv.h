@@ -52,6 +52,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_cache.h>
+#include <drm/drm_util.h>
 
 #include "i915_params.h"
 #include "i915_reg.h"
@@ -86,8 +87,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20180719"
-#define DRIVER_TIMESTAMP	1532015279
+#define DRIVER_DATE		"20180921"
+#define DRIVER_TIMESTAMP	1537521997
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -611,8 +612,18 @@ struct i915_drrs {
 
 struct i915_psr {
 	struct mutex lock;
+
+#define I915_PSR_DEBUG_MODE_MASK	0x0f
+#define I915_PSR_DEBUG_DEFAULT		0x00
+#define I915_PSR_DEBUG_DISABLE		0x01
+#define I915_PSR_DEBUG_ENABLE		0x02
+#define I915_PSR_DEBUG_FORCE_PSR1	0x03
+#define I915_PSR_DEBUG_IRQ		0x10
+
+	u32 debug;
 	bool sink_support;
-	struct intel_dp *enabled;
+	bool prepared, enabled;
+	struct intel_dp *dp;
 	bool active;
 	struct work_struct work;
 	unsigned busy_frontbuffer_bits;
@@ -622,7 +633,6 @@ struct i915_psr {
 	bool alpm;
 	bool psr2_enabled;
 	u8 sink_sync_latency;
-	bool debug;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
 };
@@ -867,14 +877,17 @@ struct i915_power_well_ops {
 			   struct i915_power_well *power_well);
 };
 
+struct i915_power_well_regs {
+	i915_reg_t bios;
+	i915_reg_t driver;
+	i915_reg_t kvmr;
+	i915_reg_t debug;
+};
+
 /* Power well structure for haswell */
-struct i915_power_well {
+struct i915_power_well_desc {
 	const char *name;
 	bool always_on;
-	/* power well enable/disable usage count */
-	int count;
-	/* cached hw enabled state */
-	bool hw_enabled;
 	u64 domains;
 	/* unique identifier for this power well */
 	enum i915_power_well_id id;
@@ -884,9 +897,22 @@ struct i915_power_well {
 	 */
 	union {
 		struct {
+			/*
+			 * request/status flag index in the PUNIT power well
+			 * control/status registers.
+			 */
+			u8 idx;
+		} vlv;
+		struct {
 			enum dpio_phy phy;
 		} bxt;
 		struct {
+			const struct i915_power_well_regs *regs;
+			/*
+			 * request/status flag index in the power well
+			 * constrol/status registers.
+			 */
+			u8 idx;
 			/* Mask of pipes whose IRQ logic is backed by the pw */
 			u8 irq_pipe_mask;
 			/* The pw is backing the VGA functionality */
@@ -897,13 +923,21 @@ struct i915_power_well {
 	const struct i915_power_well_ops *ops;
 };
 
+struct i915_power_well {
+	const struct i915_power_well_desc *desc;
+	/* power well enable/disable usage count */
+	int count;
+	/* cached hw enabled state */
+	bool hw_enabled;
+};
+
 struct i915_power_domains {
 	/*
 	 * Power wells needed for initialization at driver init and suspend
 	 * time are on. They are kept on until after the first modeset.
 	 */
-	bool init_power_on;
 	bool initializing;
+	bool display_core_suspended;
 	int power_well_count;
 
 	struct mutex lock;
@@ -1610,7 +1644,8 @@ struct drm_i915_private {
 	struct mutex gmbus_mutex;
 
 	/**
-	 * Base address of the gmbus and gpio block.
+	 * Base address of where the gmbus and gpio blocks are located (either
+	 * on PCH or on SoC for platforms without PCH).
 	 */
 	uint32_t gpio_mmio_base;
 
@@ -1632,7 +1667,6 @@ struct drm_i915_private {
 	struct intel_engine_cs *engine_class[MAX_ENGINE_CLASS + 1]
 					    [MAX_ENGINE_INSTANCE + 1];
 
-	struct drm_dma_handle *status_page_dmah;
 	struct resource mch_res;
 
 	/* protects the irq masks */
@@ -1828,6 +1862,7 @@ struct drm_i915_private {
 	struct mutex av_mutex;
 
 	struct {
+		struct mutex mutex;
 		struct list_head list;
 		struct llist_head free_list;
 		struct work_struct free_work;
@@ -1840,6 +1875,7 @@ struct drm_i915_private {
 #define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
 #define MAX_GUC_CONTEXT_HW_ID (1 << 20) /* exclusive */
 #define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
+		struct list_head hw_id_list;
 	} contexts;
 
 	u32 fdi_rx_config;
@@ -1909,6 +1945,20 @@ struct drm_i915_private {
 		 */
 		bool distrust_bios_wm;
 	} wm;
+
+	struct dram_info {
+		bool valid;
+		bool valid_dimm;
+		bool is_16gb_dimm;
+		u8 num_channels;
+		enum dram_rank {
+			I915_DRAM_RANK_INVALID = 0,
+			I915_DRAM_RANK_SINGLE,
+			I915_DRAM_RANK_DUAL
+		} rank;
+		u32 bandwidth_kbps;
+		bool symmetric_memory;
+	} dram_info;
 
 	struct i915_runtime_pm runtime_pm;
 
@@ -2123,6 +2173,15 @@ struct drm_i915_private {
 	 */
 };
 
+struct dram_channel_info {
+	struct info {
+		u8 size, width;
+		enum dram_rank rank;
+	} l_info, s_info;
+	enum dram_rank rank;
+	bool is_16gb_dimm;
+};
+
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
 	return container_of(dev, struct drm_i915_private, drm);
@@ -2248,7 +2307,7 @@ static inline struct scatterlist *__sg_next(struct scatterlist *sg)
 #define for_each_sgt_dma(__dmap, __iter, __sgt)				\
 	for ((__iter) = __sgt_iter((__sgt)->sgl, true);			\
 	     ((__dmap) = (__iter).dma + (__iter).curr);			\
-	     (((__iter).curr += PAGE_SIZE) >= (__iter).max) ?		\
+	     (((__iter).curr += I915_GTT_PAGE_SIZE) >= (__iter).max) ?	\
 	     (__iter) = __sgt_iter(__sg_next((__iter).sgp), true), 0 : 0)
 
 /**
@@ -2610,8 +2669,6 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission()
 #define USES_HUC(dev_priv)		intel_uc_is_using_huc()
 
-#define HAS_RESOURCE_STREAMER(dev_priv) ((dev_priv)->info.has_resource_streamer)
-
 #define HAS_POOLED_EU(dev_priv)	((dev_priv)->info.has_pooled_eu)
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff80
@@ -2774,6 +2831,8 @@ extern void intel_irq_init(struct drm_i915_private *dev_priv);
 extern void intel_irq_fini(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
 void intel_irq_uninstall(struct drm_i915_private *dev_priv);
+
+void i915_clear_error_registers(struct drm_i915_private *dev_priv);
 
 static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
 {
@@ -3038,6 +3097,12 @@ enum i915_map_type {
 	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
 };
 
+static inline enum i915_map_type
+i915_coherent_map_type(struct drm_i915_private *i915)
+{
+	return HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC;
+}
+
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
  * @obj: the object to map into kernel address space
@@ -3275,7 +3340,7 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 				 struct drm_mm_node *node);
 int i915_gem_init_stolen(struct drm_i915_private *dev_priv);
-void i915_gem_cleanup_stolen(struct drm_device *dev);
+void i915_gem_cleanup_stolen(struct drm_i915_private *dev_priv);
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 			      resource_size_t size);

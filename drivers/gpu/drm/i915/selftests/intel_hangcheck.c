@@ -1018,8 +1018,41 @@ static int evict_vma(void *data)
 	return err;
 }
 
+static int evict_fence(void *data)
+{
+	struct evict_vma *arg = data;
+	struct drm_i915_private *i915 = arg->vma->vm->i915;
+	int err;
+
+	complete(&arg->completion);
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	/* Mark the fence register as dirty to force the mmio update. */
+	err = i915_gem_object_set_tiling(arg->vma->obj, I915_TILING_Y, 512);
+	if (err) {
+		pr_err("Invalid Y-tiling settings; err:%d\n", err);
+		goto out_unlock;
+	}
+
+	err = i915_vma_pin_fence(arg->vma);
+	if (err) {
+		pr_err("Unable to pin Y-tiled fence; err:%d\n", err);
+		goto out_unlock;
+	}
+
+	i915_vma_unpin_fence(arg->vma);
+
+out_unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	return err;
+}
+
 static int __igt_reset_evict_vma(struct drm_i915_private *i915,
-				 struct i915_address_space *vm)
+				 struct i915_address_space *vm,
+				 int (*fn)(void *),
+				 unsigned int flags)
 {
 	struct drm_i915_gem_object *obj;
 	struct task_struct *tsk = NULL;
@@ -1040,10 +1073,18 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 	if (err)
 		goto unlock;
 
-	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_internal(i915, SZ_1M);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		goto fini;
+	}
+
+	if (flags & EXEC_OBJECT_NEEDS_FENCE) {
+		err = i915_gem_object_set_tiling(obj, I915_TILING_X, 512);
+		if (err) {
+			pr_err("Invalid X-tiling settings; err:%d\n", err);
+			goto out_obj;
+		}
 	}
 
 	arg.vma = i915_vma_instance(obj, vm, NULL);
@@ -1059,11 +1100,28 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 	}
 
 	err = i915_vma_pin(arg.vma, 0, 0,
-			   i915_vma_is_ggtt(arg.vma) ? PIN_GLOBAL : PIN_USER);
-	if (err)
+			   i915_vma_is_ggtt(arg.vma) ?
+			   PIN_GLOBAL | PIN_MAPPABLE :
+			   PIN_USER);
+	if (err) {
+		i915_request_add(rq);
 		goto out_obj;
+	}
 
-	err = i915_vma_move_to_active(arg.vma, rq, EXEC_OBJECT_WRITE);
+	if (flags & EXEC_OBJECT_NEEDS_FENCE) {
+		err = i915_vma_pin_fence(arg.vma);
+		if (err) {
+			pr_err("Unable to pin X-tiled fence; err:%d\n", err);
+			i915_vma_unpin(arg.vma);
+			i915_request_add(rq);
+			goto out_obj;
+		}
+	}
+
+	err = i915_vma_move_to_active(arg.vma, rq, flags);
+
+	if (flags & EXEC_OBJECT_NEEDS_FENCE)
+		i915_vma_unpin_fence(arg.vma);
 	i915_vma_unpin(arg.vma);
 
 	i915_request_get(rq);
@@ -1086,7 +1144,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 
 	init_completion(&arg.completion);
 
-	tsk = kthread_run(evict_vma, &arg, "igt/evict_vma");
+	tsk = kthread_run(fn, &arg, "igt/evict_vma");
 	if (IS_ERR(tsk)) {
 		err = PTR_ERR(tsk);
 		tsk = NULL;
@@ -1137,27 +1195,45 @@ static int igt_reset_evict_ggtt(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 
-	return __igt_reset_evict_vma(i915, &i915->ggtt.vm);
+	return __igt_reset_evict_vma(i915, &i915->ggtt.vm,
+				     evict_vma, EXEC_OBJECT_WRITE);
 }
 
 static int igt_reset_evict_ppgtt(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx;
+	struct drm_file *file;
 	int err;
 
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
 	mutex_lock(&i915->drm.struct_mutex);
-	ctx = kernel_context(i915);
+	ctx = live_context(i915, file);
 	mutex_unlock(&i915->drm.struct_mutex);
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out;
+	}
 
 	err = 0;
 	if (ctx->ppgtt) /* aliasing == global gtt locking, covered above */
-		err = __igt_reset_evict_vma(i915, &ctx->ppgtt->vm);
+		err = __igt_reset_evict_vma(i915, &ctx->ppgtt->vm,
+					    evict_vma, EXEC_OBJECT_WRITE);
 
-	kernel_context_close(ctx);
+out:
+	mock_file_free(i915, file);
 	return err;
+}
+
+static int igt_reset_evict_fence(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+
+	return __igt_reset_evict_vma(i915, &i915->ggtt.vm,
+				     evict_fence, EXEC_OBJECT_NEEDS_FENCE);
 }
 
 static int wait_for_others(struct drm_i915_private *i915,
@@ -1409,6 +1485,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_reset_wait),
 		SUBTEST(igt_reset_evict_ggtt),
 		SUBTEST(igt_reset_evict_ppgtt),
+		SUBTEST(igt_reset_evict_fence),
 		SUBTEST(igt_handle_error),
 	};
 	bool saved_hangcheck;

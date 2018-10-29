@@ -337,7 +337,7 @@ static int msm_drm_uninit(struct device *dev)
 		mdss->funcs->destroy(ddev);
 
 	ddev->dev_private = NULL;
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 
 	kfree(priv);
 
@@ -452,7 +452,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
-		goto err_unref_drm_dev;
+		goto err_put_drm_dev;
 	}
 
 	ddev->dev_private = priv;
@@ -653,8 +653,8 @@ err_destroy_mdss:
 		mdss->funcs->destroy(ddev);
 err_free_priv:
 	kfree(priv);
-err_unref_drm_dev:
-	drm_dev_unref(ddev);
+err_put_drm_dev:
+	drm_dev_put(ddev);
 	return ret;
 }
 

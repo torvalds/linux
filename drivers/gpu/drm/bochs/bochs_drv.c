@@ -35,7 +35,7 @@ static void bochs_unload(struct drm_device *dev)
 	dev->dev_private = NULL;
 }
 
-static int bochs_load(struct drm_device *dev, unsigned long flags)
+static int bochs_load(struct drm_device *dev)
 {
 	struct bochs_device *bochs;
 	int ret;
@@ -46,7 +46,7 @@ static int bochs_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = bochs;
 	bochs->dev = dev;
 
-	ret = bochs_hw_init(dev, flags);
+	ret = bochs_hw_init(dev);
 	if (ret)
 		goto err;
 
@@ -82,8 +82,6 @@ static const struct file_operations bochs_fops = {
 
 static struct drm_driver bochs_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
-	.load			= bochs_load,
-	.unload			= bochs_unload,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
@@ -107,11 +105,7 @@ static int bochs_pm_suspend(struct device *dev)
 
 	drm_kms_helper_poll_disable(drm_dev);
 
-	if (bochs->fb.initialized) {
-		console_lock();
-		drm_fb_helper_set_suspend(&bochs->fb.helper, 1);
-		console_unlock();
-	}
+	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 1);
 
 	return 0;
 }
@@ -124,11 +118,7 @@ static int bochs_pm_resume(struct device *dev)
 
 	drm_helper_resume_force_mode(drm_dev);
 
-	if (bochs->fb.initialized) {
-		console_lock();
-		drm_fb_helper_set_suspend(&bochs->fb.helper, 0);
-		console_unlock();
-	}
+	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 0);
 
 	drm_kms_helper_poll_enable(drm_dev);
 	return 0;
@@ -143,25 +133,10 @@ static const struct dev_pm_ops bochs_pm_ops = {
 /* ---------------------------------------------------------------------- */
 /* pci interface                                                          */
 
-static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
-{
-	struct apertures_struct *ap;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return -ENOMEM;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
-	kfree(ap);
-
-	return 0;
-}
-
 static int bochs_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
+	struct drm_device *dev;
 	unsigned long fbsize;
 	int ret;
 
@@ -171,18 +146,41 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	ret = bochs_kick_out_firmware_fb(pdev);
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "bochsdrmfb");
 	if (ret)
 		return ret;
 
-	return drm_get_pci_dev(pdev, ent, &bochs_driver);
+	dev = drm_dev_alloc(&bochs_driver, &pdev->dev);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+
+	dev->pdev = pdev;
+	pci_set_drvdata(pdev, dev);
+
+	ret = bochs_load(dev);
+	if (ret)
+		goto err_free_dev;
+
+	ret = drm_dev_register(dev, 0);
+	if (ret)
+		goto err_unload;
+
+	return ret;
+
+err_unload:
+	bochs_unload(dev);
+err_free_dev:
+	drm_dev_put(dev);
+	return ret;
 }
 
 static void bochs_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	drm_put_dev(dev);
+	drm_dev_unregister(dev);
+	bochs_unload(dev);
+	drm_dev_put(dev);
 }
 
 static const struct pci_device_id bochs_pci_tbl[] = {
