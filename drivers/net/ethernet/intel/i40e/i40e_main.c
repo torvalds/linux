@@ -12268,12 +12268,12 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	/* record features VLANs can make use of */
 	netdev->vlan_features |= hw_enc_features | NETIF_F_TSO_MANGLEID;
 
-	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
-		netdev->hw_features |= NETIF_F_NTUPLE | NETIF_F_HW_TC;
-
 	hw_features = hw_enc_features		|
 		      NETIF_F_HW_VLAN_CTAG_TX	|
 		      NETIF_F_HW_VLAN_CTAG_RX;
+
+	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
+		hw_features |= NETIF_F_NTUPLE | NETIF_F_HW_TC;
 
 	netdev->hw_features |= hw_features;
 
