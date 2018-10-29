@@ -40,8 +40,6 @@
 /* platform specific devices */
 #include "shim.h"
 
-
-
 /*
  * Register IO
  */
@@ -606,7 +604,6 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	 * codecs. PCI TCSEL is defined in the Intel manuals.
 	 */
 	snd_sof_pci_update_bits(sdev, PCI_TCSEL, 0x07, 0);
-
 
 	/* init HDA capabilities */
 	ret = hda_init_caps(sdev);
