@@ -3429,8 +3429,6 @@ EXPORT_SYMBOL_GPL(rq_flush_dcache_pages);
  */
 int blk_lld_busy(struct request_queue *q)
 {
-	if (q->lld_busy_fn)
-		return q->lld_busy_fn(q);
 	if (q->mq_ops && q->mq_ops->busy)
 		return q->mq_ops->busy(q);
 
