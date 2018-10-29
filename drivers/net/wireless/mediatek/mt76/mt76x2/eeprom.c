@@ -22,17 +22,6 @@
 #define EE_FIELD(_name, _value) [MT_EE_##_name] = (_value) | 1
 
 static int
-mt76x2_eeprom_copy(struct mt76x02_dev *dev, enum mt76x02_eeprom_field field,
-		   void *dest, int len)
-{
-	if (field + len > dev->mt76.eeprom.size)
-		return -1;
-
-	memcpy(dest, dev->mt76.eeprom.data + field, len);
-	return 0;
-}
-
-static int
 mt76x2_eeprom_get_macaddr(struct mt76x02_dev *dev)
 {
 	void *src = dev->mt76.eeprom.data + MT_EE_MAC_ADDR;
@@ -378,7 +367,7 @@ mt76x2_get_power_info_2g(struct mt76x02_dev *dev,
 	else
 		delta_idx = 5;
 
-	mt76x2_eeprom_copy(dev, offset, data, sizeof(data));
+	mt76x02_eeprom_copy(dev, offset, data, sizeof(data));
 
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
@@ -429,7 +418,7 @@ mt76x2_get_power_info_5g(struct mt76x02_dev *dev,
 	else
 		delta_idx = 4;
 
-	mt76x2_eeprom_copy(dev, offset, data, sizeof(data));
+	mt76x02_eeprom_copy(dev, offset, data, sizeof(data));
 
 	t->chain[chain].tssi_slope = data[0];
 	t->chain[chain].tssi_offset = data[1];
