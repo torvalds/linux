@@ -1782,7 +1782,7 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 
 	/* Check that we don't violate system file offset limits. */
 	ret = generic_remap_checks(file_in, pos_in, file_out, pos_out, len,
-			(remap_flags & REMAP_FILE_DEDUP));
+			remap_flags);
 	if (ret)
 		return ret;
 
