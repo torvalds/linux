@@ -106,9 +106,6 @@ void mt76x02_mac_wcid_setup(struct mt76x02_dev *dev, u8 idx,
 
 	mt76_wr(dev, MT_WCID_ATTR(idx), attr);
 
-	mt76_wr(dev, MT_WCID_TX_RATE(idx), 0);
-	mt76_wr(dev, MT_WCID_TX_RATE(idx) + 4, 0);
-
 	if (idx >= 128)
 		return;
 

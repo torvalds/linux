@@ -129,8 +129,11 @@ static int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	for (i = 0; i < 256 / 32; i++)
 		mt76_wr(dev, MT_WCID_DROP_BASE + i * 4, 0);
 
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < 256; i++) {
 		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
+		mt76_wr(dev, MT_WCID_TX_RATE(i), 0);
+		mt76_wr(dev, MT_WCID_TX_RATE(i) + 4, 0);
+	}
 
 	for (i = 0; i < MT_MAX_VIFS; i++)
 		mt76x02_mac_wcid_setup(dev, MT_VIF_WCID(i), i, NULL);
