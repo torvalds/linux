@@ -57,6 +57,9 @@ struct mt76x02_calibration {
 	bool tssi_comp_pending;
 	bool dpd_cal_done;
 	bool channel_cal_done;
+
+	int tssi_target;
+	s8 tssi_dc;
 };
 
 struct mt76x02_dev {
