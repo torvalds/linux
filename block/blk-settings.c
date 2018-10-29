@@ -32,13 +32,6 @@ void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
 }
 EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
 
-void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
-{
-	WARN_ON_ONCE(q->mq_ops);
-	q->rq_timed_out_fn = fn;
-}
-EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);
-
 /**
  * blk_set_default_limits - reset limits to default values
  * @lim:  the queue_limits structure to reset

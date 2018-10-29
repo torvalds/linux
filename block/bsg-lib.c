@@ -307,8 +307,8 @@ static enum blk_eh_timer_return bsg_timeout(struct request *rq, bool reserved)
 	enum blk_eh_timer_return ret = BLK_EH_DONE;
 	struct request_queue *q = rq->q;
 
-	if (q->rq_timed_out_fn)
-		ret = q->rq_timed_out_fn(rq);
+	if (q->bsg_job_timeout_fn)
+		ret = q->bsg_job_timeout_fn(rq);
 
 	return ret;
 }
@@ -357,9 +357,9 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 
 	q->queuedata = dev;
 	q->bsg_job_fn = job_fn;
+	q->bsg_job_timeout_fn = timeout;
 	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
-	q->rq_timed_out_fn = timeout;
 
 	ret = bsg_register_queue(q, dev, name, &bsg_transport_ops);
 	if (ret) {

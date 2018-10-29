@@ -441,7 +441,6 @@ struct request_queue {
 	make_request_fn		*make_request_fn;
 	poll_q_fn		*poll_fn;
 	softirq_done_fn		*softirq_done_fn;
-	rq_timed_out_fn		*rq_timed_out_fn;
 	dma_drain_needed_fn	*dma_drain_needed;
 	/* Called just after a request is allocated */
 	init_rq_fn		*init_rq_fn;
@@ -541,7 +540,6 @@ struct request_queue {
 
 	struct timer_list	timeout;
 	struct work_struct	timeout_work;
-	struct list_head	timeout_list;
 
 	struct list_head	icq_list;
 #ifdef CONFIG_BLK_CGROUP
@@ -601,6 +599,7 @@ struct request_queue {
 
 #if defined(CONFIG_BLK_DEV_BSG)
 	bsg_job_fn		*bsg_job_fn;
+	rq_timed_out_fn		*bsg_job_timeout_fn;
 	struct bsg_class_device bsg_dev;
 #endif
 
@@ -1156,7 +1155,6 @@ extern void blk_queue_virt_boundary(struct request_queue *, unsigned long);
 extern void blk_queue_dma_alignment(struct request_queue *, int);
 extern void blk_queue_update_dma_alignment(struct request_queue *, int);
 extern void blk_queue_softirq_done(struct request_queue *, softirq_done_fn *);
-extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush_queueable(struct request_queue *q, bool queueable);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
