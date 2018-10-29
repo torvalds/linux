@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2016-2018 Intel Corporation. All rights reserved. */
+#include <linux/memremap.h>
 #include <linux/pagemap.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -12,6 +13,38 @@
 #include <linux/mman.h>
 #include "dax-private.h"
 #include "bus.h"
+
+static struct dev_dax *ref_to_dev_dax(struct percpu_ref *ref)
+{
+	return container_of(ref, struct dev_dax, ref);
+}
+
+static void dev_dax_percpu_release(struct percpu_ref *ref)
+{
+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
+
+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	complete(&dev_dax->cmp);
+}
+
+static void dev_dax_percpu_exit(void *data)
+{
+	struct percpu_ref *ref = data;
+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
+
+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	wait_for_completion(&dev_dax->cmp);
+	percpu_ref_exit(ref);
+}
+
+static void dev_dax_percpu_kill(struct percpu_ref *data)
+{
+	struct percpu_ref *ref = data;
+	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
+
+	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+	percpu_ref_kill(ref);
+}
 
 static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 		const char *func)
@@ -416,9 +449,37 @@ static int dev_dax_probe(struct device *dev)
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct dax_device *dax_dev = dev_dax->dax_dev;
+	struct resource *res = &dev_dax->region->res;
 	struct inode *inode;
 	struct cdev *cdev;
+	void *addr;
 	int rc;
+
+	/* 1:1 map region resource range to device-dax instance range */
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				dev_name(dev))) {
+		dev_warn(dev, "could not reserve region %pR\n", res);
+		return -EBUSY;
+	}
+
+	init_completion(&dev_dax->cmp);
+	rc = percpu_ref_init(&dev_dax->ref, dev_dax_percpu_release, 0,
+			GFP_KERNEL);
+	if (rc)
+		return rc;
+
+	rc = devm_add_action_or_reset(dev, dev_dax_percpu_exit, &dev_dax->ref);
+	if (rc)
+		return rc;
+
+	dev_dax->pgmap.ref = &dev_dax->ref;
+	dev_dax->pgmap.kill = dev_dax_percpu_kill;
+	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
+	if (IS_ERR(addr)) {
+		devm_remove_action(dev, dev_dax_percpu_exit, &dev_dax->ref);
+		percpu_ref_exit(&dev_dax->ref);
+		return PTR_ERR(addr);
+	}
 
 	inode = dax_inode(dax_dev);
 	cdev = inode->i_cdev;

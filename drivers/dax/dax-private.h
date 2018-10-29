@@ -42,15 +42,22 @@ struct dax_region {
 };
 
 /**
- * struct dev_dax - instance data for a subdivision of a dax region
+ * struct dev_dax - instance data for a subdivision of a dax region, and
+ * data while the device is activated in the driver.
  * @region - parent region
  * @dax_dev - core dax functionality
  * @dev - device core
+ * @pgmap - pgmap for memmap setup / lifetime (driver owned)
+ * @ref: pgmap reference count (driver owned)
+ * @cmp: @ref final put completion (driver owned)
  */
 struct dev_dax {
 	struct dax_region *region;
 	struct dax_device *dax_dev;
 	struct device dev;
+	struct dev_pagemap pgmap;
+	struct percpu_ref ref;
+	struct completion cmp;
 };
 
 static inline struct dev_dax *to_dev_dax(struct device *dev)

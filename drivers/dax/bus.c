@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2017-2018 Intel Corporation. All rights reserved. */
+#include <linux/memremap.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/dax.h>
@@ -206,7 +207,8 @@ static void unregister_dev_dax(void *dev)
 	put_device(dev);
 }
 
-struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id)
+struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
+		struct dev_pagemap *pgmap)
 {
 	struct device *parent = dax_region->dev;
 	struct dax_device *dax_dev;
@@ -221,6 +223,8 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id)
 	dev_dax = kzalloc(sizeof(*dev_dax), GFP_KERNEL);
 	if (!dev_dax)
 		return ERR_PTR(-ENOMEM);
+
+	memcpy(&dev_dax->pgmap, pgmap, sizeof(*pgmap));
 
 	/*
 	 * No 'host' or dax_operations since there is no access to this

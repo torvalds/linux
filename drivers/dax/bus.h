@@ -10,7 +10,8 @@ struct dax_region;
 void dax_region_put(struct dax_region *dax_region);
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 		struct resource *res, unsigned int align, unsigned long flags);
-struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id);
+struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region, int id,
+		struct dev_pagemap *pgmap);
 int __dax_driver_register(struct device_driver *drv,
 		struct module *module, const char *mod_name);
 #define dax_driver_register(driver) \
