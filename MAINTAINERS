@@ -1087,6 +1087,29 @@ F:	arch/arm/include/asm/arch_timer.h
 F:	arch/arm64/include/asm/arch_timer.h
 F:	drivers/clocksource/arm_arch_timer.c
 
+ARM INTEGRATOR, VERSATILE AND REALVIEW SUPPORT
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/arm/arm-boards
+F:	Documentation/devicetree/bindings/auxdisplay/arm-charlcd.txt
+F:	Documentation/devicetree/bindings/clock/arm-integrator.txt
+F:	Documentation/devicetree/bindings/interrupt-controller/arm,versatile-fpga-irq.txt
+F:	Documentation/devicetree/bindings/mtd/arm-versatile.txt
+F:	arch/arm/mach-integrator/
+F:	arch/arm/mach-realview/
+F:	arch/arm/mach-versatile/
+F:	arch/arm/plat-versatile/
+F:	arch/arm/boot/dts/arm-realview-*
+F:	arch/arm/boot/dts/integrator*
+F:	arch/arm/boot/dts/versatile*
+F:	drivers/clk/versatile/
+F:	drivers/i2c/busses/i2c-versatile.c
+F:	drivers/irqchip/irq-versatile-fpga.c
+F:	drivers/mtd/maps/physmap_of_versatile.c
+F:	drivers/power/reset/arm-versatile-reboot.c
+F:	drivers/soc/versatile/
+
 ARM HDLCD DRM DRIVER
 M:	Liviu Dudau <liviu.dudau@arm.com>
 S:	Supported
@@ -1159,11 +1182,25 @@ S:	Odd Fixes
 F:	drivers/mmc/host/mmci.*
 F:	include/linux/amba/mmci.h
 
+ARM PRIMECELL SSP PL022 SPI DRIVER
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/spi/spi_pl022.txt
+F:	drivers/spi/spi-pl022.c
+
 ARM PRIMECELL UART PL010 AND PL011 DRIVERS
 M:	Russell King <linux@armlinux.org.uk>
 S:	Odd Fixes
 F:	drivers/tty/serial/amba-pl01*.c
 F:	include/linux/amba/serial.h
+
+ARM PRIMECELL VIC PL190/PL192 DRIVER
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/interrupt-controller/arm,vic.txt
+F:	drivers/irqchip/irq-vic.c
 
 ARM SMMU DRIVERS
 M:	Will Deacon <will.deacon@arm.com>
@@ -1184,18 +1221,25 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
 
 ARM/ACTIONS SEMI ARCHITECTURE
 M:	Andreas Färber <afaerber@suse.de>
+R:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 N:	owl
 F:	arch/arm/mach-actions/
 F:	arch/arm/boot/dts/owl-*
 F:	arch/arm64/boot/dts/actions/
+F:	drivers/clk/actions/
 F:	drivers/clocksource/timer-owl*
+F:	drivers/dma/owl-dma.c
+F:	drivers/i2c/busses/i2c-owl.c
 F:	drivers/pinctrl/actions/*
 F:	drivers/soc/actions/
 F:	include/dt-bindings/power/owl-*
 F:	include/linux/soc/actions/
 F:	Documentation/devicetree/bindings/arm/actions.txt
+F:	Documentation/devicetree/bindings/clock/actions,owl-cmu.txt
+F:	Documentation/devicetree/bindings/dma/owl-dma.txt
+F:	Documentation/devicetree/bindings/i2c/i2c-owl.txt
 F:	Documentation/devicetree/bindings/pinctrl/actions,s900-pinctrl.txt
 F:	Documentation/devicetree/bindings/power/actions,owl-sps.txt
 F:	Documentation/devicetree/bindings/timer/actions,owl-timer.txt
@@ -1610,12 +1654,10 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/LPC18XX ARCHITECTURE
-M:	Joachim Eastwood <manabian@gmail.com>
+M:	Vladimir Zapolskiy <vz@mleia.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/lpc43*
-F:	drivers/clk/nxp/clk-lpc18xx*
-F:	drivers/clocksource/timer-lpc32xx.c
 F:	drivers/i2c/busses/i2c-lpc2k.c
 F:	drivers/memory/pl172.c
 F:	drivers/mtd/spi-nor/nxp-spifi.c
@@ -1714,9 +1756,10 @@ S:	Odd Fixes
 ARM/Microchip (AT91) SoC support
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.linux4sam.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nferre/linux-at91.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/at91/linux.git
 S:	Supported
 N:	at91
 N:	atmel
@@ -2096,22 +2139,24 @@ F:	include/linux/remoteproc/st_slim_rproc.h
 ARM/STM32 ARCHITECTURE
 M:	Maxime Coquelin <mcoquelin.stm32@gmail.com>
 M:	Alexandre Torgue <alexandre.torgue@st.com>
+L:	linux-stm32@st-md-mailman.stormreply.com (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32.git stm32-next
 N:	stm32
+N:	stm
 F:	arch/arm/boot/dts/stm32*
 F:	arch/arm/mach-stm32/
 F:	drivers/clocksource/armv7m_systick.c
 
-ARM/Synaptics Berlin SoC support
+ARM/Synaptics SoC support
 M:	Jisheng Zhang <Jisheng.Zhang@synaptics.com>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-berlin/
 F:	arch/arm/boot/dts/berlin*
-F:	arch/arm64/boot/dts/marvell/berlin*
+F:	arch/arm64/boot/dts/synaptics/
 
 ARM/TANGO ARCHITECTURE
 M:	Marc Gonzalez <marc.w.gonzalez@free.fr>
@@ -2275,7 +2320,6 @@ F:	arch/arm/mach-pxa/include/mach/z2.h
 
 ARM/ZTE ARCHITECTURE
 M:	Jun Nie <jun.nie@linaro.org>
-M:	Baoyou Xie <baoyou.xie@linaro.org>
 M:	Shawn Guo <shawnguo@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -2483,42 +2527,6 @@ F:	drivers/atm/
 F:	include/linux/atm*
 F:	include/uapi/linux/atm*
 
-ATMEL AT91 / AT32 MCI DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-S:	Maintained
-F:	drivers/mmc/host/atmel-mci.c
-
-ATMEL AT91 SAMA5D2-Compatible Shutdown Controller
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-S:	Supported
-F:	drivers/power/reset/at91-sama5d2_shdwc.c
-
-ATMEL Audio ALSA driver
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
-S:	Supported
-F:	sound/soc/atmel
-
-ATMEL I2C DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-i2c@vger.kernel.org
-S:	Supported
-F:	drivers/i2c/busses/i2c-at91.c
-
-ATMEL ISI DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-media@vger.kernel.org
-S:	Supported
-F:	drivers/media/platform/atmel/atmel-isi.c
-F:	include/media/atmel-isi.h
-
-ATMEL LCDFB DRIVER
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-L:	linux-fbdev@vger.kernel.org
-S:	Maintained
-F:	drivers/video/fbdev/atmel_lcdfb.c
-F:	include/video/atmel_lcdc.h
-
 ATMEL MACB ETHERNET DRIVER
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 S:	Supported
@@ -2531,43 +2539,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/input/atmel,maxtouch.txt
 F:	drivers/input/touchscreen/atmel_mxt_ts.c
 
-ATMEL SAMA5D2 ADC DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-iio@vger.kernel.org
-S:	Supported
-F:	drivers/iio/adc/at91-sama5d2_adc.c
-
-ATMEL SDMMC DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-mmc@vger.kernel.org
-S:	Supported
-F:	drivers/mmc/host/sdhci-of-at91.c
-
-ATMEL SPI DRIVER
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-S:	Supported
-F:	drivers/spi/spi-atmel.*
-
-ATMEL SSC DRIVER
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-F:	drivers/misc/atmel-ssc.c
-F:	include/linux/atmel-ssc.h
-
-ATMEL Timer Counter (TC) AND CLOCKSOURCE DRIVERS
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-F:	drivers/misc/atmel_tclib.c
-F:	drivers/clocksource/tcb_clksrc.c
-
-ATMEL USBA UDC DRIVER
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-F:	drivers/usb/gadget/udc/atmel_usba_udc.*
-
 ATMEL WIRELESS DRIVER
 M:	Simon Kelley <simon@thekelleys.org.uk>
 L:	linux-wireless@vger.kernel.org
@@ -2575,13 +2546,6 @@ W:	http://www.thekelleys.org.uk/atmel
 W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 F:	drivers/net/wireless/atmel/atmel*
-
-ATMEL XDMA DRIVER
-M:	Ludovic Desroches <ludovic.desroches@microchip.com>
-L:	linux-arm-kernel@lists.infradead.org
-L:	dmaengine@vger.kernel.org
-S:	Supported
-F:	drivers/dma/at_xdmac.c
 
 ATOMIC INFRASTRUCTURE
 M:	Will Deacon <will.deacon@arm.com>
@@ -8899,7 +8863,7 @@ S:	Maintained
 F:	drivers/net/phy/marvell10g.c
 
 MARVELL MVNETA ETHERNET DRIVER
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/marvell/mvneta.*
@@ -9624,14 +9588,20 @@ T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
 F:	arch/microblaze/
 
-MICROCHIP / ATMEL AT91 SERIAL DRIVER
+MICROCHIP AT91 SERIAL DRIVER
 M:	Richard Genoud <richard.genoud@gmail.com>
 S:	Maintained
 F:	drivers/tty/serial/atmel_serial.c
 F:	drivers/tty/serial/atmel_serial.h
 F:	Documentation/devicetree/bindings/mfd/atmel-usart.txt
 
-MICROCHIP / ATMEL DMA DRIVER
+MICROCHIP AUDIO ASOC DRIVERS
+M:	Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Supported
+F:	sound/soc/atmel
+
+MICROCHIP DMA DRIVER
 M:	Ludovic Desroches <ludovic.desroches@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	dmaengine@vger.kernel.org
@@ -9639,27 +9609,35 @@ S:	Supported
 F:	drivers/dma/at_hdmac.c
 F:	drivers/dma/at_hdmac_regs.h
 F:	include/linux/platform_data/dma-atmel.h
+F:	Documentation/devicetree/bindings/dma/atmel-dma.txt
+F:	include/dt-bindings/dma/at91.h
 
-MICROCHIP / ATMEL ECC DRIVER
+MICROCHIP ECC DRIVER
 M:	Tudor Ambarus <tudor.ambarus@microchip.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	drivers/crypto/atmel-ecc.*
 
-MICROCHIP / ATMEL ISC DRIVER
-M:	Songjun Wu <songjun.wu@microchip.com>
+MICROCHIP I2C DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/busses/i2c-at91.c
+
+MICROCHIP ISC DRIVER
+M:	Eugen Hristev <eugen.hristev@microchip.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
 F:	drivers/media/platform/atmel/atmel-isc.c
 F:	drivers/media/platform/atmel/atmel-isc-regs.h
 F:	devicetree/bindings/media/atmel-isc.txt
 
-MICROCHIP / ATMEL NAND DRIVER
-M:	Josh Wu <rainyfeeling@outlook.com>
-L:	linux-mtd@lists.infradead.org
+MICROCHIP ISI DRIVER
+M:	Eugen Hristev <eugen.hristev@microchip.com>
+L:	linux-media@vger.kernel.org
 S:	Supported
-F:	drivers/mtd/nand/raw/atmel/*
-F:	Documentation/devicetree/bindings/mtd/atmel-nand.txt
+F:	drivers/media/platform/atmel/atmel-isi.c
+F:	include/media/atmel-isi.h
 
 MICROCHIP AT91 USART MFD DRIVER
 M:	Radu Pirea <radu_nicolae.pirea@upb.ro>
@@ -9693,7 +9671,19 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/microchip/lan743x_*
 
-MICROCHIP / ATMEL MCP3911 ADC DRIVER
+MICROCHIP LCDFB DRIVER
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+F:	drivers/video/fbdev/atmel_lcdfb.c
+F:	include/video/atmel_lcdc.h
+
+MICROCHIP MMC/SD/SDIO MCI DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+S:	Maintained
+F:	drivers/mmc/host/atmel-mci.c
+
+MICROCHIP MCP3911 ADC DRIVER
 M:	Marcus Folkesson <marcus.folkesson@gmail.com>
 M:	Kent Gustavsson <kent@minoris.se>
 L:	linux-iio@vger.kernel.org
@@ -9701,12 +9691,73 @@ S:	Supported
 F:	drivers/iio/adc/mcp3911.c
 F:	Documentation/devicetree/bindings/iio/adc/mcp3911.txt
 
+MICROCHIP NAND DRIVER
+M:	Tudor Ambarus <tudor.ambarus@microchip.com>
+L:	linux-mtd@lists.infradead.org
+S:	Supported
+F:	drivers/mtd/nand/raw/atmel/*
+F:	Documentation/devicetree/bindings/mtd/atmel-nand.txt
+
+MICROCHIP PWM DRIVER
+M:	Claudiu Beznea <claudiu.beznea@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-pwm@vger.kernel.org
+S:	Supported
+F:	drivers/pwm/pwm-atmel.c
+F:	Documentation/devicetree/bindings/pwm/atmel-pwm.txt
+
+MICROCHIP SAMA5D2-COMPATIBLE ADC DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+M:	Eugen Hristev <eugen.hristev@microchip.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	drivers/iio/adc/at91-sama5d2_adc.c
+F:	Documentation/devicetree/bindings/iio/adc/at91-sama5d2_adc.txt
+F:	include/dt-bindings/iio/adc/at91-sama5d2_adc.h
+
+MICROCHIP SAMA5D2-COMPATIBLE SHUTDOWN CONTROLLER
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+S:	Supported
+F:	drivers/power/reset/at91-sama5d2_shdwc.c
+
+MICROCHIP SPI DRIVER
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+S:	Supported
+F:	drivers/spi/spi-atmel.*
+
+MICROCHIP SSC DRIVER
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/misc/atmel-ssc.c
+F:	include/linux/atmel-ssc.h
+
+MICROCHIP TIMER COUNTER (TC) AND CLOCKSOURCE DRIVERS
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/misc/atmel_tclib.c
+F:	drivers/clocksource/tcb_clksrc.c
+
+MICROCHIP USBA UDC DRIVER
+M:	Cristian Birsan <cristian.birsan@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/usb/gadget/udc/atmel_usba_udc.*
+
 MICROCHIP USB251XB DRIVER
 M:	Richard Leitner <richard.leitner@skidata.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/misc/usb251xb.c
 F:	Documentation/devicetree/bindings/usb/usb251xb.txt
+
+MICROCHIP XDMA DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org
+L:	dmaengine@vger.kernel.org
+S:	Supported
+F:	drivers/dma/at_xdmac.c
 
 MICROSEMI MIPS SOCS
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
@@ -11191,7 +11242,7 @@ S:	Maintained
 F:	drivers/firmware/pcdp.*
 
 PCI DRIVER FOR AARDVARK (Marvell Armada 3700)
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -11223,7 +11274,7 @@ F:	Documentation/devicetree/bindings/pci/versatile.txt
 F:	drivers/pci/controller/pci-versatile.c
 
 PCI DRIVER FOR ARMADA 8K
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -11292,7 +11343,7 @@ F:	Documentation/devicetree/bindings/pci/mobiveil-pcie.txt
 F:	drivers/pci/controller/pcie-mobiveil.c
 
 PCI DRIVER FOR MVEBU (Marvell Armada 370 and Armada XP SOC support)
-M:	Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 M:	Jason Cooper <jason@lakedaemon.net>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -13203,6 +13254,12 @@ L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/sdhci-pci-dwc-mshc.c
 
+SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) MICROCHIP DRIVER
+M:	Ludovic Desroches <ludovic.desroches@microchip.com>
+L:	linux-mmc@vger.kernel.org
+S:	Supported
+F:	drivers/mmc/host/sdhci-of-at91.c
+
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
 M:	Ben Dooks <ben-linux@fluff.org>
 M:	Jaehoon Chung <jh80.chung@samsung.com>
@@ -14626,7 +14683,6 @@ F:	Documentation/devicetree/bindings/arm/keystone/ti,sci.txt
 F:	drivers/firmware/ti_sci*
 F:	include/linux/soc/ti/ti_sci_protocol.h
 F:	Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
-F:	include/dt-bindings/genpd/k2g.h
 F:	drivers/soc/ti/ti_sci_pm_domains.c
 F:	Documentation/devicetree/bindings/reset/ti,sci-reset.txt
 F:	Documentation/devicetree/bindings/clock/ti,sci-clk.txt
