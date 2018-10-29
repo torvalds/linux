@@ -347,11 +347,11 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		tmo_gfx = 8 * AMDGPU_IB_TEST_TIMEOUT;
 	}
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
+	for (i = 0; i < adev->num_rings; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 		long tmo;
 
-		if (!ring || !ring->sched.ready)
+		if (!ring->sched.ready)
 			continue;
 
 		/* skip IB tests for KIQ in general for the below reasons:
@@ -374,20 +374,23 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 			tmo = tmo_gfx;
 
 		r = amdgpu_ring_test_ib(ring, tmo);
-		if (r) {
-			ring->sched.ready = false;
+		if (!r) {
+			DRM_DEV_DEBUG(adev->dev, "ib test on %s succeeded\n",
+				      ring->name);
+			continue;
+		}
 
-			if (ring == &adev->gfx.gfx_ring[0]) {
-				/* oh, oh, that's really bad */
-				DRM_ERROR("amdgpu: failed testing IB on GFX ring (%d).\n", r);
-				adev->accel_working = false;
-				return r;
+		ring->sched.ready = false;
+		DRM_DEV_ERROR(adev->dev, "IB test failed on %s (%d).\n",
+			  ring->name, r);
 
-			} else {
-				/* still not good, but we can live with it */
-				DRM_ERROR("amdgpu: failed testing IB on ring %d (%d).\n", i, r);
-				ret = r;
-			}
+		if (ring == &adev->gfx.gfx_ring[0]) {
+			/* oh, oh, that's really bad */
+			adev->accel_working = false;
+			return r;
+
+		} else {
+			ret = r;
 		}
 	}
 	return ret;
