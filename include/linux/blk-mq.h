@@ -114,6 +114,7 @@ typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
 typedef void (busy_tag_iter_fn)(struct request *, void *, bool);
 typedef int (poll_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (map_queues_fn)(struct blk_mq_tag_set *set);
+typedef bool (busy_fn)(struct request_queue *);
 
 
 struct blk_mq_ops {
@@ -164,6 +165,11 @@ struct blk_mq_ops {
 	exit_request_fn		*exit_request;
 	/* Called from inside blk_get_request() */
 	void (*initialize_rq_fn)(struct request *rq);
+
+	/*
+	 * If set, returns whether or not this queue currently is busy
+	 */
+	busy_fn			*busy;
 
 	map_queues_fn		*map_queues;
 
