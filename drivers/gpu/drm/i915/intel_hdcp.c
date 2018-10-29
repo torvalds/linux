@@ -427,7 +427,7 @@ int intel_hdcp_validate_v_prime(struct intel_digital_port *intel_dig_port,
 	if (intel_wait_for_register(dev_priv, HDCP_REP_CTL,
 				    HDCP_SHA1_COMPLETE,
 				    HDCP_SHA1_COMPLETE, 1)) {
-		DRM_DEBUG_KMS("Timed out waiting for SHA1 complete\n");
+		DRM_ERROR("Timed out waiting for SHA1 complete\n");
 		return -ETIMEDOUT;
 	}
 	if (!(I915_READ(HDCP_REP_CTL) & HDCP_SHA1_V_MATCH)) {
@@ -448,7 +448,7 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 
 	ret = intel_hdcp_poll_ksv_fifo(intel_dig_port, shim);
 	if (ret) {
-		DRM_ERROR("KSV list failed to become ready (%d)\n", ret);
+		DRM_DEBUG_KMS("KSV list failed to become ready (%d)\n", ret);
 		return ret;
 	}
 
@@ -458,7 +458,7 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 
 	if (DRM_HDCP_MAX_DEVICE_EXCEEDED(bstatus[0]) ||
 	    DRM_HDCP_MAX_CASCADE_EXCEEDED(bstatus[1])) {
-		DRM_ERROR("Max Topology Limit Exceeded\n");
+		DRM_DEBUG_KMS("Max Topology Limit Exceeded\n");
 		return -EPERM;
 	}
 
@@ -494,7 +494,7 @@ int intel_hdcp_auth_downstream(struct intel_digital_port *intel_dig_port,
 	}
 
 	if (i == tries) {
-		DRM_ERROR("V Prime validation failed.(%d)\n", ret);
+		DRM_DEBUG_KMS("V Prime validation failed.(%d)\n", ret);
 		goto err;
 	}
 
@@ -543,7 +543,7 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 		if (ret)
 			return ret;
 		if (!hdcp_capable) {
-			DRM_ERROR("Panel is not HDCP capable\n");
+			DRM_DEBUG_KMS("Panel is not HDCP capable\n");
 			return -EINVAL;
 		}
 	}
@@ -629,8 +629,8 @@ static int intel_hdcp_auth(struct intel_digital_port *intel_dig_port,
 	}
 
 	if (i == tries) {
-		DRM_ERROR("Timed out waiting for Ri prime match (%x)\n",
-			  I915_READ(PORT_HDCP_STATUS(port)));
+		DRM_DEBUG_KMS("Timed out waiting for Ri prime match (%x)\n",
+			      I915_READ(PORT_HDCP_STATUS(port)));
 		return -ETIMEDOUT;
 	}
 
@@ -718,7 +718,7 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 		_intel_hdcp_disable(connector);
 	}
 
-	DRM_ERROR("HDCP authentication failed (%d tries/%d)\n", tries, ret);
+	DRM_DEBUG_KMS("HDCP authentication failed (%d tries/%d)\n", tries, ret);
 	return ret;
 }
 
@@ -914,7 +914,7 @@ int intel_hdcp_check_link(struct intel_connector *connector)
 
 	ret = _intel_hdcp_enable(connector);
 	if (ret) {
-		DRM_ERROR("Failed to enable hdcp (%d)\n", ret);
+		DRM_DEBUG_KMS("Failed to enable hdcp (%d)\n", ret);
 		hdcp->value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
 		schedule_work(&hdcp->prop_work);
 		goto out;
