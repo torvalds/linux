@@ -341,8 +341,8 @@ static inline const char *kretprobed(const char *name)
 static void
 seq_print_sym(struct trace_seq *s, unsigned long address, bool offset)
 {
-	char str[KSYM_SYMBOL_LEN];
 #ifdef CONFIG_KALLSYMS
+	char str[KSYM_SYMBOL_LEN];
 	const char *name;
 
 	if (offset)
@@ -352,12 +352,11 @@ seq_print_sym(struct trace_seq *s, unsigned long address, bool offset)
 	name = kretprobed(str);
 
 	if (name && strlen(name)) {
-		trace_seq_printf(s, "%s", name);
+		trace_seq_puts(s, name);
 		return;
 	}
 #endif
-	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
-	trace_seq_printf(s, "%s", str);
+	trace_seq_printf(s, "0x%08lx", address);
 }
 
 #ifndef CONFIG_64BIT
