@@ -13,7 +13,8 @@
 
 enum {
 	MLX5E_TC_TUNNEL_TYPE_UNKNOWN,
-	MLX5E_TC_TUNNEL_TYPE_VXLAN
+	MLX5E_TC_TUNNEL_TYPE_VXLAN,
+	MLX5E_TC_TUNNEL_TYPE_GRETAP
 };
 
 int mlx5e_tc_tun_init_encap_attr(struct net_device *tunnel_dev,

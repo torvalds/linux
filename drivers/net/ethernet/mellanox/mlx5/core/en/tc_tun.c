@@ -2,6 +2,7 @@
 /* Copyright (c) 2018 Mellanox Technologies. */
 
 #include <net/vxlan.h>
+#include <net/gre.h>
 #include "lib/vxlan.h"
 #include "en/tc_tun.h"
 
@@ -109,6 +110,30 @@ static int mlx5e_gen_vxlan_header(char buf[], struct ip_tunnel_key *tun_key)
 	return 0;
 }
 
+static int mlx5e_gen_gre_header(char buf[], struct ip_tunnel_key *tun_key)
+{
+	__be32 tun_id = tunnel_id_to_key32(tun_key->tun_id);
+	int hdr_len;
+	struct gre_base_hdr *greh = (struct gre_base_hdr *)(buf);
+
+	/* the HW does not calculate GRE csum or sequences */
+	if (tun_key->tun_flags & (TUNNEL_CSUM | TUNNEL_SEQ))
+		return -EOPNOTSUPP;
+
+	greh->protocol = htons(ETH_P_TEB);
+
+	/* GRE key */
+	hdr_len = gre_calc_hlen(tun_key->tun_flags);
+	greh->flags = gre_tnl_flags_to_gre_flags(tun_key->tun_flags);
+	if (tun_key->tun_flags & TUNNEL_KEY) {
+		__be32 *ptr = (__be32 *)(((u8 *)greh) + hdr_len - 4);
+
+		*ptr = tun_id;
+	}
+
+	return 0;
+}
+
 static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
 				      struct mlx5e_encap_entry *e)
 {
@@ -118,6 +143,9 @@ static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
 	if (e->tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN) {
 		*ip_proto = IPPROTO_UDP;
 		err = mlx5e_gen_vxlan_header(buf, key);
+	} else if  (e->tunnel_type == MLX5E_TC_TUNNEL_TYPE_GRETAP) {
+		*ip_proto = IPPROTO_GRE;
+		err = mlx5e_gen_gre_header(buf, key);
 	} else {
 		pr_warn("mlx5: Cannot generate tunnel header for tunnel type (%d)\n"
 			, e->tunnel_type);
@@ -358,6 +386,9 @@ int mlx5e_tc_tun_get_type(struct net_device *tunnel_dev)
 {
 	if (netif_is_vxlan(tunnel_dev))
 		return MLX5E_TC_TUNNEL_TYPE_VXLAN;
+	else if (netif_is_gretap(tunnel_dev) ||
+		 netif_is_ip6gretap(tunnel_dev))
+		return MLX5E_TC_TUNNEL_TYPE_GRETAP;
 	else
 		return MLX5E_TC_TUNNEL_TYPE_UNKNOWN;
 }
@@ -369,6 +400,9 @@ bool mlx5e_tc_tun_device_to_offload(struct mlx5e_priv *priv,
 
 	if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN &&
 	    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap))
+		return true;
+	else if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_GRETAP &&
+		 MLX5_CAP_ESW(priv->mdev, nvgre_encap_decap))
 		return true;
 	else
 		return false;
@@ -394,6 +428,9 @@ int mlx5e_tc_tun_init_encap_attr(struct net_device *tunnel_dev,
 		}
 		e->reformat_type = MLX5_REFORMAT_TYPE_L2_TO_VXLAN;
 		e->tunnel_hlen = VXLAN_HLEN;
+	} else if (e->tunnel_type == MLX5E_TC_TUNNEL_TYPE_GRETAP) {
+		e->reformat_type = MLX5_REFORMAT_TYPE_L2_TO_NVGRE;
+		e->tunnel_hlen = gre_calc_hlen(e->tun_info.key.tun_flags);
 	} else {
 		e->reformat_type = -1;
 		e->tunnel_hlen = -1;
@@ -472,6 +509,53 @@ static int mlx5e_tc_tun_parse_vxlan(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static int mlx5e_tc_tun_parse_gretap(struct mlx5e_priv *priv,
+				     struct mlx5_flow_spec *spec,
+				     struct tc_cls_flower_offload *f,
+				     void *outer_headers_c,
+				     void *outer_headers_v)
+{
+	void *misc_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+				    misc_parameters);
+	void *misc_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				    misc_parameters);
+
+	if (!MLX5_CAP_ESW(priv->mdev, nvgre_encap_decap)) {
+		NL_SET_ERR_MSG_MOD(f->common.extack,
+				   "GRE HW offloading is not supported");
+		netdev_warn(priv->netdev, "GRE HW offloading is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, outer_headers_c, ip_protocol);
+	MLX5_SET(fte_match_set_lyr_2_4, outer_headers_v,
+		 ip_protocol, IPPROTO_GRE);
+
+	/* gre protocol*/
+	MLX5_SET_TO_ONES(fte_match_set_misc, misc_c, gre_protocol);
+	MLX5_SET(fte_match_set_misc, misc_v, gre_protocol, ETH_P_TEB);
+
+	/* gre key */
+	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		struct flow_dissector_key_keyid *mask = NULL;
+		struct flow_dissector_key_keyid *key = NULL;
+
+		mask = skb_flow_dissector_target(f->dissector,
+						 FLOW_DISSECTOR_KEY_ENC_KEYID,
+						 f->mask);
+		MLX5_SET(fte_match_set_misc, misc_c,
+			 gre_key.key, be32_to_cpu(mask->keyid));
+
+		key = skb_flow_dissector_target(f->dissector,
+						FLOW_DISSECTOR_KEY_ENC_KEYID,
+						f->key);
+		MLX5_SET(fte_match_set_misc, misc_v,
+			 gre_key.key, be32_to_cpu(key->keyid));
+	}
+
+	return 0;
+}
+
 int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		       struct mlx5e_priv *priv,
 		       struct mlx5_flow_spec *spec,
@@ -486,6 +570,9 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 	if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN) {
 		err = mlx5e_tc_tun_parse_vxlan(priv, spec, f,
 					       headers_c, headers_v);
+	} else if (tunnel_type == MLX5E_TC_TUNNEL_TYPE_GRETAP) {
+		err = mlx5e_tc_tun_parse_gretap(priv, spec, f,
+						headers_c, headers_v);
 	} else {
 		netdev_warn(priv->netdev,
 			    "decapsulation offload is not supported for %s net device (%d)\n",
