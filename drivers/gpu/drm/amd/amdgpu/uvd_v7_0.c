@@ -183,11 +183,8 @@ static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 		return 0;
 
 	r = amdgpu_ring_alloc(ring, 16);
-	if (r) {
-		DRM_ERROR("amdgpu: uvd enc failed to lock (%d)ring %d (%d).\n",
-			  ring->me, ring->idx, r);
+	if (r)
 		return r;
-	}
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_END);
 	amdgpu_ring_commit(ring);
 
@@ -197,14 +194,8 @@ static int uvd_v7_0_enc_ring_test_ring(struct amdgpu_ring *ring)
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
-		DRM_DEBUG("(%d)ring test on %d succeeded in %d usecs\n",
-			 ring->me, ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: (%d)ring %d test failed\n",
-			  ring->me, ring->idx);
+	if (i >= adev->usec_timeout)
 		r = -ETIMEDOUT;
-	}
 
 	return r;
 }
@@ -1229,11 +1220,9 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 
 	WREG32_SOC15(UVD, ring->me, mmUVD_CONTEXT_ID, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
-	if (r) {
-		DRM_ERROR("amdgpu: (%d)cp failed to lock ring %d (%d).\n",
-			  ring->me, ring->idx, r);
+	if (r)
 		return r;
-	}
+
 	amdgpu_ring_write(ring,
 		PACKET0(SOC15_REG_OFFSET(UVD, ring->me, mmUVD_CONTEXT_ID), 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
@@ -1245,14 +1234,9 @@ static int uvd_v7_0_ring_test_ring(struct amdgpu_ring *ring)
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
-		DRM_DEBUG("(%d)ring test on %d succeeded in %d usecs\n",
-			 ring->me, ring->idx, i);
-	} else {
-		DRM_ERROR("(%d)amdgpu: ring %d test failed (0x%08X)\n",
-			  ring->me, ring->idx, tmp);
-		r = -EINVAL;
-	}
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
+
 	return r;
 }
 
