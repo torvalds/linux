@@ -501,6 +501,19 @@ NOTE: This feature can be disabled for a specific Virtual Function (VF)::
 
   ip link set <pf dev> vf <vf id> spoofchk {off|on}
 
+IPsec Offload
+-------------
+The ixgbe driver supports IPsec Hardware Offload.  When creating Security
+Associations with "ip xfrm ..." the 'offload' tag option can be used to
+register the IPsec SA with the driver in order to get higher throughput in
+the secure communications.
+
+The offload is also supported for ixgbe's VFs, but the VF must be set as
+'trusted' and the support must be enabled with::
+
+  ethtool --set-priv-flags eth<x> vf-ipsec on
+  ip link set eth<x> vf <y> trust on
+
 
 Known Issues/Troubleshooting
 ============================
