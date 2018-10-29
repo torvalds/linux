@@ -14451,7 +14451,6 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct drm_framebuffer *fb = &intel_fb->base;
-	struct drm_format_name_buf format_name;
 	u32 pitch_limit;
 	unsigned int tiling, stride;
 	int ret = -EINVAL;
@@ -14482,39 +14481,14 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		}
 	}
 
-	/* Passed in modifier sanity checking. */
-	switch (mode_cmd->modifier[0]) {
-	case I915_FORMAT_MOD_Y_TILED_CCS:
-	case I915_FORMAT_MOD_Yf_TILED_CCS:
-		switch (mode_cmd->pixel_format) {
-		case DRM_FORMAT_XBGR8888:
-		case DRM_FORMAT_ABGR8888:
-		case DRM_FORMAT_XRGB8888:
-		case DRM_FORMAT_ARGB8888:
-			break;
-		default:
-			DRM_DEBUG_KMS("RC supported only with RGB8888 formats\n");
-			goto err;
-		}
-		/* fall through */
-	case I915_FORMAT_MOD_Yf_TILED:
-		if (mode_cmd->pixel_format == DRM_FORMAT_C8) {
-			DRM_DEBUG_KMS("Indexed format does not support Yf tiling\n");
-			goto err;
-		}
-		/* fall through */
-	case I915_FORMAT_MOD_Y_TILED:
-		if (INTEL_GEN(dev_priv) < 9) {
-			DRM_DEBUG_KMS("Unsupported tiling 0x%llx!\n",
-				      mode_cmd->modifier[0]);
-			goto err;
-		}
-		break;
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-		break;
-	default:
-		DRM_DEBUG_KMS("Unsupported fb modifier 0x%llx!\n",
+	if (!drm_any_plane_has_format(&dev_priv->drm,
+				      mode_cmd->pixel_format,
+				      mode_cmd->modifier[0])) {
+		struct drm_format_name_buf format_name;
+
+		DRM_DEBUG_KMS("unsupported pixel format %s / modifier 0x%llx\n",
+			      drm_get_format_name(mode_cmd->pixel_format,
+						  &format_name),
 			      mode_cmd->modifier[0]);
 		goto err;
 	}
@@ -14546,69 +14520,6 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] != stride) {
 		DRM_DEBUG_KMS("pitch (%d) must match tiling stride (%d)\n",
 			      mode_cmd->pitches[0], stride);
-		goto err;
-	}
-
-	/* Reject formats not supported by any plane early. */
-	switch (mode_cmd->pixel_format) {
-	case DRM_FORMAT_C8:
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
-		break;
-	case DRM_FORMAT_XRGB1555:
-		if (INTEL_GEN(dev_priv) > 3) {
-			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
-				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			goto err;
-		}
-		break;
-	case DRM_FORMAT_ABGR8888:
-		if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv) &&
-		    INTEL_GEN(dev_priv) < 9) {
-			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
-				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			goto err;
-		}
-		break;
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_XBGR2101010:
-		if (INTEL_GEN(dev_priv) < 4) {
-			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
-				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			goto err;
-		}
-		break;
-	case DRM_FORMAT_ABGR2101010:
-		if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
-			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
-				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			goto err;
-		}
-		break;
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_YVYU:
-	case DRM_FORMAT_VYUY:
-		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv)) {
-			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
-				      drm_get_format_name(mode_cmd->pixel_format, &format_name));
-			goto err;
-		}
-		break;
-	case DRM_FORMAT_NV12:
-		if (INTEL_GEN(dev_priv) < 9 || IS_SKYLAKE(dev_priv) ||
-		    IS_BROXTON(dev_priv)) {
-			DRM_DEBUG_KMS("unsupported pixel format: %s\n",
-				      drm_get_format_name(mode_cmd->pixel_format,
-							  &format_name));
-			goto err;
-		}
-		break;
-	default:
-		DRM_DEBUG_KMS("unsupported pixel format: %s\n",
-			      drm_get_format_name(mode_cmd->pixel_format, &format_name));
 		goto err;
 	}
 
