@@ -509,16 +509,18 @@ static void hns3_nic_set_rx_mode(struct net_device *netdev)
 	h->netdev_flags = new_flags;
 }
 
-void hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
+int hns3_update_promisc_mode(struct net_device *netdev, u8 promisc_flags)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 
 	if (h->ae_algo->ops->set_promisc_mode) {
-		h->ae_algo->ops->set_promisc_mode(h,
-						  promisc_flags & HNAE3_UPE,
-						  promisc_flags & HNAE3_MPE);
+		return h->ae_algo->ops->set_promisc_mode(h,
+						promisc_flags & HNAE3_UPE,
+						promisc_flags & HNAE3_MPE);
 	}
+
+	return 0;
 }
 
 void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
@@ -1494,18 +1496,22 @@ static int hns3_vlan_rx_kill_vid(struct net_device *netdev,
 	return ret;
 }
 
-static void hns3_restore_vlan(struct net_device *netdev)
+static int hns3_restore_vlan(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	int ret = 0;
 	u16 vid;
-	int ret;
 
 	for_each_set_bit(vid, priv->active_vlans, VLAN_N_VID) {
 		ret = hns3_vlan_rx_add_vid(netdev, htons(ETH_P_8021Q), vid);
-		if (ret)
-			netdev_warn(netdev, "Restore vlan: %d filter, ret:%d\n",
-				    vid, ret);
+		if (ret) {
+			netdev_err(netdev, "Restore vlan: %d filter, ret:%d\n",
+				   vid, ret);
+			return ret;
+		}
 	}
+
+	return ret;
 }
 
 static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
@@ -3257,11 +3263,12 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 }
 
 /* Set mac addr if it is configured. or leave it to the AE driver */
-static void hns3_init_mac_addr(struct net_device *netdev, bool init)
+static int hns3_init_mac_addr(struct net_device *netdev, bool init)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 	u8 mac_addr_temp[ETH_ALEN];
+	int ret = 0;
 
 	if (h->ae_algo->ops->get_mac_addr && init) {
 		h->ae_algo->ops->get_mac_addr(h, mac_addr_temp);
@@ -3276,8 +3283,9 @@ static void hns3_init_mac_addr(struct net_device *netdev, bool init)
 	}
 
 	if (h->ae_algo->ops->set_mac_addr)
-		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr, true);
+		ret = h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr, true);
 
+	return ret;
 }
 
 static int hns3_restore_fd_rules(struct net_device *netdev)
@@ -3490,20 +3498,29 @@ err_out:
 	return ret;
 }
 
-static void hns3_recover_hw_addr(struct net_device *ndev)
+static int hns3_recover_hw_addr(struct net_device *ndev)
 {
 	struct netdev_hw_addr_list *list;
 	struct netdev_hw_addr *ha, *tmp;
+	int ret = 0;
 
 	/* go through and sync uc_addr entries to the device */
 	list = &ndev->uc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list)
-		hns3_nic_uc_sync(ndev, ha->addr);
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		ret = hns3_nic_uc_sync(ndev, ha->addr);
+		if (ret)
+			return ret;
+	}
 
 	/* go through and sync mc_addr entries to the device */
 	list = &ndev->mc;
-	list_for_each_entry_safe(ha, tmp, &list->list, list)
-		hns3_nic_mc_sync(ndev, ha->addr);
+	list_for_each_entry_safe(ha, tmp, &list->list, list) {
+		ret = hns3_nic_mc_sync(ndev, ha->addr);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 static void hns3_remove_hw_addr(struct net_device *netdev)
@@ -3630,7 +3647,10 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 	int ret;
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		h->ae_algo->ops->reset_queue(h, i);
+		ret = h->ae_algo->ops->reset_queue(h, i);
+		if (ret)
+			return ret;
+
 		hns3_init_ring_hw(priv->ring_data[i].ring);
 
 		/* We need to clear tx ring here because self test will
@@ -3722,18 +3742,30 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	bool vlan_filter_enable;
 	int ret;
 
-	hns3_init_mac_addr(netdev, false);
-	hns3_recover_hw_addr(netdev);
-	hns3_update_promisc_mode(netdev, handle->netdev_flags);
+	ret = hns3_init_mac_addr(netdev, false);
+	if (ret)
+		return ret;
+
+	ret = hns3_recover_hw_addr(netdev);
+	if (ret)
+		return ret;
+
+	ret = hns3_update_promisc_mode(netdev, handle->netdev_flags);
+	if (ret)
+		return ret;
+
 	vlan_filter_enable = netdev->flags & IFF_PROMISC ? false : true;
 	hns3_enable_vlan_filter(netdev, vlan_filter_enable);
 
-
 	/* Hardware table is only clear when pf resets */
-	if (!(handle->flags & HNAE3_SUPPORT_VF))
-		hns3_restore_vlan(netdev);
+	if (!(handle->flags & HNAE3_SUPPORT_VF)) {
+		ret = hns3_restore_vlan(netdev);
+		return ret;
+	}
 
-	hns3_restore_fd_rules(netdev);
+	ret = hns3_restore_fd_rules(netdev);
+	if (ret)
+		return ret;
 
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);

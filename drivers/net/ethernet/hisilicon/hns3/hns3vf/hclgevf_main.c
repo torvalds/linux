@@ -925,12 +925,12 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
 	return status;
 }
 
-static void hclgevf_set_promisc_mode(struct hnae3_handle *handle,
-				     bool en_uc_pmc, bool en_mc_pmc)
+static int hclgevf_set_promisc_mode(struct hnae3_handle *handle,
+				    bool en_uc_pmc, bool en_mc_pmc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
-	hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc);
+	return hclgevf_cmd_set_promisc_mode(hdev, en_uc_pmc, en_mc_pmc);
 }
 
 static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
@@ -1080,7 +1080,7 @@ static int hclgevf_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 				    1, false, NULL, 0);
 }
 
-static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
+static int hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 msg_data[2];
@@ -1091,10 +1091,10 @@ static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	/* disable vf queue before send queue reset msg to PF */
 	ret = hclgevf_tqp_enable(hdev, queue_id, 0, false);
 	if (ret)
-		return;
+		return ret;
 
-	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data,
-			     2, true, NULL, 0);
+	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data,
+				    2, true, NULL, 0);
 }
 
 static int hclgevf_notify_client(struct hclgevf_dev *hdev,
