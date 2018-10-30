@@ -327,10 +327,6 @@ EXPORT_SYMBOL(match_strlcpy);
  */
 char *match_strdup(const substring_t *s)
 {
-	size_t sz = s->to - s->from + 1;
-	char *p = kmalloc(sz, GFP_KERNEL);
-	if (p)
-		match_strlcpy(p, s, sz);
-	return p;
+	return kmemdup_nul(s->from, s->to - s->from, GFP_KERNEL);
 }
 EXPORT_SYMBOL(match_strdup);
