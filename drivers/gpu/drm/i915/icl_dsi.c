@@ -28,12 +28,83 @@
 #include <drm/drm_mipi_dsi.h>
 #include "intel_dsi.h"
 
+static inline int header_credits_available(struct drm_i915_private *dev_priv,
+					   enum transcoder dsi_trans)
+{
+	return (I915_READ(DSI_CMD_TXCTL(dsi_trans)) & FREE_HEADER_CREDIT_MASK)
+		>> FREE_HEADER_CREDIT_SHIFT;
+}
+
+static inline int payload_credits_available(struct drm_i915_private *dev_priv,
+					    enum transcoder dsi_trans)
+{
+	return (I915_READ(DSI_CMD_TXCTL(dsi_trans)) & FREE_PLOAD_CREDIT_MASK)
+		>> FREE_PLOAD_CREDIT_SHIFT;
+}
+
+static void wait_for_header_credits(struct drm_i915_private *dev_priv,
+				    enum transcoder dsi_trans)
+{
+	if (wait_for_us(header_credits_available(dev_priv, dsi_trans) >=
+			MAX_HEADER_CREDIT, 100))
+		DRM_ERROR("DSI header credits not released\n");
+}
+
+static void wait_for_payload_credits(struct drm_i915_private *dev_priv,
+				     enum transcoder dsi_trans)
+{
+	if (wait_for_us(payload_credits_available(dev_priv, dsi_trans) >=
+			MAX_PLOAD_CREDIT, 100))
+		DRM_ERROR("DSI payload credits not released\n");
+}
+
 static enum transcoder dsi_port_to_transcoder(enum port port)
 {
 	if (port == PORT_A)
 		return TRANSCODER_DSI_0;
 	else
 		return TRANSCODER_DSI_1;
+}
+
+static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct mipi_dsi_device *dsi;
+	enum port port;
+	enum transcoder dsi_trans;
+	int ret;
+
+	/* wait for header/payload credits to be released */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		wait_for_header_credits(dev_priv, dsi_trans);
+		wait_for_payload_credits(dev_priv, dsi_trans);
+	}
+
+	/* send nop DCS command */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi = intel_dsi->dsi_hosts[port]->device;
+		dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+		dsi->channel = 0;
+		ret = mipi_dsi_dcs_nop(dsi);
+		if (ret < 0)
+			DRM_ERROR("error sending DCS NOP command\n");
+	}
+
+	/* wait for header credits to be released */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		wait_for_header_credits(dev_priv, dsi_trans);
+	}
+
+	/* wait for LP TX in progress bit to be cleared */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		if (wait_for_us(!(I915_READ(DSI_LP_MSG(dsi_trans)) &
+				  LPTX_IN_PROGRESS), 20))
+			DRM_ERROR("LPTX bit not cleared\n");
+	}
 }
 
 static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
@@ -671,6 +742,9 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_INIT_OTP);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
+
+	/* ensure all panel commands dispatched before enabling transcoder */
+	wait_for_cmds_dispatched_to_panel(encoder);
 }
 
 static void __attribute__((unused))
