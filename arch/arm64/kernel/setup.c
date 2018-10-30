@@ -217,8 +217,9 @@ static void __init request_standard_resources(void)
 	kernel_data.end     = __pa_symbol(_end - 1);
 
 	num_standard_resources = memblock.memory.cnt;
-	standard_resources = alloc_bootmem_low(num_standard_resources *
-					       sizeof(*standard_resources));
+	standard_resources = memblock_alloc_low(num_standard_resources *
+					        sizeof(*standard_resources),
+					        0);
 
 	for_each_memblock(memory, region) {
 		res = &standard_resources[i++];
