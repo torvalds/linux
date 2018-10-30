@@ -504,6 +504,10 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 	unsigned int fmt;
 	unsigned int sample_min;
 	unsigned int channel_max;
+	unsigned int channel_maxs[] = {
+		6, /* rx */
+		8  /* tx */
+	};
 
 	if (tx)
 		fmt = pcm3168a->dac_fmt;
@@ -528,18 +532,9 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 		channel_max =  2;
 		break;
 	case PCM3168A_FMT_LEFT_J:
-		sample_min  = 24;
-		if (tx)
-			channel_max = 8;
-		else
-			channel_max = 6;
-		break;
 	case PCM3168A_FMT_I2S:
 		sample_min  = 24;
-		if (tx)
-			channel_max = 8;
-		else
-			channel_max = 6;
+		channel_max = channel_maxs[tx];
 		break;
 	default:
 		sample_min  = 24;
