@@ -726,7 +726,7 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
 	u64 size;
 	int i;
 
-	provider = memblock_virt_alloc(sizeof(*provider), 0);
+	provider = memblock_alloc(sizeof(*provider), 0);
 	if (!provider)
 		return -ENOMEM;
 
@@ -736,12 +736,12 @@ static int __init _setup_clkctrl_provider(struct device_node *np)
 		of_property_count_elems_of_size(np, "reg", sizeof(u32)) / 2;
 
 	provider->addr =
-		memblock_virt_alloc(sizeof(void *) * provider->num_addrs, 0);
+		memblock_alloc(sizeof(void *) * provider->num_addrs, 0);
 	if (!provider->addr)
 		return -ENOMEM;
 
 	provider->size =
-		memblock_virt_alloc(sizeof(u32) * provider->num_addrs, 0);
+		memblock_alloc(sizeof(u32) * provider->num_addrs, 0);
 	if (!provider->size)
 		return -ENOMEM;
 

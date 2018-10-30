@@ -1179,7 +1179,7 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 
 static void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 {
-	return memblock_virt_alloc(size, align);
+	return memblock_alloc(size, align);
 }
 
 bool __init early_init_dt_verify(void *params)

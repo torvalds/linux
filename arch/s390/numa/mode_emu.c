@@ -313,7 +313,7 @@ static void __ref create_core_to_node_map(void)
 {
 	int i;
 
-	emu_cores = memblock_virt_alloc(sizeof(*emu_cores), 8);
+	emu_cores = memblock_alloc(sizeof(*emu_cores), 8);
 	for (i = 0; i < ARRAY_SIZE(emu_cores->to_node_id); i++)
 		emu_cores->to_node_id[i] = NODE_ID_FREE;
 }

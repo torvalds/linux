@@ -28,10 +28,10 @@ static p4d_t tmp_p4d_table[MAX_PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
 static __init void *early_alloc(size_t size, int nid, bool panic)
 {
 	if (panic)
-		return memblock_virt_alloc_try_nid(size, size,
+		return memblock_alloc_try_nid(size, size,
 			__pa(MAX_DMA_ADDRESS), BOOTMEM_ALLOC_ACCESSIBLE, nid);
 	else
-		return memblock_virt_alloc_try_nid_nopanic(size, size,
+		return memblock_alloc_try_nid_nopanic(size, size,
 			__pa(MAX_DMA_ADDRESS), BOOTMEM_ALLOC_ACCESSIBLE, nid);
 }
 

@@ -95,78 +95,78 @@ extern void *__alloc_bootmem_low(unsigned long size,
 #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
 
 /* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
-void *memblock_virt_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
+void *memblock_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
 				      phys_addr_t min_addr,
 				      phys_addr_t max_addr, int nid);
-void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
+void *memblock_alloc_try_nid_nopanic(phys_addr_t size,
 		phys_addr_t align, phys_addr_t min_addr,
 		phys_addr_t max_addr, int nid);
-void *memblock_virt_alloc_try_nid(phys_addr_t size, phys_addr_t align,
+void *memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
 		phys_addr_t min_addr, phys_addr_t max_addr, int nid);
 void __memblock_free_early(phys_addr_t base, phys_addr_t size);
 void __memblock_free_late(phys_addr_t base, phys_addr_t size);
 
-static inline void * __init memblock_virt_alloc(
+static inline void * __init memblock_alloc(
 					phys_addr_t size,  phys_addr_t align)
 {
-	return memblock_virt_alloc_try_nid(size, align, BOOTMEM_LOW_LIMIT,
+	return memblock_alloc_try_nid(size, align, BOOTMEM_LOW_LIMIT,
 					    BOOTMEM_ALLOC_ACCESSIBLE,
 					    NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_virt_alloc_raw(
+static inline void * __init memblock_alloc_raw(
 					phys_addr_t size,  phys_addr_t align)
 {
-	return memblock_virt_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
+	return memblock_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
 					    BOOTMEM_ALLOC_ACCESSIBLE,
 					    NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_virt_alloc_nopanic(
+static inline void * __init memblock_alloc_nopanic(
 					phys_addr_t size, phys_addr_t align)
 {
-	return memblock_virt_alloc_try_nid_nopanic(size, align,
+	return memblock_alloc_try_nid_nopanic(size, align,
 						    BOOTMEM_LOW_LIMIT,
 						    BOOTMEM_ALLOC_ACCESSIBLE,
 						    NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_virt_alloc_low(
+static inline void * __init memblock_alloc_low(
 					phys_addr_t size, phys_addr_t align)
 {
-	return memblock_virt_alloc_try_nid(size, align,
+	return memblock_alloc_try_nid(size, align,
 						   BOOTMEM_LOW_LIMIT,
 						   ARCH_LOW_ADDRESS_LIMIT,
 						   NUMA_NO_NODE);
 }
-static inline void * __init memblock_virt_alloc_low_nopanic(
+static inline void * __init memblock_alloc_low_nopanic(
 					phys_addr_t size, phys_addr_t align)
 {
-	return memblock_virt_alloc_try_nid_nopanic(size, align,
+	return memblock_alloc_try_nid_nopanic(size, align,
 						   BOOTMEM_LOW_LIMIT,
 						   ARCH_LOW_ADDRESS_LIMIT,
 						   NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_virt_alloc_from_nopanic(
+static inline void * __init memblock_alloc_from_nopanic(
 		phys_addr_t size, phys_addr_t align, phys_addr_t min_addr)
 {
-	return memblock_virt_alloc_try_nid_nopanic(size, align, min_addr,
+	return memblock_alloc_try_nid_nopanic(size, align, min_addr,
 						    BOOTMEM_ALLOC_ACCESSIBLE,
 						    NUMA_NO_NODE);
 }
 
-static inline void * __init memblock_virt_alloc_node(
+static inline void * __init memblock_alloc_node(
 						phys_addr_t size, int nid)
 {
-	return memblock_virt_alloc_try_nid(size, 0, BOOTMEM_LOW_LIMIT,
+	return memblock_alloc_try_nid(size, 0, BOOTMEM_LOW_LIMIT,
 					    BOOTMEM_ALLOC_ACCESSIBLE, nid);
 }
 
-static inline void * __init memblock_virt_alloc_node_nopanic(
+static inline void * __init memblock_alloc_node_nopanic(
 						phys_addr_t size, int nid)
 {
-	return memblock_virt_alloc_try_nid_nopanic(size, 0, BOOTMEM_LOW_LIMIT,
+	return memblock_alloc_try_nid_nopanic(size, 0, BOOTMEM_LOW_LIMIT,
 						    BOOTMEM_ALLOC_ACCESSIBLE,
 						    nid);
 }

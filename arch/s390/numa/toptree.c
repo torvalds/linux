@@ -34,7 +34,7 @@ struct toptree __ref *toptree_alloc(int level, int id)
 	if (slab_is_available())
 		res = kzalloc(sizeof(*res), GFP_KERNEL);
 	else
-		res = memblock_virt_alloc(sizeof(*res), 8);
+		res = memblock_alloc(sizeof(*res), 8);
 	if (!res)
 		return res;
 

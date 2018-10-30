@@ -859,7 +859,7 @@ static void __init arch_mem_init(char **cmdline_p)
 	 * Prevent memblock from allocating high memory.
 	 * This cannot be done before max_low_pfn is detected, so up
 	 * to this point is possible to only reserve physical memory
-	 * with memblock_reserve; memblock_virt_alloc* can be used
+	 * with memblock_reserve; memblock_alloc* can be used
 	 * only after this point
 	 */
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));

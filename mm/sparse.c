@@ -68,7 +68,7 @@ static noinline struct mem_section __ref *sparse_index_alloc(int nid)
 	if (slab_is_available())
 		section = kzalloc_node(array_size, GFP_KERNEL, nid);
 	else
-		section = memblock_virt_alloc_node(array_size, nid);
+		section = memblock_alloc_node(array_size, nid);
 
 	return section;
 }
@@ -216,7 +216,7 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
 
 		size = sizeof(struct mem_section*) * NR_SECTION_ROOTS;
 		align = 1 << (INTERNODE_CACHE_SHIFT);
-		mem_section = memblock_virt_alloc(size, align);
+		mem_section = memblock_alloc(size, align);
 	}
 #endif
 
@@ -306,7 +306,7 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
 	limit = goal + (1UL << PA_SECTION_SHIFT);
 	nid = early_pfn_to_nid(goal >> PAGE_SHIFT);
 again:
-	p = memblock_virt_alloc_try_nid_nopanic(size,
+	p = memblock_alloc_try_nid_nopanic(size,
 						SMP_CACHE_BYTES, goal, limit,
 						nid);
 	if (!p && limit) {
@@ -362,7 +362,7 @@ static unsigned long * __init
 sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
 					 unsigned long size)
 {
-	return memblock_virt_alloc_node_nopanic(size, pgdat->node_id);
+	return memblock_alloc_node_nopanic(size, pgdat->node_id);
 }
 
 static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
@@ -391,7 +391,7 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
 	if (map)
 		return map;
 
-	map = memblock_virt_alloc_try_nid(size,
+	map = memblock_alloc_try_nid(size,
 					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
 					  BOOTMEM_ALLOC_ACCESSIBLE, nid);
 	return map;
@@ -405,7 +405,7 @@ static void __init sparse_buffer_init(unsigned long size, int nid)
 {
 	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
 	sparsemap_buf =
-		memblock_virt_alloc_try_nid_raw(size, PAGE_SIZE,
+		memblock_alloc_try_nid_raw(size, PAGE_SIZE,
 						__pa(MAX_DMA_ADDRESS),
 						BOOTMEM_ALLOC_ACCESSIBLE, nid);
 	sparsemap_buf_end = sparsemap_buf + size;

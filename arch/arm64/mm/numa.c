@@ -168,7 +168,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
 {
 	int nid = early_cpu_to_node(cpu);
 
-	return  memblock_virt_alloc_try_nid(size, align,
+	return  memblock_alloc_try_nid(size, align,
 			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 }
 

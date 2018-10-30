@@ -342,7 +342,7 @@ void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem)
 {
 	struct clk_iomap *io;
 
-	io = memblock_virt_alloc(sizeof(*io), 0);
+	io = memblock_alloc(sizeof(*io), 0);
 
 	io->mem = mem;
 
