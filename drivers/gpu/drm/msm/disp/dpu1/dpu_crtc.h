@@ -277,8 +277,9 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en);
 /**
  * dpu_crtc_commit_kickoff - trigger kickoff of the commit for this crtc
  * @crtc: Pointer to drm crtc object
+ * @async: true if the commit is asynchronous, false otherwise
  */
-void dpu_crtc_commit_kickoff(struct drm_crtc *crtc);
+void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async);
 
 /**
  * dpu_crtc_complete_commit - callback signalling completion of current commit

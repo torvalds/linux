@@ -1375,7 +1375,8 @@ static void dpu_encoder_off_work(struct kthread_work *work)
  * extra_flush_bits: Additional bit mask to include in flush trigger
  */
 static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
-		struct dpu_encoder_phys *phys, uint32_t extra_flush_bits)
+		struct dpu_encoder_phys *phys, uint32_t extra_flush_bits,
+		bool async)
 {
 	struct dpu_hw_ctl *ctl;
 	int pending_kickoff_cnt;
@@ -1398,7 +1399,10 @@ static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 		return;
 	}
 
-	pending_kickoff_cnt = dpu_encoder_phys_inc_pending(phys);
+	if (!async)
+		pending_kickoff_cnt = dpu_encoder_phys_inc_pending(phys);
+	else
+		pending_kickoff_cnt = atomic_read(&phys->pending_kickoff_cnt);
 
 	if (extra_flush_bits && ctl->ops.update_pending_flush)
 		ctl->ops.update_pending_flush(ctl, extra_flush_bits);
@@ -1511,7 +1515,8 @@ static void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc)
  *	a time.
  * dpu_enc: Pointer to virtual encoder structure
  */
-static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
+static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc,
+				      bool async)
 {
 	struct dpu_hw_ctl *ctl;
 	uint32_t i, pending_flush;
@@ -1542,7 +1547,8 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
 			set_bit(i, dpu_enc->frame_busy_mask);
 		if (!phys->ops.needs_single_flush ||
 				!phys->ops.needs_single_flush(phys))
-			_dpu_encoder_trigger_flush(&dpu_enc->base, phys, 0x0);
+			_dpu_encoder_trigger_flush(&dpu_enc->base, phys, 0x0,
+						   async);
 		else if (ctl->ops.get_pending_flush)
 			pending_flush |= ctl->ops.get_pending_flush(ctl);
 	}
@@ -1552,7 +1558,7 @@ static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
 		_dpu_encoder_trigger_flush(
 				&dpu_enc->base,
 				dpu_enc->cur_master,
-				pending_flush);
+				pending_flush, async);
 	}
 
 	_dpu_encoder_trigger_start(dpu_enc->cur_master);
@@ -1736,7 +1742,7 @@ static void dpu_encoder_vsync_event_work_handler(struct kthread_work *work)
 }
 
 void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
-		struct dpu_encoder_kickoff_params *params)
+		struct dpu_encoder_kickoff_params *params, bool async)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
@@ -1775,7 +1781,7 @@ void dpu_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 	}
 }
 
-void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
+void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
@@ -1798,7 +1804,7 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 		((atomic_read(&dpu_enc->frame_done_timeout) * HZ) / 1000));
 
 	/* All phys encs are ready to go, trigger the kickoff */
-	_dpu_encoder_kickoff_phys(dpu_enc);
+	_dpu_encoder_kickoff_phys(dpu_enc, async);
 
 	/* allow phys encs to handle any post-kickoff business */
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
