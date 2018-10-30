@@ -44,6 +44,7 @@
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
+#include "dcn10_clk_mgr.h"
 
 static unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
 {
@@ -463,19 +464,22 @@ static unsigned int dcn10_get_otg_states(struct dc *dc, char *pBuf, unsigned int
 static unsigned int dcn10_get_clock_states(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	unsigned int chars_printed = 0;
+	unsigned int remaining_buffer = bufSize;
 
-	chars_printed = snprintf_count(pBuf, bufSize, "dcfclk_khz,dcfclk_deep_sleep_khz,dispclk_khz,"
-		"dppclk_khz,max_supported_dppclk_khz,fclk_khz,socclk_khz\n"
-		"%d,%d,%d,%d,%d,%d,%d\n",
+	chars_printed = snprintf_count(pBuf, bufSize, "dcfclk,dcfclk_deep_sleep,dispclk,"
+		"dppclk,fclk,socclk\n"
+		"%d,%d,%d,%d,%d,%d\n",
 		dc->current_state->bw.dcn.clk.dcfclk_khz,
 		dc->current_state->bw.dcn.clk.dcfclk_deep_sleep_khz,
 		dc->current_state->bw.dcn.clk.dispclk_khz,
 		dc->current_state->bw.dcn.clk.dppclk_khz,
-		dc->current_state->bw.dcn.clk.max_supported_dppclk_khz,
 		dc->current_state->bw.dcn.clk.fclk_khz,
 		dc->current_state->bw.dcn.clk.socclk_khz);
 
-	return chars_printed;
+	remaining_buffer -= chars_printed;
+	pBuf += chars_printed;
+
+	return bufSize - remaining_buffer;
 }
 
 static void dcn10_clear_otpc_underflow(struct dc *dc)
@@ -538,16 +542,16 @@ void dcn10_get_hw_state(struct dc *dc, char *pBuf, unsigned int bufSize, unsigne
 	 *  Bit 0 - 15: Hardware block mask
 	 *  Bit 15: 1 = Invariant Only, 0 = All
 	 */
-	const unsigned int DC_HW_STATE_MASK_HUBBUB 	= 0x1;
-	const unsigned int DC_HW_STATE_MASK_HUBP 	= 0x2;
-	const unsigned int DC_HW_STATE_MASK_RQ 		= 0x4;
-	const unsigned int DC_HW_STATE_MASK_DLG 	= 0x8;
-	const unsigned int DC_HW_STATE_MASK_TTU 	= 0x10;
-	const unsigned int DC_HW_STATE_MASK_CM 		= 0x20;
-	const unsigned int DC_HW_STATE_MASK_MPCC 	= 0x40;
-	const unsigned int DC_HW_STATE_MASK_OTG 	= 0x80;
-	const unsigned int DC_HW_STATE_MASK_CLOCKS 	= 0x100;
-	const unsigned int DC_HW_STATE_INVAR_ONLY	= 0x8000;
+	const unsigned int DC_HW_STATE_MASK_HUBBUB			= 0x1;
+	const unsigned int DC_HW_STATE_MASK_HUBP			= 0x2;
+	const unsigned int DC_HW_STATE_MASK_RQ				= 0x4;
+	const unsigned int DC_HW_STATE_MASK_DLG				= 0x8;
+	const unsigned int DC_HW_STATE_MASK_TTU				= 0x10;
+	const unsigned int DC_HW_STATE_MASK_CM				= 0x20;
+	const unsigned int DC_HW_STATE_MASK_MPCC			= 0x40;
+	const unsigned int DC_HW_STATE_MASK_OTG				= 0x80;
+	const unsigned int DC_HW_STATE_MASK_CLOCKS			= 0x100;
+	const unsigned int DC_HW_STATE_INVAR_ONLY			= 0x8000;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buf_size = bufSize;
@@ -603,6 +607,9 @@ void dcn10_get_hw_state(struct dc *dc, char *pBuf, unsigned int bufSize, unsigne
 		remaining_buf_size -= chars_printed;
 	}
 
-	if ((mask & DC_HW_STATE_MASK_CLOCKS) && remaining_buf_size > 0)
+	if ((mask & DC_HW_STATE_MASK_CLOCKS) && remaining_buf_size > 0) {
 		chars_printed = dcn10_get_clock_states(dc, pBuf, remaining_buf_size);
+		pBuf += chars_printed;
+		remaining_buf_size -= chars_printed;
+	}
 }
