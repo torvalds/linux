@@ -306,6 +306,7 @@ static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.init		= rsnd_dvc_init,
 	.quit		= rsnd_dvc_quit,
 	.pcm_new	= rsnd_dvc_pcm_new,
+	.get_status	= rsnd_mod_get_status,
 };
 
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id)
@@ -365,7 +366,7 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(dvc), &rsnd_dvc_ops,
-				    clk, rsnd_mod_get_status, RSND_MOD_DVC, i);
+				    clk, RSND_MOD_DVC, i);
 		if (ret) {
 			of_node_put(np);
 			goto rsnd_dvc_probe_done;

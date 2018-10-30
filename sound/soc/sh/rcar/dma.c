@@ -289,12 +289,13 @@ static int rsnd_dmaen_pointer(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_dmaen_ops = {
-	.name	= "audmac",
-	.prepare = rsnd_dmaen_prepare,
-	.cleanup = rsnd_dmaen_cleanup,
-	.start	= rsnd_dmaen_start,
-	.stop	= rsnd_dmaen_stop,
-	.pointer= rsnd_dmaen_pointer,
+	.name		= "audmac",
+	.prepare	= rsnd_dmaen_prepare,
+	.cleanup	= rsnd_dmaen_cleanup,
+	.start		= rsnd_dmaen_start,
+	.stop		= rsnd_dmaen_stop,
+	.pointer	= rsnd_dmaen_pointer,
+	.get_status	= rsnd_mod_get_status,
 };
 
 /*
@@ -477,10 +478,11 @@ static int rsnd_dmapp_attach(struct rsnd_dai_stream *io,
 }
 
 static struct rsnd_mod_ops rsnd_dmapp_ops = {
-	.name	= "audmac-pp",
-	.start	= rsnd_dmapp_start,
-	.stop	= rsnd_dmapp_stop,
-	.quit	= rsnd_dmapp_stop,
+	.name		= "audmac-pp",
+	.start		= rsnd_dmapp_start,
+	.stop		= rsnd_dmapp_stop,
+	.quit		= rsnd_dmapp_stop,
+	.get_status	= rsnd_mod_get_status,
 };
 
 /*
@@ -756,7 +758,7 @@ static int rsnd_dma_alloc(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 	*dma_mod = rsnd_mod_get(dma);
 
 	ret = rsnd_mod_init(priv, *dma_mod, ops, NULL,
-			    rsnd_mod_get_status, type, dma_id);
+			    type, dma_id);
 	if (ret < 0)
 		return ret;
 
@@ -823,5 +825,5 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 	priv->dma = dmac;
 
 	/* dummy mem mod for debug */
-	return rsnd_mod_init(NULL, &mem, &mem_ops, NULL, NULL, 0, 0);
+	return rsnd_mod_init(NULL, &mem, &mem_ops, NULL, 0, 0);
 }

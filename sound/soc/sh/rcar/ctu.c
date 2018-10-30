@@ -341,6 +341,7 @@ static struct rsnd_mod_ops rsnd_ctu_ops = {
 	.quit		= rsnd_ctu_quit,
 	.hw_params	= rsnd_ctu_hw_params,
 	.pcm_new	= rsnd_ctu_pcm_new,
+	.get_status	= rsnd_mod_get_status,
 };
 
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
@@ -404,7 +405,7 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ctu), &rsnd_ctu_ops,
-				    clk, rsnd_mod_get_status, RSND_MOD_CTU, i);
+				    clk, RSND_MOD_CTU, i);
 		if (ret) {
 			of_node_put(np);
 			goto rsnd_ctu_probe_done;

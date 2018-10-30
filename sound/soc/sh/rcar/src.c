@@ -527,16 +527,17 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_src_ops = {
-	.name	= SRC_NAME,
-	.dma_req = rsnd_src_dma_req,
-	.probe	= rsnd_src_probe_,
-	.init	= rsnd_src_init,
-	.quit	= rsnd_src_quit,
-	.start	= rsnd_src_start,
-	.stop	= rsnd_src_stop,
-	.irq	= rsnd_src_irq,
-	.hw_params = rsnd_src_hw_params,
-	.pcm_new = rsnd_src_pcm_new,
+	.name		= SRC_NAME,
+	.dma_req	= rsnd_src_dma_req,
+	.probe		= rsnd_src_probe_,
+	.init		= rsnd_src_init,
+	.quit		= rsnd_src_quit,
+	.start		= rsnd_src_start,
+	.stop		= rsnd_src_stop,
+	.irq		= rsnd_src_irq,
+	.hw_params	= rsnd_src_hw_params,
+	.pcm_new	= rsnd_src_pcm_new,
+	.get_status	= rsnd_mod_get_status,
 };
 
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
@@ -605,8 +606,7 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(src),
-				    &rsnd_src_ops, clk, rsnd_mod_get_status,
-				    RSND_MOD_SRC, i);
+				    &rsnd_src_ops, clk, RSND_MOD_SRC, i);
 		if (ret) {
 			of_node_put(np);
 			goto rsnd_src_probe_done;

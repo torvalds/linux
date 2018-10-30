@@ -22,6 +22,16 @@ struct rsnd_ssiu {
 		     ((pos) = ((struct rsnd_ssiu *)(priv)->ssiu + i));	\
 	     i++)
 
+static u32 *rsnd_ssiu_get_status(struct rsnd_mod *mod,
+				 struct rsnd_dai_stream *io,
+				 enum rsnd_mod_type type)
+{
+	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
+	int busif = rsnd_ssi_get_busif(io);
+
+	return &ssiu->busif_status[busif];
+}
+
 static int rsnd_ssiu_init(struct rsnd_mod *mod,
 			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
@@ -115,8 +125,9 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen1 = {
-	.name	= SSIU_NAME,
-	.init	= rsnd_ssiu_init,
+	.name		= SSIU_NAME,
+	.init		= rsnd_ssiu_init,
+	.get_status	= rsnd_ssiu_get_status,
 };
 
 static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
@@ -279,10 +290,11 @@ static int rsnd_ssiu_stop_gen2(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_ssiu_ops_gen2 = {
-	.name	= SSIU_NAME,
-	.init	= rsnd_ssiu_init_gen2,
-	.start	= rsnd_ssiu_start_gen2,
-	.stop	= rsnd_ssiu_stop_gen2,
+	.name		= SSIU_NAME,
+	.init		= rsnd_ssiu_init_gen2,
+	.start		= rsnd_ssiu_start_gen2,
+	.stop		= rsnd_ssiu_stop_gen2,
+	.get_status	= rsnd_ssiu_get_status,
 };
 
 static struct rsnd_mod *rsnd_ssiu_mod_get(struct rsnd_priv *priv, int id)
@@ -302,16 +314,6 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 	rsnd_mod_confirm_ssi(ssi_mod);
 
 	return rsnd_dai_connect(mod, io, mod->type);
-}
-
-static u32 *rsnd_ssiu_get_status(struct rsnd_dai_stream *io,
-				 struct rsnd_mod *mod,
-				 enum rsnd_mod_type type)
-{
-	struct rsnd_ssiu *ssiu = rsnd_mod_to_ssiu(mod);
-	int busif = rsnd_ssi_get_busif(io);
-
-	return &ssiu->busif_status[busif];
 }
 
 int rsnd_ssiu_probe(struct rsnd_priv *priv)
@@ -337,8 +339,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	for_each_rsnd_ssiu(ssiu, priv, i) {
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssiu),
-				    ops, NULL, rsnd_ssiu_get_status,
-				    RSND_MOD_SSIU, i);
+				    ops, NULL, RSND_MOD_SSIU, i);
 		if (ret)
 			return ret;
 	}
