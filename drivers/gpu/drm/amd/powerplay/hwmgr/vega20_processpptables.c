@@ -642,8 +642,14 @@ static int check_powerplay_tables(
 		"Unsupported PPTable format!", return -1);
 	PP_ASSERT_WITH_CODE(powerplay_table->sHeader.structuresize > 0,
 		"Invalid PowerPlay Table!", return -1);
-	PP_ASSERT_WITH_CODE(powerplay_table->smcPPTable.Version == PPTABLE_V20_SMU_VERSION,
-		"Unmatch PPTable version, vbios update may be needed!", return -1);
+
+	if (powerplay_table->smcPPTable.Version != PPTABLE_V20_SMU_VERSION) {
+		pr_info("Unmatch PPTable version: "
+			"pptable from VBIOS is V%d while driver supported is V%d!",
+			powerplay_table->smcPPTable.Version,
+			PPTABLE_V20_SMU_VERSION);
+		return -EINVAL;
+	}
 
 	//dump_pptable(&powerplay_table->smcPPTable);
 
