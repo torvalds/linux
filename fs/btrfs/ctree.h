@@ -773,10 +773,6 @@ bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr);
 #define BTRFS_FS_BALANCE_RUNNING		18
 
 struct btrfs_fs_info {
-	/* User-visible fs UUID */
-	u8 fsid[BTRFS_FSID_SIZE];
-	/* UUID written to btree blocks */
-	u8 metadata_fsid[BTRFS_FSID_SIZE];
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 	unsigned long flags;
 	struct btrfs_root *extent_root;

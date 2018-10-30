@@ -1780,8 +1780,8 @@ static int btrfs_add_dev_item(struct btrfs_trans_handle *trans,
 	ptr = btrfs_device_uuid(dev_item);
 	write_extent_buffer(leaf, device->uuid, ptr, BTRFS_UUID_SIZE);
 	ptr = btrfs_device_fsid(dev_item);
-	write_extent_buffer(leaf, trans->fs_info->metadata_fsid, ptr,
-			    BTRFS_FSID_SIZE);
+	write_extent_buffer(leaf, trans->fs_info->fs_devices->metadata_uuid,
+			    ptr, BTRFS_FSID_SIZE);
 	btrfs_mark_buffer_dirty(leaf);
 
 	ret = 0;
@@ -2324,9 +2324,7 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 	fs_devices->seed = seed_devices;
 
 	generate_random_uuid(fs_devices->fsid);
-	memcpy(fs_info->fsid, fs_devices->fsid, BTRFS_FSID_SIZE);
 	memcpy(fs_devices->metadata_uuid, fs_devices->fsid, BTRFS_FSID_SIZE);
-	memcpy(fs_info->metadata_fsid, fs_devices->fsid, BTRFS_FSID_SIZE);
 	memcpy(disk_super->fsid, fs_devices->fsid, BTRFS_FSID_SIZE);
 	mutex_unlock(&fs_devices->device_list_mutex);
 
@@ -2568,7 +2566,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		 * so rename the fsid on the sysfs
 		 */
 		snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU",
-						fs_info->fsid);
+						fs_info->fs_devices->fsid);
 		if (kobject_rename(&fs_devices->fsid_kobj, fsid_buf))
 			btrfs_warn(fs_info,
 				   "sysfs: failed to create fsid for sprout");
@@ -6722,7 +6720,7 @@ static int read_one_dev(struct btrfs_fs_info *fs_info,
 	read_extent_buffer(leaf, fs_uuid, btrfs_device_fsid(dev_item),
 			   BTRFS_FSID_SIZE);
 
-	if (memcmp(fs_uuid, fs_info->metadata_fsid, BTRFS_FSID_SIZE)) {
+	if (memcmp(fs_uuid, fs_devices->metadata_uuid, BTRFS_FSID_SIZE)) {
 		fs_devices = open_seed_devices(fs_info, fs_uuid);
 		if (IS_ERR(fs_devices))
 			return PTR_ERR(fs_devices);

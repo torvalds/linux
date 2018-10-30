@@ -542,7 +542,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 	if (WARN_ON(!PageUptodate(page)))
 		return -EUCLEAN;
 
-	ASSERT(memcmp_extent_buffer(eb, fs_info->metadata_fsid,
+	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
 			btrfs_header_fsid(), BTRFS_FSID_SIZE) == 0);
 
 	return csum_tree_block(fs_info, eb, 0);
@@ -2456,11 +2456,11 @@ static int validate_super(struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 
-	if (memcmp(fs_info->metadata_fsid, sb->dev_item.fsid,
+	if (memcmp(fs_info->fs_devices->metadata_uuid, sb->dev_item.fsid,
 		   BTRFS_FSID_SIZE) != 0) {
 		btrfs_err(fs_info,
 			"dev_item UUID does not match metadata fsid: %pU != %pU",
-			fs_info->metadata_fsid, sb->dev_item.fsid);
+			fs_info->fs_devices->metadata_uuid, sb->dev_item.fsid);
 		ret = -EINVAL;
 	}
 
@@ -2803,13 +2803,15 @@ int open_ctree(struct super_block *sb,
 	       sizeof(*fs_info->super_for_commit));
 	brelse(bh);
 
-	memcpy(fs_info->fsid, fs_info->super_copy->fsid, BTRFS_FSID_SIZE);
+	ASSERT(!memcmp(fs_info->fs_devices->fsid, fs_info->super_copy->fsid,
+		       BTRFS_FSID_SIZE));
+
 	if (btrfs_fs_incompat(fs_info, METADATA_UUID)) {
-		memcpy(fs_info->metadata_fsid,
-		       fs_info->super_copy->metadata_uuid, BTRFS_FSID_SIZE);
-	} else {
-		memcpy(fs_info->metadata_fsid, fs_info->fsid, BTRFS_FSID_SIZE);
+		ASSERT(!memcmp(fs_info->fs_devices->metadata_uuid,
+				fs_info->super_copy->metadata_uuid,
+				BTRFS_FSID_SIZE));
 	}
+
 
 	ret = btrfs_validate_mount_super(fs_info);
 	if (ret) {
@@ -2930,7 +2932,7 @@ int open_ctree(struct super_block *sb,
 
 	sb->s_blocksize = sectorsize;
 	sb->s_blocksize_bits = blksize_bits(sectorsize);
-	memcpy(&sb->s_uuid, fs_info->fsid, BTRFS_FSID_SIZE);
+	memcpy(&sb->s_uuid, fs_info->fs_devices->fsid, BTRFS_FSID_SIZE);
 
 	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_sys_array(fs_info);

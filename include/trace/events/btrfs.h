@@ -92,7 +92,7 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 #define TP_STRUCT__entry_fsid __array(u8, fsid, BTRFS_FSID_SIZE)
 
 #define TP_fast_assign_fsid(fs_info)					\
-	memcpy(__entry->fsid, fs_info->fsid, BTRFS_FSID_SIZE)
+	memcpy(__entry->fsid, fs_info->fs_devices->fsid, BTRFS_FSID_SIZE)
 
 #define TP_STRUCT__entry_btrfs(args...)					\
 	TP_STRUCT__entry(						\
