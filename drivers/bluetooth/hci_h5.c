@@ -115,6 +115,8 @@ struct h5_vnd {
 	int (*setup)(struct h5 *h5);
 	void (*open)(struct h5 *h5);
 	void (*close)(struct h5 *h5);
+	int (*suspend)(struct h5 *h5);
+	int (*resume)(struct h5 *h5);
 	const struct acpi_gpio_mapping *acpi_gpio_map;
 };
 
@@ -841,6 +843,28 @@ static void h5_serdev_remove(struct serdev_device *serdev)
 	hci_uart_unregister_device(&h5->serdev_hu);
 }
 
+static int __maybe_unused h5_serdev_suspend(struct device *dev)
+{
+	struct h5 *h5 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (h5->vnd && h5->vnd->suspend)
+		ret = h5->vnd->suspend(h5);
+
+	return ret;
+}
+
+static int __maybe_unused h5_serdev_resume(struct device *dev)
+{
+	struct h5 *h5 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (h5->vnd && h5->vnd->resume)
+		ret = h5->vnd->resume(h5);
+
+	return ret;
+}
+
 #ifdef CONFIG_BT_HCIUART_RTL
 static int h5_btrtl_setup(struct h5 *h5)
 {
@@ -935,12 +959,17 @@ static const struct acpi_device_id h5_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, h5_acpi_match);
 #endif
 
+static const struct dev_pm_ops h5_serdev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(h5_serdev_suspend, h5_serdev_resume)
+};
+
 static struct serdev_device_driver h5_serdev_driver = {
 	.probe = h5_serdev_probe,
 	.remove = h5_serdev_remove,
 	.driver = {
 		.name = "hci_uart_h5",
 		.acpi_match_table = ACPI_PTR(h5_acpi_match),
+		.pm = &h5_serdev_pm_ops,
 	},
 };
 
