@@ -1276,7 +1276,6 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		int type, dev_t rdev, struct svc_fh *resfhp)
 {
 	struct dentry	*dentry, *dchild = NULL;
-	struct inode	*dirp;
 	__be32		err;
 	int		host_err;
 
@@ -1288,7 +1287,6 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return err;
 
 	dentry = fhp->fh_dentry;
-	dirp = d_inode(dentry);
 
 	host_err = fh_want_write(fhp);
 	if (host_err)
@@ -1409,6 +1407,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 					*created = 1;
 				break;
 			}
+			/* fall through */
 		case NFS4_CREATE_EXCLUSIVE4_1:
 			if (   d_inode(dchild)->i_mtime.tv_sec == v_mtime
 			    && d_inode(dchild)->i_atime.tv_sec == v_atime
@@ -1417,7 +1416,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 					*created = 1;
 				goto set_attr;
 			}
-			 /* fallthru */
+			/* fall through */
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
 		}

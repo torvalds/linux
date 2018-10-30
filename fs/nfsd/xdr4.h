@@ -511,6 +511,7 @@ struct nfsd42_write_res {
 	u64			wr_bytes_written;
 	u32			wr_stable_how;
 	nfs4_verifier		wr_verifier;
+	stateid_t		cb_stateid;
 };
 
 struct nfsd4_copy {
@@ -526,6 +527,23 @@ struct nfsd4_copy {
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
+
+	/* for cb_offload */
+	struct nfsd4_callback	cp_cb;
+	__be32			nfserr;
+	struct knfsd_fh		fh;
+
+	struct nfs4_client      *cp_clp;
+
+	struct file             *file_src;
+	struct file             *file_dst;
+
+	stateid_t		cp_stateid;
+
+	struct list_head	copies;
+	struct task_struct	*copy_task;
+	refcount_t		refcount;
+	bool			stopped;
 };
 
 struct nfsd4_seek {
@@ -537,6 +555,15 @@ struct nfsd4_seek {
 	/* response */
 	u32		seek_eof;
 	loff_t		seek_pos;
+};
+
+struct nfsd4_offload_status {
+	/* request */
+	stateid_t	stateid;
+
+	/* response */
+	u64		count;
+	u32		status;
 };
 
 struct nfsd4_op {
@@ -597,6 +624,7 @@ struct nfsd4_op {
 		struct nfsd4_fallocate		deallocate;
 		struct nfsd4_clone		clone;
 		struct nfsd4_copy		copy;
+		struct nfsd4_offload_status	offload_status;
 		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;
