@@ -870,8 +870,8 @@ static int cramfs_readpage(struct file *file, struct page *page)
 			if (unlikely(block_start & CRAMFS_BLK_FLAG_DIRECT_PTR)) {
 				/* See comments on earlier code. */
 				u32 prev_start = block_start;
-			       block_start = prev_start & ~CRAMFS_BLK_FLAGS;
-			       block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
+				block_start = prev_start & ~CRAMFS_BLK_FLAGS;
+				block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
 				if (prev_start & CRAMFS_BLK_FLAG_UNCOMPRESSED) {
 					block_start += PAGE_SIZE;
 				} else {
