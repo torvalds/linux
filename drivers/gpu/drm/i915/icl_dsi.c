@@ -776,3 +776,15 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_panel_enable_backlight(pipe_config, conn_state);
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
+
+static void __attribute__((unused)) gen11_dsi_disable(
+			struct intel_encoder *encoder,
+			const struct intel_crtc_state *old_crtc_state,
+			const struct drm_connector_state *old_conn_state)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	/* step1: turn off backlight */
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
+	intel_panel_disable_backlight(old_conn_state);
+}
