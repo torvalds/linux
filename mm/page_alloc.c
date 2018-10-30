@@ -5476,7 +5476,7 @@ overlap_memmap_init(unsigned long zone, unsigned long *pfn)
 
 /*
  * Initially all pages are reserved - free ones are freed
- * up by free_all_bootmem() once the early boot process is
+ * up by memblock_free_all() once the early boot process is
  * done. Non-atomic initialization, single-pass.
  */
 void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,

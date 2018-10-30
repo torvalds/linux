@@ -192,7 +192,7 @@ void __init mem_init(void)
 	free_highmem();
 
 	/* this will put all low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 	mem_init_print_info(NULL);
 
 	pr_info("virtual kernel memory layout:\n"

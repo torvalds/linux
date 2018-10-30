@@ -96,7 +96,7 @@ void __init mem_init(void)
 	max_mapnr = MAP_NR(high_memory);
 
 	/* this will put all low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
 }

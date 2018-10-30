@@ -599,7 +599,7 @@ void __init mem_init(void)
 	free_unused_memmap();
 #endif
 	/* this will put all unused low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 
 	kexec_reserve_crashkres_pages();
 

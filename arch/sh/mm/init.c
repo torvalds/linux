@@ -350,7 +350,7 @@ void __init mem_init(void)
 		high_memory = max_t(void *, high_memory,
 				    __va(pgdat_end_pfn(pgdat) << PAGE_SHIFT));
 
-	free_all_bootmem();
+	memblock_free_all();
 
 	/* Set this up early, so we can take care of the zero page */
 	cpu_cache_init();

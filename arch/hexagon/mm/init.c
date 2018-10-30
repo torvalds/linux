@@ -68,7 +68,7 @@ unsigned long long kmap_generation;
 void __init mem_init(void)
 {
 	/*  No idea where this is actually declared.  Seems to evade LXR.  */
-	free_all_bootmem();
+	memblock_free_all();
 	mem_init_print_info(NULL);
 
 	/*

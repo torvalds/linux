@@ -111,11 +111,11 @@ void __init reset_all_zones_managed_pages(void)
 }
 
 /**
- * free_all_bootmem - release free pages to the buddy allocator
+ * memblock_free_all - release free pages to the buddy allocator
  *
  * Return: the number of pages actually released.
  */
-unsigned long __init free_all_bootmem(void)
+unsigned long __init memblock_free_all(void)
 {
 	unsigned long pages;
 

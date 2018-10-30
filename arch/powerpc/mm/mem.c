@@ -349,7 +349,7 @@ void __init mem_init(void)
 
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 	set_max_mapnr(max_pfn);
-	free_all_bootmem();
+	memblock_free_all();
 
 #ifdef CONFIG_HIGHMEM
 	{

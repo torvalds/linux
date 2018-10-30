@@ -21,7 +21,7 @@ bool page_poisoning_enabled(void)
 {
 	/*
 	 * Assumes that debug_pagealloc_enabled is set before
-	 * free_all_bootmem.
+	 * memblock_free_all.
 	 * Page poisoning is debug page alloc for some arches. If
 	 * either of those options are enabled, enable poisoning.
 	 */

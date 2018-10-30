@@ -111,7 +111,7 @@ void __init set_highmem_pages_init(void)
 
 	/*
 	 * Explicitly reset zone->managed_pages because set_highmem_pages_init()
-	 * is invoked before free_all_bootmem()
+	 * is invoked before memblock_free_all()
 	 */
 	reset_all_zones_managed_pages();
 	for_each_zone(zone) {

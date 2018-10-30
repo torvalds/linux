@@ -51,7 +51,7 @@ void __init mem_init(void)
 	uml_reserved = brk_end;
 
 	/* this will put all low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 	max_low_pfn = totalram_pages;
 	max_pfn = totalram_pages;
 	mem_init_print_info(NULL);

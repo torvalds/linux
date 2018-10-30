@@ -73,7 +73,7 @@ void __init mem_init(void)
 	high_memory = __va(end_mem);
 
 	/* this will put all memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 	mem_init_print_info(NULL);
 }
 

@@ -26,7 +26,7 @@ extern unsigned long max_pfn;
  */
 extern unsigned long long max_possible_pfn;
 
-extern unsigned long free_all_bootmem(void);
+extern unsigned long memblock_free_all(void);
 extern void reset_node_managed_pages(pg_data_t *pgdat);
 extern void reset_all_zones_managed_pages(void);
 

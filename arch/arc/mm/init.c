@@ -218,7 +218,7 @@ void __init mem_init(void)
 		free_highmem_page(pfn_to_page(tmp));
 #endif
 
-	free_all_bootmem();
+	memblock_free_all();
 	mem_init_print_info(NULL);
 }
 

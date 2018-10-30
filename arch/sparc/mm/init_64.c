@@ -2545,12 +2545,12 @@ void __init mem_init(void)
 {
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
-	free_all_bootmem();
+	memblock_free_all();
 
 	/*
 	 * Must be done after boot memory is put on freelist, because here we
 	 * might set fields in deferred struct pages that have not yet been
-	 * initialized, and free_all_bootmem() initializes all the reserved
+	 * initialized, and memblock_free_all() initializes all the reserved
 	 * deferred pages for us.
 	 */
 	register_page_bootmem_info();
