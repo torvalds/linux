@@ -13,7 +13,7 @@ void unix_notinflight(struct user_struct *user, struct file *fp);
 void unix_gc(void);
 void wait_for_unix_gc(void);
 struct sock *unix_get_socket(struct file *filp);
-struct sock *unix_peer_get(struct sock *);
+struct sock *unix_peer_get(struct sock *sk);
 
 #define UNIX_HASH_SIZE	256
 #define UNIX_HASH_BITS	8
