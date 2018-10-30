@@ -55,10 +55,11 @@ static void virtio_gpu_config_changed_work_func(struct work_struct *work)
 static int virtio_gpu_context_create(struct virtio_gpu_device *vgdev,
 				      uint32_t nlen, const char *name)
 {
-	int handle = ida_alloc_min(&vgdev->ctx_id_ida, 1, GFP_KERNEL);
+	int handle = ida_alloc(&vgdev->ctx_id_ida, GFP_KERNEL);
 
 	if (handle < 0)
 		return handle;
+	handle += 1;
 	virtio_gpu_cmd_context_create(vgdev, handle, nlen, name);
 	return handle;
 }
@@ -67,7 +68,7 @@ static void virtio_gpu_context_destroy(struct virtio_gpu_device *vgdev,
 				      uint32_t ctx_id)
 {
 	virtio_gpu_cmd_context_destroy(vgdev, ctx_id);
-	ida_free(&vgdev->ctx_id_ida, ctx_id);
+	ida_free(&vgdev->ctx_id_ida, ctx_id - 1);
 }
 
 static void virtio_gpu_init_vq(struct virtio_gpu_queue *vgvq,
