@@ -833,6 +833,14 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 				10))
 			DRM_ERROR("DSI link not in ULPS\n");
 	}
+
+	/* disable ddi function */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp &= ~TRANS_DDI_FUNC_ENABLE;
+		I915_WRITE(TRANS_DDI_FUNC_CTL(dsi_trans), tmp);
+	}
 }
 
 static void __attribute__((unused)) gen11_dsi_disable(
