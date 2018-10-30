@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/page_ext.h>
 #include <linux/memory.h>
 #include <linux/vmalloc.h>

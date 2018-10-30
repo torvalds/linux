@@ -16,7 +16,6 @@
 #include <linux/utsname.h>
 #include <linux/initrd.h>
 #include <linux/console.h>
-#include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/screen_info.h>
 #include <linux/of_platform.h>

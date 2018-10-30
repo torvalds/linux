@@ -13,10 +13,9 @@
 #include <linux/mm.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/elf.h>
 #include <asm/asm-offsets.h>
-#include <linux/memblock.h>
 #include <asm/os_info.h>
 #include <asm/elf.h>
 #include <asm/ipl.h>

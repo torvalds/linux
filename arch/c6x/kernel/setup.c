@@ -11,7 +11,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
-#include <linux/bootmem.h>
 #include <linux/clkdev.h>
 #include <linux/initrd.h>
 #include <linux/kernel.h>

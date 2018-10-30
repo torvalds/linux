@@ -23,7 +23,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/binfmts.h>
 

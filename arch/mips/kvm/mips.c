@@ -18,7 +18,7 @@
 #include <linux/vmalloc.h>
 #include <linux/sched/signal.h>
 #include <linux/fs.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/fpu.h>
 #include <asm/page.h>

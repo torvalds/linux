@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/module.h>
 #include <linux/cache.h>
 #include <linux/slab.h>

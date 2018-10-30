@@ -11,7 +11,7 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/module.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #ifdef CONFIG_BLK_DEV_RAM
 #include <linux/blkdev.h>
 #endif

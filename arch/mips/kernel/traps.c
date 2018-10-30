@@ -28,7 +28,6 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/kallsyms.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>

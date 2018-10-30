@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/sn/types.h>

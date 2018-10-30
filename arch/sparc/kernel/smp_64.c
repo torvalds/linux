@@ -22,7 +22,7 @@
 #include <linux/cache.h>
 #include <linux/jiffies.h>
 #include <linux/profile.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/ftrace.h>
 #include <linux/cpu.h>

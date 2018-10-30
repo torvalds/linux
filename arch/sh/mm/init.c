@@ -11,12 +11,11 @@
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
-#include <linux/memblock.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 #include <asm/mmu_context.h>

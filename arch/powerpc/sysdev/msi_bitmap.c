@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/kmemleak.h>
 #include <linux/bitmap.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/msi_bitmap.h>
 #include <asm/setup.h>
 

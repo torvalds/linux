@@ -13,7 +13,7 @@
 #define KMSG_COMPONENT "cio"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/list.h>

@@ -5,7 +5,6 @@
 
 #include <linux/stddef.h>
 #include <linux/module.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>

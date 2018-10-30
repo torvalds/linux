@@ -5,7 +5,7 @@
 
 #define pr_fmt(fmt) "### dt-test ### " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>

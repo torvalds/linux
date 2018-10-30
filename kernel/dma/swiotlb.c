@@ -40,7 +40,7 @@
 #include <asm/dma.h>
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/iommu-helper.h>
 
 #define CREATE_TRACE_POINTS

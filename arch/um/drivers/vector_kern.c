@@ -9,7 +9,7 @@
  */
 
 #include <linux/version.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/inetdevice.h>

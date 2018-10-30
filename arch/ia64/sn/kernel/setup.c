@@ -20,7 +20,7 @@
 #include <linux/mm.h>
 #include <linux/serial.h>
 #include <linux/irq.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/interrupt.h>
 #include <linux/acpi.h>

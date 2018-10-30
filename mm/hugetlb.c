@@ -15,7 +15,6 @@
 #include <linux/compiler.h>
 #include <linux/cpuset.h>
 #include <linux/mutex.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>

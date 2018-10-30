@@ -2,7 +2,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/string.h>
 #include <asm/setup.h>
 

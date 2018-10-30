@@ -7,12 +7,11 @@
 #include <linux/errno.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
 #include <linux/highmem.h>
-#include <linux/memblock.h>
 
 #include <asm/sections.h>
 #include <asm/setup.h>

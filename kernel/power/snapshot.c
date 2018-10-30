@@ -23,7 +23,7 @@
 #include <linux/pm.h>
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/nmi.h>
 #include <linux/syscalls.h>
 #include <linux/console.h>

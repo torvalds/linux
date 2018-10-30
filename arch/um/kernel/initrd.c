@@ -4,7 +4,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <asm/types.h>
 #include <init.h>

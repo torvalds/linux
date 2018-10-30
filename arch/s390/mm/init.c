@@ -21,7 +21,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
@@ -29,7 +29,6 @@
 #include <linux/export.h>
 #include <linux/cma.h>
 #include <linux/gfp.h>
-#include <linux/memblock.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>

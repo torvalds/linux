@@ -6,7 +6,7 @@
  * Licensed under the GPL.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/inetdevice.h>

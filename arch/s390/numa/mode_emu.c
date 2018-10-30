@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>
 #include <linux/node.h>
 #include <linux/memory.h>
 #include <linux/slab.h>

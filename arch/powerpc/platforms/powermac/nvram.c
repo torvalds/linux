@@ -18,7 +18,7 @@
 #include <linux/errno.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <asm/sections.h>

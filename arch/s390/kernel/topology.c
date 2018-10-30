@@ -8,7 +8,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/workqueue.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/uaccess.h>
 #include <linux/sysctl.h>
 #include <linux/cpuset.h>

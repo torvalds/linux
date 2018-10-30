@@ -13,9 +13,8 @@
 
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
-#include <linux/initrd.h>
 #include <linux/memblock.h>
+#include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/sizes.h>
 

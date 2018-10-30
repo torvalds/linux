@@ -17,7 +17,6 @@
 #include <linux/nodemask.h>
 #include <linux/memblock.h>
 #include <linux/fs.h>
-#include <linux/bootmem.h>
 #include <linux/io.h>
 
 #include <asm/cputype.h>

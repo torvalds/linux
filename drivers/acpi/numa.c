@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/acpi.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/numa.h>
 #include <linux/nodemask.h>

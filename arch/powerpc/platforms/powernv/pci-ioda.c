@@ -17,11 +17,10 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/msi.h>
-#include <linux/memblock.h>
 #include <linux/iommu.h>
 #include <linux/rculist.h>
 #include <linux/sizes.h>

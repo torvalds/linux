@@ -33,7 +33,6 @@
 #include <linux/stop_machine.h>
 #include <linux/hugetlb.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>
 #include <linux/compaction.h>
 
 #include <asm/tlbflush.h>

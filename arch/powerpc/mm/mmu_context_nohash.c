@@ -44,7 +44,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>

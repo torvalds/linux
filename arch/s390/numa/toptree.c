@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/cpumask.h>
 #include <linux/list.h>
 #include <linux/list_sort.h>

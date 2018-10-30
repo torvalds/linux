@@ -22,7 +22,6 @@
 #include <linux/initrd.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/pagemap.h>
 #include <linux/poison.h>

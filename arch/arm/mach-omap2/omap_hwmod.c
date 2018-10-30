@@ -141,7 +141,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <linux/platform_data/ti-sysc.h>
 

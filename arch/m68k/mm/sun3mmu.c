@@ -16,7 +16,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <linux/uaccess.h>

@@ -11,7 +11,7 @@
  * Copyright (C) 2010 Cavium Networks, Inc.
  */
 #include <linux/dma-direct.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/swiotlb.h>
 #include <linux/types.h>
 #include <linux/init.h>

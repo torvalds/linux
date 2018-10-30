@@ -8,7 +8,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>

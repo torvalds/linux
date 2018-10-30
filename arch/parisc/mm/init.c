@@ -14,7 +14,6 @@
 
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>

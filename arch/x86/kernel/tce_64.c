@@ -30,7 +30,6 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <asm/tce.h>
 #include <asm/calgary.h>

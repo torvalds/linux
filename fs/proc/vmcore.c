@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/printk.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/crash_dump.h>
 #include <linux/list.h>

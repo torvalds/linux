@@ -7,10 +7,9 @@
  * for more details.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/memblock.h>
 #include <linux/mm.h> /* mem_init */
 #include <linux/initrd.h>
 #include <linux/pagemap.h>

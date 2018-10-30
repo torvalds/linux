@@ -7,7 +7,7 @@
  * Contains common routines for sun3/sun3x DVMA management.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

@@ -29,7 +29,6 @@
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>

@@ -19,7 +19,7 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h> /* max_low_pfn */
+#include <linux/memblock.h> /* max_low_pfn */
 #include <linux/vmalloc.h>
 #include <linux/gfp.h>
 

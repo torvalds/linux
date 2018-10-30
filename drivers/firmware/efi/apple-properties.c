@@ -20,7 +20,7 @@
 
 #define pr_fmt(fmt) "apple-properties: " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/efi.h>
 #include <linux/io.h>
 #include <linux/platform_data/x86/apple.h>

@@ -25,7 +25,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/io.h>

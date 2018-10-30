@@ -4,14 +4,13 @@
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
-#include <linux/memblock.h>
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>

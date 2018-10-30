@@ -22,7 +22,6 @@
 #include <linux/errno.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/cache.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>

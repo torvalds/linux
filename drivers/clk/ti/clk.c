@@ -23,7 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/list.h>
 #include <linux/regmap.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/device.h>
 
 #include "clock.h"

@@ -77,7 +77,7 @@
 #include <linux/sched/task.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/acpi.h>
 #include <linux/timer.h>
 #include <linux/module.h>

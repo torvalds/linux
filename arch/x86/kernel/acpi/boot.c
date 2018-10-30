@@ -32,7 +32,7 @@
 #include <linux/dmi.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/efi-bgrt.h>

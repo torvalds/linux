@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/jiffies.h>
@@ -38,7 +38,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
-#include <linux/memblock.h>
 #include <linux/sched/signal.h>
 
 #include <asm/byteorder.h>

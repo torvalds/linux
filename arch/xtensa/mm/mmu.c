@@ -4,7 +4,7 @@
  *
  * Extracted from init.c
  */
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
 #include <linux/string.h>

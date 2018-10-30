@@ -18,7 +18,6 @@
 #include <linux/export.h>
 #include <linux/nodemask.h>
 #include <linux/swap.h>
-#include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/highmem.h>
 #include <asm/page.h>

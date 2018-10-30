@@ -7,7 +7,7 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/capability.h>
 #include <linux/mm.h>

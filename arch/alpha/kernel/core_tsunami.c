@@ -17,7 +17,7 @@
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/ptrace.h>
 #include <asm/smp.h>

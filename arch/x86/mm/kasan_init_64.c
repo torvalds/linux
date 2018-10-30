@@ -5,10 +5,9 @@
 /* cpu_feature_enabled() cannot be used this early */
 #define USE_EARLY_PGTABLE_L5
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/kasan.h>
 #include <linux/kdebug.h>
-#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>

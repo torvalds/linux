@@ -20,7 +20,6 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 
 #include <asm/ptrace.h>

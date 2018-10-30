@@ -32,7 +32,7 @@
 #include <linux/initrd.h>
 #include <linux/module.h>
 #include <linux/start_kernel.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>

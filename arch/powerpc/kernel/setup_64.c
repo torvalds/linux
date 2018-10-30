@@ -29,10 +29,9 @@
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pci.h>
 #include <linux/lockdep.h>
-#include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/nmi.h>
 

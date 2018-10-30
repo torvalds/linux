@@ -11,7 +11,6 @@
 #include <linux/crc32.h>
 #include <linux/kernel.h>
 #include <linux/initrd.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/mutex.h>
 #include <linux/of.h>

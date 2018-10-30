@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/initrd.h>
@@ -25,7 +25,6 @@
 #include <linux/sort.h>
 #include <linux/ioport.h>
 #include <linux/percpu.h>
-#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/gfp.h>
 

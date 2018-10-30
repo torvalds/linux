@@ -18,7 +18,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
 #include <linux/module.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/ptrace.h>
 #include <asm/smp.h>

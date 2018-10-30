@@ -24,7 +24,7 @@
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>

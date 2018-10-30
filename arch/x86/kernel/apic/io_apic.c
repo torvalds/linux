@@ -47,7 +47,7 @@
 #include <linux/kthread.h>
 #include <linux/jiffies.h>	/* time_after() */
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/irqdomain.h>
 #include <asm/io.h>

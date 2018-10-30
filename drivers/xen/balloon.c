@@ -44,7 +44,7 @@
 #include <linux/cred.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/mutex.h>

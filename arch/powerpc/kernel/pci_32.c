@@ -10,7 +10,7 @@
 #include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/irq.h>
 #include <linux/list.h>

@@ -4,7 +4,7 @@
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 /**
  * cpumask_next - get the next cpu in a cpumask

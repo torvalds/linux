@@ -11,13 +11,12 @@
 #include <linux/errno.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
-#include <linux/memblock.h>
 #include <linux/sort.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>

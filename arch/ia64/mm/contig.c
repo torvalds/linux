@@ -14,7 +14,6 @@
  * Routines used by ia64 machines with contiguous (or virtually contiguous)
  * memory.
  */
-#include <linux/bootmem.h>
 #include <linux/efi.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>

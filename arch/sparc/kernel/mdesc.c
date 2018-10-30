@@ -5,13 +5,11 @@
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/memblock.h>
 #include <linux/log2.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/refcount.h>
