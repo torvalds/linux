@@ -214,33 +214,21 @@ extern int bitmap_print_to_pagebuf(bool list, char *buf,
 
 static inline void bitmap_zero(unsigned long *dst, unsigned int nbits)
 {
-	if (small_const_nbits(nbits))
-		*dst = 0UL;
-	else {
-		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-		memset(dst, 0, len);
-	}
+	unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+	memset(dst, 0, len);
 }
 
 static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
 {
-	if (small_const_nbits(nbits))
-		*dst = ~0UL;
-	else {
-		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-		memset(dst, 0xff, len);
-	}
+	unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+	memset(dst, 0xff, len);
 }
 
 static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
 			unsigned int nbits)
 {
-	if (small_const_nbits(nbits))
-		*dst = *src;
-	else {
-		unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-		memcpy(dst, src, len);
-	}
+	unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
+	memcpy(dst, src, len);
 }
 
 /*
