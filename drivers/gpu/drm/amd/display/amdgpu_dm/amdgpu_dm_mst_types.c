@@ -205,40 +205,6 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 	.atomic_get_property = amdgpu_dm_connector_atomic_get_property
 };
 
-void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
-{
-	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	struct dc_sink *dc_sink;
-	struct dc_sink_init_data init_params = {
-			.link = aconnector->dc_link,
-			.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
-
-	/* FIXME none of this is safe. we shouldn't touch aconnector here in
-	 * atomic_check
-	 */
-
-	/*
-	 * TODO: Need to further figure out why ddc.algo is NULL while MST port exists
-	 */
-	if (!aconnector->port || !aconnector->port->aux.ddc.algo)
-		return;
-
-	ASSERT(aconnector->edid);
-
-	dc_sink = dc_link_add_remote_sink(
-		aconnector->dc_link,
-		(uint8_t *)aconnector->edid,
-		(aconnector->edid->extensions + 1) * EDID_LENGTH,
-		&init_params);
-
-	dc_sink->priv = aconnector;
-	aconnector->dc_sink = dc_sink;
-
-	if (aconnector->dc_sink)
-		amdgpu_dm_update_freesync_caps(
-				connector, aconnector->edid);
-}
-
 static int dm_dp_mst_get_modes(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);

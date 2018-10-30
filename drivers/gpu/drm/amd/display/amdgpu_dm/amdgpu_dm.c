@@ -2764,18 +2764,11 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	drm_connector = &aconnector->base;
 
 	if (!aconnector->dc_sink) {
-		/*
-		 * Create dc_sink when necessary to MST
-		 * Don't apply fake_sink to MST
-		 */
-		if (aconnector->mst_port) {
-			dm_dp_mst_dc_sink_create(drm_connector);
-			return stream;
+		if (!aconnector->mst_port) {
+			sink = create_fake_sink(aconnector);
+			if (!sink)
+				return stream;
 		}
-
-		sink = create_fake_sink(aconnector);
-		if (!sink)
-			return stream;
 	} else {
 		sink = aconnector->dc_sink;
 	}
