@@ -2821,7 +2821,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int ret = 0;
-	u16 i;
+	int i;
 
 	hns3_nic_set_cpumask(priv);
 
@@ -2868,13 +2868,19 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
 		if (ret)
-			return ret;
+			goto map_ring_fail;
 
 		netif_napi_add(priv->netdev, &tqp_vector->napi,
 			       hns3_nic_common_poll, NAPI_POLL_WEIGHT);
 	}
 
 	return 0;
+
+map_ring_fail:
+	while (i--)
+		netif_napi_del(&priv->tqp_vector[i].napi);
+
+	return ret;
 }
 
 static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
