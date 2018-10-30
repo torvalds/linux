@@ -167,9 +167,9 @@ static int rpmsg_eptdev_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t rpmsg_eptdev_read(struct file *filp, char __user *buf,
-				 size_t len, loff_t *f_pos)
+static ssize_t rpmsg_eptdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
+	struct file *filp = iocb->ki_filp;
 	struct rpmsg_eptdev *eptdev = filp->private_data;
 	unsigned long flags;
 	struct sk_buff *skb;
@@ -205,8 +205,8 @@ static ssize_t rpmsg_eptdev_read(struct file *filp, char __user *buf,
 	if (!skb)
 		return -EFAULT;
 
-	use = min_t(size_t, len, skb->len);
-	if (copy_to_user(buf, skb->data, use))
+	use = min_t(size_t, iov_iter_count(to), skb->len);
+	if (copy_to_iter(skb->data, use, to) != use)
 		use = -EFAULT;
 
 	kfree_skb(skb);
@@ -214,16 +214,21 @@ static ssize_t rpmsg_eptdev_read(struct file *filp, char __user *buf,
 	return use;
 }
 
-static ssize_t rpmsg_eptdev_write(struct file *filp, const char __user *buf,
-				  size_t len, loff_t *f_pos)
+static ssize_t rpmsg_eptdev_write_iter(struct kiocb *iocb,
+				       struct iov_iter *from)
 {
+	struct file *filp = iocb->ki_filp;
 	struct rpmsg_eptdev *eptdev = filp->private_data;
+	size_t len = iov_iter_count(from);
 	void *kbuf;
 	int ret;
 
-	kbuf = memdup_user(buf, len);
-	if (IS_ERR(kbuf))
-		return PTR_ERR(kbuf);
+	kbuf = kzalloc(len, GFP_KERNEL);
+	if (!kbuf)
+		return -ENOMEM;
+
+	if (!copy_from_iter_full(kbuf, len, from))
+		return -EFAULT;
 
 	if (mutex_lock_interruptible(&eptdev->ept_lock)) {
 		ret = -ERESTARTSYS;
@@ -281,8 +286,8 @@ static const struct file_operations rpmsg_eptdev_fops = {
 	.owner = THIS_MODULE,
 	.open = rpmsg_eptdev_open,
 	.release = rpmsg_eptdev_release,
-	.read = rpmsg_eptdev_read,
-	.write = rpmsg_eptdev_write,
+	.read_iter = rpmsg_eptdev_read_iter,
+	.write_iter = rpmsg_eptdev_write_iter,
 	.poll = rpmsg_eptdev_poll,
 	.unlocked_ioctl = rpmsg_eptdev_ioctl,
 	.compat_ioctl = rpmsg_eptdev_ioctl,
