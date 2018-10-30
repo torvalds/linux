@@ -2541,6 +2541,7 @@ enum i915_power_well_id {
 /* chicken reg for WaConextSwitchWithConcurrentTLBInvalidate */
 #define GEN9_CSFE_CHICKEN1_RCS _MMIO(0x20D4)
 #define   GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE (1 << 2)
+#define   GEN11_ENABLE_32_PLANE_MODE (1 << 7)
 
 /* WaClearTdlStateAckDirtyBits */
 #define GEN8_STATE_ACK		_MMIO(0x20F0)
