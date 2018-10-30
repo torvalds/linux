@@ -853,6 +853,26 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_disable_port(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 tmp;
+	enum port port;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(DDI_BUF_CTL(port));
+		tmp &= ~DDI_BUF_CTL_ENABLE;
+		I915_WRITE(DDI_BUF_CTL(port), tmp);
+
+		if (wait_for_us((I915_READ(DDI_BUF_CTL(port)) &
+				 DDI_BUF_IS_IDLE),
+				 8))
+			DRM_ERROR("DDI port:%c buffer not idle\n",
+				  port_name(port));
+	}
+}
+
 static void __attribute__((unused)) gen11_dsi_disable(
 			struct intel_encoder *encoder,
 			const struct intel_crtc_state *old_crtc_state,
@@ -872,4 +892,7 @@ static void __attribute__((unused)) gen11_dsi_disable(
 
 	/* step2h,i,j: deconfig trancoder */
 	gen11_dsi_deconfigure_trancoder(encoder);
+
+	/* step3: disable port */
+	gen11_dsi_disable_port(encoder);
 }
