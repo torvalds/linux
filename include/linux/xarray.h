@@ -291,7 +291,6 @@ void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *xa_cmpxchg(struct xarray *, unsigned long index,
 			void *old, void *entry, gfp_t);
-int xa_reserve(struct xarray *, unsigned long index, gfp_t);
 void *xa_store_range(struct xarray *, unsigned long first, unsigned long last,
 			void *entry, gfp_t);
 bool xa_get_mark(struct xarray *, unsigned long index, xa_mark_t);
@@ -455,6 +454,7 @@ void *__xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *__xa_cmpxchg(struct xarray *, unsigned long index, void *old,
 		void *entry, gfp_t);
 int __xa_alloc(struct xarray *, u32 *id, u32 max, void *entry, gfp_t);
+int __xa_reserve(struct xarray *, unsigned long index, gfp_t);
 void __xa_set_mark(struct xarray *, unsigned long index, xa_mark_t);
 void __xa_clear_mark(struct xarray *, unsigned long index, xa_mark_t);
 
@@ -619,6 +619,84 @@ static inline int xa_alloc_irq(struct xarray *xa, u32 *id, u32 max, void *entry,
 	xa_unlock_irq(xa);
 
 	return err;
+}
+
+/**
+ * xa_reserve() - Reserve this index in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @gfp: Memory allocation flags.
+ *
+ * Ensures there is somewhere to store an entry at @index in the array.
+ * If there is already something stored at @index, this function does
+ * nothing.  If there was nothing there, the entry is marked as reserved.
+ * Loading from a reserved entry returns a %NULL pointer.
+ *
+ * If you do not use the entry that you have reserved, call xa_release()
+ * or xa_erase() to free any unnecessary memory.
+ *
+ * Context: Any context.  Takes and releases the xa_lock.
+ * May sleep if the @gfp flags permit.
+ * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ */
+static inline
+int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
+{
+	int ret;
+
+	xa_lock(xa);
+	ret = __xa_reserve(xa, index, gfp);
+	xa_unlock(xa);
+
+	return ret;
+}
+
+/**
+ * xa_reserve_bh() - Reserve this index in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @gfp: Memory allocation flags.
+ *
+ * A softirq-disabling version of xa_reserve().
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.
+ * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ */
+static inline
+int xa_reserve_bh(struct xarray *xa, unsigned long index, gfp_t gfp)
+{
+	int ret;
+
+	xa_lock_bh(xa);
+	ret = __xa_reserve(xa, index, gfp);
+	xa_unlock_bh(xa);
+
+	return ret;
+}
+
+/**
+ * xa_reserve_irq() - Reserve this index in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @gfp: Memory allocation flags.
+ *
+ * An interrupt-disabling version of xa_reserve().
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.
+ * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
+ */
+static inline
+int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
+{
+	int ret;
+
+	xa_lock_irq(xa);
+	ret = __xa_reserve(xa, index, gfp);
+	xa_unlock_irq(xa);
+
+	return ret;
 }
 
 /* Everything below here is the Advanced API.  Proceed with caution. */

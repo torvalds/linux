@@ -105,6 +105,15 @@ may result in the entry being marked at some, but not all of the other
 indices.  Storing into one index may result in the entry retrieved by
 some, but not all of the other indices changing.
 
+Sometimes you need to ensure that a subsequent call to :c:func:`xa_store`
+will not need to allocate memory.  The :c:func:`xa_reserve` function
+will store a reserved entry at the indicated index.  Users of the normal
+API will see this entry as containing ``NULL``.  If you do not need to
+use the reserved entry, you can call :c:func:`xa_release` to remove the
+unused entry.  If another user has stored to the entry in the meantime,
+:c:func:`xa_release` will do nothing; if instead you want the entry to
+become ``NULL``, you should use :c:func:`xa_erase`.
+
 Finally, you can remove all entries from an XArray by calling
 :c:func:`xa_destroy`.  If the XArray entries are pointers, you may wish
 to free the entries first.  You can do this by iterating over all present
@@ -167,6 +176,9 @@ Takes xa_lock internally:
  * :c:func:`xa_alloc`
  * :c:func:`xa_alloc_bh`
  * :c:func:`xa_alloc_irq`
+ * :c:func:`xa_reserve`
+ * :c:func:`xa_reserve_bh`
+ * :c:func:`xa_reserve_irq`
  * :c:func:`xa_destroy`
  * :c:func:`xa_set_mark`
  * :c:func:`xa_clear_mark`
@@ -177,6 +189,7 @@ Assumes xa_lock held on entry:
  * :c:func:`__xa_erase`
  * :c:func:`__xa_cmpxchg`
  * :c:func:`__xa_alloc`
+ * :c:func:`__xa_reserve`
  * :c:func:`__xa_set_mark`
  * :c:func:`__xa_clear_mark`
 

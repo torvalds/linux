@@ -1488,7 +1488,7 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 EXPORT_SYMBOL(__xa_cmpxchg);
 
 /**
- * xa_reserve() - Reserve this index in the XArray.
+ * __xa_reserve() - Reserve this index in the XArray.
  * @xa: XArray.
  * @index: Index into array.
  * @gfp: Memory allocation flags.
@@ -1496,33 +1496,29 @@ EXPORT_SYMBOL(__xa_cmpxchg);
  * Ensures there is somewhere to store an entry at @index in the array.
  * If there is already something stored at @index, this function does
  * nothing.  If there was nothing there, the entry is marked as reserved.
- * Loads from @index will continue to see a %NULL pointer until a
- * subsequent store to @index.
+ * Loading from a reserved entry returns a %NULL pointer.
  *
  * If you do not use the entry that you have reserved, call xa_release()
  * or xa_erase() to free any unnecessary memory.
  *
- * Context: Process context.  Takes and releases the xa_lock, IRQ or BH safe
- * if specified in XArray flags.  May sleep if the @gfp flags permit.
+ * Context: Any context.  Expects the xa_lock to be held on entry.  May
+ * release the lock, sleep and reacquire the lock if the @gfp flags permit.
  * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
  */
-int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
+int __xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
 {
 	XA_STATE(xas, xa, index);
-	unsigned int lock_type = xa_lock_type(xa);
 	void *curr;
 
 	do {
-		xas_lock_type(&xas, lock_type);
 		curr = xas_load(&xas);
 		if (!curr)
 			xas_store(&xas, XA_ZERO_ENTRY);
-		xas_unlock_type(&xas, lock_type);
-	} while (xas_nomem(&xas, gfp));
+	} while (__xas_nomem(&xas, gfp));
 
 	return xas_error(&xas);
 }
-EXPORT_SYMBOL(xa_reserve);
+EXPORT_SYMBOL(__xa_reserve);
 
 #ifdef CONFIG_XARRAY_MULTI
 static void xas_set_range(struct xa_state *xas, unsigned long first,
