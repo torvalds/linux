@@ -1012,6 +1012,9 @@ static const struct pci_device_id pciidlist[] = {
 	/* Navi14 */
 	{0x1002, 0x7340, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI14},
 
+	/* Renoir */
+	{0x1002, 0x1636, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RENOIR|AMD_IS_APU},
+
 	{0, 0, 0}
 };
 
