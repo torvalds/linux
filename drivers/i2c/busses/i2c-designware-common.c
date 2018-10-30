@@ -269,7 +269,7 @@ int i2c_dw_acquire_lock(struct dw_i2c_dev *dev)
 	if (!dev->acquire_lock)
 		return 0;
 
-	ret = dev->acquire_lock(dev);
+	ret = dev->acquire_lock();
 	if (!ret)
 		return 0;
 
@@ -281,7 +281,7 @@ int i2c_dw_acquire_lock(struct dw_i2c_dev *dev)
 void i2c_dw_release_lock(struct dw_i2c_dev *dev)
 {
 	if (dev->release_lock)
-		dev->release_lock(dev);
+		dev->release_lock();
 }
 
 /*

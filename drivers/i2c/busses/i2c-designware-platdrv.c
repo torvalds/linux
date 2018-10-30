@@ -418,8 +418,6 @@ static int dw_i2c_plat_remove(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(dev->rst))
 		reset_control_assert(dev->rst);
 
-	i2c_dw_remove_lock_support(dev);
-
 	return 0;
 }
 
