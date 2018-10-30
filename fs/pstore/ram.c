@@ -640,7 +640,7 @@ static int ramoops_init_prz(const char *name,
 
 	label = kasprintf(GFP_KERNEL, "ramoops:%s", name);
 	*prz = persistent_ram_new(*paddr, sz, sig, &cxt->ecc_info,
-				  cxt->memtype, 0, label);
+				  cxt->memtype, PRZ_FLAG_ZAP_OLD, label);
 	if (IS_ERR(*prz)) {
 		int err = PTR_ERR(*prz);
 
@@ -648,8 +648,6 @@ static int ramoops_init_prz(const char *name,
 			name, sz, (unsigned long long)*paddr, err);
 		return err;
 	}
-
-	persistent_ram_zap(*prz);
 
 	*paddr += sz;
 
