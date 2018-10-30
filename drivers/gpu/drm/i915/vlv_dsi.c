@@ -206,39 +206,6 @@ static const struct mipi_dsi_host_ops intel_dsi_host_ops = {
 	.transfer = intel_dsi_host_transfer,
 };
 
-static struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
-						  enum port port)
-{
-	struct intel_dsi_host *host;
-	struct mipi_dsi_device *device;
-
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
-	if (!host)
-		return NULL;
-
-	host->base.ops = &intel_dsi_host_ops;
-	host->intel_dsi = intel_dsi;
-	host->port = port;
-
-	/*
-	 * We should call mipi_dsi_host_register(&host->base) here, but we don't
-	 * have a host->dev, and we don't have OF stuff either. So just use the
-	 * dsi framework as a library and hope for the best. Create the dsi
-	 * devices by ourselves here too. Need to be careful though, because we
-	 * don't initialize any of the driver model devices here.
-	 */
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
-	if (!device) {
-		kfree(host);
-		return NULL;
-	}
-
-	device->host = &host->base;
-	host->device = device;
-
-	return host;
-}
-
 /*
  * send a video mode command
  *
@@ -1768,7 +1735,8 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		struct intel_dsi_host *host;
 
-		host = intel_dsi_host_init(intel_dsi, port);
+		host = intel_dsi_host_init(intel_dsi, &intel_dsi_host_ops,
+					   port);
 		if (!host)
 			goto err;
 

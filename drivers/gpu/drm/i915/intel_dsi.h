@@ -152,6 +152,9 @@ int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);
 /* vlv_dsi.c */
 void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
+struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
+					   const struct mipi_dsi_host_ops *funcs,
+					   enum port port);
 
 /* vlv_dsi_pll.c */
 int vlv_dsi_pll_compute(struct intel_encoder *encoder,

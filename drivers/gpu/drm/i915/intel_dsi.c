@@ -28,3 +28,37 @@ int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi)
 		return 200;
 	}
 }
+
+struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
+					   const struct mipi_dsi_host_ops *funcs,
+					   enum port port)
+{
+	struct intel_dsi_host *host;
+	struct mipi_dsi_device *device;
+
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	if (!host)
+		return NULL;
+
+	host->base.ops = funcs;
+	host->intel_dsi = intel_dsi;
+	host->port = port;
+
+	/*
+	 * We should call mipi_dsi_host_register(&host->base) here, but we don't
+	 * have a host->dev, and we don't have OF stuff either. So just use the
+	 * dsi framework as a library and hope for the best. Create the dsi
+	 * devices by ourselves here too. Need to be careful though, because we
+	 * don't initialize any of the driver model devices here.
+	 */
+	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	if (!device) {
+		kfree(host);
+		return NULL;
+	}
+
+	device->host = &host->base;
+	host->device = device;
+
+	return host;
+}
