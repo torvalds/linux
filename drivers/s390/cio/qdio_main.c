@@ -881,9 +881,8 @@ void qdio_outbound_timer(struct timer_list *t)
 	qdio_tasklet_schedule(q);
 }
 
-static inline void qdio_check_outbound_after_thinint(struct qdio_q *q)
+static inline void qdio_check_outbound_pci_queues(struct qdio_irq *irq)
 {
-	struct qdio_irq *irq = q->irq_ptr;
 	struct qdio_q *out;
 	int i;
 
@@ -901,11 +900,8 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	if (need_siga_sync(q) && need_siga_sync_after_ai(q))
 		qdio_sync_queues(q);
 
-	/*
-	 * The interrupt could be caused by a PCI request. Check the
-	 * PCI capable outbound queues.
-	 */
-	qdio_check_outbound_after_thinint(q);
+	/* The interrupt could be caused by a PCI request: */
+	qdio_check_outbound_pci_queues(q->irq_ptr);
 
 	if (!qdio_inbound_q_moved(q))
 		return;
@@ -1687,8 +1683,7 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 	if (need_siga_sync(q))
 		qdio_sync_queues(q);
 
-	/* check the PCI capable outbound queues. */
-	qdio_check_outbound_after_thinint(q);
+	qdio_check_outbound_pci_queues(irq_ptr);
 
 	if (!qdio_inbound_q_moved(q))
 		return 0;
