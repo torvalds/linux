@@ -1626,6 +1626,11 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sb->s_magic = MSDOS_SUPER_MAGIC;
 	sb->s_op = &fat_sops;
 	sb->s_export_op = &fat_export_ops;
+	/*
+	 * fat timestamps are complex and truncated by fat itself, so
+	 * we set 1 here to be fast
+	 */
+	sb->s_time_gran = 1;
 	mutex_init(&sbi->nfs_build_inode_lock);
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);
