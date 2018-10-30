@@ -298,22 +298,11 @@ SECTIONS
 
   _end = .;
 
-  .xt.lit : { *(.xt.lit) }
-  .xt.prop : { *(.xt.prop) }
-
   DWARF_DEBUG
 
-  .xt.insn 0 :
-  {
-    *(.xt.insn)
-    *(.gnu.linkonce.x*)
-  }
-
-  .xt.lit 0 :
-  {
-    *(.xt.lit)
-    *(.gnu.linkonce.p*)
-  }
+  .xt.prop 0 : { KEEP(*(.xt.prop .xt.prop.* .gnu.linkonce.prop.*)) }
+  .xt.insn 0 : { KEEP(*(.xt.insn .xt.insn.* .gnu.linkonce.x*)) }
+  .xt.lit  0 : { KEEP(*(.xt.lit  .xt.lit.*  .gnu.linkonce.p*)) }
 
   /* Sections to be discarded */
   DISCARDS
