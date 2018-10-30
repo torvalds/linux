@@ -79,6 +79,18 @@ ADT7490:
   * 2 GPIO pins (not implemented)
   * system acoustics optimizations (not implemented)
 
+Sysfs Mapping
+-------------
+
+     ADT7490     ADT7476     ADT7475   ADT7473
+     -------     -------     -------   -------
+in0  2.5VIN (22) 2.5VIN (22) -         -
+in1  VCCP   (23) VCCP   (23) VCCP (14) VCCP (14)
+in2  VCC    (4)  VCC    (4)  VCC  (4)  VCC  (3)
+in3  5VIN   (20) 5VIN   (20)
+in4  12VIN  (21) 12VIN  (21)
+in5  VTT    (8)
+
 Special Features
 ----------------
 
