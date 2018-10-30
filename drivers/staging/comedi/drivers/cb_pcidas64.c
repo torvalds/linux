@@ -3768,9 +3768,17 @@ static int eeprom_read_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	data[0] = read_eeprom(dev, CR_CHAN(insn->chanspec));
+	unsigned int val;
+	unsigned int i;
 
-	return 1;
+	if (insn->n) {
+		/* No point reading the same EEPROM location more than once. */
+		val = read_eeprom(dev, CR_CHAN(insn->chanspec));
+		for (i = 0; i < insn->n; i++)
+			data[i] = val;
+	}
+
+	return insn->n;
 }
 
 /* Allocate and initialize the subdevice structures. */
