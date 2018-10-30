@@ -45,7 +45,6 @@ config SPARC
 	select LOCKDEP_SMALL if LOCKDEP
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
-	select HAVE_MEMBLOCK
 
 config SPARC32
 	def_bool !64BIT

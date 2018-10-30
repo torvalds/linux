@@ -4,7 +4,7 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/smp.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
@@ -140,7 +140,7 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 			pmd = (pmd_t *)pud;
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
 				if (pmd_none(*pmd)) {
-					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 					set_pmd(pmd, __pmd(__pa(pte)));
 					BUG_ON(pte != pte_offset_kernel(pmd, 0));
 				}

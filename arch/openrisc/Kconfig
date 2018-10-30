@@ -12,7 +12,6 @@ config OPENRISC
 	select OF_EARLY_FLATTREE
 	select IRQ_DOMAIN
 	select HANDLE_DOMAIN_IRQ
-	select HAVE_MEMBLOCK
 	select GPIOLIB
         select HAVE_ARCH_TRACEHOOK
 	select SPARSE_IRQ
