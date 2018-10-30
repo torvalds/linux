@@ -11,6 +11,10 @@
 / {
 	compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";
 
+	chosen {
+		stdout-path = "serial2:1500000n8";
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		brightness-levels = <
