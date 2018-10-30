@@ -777,6 +777,29 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
+static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	enum transcoder dsi_trans;
+	u32 tmp;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+
+		/* disable transcoder */
+		tmp = I915_READ(PIPECONF(dsi_trans));
+		tmp &= ~PIPECONF_ENABLE;
+		I915_WRITE(PIPECONF(dsi_trans), tmp);
+
+		/* wait for transcoder to be disabled */
+		if (intel_wait_for_register(dev_priv, PIPECONF(dsi_trans),
+					    I965_PIPECONF_ACTIVE, 0, 50))
+			DRM_ERROR("DSI trancoder not disabled\n");
+	}
+}
+
 static void __attribute__((unused)) gen11_dsi_disable(
 			struct intel_encoder *encoder,
 			const struct intel_crtc_state *old_crtc_state,
@@ -787,4 +810,7 @@ static void __attribute__((unused)) gen11_dsi_disable(
 	/* step1: turn off backlight */
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_panel_disable_backlight(old_conn_state);
+
+	/* step2d,e: disable transcoder and wait */
+	gen11_dsi_disable_transcoder(encoder);
 }
