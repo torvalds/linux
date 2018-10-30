@@ -1073,7 +1073,7 @@ int fat_remove_entries(struct inode *dir, struct fat_slot_info *sinfo)
 		}
 	}
 
-	dir->i_mtime = dir->i_atime = current_time(dir);
+	fat_truncate_time(dir, NULL, S_ATIME|S_MTIME);
 	if (IS_DIRSYNC(dir))
 		(void)fat_sync_inode(dir);
 	else

@@ -227,7 +227,7 @@ static int fat_cont_expand(struct inode *inode, loff_t size)
 	if (err)
 		goto out;
 
-	inode->i_ctime = inode->i_mtime = current_time(inode);
+	fat_truncate_time(inode, NULL, S_CTIME|S_MTIME);
 	mark_inode_dirty(inode);
 	if (IS_SYNC(inode)) {
 		int err2;
@@ -330,7 +330,7 @@ static int fat_free(struct inode *inode, int skip)
 		MSDOS_I(inode)->i_logstart = 0;
 	}
 	MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
-	inode->i_ctime = inode->i_mtime = current_time(inode);
+	fat_truncate_time(inode, NULL, S_CTIME|S_MTIME);
 	if (wait) {
 		err = fat_sync_inode(inode);
 		if (err) {
