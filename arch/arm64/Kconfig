@@ -161,7 +161,6 @@ config ARM64
 	select MULTI_IRQ_HANDLER
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
-	select NO_BOOTMEM
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM

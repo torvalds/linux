@@ -29,7 +29,6 @@ config M68K
 	select DMA_DIRECT_OPS if HAS_DMA
 	select HAVE_MEMBLOCK
 	select ARCH_DISCARD_MEMBLOCK
-	select NO_BOOTMEM
 
 config CPU_BIG_ENDIAN
 	def_bool y

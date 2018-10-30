@@ -34,7 +34,6 @@ config XTENSA
 	select HAVE_STACKPROTECTOR
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
-	select NO_BOOTMEM
 	select PERF_USE_VMALLOC
 	select VIRT_TO_BUS
 	help

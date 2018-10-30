@@ -834,9 +834,6 @@ config JAILHOUSE_GUEST
 
 endif #HYPERVISOR_GUEST
 
-config NO_BOOTMEM
-	def_bool y
-
 source "arch/x86/Kconfig.cpu"
 
 config HPET_TIMER

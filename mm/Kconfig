@@ -142,9 +142,6 @@ config HAVE_GENERIC_GUP
 config ARCH_DISCARD_MEMBLOCK
 	bool
 
-config NO_BOOTMEM
-	bool
-
 config MEMORY_ISOLATION
 	bool
 
@@ -634,7 +631,6 @@ config MAX_STACK_SIZE_MB
 config DEFERRED_STRUCT_PAGE_INIT
 	bool "Defer initialisation of struct pages to kthreads"
 	default n
-	depends on NO_BOOTMEM
 	depends on SPARSEMEM
 	depends on !NEED_PER_CPU_KM
 	depends on 64BIT

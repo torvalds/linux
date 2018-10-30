@@ -25,7 +25,6 @@ config NIOS2
 	select CPU_NO_EFFICIENT_FFS
 	select HAVE_MEMBLOCK
 	select ARCH_DISCARD_MEMBLOCK
-	select NO_BOOTMEM
 
 config GENERIC_CSUM
 	def_bool y

@@ -26,34 +26,6 @@ extern unsigned long max_pfn;
  */
 extern unsigned long long max_possible_pfn;
 
-#ifndef CONFIG_NO_BOOTMEM
-/**
- * struct bootmem_data - per-node information used by the bootmem allocator
- * @node_min_pfn: the starting physical address of the node's memory
- * @node_low_pfn: the end physical address of the directly addressable memory
- * @node_bootmem_map: is a bitmap pointer - the bits represent all physical
- *		      memory pages (including holes) on the node.
- * @last_end_off: the offset within the page of the end of the last allocation;
- *                if 0, the page used is full
- * @hint_idx: the PFN of the page used with the last allocation;
- *            together with using this with the @last_end_offset field,
- *            a test can be made to see if allocations can be merged
- *            with the page used for the last allocation rather than
- *            using up a full new page.
- * @list: list entry in the linked list ordered by the memory addresses
- */
-typedef struct bootmem_data {
-	unsigned long node_min_pfn;
-	unsigned long node_low_pfn;
-	void *node_bootmem_map;
-	unsigned long last_end_off;
-	unsigned long hint_idx;
-	struct list_head list;
-} bootmem_data_t;
-
-extern bootmem_data_t bootmem_node_data[];
-#endif
-
 extern unsigned long bootmem_bootmap_pages(unsigned long);
 
 extern unsigned long init_bootmem_node(pg_data_t *pgdat,
@@ -125,12 +97,8 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
 				      unsigned long align,
 				      unsigned long goal) __malloc;
 
-#ifdef CONFIG_NO_BOOTMEM
 /* We are using top down, so it is safe to use 0 here */
 #define BOOTMEM_LOW_LIMIT 0
-#else
-#define BOOTMEM_LOW_LIMIT __pa(MAX_DMA_ADDRESS)
-#endif
 
 #ifndef ARCH_LOW_ADDRESS_LIMIT
 #define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
@@ -165,7 +133,7 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
 
 
-#if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
+#if defined(CONFIG_HAVE_MEMBLOCK)
 
 /* FIXME: use MEMBLOCK_ALLOC_* variants here */
 #define BOOTMEM_ALLOC_ACCESSIBLE	0
@@ -373,7 +341,7 @@ static inline void __init memblock_free_late(
 {
 	free_bootmem_late(base, size);
 }
-#endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
+#endif /* defined(CONFIG_HAVE_MEMBLOCK) */
 
 extern void *alloc_large_system_hash(const char *tablename,
 				     unsigned long bucketsize,

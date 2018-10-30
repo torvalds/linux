@@ -16,7 +16,6 @@ config H8300
 	select OF_IRQ
 	select OF_EARLY_FLATTREE
 	select HAVE_MEMBLOCK
-	select NO_BOOTMEM
 	select TIMER_OF
 	select H8300_TMR8
 	select HAVE_KERNEL_GZIP

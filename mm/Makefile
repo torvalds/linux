@@ -42,12 +42,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
 			   debug.o $(mmu-y)
 
 obj-y += init-mm.o
-
-ifdef CONFIG_NO_BOOTMEM
-	obj-y		+= nobootmem.o
-else
-	obj-y		+= bootmem.o
-endif
+obj-y += nobootmem.o
 
 ifdef CONFIG_MMU
 	obj-$(CONFIG_ADVISE_SYSCALLS)	+= madvise.o

@@ -35,7 +35,6 @@ config RISCV
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_PERF_EVENTS
 	select IRQ_DOMAIN
-	select NO_BOOTMEM
 	select RISCV_ISA_A if SMP
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE

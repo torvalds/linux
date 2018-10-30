@@ -78,7 +78,6 @@ config MIPS
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
-	select NO_BOOTMEM
 
 menu "Machine selection"
 
