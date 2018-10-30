@@ -186,6 +186,8 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	INIT_HLIST_HEAD(&bat_priv->softif_vlan_list);
 	INIT_HLIST_HEAD(&bat_priv->tp_list);
 
+	bat_priv->gw.generation = 0;
+
 	ret = batadv_v_mesh_init(bat_priv);
 	if (ret < 0)
 		goto err;
