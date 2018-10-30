@@ -205,7 +205,7 @@ handlers are no longer able to execute on this CPU.  This can happen if
 the stalled CPU is spinning with interrupts are disabled, or, in -rt
 kernels, if a high-priority process is starving RCU's softirq handler.
 
-The "fps=" shows the number of force-quiescent-state idle/offline
+The "fqs=" shows the number of force-quiescent-state idle/offline
 detection passes that the grace-period kthread has made across this
 CPU since the last time that this CPU noted the beginning of a grace
 period.
