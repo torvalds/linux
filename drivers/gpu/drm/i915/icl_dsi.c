@@ -841,6 +841,16 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 		tmp &= ~TRANS_DDI_FUNC_ENABLE;
 		I915_WRITE(TRANS_DDI_FUNC_CTL(dsi_trans), tmp);
 	}
+
+	/* disable port sync mode if dual link */
+	if (intel_dsi->dual_link) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			dsi_trans = dsi_port_to_transcoder(port);
+			tmp = I915_READ(TRANS_DDI_FUNC_CTL2(dsi_trans));
+			tmp &= ~PORT_SYNC_MODE_ENABLE;
+			I915_WRITE(TRANS_DDI_FUNC_CTL2(dsi_trans), tmp);
+		}
+	}
 }
 
 static void __attribute__((unused)) gen11_dsi_disable(
