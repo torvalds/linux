@@ -29,6 +29,53 @@ int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi)
 	}
 }
 
+int intel_dsi_get_modes(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_display_mode *mode;
+
+	DRM_DEBUG_KMS("\n");
+
+	if (!intel_connector->panel.fixed_mode) {
+		DRM_DEBUG_KMS("no fixed mode\n");
+		return 0;
+	}
+
+	mode = drm_mode_duplicate(connector->dev,
+				  intel_connector->panel.fixed_mode);
+	if (!mode) {
+		DRM_DEBUG_KMS("drm_mode_duplicate failed\n");
+		return 0;
+	}
+
+	drm_mode_probed_add(connector, mode);
+	return 1;
+}
+
+enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
+					  struct drm_display_mode *mode)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
+	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+
+	DRM_DEBUG_KMS("\n");
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
+	if (fixed_mode) {
+		if (mode->hdisplay > fixed_mode->hdisplay)
+			return MODE_PANEL;
+		if (mode->vdisplay > fixed_mode->vdisplay)
+			return MODE_PANEL;
+		if (fixed_mode->clock > max_dotclk)
+			return MODE_CLOCK_HIGH;
+	}
+
+	return MODE_OK;
+}
+
 struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 					   const struct mipi_dsi_host_ops *funcs,
 					   enum port port)
