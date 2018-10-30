@@ -1247,6 +1247,12 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 {
 	phys_addr_t found;
 
+	if (!align) {
+		/* Can't use WARNs this early in boot on powerpc */
+		dump_stack();
+		align = SMP_CACHE_BYTES;
+	}
+
 	found = memblock_find_in_range_node(size, align, start, end, nid,
 					    flags);
 	if (found && !memblock_reserve(found, size)) {
@@ -1368,6 +1374,11 @@ static void * __init memblock_alloc_internal(
 	 */
 	if (WARN_ON_ONCE(slab_is_available()))
 		return kzalloc_node(size, GFP_NOWAIT, nid);
+
+	if (!align) {
+		dump_stack();
+		align = SMP_CACHE_BYTES;
+	}
 
 	if (max_addr > memblock.current_limit)
 		max_addr = memblock.current_limit;
