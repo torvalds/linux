@@ -596,8 +596,8 @@ static int intel_setup(struct hci_uart *hu)
 	 * is in bootloader mode or if it already has operational firmware
 	 * loaded.
 	 */
-	 err = btintel_read_version(hdev, &ver);
-	 if (err)
+	err = btintel_read_version(hdev, &ver);
+	if (err)
 		return err;
 
 	/* The hardware platform number has a fixed value of 0x37 and
