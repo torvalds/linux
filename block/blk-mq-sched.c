@@ -395,17 +395,11 @@ run:
 		blk_mq_run_hw_queue(hctx, async);
 }
 
-void blk_mq_sched_insert_requests(struct request_queue *q,
+void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 				  struct blk_mq_ctx *ctx,
 				  struct list_head *list, bool run_queue_async)
 {
-	struct blk_mq_hw_ctx *hctx;
 	struct elevator_queue *e;
-	struct request *rq;
-
-	/* For list inserts, requests better be on the same hw queue */
-	rq = list_first_entry(list, struct request, queuelist);
-	hctx = rq->mq_hctx;
 
 	e = hctx->queue->elevator;
 	if (e && e->type->ops.insert_requests)
