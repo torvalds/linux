@@ -752,6 +752,8 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 		     const struct intel_crtc_state *pipe_config,
 		     const struct drm_connector_state *conn_state)
 {
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
 	/* step2: enable IO power */
 	gen11_dsi_enable_io_power(encoder);
 
@@ -769,4 +771,8 @@ gen11_dsi_pre_enable(struct intel_encoder *encoder,
 
 	/* step6d: enable dsi transcoder */
 	gen11_dsi_enable_transcoder(encoder);
+
+	/* step7: enable backlight */
+	intel_panel_enable_backlight(pipe_config, conn_state);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
