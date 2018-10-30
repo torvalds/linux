@@ -1396,8 +1396,6 @@ static enum dc_status enable_link_dp(
 	else
 		status = DC_FAIL_DP_LINK_TRAINING;
 
-	enable_stream_features(pipe_ctx);
-
 	return status;
 }
 
@@ -2593,6 +2591,9 @@ void core_link_enable_stream(
 
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->sink->link->cur_link_settings);
+
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			enable_stream_features(pipe_ctx);
 
 		dc_link_set_backlight_level(pipe_ctx->stream->sink->link,
 				pipe_ctx->stream->bl_pwm_level,
