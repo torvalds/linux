@@ -6116,9 +6116,6 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	u16 queue_gid;
 	int ret;
 
-	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
-		return;
-
 	queue_gid = hclge_covert_handle_qid_global(handle, queue_id);
 
 	ret = hclge_tqp_enable(hdev, queue_id, 0, false);

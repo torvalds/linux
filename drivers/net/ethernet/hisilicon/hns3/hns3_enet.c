@@ -3250,9 +3250,6 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 	int i;
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		if (h->ae_algo->ops->reset_queue)
-			h->ae_algo->ops->reset_queue(h, i);
-
 		hns3_fini_ring(priv->ring_data[i].ring);
 		hns3_fini_ring(priv->ring_data[i + h->kinfo.num_tqps].ring);
 	}
