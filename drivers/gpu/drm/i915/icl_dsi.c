@@ -812,6 +812,29 @@ static void gen11_dsi_powerdown_panel(struct intel_encoder *encoder)
 	wait_for_cmds_dispatched_to_panel(encoder);
 }
 
+static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	enum transcoder dsi_trans;
+	u32 tmp;
+
+	/* put dsi link in ULPS */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		tmp = I915_READ(DSI_LP_MSG(dsi_trans));
+		tmp |= LINK_ENTER_ULPS;
+		tmp &= ~LINK_ULPS_TYPE_LP11;
+		I915_WRITE(DSI_LP_MSG(dsi_trans), tmp);
+
+		if (wait_for_us((I915_READ(DSI_LP_MSG(dsi_trans)) &
+				LINK_IN_ULPS),
+				10))
+			DRM_ERROR("DSI link not in ULPS\n");
+	}
+}
+
 static void __attribute__((unused)) gen11_dsi_disable(
 			struct intel_encoder *encoder,
 			const struct intel_crtc_state *old_crtc_state,
@@ -828,4 +851,7 @@ static void __attribute__((unused)) gen11_dsi_disable(
 
 	/* step2f,g: powerdown panel */
 	gen11_dsi_powerdown_panel(encoder);
+
+	/* step2h,i,j: deconfig trancoder */
+	gen11_dsi_deconfigure_trancoder(encoder);
 }
