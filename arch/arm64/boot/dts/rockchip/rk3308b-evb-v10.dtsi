@@ -243,7 +243,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_wake_host>;
 		wifi_chip_type = "ap6255";
-		WIFI,host_wake_irq = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
+		WIFI,host_wake_irq = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
