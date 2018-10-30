@@ -873,6 +873,26 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	enum port port;
+	u32 tmp;
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PORT_DDI_A_IO);
+
+	if (intel_dsi->dual_link)
+		intel_display_power_put(dev_priv, POWER_DOMAIN_PORT_DDI_B_IO);
+
+	/* set mode to DDI */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp = I915_READ(ICL_DSI_IO_MODECTL(port));
+		tmp &= ~COMBO_PHY_MODE_DSI;
+		I915_WRITE(ICL_DSI_IO_MODECTL(port), tmp);
+	}
+}
+
 static void __attribute__((unused)) gen11_dsi_disable(
 			struct intel_encoder *encoder,
 			const struct intel_crtc_state *old_crtc_state,
@@ -895,4 +915,7 @@ static void __attribute__((unused)) gen11_dsi_disable(
 
 	/* step3: disable port */
 	gen11_dsi_disable_port(encoder);
+
+	/* step4: disable IO power */
+	gen11_dsi_disable_io_power(encoder);
 }
