@@ -542,6 +542,18 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 		up_write(&MSDOS_I(inode)->truncate_lock);
 	}
 
+	/*
+	 * setattr_copy can't truncate these appropriately, so we'll
+	 * copy them ourselves
+	 */
+	if (attr->ia_valid & ATTR_ATIME)
+		fat_truncate_time(inode, &attr->ia_atime, S_ATIME);
+	if (attr->ia_valid & ATTR_CTIME)
+		fat_truncate_time(inode, &attr->ia_ctime, S_CTIME);
+	if (attr->ia_valid & ATTR_MTIME)
+		fat_truncate_time(inode, &attr->ia_mtime, S_MTIME);
+	attr->ia_valid &= ~(ATTR_ATIME|ATTR_CTIME|ATTR_MTIME);
+
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
 out:
