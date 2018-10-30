@@ -28,18 +28,18 @@
 static int virtio_gpu_resource_id_get(struct virtio_gpu_device *vgdev,
 				       uint32_t *resid)
 {
-	int handle = ida_alloc_min(&vgdev->resource_ida, 1, GFP_KERNEL);
+	int handle = ida_alloc(&vgdev->resource_ida, GFP_KERNEL);
 
 	if (handle < 0)
 		return handle;
 
-	*resid = handle;
+	*resid = handle + 1;
 	return 0;
 }
 
 static void virtio_gpu_resource_id_put(struct virtio_gpu_device *vgdev, uint32_t id)
 {
-	ida_free(&vgdev->resource_ida, id);
+	ida_free(&vgdev->resource_ida, id - 1);
 }
 
 static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
