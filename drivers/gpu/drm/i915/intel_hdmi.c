@@ -1594,6 +1594,8 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 	struct drm_atomic_state *state = crtc_state->base.state;
 	struct drm_connector_state *connector_state;
 	struct drm_connector *connector;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
 	int i;
 
 	if (HAS_GMCH_DISPLAY(dev_priv))
@@ -1642,7 +1644,14 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 
 	/* Display WA #1139: glk */
 	if (bpc == 12 && IS_GLK_REVID(dev_priv, 0, GLK_REVID_A1) &&
-	    crtc_state->base.adjusted_mode.htotal > 5460)
+	    adjusted_mode->htotal > 5460)
+		return false;
+
+	/* Display Wa_1405510057:icl */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
+	    bpc == 10 && IS_ICELAKE(dev_priv) &&
+	    (adjusted_mode->crtc_hblank_end -
+	     adjusted_mode->crtc_hblank_start) % 8 == 2)
 		return false;
 
 	return true;
