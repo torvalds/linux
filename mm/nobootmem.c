@@ -150,33 +150,3 @@ unsigned long __init free_all_bootmem(void)
 
 	return pages;
 }
-
-/**
- * free_bootmem_node - mark a page range as usable
- * @pgdat: node the range resides on
- * @physaddr: starting physical address of the range
- * @size: size of the range in bytes
- *
- * Partial pages will be considered reserved and left as they are.
- *
- * The range must reside completely on the specified node.
- */
-void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
-			      unsigned long size)
-{
-	memblock_free(physaddr, size);
-}
-
-/**
- * free_bootmem - mark a page range as usable
- * @addr: starting physical address of the range
- * @size: size of the range in bytes
- *
- * Partial pages will be considered reserved and left as they are.
- *
- * The range must be contiguous but may span node boundaries.
- */
-void __init free_bootmem(unsigned long addr, unsigned long size)
-{
-	memblock_free(addr, size);
-}

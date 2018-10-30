@@ -13,6 +13,7 @@
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/io.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
@@ -191,7 +192,7 @@ static void __init xdbc_free_ring(struct xdbc_ring *ring)
 	if (!seg)
 		return;
 
-	free_bootmem(seg->dma, PAGE_SIZE);
+	memblock_free(seg->dma, PAGE_SIZE);
 	ring->segment = NULL;
 }
 
@@ -675,10 +676,10 @@ int __init early_xdbc_setup_hardware(void)
 		xdbc_free_ring(&xdbc.in_ring);
 
 		if (xdbc.table_dma)
-			free_bootmem(xdbc.table_dma, PAGE_SIZE);
+			memblock_free(xdbc.table_dma, PAGE_SIZE);
 
 		if (xdbc.out_dma)
-			free_bootmem(xdbc.out_dma, PAGE_SIZE);
+			memblock_free(xdbc.out_dma, PAGE_SIZE);
 
 		xdbc.table_base = NULL;
 		xdbc.out_buf = NULL;
@@ -997,8 +998,8 @@ free_and_quit:
 	xdbc_free_ring(&xdbc.evt_ring);
 	xdbc_free_ring(&xdbc.out_ring);
 	xdbc_free_ring(&xdbc.in_ring);
-	free_bootmem(xdbc.table_dma, PAGE_SIZE);
-	free_bootmem(xdbc.out_dma, PAGE_SIZE);
+	memblock_free(xdbc.table_dma, PAGE_SIZE);
+	memblock_free(xdbc.out_dma, PAGE_SIZE);
 	writel(0, &xdbc.xdbc_reg->control);
 	early_iounmap(xdbc.xhci_base, xdbc.xhci_length);
 
