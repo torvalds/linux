@@ -22,7 +22,7 @@
 		pinctrl-0 = <&pwr_key>;
 
 		power {
-			gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 			label = "GPIO Power";
 			linux,code = <116>;
 			wakeup-source;
