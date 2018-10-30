@@ -404,15 +404,15 @@ static int rga2_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd)
 		kfree(one_line);
 		return -1;
 	}
-	temp_data = w * (h - 1) * bits / 3;
+	temp_data = w * (h - 1) * bits >> 3;
 	if (fd > 0) {
 		DBG("vaddr is%p, bits is %d, fd check\n", vaddr, bits);
-		memcpy(one_line, (char *)vaddr + temp_data, w * bits / 3);
+		memcpy(one_line, (char *)vaddr + temp_data, w * bits >> 3);
 		DBG("fd check ok\n");
 	} else {
 		DBG("vir addr memory check.\n");
 		memcpy((void *)((char *)vaddr + temp_data), one_line,
-		       w * bits / 3);
+		       w * bits >> 3);
 		DBG("vir addr check ok.\n");
 	}
 	kfree(one_line);
@@ -1181,7 +1181,7 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 	if (RGA2_CHECK_MODE) {
 		vaddr = ion_map_kernel(rga2_drvdata->ion_client, hdl);
 		if (vaddr)
-			rga2_memory_check(vaddr, req->src.vir_h, req->src.vir_w,
+			rga2_memory_check(vaddr, req->src.vir_w, req->src.vir_h,
 					  req->src.format, req->src.yrgb_addr);
 		ion_unmap_kernel(rga2_drvdata->ion_client, hdl);
 	}
@@ -1223,7 +1223,7 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 	if (RGA2_CHECK_MODE) {
 		vaddr = ion_map_kernel(rga2_drvdata->ion_client, hdl);
 		if (vaddr)
-			rga2_memory_check(vaddr, req->dst.vir_h, req->dst.vir_w,
+			rga2_memory_check(vaddr, req->dst.vir_w, req->dst.vir_h,
 					  req->dst.format, req->dst.yrgb_addr);
 		ion_unmap_kernel(rga2_drvdata->ion_client, hdl);
 	}

@@ -833,6 +833,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
         /* flush data to DDR */
         rga_dma_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
         rga2_mmu_buf_get(&rga2_mmu_buf, AllSize);
+	reg->MMU_len = AllSize;
 
         return 0;
     }
