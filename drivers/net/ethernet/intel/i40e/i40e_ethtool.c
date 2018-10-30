@@ -4660,14 +4660,15 @@ flags_complete:
 		return -EOPNOTSUPP;
 
 	/* If the driver detected FW LLDP was disabled on init, this flag could
-	 * be set, however we do not support _changing_ the flag if NPAR is
-	 * enabled or FW API version < 1.7.  There are situations where older
-	 * FW versions/NPAR enabled PFs could disable LLDP, however we _must_
-	 * not allow the user to enable/disable LLDP with this flag on
-	 * unsupported FW versions.
+	 * be set, however we do not support _changing_ the flag:
+	 * - on XL710 if NPAR is enabled or FW API version < 1.7
+	 * - on X722 with FW API version < 1.6
+	 * There are situations where older FW versions/NPAR enabled PFs could
+	 * disable LLDP, however we _must_ not allow the user to enable/disable
+	 * LLDP with this flag on unsupported FW versions.
 	 */
 	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
-		if (!(pf->hw_features & I40E_HW_STOPPABLE_FW_LLDP)) {
+		if (!(pf->hw.flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE)) {
 			dev_warn(&pf->pdev->dev,
 				 "Device does not support changing FW LLDP\n");
 			return -EOPNOTSUPP;
