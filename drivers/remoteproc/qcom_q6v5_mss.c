@@ -1,5 +1,5 @@
 /*
- * Qualcomm Peripheral Image Loader
+ * Qualcomm self-authenticating modem subsystem remoteproc driver
  *
  * Copyright (C) 2016 Linaro Ltd.
  * Copyright (C) 2014 Sony Mobile Communications AB
@@ -149,6 +149,7 @@ struct q6v5 {
 	u32 halt_nc;
 
 	struct reset_control *mss_restart;
+	struct reset_control *pdc_reset;
 
 	struct qcom_q6v5 q6v5;
 
@@ -165,6 +166,10 @@ struct q6v5 {
 	int proxy_reg_count;
 
 	bool running;
+
+	bool dump_mba_loaded;
+	unsigned long dump_segment_mask;
+	unsigned long dump_complete_mask;
 
 	phys_addr_t mba_phys;
 	void *mba_region;
@@ -347,10 +352,17 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 
 static int q6v5_reset_assert(struct q6v5 *qproc)
 {
-	if (qproc->has_alt_reset)
-		return reset_control_reset(qproc->mss_restart);
-	else
-		return reset_control_assert(qproc->mss_restart);
+	int ret;
+
+	if (qproc->has_alt_reset) {
+		reset_control_assert(qproc->pdc_reset);
+		ret = reset_control_reset(qproc->mss_restart);
+		reset_control_deassert(qproc->pdc_reset);
+	} else {
+		ret = reset_control_assert(qproc->mss_restart);
+	}
+
+	return ret;
 }
 
 static int q6v5_reset_deassert(struct q6v5 *qproc)
@@ -358,9 +370,11 @@ static int q6v5_reset_deassert(struct q6v5 *qproc)
 	int ret;
 
 	if (qproc->has_alt_reset) {
+		reset_control_assert(qproc->pdc_reset);
 		writel(1, qproc->rmb_base + RMB_MBA_ALT_RESET);
 		ret = reset_control_reset(qproc->mss_restart);
 		writel(0, qproc->rmb_base + RMB_MBA_ALT_RESET);
+		reset_control_deassert(qproc->pdc_reset);
 	} else {
 		ret = reset_control_deassert(qproc->mss_restart);
 	}
@@ -669,126 +683,10 @@ static bool q6v5_phdr_valid(const struct elf32_phdr *phdr)
 	return true;
 }
 
-static int q6v5_mpss_load(struct q6v5 *qproc)
+static int q6v5_mba_load(struct q6v5 *qproc)
 {
-	const struct elf32_phdr *phdrs;
-	const struct elf32_phdr *phdr;
-	const struct firmware *seg_fw;
-	const struct firmware *fw;
-	struct elf32_hdr *ehdr;
-	phys_addr_t mpss_reloc;
-	phys_addr_t boot_addr;
-	phys_addr_t min_addr = PHYS_ADDR_MAX;
-	phys_addr_t max_addr = 0;
-	bool relocate = false;
-	char seg_name[10];
-	ssize_t offset;
-	size_t size = 0;
-	void *ptr;
 	int ret;
-	int i;
-
-	ret = request_firmware(&fw, "modem.mdt", qproc->dev);
-	if (ret < 0) {
-		dev_err(qproc->dev, "unable to load modem.mdt\n");
-		return ret;
-	}
-
-	/* Initialize the RMB validator */
-	writel(0, qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
-
-	ret = q6v5_mpss_init_image(qproc, fw);
-	if (ret)
-		goto release_firmware;
-
-	ehdr = (struct elf32_hdr *)fw->data;
-	phdrs = (struct elf32_phdr *)(ehdr + 1);
-
-	for (i = 0; i < ehdr->e_phnum; i++) {
-		phdr = &phdrs[i];
-
-		if (!q6v5_phdr_valid(phdr))
-			continue;
-
-		if (phdr->p_flags & QCOM_MDT_RELOCATABLE)
-			relocate = true;
-
-		if (phdr->p_paddr < min_addr)
-			min_addr = phdr->p_paddr;
-
-		if (phdr->p_paddr + phdr->p_memsz > max_addr)
-			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
-	}
-
-	mpss_reloc = relocate ? min_addr : qproc->mpss_phys;
-	/* Load firmware segments */
-	for (i = 0; i < ehdr->e_phnum; i++) {
-		phdr = &phdrs[i];
-
-		if (!q6v5_phdr_valid(phdr))
-			continue;
-
-		offset = phdr->p_paddr - mpss_reloc;
-		if (offset < 0 || offset + phdr->p_memsz > qproc->mpss_size) {
-			dev_err(qproc->dev, "segment outside memory range\n");
-			ret = -EINVAL;
-			goto release_firmware;
-		}
-
-		ptr = qproc->mpss_region + offset;
-
-		if (phdr->p_filesz) {
-			snprintf(seg_name, sizeof(seg_name), "modem.b%02d", i);
-			ret = request_firmware(&seg_fw, seg_name, qproc->dev);
-			if (ret) {
-				dev_err(qproc->dev, "failed to load %s\n", seg_name);
-				goto release_firmware;
-			}
-
-			memcpy(ptr, seg_fw->data, seg_fw->size);
-
-			release_firmware(seg_fw);
-		}
-
-		if (phdr->p_memsz > phdr->p_filesz) {
-			memset(ptr + phdr->p_filesz, 0,
-			       phdr->p_memsz - phdr->p_filesz);
-		}
-		size += phdr->p_memsz;
-	}
-
-	/* Transfer ownership of modem ddr region to q6 */
-	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm, true,
-				      qproc->mpss_phys, qproc->mpss_size);
-	if (ret) {
-		dev_err(qproc->dev,
-			"assigning Q6 access to mpss memory failed: %d\n", ret);
-		ret = -EAGAIN;
-		goto release_firmware;
-	}
-
-	boot_addr = relocate ? qproc->mpss_phys : min_addr;
-	writel(boot_addr, qproc->rmb_base + RMB_PMI_CODE_START_REG);
-	writel(RMB_CMD_LOAD_READY, qproc->rmb_base + RMB_MBA_COMMAND_REG);
-	writel(size, qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
-
-	ret = q6v5_rmb_mba_wait(qproc, RMB_MBA_AUTH_COMPLETE, 10000);
-	if (ret == -ETIMEDOUT)
-		dev_err(qproc->dev, "MPSS authentication timed out\n");
-	else if (ret < 0)
-		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
-
-release_firmware:
-	release_firmware(fw);
-
-	return ret < 0 ? ret : 0;
-}
-
-static int q6v5_start(struct rproc *rproc)
-{
-	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
 	int xfermemop_ret;
-	int ret;
 
 	qcom_q6v5_prepare(&qproc->q6v5);
 
@@ -859,33 +757,8 @@ static int q6v5_start(struct rproc *rproc)
 		goto halt_axi_ports;
 	}
 
-	dev_info(qproc->dev, "MBA booted, loading mpss\n");
-
-	ret = q6v5_mpss_load(qproc);
-	if (ret)
-		goto reclaim_mpss;
-
-	ret = qcom_q6v5_wait_for_start(&qproc->q6v5, msecs_to_jiffies(5000));
-	if (ret == -ETIMEDOUT) {
-		dev_err(qproc->dev, "start timed out\n");
-		goto reclaim_mpss;
-	}
-
-	xfermemop_ret = q6v5_xfer_mem_ownership(qproc, &qproc->mba_perm, false,
-						qproc->mba_phys,
-						qproc->mba_size);
-	if (xfermemop_ret)
-		dev_err(qproc->dev,
-			"Failed to reclaim mba buffer system may become unstable\n");
-	qproc->running = true;
-
+	qproc->dump_mba_loaded = true;
 	return 0;
-
-reclaim_mpss:
-	xfermemop_ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm,
-						false, qproc->mpss_phys,
-						qproc->mpss_size);
-	WARN_ON(xfermemop_ret);
 
 halt_axi_ports:
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_q6);
@@ -904,7 +777,6 @@ reclaim_mba:
 disable_active_clks:
 	q6v5_clk_disable(qproc->dev, qproc->active_clks,
 			 qproc->active_clk_count);
-
 assert_reset:
 	q6v5_reset_assert(qproc);
 disable_reset_clks:
@@ -919,24 +791,18 @@ disable_proxy_clk:
 disable_proxy_reg:
 	q6v5_regulator_disable(qproc, qproc->proxy_regs,
 			       qproc->proxy_reg_count);
-
 disable_irqs:
 	qcom_q6v5_unprepare(&qproc->q6v5);
 
 	return ret;
 }
 
-static int q6v5_stop(struct rproc *rproc)
+static void q6v5_mba_reclaim(struct q6v5 *qproc)
 {
-	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
 	int ret;
 	u32 val;
 
-	qproc->running = false;
-
-	ret = qcom_q6v5_request_stop(&qproc->q6v5);
-	if (ret == -ETIMEDOUT)
-		dev_err(qproc->dev, "timed out on wait\n");
+	qproc->dump_mba_loaded = false;
 
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_q6);
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_modem);
@@ -951,12 +817,27 @@ static int q6v5_stop(struct rproc *rproc)
 		writel(val, qproc->reg_base + QDSP6SS_PWR_CTL_REG);
 	}
 
-
-	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm, false,
-				      qproc->mpss_phys, qproc->mpss_size);
+	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm,
+				      false, qproc->mpss_phys,
+				      qproc->mpss_size);
 	WARN_ON(ret);
 
 	q6v5_reset_assert(qproc);
+
+	q6v5_clk_disable(qproc->dev, qproc->reset_clks,
+			 qproc->reset_clk_count);
+	q6v5_clk_disable(qproc->dev, qproc->active_clks,
+			 qproc->active_clk_count);
+	q6v5_regulator_disable(qproc, qproc->active_regs,
+			       qproc->active_reg_count);
+
+	/* In case of failure or coredump scenario where reclaiming MBA memory
+	 * could not happen reclaim it here.
+	 */
+	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mba_perm, false,
+				      qproc->mba_phys,
+				      qproc->mba_size);
+	WARN_ON(ret);
 
 	ret = qcom_q6v5_unprepare(&qproc->q6v5);
 	if (ret) {
@@ -965,13 +846,208 @@ static int q6v5_stop(struct rproc *rproc)
 		q6v5_regulator_disable(qproc, qproc->proxy_regs,
 				       qproc->proxy_reg_count);
 	}
+}
 
-	q6v5_clk_disable(qproc->dev, qproc->reset_clks,
-			 qproc->reset_clk_count);
-	q6v5_clk_disable(qproc->dev, qproc->active_clks,
-			 qproc->active_clk_count);
-	q6v5_regulator_disable(qproc, qproc->active_regs,
-			       qproc->active_reg_count);
+static int q6v5_mpss_load(struct q6v5 *qproc)
+{
+	const struct elf32_phdr *phdrs;
+	const struct elf32_phdr *phdr;
+	const struct firmware *seg_fw;
+	const struct firmware *fw;
+	struct elf32_hdr *ehdr;
+	phys_addr_t mpss_reloc;
+	phys_addr_t boot_addr;
+	phys_addr_t min_addr = PHYS_ADDR_MAX;
+	phys_addr_t max_addr = 0;
+	bool relocate = false;
+	char seg_name[10];
+	ssize_t offset;
+	size_t size = 0;
+	void *ptr;
+	int ret;
+	int i;
+
+	ret = request_firmware(&fw, "modem.mdt", qproc->dev);
+	if (ret < 0) {
+		dev_err(qproc->dev, "unable to load modem.mdt\n");
+		return ret;
+	}
+
+	/* Initialize the RMB validator */
+	writel(0, qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
+
+	ret = q6v5_mpss_init_image(qproc, fw);
+	if (ret)
+		goto release_firmware;
+
+	ehdr = (struct elf32_hdr *)fw->data;
+	phdrs = (struct elf32_phdr *)(ehdr + 1);
+
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr = &phdrs[i];
+
+		if (!q6v5_phdr_valid(phdr))
+			continue;
+
+		if (phdr->p_flags & QCOM_MDT_RELOCATABLE)
+			relocate = true;
+
+		if (phdr->p_paddr < min_addr)
+			min_addr = phdr->p_paddr;
+
+		if (phdr->p_paddr + phdr->p_memsz > max_addr)
+			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
+	}
+
+	mpss_reloc = relocate ? min_addr : qproc->mpss_phys;
+	qproc->mpss_reloc = mpss_reloc;
+	/* Load firmware segments */
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr = &phdrs[i];
+
+		if (!q6v5_phdr_valid(phdr))
+			continue;
+
+		offset = phdr->p_paddr - mpss_reloc;
+		if (offset < 0 || offset + phdr->p_memsz > qproc->mpss_size) {
+			dev_err(qproc->dev, "segment outside memory range\n");
+			ret = -EINVAL;
+			goto release_firmware;
+		}
+
+		ptr = qproc->mpss_region + offset;
+
+		if (phdr->p_filesz) {
+			snprintf(seg_name, sizeof(seg_name), "modem.b%02d", i);
+			ret = request_firmware(&seg_fw, seg_name, qproc->dev);
+			if (ret) {
+				dev_err(qproc->dev, "failed to load %s\n", seg_name);
+				goto release_firmware;
+			}
+
+			memcpy(ptr, seg_fw->data, seg_fw->size);
+
+			release_firmware(seg_fw);
+		}
+
+		if (phdr->p_memsz > phdr->p_filesz) {
+			memset(ptr + phdr->p_filesz, 0,
+			       phdr->p_memsz - phdr->p_filesz);
+		}
+		size += phdr->p_memsz;
+	}
+
+	/* Transfer ownership of modem ddr region to q6 */
+	ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm, true,
+				      qproc->mpss_phys, qproc->mpss_size);
+	if (ret) {
+		dev_err(qproc->dev,
+			"assigning Q6 access to mpss memory failed: %d\n", ret);
+		ret = -EAGAIN;
+		goto release_firmware;
+	}
+
+	boot_addr = relocate ? qproc->mpss_phys : min_addr;
+	writel(boot_addr, qproc->rmb_base + RMB_PMI_CODE_START_REG);
+	writel(RMB_CMD_LOAD_READY, qproc->rmb_base + RMB_MBA_COMMAND_REG);
+	writel(size, qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
+
+	ret = q6v5_rmb_mba_wait(qproc, RMB_MBA_AUTH_COMPLETE, 10000);
+	if (ret == -ETIMEDOUT)
+		dev_err(qproc->dev, "MPSS authentication timed out\n");
+	else if (ret < 0)
+		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
+
+release_firmware:
+	release_firmware(fw);
+
+	return ret < 0 ? ret : 0;
+}
+
+static void qcom_q6v5_dump_segment(struct rproc *rproc,
+				   struct rproc_dump_segment *segment,
+				   void *dest)
+{
+	int ret = 0;
+	struct q6v5 *qproc = rproc->priv;
+	unsigned long mask = BIT((unsigned long)segment->priv);
+	void *ptr = rproc_da_to_va(rproc, segment->da, segment->size);
+
+	/* Unlock mba before copying segments */
+	if (!qproc->dump_mba_loaded)
+		ret = q6v5_mba_load(qproc);
+
+	if (!ptr || ret)
+		memset(dest, 0xff, segment->size);
+	else
+		memcpy(dest, ptr, segment->size);
+
+	qproc->dump_segment_mask |= mask;
+
+	/* Reclaim mba after copying segments */
+	if (qproc->dump_segment_mask == qproc->dump_complete_mask) {
+		if (qproc->dump_mba_loaded)
+			q6v5_mba_reclaim(qproc);
+	}
+}
+
+static int q6v5_start(struct rproc *rproc)
+{
+	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
+	int xfermemop_ret;
+	int ret;
+
+	ret = q6v5_mba_load(qproc);
+	if (ret)
+		return ret;
+
+	dev_info(qproc->dev, "MBA booted, loading mpss\n");
+
+	ret = q6v5_mpss_load(qproc);
+	if (ret)
+		goto reclaim_mpss;
+
+	ret = qcom_q6v5_wait_for_start(&qproc->q6v5, msecs_to_jiffies(5000));
+	if (ret == -ETIMEDOUT) {
+		dev_err(qproc->dev, "start timed out\n");
+		goto reclaim_mpss;
+	}
+
+	xfermemop_ret = q6v5_xfer_mem_ownership(qproc, &qproc->mba_perm, false,
+						qproc->mba_phys,
+						qproc->mba_size);
+	if (xfermemop_ret)
+		dev_err(qproc->dev,
+			"Failed to reclaim mba buffer system may become unstable\n");
+
+	/* Reset Dump Segment Mask */
+	qproc->dump_segment_mask = 0;
+	qproc->running = true;
+
+	return 0;
+
+reclaim_mpss:
+	xfermemop_ret = q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm,
+						false, qproc->mpss_phys,
+						qproc->mpss_size);
+	WARN_ON(xfermemop_ret);
+	q6v5_mba_reclaim(qproc);
+
+	return ret;
+}
+
+static int q6v5_stop(struct rproc *rproc)
+{
+	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
+	int ret;
+
+	qproc->running = false;
+
+	ret = qcom_q6v5_request_stop(&qproc->q6v5);
+	if (ret == -ETIMEDOUT)
+		dev_err(qproc->dev, "timed out on wait\n");
+
+	q6v5_mba_reclaim(qproc);
 
 	return 0;
 }
@@ -988,10 +1064,52 @@ static void *q6v5_da_to_va(struct rproc *rproc, u64 da, int len)
 	return qproc->mpss_region + offset;
 }
 
+static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
+					    const struct firmware *mba_fw)
+{
+	const struct firmware *fw;
+	const struct elf32_phdr *phdrs;
+	const struct elf32_phdr *phdr;
+	const struct elf32_hdr *ehdr;
+	struct q6v5 *qproc = rproc->priv;
+	unsigned long i;
+	int ret;
+
+	ret = request_firmware(&fw, "modem.mdt", qproc->dev);
+	if (ret < 0) {
+		dev_err(qproc->dev, "unable to load modem.mdt\n");
+		return ret;
+	}
+
+	ehdr = (struct elf32_hdr *)fw->data;
+	phdrs = (struct elf32_phdr *)(ehdr + 1);
+	qproc->dump_complete_mask = 0;
+
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr = &phdrs[i];
+
+		if (!q6v5_phdr_valid(phdr))
+			continue;
+
+		ret = rproc_coredump_add_custom_segment(rproc, phdr->p_paddr,
+							phdr->p_memsz,
+							qcom_q6v5_dump_segment,
+							(void *)i);
+		if (ret)
+			break;
+
+		qproc->dump_complete_mask |= BIT(i);
+	}
+
+	release_firmware(fw);
+	return ret;
+}
+
 static const struct rproc_ops q6v5_ops = {
 	.start = q6v5_start,
 	.stop = q6v5_stop,
 	.da_to_va = q6v5_da_to_va,
+	.parse_fw = qcom_q6v5_register_dump_segments,
 	.load = q6v5_load,
 };
 
@@ -1066,10 +1184,19 @@ static int q6v5_init_clocks(struct device *dev, struct clk **clks,
 static int q6v5_init_reset(struct q6v5 *qproc)
 {
 	qproc->mss_restart = devm_reset_control_get_exclusive(qproc->dev,
-							      NULL);
+							      "mss_restart");
 	if (IS_ERR(qproc->mss_restart)) {
 		dev_err(qproc->dev, "failed to acquire mss restart\n");
 		return PTR_ERR(qproc->mss_restart);
+	}
+
+	if (qproc->has_alt_reset) {
+		qproc->pdc_reset = devm_reset_control_get_exclusive(qproc->dev,
+								    "pdc_reset");
+		if (IS_ERR(qproc->pdc_reset)) {
+			dev_err(qproc->dev, "failed to acquire pdc reset\n");
+			return PTR_ERR(qproc->pdc_reset);
+		}
 	}
 
 	return 0;
@@ -1132,6 +1259,9 @@ static int q6v5_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
+	if (desc->need_mem_protection && !qcom_scm_is_available())
+		return -EPROBE_DEFER;
+
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_ops,
 			    desc->hexagon_mba_image, sizeof(*qproc));
 	if (!rproc) {
@@ -1192,12 +1322,12 @@ static int q6v5_probe(struct platform_device *pdev)
 	}
 	qproc->active_reg_count = ret;
 
+	qproc->has_alt_reset = desc->has_alt_reset;
 	ret = q6v5_init_reset(qproc);
 	if (ret)
 		goto free_rproc;
 
 	qproc->version = desc->version;
-	qproc->has_alt_reset = desc->has_alt_reset;
 	qproc->need_mem_protection = desc->need_mem_protection;
 
 	ret = qcom_q6v5_init(&qproc->q6v5, pdev, rproc, MPSS_CRASH_REASON_SMEM,
@@ -1368,11 +1498,11 @@ static struct platform_driver q6v5_driver = {
 	.probe = q6v5_probe,
 	.remove = q6v5_remove,
 	.driver = {
-		.name = "qcom-q6v5-pil",
+		.name = "qcom-q6v5-mss",
 		.of_match_table = q6v5_of_match,
 	},
 };
 module_platform_driver(q6v5_driver);
 
-MODULE_DESCRIPTION("Peripheral Image Loader for Hexagon");
+MODULE_DESCRIPTION("Qualcomm Self-authenticating modem remoteproc driver");
 MODULE_LICENSE("GPL v2");
