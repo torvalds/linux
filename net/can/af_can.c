@@ -459,7 +459,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 	if (!rcv)
 		return -ENOMEM;
 
-	spin_lock(&net->can.rcvlists_lock);
+	spin_lock_bh(&net->can.rcvlists_lock);
 
 	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
 	rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
@@ -478,7 +478,7 @@ int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 	rcv_lists_stats->rcv_entries++;
 	rcv_lists_stats->rcv_entries_max = max(rcv_lists_stats->rcv_entries_max,
 					       rcv_lists_stats->rcv_entries);
-	spin_unlock(&net->can.rcvlists_lock);
+	spin_unlock_bh(&net->can.rcvlists_lock);
 
 	return err;
 }
@@ -521,7 +521,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	if (dev && !net_eq(net, dev_net(dev)))
 		return;
 
-	spin_lock(&net->can.rcvlists_lock);
+	spin_lock_bh(&net->can.rcvlists_lock);
 
 	dev_rcv_lists = can_dev_rcv_lists_find(net, dev);
 	rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
@@ -552,7 +552,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 		rcv_lists_stats->rcv_entries--;
 
  out:
-	spin_unlock(&net->can.rcvlists_lock);
+	spin_unlock_bh(&net->can.rcvlists_lock);
 
 	/* schedule the receiver item for deletion */
 	if (rcv) {
