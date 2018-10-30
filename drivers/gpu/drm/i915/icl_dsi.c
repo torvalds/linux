@@ -800,6 +800,18 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_powerdown_panel(struct intel_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_OFF);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_ASSERT_RESET);
+	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_POWER_OFF);
+
+	/* ensure cmds dispatched to panel */
+	wait_for_cmds_dispatched_to_panel(encoder);
+}
+
 static void __attribute__((unused)) gen11_dsi_disable(
 			struct intel_encoder *encoder,
 			const struct intel_crtc_state *old_crtc_state,
@@ -813,4 +825,7 @@ static void __attribute__((unused)) gen11_dsi_disable(
 
 	/* step2d,e: disable transcoder and wait */
 	gen11_dsi_disable_transcoder(encoder);
+
+	/* step2f,g: powerdown panel */
+	gen11_dsi_powerdown_panel(encoder);
 }
