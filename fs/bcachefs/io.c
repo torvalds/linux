@@ -337,7 +337,8 @@ static void __bch2_write_index(struct bch_write_op *op)
 		}
 
 		if (!(op->flags & BCH_WRITE_NOMARK_REPLICAS)) {
-			ret = bch2_mark_bkey_replicas(c, BCH_DATA_USER, e.s_c);
+			ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS,
+						      e.s_c);
 			if (ret)
 				goto err;
 		}

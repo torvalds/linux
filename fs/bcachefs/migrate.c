@@ -51,7 +51,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	       !(ret = btree_iter_err(k))) {
 		if (!bkey_extent_is_data(k.k) ||
 		    !bch2_extent_has_device(bkey_s_c_to_extent(k), dev_idx)) {
-			ret = bch2_mark_bkey_replicas(c, BCH_DATA_USER, k);
+			ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS, k);
 			if (ret)
 				break;
 			bch2_btree_iter_next(&iter);
@@ -72,7 +72,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 		 */
 		bch2_extent_normalize(c, e.s);
 
-		ret = bch2_mark_bkey_replicas(c, BCH_DATA_USER,
+		ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS,
 					      bkey_i_to_s_c(&tmp.key));
 		if (ret)
 			break;
@@ -135,7 +135,7 @@ retry:
 				 */
 				bch2_btree_iter_downgrade(&iter);
 
-				ret = bch2_mark_bkey_replicas(c, BCH_DATA_BTREE,
+				ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_BTREE,
 							      bkey_i_to_s_c(&b->key));
 				if (ret)
 					goto err;

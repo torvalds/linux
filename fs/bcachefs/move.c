@@ -149,7 +149,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 			goto next;
 		}
 
-		ret = bch2_mark_bkey_replicas(c, BCH_DATA_USER,
+		ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS,
 					      extent_i_to_s_c(insert).s_c);
 		if (ret)
 			break;
@@ -600,7 +600,7 @@ static int bch2_gc_data_replicas(struct bch_fs *c)
 
 	for_each_btree_key(&iter, c, BTREE_ID_EXTENTS, POS_MIN,
 			   BTREE_ITER_PREFETCH, k) {
-		ret = bch2_mark_bkey_replicas(c, BCH_DATA_USER, k);
+		ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_EXTENTS, k);
 		if (ret)
 			break;
 	}
@@ -624,7 +624,7 @@ static int bch2_gc_btree_replicas(struct bch_fs *c)
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
 		for_each_btree_node(&iter, c, id, POS_MIN, BTREE_ITER_PREFETCH, b) {
-			ret = bch2_mark_bkey_replicas(c, BCH_DATA_BTREE,
+			ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_BTREE,
 						      bkey_i_to_s_c(&b->key));
 
 			bch2_btree_iter_cond_resched(&iter);

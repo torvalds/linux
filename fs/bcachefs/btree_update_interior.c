@@ -551,7 +551,7 @@ static struct btree_reserve *bch2_btree_reserve_get(struct bch_fs *c,
 			goto err_free;
 		}
 
-		ret = bch2_mark_bkey_replicas(c, BCH_DATA_BTREE,
+		ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_BTREE,
 					      bkey_i_to_s_c(&b->key));
 		if (ret)
 			goto err_free;
@@ -2063,7 +2063,7 @@ int bch2_btree_node_update_key(struct bch_fs *c, struct btree_iter *iter,
 			goto err;
 	}
 
-	ret = bch2_mark_bkey_replicas(c, BCH_DATA_BTREE,
+	ret = bch2_mark_bkey_replicas(c, BKEY_TYPE_BTREE,
 				      extent_i_to_s_c(new_key).s_c);
 	if (ret)
 		goto err_free_update;

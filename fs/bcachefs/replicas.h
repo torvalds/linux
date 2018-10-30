@@ -6,11 +6,11 @@
 
 bool bch2_replicas_marked(struct bch_fs *, enum bch_data_type,
 			  struct bch_devs_list);
-bool bch2_bkey_replicas_marked(struct bch_fs *, enum bch_data_type,
+bool bch2_bkey_replicas_marked(struct bch_fs *, enum bkey_type,
 			       struct bkey_s_c);
 int bch2_mark_replicas(struct bch_fs *, enum bch_data_type,
 		       struct bch_devs_list);
-int bch2_mark_bkey_replicas(struct bch_fs *, enum bch_data_type,
+int bch2_mark_bkey_replicas(struct bch_fs *, enum bkey_type,
 			    struct bkey_s_c);
 
 int bch2_cpu_replicas_to_text(struct bch_replicas_cpu *, char *, size_t);

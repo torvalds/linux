@@ -74,6 +74,42 @@ int bch2_cpu_replicas_to_text(struct bch_replicas_cpu *r,
 	return out - buf;
 }
 
+static void extent_to_replicas(struct bkey_s_c k,
+			       struct bch_replicas_entry *r)
+{
+	if (bkey_extent_is_data(k.k)) {
+		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
+
+		extent_for_each_ptr_decode(e, p, entry)
+			if (!p.ptr.cached)
+				r->devs[r->nr_devs++] = p.ptr.dev;
+	}
+}
+
+static void bkey_to_replicas(enum bkey_type type,
+			     struct bkey_s_c k,
+			     struct bch_replicas_entry *e)
+{
+	e->nr_devs = 0;
+
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+		e->data_type = BCH_DATA_BTREE;
+		extent_to_replicas(k, e);
+		break;
+	case BKEY_TYPE_EXTENTS:
+		e->data_type = BCH_DATA_USER;
+		extent_to_replicas(k, e);
+		break;
+	default:
+		break;
+	}
+
+	replicas_entry_sort(e);
+}
+
 static inline void devlist_to_replicas(struct bch_devs_list devs,
 				       enum bch_data_type data_type,
 				       struct bch_replicas_entry *e)
@@ -189,13 +225,28 @@ err:
 	return ret;
 }
 
+static int __bch2_mark_replicas(struct bch_fs *c,
+				struct bch_replicas_entry *devs)
+{
+	struct bch_replicas_cpu *r, *gc_r;
+	bool marked;
+
+	rcu_read_lock();
+	r = rcu_dereference(c->replicas);
+	gc_r = rcu_dereference(c->replicas_gc);
+	marked = replicas_has_entry(r, devs) &&
+		(!likely(gc_r) || replicas_has_entry(gc_r, devs));
+	rcu_read_unlock();
+
+	return likely(marked) ? 0
+		: bch2_mark_replicas_slowpath(c, devs);
+}
+
 int bch2_mark_replicas(struct bch_fs *c,
 		       enum bch_data_type data_type,
 		       struct bch_devs_list devs)
 {
 	struct bch_replicas_entry_padded search;
-	struct bch_replicas_cpu *r, *gc_r;
-	bool marked;
 
 	if (!devs.nr)
 		return 0;
@@ -206,31 +257,31 @@ int bch2_mark_replicas(struct bch_fs *c,
 
 	devlist_to_replicas(devs, data_type, &search.e);
 
-	rcu_read_lock();
-	r = rcu_dereference(c->replicas);
-	gc_r = rcu_dereference(c->replicas_gc);
-	marked = replicas_has_entry(r, &search.e) &&
-		(!likely(gc_r) || replicas_has_entry(gc_r, &search.e));
-	rcu_read_unlock();
-
-	return likely(marked) ? 0
-		: bch2_mark_replicas_slowpath(c, &search.e);
+	return __bch2_mark_replicas(c, &search.e);
 }
 
 int bch2_mark_bkey_replicas(struct bch_fs *c,
-			    enum bch_data_type data_type,
+			    enum bkey_type type,
 			    struct bkey_s_c k)
 {
-	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
-	unsigned i;
+	struct bch_replicas_entry_padded search;
 	int ret;
 
-	for (i = 0; i < cached.nr; i++)
-		if ((ret = bch2_mark_replicas(c, BCH_DATA_CACHED,
-					      bch2_dev_list_single(cached.devs[i]))))
-			return ret;
+	if (type == BKEY_TYPE_EXTENTS) {
+		struct bch_devs_list cached = bch2_bkey_cached_devs(k);
+		unsigned i;
 
-	return bch2_mark_replicas(c, data_type, bch2_bkey_dirty_devs(k));
+		for (i = 0; i < cached.nr; i++)
+			if ((ret = bch2_mark_replicas(c, BCH_DATA_CACHED,
+						bch2_dev_list_single(cached.devs[i]))))
+				return ret;
+	}
+
+	bkey_to_replicas(type, k, &search.e);
+
+	return search.e.nr_devs
+		? __bch2_mark_replicas(c, &search.e)
+		: 0;
 }
 
 int bch2_replicas_gc_end(struct bch_fs *c, int ret)
@@ -507,18 +558,32 @@ bool bch2_replicas_marked(struct bch_fs *c,
 }
 
 bool bch2_bkey_replicas_marked(struct bch_fs *c,
-			       enum bch_data_type data_type,
+			       enum bkey_type type,
 			       struct bkey_s_c k)
 {
-	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
-	unsigned i;
+	struct bch_replicas_entry_padded search;
+	bool ret;
 
-	for (i = 0; i < cached.nr; i++)
-		if (!bch2_replicas_marked(c, BCH_DATA_CACHED,
-					  bch2_dev_list_single(cached.devs[i])))
-			return false;
+	if (type == BKEY_TYPE_EXTENTS) {
+		struct bch_devs_list cached = bch2_bkey_cached_devs(k);
+		unsigned i;
 
-	return bch2_replicas_marked(c, data_type, bch2_bkey_dirty_devs(k));
+		for (i = 0; i < cached.nr; i++)
+			if (!bch2_replicas_marked(c, BCH_DATA_CACHED,
+					bch2_dev_list_single(cached.devs[i])))
+				return false;
+	}
+
+	bkey_to_replicas(type, k, &search.e);
+
+	if (!search.e.nr_devs)
+		return true;
+
+	rcu_read_lock();
+	ret = replicas_has_entry(rcu_dereference(c->replicas), &search.e);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 struct replicas_status __bch2_replicas_status(struct bch_fs *c,
