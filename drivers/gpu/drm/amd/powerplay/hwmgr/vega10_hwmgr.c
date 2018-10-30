@@ -3249,6 +3249,37 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, const void *input)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
+	const struct phm_set_power_state_input *states =
+			(const struct phm_set_power_state_input *)input;
+	const struct vega10_power_state *vega10_ps =
+			cast_const_phw_vega10_power_state(states->pnew_state);
+	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
+	uint32_t sclk = vega10_ps->performance_levels
+			[vega10_ps->performance_level_count - 1].gfx_clock;
+	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
+	uint32_t mclk = vega10_ps->performance_levels
+			[vega10_ps->performance_level_count - 1].mem_clock;
+	uint32_t i;
+
+	for (i = 0; i < sclk_table->count; i++) {
+		if (sclk == sclk_table->dpm_levels[i].value)
+			break;
+	}
+
+	if (i >= sclk_table->count) {
+		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+		sclk_table->dpm_levels[i-1].value = sclk;
+	}
+
+	for (i = 0; i < mclk_table->count; i++) {
+		if (mclk == mclk_table->dpm_levels[i].value)
+			break;
+	}
+
+	if (i >= mclk_table->count) {
+		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+		mclk_table->dpm_levels[i-1].value = mclk;
+	}
 
 	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
 		data->need_update_dpm_table |= DPMTABLE_UPDATE_MCLK;
