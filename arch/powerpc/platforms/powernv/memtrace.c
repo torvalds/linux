@@ -121,7 +121,7 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 			lock_device_hotplug();
 			end_pfn = base_pfn + nr_pages;
 			for (pfn = base_pfn; pfn < end_pfn; pfn += bytes>> PAGE_SHIFT) {
-				remove_memory(nid, pfn << PAGE_SHIFT, bytes);
+				__remove_memory(nid, pfn << PAGE_SHIFT, bytes);
 			}
 			unlock_device_hotplug();
 			return base_pfn << PAGE_SHIFT;
