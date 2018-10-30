@@ -16,3 +16,6 @@ several of them using the Restructured Text markup notation.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result by upgrading your kernel.
+
+compiling by nu11secur1ty: https://github.com/nu11secur1ty/kernel-4.19.0V.Varbanovski_lp150.12.22_default
+For SUSE distributions.
