@@ -282,6 +282,10 @@
 	compatible = "amlogic,meson-gxbb-aoclkc", "amlogic,meson-gx-aoclkc";
 };
 
+&efuse {
+	clocks = <&clkc CLKID_EFUSE>;
+};
+
 &ethmac {
 	clocks = <&clkc CLKID_ETH>,
 		 <&clkc CLKID_FCLK_DIV2>,
