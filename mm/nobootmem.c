@@ -43,7 +43,7 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 		while (start + (1UL << order) > end)
 			order--;
 
-		__free_pages_bootmem(pfn_to_page(start), start, order);
+		memblock_free_pages(pfn_to_page(start), start, order);
 
 		start += (1UL << order);
 	}
