@@ -423,7 +423,7 @@ static vm_fault_t mmap_vmcore_fault(struct vm_fault *vmf)
 		if (rc < 0) {
 			unlock_page(page);
 			put_page(page);
-			return (rc == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
+			return vmf_error(rc);
 		}
 		SetPageUptodate(page);
 	}
