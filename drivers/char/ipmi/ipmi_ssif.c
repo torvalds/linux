@@ -1800,7 +1800,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			       ssif_info,
 			       &ssif_info->client->dev,
 			       slave_addr);
-	 if (rv) {
+	if (rv) {
 		pr_err("Unable to register device: error %d\n", rv);
 		goto out_remove_attr;
 	}
