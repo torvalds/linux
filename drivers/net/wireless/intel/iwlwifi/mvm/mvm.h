@@ -83,7 +83,6 @@
 #include "sta.h"
 #include "fw-api.h"
 #include "constants.h"
-#include "tof.h"
 #include "fw/runtime.h"
 #include "fw/dbg.h"
 #include "fw/acpi.h"
@@ -1124,7 +1123,6 @@ struct iwl_mvm {
 
 	u32 ciphers[IWL_MVM_NUM_CIPHERS];
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
-	struct iwl_mvm_tof_data tof_data;
 
 	struct ieee80211_vif *nan_vif;
 #define IWL_MAX_BAID	32
@@ -1184,7 +1182,6 @@ enum iwl_mvm_init_status {
 	IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE = BIT(0),
 	IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE = BIT(1),
 	IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE = BIT(2),
-	IWL_MVM_INIT_STATUS_TOF_INIT_COMPLETE = BIT(3),
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)

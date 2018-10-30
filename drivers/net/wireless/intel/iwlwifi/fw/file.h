@@ -303,7 +303,6 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_LAR_SUPPORT: supports Location Aware Regulatory
  * @IWL_UCODE_TLV_CAPA_UMAC_SCAN: supports UMAC scan.
  * @IWL_UCODE_TLV_CAPA_BEAMFORMER: supports Beamformer
- * @IWL_UCODE_TLV_CAPA_TOF_SUPPORT: supports Time of Flight (802.11mc FTM)
  * @IWL_UCODE_TLV_CAPA_TDLS_SUPPORT: support basic TDLS functionality
  * @IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT: supports insertion of current
  *	tx power value into TPC Report action frame and Link Measurement Report
@@ -369,7 +368,6 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_LAR_SUPPORT			= (__force iwl_ucode_tlv_capa_t)1,
 	IWL_UCODE_TLV_CAPA_UMAC_SCAN			= (__force iwl_ucode_tlv_capa_t)2,
 	IWL_UCODE_TLV_CAPA_BEAMFORMER			= (__force iwl_ucode_tlv_capa_t)3,
-	IWL_UCODE_TLV_CAPA_TOF_SUPPORT                  = (__force iwl_ucode_tlv_capa_t)5,
 	IWL_UCODE_TLV_CAPA_TDLS_SUPPORT			= (__force iwl_ucode_tlv_capa_t)6,
 	IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT	= (__force iwl_ucode_tlv_capa_t)8,
 	IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)9,
