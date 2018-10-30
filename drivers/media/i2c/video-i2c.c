@@ -378,7 +378,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	video_i2c_del_list(vq, VB2_BUF_STATE_ERROR);
 }
 
-static struct vb2_ops video_i2c_video_qops = {
+static const struct vb2_ops video_i2c_video_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,
