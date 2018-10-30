@@ -100,3 +100,5 @@ obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/
 obj-y					+= meson/
 
 obj-y					+= cros-ec-cec/
+
+obj-$(CONFIG_VIDEO_SUN6I_CSI)		+= sunxi/sun6i-csi/
