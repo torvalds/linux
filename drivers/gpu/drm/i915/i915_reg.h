@@ -10527,6 +10527,28 @@ enum skl_power_gate {
 #define  MAX_HEADER_CREDIT		0x10
 #define  MAX_PLOAD_CREDIT		0x40
 
+#define _DSI_CMD_TXHDR_0		0x6b100
+#define _DSI_CMD_TXHDR_1		0x6b900
+#define DSI_CMD_TXHDR(tc)		_MMIO_DSI(tc,	\
+						  _DSI_CMD_TXHDR_0,\
+						  _DSI_CMD_TXHDR_1)
+#define  PAYLOAD_PRESENT		(1 << 31)
+#define  LP_DATA_TRANSFER		(1 << 30)
+#define  VBLANK_FENCE			(1 << 29)
+#define  PARAM_WC_MASK			(0xffff << 8)
+#define  PARAM_WC_LOWER_SHIFT		8
+#define  PARAM_WC_UPPER_SHIFT		16
+#define  VC_MASK			(0x3 << 6)
+#define  VC_SHIFT			6
+#define  DT_MASK			(0x3f << 0)
+#define  DT_SHIFT			0
+
+#define _DSI_CMD_TXPYLD_0		0x6b104
+#define _DSI_CMD_TXPYLD_1		0x6b904
+#define DSI_CMD_TXPYLD(tc)		_MMIO_DSI(tc,	\
+						  _DSI_CMD_TXPYLD_0,\
+						  _DSI_CMD_TXPYLD_1)
+
 #define _DSI_LP_MSG_0			0x6b0d8
 #define _DSI_LP_MSG_1			0x6b8d8
 #define DSI_LP_MSG(tc)			_MMIO_DSI(tc,	\
