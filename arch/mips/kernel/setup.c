@@ -917,7 +917,7 @@ static void __init resource_init(void)
 		if (end >= HIGHMEM_START)
 			end = HIGHMEM_START - 1;
 
-		res = alloc_bootmem(sizeof(struct resource));
+		res = memblock_alloc(sizeof(struct resource), 0);
 
 		res->start = start;
 		res->end = end;

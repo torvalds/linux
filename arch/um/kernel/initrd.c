@@ -36,7 +36,7 @@ int __init read_initrd(void)
 		return 0;
 	}
 
-	area = alloc_bootmem(size);
+	area = memblock_alloc(size, 0);
 
 	if (load_initrd(initrd, area, size) == -1)
 		return 0;

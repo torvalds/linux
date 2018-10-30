@@ -82,7 +82,7 @@ mk_resource_name(int pe, int port, char *str)
 	char *name;
 	
 	sprintf(tmp, "PCI %s PE %d PORT %d", str, pe, port);
-	name = alloc_bootmem(strlen(tmp) + 1);
+	name = memblock_alloc(strlen(tmp) + 1, 0);
 	strcpy(name, tmp);
 
 	return name;
@@ -117,7 +117,7 @@ alloc_io7(unsigned int pe)
 		return NULL;
 	}
 
-	io7 = alloc_bootmem(sizeof(*io7));
+	io7 = memblock_alloc(sizeof(*io7), 0);
 	io7->pe = pe;
 	raw_spin_lock_init(&io7->irq_lock);
 

@@ -650,7 +650,7 @@ static int __init eth_setup(char *str)
 		return 1;
 	}
 
-	new = alloc_bootmem(sizeof(*new));
+	new = memblock_alloc(sizeof(*new), 0);
 
 	INIT_LIST_HEAD(&new->list);
 	new->index = n;

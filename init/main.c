@@ -773,8 +773,8 @@ static int __init initcall_blacklist(char *str)
 		str_entry = strsep(&str, ",");
 		if (str_entry) {
 			pr_debug("blacklisting initcall %s\n", str_entry);
-			entry = alloc_bootmem(sizeof(*entry));
-			entry->buf = alloc_bootmem(strlen(str_entry) + 1);
+			entry = memblock_alloc(sizeof(*entry), 0);
+			entry->buf = memblock_alloc(strlen(str_entry) + 1, 0);
 			strcpy(entry->buf, str_entry);
 			list_add(&entry->next, &blacklisted_initcalls);
 		}

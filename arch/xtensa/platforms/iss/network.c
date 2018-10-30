@@ -646,7 +646,7 @@ static int __init iss_net_setup(char *str)
 		return 1;
 	}
 
-	new = alloc_bootmem(sizeof(*new));
+	new = memblock_alloc(sizeof(*new), 0);
 	if (new == NULL) {
 		pr_err("Alloc_bootmem failed\n");
 		return 1;

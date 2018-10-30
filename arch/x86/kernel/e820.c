@@ -1094,7 +1094,7 @@ void __init e820__reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem(sizeof(*res) * e820_table->nr_entries);
+	res = memblock_alloc(sizeof(*res) * e820_table->nr_entries, 0);
 	e820_res = res;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {

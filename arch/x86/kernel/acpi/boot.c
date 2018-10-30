@@ -933,7 +933,8 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	 * the resource tree during the lateinit timeframe.
 	 */
 #define HPET_RESOURCE_NAME_SIZE 9
-	hpet_res = alloc_bootmem(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE);
+	hpet_res = memblock_alloc(sizeof(*hpet_res) + HPET_RESOURCE_NAME_SIZE,
+				  0);
 
 	hpet_res->name = (void *)&hpet_res[1];
 	hpet_res->flags = IORESOURCE_MEM;
