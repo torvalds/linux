@@ -5031,6 +5031,9 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 			      type_str);
 }
 
+static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
+				  struct intel_digital_port *dig_port);
+
 /*
  * This function implements the first part of the Connect Flow described by our
  * specification, Gen11 TypeC Programming chapter. The rest of the flow (reading
@@ -5085,9 +5088,7 @@ static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
 	if (dig_port->tc_type == TC_PORT_TYPEC &&
 	    !(I915_READ(PORT_TX_DFLEXDPSP) & TC_LIVE_STATE_TC(tc_port))) {
 		DRM_DEBUG_KMS("TC PHY %d sudden disconnect.\n", tc_port);
-		val = I915_READ(PORT_TX_DFLEXDPCSSS);
-		val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
-		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
+		icl_tc_phy_disconnect(dev_priv, dig_port);
 		return false;
 	}
 
