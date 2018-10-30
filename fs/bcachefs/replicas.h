@@ -17,7 +17,7 @@ void bch2_cpu_replicas_to_text(struct printbuf *, struct bch_replicas_cpu *);
 
 struct replicas_status {
 	struct {
-		unsigned	nr_online;
+		int		redundancy;
 		unsigned	nr_offline;
 	}			replicas[BCH_DATA_NR];
 };
@@ -27,7 +27,7 @@ struct replicas_status __bch2_replicas_status(struct bch_fs *,
 struct replicas_status bch2_replicas_status(struct bch_fs *);
 bool bch2_have_enough_devs(struct replicas_status, unsigned);
 
-unsigned bch2_replicas_online(struct bch_fs *, bool);
+int bch2_replicas_online(struct bch_fs *, bool);
 unsigned bch2_dev_has_data(struct bch_fs *, struct bch_dev *);
 
 int bch2_replicas_gc_end(struct bch_fs *, int);
@@ -46,8 +46,14 @@ int bch2_replicas_gc_start(struct bch_fs *, unsigned);
 	     (void *) (_i) < vstruct_end(&(_r)->field) && (_i)->data_type;\
 	     (_i) = replicas_entry_next(_i))
 
+#define for_each_replicas_entry_v0(_r, _i)				\
+	for (_i = (_r)->entries;					\
+	     (void *) (_i) < vstruct_end(&(_r)->field) && (_i)->data_type;\
+	     (_i) = replicas_entry_next(_i))
+
 int bch2_sb_replicas_to_cpu_replicas(struct bch_fs *);
 
 extern const struct bch_sb_field_ops bch_sb_field_ops_replicas;
+extern const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0;
 
 #endif /* _BCACHEFS_REPLICAS_H */

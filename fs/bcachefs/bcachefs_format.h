@@ -888,10 +888,11 @@ struct bch_sb_field {
 	x(journal,	0)	\
 	x(members,	1)	\
 	x(crypt,	2)	\
-	x(replicas,	3)	\
+	x(replicas_v0,	3)	\
 	x(quota,	4)	\
 	x(disk_groups,	5)	\
-	x(clean,	6)
+	x(clean,	6)	\
+	x(replicas,	7)
 
 enum bch_sb_field_type {
 #define x(f, nr)	BCH_SB_FIELD_##f = nr,
@@ -1017,16 +1018,28 @@ enum bch_data_type {
 	BCH_DATA_NR		= 6,
 };
 
-struct bch_replicas_entry {
+struct bch_replicas_entry_v0 {
 	__u8			data_type;
 	__u8			nr_devs;
 	__u8			devs[];
-};
+} __attribute__((packed));
+
+struct bch_sb_field_replicas_v0 {
+	struct bch_sb_field	field;
+	struct bch_replicas_entry_v0 entries[];
+} __attribute__((packed, aligned(8)));
+
+struct bch_replicas_entry {
+	__u8			data_type;
+	__u8			nr_devs;
+	__u8			nr_required;
+	__u8			devs[];
+} __attribute__((packed));
 
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
 	struct bch_replicas_entry entries[];
-};
+} __attribute__((packed, aligned(8)));
 
 /* BCH_SB_FIELD_quota: */
 

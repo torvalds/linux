@@ -346,8 +346,8 @@ SHOW(bch2_fs)
 
 	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
 
-	sysfs_printf(meta_replicas_have, "%u",	bch2_replicas_online(c, true));
-	sysfs_printf(data_replicas_have, "%u",	bch2_replicas_online(c, false));
+	sysfs_printf(meta_replicas_have, "%i",	bch2_replicas_online(c, true));
+	sysfs_printf(data_replicas_have, "%i",	bch2_replicas_online(c, false));
 
 	/* Debugging: */
 

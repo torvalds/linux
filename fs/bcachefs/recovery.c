@@ -130,7 +130,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 	int ret;
 
 	mutex_lock(&c->sb_lock);
-	if (!bch2_sb_get_replicas(c->disk_sb.sb)) {
+	if (!rcu_dereference_protected(c->replicas,
+			lockdep_is_held(&c->sb_lock))->nr) {
 		bch_info(c, "building replicas info");
 		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	}

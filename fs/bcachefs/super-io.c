@@ -60,8 +60,13 @@ static struct bch_sb_field *__bch2_sb_field_resize(struct bch_sb_handle *sb,
 		void *src, *dst;
 
 		src = vstruct_end(f);
-		f->u64s = cpu_to_le32(u64s);
-		dst = vstruct_end(f);
+
+		if (u64s) {
+			f->u64s = cpu_to_le32(u64s);
+			dst = vstruct_end(f);
+		} else {
+			dst = f;
+		}
 
 		memmove(dst, src, vstruct_end(sb->sb) - src);
 
@@ -71,7 +76,16 @@ static struct bch_sb_field *__bch2_sb_field_resize(struct bch_sb_handle *sb,
 
 	sb->sb->u64s = cpu_to_le32(sb_u64s);
 
-	return f;
+	return u64s ? f : NULL;
+}
+
+void bch2_sb_field_delete(struct bch_sb_handle *sb,
+			  enum bch_sb_field_type type)
+{
+	struct bch_sb_field *f = bch2_sb_field_get(sb->sb, type);
+
+	if (f)
+		__bch2_sb_field_resize(sb, f, 0);
 }
 
 /* Superblock realloc/free: */
@@ -174,7 +188,8 @@ struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *sb,
 	}
 
 	f = __bch2_sb_field_resize(sb, f, u64s);
-	f->type = cpu_to_le32(type);
+	if (f)
+		f->type = cpu_to_le32(type);
 	return f;
 }
 
@@ -366,6 +381,7 @@ static void __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 {
 	struct bch_sb_field *src_f, *dst_f;
 	struct bch_sb *dst = dst_handle->sb;
+	unsigned i;
 
 	dst->version		= src->version;
 	dst->seq		= src->seq;
@@ -384,15 +400,17 @@ static void __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 	memcpy(dst->features,	src->features,	sizeof(dst->features));
 	memcpy(dst->compat,	src->compat,	sizeof(dst->compat));
 
-	vstruct_for_each(src, src_f) {
-		if (src_f->type == BCH_SB_FIELD_journal)
+	for (i = 0; i < BCH_SB_FIELD_NR; i++) {
+		if (i == BCH_SB_FIELD_journal)
 			continue;
 
-		dst_f = bch2_sb_field_get(dst, le32_to_cpu(src_f->type));
+		src_f = bch2_sb_field_get(src, i);
+		dst_f = bch2_sb_field_get(dst, i);
 		dst_f = __bch2_sb_field_resize(dst_handle, dst_f,
-					       le32_to_cpu(src_f->u64s));
+				src_f ? le32_to_cpu(src_f->u64s) : 0);
 
-		memcpy(dst_f, src_f, vstruct_bytes(src_f));
+		if (src_f)
+			memcpy(dst_f, src_f, vstruct_bytes(src_f));
 	}
 }
 
