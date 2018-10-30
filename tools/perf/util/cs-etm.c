@@ -244,6 +244,27 @@ static void cs_etm__free(struct perf_session *session)
 	zfree(&aux);
 }
 
+static u8 cs_etm__cpu_mode(struct cs_etm_queue *etmq, u64 address)
+{
+	struct machine *machine;
+
+	machine = etmq->etm->machine;
+
+	if (address >= etmq->etm->kernel_start) {
+		if (machine__is_host(machine))
+			return PERF_RECORD_MISC_KERNEL;
+		else
+			return PERF_RECORD_MISC_GUEST_KERNEL;
+	} else {
+		if (machine__is_host(machine))
+			return PERF_RECORD_MISC_USER;
+		else if (perf_guest)
+			return PERF_RECORD_MISC_GUEST_USER;
+		else
+			return PERF_RECORD_MISC_HYPERVISOR;
+	}
+}
+
 static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u64 address,
 			      size_t size, u8 *buffer)
 {
@@ -258,10 +279,7 @@ static u32 cs_etm__mem_access(struct cs_etm_queue *etmq, u64 address,
 		return -1;
 
 	machine = etmq->etm->machine;
-	if (address >= etmq->etm->kernel_start)
-		cpumode = PERF_RECORD_MISC_KERNEL;
-	else
-		cpumode = PERF_RECORD_MISC_USER;
+	cpumode = cs_etm__cpu_mode(etmq, address);
 
 	thread = etmq->thread;
 	if (!thread) {
@@ -653,7 +671,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	struct perf_sample sample = {.ip = 0,};
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
-	event->sample.header.misc = PERF_RECORD_MISC_USER;
+	event->sample.header.misc = cs_etm__cpu_mode(etmq, addr);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
 	sample.ip = addr;
@@ -665,7 +683,7 @@ static int cs_etm__synth_instruction_sample(struct cs_etm_queue *etmq,
 	sample.cpu = etmq->packet->cpu;
 	sample.flags = 0;
 	sample.insn_len = 1;
-	sample.cpumode = event->header.misc;
+	sample.cpumode = event->sample.header.misc;
 
 	if (etm->synth_opts.last_branch) {
 		cs_etm__copy_last_branch_rb(etmq);
@@ -706,12 +724,15 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq)
 		u64			nr;
 		struct branch_entry	entries;
 	} dummy_bs;
+	u64 ip;
+
+	ip = cs_etm__last_executed_instr(etmq->prev_packet);
 
 	event->sample.header.type = PERF_RECORD_SAMPLE;
-	event->sample.header.misc = PERF_RECORD_MISC_USER;
+	event->sample.header.misc = cs_etm__cpu_mode(etmq, ip);
 	event->sample.header.size = sizeof(struct perf_event_header);
 
-	sample.ip = cs_etm__last_executed_instr(etmq->prev_packet);
+	sample.ip = ip;
 	sample.pid = etmq->pid;
 	sample.tid = etmq->tid;
 	sample.addr = cs_etm__first_executed_instr(etmq->packet);
@@ -720,7 +741,7 @@ static int cs_etm__synth_branch_sample(struct cs_etm_queue *etmq)
 	sample.period = 1;
 	sample.cpu = etmq->packet->cpu;
 	sample.flags = 0;
-	sample.cpumode = PERF_RECORD_MISC_USER;
+	sample.cpumode = event->sample.header.misc;
 
 	/*
 	 * perf report cannot handle events without a branch stack
