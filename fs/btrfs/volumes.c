@@ -792,6 +792,8 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 	u64 devid = btrfs_stack_device_id(&disk_super->dev_item);
 	bool has_metadata_uuid = (btrfs_super_incompat_flags(disk_super) &
 		BTRFS_FEATURE_INCOMPAT_METADATA_UUID);
+	bool fsid_change_in_progress = (btrfs_super_flags(disk_super) &
+					BTRFS_SUPER_FLAG_CHANGING_FSID_V2);
 
 	if (has_metadata_uuid)
 		fs_devices = find_fsid(disk_super->fsid, disk_super->metadata_uuid);
@@ -804,6 +806,8 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 						      disk_super->metadata_uuid);
 		else
 			fs_devices = alloc_fs_devices(disk_super->fsid, NULL);
+
+		fs_devices->fsid_change = fsid_change_in_progress;
 
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
@@ -940,8 +944,11 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 	 * it back. We need it to pick the disk with largest generation
 	 * (as above).
 	 */
-	if (!fs_devices->opened)
+	if (!fs_devices->opened) {
 		device->generation = found_transid;
+		fs_devices->latest_generation = max_t(u64, found_transid,
+						fs_devices->latest_generation);
+	}
 
 	fs_devices->total_devices = btrfs_super_num_devices(disk_super);
 
