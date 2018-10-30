@@ -405,6 +405,21 @@ static noinline struct btrfs_fs_devices *find_fsid(
 				return fs_devices;
 			}
 		}
+		/*
+		 * Handle scanned device having completed its fsid change but
+		 * belonging to a fs_devices that was created by a device that
+		 * has an outdated pair of fsid/metadata_uuid and
+		 * CHANGING_FSID_V2 flag set.
+		 */
+		list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
+			if (fs_devices->fsid_change &&
+			    memcmp(fs_devices->metadata_uuid,
+				   fs_devices->fsid, BTRFS_FSID_SIZE) != 0 &&
+			    memcmp(metadata_fsid, fs_devices->metadata_uuid,
+				   BTRFS_FSID_SIZE) == 0) {
+				return fs_devices;
+			}
+		}
 	}
 
 	/* Handle non-split brain cases */
@@ -814,6 +829,30 @@ static struct btrfs_fs_devices *find_fsid_inprogress(
 	return NULL;
 }
 
+
+static struct btrfs_fs_devices *find_fsid_changed(
+					struct btrfs_super_block *disk_super)
+{
+	struct btrfs_fs_devices *fs_devices;
+
+	/*
+	 * Handles the case where scanned device is part of an fs that had
+	 * multiple successful changes of FSID but curently device didn't
+	 * observe it. Meaning our fsid will be different than theirs.
+	 */
+	list_for_each_entry(fs_devices, &fs_uuids, fs_list) {
+		if (memcmp(fs_devices->metadata_uuid, fs_devices->fsid,
+			   BTRFS_FSID_SIZE) != 0 &&
+		    memcmp(fs_devices->metadata_uuid, disk_super->metadata_uuid,
+			   BTRFS_FSID_SIZE) == 0 &&
+		    memcmp(fs_devices->fsid, disk_super->fsid,
+			   BTRFS_FSID_SIZE) != 0) {
+			return fs_devices;
+		}
+	}
+
+	return NULL;
+}
 /*
  * Add new device to list of registered devices
  *
@@ -835,17 +874,20 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 	bool fsid_change_in_progress = (btrfs_super_flags(disk_super) &
 					BTRFS_SUPER_FLAG_CHANGING_FSID_V2);
 
-	if (fsid_change_in_progress && !has_metadata_uuid) {
-		/*
-		 * When we have an image which has CHANGING_FSID_V2 set it might
-		 * belong to either a filesystem which has disks with completed
-		 * fsid change or it might belong to fs with no UUID changes in
-		 * effect, handle both.
-		 */
-		fs_devices = find_fsid_inprogress(disk_super);
-		if (!fs_devices)
-			fs_devices = find_fsid(disk_super->fsid, NULL);
-
+	if (fsid_change_in_progress) {
+		if (!has_metadata_uuid) {
+			/*
+			 * When we have an image which has CHANGING_FSID_V2 set
+			 * it might belong to either a filesystem which has
+			 * disks with completed fsid change or it might belong
+			 * to fs with no UUID changes in effect, handle both.
+			 */
+			fs_devices = find_fsid_inprogress(disk_super);
+			if (!fs_devices)
+				fs_devices = find_fsid(disk_super->fsid, NULL);
+		} else {
+			fs_devices = find_fsid_changed(disk_super);
+		}
 	} else if (has_metadata_uuid) {
 		fs_devices = find_fsid(disk_super->fsid,
 				       disk_super->metadata_uuid);
