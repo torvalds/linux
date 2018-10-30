@@ -315,6 +315,7 @@ enum bch_time_stats {
 #include "keylist_types.h"
 #include "quota_types.h"
 #include "rebalance_types.h"
+#include "replicas_types.h"
 #include "super_types.h"
 
 /* Number of nodes btree coalesce will try to coalesce at once */

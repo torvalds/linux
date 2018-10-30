@@ -36,18 +36,6 @@ struct bch_member_cpu {
 	u8			valid;
 };
 
-struct bch_replicas_cpu_entry {
-	u8			data_type;
-	u8			devs[BCH_SB_MEMBERS_MAX / 8];
-};
-
-struct bch_replicas_cpu {
-	struct rcu_head		rcu;
-	unsigned		nr;
-	unsigned		entry_size;
-	struct bch_replicas_cpu_entry entries[];
-};
-
 struct bch_disk_group_cpu {
 	bool				deleted;
 	u16				parent;
