@@ -398,8 +398,9 @@ struct rockchip_pin_ctrl {
 	struct rockchip_mux_route_data *iomux_routes;
 	u32				niomux_routes;
 
-	int	(*soc_data_init)(struct rockchip_pinctrl *info,
-				 struct rockchip_pin_ctrl *ctrl);
+	int	(*ctrl_data_re_init)(struct rockchip_pin_ctrl *ctrl);
+
+	int	(*soc_data_init)(struct rockchip_pinctrl *info);
 
 	void	(*pull_calc_reg)(struct rockchip_pin_bank *bank,
 				 int pin_num, struct regmap **regmap,
@@ -4160,29 +4161,12 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 
 static const struct of_device_id rockchip_pinctrl_dt_match[];
 
-/* SoC data specially handle */
-
-#define RK3308B_GRF_SOC_CON13			0x608
-#define RK3308B_GRF_SOC_CON15			0x610
-
-/* RK3308B_GRF_SOC_CON13 */
-#define RK3308B_GRF_I2C3_IOFUNC_SRC_CTRL	(BIT(16 + 10) | BIT(10))
-#define RK3308B_GRF_GPIO2A3_SEL_SRC_CTRL	(BIT(16 + 7)  | BIT(7))
-#define RK3308B_GRF_GPIO2A2_SEL_SRC_CTRL	(BIT(16 + 3)  | BIT(3))
-
-/* RK3308B_GRF_SOC_CON15 */
-#define RK3308B_GRF_GPIO2C0_SEL_SRC_CTRL	(BIT(16 + 11) | BIT(11))
-#define RK3308B_GRF_GPIO3B3_SEL_SRC_CTRL	(BIT(16 + 7)  | BIT(7))
-#define RK3308B_GRF_GPIO3B2_SEL_SRC_CTRL	(BIT(16 + 3)  | BIT(3))
-
-static int rk3308b_soc_data_init(struct rockchip_pinctrl *info,
-				 struct rockchip_pin_ctrl *ctrl)
+/* Ctrl data specially handle */
+static int rk3308b_ctrl_data_re_init(struct rockchip_pin_ctrl *ctrl)
 {
-	int ret;
-
 	/*
 	 * Special for rk3308b, where we need to replace the recalced
-	 * and routed arrays, and enable the ctrl of selected sources.
+	 * and routed arrays.
 	 */
 	if (soc_is_rk3308b()) {
 		ctrl->iomux_recalced = rk3308b_mux_recalced_data;
@@ -4190,19 +4174,6 @@ static int rk3308b_soc_data_init(struct rockchip_pinctrl *info,
 		ctrl->iomux_routes = rk3308b_mux_route_data;
 		ctrl->niomux_routes = ARRAY_SIZE(rk3308b_mux_route_data);
 
-		ret = regmap_write(info->regmap_base, RK3308B_GRF_SOC_CON13,
-				   RK3308B_GRF_I2C3_IOFUNC_SRC_CTRL |
-				   RK3308B_GRF_GPIO2A3_SEL_SRC_CTRL |
-				   RK3308B_GRF_GPIO2A2_SEL_SRC_CTRL);
-		if (ret)
-			return ret;
-
-		ret = regmap_write(info->regmap_base, RK3308B_GRF_SOC_CON15,
-				   RK3308B_GRF_GPIO2C0_SEL_SRC_CTRL |
-				   RK3308B_GRF_GPIO3B3_SEL_SRC_CTRL |
-				   RK3308B_GRF_GPIO3B2_SEL_SRC_CTRL);
-		if (ret)
-			return ret;
 	}
 
 	return 0;
@@ -4240,9 +4211,9 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 		}
 	}
 
-	/* Special handle for some Socs */
-	if (ctrl->soc_data_init) {
-		if (ctrl->soc_data_init(d, ctrl))
+	/* Ctrl data re-initialize for some Socs */
+	if (ctrl->ctrl_data_re_init) {
+		if (ctrl->ctrl_data_re_init(ctrl))
 			return NULL;
 	}
 
@@ -4392,6 +4363,48 @@ static int __maybe_unused rockchip_pinctrl_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(rockchip_pinctrl_dev_pm_ops, rockchip_pinctrl_suspend,
 			 rockchip_pinctrl_resume);
 
+/* SoC data specially handle */
+
+/* rk3308b SoC data initialize */
+#define RK3308B_GRF_SOC_CON13			0x608
+#define RK3308B_GRF_SOC_CON15			0x610
+
+/* RK3308B_GRF_SOC_CON13 */
+#define RK3308B_GRF_I2C3_IOFUNC_SRC_CTRL	(BIT(16 + 10) | BIT(10))
+#define RK3308B_GRF_GPIO2A3_SEL_SRC_CTRL	(BIT(16 + 7)  | BIT(7))
+#define RK3308B_GRF_GPIO2A2_SEL_SRC_CTRL	(BIT(16 + 3)  | BIT(3))
+
+/* RK3308B_GRF_SOC_CON15 */
+#define RK3308B_GRF_GPIO2C0_SEL_SRC_CTRL	(BIT(16 + 11) | BIT(11))
+#define RK3308B_GRF_GPIO3B3_SEL_SRC_CTRL	(BIT(16 + 7)  | BIT(7))
+#define RK3308B_GRF_GPIO3B2_SEL_SRC_CTRL	(BIT(16 + 3)  | BIT(3))
+
+static int rk3308b_soc_data_init(struct rockchip_pinctrl *info)
+{
+	int ret;
+
+	/*
+	 * Enable the special ctrl of selected sources.
+	 */
+	if (soc_is_rk3308b()) {
+		ret = regmap_write(info->regmap_base, RK3308B_GRF_SOC_CON13,
+				   RK3308B_GRF_I2C3_IOFUNC_SRC_CTRL |
+				   RK3308B_GRF_GPIO2A3_SEL_SRC_CTRL |
+				   RK3308B_GRF_GPIO2A2_SEL_SRC_CTRL);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(info->regmap_base, RK3308B_GRF_SOC_CON15,
+				   RK3308B_GRF_GPIO2C0_SEL_SRC_CTRL |
+				   RK3308B_GRF_GPIO3B3_SEL_SRC_CTRL |
+				   RK3308B_GRF_GPIO3B2_SEL_SRC_CTRL);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int rockchip_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info;
@@ -4412,6 +4425,13 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->dev = dev;
+
+	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
+	if (!ctrl) {
+		dev_err(dev, "driver data not available\n");
+		return -EINVAL;
+	}
+	info->ctrl = ctrl;
 
 	node = of_parse_phandle(np, "rockchip,grf", 0);
 	if (node) {
@@ -4456,12 +4476,12 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 			return PTR_ERR(info->regmap_pmu);
 	}
 
-	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
-	if (!ctrl) {
-		dev_err(dev, "driver data not available\n");
-		return -EINVAL;
+	/* Special handle for some Socs */
+	if (ctrl->soc_data_init) {
+		ret = ctrl->soc_data_init(info);
+		if (ret)
+			return ret;
 	}
-	info->ctrl = ctrl;
 
 	ret = rockchip_gpiolib_register(pdev, info);
 	if (ret)
@@ -4773,6 +4793,7 @@ static struct rockchip_pin_ctrl rk3308_pin_ctrl = {
 		.niomux_recalced	= ARRAY_SIZE(rk3308_mux_recalced_data),
 		.iomux_routes		= rk3308_mux_route_data,
 		.niomux_routes		= ARRAY_SIZE(rk3308_mux_route_data),
+		.ctrl_data_re_init	= rk3308b_ctrl_data_re_init,
 		.soc_data_init		= rk3308b_soc_data_init,
 		.pull_calc_reg		= rk3308_calc_pull_reg_and_bit,
 		.drv_calc_reg		= rk3308_calc_drv_reg_and_bit,
