@@ -395,7 +395,7 @@ unlock_mutex:
 	return ret;
 }
 
-static struct thermal_zone_of_device_ops of_ops = {
+static const struct thermal_zone_of_device_ops of_ops = {
 	.get_temp = armada_get_temp,
 };
 
