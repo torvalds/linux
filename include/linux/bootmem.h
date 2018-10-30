@@ -26,14 +26,6 @@ extern unsigned long max_pfn;
  */
 extern unsigned long long max_possible_pfn;
 
-extern unsigned long bootmem_bootmap_pages(unsigned long);
-
-extern unsigned long init_bootmem_node(pg_data_t *pgdat,
-				       unsigned long freepfn,
-				       unsigned long startpfn,
-				       unsigned long endpfn);
-extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
-
 extern unsigned long free_all_bootmem(void);
 extern void reset_node_managed_pages(pg_data_t *pgdat);
 extern void reset_all_zones_managed_pages(void);
@@ -54,14 +46,6 @@ extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
  */
 #define BOOTMEM_DEFAULT		0
 #define BOOTMEM_EXCLUSIVE	(1<<0)
-
-extern int reserve_bootmem(unsigned long addr,
-			   unsigned long size,
-			   int flags);
-extern int reserve_bootmem_node(pg_data_t *pgdat,
-				unsigned long physaddr,
-				unsigned long size,
-				int flags);
 
 extern void *__alloc_bootmem(unsigned long size,
 			     unsigned long align,
