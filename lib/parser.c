@@ -166,13 +166,10 @@ static int match_u64int(substring_t *s, u64 *result, int base)
 	char *buf;
 	int ret;
 	u64 val;
-	size_t len = s->to - s->from;
 
-	buf = kmalloc(len + 1, GFP_KERNEL);
+	buf = match_strdup(s);
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, s->from, len);
-	buf[len] = '\0';
 
 	ret = kstrtoull(buf, base, &val);
 	if (!ret)
