@@ -174,8 +174,8 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
-	dev_dbg(dev, "%s[%d] %pad -> %pad\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "%s %pad -> %pad\n",
+		rsnd_mod_name(mod),
 		&cfg.src_addr, &cfg.dst_addr);
 
 	ret = dmaengine_slave_config(dmaen->chan, &cfg);
@@ -369,8 +369,7 @@ static u32 rsnd_dmapp_get_id(struct rsnd_dai_stream *io,
 	if ((!entry) || (size <= id)) {
 		struct device *dev = rsnd_priv_to_dev(rsnd_io_to_priv(io));
 
-		dev_err(dev, "unknown connection (%s[%d])\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
+		dev_err(dev, "unknown connection (%s)\n", rsnd_mod_name(mod));
 
 		/* use non-prohibited SRS number as error */
 		return 0x00; /* SSI00 */
@@ -692,12 +691,10 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 		*mod_to		= mod[1];
 	}
 
-	dev_dbg(dev, "module connection (this is %s[%d])\n",
-		rsnd_mod_name(this), rsnd_mod_id(this));
+	dev_dbg(dev, "module connection (this is %s)\n", rsnd_mod_name(this));
 	for (i = 0; i <= idx; i++) {
-		dev_dbg(dev, "  %s[%d]%s\n",
+		dev_dbg(dev, "  %s%s\n",
 			rsnd_mod_name(mod[i] ? mod[i] : &mem),
-			rsnd_mod_id  (mod[i] ? mod[i] : &mem),
 			(mod[i] == *mod_from) ? " from" :
 			(mod[i] == *mod_to)   ? " to" : "");
 	}
@@ -762,12 +759,10 @@ static int rsnd_dma_alloc(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(dev, "%s[%d] %s[%d] -> %s[%d]\n",
-		rsnd_mod_name(*dma_mod), rsnd_mod_id(*dma_mod),
+	dev_dbg(dev, "%s %s -> %s\n",
+		rsnd_mod_name(*dma_mod),
 		rsnd_mod_name(mod_from ? mod_from : &mem),
-		rsnd_mod_id  (mod_from ? mod_from : &mem),
-		rsnd_mod_name(mod_to   ? mod_to   : &mem),
-		rsnd_mod_id  (mod_to   ? mod_to   : &mem));
+		rsnd_mod_name(mod_to   ? mod_to   : &mem));
 
 	ret = attach(io, dma, mod_from, mod_to);
 	if (ret < 0)

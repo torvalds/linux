@@ -83,8 +83,8 @@ u32 rsnd_read(struct rsnd_priv *priv,
 
 	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
 
-	dev_dbg(dev, "r %s[%d] - %-18s (%4d) : %08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "r %s - %-18s (%4d) : %08x\n",
+		rsnd_mod_name(mod),
 		rsnd_reg_name(gen, reg), reg, val);
 
 	return val;
@@ -102,8 +102,8 @@ void rsnd_write(struct rsnd_priv *priv,
 
 	regmap_fields_force_write(gen->regs[reg], rsnd_mod_id(mod), data);
 
-	dev_dbg(dev, "w %s[%d] - %-18s (%4d) : %08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "w %s - %-18s (%4d) : %08x\n",
+		rsnd_mod_name(mod),
 		rsnd_reg_name(gen, reg), reg, data);
 }
 
@@ -119,8 +119,8 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 	regmap_fields_force_update_bits(gen->regs[reg],
 					rsnd_mod_id(mod), mask, data);
 
-	dev_dbg(dev, "b %s[%d] - %-18s (%4d) : %08x/%08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod),
+	dev_dbg(dev, "b %s - %-18s (%4d) : %08x/%08x\n",
+		rsnd_mod_name(mod),
 		rsnd_reg_name(gen, reg), reg, data, mask);
 
 }

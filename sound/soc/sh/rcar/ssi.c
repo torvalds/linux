@@ -181,8 +181,7 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 		udelay(5);
 	}
 
-	dev_warn(dev, "%s[%d] status check failed\n",
-		 rsnd_mod_name(mod), rsnd_mod_id(mod));
+	dev_warn(dev, "%s status check failed\n", rsnd_mod_name(mod));
 }
 
 static u32 rsnd_ssi_multi_slaves(struct rsnd_dai_stream *io)
@@ -346,9 +345,7 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	ssi->rate = rate;
 	ssi->chan = chan;
 
-	dev_dbg(dev, "%s[%d] outputs %u Hz\n",
-		rsnd_mod_name(mod),
-		rsnd_mod_id(mod), rate);
+	dev_dbg(dev, "%s outputs %u Hz\n", rsnd_mod_name(mod), rate);
 
 	return 0;
 }
@@ -494,8 +491,7 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 		return 0;
 
 	if (!ssi->usrcnt) {
-		dev_err(dev, "%s[%d] usrcnt error\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
+		dev_err(dev, "%s usrcnt error\n", rsnd_mod_name(mod));
 		return -EIO;
 	}
 
@@ -654,8 +650,8 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 
 	/* DMA only */
 	if (is_dma && (status & (UIRQ | OIRQ))) {
-		rsnd_dbg_irq_status(dev, "%s[%d] err status : 0x%08x\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod), status);
+		rsnd_dbg_irq_status(dev, "%s err status : 0x%08x\n",
+			rsnd_mod_name(mod), status);
 
 		stop = true;
 	}
@@ -964,8 +960,7 @@ static int rsnd_ssi_fallback(struct rsnd_mod *mod,
 	 */
 	mod->ops = &rsnd_ssi_pio_ops;
 
-	dev_info(dev, "%s[%d] fallback to PIO mode\n",
-		 rsnd_mod_name(mod), rsnd_mod_id(mod));
+	dev_info(dev, "%s fallback to PIO mode\n", rsnd_mod_name(mod));
 
 	return 0;
 }
@@ -1085,15 +1080,13 @@ static void __rsnd_ssi_parse_hdmi_connection(struct rsnd_priv *priv,
 	/* HDMI0 */
 	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
 		rsnd_flags_set(ssi, RSND_SSI_HDMI0);
-		dev_dbg(dev, "%s[%d] connected to HDMI0\n",
-			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+		dev_dbg(dev, "%s connected to HDMI0\n", rsnd_mod_name(mod));
 	}
 
 	/* HDMI1 */
 	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
 		rsnd_flags_set(ssi, RSND_SSI_HDMI1);
-		dev_dbg(dev, "%s[%d] connected to HDMI1\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
+		dev_dbg(dev, "%s connected to HDMI1\n", rsnd_mod_name(mod));
 	}
 }
 
