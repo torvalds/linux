@@ -10037,6 +10037,39 @@ enum skl_power_gate {
 						    _ICL_DSI_IO_MODECTL_1)
 #define  COMBO_PHY_MODE_DSI				(1 << 0)
 
+/* Display Stream Splitter Control */
+#define DSS_CTL1				_MMIO(0x67400)
+#define  SPLITTER_ENABLE			(1 << 31)
+#define  JOINER_ENABLE				(1 << 30)
+#define  DUAL_LINK_MODE_INTERLEAVE		(1 << 24)
+#define  DUAL_LINK_MODE_FRONTBACK		(0 << 24)
+#define  OVERLAP_PIXELS_MASK			(0xf << 16)
+#define  OVERLAP_PIXELS(pixels)			((pixels) << 16)
+#define  LEFT_DL_BUF_TARGET_DEPTH_MASK		(0xfff << 0)
+#define  LEFT_DL_BUF_TARGET_DEPTH(pixels)	((pixels) << 0)
+#define  MAX_DL_BUFFER_TARGET_DEPTH		0x5A0
+
+#define DSS_CTL2				_MMIO(0x67404)
+#define  LEFT_BRANCH_VDSC_ENABLE		(1 << 31)
+#define  RIGHT_BRANCH_VDSC_ENABLE		(1 << 15)
+#define  RIGHT_DL_BUF_TARGET_DEPTH_MASK		(0xfff << 0)
+#define  RIGHT_DL_BUF_TARGET_DEPTH(pixels)	((pixels) << 0)
+
+#define _PIPE_DSS_CTL1_PB			0x78200
+#define _PIPE_DSS_CTL1_PC			0x78400
+#define PIPE_DSS_CTL1(pipe)			_MMIO_PIPE((pipe) - PIPE_B, \
+							   _PIPE_DSS_CTL1_PB, \
+							   _PIPE_DSS_CTL1_PC)
+#define  BIG_JOINER_ENABLE			(1 << 29)
+#define  MASTER_BIG_JOINER_ENABLE		(1 << 28)
+#define  VGA_CENTERING_ENABLE			(1 << 27)
+
+#define _PIPE_DSS_CTL2_PB			0x78204
+#define _PIPE_DSS_CTL2_PC			0x78404
+#define PIPE_DSS_CTL2(pipe)			_MMIO_PIPE((pipe) - PIPE_B, \
+							   _PIPE_DSS_CTL2_PB, \
+							   _PIPE_DSS_CTL2_PC)
+
 #define BXT_P_DSI_REGULATOR_CFG			_MMIO(0x160020)
 #define  STAP_SELECT					(1 << 0)
 
