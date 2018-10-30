@@ -6587,6 +6587,8 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!intel_dp_is_edp(intel_dp))
 		return true;
 
+	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work, edp_panel_vdd_work);
+
 	/*
 	 * On IBX/CPT we may get here with LVDS already registered. Since the
 	 * driver uses the only internal power sequencer available for both
@@ -6792,9 +6794,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
 	intel_dp_aux_init(intel_dp);
-
-	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
-			  edp_panel_vdd_work);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
