@@ -3823,7 +3823,6 @@ W:	http://www.arm.com/products/processors/technologies/biglittleprocessing.php
 S:	Maintained
 F:	drivers/cpufreq/arm_big_little.h
 F:	drivers/cpufreq/arm_big_little.c
-F:	drivers/cpufreq/arm_big_little_dt.c
 
 CPU POWER MONITORING SUBSYSTEM
 M:	Thomas Renninger <trenn@suse.com>
