@@ -1921,9 +1921,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	i915_save_state(dev_priv);
 
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
-	intel_opregion_notify_adapter(dev_priv, opregion_target_state);
-
-	intel_opregion_unregister(dev_priv);
+	intel_opregion_suspend(dev_priv, opregion_target_state);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
 
@@ -2042,7 +2040,6 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	i915_restore_state(dev_priv);
 	intel_pps_unlock_regs_wa(dev_priv);
-	intel_opregion_setup(dev_priv);
 
 	intel_init_pch_refclk(dev_priv);
 
@@ -2084,11 +2081,9 @@ static int i915_drm_resume(struct drm_device *dev)
 	 * */
 	intel_hpd_init(dev_priv);
 
-	intel_opregion_register(dev_priv);
+	intel_opregion_resume(dev_priv);
 
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING, false);
-
-	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 
 	intel_power_domains_enable(dev_priv);
 
