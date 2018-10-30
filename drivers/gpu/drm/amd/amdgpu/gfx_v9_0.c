@@ -1620,8 +1620,8 @@ static int gfx_v9_0_ngg_en(struct amdgpu_device *adev)
 	/* Clear GDS reserved memory */
 	r = amdgpu_ring_alloc(ring, 17);
 	if (r) {
-		DRM_ERROR("amdgpu: NGG failed to lock ring %d (%d).\n",
-			  ring->idx, r);
+		DRM_ERROR("amdgpu: NGG failed to lock ring %s (%d).\n",
+			  ring->name, r);
 		return r;
 	}
 
