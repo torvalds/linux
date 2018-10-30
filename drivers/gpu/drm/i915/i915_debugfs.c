@@ -3064,16 +3064,17 @@ static void intel_connector_info(struct seq_file *m,
 	seq_printf(m, "connector %d: type %s, status: %s\n",
 		   connector->base.id, connector->name,
 		   drm_get_connector_status_name(connector->status));
-	if (connector->status == connector_status_connected) {
-		seq_printf(m, "\tname: %s\n", connector->display_info.name);
-		seq_printf(m, "\tphysical dimensions: %dx%dmm\n",
-			   connector->display_info.width_mm,
-			   connector->display_info.height_mm);
-		seq_printf(m, "\tsubpixel order: %s\n",
-			   drm_get_subpixel_order_name(connector->display_info.subpixel_order));
-		seq_printf(m, "\tCEA rev: %d\n",
-			   connector->display_info.cea_rev);
-	}
+
+	if (connector->status == connector_status_disconnected)
+		return;
+
+	seq_printf(m, "\tname: %s\n", connector->display_info.name);
+	seq_printf(m, "\tphysical dimensions: %dx%dmm\n",
+		   connector->display_info.width_mm,
+		   connector->display_info.height_mm);
+	seq_printf(m, "\tsubpixel order: %s\n",
+		   drm_get_subpixel_order_name(connector->display_info.subpixel_order));
+	seq_printf(m, "\tCEA rev: %d\n", connector->display_info.cea_rev);
 
 	if (!intel_encoder)
 		return;
