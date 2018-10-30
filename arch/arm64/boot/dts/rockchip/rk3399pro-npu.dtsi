@@ -420,6 +420,8 @@
 		reg = <0x0 0xffbc0000 0x0 0x1000>;
 		clocks =  <&cru SCLK_NPU>, <&cru ACLK_NPU>, <&cru HCLK_NPU>;
 		clock-names = "sclk_npu", "aclk_npu", "hclk_npu";
+		assigned-clocks = <&cru SCLK_NPU>;
+		assigned-clock-rates = <800000000>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&power RK1808_VD_NPU>;
 		status = "disabled";
