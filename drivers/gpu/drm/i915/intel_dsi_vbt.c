@@ -111,6 +111,7 @@ static inline enum port intel_dsi_seq_port_to_port(u8 port)
 static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 				       const u8 *data)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	struct mipi_dsi_device *dsi_device;
 	u8 type, flags, seq_port;
 	u16 len;
@@ -181,7 +182,8 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		break;
 	}
 
-	vlv_dsi_wait_for_fifo_empty(intel_dsi, port);
+	if (!IS_ICELAKE(dev_priv))
+		vlv_dsi_wait_for_fifo_empty(intel_dsi, port);
 
 out:
 	data += len;
