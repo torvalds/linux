@@ -5,6 +5,10 @@ config PINCTRL_IMX
 	select GENERIC_PINCONF
 	select REGMAP
 
+config PINCTRL_IMX_SCU
+	bool
+	select PINCTRL_IMX
+
 config PINCTRL_IMX1_CORE
 	bool
 	select PINMUX
