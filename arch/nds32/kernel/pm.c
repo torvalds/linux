@@ -5,7 +5,6 @@
 #include <linux/suspend.h>
 #include <linux/device.h>
 #include <linux/printk.h>
-#include <linux/suspend.h>
 #include <asm/suspend.h>
 #include <nds32_intrinsic.h>
 
